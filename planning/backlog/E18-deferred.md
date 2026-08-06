@@ -40,3 +40,4 @@ The model has been discussed once internally and needs a conversation with a sch
 - [ ] `E18-21` Dedicated API server, if Edge Functions are outgrown (kept cheap by the `api/` module rule in E14-02)
 - [ ] `E18-22` Read replicas and pre-aggregated reporting tables as volume grows
 - [ ] `E18-23` Second contributor onboarding (branch protection and CI already in place from E01)
+- [ ] `E18-24` **Chargeback / dispute handling** — the `payment.dispute.*` webhook family is deliberately not subscribed in v1 (`docs/payments-design.md` §6.4). A dispute on a ₹200 lunch is rare and a half-built dispute flow is worse than none, so until this exists a dispute is an email from Razorpay handled in the dashboard, surfacing the next morning as reconciliation break class B6
