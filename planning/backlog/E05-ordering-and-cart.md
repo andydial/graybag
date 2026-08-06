@@ -22,3 +22,5 @@ summary: Recipients, cart, cutoff enforcement, break/drop time selection, and or
 - [ ] `E05-10` Order history with reorder
 - [ ] `E05-11` Order cancellation by the customer (before cutoff) moves the order to `cancelled`. The **refund path itself lands with `E06-09`**, not here
 - [ ] `E05-12` (risk:high) Concurrency: two devices submitting the same cart must not create duplicate orders (idempotency key)
+- [ ] `E05-13` `POST /checkout/preflight` — re-runs every checkout guard (cutoff, price, availability, allergens, wallet balance) and returns the server's prices without writing. Advisory only; §8.1 of `docs/order-lifecycle.md` says why it is never a guard
+- [ ] `E05-14` (risk:high) **Abandoned-checkout sweeper** — every 5 minutes, close `order_group`s left at `pending_payment` past the TTL. Must reconcile each non-terminal attempt against Razorpay *before* cancelling, reverse the wallet hold and release any capacity decrement. TTL is `[OL-03]`

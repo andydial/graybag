@@ -19,6 +19,80 @@ Format — newest first:
 
 ---
 
+## 2026-08-07 — `planning/backlog.html` cannot be regenerated in an unattended run
+
+**Context:** Q06 appended eight tasks to `E05` and `E06`. CLAUDE.md requires
+`node scripts/build-backlog.mjs` whenever the task *list* changes.
+**What happened:** `node` is installed but every invocation returns "requires approval", which a
+non-interactive run cannot obtain — the same sandbox limitation that stopped the PDF being read
+in Q05, now hitting a step the repo's own workflow mandates.
+**Cause:** Non-interactive session, Bash allowlist covering `git`, `ls`, `grep`, `find` and
+little else.
+**Fix / rule:** The markdown in `planning/backlog/` is the source of truth and is correct; only
+the generated `backlog.html` is stale, and it is stale silently — it renders fine, it just does
+not show the new tasks. **Any overnight run that appends tasks must say so in its summary so the
+one command gets run by hand**, and this note is here so the next run does not spend time
+rediscovering that `node` is unavailable. Either allowlist `node scripts/*.mjs` for the
+overnight wrapper, or have `scripts/overnight.sh` run the build itself after each task — the
+second is better, because it does not depend on a summary being read.
+
+## 2026-08-07 — A uniqueness constraint that protects an invariant can also make reality unrecordable
+
+**Context:** Specifying the duplicate-payment path (Q06, `E06-06`). `uq_payment_one_capture_per_group`
+is `unique (order_group_id) where status = 'captured'` — `D16`'s guarantee that two payments
+never settle one checkout.
+**What happened:** Walking the actual scenario — attempt 1 is a UPI collect sitting pending, the
+customer gives up and pays by card, attempt 1 then succeeds — the constraint does exactly what it
+was written to do and blocks the second capture. Which means the one correct response, *record it
+and then refund it*, is the single thing the schema forbids. The money left the customer's account
+either way; we simply could not write it down.
+**Cause:** The constraint encodes "one capture per group", but the invariant actually wanted is
+"one **primary** capture per group". The two are the same until the outside world disagrees with us.
+**Fix / rule:** Raised as `[OL-05]` with a `duplicate_of_payment_id` escape hatch as the
+recommendation. The general rule is worth more than the fix: **a uniqueness constraint on a table
+that mirrors an external system must not prevent recording something that system has already
+done.** Razorpay is the system of record for whether money moved; our schema has to be able to
+write down whatever it says, and only *then* decide what it means. Check every table in `§8` of the
+data model against this — `uq_invoice_one_tax_invoice_per_group` is safe because we issue invoices,
+but anything keyed on a provider's behaviour is suspect.
+
+## 2026-08-07 — Payment webhooks are not ordered, and "set status from the event" silently downgrades
+
+**Context:** Writing the webhook handling half of `docs/order-lifecycle.md`.
+**What happened:** The obvious handler — `update payment set status = <the event's status>` — is
+wrong in a way that leaves no trace. `payment.authorized` and `payment.captured` are separate
+deliveries and can arrive in either order. The late `authorized` overwrites `captured`; the order
+is already `paid`, the invoice is already issued, the customer already has their email. Nothing
+looks broken until the `E06-11` reconciliation reports a captured payment the database calls
+authorized, a month later.
+**Cause:** Webhook delivery is retried and concurrent, so it is unordered by construction. Nothing
+in the payload says "this is stale".
+**Fix / rule:** `L3` — payment state moves on a **capture rank** (`created` 0, `authorized` 1,
+`captured` 2), and an event implying a rank at or below the current one is recorded with
+`processing_status = 'ignored'` and changes nothing. The refund axis is *derived* from completed
+refunds rather than transitioned, because refunds are not on the same monotonic line. Generalises:
+**any state driven by an external event stream needs an ordering key of its own, and it must come
+from the state's own semantics, not from the event's timestamp** — provider clocks are not ours,
+and a retry carries the original timestamp anyway.
+
+## 2026-08-07 — "Midnight cutoff" is a day earlier than it reads, and it makes one config setting dead
+
+**Context:** Working the cutoff edge cases for `E05-07`. The defaults are
+`order_cutoff_time = '00:00'` and `order_cutoff_days_before = 0`.
+**What happened:** `cutoff_at = (service_date − 0) at 00:00`, so the cutoff for Monday's lunch is
+**00:00 on Monday** — order by Sunday night. Read quickly, "midnight cutoff" sounds like 23:59 on
+the service day, which would be a full day wrong in the direction that puts unmakeable orders on
+the kitchen's list. Second-order effect: `min_advance_order_days` defaults to `0`, which under this
+cutoff can never be satisfied, because same-day ordering would need `now() < today 00:00`.
+**Cause:** Two independent settings whose defaults interact. Neither is wrong; the pair is
+misleading.
+**Fix / rule:** The worked example is written into `docs/order-lifecycle.md` §9.3 (C5, C6) and into
+the test matrix, so the assertion is "Monday's lunch closes at 00:00 Monday" rather than "the
+cutoff works". `min_advance_order_days = 0` is documented as dead config under the default cutoff —
+it becomes real only for a kitchen that sets a daytime cutoff. General rule: **when two config
+settings compose into a single derived value, test the composition, not the settings**, and write
+down which combinations are unreachable so nobody reads a `0` default as a feature being on.
+
 ## 2026-08-07 — A crashed documentation run leaves dangling forward references, and git makes it look finished
 
 **Context:** Picking up Q05. `docs/motion-system.md` and `docs/design-tokens.md` both already

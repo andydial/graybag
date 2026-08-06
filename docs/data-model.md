@@ -1075,6 +1075,11 @@ share).
 - **Constraint**: `Σ refund.amount_paise` for a group must not exceed the group's captured
   amount. Enforced by a constraint trigger, because over-refunding is a real and expensive
   bug.
+  **Superseded by `docs/order-lifecycle.md` §7.3 (Q06).** As stated here the guard is wrong in
+  both directions: it counts `failed` refunds, so two failed attempts block the third
+  legitimate one, and it ignores in-flight ones, so two admins refunding the same order
+  concurrently both pass. The sum is over `status IN ('pending','processing','completed')`, and
+  the trigger takes the `order_group` row lock first. `E06-21`.
 
 **`refund_line`**
 
@@ -1384,6 +1389,18 @@ Every column below exists on all three tables unless the scope column says other
 | `allergen_warning_enabled` | boolean | `true` | all | E05-05. Never expected to be false; present so it is a config decision, not a code deploy |
 | `customer_cancellation_allowed` | boolean | `true` | all | E05-11 |
 | `customer_cancellation_cutoff_minutes` | integer | `0` | all | Minutes before `cutoff_at`; 0 = right up to cutoff |
+
+**Three settings are missing from this table** and are required by `docs/order-lifecycle.md`
+(Q06): `pending_payment_ttl_minutes` (`[OL-03]`), `payment_in_flight_grace_minutes` (`[OL-02]`)
+and `payment_retry_window_minutes`. They are not added here because two of the three have an
+undecided *value* and adding a column with a guessed default is how a guess becomes a fact.
+`E06-20` adds all three, on all three scope tables, in the same PR that updates this section.
+
+**Note on the defaults above.** `order_cutoff_time = '00:00'` with `order_cutoff_days_before = 0`
+means the cutoff for Monday's lunch is **00:00 on Monday** — order by Sunday night, not by
+Monday evening. A consequence: `min_advance_order_days = 0` cannot be satisfied under that
+cutoff, so the `0` default does not mean same-day ordering is available. Worked through in
+`docs/order-lifecycle.md` §9.3.
 
 ### 9.2 The three tables
 

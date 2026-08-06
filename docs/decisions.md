@@ -96,6 +96,23 @@ givens; everything below is a choice about how to build on them.
 | S10 | **No runtime animation player** — no Lottie, no Rive, no animated illustration, no confetti | It is a dependency, a bundle cost on a network-constrained product, and a standing invitation to break S1. The one celebratory moment in the mocks ("congratulations, your account is complete") is a static composition and stays one |
 | S11 | **Light mode only in v1** | Not in the mocks and not in the package; it roughly doubles the contrast surface to design and test. S7 is what keeps the door open. `DS-03` |
 
+## Order lifecycle
+
+Made in Q06 while writing `docs/order-lifecycle.md`, which is the specification `E05` and `E06`
+are built from. Everything below is a choice about *how* the order and its money move; the
+states themselves come from `E06-05` and the enums in `0001_initial_schema.sql`.
+
+| # | Decision | Why |
+|---|---|---|
+| L1 | **`"order"` is the state machine; `order_group.status` is derived by trigger and is never written directly by an Edge Function** | Two independently-writable status fields describing the same money is how you end up with a group that says `paid` over three orders that say `cancelled`, with no way to tell which is right. Also means `[DM-01]` landing on two levels costs almost nothing — the machine is on `"order"` in either shape |
+| L2 | **The legal-transition table is hard-coded inside the trigger function, not stored in a table**, and the same trigger writes the `order_event` row | Which transitions are legal is not configuration. A `order_status_transition` table is data, and data is editable by whoever holds the grant — the entire point of the trigger is that no grant can make `pending_payment → delivered` happen. Writing the history in the trigger rather than the caller is what makes "every status change has exactly one event" true rather than aspirational |
+| L3 | **Payment state is monotonic on a capture rank (`created` 0 → `authorized` 1 → `captured` 2), and the refund axis is derived from completed refunds rather than transitioned** | Webhook delivery is not ordered. `payment.authorized` arriving after `payment.captured` is normal, and a handler that assigns the inbound event's status downgrades a captured payment — after which the order is `paid`, the invoice is issued, and nothing looks wrong until the month-end reconciliation finds a hole |
+| L4 | **The database transaction commits before the Razorpay order is created**, not after | The two orderings fail differently. Razorpay-first can leave a customer charged against a checkout we have no record of, which needs a manual reconciliation against their dashboard to even discover. Database-first leaves a group with no payment attempt, which the customer's retry or the sweeper closes. Choose the recoverable failure |
+| L5 | **`paid` means captured, never authorized. Nothing is prepared or delivered against an authorization** | An authorization is a promise; a kitchen that cooks against one is extending credit it did not agree to. Related: `[OL-01]` recommends auto-capture, which makes `authorized` a state we barely see |
+| L6 | **Cutoff enforcement always compares `now()` (from Postgres) against `order.cutoff_at`, the value snapshotted at write time** — never against a re-resolution of the config, never against a client clock | Follows `D5`. An admin changing the cutoff at 9pm must not retroactively invalidate an order placed at 8pm, and a device clock is not evidence. One clock, one place, one snapshot |
+| L7 | **A price or cutoff change discovered inside the checkout transaction aborts the checkout.** The server never charges an amount the app did not display | Charging a different number from the one on screen when the customer tapped Pay is a chargeback, and at scale a regulatory problem. The cost is one extra tap on a rare event. Recorded as `[OL-06]` because the alternative is to forbid same-day price edits instead |
+| L8 | **`paid → delivered` is legal without passing through `preparing`** | `E09-05` is "mark all delivered per class, one tap" — a kitchen operator clearing forty orders before a break will never mark anything `preparing`. A state machine that forces a step nobody performs gets worked around, and the workaround is worse than the missing state. `preparing` stays because `E08-04` notifies on it |
+
 ## Release
 
 | # | Decision | Why |
