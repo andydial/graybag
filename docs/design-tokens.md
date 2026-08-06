@@ -2,7 +2,7 @@
 title: Design tokens
 status: specification — no code exists yet
 produced_by: Q05
-implements: E13-01 (and the contrast half of E13-08)
+specifies: E13-01 (the code is still to be written) and the contrast half of E13-08
 source: Legacy-Application/Graybag_Design Package — 02_Colour Palette, 00_Assests/Font, 05_Pattern, 06_App UI
 companion: docs/motion-system.md
 ---
@@ -54,9 +54,11 @@ ramp, tonal steps around any brand hue, semantic roles (error, warning, disabled
 type scale, a spacing scale, a radius scale, elevation, and any contrast analysis. Those are
 proposals, marked as such where the choice was not forced.
 
-**`00_Graybag_Brand Guidelines.pdf` could not be read** — it exceeds the 20MB file-read limit
-and no PDF rasteriser was available in this sandbox. If it specifies a type scale, tints or
-tonal steps, this file must be reconciled against it. That check is `E13-15`.
+**`00_Graybag_Brand Guidelines.pdf` could not be read** — 21.8 MB, over the file-read limit,
+and although `magick`, `qlmanage` and `sips` are all installed, none of them could be executed
+in the sandbox this was written in. If it specifies a type scale, tints, tonal steps or usage
+rules, this file must be reconciled against it and **the brand document wins**. That check is
+`E13-15` / `DS-05`, and **this file is provisional until it is done**.
 
 ---
 
@@ -535,3 +537,7 @@ Full options and reasoning are in `docs/open-questions.md`. Summarised:
 | `DS-02` | If the VAG Rounded Next licence (`E19-03`) says no, which typeface? | Nunito |
 | `DS-03` | Dark mode in v1? | No — light only, but every colour is named by role (§2.9) so it stays a mapping file |
 | `DS-04` | Must the FSSAI veg / non-veg mark be displayed at the point of ordering? | Tokens reserve the statutory colours; the mark is not brand-tinted (§2.10) |
+| `DS-05` | `00_Graybag_Brand Guidelines.pdf` has never been read (§1). If it specifies tints, tonal steps or a type scale, what wins? | **The brand document wins on anything about the brand.** This file is provisional until `E13-15` closes |
+
+The decisions this file makes, rather than defers, are recorded as `S6`–`S8` and `S11` in
+`docs/decisions.md`.

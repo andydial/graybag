@@ -558,7 +558,7 @@ has none of this and is not the reference for the rebuild; the design package is
 ## §9 How the catalogue is enforced
 
 A closed catalogue that lives only in a document reopens itself within three sprints. Three
-mechanical gates, all part of `E13-11`:
+mechanical gates — gate 1 and gate 3 are `E13-12`, gate 2 is `E13-11`:
 
 1. **One motion module.** `packages/shared/src/design/motion.ts` exports `duration`, `ease`,
    `spring` and nothing else. Every animated component imports from it.
