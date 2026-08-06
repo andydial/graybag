@@ -78,6 +78,20 @@ Full options and reasoning for each are in §14 of that document; this table is 
 | **`DM-07`** Config as typed columns on three tables, or a generic key/value table | **Typed columns** — real types, real constraints, and the inheritance UI reads straight off the three rows | `E02-10`, `E10-06` |
 | **`DM-13`** Allergen seed list and severity vocabulary | Reconcile against the **distinct values actually in the Excel**, which `Q08` produces. An allergen present in the data but missing from the table is an unwarned allergy | `E04-01`, `E05-05` |
 
+## Raised by the initial DDL (`supabase/migrations/0001_initial_schema.sql`, Q02)
+
+Three things the data model left implicit that had to be resolved one way or the other to
+write real DDL. Each is written the way the schema now behaves, with the alternative and a
+recommendation. **None of these are decided.**
+
+### Needs Andy
+
+| Q | Question | Written as | Blocks |
+|---|---|---|---|
+| **`DM-20`** | **A consequence of `DM-14`, not a new question — but it has teeth.** §9.2 says every setting on `platform_config` is `NOT NULL`. `price_is_tax_inclusive` is the one setting whose value is genuinely unknown, because nobody has said whether the Excel `Price` includes GST. `NOT NULL` would force a default, and a default here is a guess about money that silently propagates into every invoice ever issued. **Options:** (a) leave the column nullable and unset, so tax calculation *refuses to run* until it is answered — loud, and impossible to get silently wrong; (b) `NOT NULL DEFAULT false` (price is exclusive), matching what the current cart does when it adds 5% on top — quiet, and wrong for every dish if the assumption is backwards. **Recommended: (a)**, which is what is written. | Nullable, seeded `NULL` | `E04-04`, `E07-06`, `Q09` |
+| **`DM-21`** | Can a discount exist at the **checkout** level only, or must every discount land on a member order? The `order_group` totals invariant asserts that the group's subtotal, tax **and discount** equal the sum over its member orders. That means a future promo code has to be distributed across the orders in the cart rather than held only at the group. **Options:** (a) require distribution — the invoice lines are built from the orders, so a discount held only at the group would appear on no line, which is not a valid tax document; (b) drop `discount` from the assertion and allow a group-only discount, which reopens exactly that problem at invoicing time. **Recommended: (a)**, which is what is written. Nothing in v1 issues a discount, so this only bites when promo codes are built. | Distribution required | `E05-04`, `E07-01`, `E18` |
+| **`DM-22`** | `reason_code` is seeded with the eight codes the model names, but the model does not say which are **customer-visible** or which **require a note**. The schema seeds all cancellation and refund reasons as customer-visible, `goodwill` and `migration_opening_balance` as requiring a note, and `migration_opening_balance` as internal. This is data, not schema — admin can change any of it without a migration — but it decides what wording a parent sees when their child's order is cancelled. **Needs Andy to eyeball once**, not to decide architecture. | As described | `E06-08`, `E09-08` |
+
 ## Parked (deliberately, until real data exists)
 
 | Q | Notes |
