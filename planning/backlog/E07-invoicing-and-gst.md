@@ -28,3 +28,13 @@ Blocked on E00-10 / E00-11 for GSTIN, SAC code and the school-share GST treatmen
 - [ ] `E07-10` Monthly payout report per school: amount owed, Admin can edit before confirming, then mark paid; only then reflected as settled
 - [ ] `E07-11` Razorpay MDR on refunds deducted from the school's share
 - [ ] `E07-12` Kitchen payout report (monthly, for GrayBag to pay kitchens)
+
+Appended by Q09 (`docs/gst-invoicing.md`), which is normative for `E07-01`…`E07-08`.
+
+- [ ] `E07-13` (risk:high) Production guard: the invoice issuer **refuses to allocate a number** while `seller_gstin` or `sac_code` still holds an `«…-PENDING-E00-10»` placeholder. Staging renders the placeholder literally
+- [ ] `E07-14` (risk:high) Daily gapless-series audit per financial year — `count(*) = max(sequence_no)`, `min = 1`, `invoice_sequence.last_sequence_no = max(sequence_no)`. **Pages, does not warn**
+- [ ] `E07-15` (risk:high) Guard triggers: an `invoice` row can never be `DELETE`d, and `invoice_sequence.last_sequence_no` may only increase, by exactly 1
+- [ ] `E07-16` Financial year derived from `issued_at` in the platform timezone, with tests at 05:20 IST 1 Apr and 23:50 IST 31 Mar
+- [ ] `E07-17` Derive the CGST/SGST vs IGST split per invoice from `left(seller_gstin, 2)` against `place_of_supply_state_code` — never hard-coded. See `[GST-02]`
+- [ ] `E07-18` The invoice PDF is rendered once and stored; `E07-08`'s archive and every support reprint serve the stored bytes and never re-render
+- [ ] `E07-19` Invoice-number renderer as a pure function of `(financial_year, sequence_no)`, asserting every rendered value is ≤ 16 characters and matches `^[A-Za-z0-9/-]+$`

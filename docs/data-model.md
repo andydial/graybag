@@ -1239,7 +1239,7 @@ need to change either way; the constraint is on what may write to it.
 | Column | Type | Null | Notes |
 |---|---|---|---|
 | `id` | uuid | no | |
-| `invoice_number` | text | no | Rendered, e.g. `GB/2026-27/000417`. Unique |
+| `invoice_number` | text | no | Rendered, e.g. `GB/26-27/000417`. Unique. **Corrected in Q09** — the earlier `GB/2026-27/000417` was 17 characters and Rule 46(b) caps the serial number at 16. Format is fixed in `docs/gst-invoicing.md` §5.2; the same stale example is still in the `0001` migration comment and is a comment only |
 | `financial_year` | text | no | `'2026-27'` — Indian FY, April to March |
 | `sequence_no` | integer | no | |
 | `document_type` | `invoice_document_type` | no | `tax_invoice` \| `credit_note` (E07-07) |
@@ -1296,14 +1296,21 @@ RETURNING last_sequence_no;
 The row lock serialises invoice creation, which is correct — gapless numbering *requires*
 serialisation, and at a few thousand invoices a month the contention is irrelevant. The number
 is allocated **only after the payment is captured**, so a failed or abandoned payment never
-reaches this statement. The full rounding rule and worked examples belong to
-`docs/gst-invoicing.md` (Q09).
+reaches this statement.
 
-> **`[DM-19]` Open — rounding per line or per invoice.** E07-02 requires the rule be "decided
-> once and unit-tested". The schema supports either: per-line tax columns exist on
-> `invoice_line`, and `round_off_paise` on `invoice` absorbs the difference between the sum of
-> lines and the invoice total. Q09 must pick one and this document should be updated to say
-> which.
+**Superseded in Q09.** The two-statement form above cannot create the row for a new financial
+year without a race. `docs/gst-invoicing.md` §5.3 replaces it with a single
+`INSERT … ON CONFLICT DO UPDATE … RETURNING`, which is the same row lock and also handles the
+first invoice of a year. That document is normative for the full rounding rule, the number
+format, financial-year derivation, cancellation, and the gap audit.
+
+> **`[DM-19]` — RESOLVED in Q09: rounding is per line, per tax component, half-up.**
+> `docs/gst-invoicing.md` §6.2 and §6.3. It is not a free choice: `order_line.tax_cgst_paise` is
+> an integer column, the group's totals are asserted to be the sum over its lines, and
+> `order_group.payable_paise` is what Razorpay was charged — so per-invoice rounding would make
+> the invoice disagree with the money by up to a few paise. Consequence: `round_off_paise` is
+> **always zero** under tax-exclusive pricing, and is the ±1-paise-per-line residual only if
+> `[DM-20]` returns "inclusive".
 
 ### 8.7 `payout` and `payout_line`
 
@@ -2140,7 +2147,7 @@ document assumes so that it stays coherent — it is not a decision.**
 | **DM-12** | How a minor is identified, and what makes parental consent "verifiable" | Declared `is_minor`, no date of birth; `verification_method` column present and unfilled | E20-01, E20-02, E05-01 |
 | **DM-14** | Is the Excel `Price` GST-inclusive or exclusive | `price_is_tax_inclusive` at platform config, value unset. Already an open question against E00-12 | E04-04, E07-06, Q09 |
 | **DM-15** | Erasure vs statutory invoice retention | Soft delete + anonymise in place, never hard delete | E20-04, E20-05, E03-08 |
-| **DM-19** | Tax rounding per line or per invoice | Both supported; `invoice.round_off_paise` absorbs the difference | E07-02, Q09 |
+| **DM-19** | ~~Tax rounding per line or per invoice~~ **RESOLVED in Q09: per line, per component, half-up.** `round_off_paise` is therefore always 0 under exclusive pricing | `docs/gst-invoicing.md` §6.2–§6.3 | E07-02 |
 
 `DM-14`, `DM-19` and the retention numbers behind `DM-15` are already tracked in
 `docs/open-questions.md` under the accountant and legal headings; the entries above only add
