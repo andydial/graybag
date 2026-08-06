@@ -11,7 +11,7 @@ Do not hand-edit the ticks here — the script manages them.
 
 ## Queue
 
-- [ ] `Q01` Draft the full target ERD as `docs/data-model.md` — every entity, field, type, relationship and index for E02-02 through E02-06. Include the grant/permission model (E02-07), the resolution-chain tables (E02-06), the ledger (E02-05), and policy/consent tables (E02-15, E02-16). Mark every open question inline rather than guessing. This is the single most important artefact in the project — take the time.
+- [x] `Q01` Draft the full target ERD as `docs/data-model.md` — every entity, field, type, relationship and index for E02-02 through E02-06. Include the grant/permission model (E02-07), the resolution-chain tables (E02-06), the ledger (E02-05), and policy/consent tables (E02-15, E02-16). Mark every open question inline rather than guessing. This is the single most important artefact in the project — take the time.
 - [ ] `Q02` Write the actual Postgres DDL for that model as `supabase/migrations/0001_initial_schema.sql`. Integer paise for all money. Include comments explaining non-obvious choices. Do not invent anything not in `docs/data-model.md`.
 - [ ] `Q03` Write `docs/authorization-model.md` — for every table, exactly who can read/write what, expressed as RLS policies. Default deny. Include the full matrix: Customer, KitchenOperator, SchoolViewer, PlatformAdmin, anonymous.
 - [ ] `Q04` Write the RLS policies as `supabase/migrations/0002_rls_policies.sql`, and a companion `supabase/tests/authorization.test.sql` (pgTAP) asserting every allow AND every deny in the matrix from Q03.
