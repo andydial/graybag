@@ -19,6 +19,121 @@ Format — newest first:
 
 ---
 
+## 2026-08-07 — "Record it and return 200" makes a misconfigured webhook secret completely silent
+
+**Context:** Writing the webhook half of `docs/payments-design.md` (Q07). The rule from
+`docs/order-lifecycle.md` §10.8 is right and stays: a bad signature is recorded with
+`signature_verified = false`, acted on by nothing, and answered **`200`**, because a `4xx`
+makes Razorpay retry a request we will never accept.
+**What happened:** Walking the *wrong secret* case rather than the *attacker* case, that rule
+produces a total outage with no signal at all. Every webhook fails verification. Every one is
+recorded. Every one gets a `200`, so Razorpay stops retrying. No 5xx anywhere, Sentry quiet,
+uptime green. Settlement still works for customers who stay in the app long enough for the
+callback path — so the symptom is not "payments are broken", it is "*some* payments are late",
+and it gets worse in exactly the proportion that UPI intent app-switches take, which is the
+proportion nobody is watching.
+**Cause:** The correct response to a hostile bad signature and the correct response to our own
+misconfiguration are the same response, and the endpoint cannot tell them apart from one event.
+**Fix / rule:** It cannot be told apart *per event*, but it is trivial in aggregate. `E15-05`
+splits into two alerts off one column: a handful of failures against a background of successes
+is probing (warn); **~100% failures since a deploy, or zero verified events in a window in
+which orders were placed**, is our configuration (page). The second clause matters as much as
+the first — it also catches a webhook endpoint that was never registered, which produces no
+rows at all to compute a failure rate from. `E06-28`. Generalises: **whenever the safe response
+to an attack is silence, add the aggregate that distinguishes the attack from your own
+breakage**, because you have just built something that fails without complaining. Related trap
+in the same handler: the HMAC is over the raw bytes, so `req.json()` and re-serialise never
+matches — and that failure is 100% too, so it lands in exactly the same blind spot.
+
+## 2026-08-07 — Double-entry was chosen, but nothing can be posted to the ledger yet
+
+**Context:** Enumerating the ledger postings each payment path produces (Q07 §10), so that
+`E06-07` could be written from a table rather than invented per handler.
+**What happened:** Two independent blockers, both invisible until you try to write an actual
+`INSERT`. (1) `ledger_transaction.reason_code` is `not null references reason_code(code)`, and
+**not one of the eight seeded codes names a money movement** — there is no `sale`, no
+`provider_fee`, no `wallet_hold`, no `settlement`, no `revenue_share`. So
+`docs/order-lifecycle.md` §8.4 step 6, "post the sale to the ledger", has no legal value to
+write. (2) `ledger_account_type` has no **bank or cash** account, so a settlement has nowhere
+to land: `provider:razorpay:clearing` is debited on every capture and never credited. It grows
+without bound, and the one query `[DM-03]` chose double-entry *for* — "does our clearing
+account equal what Razorpay holds" — can never pass. `docs/data-model.md` §8.4 already assumes
+that account exists ("payout … credits a bank clearing account"), so payouts are blocked on it
+too.
+**Cause:** The schema modelled the *structure* of double-entry completely and correctly, and the
+seed data modelled only the vocabulary the order lifecycle needed (why an order stopped). The
+`reason_category` enum even anticipates the split — `cancellation` / `refund` are the *why*
+vocabulary, `ledger` is the *what movement* vocabulary — and `ledger` has exactly one member,
+`migration_opening_balance`. A gap that looks like a design choice is very easy to read past.
+**Fix / rule:** `E06-22` and `E06-23`, both in `0003`, raised as `[PAY-05]`. Note the migration
+trap: `ALTER TYPE … ADD VALUE` cannot be *used* in the transaction that adds it, and a Supabase
+migration file is one transaction — so the enum value lands in `0003` and its first use in
+`0004`. General rule: **a schema review that only reads DDL will not find a missing seed row.
+For every `not null references <lookup>` column, write out one real row of every kind the
+system will insert and check the lookup actually contains the value** — a foreign key to an
+under-seeded table is a runtime failure wearing a constraint's clothing.
+
+## 2026-08-07 — `M5` has nothing to deduct from on the refund it was written for
+
+**Context:** Working the MDR attribution for `E07-11`. `M5` is Andy's decision: the Razorpay
+MDR lost on a refund comes out of the school's 10%.
+**What happened:** Under `[DM-18]`'s assumed reading — the share is *earned on delivery* — the
+overwhelmingly most common refund is an order cancelled **before** it was delivered. That order
+earned the school nothing. There is no share for the MDR to come out of. A naive implementation
+does not fail; it quietly nets the deduction against whatever else is in that school's payout
+period, producing a line the school cannot reconcile to any order, or it silently deducts zero.
+**Cause:** Two decisions made independently and each internally sound. `M5` fixes who bears a
+cost; `[DM-18]` fixes when the thing that cost is deducted from comes into existence. Neither
+mentions the other, and the interaction only appears when you try to compute a real payout line.
+**Fix / rule:** Raised as `[PAY-04]` with three options and a recommendation (the platform
+absorbs it on pre-delivery refunds, shown as a visible platform cost on the payout report).
+`[PAY-04]` and `[DM-18]` must be answered **together**, and that is written into both. General
+rule: **when a decision says "X comes out of Y", find the case where Y is zero.** There always
+is one, it is usually the common case rather than the edge case, and the failure is arithmetic
+that produces a plausible number rather than an error.
+
+## 2026-08-07 — Android 11 package visibility silently downgrades UPI intent to the flow we are replacing
+
+**Context:** Specifying native UPI intent for `E06-02` — the fix for the "clunky" hosted
+payment-link redirect.
+**What happened:** UPI intent requires the checkout SDK to enumerate which PSP apps (GPay,
+PhonePe, Paytm, BHIM) are installed. Since Android 11, an app cannot see other packages unless
+it declares them in a `<queries>` element in `AndroidManifest.xml`. Without it the app list
+comes back **empty and without an error**, and checkout falls back to UPI *collect* or a QR —
+which is slow, sits pending for minutes (the thing that makes `[OL-03]`'s TTL hard), and is a
+worse experience than the flow being replaced. It will not reproduce on an Android 10 emulator
+and it will not reproduce on iOS.
+**Cause:** A platform privacy change whose failure mode is a silent empty list rather than a
+permission error, meeting an Expo project where `AndroidManifest.xml` is *generated* — so the
+declaration needs a config plugin and there is no file for anyone to notice is missing.
+**Fix / rule:** `E06-29` owns the plugin (and the iOS `LSApplicationQueriesSchemes` half), and
+it is item 2 on `E19-01`'s verification checklist. Two general points worth more than the fix.
+(1) **The spike must run on a real Android 11+ handset in a development build**, not an emulator
+and not Expo Go — `E19-01` currently says "a bare Expo app", and a bare *managed* Expo app
+cannot host the native Razorpay SDK at all, so as written the spike would prove the wrong thing
+(`[PAY-01]`). (2) **A capability that degrades gracefully is more dangerous than one that
+fails**, because the degraded path works and ships. Ask of every fallback: would we notice in
+production if the fast path never ran?
+
+## 2026-08-07 — A refund cannot always honour its own destination
+
+**Context:** Designing `E06-08` / `E06-09` against `M7` (refund to wallet by default,
+refund-to-source as an option).
+**What happened:** An order paid ₹50 from wallet and ₹160 from a card has **only ₹160 at the
+provider**. "Refund ₹210 to source" is not partially possible — it is impossible, because ₹50
+of it was never sent to Razorpay. And `refund.destination` is a single enum on a single row, so
+one logical refund cannot express two destinations.
+**Cause:** The destination reads like a property of the refund. It is really a property of
+*where the money came from*, and the schema stores it on the wrong side of that relationship —
+which is fine, as long as the handler knows it may need two rows.
+**Fix / rule:** `PY5` — destination is a **request**, not a guarantee: the wallet-funded portion
+goes back to the wallet, the rest to the requested destination capped at what source actually
+captured, and one logical refund may produce two `refund` rows sharing a `correlation_id`.
+`[PAY-02]`. Rejected alternative worth recording: splitting *proportionally* across both is
+defensible in accounting and impossible to explain to a parent — "you paid ₹50 from your
+balance and got ₹38 of it back". General rule: **any field naming where money goes needs a
+check against where it came from**, and the answer may be "more rows", not "a different value".
+
 ## 2026-08-07 — `planning/backlog.html` cannot be regenerated in an unattended run
 
 **Context:** Q06 appended eight tasks to `E05` and `E06`. CLAUDE.md requires
