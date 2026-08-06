@@ -1,0 +1,14 @@
+{
+  "name": "@graybag/menu-import",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Prototype Excel menu importer — proves the file format before E04-04 is built",
+  "main": "src/import.mjs",
+  "bin": { "graybag-menu-import": "src/cli.mjs" },
+  "scripts": {
+    "test": "node --test test/",
+    "demo": "node demo.mjs"
+  },
+  "engines": { "node": ">=20" }
+}
