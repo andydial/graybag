@@ -128,6 +128,40 @@ those is marked `-- ADDITION` at its site in the migration and listed in its hea
 |---|---|---|---|
 | **`AZ-07`** | **Who may progress a `data_subject_request`?** §7.9 gives `dsr_update_admin` a policy requiring **`consent.view`**. §6.1 protects `status`, `due_at`, `assigned_to_user_id`, `completed_at` and `resolution_note` behind **`consent.view` AND `users.manage`**. The two disagree, so a grantee holding only `consent.view` passes the policy and then finds every meaningful column frozen — the update succeeds and changes nothing, silently. It does not bite today because the `platform_admin` template holds both, and no narrower grant exists. **Options:** (a) drop `users.manage` from the guard, so `consent.view` alone means "may handle DSRs end to end" — simplest, and matches what the policy already says; (b) tighten the policy to require both, so the two agree in the other direction and a read-only compliance grant is possible; (c) leave it, and accept a silent no-op for a grant nobody has issued. **Recommended: (b)** — a `consent.view`-only grant is exactly the shape E20's evidence-to-a-regulator work will want, and it should be readable without being able to close requests. Written as **(c)** for now, because changing either half is a one-line edit that should be made deliberately with E20-04 in front of you, not in a migration whose subject is RLS. | (c) — the mismatch stands, and the no-op is silent | `E20-04`, `E20-07` |
 
+## Raised by the design tokens and motion system (`docs/design-tokens.md`, `docs/motion-system.md`, Q05)
+
+The design package supplies five hexes, a font family, a pattern and nine mock screens. It
+supplies **no** neutral ramp, no tonal steps, no semantic roles, no type scale, no spacing
+scale and no contrast analysis. Everything below is a choice that had to be made to write a
+token file at all. **None of these are decided.** Where a choice was needed to keep the
+documents coherent, the recommended option is what is written, and it is labelled as such.
+
+### Needs Andy — brand
+
+| Q | Question | Written as | Blocks |
+|---|---|---|---|
+| **`DS-01`** | **The brand green fails WCAG as a button fill, and this changes what every button in the product looks like.** White on `#00af52` is **2.90:1** — below AA for normal text (4.5:1), below AA for large text (3:1), and below the 3:1 a control boundary needs. Every primary button, every price and every field label in `06_App UI` uses exactly that pair. Mock 02 additionally puts a `#145f48` button on a `#00af52` field at **2.63:1**. **Options:** (a) **the 500 rule** — `#00af52` stays the identity colour in the logo, pattern and brand fields, and *functional* green moves one or two steps darker (`primary-700 #007e3b`, 5.19:1, for fills and text; `primary-600 #009646`, 3.85:1, for boundaries). The mocks stay recognisable and become legible; (b) keep `#00af52` as the fill and put **dark ink on it** — `neutral-900` on `#00af52` is ≈6.2:1 and passes, but a dark-on-green button is a different product's visual language and contradicts every mock and the approved logo pairings in §2.6; (c) accept the failure — not available: it is an accessibility defect, and `E13-10`/`E12-08` gate on Lighthouse and axe, so it would fail CI rather than ship. **Recommended: (a)**, which is what is written. **This is a validation, not an engineering call — it is the one thing in Q05 that genuinely needs Andy's eye.** | (a) — the 500 rule, `docs/design-tokens.md` §2.1 | `E13-01`, `E13-03`, `E13-14`, all of `E13` |
+
+### Needs legal
+
+| Q | Question | Written as | Blocks |
+|---|---|---|---|
+| **`DS-04`** | **Must the FSSAI veg / non-veg mark be displayed at the point of ordering?** `DM-17` already asks who fills the veg/non-veg column in for the existing ~50 dishes. This is the adjacent *display* question: whether an online food operator must show the statutory green-circle / brown-triangle mark on a dish listing, and in the prescribed colours and geometry. If yes, the mark is a regulated symbol and is **never** re-tinted to `primary-500` or `lime-500` — which is what a designer will reach for, because it is nearly the brand green. The tokens reserve the statutory colours and §2.10 forbids brand-tinting it. **Needs a legal answer, not a design one.** | Mark reserved, never brand-tinted | `E04-01`, `E04-04`, `E13-03`, `E20` |
+
+### Technical, flagged because reversal is expensive
+
+| Q | Question | Recommendation | Blocks |
+|---|---|---|---|
+| **`DS-02`** | **If the VAG Rounded Next licence (`E19-03`, `owner:andy`) comes back "no", which typeface?** The package ships ten weights; the licence has never been checked, and a bad answer changes every screen. Two halves: (i) **use three weights, not ten** — it narrows the licence question to "may we embed three weights in an app and serve them as webfonts", which is a far easier thing to buy or be refused, and it keeps the mobile bundle small, which is the real constraint (P11); (ii) **name the substitute now rather than in a panic.** | **Nunito (SIL OFL)** — the closest freely-licensed match to VAG Rounded's rounded terminals on an upright skeleton, full weight range, good hinting at small sizes, and no cost or negotiation. Rejected: Quicksand (too geometric, thin at body sizes), Comfortaa (display-only), Baloo 2 (heavier, Devanagari-first — irrelevant under P10), Poppins (not rounded). **Decide the substitute before `E13-03`, not after `E19-03` returns**, so a refusal costs a token change rather than a redesign | `E13-01`, `E13-02`, `E13-03`, `E19-03` |
+| **`DS-03`** | **Dark mode in v1?** Not in the mocks, not in the package, and it roughly doubles the contrast surface to design and test. **Options:** (a) light only in v1, but every colour named by *role* (§2.9) so that adding dark mode later is a second mapping file rather than a rewrite; (b) build both now. | **(a)**, which is what is written. The cost of (a) is paid once, in discipline, and it is discipline we want anyway — a component that reaches past `bg.surface` into `neutral-0` is a bug under either option. Consequence to accept: no dark mode at launch, and the "no dark-mode transition" row in §12 of the motion system holds until it exists | `E13-01`, `E13-03`, `E14` |
+| **`DS-05`** | **`00_Graybag_Brand Guidelines.pdf` has never been read** — 21.8 MB, over the file-read limit, and no PDF rasteriser was runnable in the sandbox the tokens were written in. If it specifies a type scale, tints, tonal steps or usage rules, `docs/design-tokens.md` must be reconciled against it and **the brand document wins on anything about the brand**. This is not a decision; it is an unverified assumption sitting under the whole token file. `E13-15` | Reconcile before `E13-03` | `E13-01`, `E13-15` |
+
+`E19-02` (the mid-range Android performance spike) is not listed here because it is already a
+backlog task, but it has one effect worth stating: **`M05`, the dish-card → dish-detail shared
+element, is provisional until that spike runs.** It is the only pattern in the catalogue that
+could fail the frame budget. If it cannot hold 60fps on the target profile it is deleted, and
+dish detail becomes a plain `M07` sheet.
+
 ## Parked (deliberately, until real data exists)
 
 | Q | Notes |

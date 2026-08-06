@@ -19,6 +19,80 @@ Format — newest first:
 
 ---
 
+## 2026-08-07 — A crashed documentation run leaves dangling forward references, and git makes it look finished
+
+**Context:** Picking up Q05. `docs/motion-system.md` and `docs/design-tokens.md` both already
+existed, complete, at 661 and 537 lines, committed as `cd2496f`.
+**What happened:** The commit message said `Result: FAILED`, and the log contained one line:
+`You've hit your session limit`. The two documents had landed; **everything they pointed at
+had not.** They referenced `DS-01`…`DS-04` in `docs/open-questions.md` (no such section),
+decision `S4` in `docs/decisions.md` (no such decision), and tasks `E13-11`, `E13-13`,
+`E13-14`, `E13-15` (the epic stopped at `E13-10`). Every one of those was a promise to a
+reader that resolved to nothing.
+**Cause:** Documents get written before the entries they cite, because you cite the ID before
+you create it. The overnight wrapper commits the working tree whatever the outcome, so a run
+that died two-thirds through is indistinguishable in `git log --stat` from one that finished.
+**Fix / rule:** **A document is not done when it reads well; it is done when every reference in
+it resolves.** Before closing out any doc task, grep the new file for the ID shapes it uses
+(`DS-`, `DM-`, `AZ-`, `S`/`D`/`A`-series, `E\d\d-\d\d`) and confirm each one exists in the file
+it claims to be in. Cheap to check, and a dangling reference is worse than no reference — it
+tells the reader a decision was made somewhere when it never was. Corollary: `Result: FAILED`
+in a commit message means **the follow-through is missing**, not necessarily the deliverable.
+Read the log before assuming either.
+
+## 2026-08-07 — The GrayBag brand green cannot carry white text, and neither can most brand greens
+
+**Context:** Extracting design tokens from `Graybag_Design Package`. Every primary button,
+every price and every field label in the nine `06_App UI` mocks is white on `#00af52`.
+**What happened:** That pair measures **2.90:1**. It fails AA for normal text (4.5:1), fails
+AA for *large* text (3:1), and fails the 3:1 non-text-contrast rule that applies to a control's
+own boundary. Mock 02 compounds it with a `#145f48` button on a `#00af52` field: **2.63:1**.
+**Cause:** A saturated mid-green sits in the worst part of the luminance curve for this. The
+sRGB coefficients weight green at **0.7152** — more than red and blue combined — so a green
+that *looks* deep enough to take white text carries far more luminance than the eye credits it
+with. `#00af52` has a relative luminance of 0.313, which is nearly mid-grey. The same hex would
+be judged "dark" by anyone eyeballing it.
+**Fix / rule:** The **500 rule** (`S6`): the supplied hex stays the identity colour and is never
+ink; functional green is one or two steps darker (`primary-700 #007e3b` = 5.19:1). Generalise
+it — **never take a brand palette's contrast on trust, and be most suspicious of the greens and
+yellows.** `#ffbb39` on white is 1.69:1, effectively invisible. Compute the ratio for every
+supplied hex before designing anything with it; doing it after there are components is a
+repaint of the whole product. `E13-13` makes it a CI assertion so a brand refresh fails the
+build instead of shipping.
+
+## 2026-08-07 — Multiplying a brand hex preserves its hue; "darkening" it by eye does not
+
+**Context:** Building a tonal ramp around `#00af52` with no tonal steps supplied in the package.
+**What happened:** Hand-picked darker greens drifted — the obvious candidates read as either
+olive or teal next to the logo, which is exactly the failure that makes a ramp look like it
+belongs to a different brand.
+**Cause:** Darkening by adjusting HSL lightness, or by eye in a picker, changes the ratio
+between the R, G and B channels. Hue in the perceptual sense is carried by those ratios.
+**Fix / rule:** Derive shades by **multiplying every channel by the same factor** and tints by
+**mixing toward white**, both of which hold the channel ratios and therefore the hue. `#009646`
+and `#007e3b` are `#00af52` multiplied, not chosen. Corollary worth knowing: this is also why
+`#145f48` is *not* a step on the primary ramp and gets its own name (`forest`) — it is a
+genuinely cooler, bluer green, and pretending it is `primary-800` would be a lie the ramp
+would keep telling.
+
+## 2026-08-07 — The brand guidelines PDF is unreadable in this environment, and the tokens rest on that gap
+
+**Context:** `00_Graybag_Brand Guidelines.pdf`, the one source that would say whether the
+palette has official tints, a type scale or usage rules.
+**What happened:** 21.8 MB — over the file-read limit. `magick`, `qlmanage` and `sips` are all
+installed, and `node` and `python3` are on the machine, but **none of them could be executed**
+in the sandbox this ran in; every invocation returned "requires approval", which an unattended
+run cannot obtain.
+**Cause:** Non-interactive session plus a Bash sandbox allowlist that covers `git`, `ls`,
+`cat`, `grep`, `find` and little else.
+**Fix / rule:** Two things. (1) **Assume nothing that needs a binary to verify will be
+verifiable in an overnight run** — plan the work so the un-runnable part is isolated and named
+rather than discovered at the end. Contrast ratios here were confirmed by hand-computing four
+load-bearing pairs against the WCAG 2.1 formula, which is enough to establish the table was
+computed rather than guessed, but is not a substitute for `E13-13`. (2) The unread PDF is
+tracked as `DS-05` / `E13-15`, not left as a silent assumption. **The brand document wins on
+anything about the brand**, so the token file is provisional until someone opens it.
+
 ## 2026-08-07 — A failing RLS `USING` clause does not raise; it silently filters
 
 **Context:** Writing `supabase/tests/authorization.test.sql` (Q04), asserting that a
