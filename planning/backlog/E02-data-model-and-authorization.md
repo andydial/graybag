@@ -40,3 +40,5 @@ In Bubble, `Order` is readable by everyone and 10 types have no privacy rules at
 - [ ] `E02-15` (risk:high) `policy_version` + `user_policy_acceptance` tables (consumed by `E20-03`)
 - [ ] `E02-16` Consent records table with purpose, timestamp and policy version (consumed by `E20-02`)
 - [ ] `E02-17` Mobile numbers stored normalised as **E.164** with a uniqueness constraint — the legacy field is a number type that loses leading zeros and country codes
+- [ ] `E02-18` (risk:critical) **Actually run** `0002_rls_policies.sql` and `supabase/tests/authorization.test.sql` against `supabase start` and fix what falls out. Both were written offline in `Q04` and have never been executed. Until this is green, `E02-08` and `E02-09` are not done
+- [ ] `E02-19` (risk:high) Wire `supabase test db` into CI as a **required** check. It cannot run against a bare `postgres:16` service container — `app_user.id` references `auth.users(id)` and the suite impersonates via `request.jwt.claims`. Constrains `E01-08` / `E01-11`

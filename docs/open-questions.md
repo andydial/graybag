@@ -115,6 +115,19 @@ recommended option is what is written, and it is labelled as such.
 | **`AZ-02`** | **`orders.view_pii` cannot be enforced by RLS.** RLS filters rows, not columns, so anyone who can see an `"order"` row sees `recipient_name_snapshot`, `class_label_snapshot` and `section_label_snapshot`. **Options:** (a) accept it for v1 and enforce the split in the `api/` layer — safe *only* while every template holding `orders.view` also holds `orders.view_pii`, which is true today; (b) move the tier-P snapshot columns to a 1:1 `order_recipient_snapshot` table with its own policy, the only option that makes the promise enforceable in the database, at the cost of one join on the packing list and an edit to §7.3 of the data model; (c) column-level `GRANT SELECT (cols)` — does not work, because a customer and a kitchen operator are the same Postgres role. | **(a) now, (b) before any grant of `orders.view` without `orders.view_pii` is ever issued** — i.e. before E20-09's analyst role. Add a test that fails the moment such a grant appears, so the deadline enforces itself | `E02-08`, `E20-09`, `E18-14` |
 | **`AZ-03`** | **`anon` and the public privacy policy.** App stores require a publicly reachable privacy policy URL, and E12 may want a public sample menu — both argue for one `anon` read policy. **Options:** (a) `anon` keeps **exactly zero** policies; the website renders policy text from its own static build or from an Edge Function; (b) one narrow `anon` `SELECT` on published `policy_version` rows. | **(a)**, which is what is written. "No policy names `anon`" is a one-line CI assertion and is worth more than the convenience; (b) converts a boolean invariant into a list of approved exceptions, and lists grow. Consequence to accept: no client-side "browse the menu before you sign up" — if that becomes a marketing requirement it is a public Edge Function returning a curated sample, not a policy | `E12`, `E20-03` |
 
+## Raised by the RLS policies (`supabase/migrations/0002_rls_policies.sql`, Q04)
+
+One genuine conflict inside `docs/authorization-model.md` that only shows up when the SQL is
+written. Everything else Q04 had to resolve was a gap rather than a decision, and each of
+those is marked `-- ADDITION` at its site in the migration and listed in its header.
+**This is not decided.** The migration is written the conservative way and labelled.
+
+### Technical, low stakes but currently incoherent
+
+| Q | Question | Written as | Blocks |
+|---|---|---|---|
+| **`AZ-07`** | **Who may progress a `data_subject_request`?** §7.9 gives `dsr_update_admin` a policy requiring **`consent.view`**. §6.1 protects `status`, `due_at`, `assigned_to_user_id`, `completed_at` and `resolution_note` behind **`consent.view` AND `users.manage`**. The two disagree, so a grantee holding only `consent.view` passes the policy and then finds every meaningful column frozen — the update succeeds and changes nothing, silently. It does not bite today because the `platform_admin` template holds both, and no narrower grant exists. **Options:** (a) drop `users.manage` from the guard, so `consent.view` alone means "may handle DSRs end to end" — simplest, and matches what the policy already says; (b) tighten the policy to require both, so the two agree in the other direction and a read-only compliance grant is possible; (c) leave it, and accept a silent no-op for a grant nobody has issued. **Recommended: (b)** — a `consent.view`-only grant is exactly the shape E20's evidence-to-a-regulator work will want, and it should be readable without being able to close requests. Written as **(c)** for now, because changing either half is a one-line edit that should be made deliberately with E20-04 in front of you, not in a migration whose subject is RLS. | (c) — the mismatch stands, and the no-op is silent | `E20-04`, `E20-07` |
+
 ## Parked (deliberately, until real data exists)
 
 | Q | Notes |

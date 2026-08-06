@@ -1,9 +1,44 @@
 ---
 title: Authorization model
-status: draft — needs review before `0002_rls_policies.sql` is written
+status: implemented as written, never executed — see "Implementation status" below
 produced_by: Q03
+implemented_by: supabase/migrations/0002_rls_policies.sql, supabase/tests/authorization.test.sql (Q04)
 implements: E02-07, E02-08 (E02-09 / Q04 is the test suite)
 ---
+
+> ## Implementation status
+>
+> `0002_rls_policies.sql` and `supabase/tests/authorization.test.sql` were written from this
+> document in Q04. **Neither has ever been run** — that is `E02-18`, and until it is green
+> `E02-08` and `E02-09` are not done.
+>
+> The migration is 140 permissive policies plus one restrictive policy on 39 tables — **179 in
+> total**, asserted as an exact set by the suite so that adding a policy fails CI until §8's
+> matrix below is updated in the same PR.
+>
+> **Three things §7 specifies in prose but does not write out, and which the migration
+> therefore adds.** Each is marked `-- ADDITION` at its site. None widens the model; each
+> closes a gap where a documented write class had no policy able to perform it.
+>
+> | Addition | Why |
+> |---|---|
+> | `menu_assignment_update_backoffice` | §7.4 gives an INSERT policy only, but assignments are **revoked** (`revoked_at`), which is an UPDATE — so §8 row 19's "PlatformAdmin: W all" was false. Same gate as the insert: `menu.publish` at platform |
+> | `dish_allergen_delete_backoffice` | `dish.edit` is described in `0001` as "including allergens", and the table has no `is_active` — so correcting a wrong allergen tag is a DELETE or it is nothing. Deliberately **not** extended to `menu_item`, which has `is_active` |
+> | The class-2 write policies for `school_class`, `break_time`, `break_time_class`, `dish_category`, `allergen` | §7.1/§7.3 name the gate in prose ("class 2 under `school.edit`", "`auth_can_platform('dish.edit')`") without the SQL. These are that prose, written out |
+>
+> **Two helper functions beyond the 25 in §4**, neither of which adds reach:
+> `auth_break_time_school_id()` (§7.3's `break_time_class` predicate is written as an inline
+> `EXISTS` over `break_time`, which would run as the invoker and silently inherit that table's
+> RLS — §4.4 forbids exactly that coupling elsewhere) and `auth_is_privileged_role()` (the §6.1
+> guard triggers need a visible `service_role` exemption; it is deliberately **not**
+> `SECURITY DEFINER`, see `docs/learnings.md`).
+>
+> **One internal conflict resolved, and one raised.** §8 rows 23–25 read "R/W" for
+> PlatformAdmin on the three config tables, while §7.6 and §5 Rule 4 both say class 3; the
+> migration follows the two explicit statements and the config tables are **read-only** for
+> `authenticated`. The conflict between §7.9's `dsr_update_admin` policy and §6.1's protected
+> columns on the same table is genuinely open and is raised as **`[AZ-07]`** in
+> `docs/open-questions.md`.
 
 # GrayBag — authorization model
 
@@ -1504,8 +1539,31 @@ lies to us.
 
 ## 13. Open decisions
 
-All six are also in `docs/open-questions.md`. **None are decided.** Where a choice was needed
+All seven are also in `docs/open-questions.md`. **None are decided.** Where a choice was needed
 to write this document, the recommended option is what is written, and it is labelled.
+`[AZ-07]` was raised later, by writing the SQL.
+
+### `[AZ-07]` Who may progress a `data_subject_request`? — technical, low stakes, currently incoherent
+
+§7.9's `dsr_update_admin` requires `consent.view`. §6.1 protects `status`, `due_at`,
+`assigned_to_user_id`, `completed_at` and `resolution_note` behind `consent.view` **and**
+`users.manage`. A grantee holding only `consent.view` therefore passes the policy and finds
+every meaningful column frozen — the update succeeds and changes nothing, silently.
+
+It does not bite today: `platform_admin` holds both, and no narrower grant exists.
+
+- **Option A** — drop `users.manage` from the guard. `consent.view` then means "may handle DSRs
+  end to end", which is what the policy already says.
+- **Option B (recommended)** — tighten `dsr_update_admin` to require both, so the two halves
+  agree in the other direction and a **read-only compliance grant** becomes possible. That
+  shape is exactly what E20's evidence-to-a-regulator work will want.
+- **Option C (what is written)** — leave both as specified and accept a silent no-op for a
+  grant nobody has issued.
+
+Written as C, because changing either half is a one-line edit that should be made deliberately
+with E20-04 in front of you, not inside a migration whose subject is RLS.
+
+Blocks `E20-04`, `E20-07`.
 
 ### `[AZ-01]` Does an Edge Function act as the caller, or as `service_role`? — technical, expensive to reverse
 
