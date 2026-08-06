@@ -14,9 +14,10 @@ Grouped by who unblocks them. Items here block specific backlog tasks.
 
 | Q | Blocks | Notes |
 |---|---|---|
-| GSTIN for GrayBag | `E07-02` | Required on every invoice |
+| GSTIN for GrayBag | `E07-02` | Required on every invoice. **Its first two digits are the state code**, which is what decides CGST+SGST vs IGST — `[GST-02]` |
 | SAC code — 996331 assumed for catering | `E07-02` | Needs confirming |
 | Does the school's 10% revenue share attract 18% GST on the school's invoice to GrayBag? | `E07-09`, `E07-10` | Andy's position: any such tax comes out of the agreed 10%, not on top |
+| Five further GST questions raised by `docs/gst-invoicing.md` | `E07-02`, `E07-06`, `E18-01` | `[GST-01]`…`[GST-05]` below. §10 of that document is a hand-over checklist written to be passed to the accountant as-is, alongside `E00-10` |
 
 ## Blocked on Andy
 
@@ -239,6 +240,41 @@ built and tested against the documented column list instead, so it is ready to a
 |---|---|
 | `DM-20` (is the Excel `Price` GST-inclusive?) | The importer does **not** guess. Every dish carries `price_is_tax_inclusive: null`, matching the nullable-and-unset column `DM-20` recommends. Nothing downstream can accidentally inherit a default from this tool. |
 | `DM-17` (veg / non-veg / egg) | Confirmed absent from the documented format. `food_type` is `null` on every imported dish and the importer emits a file-level `food_type_absent` notice on every run, so it cannot be forgotten. |
+
+## Raised by the GST invoicing spec (`docs/gst-invoicing.md`, Q09)
+
+Q09 **closed `[DM-19]`** — rounding is per line, per tax component, half-up, and the reasoning is
+`G1` in `docs/decisions.md`. Five things it could not close are below. **None of these are
+decided.** `[GST-01]` and `[GST-02]` both have teeth: the first costs a migration if it lands the
+wrong way, and the second decides whether `M2`'s CGST/SGST split — and therefore `E07-06`'s cart
+change — is correct at all.
+
+### Needs Andy — follows `[DM-20]`
+
+| Q | Question | Written as | Blocks |
+|---|---|---|---|
+| **`GST-01`** | **Tax-inclusive pricing cannot both satisfy the schema and charge the displayed price.** `order_line` has a hard `check (line_subtotal_paise = unit_price_paise * quantity)`. If `[DM-20]` returns "inclusive", `unit_price_paise` must hold the *derived exclusive* unit price or `subtotal + tax` double-counts the tax — but deriving per unit and multiplying **multiplies the per-unit rounding error by the quantity**. Four ₹99.00 tax-inclusive dishes come to ₹396.02, not ₹396.00, and no arrangement of integers fixes it while the constraint holds (worked table in §6.6). **Options:** (a) answer `[DM-20]` as **exclusive** and the problem does not exist — this is also what the current cart already does; (b) derive the taxable value at the **line** rather than the unit, relax `order_line_subtotal_arithmetic` in `0003`, and carry the ±1-paise residual per line in `invoice.round_off_paise`, which is provably bounded (§6.6); (c) accept the drift and charge ₹396.02. **Recommended: (a), and if the answer is "inclusive" then (b) — before `E05` builds pricing, not after.** The point of raising it separately from `[DM-20]` is that the two answers are not equally cheap, and that should be visible when the answer is given. | Exclusive path built; inclusive path fully specified in §6.6 but not implemented | `E04-04`, `E05-04`, `E07-02`, `E07-06` |
+
+### Needs the accountant — rides with `E00-10`
+
+| Q | Question | Written as | Blocks |
+|---|---|---|---|
+| **`GST-02`** | **Is the supply actually intra-state?** GST is intra-state when the supplier's registered state equals the place of supply. `M2` asserts CGST 2.5% + SGST 2.5% on the basis that the place of supply is Mohali / SAS Nagar (Punjab, `03`) — but that is a fact about the *place of supply*, and the other half of the test is GrayBag's **registered** state, which is the first two digits of a GSTIN we do not have. If GrayBag is registered in Chandigarh (`04`), every invoice is **IGST at 5%**, and `E07-06`'s cart change is wrong. **Written as:** the split is derived per invoice from `left(seller_gstin, 2)` against `place_of_supply_state_code` and never hard-coded (`G4`, `E07-17`), so the schema and the renderer already handle either answer. What is open is which answer we get, and whether `M2` needs rewording. **Ask directly rather than inferring it from the GSTIN**, because a second registration in another state is also a possible answer. | Derived per invoice; `M2` assumed | `E07-02`, `E07-06`, `E07-17` |
+| **`GST-03`** | **Round the grand total to the nearest rupee, or charge exact paise?** The conventional Indian invoice carries a "Round Off ₹0.40" line bringing the payable to a whole rupee. **Options:** (a) exact paise — Razorpay charges exact paise, the arithmetic is already correct, and the customer is charged precisely what the invoice says; (b) round to the rupee, using `invoice.round_off_paise`, which the column supports. **Recommended: (a)**, which is what is written (`G6`). Listed because it is a convention question an accountant may have a firm view on, and because it **changes the amount charged** — so it cannot be added later as a rendering change, it needs a dated cutover. | (a) | `E07-02` |
+| **`GST-04`** | **Is catering supplied *to a school* exempt, where the same catering supplied to a parent is taxable?** Notification 12/2017 exempts certain services provided **to an educational institution** by way of catering. Today the supply is GrayBag → parent, so the exemption plainly does not arise. But `E18-01` asks whether a school might buy in bulk and bill through fees — and that is a supply **to the institution**, which may land in a different tax position entirely (and, being B2B, may also pull in the e-invoicing question in §9). **This is a question, not a finding — do not build anything on it either way.** Not needed for launch. Worth asking at the same time as `E00-10` because it may decide whether `E18-01`'s school-bulk model is viable before anyone designs it. | Not modelled; v1 is parent-only | `E18-01`, `E07-09` |
+| **`GST-05`** | **Does the invoice PDF need a digital signature?** Rule 46 requires a signature or digital signature of the supplier. Electronically issued invoices are commonly served with "This is a computer-generated invoice and does not require a signature". **Options:** (a) the computer-generated wording, which is what the layout in §8 assumes; (b) a digital signature certificate applied to every PDF, which is a key, a renewal, a signing step in the PDF pipeline and a place for the pipeline to fail silently. **Recommended: ask.** The answer changes the PDF pipeline, not the data, so it is cheap to defer — but it should be answered before `E07-04` starts emailing documents. | (a), as `«SIGNATURE-TREATMENT-PENDING-E00-10»` | `E07-02`, `E07-04` |
+
+### Confirmations rather than decisions
+
+Not open questions so much as things stated in `docs/gst-invoicing.md` on our own reading of the
+CGST Rules, which an accountant should sign off once. §10 of that document is the hand-over list.
+
+| What | Where |
+|---|---|
+| The Rule 46 field list is complete for our supply type | §4.1 |
+| The 16-character serial-number limit, and the `GB/26-27/000417` format | §5.2, `G9` |
+| Current e-invoicing / dynamic-QR turnover thresholds and GrayBag's distance from them | §9 |
+| Credit notes share the invoice series, or get their own | `[PAY-06]`, already open |
 
 ## Parked (deliberately, until real data exists)
 

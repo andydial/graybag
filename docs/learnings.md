@@ -19,6 +19,90 @@ Format — newest first:
 
 ---
 
+## 2026-08-07 — "5% GST, split as 2.5% + 2.5%" is not one calculation, and doing it as one produces unequal halves
+
+**Context:** Q09, fixing the CGST/SGST rounding rule for `E07-02`.
+**What happened:** The obvious implementation — compute 5% of the taxable value, then halve it —
+produces an invoice showing **CGST ₹3.12 and SGST ₹3.13** on a ₹125.00 line. Two identical rates
+on an identical base, printing different numbers.
+**Cause:** There is no statutory "5%". CGST at 2.5% and SGST at 2.5% are two separate levies on
+the same base, filed separately in the return; 5% is a display convenience. Computing the total
+first rounds once and then splits an odd number of paise, and the odd paise has to land
+somewhere.
+**Fix / rule:** Compute **each component independently from the taxable value** and round each
+half-up. The halves are then always equal, and their sum can be a paise either side of 5% of the
+base — `12,500 × 2.5% = 312.5 → 313` twice is 626, where 5% of 12,500 is 625. **That divergence
+is correct arithmetic, not a bug**, and it goes both ways: on ₹62.50 the components round *down*
+to 156 each (312) while the naive 5% rounds *up* to 313. `tax_total` is therefore *defined* as
+`cgst + sgst + igst` everywhere and is never computed from a 500 bps rate. `G2`.
+
+## 2026-08-07 — The invoice number format everyone writes down is 17 characters, and Rule 46 allows 16
+
+**Context:** Q09, specifying the rendered form of `invoice.invoice_number`.
+**What happened:** `GB/2026-27/000417` — carried as the example in `docs/data-model.md` §8.6 and
+in the `0001` migration comment, and the shape anyone would reach for — is **seventeen
+characters**. Rule 46(b) caps a tax invoice serial number at sixteen.
+**Cause:** Nobody counts. The four-digit-plus-two-digit financial year is what does it: it costs
+two characters more than the two-digit form for no added information.
+**Fix / rule:** `GB/26-27/000417`, 15 characters. The prefix is deliberately **two** letters, not
+three, so that a separate credit-note series (`[PAY-06]`) renders as `GBC/26-27/000417` at
+*exactly* sixteen. Do not lengthen either prefix, do not restore the four-digit year, and assert
+the length and character set on the rendered value in a test (`E07-19`) rather than trusting the
+format string. Corrected in `docs/data-model.md`; the migration comment is stale and is a comment
+only. `G9`.
+
+## 2026-08-07 — Gapless numbering is a property of the series, not of the counter
+
+**Context:** Q09. `D14` already fixed the allocation mechanism — a counter row locked
+`FOR UPDATE`, not a `SEQUENCE` — so this looked finished.
+**What happened:** Walking the failure modes, the counter turns out to guarantee only that no
+*allocation* is wasted. It says nothing about whether every allocated number still appears on a
+document. `DELETE FROM invoice` on one row, or one hand-edit of `last_sequence_no`, produces
+exactly the hole the whole design exists to prevent, and neither goes anywhere near the
+allocation path.
+**Cause:** Conflating "the mechanism cannot skip" with "the series has no holes". They are
+different claims and only the first was designed for.
+**Fix / rule:** Five ways to make a hole, five named controls (`docs/gst-invoicing.md` §5.1). The
+two that were missing are both triggers: **an `invoice` row can never be deleted** — a withdrawn
+document is a credit note, and `status = 'cancelled'` keeps its number — and
+**`last_sequence_no` may only ever increase, by exactly 1**. Plus a daily audit asserting
+`count(*) = max(sequence_no)`, `min = 1`, and counter = max, which **pages rather than warns**: a
+hole in a statutory series does not self-heal and is normally found a year later by an auditor.
+`E07-14`, `E07-15`, `G8`.
+
+## 2026-08-07 — Deriving the financial year in UTC files a 1 April invoice under the previous year
+
+**Context:** Q09, `financial_year` on `invoice` and `invoice_sequence`.
+**What happened:** An invoice issued at **05:20 IST on 1 April 2026** is 23:50 UTC on 31 March
+2026. A UTC derivation files it under `2025-26` — after numbers already issued in `2026-27`.
+**Cause:** The Indian financial year boundary is a local-midnight boundary, and IST is UTC+5:30,
+so the first five and a half hours of every 1 April are the previous day in UTC. Postgres
+`now()` is `timestamptz`; the bug is in the conversion, not the clock.
+**Fix / rule:** Derive from `issued_at at time zone platform_config.timezone`, never UTC, never
+`service_date` (an order paid on 30 March for food served on 2 April is invoiced in the year it
+was paid). Test the boundary in **both** directions — 05:20 IST 1 Apr must be `2026-27`, 23:50
+IST 31 Mar must be `2025-26`. Same family as the "midnight cutoff is a day earlier than it
+reads" note below: every date boundary in this system is a local one. `E07-16`, `G9`.
+
+## 2026-08-07 — Tax-inclusive pricing is blocked by a constraint nobody wrote for tax
+
+**Context:** Q09, specifying the `price_is_tax_inclusive = true` path so that answering
+`[DM-20]` would be a config flip.
+**What happened:** It is not a config flip. `order_line` carries
+`check (line_subtotal_paise = unit_price_paise * quantity)`, so under inclusive pricing
+`unit_price_paise` has to be a *derived exclusive* unit price — and deriving per unit then
+multiplying multiplies the rounding error by the quantity. Four ₹99.00 tax-inclusive dishes come
+to **₹396.02**, and no arrangement of integers makes it ₹396.00 while that constraint holds.
+**Cause:** The constraint is a perfectly reasonable arithmetic guard written from the exclusive
+assumption. Rounding has to happen *somewhere*, and the constraint forces it to happen at the
+unit, which is the one place where it gets multiplied.
+**Fix / rule:** Raised as `[GST-01]`. Recommendation is to answer `[DM-20]` as exclusive; if it
+comes back inclusive, derive the taxable value at the **line** and relax the constraint in
+`0003` **before `E05` builds pricing**. The general lesson: when a document says an open question
+is "supported either way by the schema", check that claim against the schema's `CHECK`
+constraints and not only its columns. The columns did support it; a constraint three tables away
+did not.
+
 ## 2026-08-07 — The menu Excel is not in the repo, and the `.bubble` file does not contain the data
 
 **Context:** Q08, building `tools/menu-import/` to read
