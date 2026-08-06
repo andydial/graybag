@@ -1,0 +1,26 @@
+name: Backlog
+
+on:
+  push:
+    branches: [main]
+    paths: ['backlog/**', 'scripts/build-backlog.mjs']
+  pull_request:
+    paths: ['backlog/**', 'scripts/build-backlog.mjs']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # Fails the build if any epic file is malformed (e.g. missing "## Tasks")
+      - run: node scripts/build-backlog.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backlog-dashboard
+          path: backlog.html

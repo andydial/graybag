@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+// Two-way sync between backlog-state.json (what the HTML page writes) and the
+// [ ] / [x] checkboxes in backlog/*.md.
+//
+//   node scripts/sync-state.mjs pull   # backlog-state.json -> markdown checkboxes
+//   node scripts/sync-state.mjs push   # markdown checkboxes -> backlog-state.json
+//   node scripts/sync-state.mjs        # same as pull, then push (union wins)
+
+import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const SRC = join(ROOT, 'planning', 'backlog');
+const STATE = join(ROOT, 'planning', 'backlog-state.json');
+const mode = process.argv[2] || 'both';
+
+const files = readdirSync(SRC).filter((f) => f.endsWith('.md'));
+const LINE = /^(\s*-\s*\[)([ xX])(\]\s*`([A-Z0-9-]+)`)/;
+const ALLOW_ANDY = process.argv.includes('--andy');
+
+// Task ids Claude Code must never mark done on its own.
+const andyOwned = new Set();
+for (const f of readdirSync(SRC).filter((x) => x.endsWith('.md'))) {
+  for (const line of readFileSync(join(SRC, f), 'utf8').split('\n')) {
+    const m = line.match(/`([A-Z0-9-]+)`[^\n]*\(owner:andy\)/);
+    if (m) andyOwned.add(m[1]);
+  }
+}
+
+let done = {};
+if (existsSync(STATE)) {
+  try { done = JSON.parse(readFileSync(STATE, 'utf8')).done || {}; } catch { done = {}; }
+}
+
+// push: markdown -> state
+if (mode === 'push' || mode === 'both') {
+  for (const f of files) {
+    for (const line of readFileSync(join(SRC, f), 'utf8').split('\n')) {
+      const m = line.match(LINE);
+      if (m && m[2].toLowerCase() === 'x') done[m[4]] = true;
+    }
+  }
+}
+
+// Refuse to tick Andy-owned tasks unless explicitly told to (i.e. Andy said so).
+const blocked = [];
+if (!ALLOW_ANDY) {
+  for (const id of Object.keys(done)) {
+    if (andyOwned.has(id)) { delete done[id]; blocked.push(id); }
+  }
+}
+
+// pull: state -> markdown
+let changed = 0;
+if (mode === 'pull' || mode === 'both') {
+  for (const f of files) {
+    const p = join(SRC, f);
+    const out = readFileSync(p, 'utf8').split('\n').map((line) => {
+      const m = line.match(LINE);
+      if (!m) return line;
+      const want = done[m[4]] ? 'x' : ' ';
+      if (m[2].toLowerCase() === want.trim().toLowerCase() || (m[2] === ' ' && want === ' ')) return line;
+      changed++;
+      return line.replace(LINE, `$1${want}$3`);
+    }).join('\n');
+    writeFileSync(p, out);
+  }
+}
+
+writeFileSync(STATE, JSON.stringify({ updated: new Date().toISOString(), done }, null, 2) + '\n');
+console.log(`sync-state (${mode}): ${Object.keys(done).length} tasks marked done, ${changed} markdown lines updated.`);
+if (blocked.length) {
+  console.log(`\n  REFUSED to tick ${blocked.length} owner:andy task(s): ${blocked.join(', ')}`);
+  console.log(`  These are Andy's decisions/validations. Only he closes them.`);
+  console.log(`  If Andy confirmed them himself, re-run with --andy.\n`);
+}

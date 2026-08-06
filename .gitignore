@@ -1,0 +1,14 @@
+# Never commit the Bubble export — it contains live secrets
+*.bubble
+
+node_modules/
+.env
+.env.*
+!.env.example
+.DS_Store
+dist/
+build/
+.expo/
+*.log
+logs/
+planning/.backlog-history/

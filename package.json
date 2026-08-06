@@ -1,0 +1,12 @@
+{
+  "name": "graybag",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "backlog": "node scripts/build-backlog.mjs",
+    "backlog:serve": "node scripts/serve-backlog.mjs",
+    "backlog:sync": "node scripts/sync-state.mjs",
+    "overnight": "bash scripts/overnight.sh"
+  }
+}
