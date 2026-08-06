@@ -19,6 +19,78 @@ Format — newest first:
 
 ---
 
+## 2026-08-07 — Soft-deleting a dependent makes their consent withdrawal permanently unrecordable
+
+**Context:** Q10, writing the consent flow for `docs/dpdp-compliance.md`. The schema already
+asserts the good half — adding a dependent writes the `recipient`, the `guardian_link` and the
+`consent_record` rows in **one transaction**, so a child's record cannot exist without a
+recorded basis.
+**What happened:** Walking the *other* end of the lifecycle, the symmetric rule turns out to be
+load-bearing and nowhere written. `consent_record_insert_self`'s `WITH CHECK` calls
+`auth_can_manage_recipient()`, which requires `gl.revoked_at is null`, `gl.can_manage` **and
+`r.deleted_at is null`**. So the instant a parent removes a child, no `withdrawn` row can be
+written about them by any customer-facing path, ever. `current_consent` then reads `granted` in
+perpetuity for a child who left the system a year ago — the precise opposite of what the record
+exists to prove.
+**Cause:** The policy was written for the question "may you record consent *about* this child",
+which is a question about a **live** guardian relationship. Withdrawal is a different question —
+"may you retract something *you* said" — and it survives the relationship ending. One predicate
+was asked to answer both.
+**Fix / rule:** Two changes. (1) **Removal writes the withdrawal in the same transaction that
+sets `deleted_at`** (`C1`, `E20-16`) — the mirror of the creation rule, and it must be atomic for
+the same reason. (2) Split the policy on `action` in `0003`: a `granted` row keeps the
+`auth_can_manage_recipient` requirement, a `withdrawn` row is permitted where the caller is the
+`user_id` of an existing grant (`E20-15`, `[DP-07]`). The same defect independently blocks a
+co-guardian with `can_manage = false` and any guardian whose link was later revoked. **General
+rule: for every authorization predicate on a consent or agreement table, check it against the
+*retraction*, not only the grant.** The right to withdraw outlives the relationship that
+conferred the right to give — this is the same family as `[OL-05]`, where a constraint that
+correctly protects an invariant also prevents recording something that has already happened.
+
+## 2026-08-07 — Accepting the privacy policy is not consent, and the two tables that say so look redundant
+
+**Context:** Q10, deciding which gate blocks what.
+**What happened:** `user_policy_acceptance` and `consent_record` read like two implementations of
+the same idea, and the tempting simplification — one "I agree to the Privacy Policy" tick,
+recorded once, treated as authority for everything — is one line of code away at all times and
+would pass every test in the repo.
+**Cause:** They answer different questions. `user_policy_acceptance` is a **contract** gate: has
+this adult accepted the current terms, one row per user per version, driving `blocks_ordering`.
+`consent_record` is a **processing** gate: is there consent for *this purpose* about *this
+person*, one row per event, and it can legitimately be `withdrawn` for an optional purpose while
+the account keeps working.
+**Fix / rule:** `C4` — the two are never conflated, and the difference is visible in the seed
+data: `allergen_health_data` is `is_required_for_service = false`, so "declined" is a **supported
+end state** (no add-to-cart warning, and the UI must say exactly that), which a single contract
+tick cannot express at all. Related trap in the same area: a new privacy-notice version does
+**not** invalidate existing consents — only a change to a *purpose's meaning* does, and that is
+why `consent_purpose` rows are immutable and a changed purpose is a new row plus `superseded`
+(`C2`). Generalises: **when two tables look redundant, write down the question each answers
+before merging them** — here the redundancy is the compliance property.
+
+## 2026-08-07 — `retention_policy` cannot express "keep this, by law", which is the answer for the rows that matter most
+
+**Context:** Q10, drafting the §6.2 retention schedule so `E20-05` seeds a table rather than
+inventing one.
+**What happened:** `retention_policy` has `check (action in ('delete', 'anonymise'))` and
+`retention_days integer not null check (> 0)`. There is no way to record *"the invoice, the
+ledger and the consent record are retained indefinitely, and here is the basis"* — which is
+exactly what `D15` decided and what the accountant will confirm. Forcing it into the existing
+shape means writing `action = 'delete'` with a large day count, i.e. asserting that we destroy
+invoices in year eight, which may well be wrong.
+**Cause:** The table was designed for *purging*, and the purge cases were the ones enumerated.
+"Retained by law" is not a purge case, so it has no vocabulary — the same shape as `[PAY-05]`,
+where `ledger_transaction.reason_code` had eight seeded values and not one of them named a money
+movement.
+**Fix / rule:** `E20-13` in `0003` — add `'retain'` to the allowed actions and make
+`retention_days` nullable for it. Second gap found alongside it: the table is keyed on `entity`
+(a table name), so a **column-level** rule ("null the three tier-P snapshot columns on `"order"`,
+keep the row") has nowhere to live; `E20-19` uses a documented `order.pii_snapshot` entity
+rather than adding a `columns text[]`. **General rule, now hit twice: for every lookup or policy
+table, write out one real row for every case the system will actually have — including the
+"nothing happens" case — before believing the vocabulary is complete.** A missing enum member is
+invisible in DDL review and unmissable the first time you try to insert.
+
 ## 2026-08-07 — "5% GST, split as 2.5% + 2.5%" is not one calculation, and doing it as one produces unequal halves
 
 **Context:** Q09, fixing the CGST/SGST rounding rule for `E07-02`.
