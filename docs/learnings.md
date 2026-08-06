@@ -19,6 +19,65 @@ Format — newest first:
 
 ---
 
+## 2026-08-06 — A Postgres view bypasses RLS unless you ask it not to
+
+**Context:** Writing `0001_initial_schema.sql` (Q02), which creates the `current_consent`
+view over the append-only `consent_record` table.
+**What happened:** A view is, by default, executed with the *view owner's* privileges, not
+the caller's. Since Supabase migrations create objects as `postgres`, `current_consent`
+would have read straight past the RLS on `consent_record` — a hole in the default-deny
+promise, in the one table that evidences consent for children's data.
+**Cause:** Postgres's historical default. `security_invoker` only arrived in PG15 and is
+off by default for backwards compatibility.
+**Fix / rule:** **Every view in this schema is created `WITH (security_invoker = true)`.**
+A view is not a security boundary here; the underlying table's RLS is. Q04's test suite
+should assert this for every view in `public`, because the failure is silent — the view
+simply returns rows it should not.
+
+## 2026-08-06 — `SET search_path` on a SQL function silently blocks inlining
+
+**Context:** Writing `resolve_effective_config()` (§9.3), which is `STABLE` specifically so
+the planner can inline it into the surrounding query.
+**What happened:** Adding `SET search_path = public` — the habit formed while writing
+`auth_has_permission()` — makes the function un-inlinable. Postgres will not inline a
+function that carries a `SET` clause, because the setting has to be established and torn
+down around each call.
+**Cause:** Documented planner behaviour, but it is easy to apply the `SECURITY DEFINER`
+hardening reflex to every function.
+**Fix / rule:** Pin `search_path` **only** on `SECURITY DEFINER` functions, where it is
+mandatory and the inlining loss is irrelevant. `auth_has_permission()` has it;
+`resolve_effective_config()` deliberately does not, and carries a comment saying why so
+nobody "fixes" it later.
+
+## 2026-08-06 — The schema cannot be applied to a bare Postgres
+
+**Context:** Wanting to syntax-check `0001_initial_schema.sql` locally.
+**What happened:** `app_user.id` is a foreign key to `auth.users(id)` (§4.1) — that is what
+makes every customer RLS predicate a direct `auth.uid()` comparison with no join. It also
+means the migration cannot be applied to a plain Postgres container; the `auth` schema does
+not exist there.
+**Cause:** Deliberate coupling to Supabase Auth, decided in the data model.
+**Fix / rule:** The migration opens with a `DO` block that raises a readable error if
+`auth.users` is missing, rather than failing three hundred lines later with a confusing
+foreign-key error. CI must run schema and pgTAP tests against `supabase start`, not against
+a bare `postgres:16` service container. This is a constraint on E01's CI design.
+
+## 2026-08-06 — A future-dated menu assignment goes live on a day with no DML
+
+**Context:** Implementing the `school_menu_version` bump triggers (§6.8) for the
+`GET /menu/version` cache token.
+**What happened:** The triggers fire on writes to `menu`, `menu_item`, `menu_assignment`,
+`menu_item_price_override`, `dish` and `asset`. But a `menu_assignment` with a future
+`valid_from` becomes effective at midnight on that date, when *nothing is written*. The
+token therefore does not change, and every client keeps serving yesterday's cached menu
+until some unrelated edit happens.
+**Cause:** The invalidation design is write-driven; this one transition is time-driven.
+**Fix / rule:** `refresh_school_menu_versions()` exists for exactly this and **must be run
+by the nightly job** — it bumps any school whose effective menu today differs from the menu
+recorded on its token, which is precisely the set that rolled over. General rule: any cache
+token invalidated by triggers needs a sweep for the transitions that are caused by the
+clock rather than by a writer.
+
 ## 2026-08-06 — Postgres SEQUENCE cannot produce gapless invoice numbers
 
 **Context:** Designing `E07-01` (gapless sequential invoice numbers per financial year) in the
