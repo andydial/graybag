@@ -19,6 +19,70 @@ Format — newest first:
 
 ---
 
+## 2026-08-06 — An RLS policy with no `TO` clause is granted to `PUBLIC`, which includes `anon`
+
+**Context:** Writing `docs/authorization-model.md` (Q03), the specification `0002_rls_policies.sql`
+will be transcribed from.
+**What happened:** `CREATE POLICY … USING (…)` with no `TO` clause defaults to `TO PUBLIC`. In
+Supabase, `PUBLIC` includes `anon` — so the single most catastrophic mistake available in this
+schema is a *missing clause*, not a wrong predicate. It is also invisible: the policy reads
+correctly, the customer path works, and unauthenticated access is silently open.
+**Cause:** SQL default, inherited from `GRANT`.
+**Fix / rule:** **Every policy in `0002` names its role explicitly — `to authenticated`** — and
+Q04 asserts `select … from pg_policies where 'anon' = any(roles) or roles = '{public}'` is
+empty. Related traps written up in the same document: policies are **permissive and OR
+together**, so adding one can only ever widen access; and `FOR ALL` uses its `USING` clause for
+both visibility and write-checks, so `0002` writes one policy per command instead.
+
+## 2026-08-06 — RLS filters rows and cannot hide a column
+
+**Context:** Trying to enforce `orders.view_pii` — the permission that separates "see the
+orders" from "see the children's names on them" (E20-09).
+**What happened:** There is no way to write a policy that grants a row but withholds
+`order.recipient_name_snapshot`. Column-level `GRANT SELECT (cols)` does not rescue it either,
+because grants are per-role and **a customer and a kitchen operator are the same Postgres role**
+(`authenticated`) — the only thing distinguishing them is the policy predicate.
+**Cause:** RLS is row-level by definition; the persona distinction lives in the JWT, not in the
+role.
+**Fix / rule:** Two consequences, both now written down. (1) Column-level promises need a
+**separate table** with its own policy, not a policy on the wide table — raised as `AZ-02`.
+(2) Any table where a customer may write but must not set every column needs a **`BEFORE UPDATE`
+guard trigger** listing the protected columns; four such tables are enumerated in §6.1 of
+`docs/authorization-model.md`. Do not assume a `WITH CHECK` can protect a column — it cannot.
+
+## 2026-08-06 — `resolve_effective_config()` returns null for every customer once RLS is on
+
+**Context:** Specifying the RLS policies for `platform_config` / `kitchen_config` /
+`school_config` (Q03).
+**What happened:** `resolve_effective_config()` is `STABLE` and deliberately *not*
+`SECURITY DEFINER`, so it runs with the caller's privileges. It inner-joins `platform_config`,
+which no customer may read. Once `0002` is applied it returns a **null row, with no error**, for
+every customer — the cutoff time, the tax rates and the cancellation rules all silently become
+null in the app.
+**Cause:** Invoker-rights functions inherit the caller's RLS. A filtered-away join row is not an
+error; it is zero rows.
+**Fix / rule:** Do not open the config tables to customers — `school_config.revenue_share_bps`
+is commercially sensitive (M4) and sits on the same row as the cutoff. Instead expose
+`effective_config_public(school_id)`, a `SECURITY DEFINER` wrapper returning the customer-safe
+subset (everything except `revenue_share_bps` and `sac_code`), gated on
+`auth_can_reach_school()`. Q04 asserts both that the wrapper returns a row and that the raw
+resolver returns null as `authenticated`, so the day someone "fixes" the config policies the
+test says what they broke. **General rule: after enabling RLS, re-check every pre-existing
+`STABLE` function that joins a now-protected table — the failure mode is a silent null, not an
+error.**
+
+## 2026-08-06 — `auth.uid()` is re-evaluated once per row unless you wrap it
+
+**Context:** Writing the customer predicate for `"order"`, the hottest table in the system.
+**What happened:** `customer_user_id = auth.uid()` calls the function for every candidate row.
+`customer_user_id = (select auth.uid())` is hoisted to an InitPlan and evaluated once per
+statement.
+**Cause:** `auth.uid()` is `STABLE`, not `IMMUTABLE`, so the planner will not fold it — but it
+will fold a scalar subquery.
+**Fix / rule:** **Every policy predicate writes `(select auth.uid())`, never bare
+`auth.uid()`.** Same applies to `auth.jwt()`. This is the difference between a policy that costs
+nothing and one that costs a function call per row on the order history query.
+
 ## 2026-08-06 — A Postgres view bypasses RLS unless you ask it not to
 
 **Context:** Writing `0001_initial_schema.sql` (Q02), which creates the `current_consent`
