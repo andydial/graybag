@@ -19,6 +19,62 @@ Format — newest first:
 
 ---
 
+## 2026-08-07 — The menu Excel is not in the repo, and the `.bubble` file does not contain the data
+
+**Context:** Q08, building `tools/menu-import/` to read
+`Legacy-Application/.../GrayBag_School_Menu 1 1.xlsx` and answer `[DM-13]` from the real
+allergen values.
+**What happened:** There is no `.xlsx` anywhere under the repository — `find` for `*.xls*`
+returns nothing. The obvious fallback, `Legacy-Application/Legacy-DB/gray-bag-23660.bubble`
+(1.4 MB), turns out to contain no dish rows either: grepping it for "allergen" returns two
+hits, both inside the terms-and-conditions *text*, not a field.
+**Cause:** A Bubble export is the **application definition** — pages, workflows, option sets,
+privacy rules — and not the database contents. `docs/legacy-bubble-schema.md` is derived from
+it and describes types and fields, which is exactly what you can get from a definition. The
+row data is a separate export that has never been taken (it is still open as "Bubble data
+export" under *Blocked on Andy*).
+**Fix / rule:** The importer is built and tested against the documented column list plus a
+synthetic sample sheet, and `[MI-01]` records that `[DM-13]` **cannot** be closed by Q08.
+Generalises: **before planning work that reads real data, confirm the real data is actually
+present, not merely referenced.** Three separate documents cited that filename as though it
+were in the tree. Cheap check, and it changes what a task can promise.
+
+## 2026-08-07 — "No allergens" and "nobody filled the cell in" are the same JSON and opposite facts
+
+**Context:** Splitting the `Allergens` column into structured tags (`D7`).
+**What happened:** The first shape for a parsed cell was just `string[]` of allergen codes.
+Walking the real cell values a school menu would contain — `Milk, Gluten`, `None`, `N/A`,
+`-`, and a genuinely empty cell — every one of the last four produces `[]`.
+**Cause:** An empty tag list is being asked to carry two meanings: *the kitchen checked and
+there are none*, and *nobody told us anything*. Downstream, `E05-05`'s add-to-cart warning
+reads that list, and the natural implementation — `if (!dish.allergens.length) return null` —
+renders both as "no allergens", which is a false reassurance in the second case.
+**Fix / rule:** `allergens_declared_none` is a stored boolean, true only for an explicit
+"None"/"Nil"/"N/A"/"-"; a blank cell imports with no tags **and** an `allergens_blank`
+warning. `MI1` in `docs/decisions.md`. Generalises, and it is a specific case of a general
+trap: **when an empty collection can mean either "verified empty" or "unknown", it needs a
+second field, because no amount of care at the read site can recover the difference.** The
+same shape is worth checking wherever the migration lands a nullable list.
+
+## 2026-08-07 — `parseFloat(price) * 100` is wrong for prices people actually type
+
+**Context:** Converting the Excel `Price` column to integer paise (non-negotiable #3).
+**What happened:** The obvious implementation, `Math.round(parseFloat(text) * 100)`, is
+right often enough to pass a casual test and wrong in ways that matter. `179.99 * 100` is
+`17998.999999999996`; `8.15 * 100` is `814.9999999999999`. `Math.round` rescues both, which
+is exactly why the bug survives review — until a value lands where rounding goes the other
+way, and a paisa is silently invented or lost on a line that will be summed into an invoice.
+**Cause:** Doing decimal arithmetic in binary floating point, on a value that only exists in
+decimal.
+**Fix / rule:** Strings are parsed **decimally** — regex out the whole and fraction parts and
+compute `whole * 100 + fraction`, so `"179.99"` is `17999` by integer arithmetic and no float
+is constructed at all. Numeric cells cannot avoid a double (Excel hands us one), so they are
+rounded to the nearest paisa **and rejected** if the value sits more than a rounding error
+away from a whole paisa, rather than being quietly rounded. Two related traps handled in the
+same function: Indian digit grouping (`1,20,500` — a comma-stripper written for `1,200`
+handles it, one written as "remove every third separator" does not), and the non-breaking
+space Excel pastes in front of `₹`, which makes a trim look like it worked when it did not.
+
 ## 2026-08-07 — "Record it and return 200" makes a misconfigured webhook secret completely silent
 
 **Context:** Writing the webhook half of `docs/payments-design.md` (Q07). The rule from
