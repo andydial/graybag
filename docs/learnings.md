@@ -19,6 +19,91 @@ Format — newest first:
 
 ---
 
+## 2026-08-07 — A failing RLS `USING` clause does not raise; it silently filters
+
+**Context:** Writing `supabase/tests/authorization.test.sql` (Q04), asserting that a
+co-guardian with `can_manage = false` cannot edit a child.
+**What happened:** The obvious test — `throws_ok('update recipient set first_name = …',
+'42501')` — is wrong, and would have failed. An `UPDATE` whose policy `USING` clause is false
+does not error: the row is simply not visible to the statement, so the `UPDATE` succeeds and
+touches **zero rows**.
+**Cause:** `USING` decides which rows the command can see. Only `WITH CHECK` raises, and only
+for the row a write is trying to produce.
+**Fix / rule:** Two different assertions for two different mechanisms, and they must not be
+confused. `USING` denial → `lives_ok(…)` **plus** a follow-up assertion that the row is
+unchanged. `WITH CHECK` denial, a missing INSERT policy, or a revoked table privilege →
+`throws_ok(…, '42501')`. A test written the wrong way round reports the wrong reason for a
+failure, and — worse — a `throws_ok` that is really testing a `USING` clause can pass for an
+unrelated reason later. The same distinction is why §6.1's protected columns are guard
+**triggers** rather than policies: a trigger raises, a policy filters.
+
+## 2026-08-07 — A pgTAP suite that switches roles must run its assertions *inside* the role
+
+**Context:** The KitchenOperator block of the Q04 authorization suite.
+**What happened:** The block captured the persona's visible tables, ran `reset role`, and then
+ran a dozen `is_empty($$ select 1 from payment $$)` assertions. Those executed as `postgres`,
+which owns the tables and therefore bypasses RLS entirely — so they were reading every row in
+the database and asserting it was empty. They would have failed noisily this time; the
+dangerous version is the mirror image, where an `is_empty` runs as a role that has no rows for
+an unrelated reason and passes for ever.
+**Cause:** `RESET ROLE` is easy to put in the wrong place, and nothing about the assertion
+tells you which role it ran as.
+**Fix / rule:** Every persona block re-enters the role immediately before its assertions and
+resets immediately after; the only statements that may run between are the ones that read the
+captured results. **Part 0b of the suite asserts the harness itself before a single deny is
+trusted** — that `SET LOCAL ROLE` actually changed `current_user`, that `auth.uid()` reads the
+impersonated subject, and that an impersonated customer really does see their own order. A
+broken impersonation setup makes every deny pass for the wrong reason, and that is the most
+likely way an authorization suite lies to you.
+
+## 2026-08-07 — After revoking `anon`'s privileges, `anon` cannot call pgTAP either
+
+**Context:** Asserting the most important property in the model — that `anon` reads zero rows
+from all 61 tables.
+**What happened:** §10 of the authorization model revokes `all on all tables/functions in
+schema public from anon`. pgTAP installs into `public` on a database where it is not already
+present, so `set local role anon; select is_empty(…)` fails on `is_empty` itself, not on the
+thing being tested.
+**Cause:** A blanket revoke is blanket.
+**Fix / rule:** **Capture as the persona, assert as the session role.** The suite has one
+helper, `tests_visible_counts(schema)`, which loops every table and returns the row count
+visible to the *current* role, swallowing `insufficient_privilege` as zero. The persona block
+does nothing but `insert into tests_seen select …`; the `set_eq`/`is_empty` runs afterwards as
+`postgres`. As a side effect this is also a much better encoding of the matrix: one assertion
+per persona covering all 61 tables at once, naming exactly which table leaked or went dark.
+The harness's own tables live in a `tests_tmp` schema, never in `public` — a helper table in
+`public` would show up in its own visibility sweep.
+
+## 2026-08-07 — `to_regclass(…) is null or (select … from that_table)` still fails
+
+**Context:** Making the §11 storage assertions skip on a database without the storage
+extension.
+**What happened:** `select ok(to_regclass('storage.buckets') is null or (select public from
+storage.buckets …))` does not degrade gracefully. The statement is parsed as a whole before
+anything is evaluated, so the missing relation is an error at parse time and the `or` never
+runs.
+**Cause:** Name resolution happens at parse, not at execution. Runtime short-circuiting cannot
+save a reference that does not resolve.
+**Fix / rule:** Optional-object checks go through a plpgsql helper that tests `to_regclass`
+first and reaches the table by `EXECUTE`. Same rule applies to the migration: `0002`'s bucket
+creation is inside a `DO` block guarded the same way.
+
+## 2026-08-07 — A guard trigger's `service_role` exemption must not be `SECURITY DEFINER`
+
+**Context:** Writing the §6.1 protected-column guard triggers, which must fire for
+`service_role` unless they explicitly exempt it.
+**What happened:** The natural place to put `current_user in ('service_role', 'postgres', …)`
+is a small helper alongside the other `auth_*` functions — all of which are `SECURITY DEFINER`
+with a pinned `search_path`. Doing that here inverts the check: inside a `SECURITY DEFINER`
+function `current_user` is the function's **owner**, so the helper would return true for every
+caller and the guard would protect nothing.
+**Cause:** `SECURITY DEFINER` changes `current_user`; `session_user` is unaffected but is the
+wrong question when PostgREST does `SET LOCAL ROLE`.
+**Fix / rule:** `auth_is_privileged_role()` is deliberately invoker-rights and carries a
+comment saying why, so nobody "hardens" it later. General rule: any function whose answer
+depends on *who is calling* must not be `SECURITY DEFINER`, which is the exact opposite of the
+rule for any function that needs to *read past RLS*.
+
 ## 2026-08-06 — An RLS policy with no `TO` clause is granted to `PUBLIC`, which includes `anon`
 
 **Context:** Writing `docs/authorization-model.md` (Q03), the specification `0002_rls_policies.sql`
