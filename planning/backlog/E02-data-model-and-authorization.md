@@ -37,7 +37,7 @@ In Bubble, `Order` is readable by everyone and 10 types have no privacy rules at
 - [ ] `E02-12` Design a `menu_item_capacity(menu_item, service_date, remaining)` table now, unused, so per-dish limits drop in later without a rewrite
 - [x] `E02-13` (mvp) Correlation ID on every order, threaded through all logs and events
 - [x] `E02-14` (mvp) Fix legacy modelling defects: single parent-child link (not two), single user pointer per role on order, single payment id field, real time types for break times, no denormalised date parts
-- [ ] `E02-15` (risk:high) (mvp) `policy_version` + `user_policy_acceptance` tables (consumed by `E20-03`)
+- [x] `E02-15` (risk:high) (mvp) `policy_version` + `user_policy_acceptance` tables (consumed by `E20-03`)
 - [ ] `E02-16` (mvp) Consent records table with purpose, timestamp and policy version (consumed by `E20-02`)
 - [ ] `E02-17` Mobile numbers stored normalised as **E.164** with a uniqueness constraint — the legacy field is a number type that loses leading zeros and country codes
 - [ ] `E02-18` (risk:critical) **Actually run** `0002_rls_policies.sql` and `supabase/tests/authorization.test.sql` against `supabase start` and fix what falls out. Both were written offline in `Q04` and have never been executed. Until this is green, `E02-08` and `E02-09` are not done
