@@ -14,13 +14,13 @@ Getting fully off Bubble includes the public website. Largely static but it need
 
 ## Tasks
 
-- [ ] `E12-01` Home page rebuilt on brand from the Graybag Design Package
-- [ ] `E12-02` Find-out-more / interest submission form (replaces `findoutmoresubmission`)
-- [ ] `E12-03` Investor submission form (replaces `investorsubmission`) — creator-only visibility
-- [ ] `E12-04` Privacy policy, refund policy, terms, and the **DPDP grievance officer contact** (`E20-07`) — required by both app stores and by law
-- [ ] `E12-05` App store badges and deep links to the mobile app
-- [ ] `E12-06` Back-office login entry point (admin / kitchen)
-- [ ] `E12-07` SEO, meta tags, sitemap, favicon, social preview images
-- [ ] `E12-08` Lighthouse performance **and accessibility** budgets enforced in CI, with actual threshold numbers
-- [ ] `E12-09` Deploy to Netlify and prepare the graybag.com DNS cutover plan
-- [ ] `E12-10` (owner:andy) Make the DNS change at the registrar when the cutover plan is ready
+- [ ] `E12-01` (mvp) Home page rebuilt on brand from the Graybag Design Package
+- [ ] `E12-02` (mvp) Find-out-more / interest submission form (replaces `findoutmoresubmission`)
+- [ ] `E12-03` (mvp) Investor submission form (replaces `investorsubmission`) — creator-only visibility
+- [ ] `E12-04` (mvp) Privacy policy, refund policy, terms, and the **DPDP grievance officer contact** (`E20-07`) — required by both app stores and by law
+- [ ] `E12-05` (mvp) App store badges and deep links to the mobile app
+- [ ] `E12-06` (mvp) Back-office login entry point (admin / kitchen)
+- [ ] `E12-07` (mvp) SEO, meta tags, sitemap, favicon, social preview images
+- [ ] `E12-08` (mvp) Lighthouse performance **and accessibility** budgets enforced in CI, with actual threshold numbers
+- [ ] `E12-09` (mvp) Deploy to Netlify and prepare the graybag.com DNS cutover plan
+- [ ] `E12-10` (owner:andy) (mvp) Make the DNS change at the registrar when the cutover plan is ready
