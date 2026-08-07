@@ -37,3 +37,4 @@ summary: Move ~400 users, dependents and full order history off Bubble. Rehearse
 - [ ] `E16-15` (risk:high) Hand-verified lookup table mapping legacy break-time option values to real times (the legacy values are wrong — see constraints above)
 - [ ] `E16-16` (risk:high) If any legacy prepaid / wallet balances exist (see `E00-18`), migrate them as **opening ledger credits** so nobody loses money at cutover
 - [ ] `E16-17` Migrate kitchen staff from an `owner-email` string on the Kitchen record to real user accounts with scoped grants
+- [ ] `E16-18` (risk:critical) **Point-in-time restore rehearsal**: prove the new Supabase project can be restored to the pre-cutover snapshot within the rollback SLA the `docs/cutover-runbook.md` assumes. Feeds the runbook's rollback plan
