@@ -2,11 +2,19 @@
   "name": "graybag",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "backlog": "node scripts/build-backlog.mjs",
     "backlog:serve": "node scripts/serve-backlog.mjs",
     "backlog:sync": "node scripts/sync-state.mjs",
     "overnight": "bash scripts/overnight.sh"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
   }
 }

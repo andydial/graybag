@@ -987,3 +987,17 @@ before trusting either.
 **Fix / rule:** Normalise to E.164 before any claim is possible, and **block auto-claim on
 any ambiguous or duplicate match** — otherwise one OTP could claim the wrong account along
 with its children's records (`E03-11`, `E16-14`).
+
+## 2026-08-07 — `sync-state.mjs --andy` silently did nothing
+
+**Context:** Ticking `E01-00`/`E01-01` at the end of the first Block 1 task.
+**What happened:** `node scripts/sync-state.mjs --andy` printed a success line
+("9 tasks marked done, 0 markdown lines updated") while performing **neither** the push nor
+the pull. The two freshly ticked boxes were not recorded.
+**Cause:** The script read its mode as `process.argv[2]`, so the flag `--andy` *became* the
+mode. Neither `mode === 'push'` nor `mode === 'pull'` matched, both branches were skipped,
+and the script still wrote the state file and reported success.
+**Fix / rule:** Mode is now the first **non-flag** argument, and an unrecognised mode exits 1
+instead of no-opping. General rule for the repo tooling: **a script that recognises no work to
+do must fail loudly, not report success.** The tooling here is the only record of what is
+done — a silent no-op means Andy is told a task is ticked when it is not.

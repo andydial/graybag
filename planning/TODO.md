@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 35 open of 35.
+Your tasks only — 34 open of 35.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -35,7 +35,7 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E00-15` Export a full Bubble data dump (users, children, orders, dish_in_order, schools, kitchens, menus) — hand it over; the build side inspects and reports on it in E19-04
 - [ ] `E00-18` Check whether any legacy prepaid card / wallet balances exist off-system for early users; if so they must be migrated as opening ledger credits (see E16-15)
 - [ ] `E00-19` _(fast-follow)_ Decide the customer self-cancellation window ([PP-01]) and the post-delivery refund stance ([PP-02]) for the refund policy. These are the final customer-facing values docs/refund-policy.md is blocked on; drafts ship with tokens until set
-- [ ] `E01-00` One-off: authorise the GitHub (gh auth login) and Supabase CLIs on your machine — after this the build side creates and manages both
+- [x] `E01-00` One-off: authorise the GitHub (gh auth login) and Supabase CLIs on your machine — after this the build side creates and manages both
 - [ ] `E20-21` _(fast-follow)_ Decide and supply the named grievance officer: name, designation, email and published address. E20-07 cannot publish a placeholder, and the four «…-PENDING-E20-21» tokens in docs/dpdp-compliance.md §7.2 block launch
 
 ## Decisions to make (no rush, but they gate later work)

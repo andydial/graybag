@@ -13,7 +13,15 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'planning', 'backlog');
 const STATE = join(ROOT, 'planning', 'backlog-state.json');
-const mode = process.argv[2] || 'both';
+// Flags may appear in any position; the mode is the first non-flag argument.
+// (Before this, `sync-state.mjs --andy` parsed "--andy" as the mode and silently
+// did neither the push nor the pull — it looked like it worked and changed nothing.)
+const positional = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const mode = positional[0] || 'both';
+if (!['pull', 'push', 'both'].includes(mode)) {
+  console.error(`sync-state: unknown mode "${mode}" — expected pull, push or both.`);
+  process.exit(1);
+}
 
 const files = readdirSync(SRC).filter((f) => f.endsWith('.md'));
 const LINE = /^(\s*-\s*\[)([ xX])(\]\s*`([A-Z0-9-]+)`)/;
