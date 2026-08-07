@@ -760,13 +760,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/19</span>
+          <span class="meter-num">0/23</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 19 tasks</summary>
+        <summary>Context &amp; 23 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -911,6 +911,34 @@
         <span class="badge r-high">high</span>
         
         <span class="ttext">Wire <code>supabase test db</code> into CI as a <strong>required</strong> check. It cannot run against a bare <code>postgres:16</code> service container — <code>app_user.id</code> references <code>auth.users(id)</code> and the suite impersonates via <code>request.jwt.claims</code>. Constrains <code>E01-08</code> / <code>E01-11</code></span>
+      </li>
+      <li class="task" data-id="E02-20" data-seed="0" data-risk="high" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-20"></button>
+        <code class="tid">E02-20</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="ttext"><strong><code>effective_config_public()</code></strong> (<code>docs/authorization-model.md</code> §7.6) — <code>resolve_effective_config()</code> is invoker-rights and joins three config tables no customer may read, so the moment <code>0002</code> applies it returns a <strong>null row for every customer, with no error</strong>. Cutoff time, break times and prices all resolve to nothing in the app. Extends <code>E02-10</code>; must land with it, not after</span>
+      </li>
+      <li class="task" data-id="E02-21" data-seed="0" data-risk="" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-21"></button>
+        <code class="tid">E02-21</code>
+        
+        
+        <span class="ttext"><strong>The §10 table-privilege revokes</strong> — <code>0002_rls_policies.sql</code> contains <strong>zero</strong> <code>GRANT</code>/<code>REVOKE</code> statements, so the &quot;second layer underneath RLS&quot; that <code>docs/authorization-model.md</code> §10 specifies does not exist. Low live exposure today (RLS with no write policy already denies writes) but it is a specified control with no implementation. Ride it with <code>E02-18</code></span>
+      </li>
+      <li class="task" data-id="E02-22" data-seed="0" data-risk="" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-22"></button>
+        <code class="tid">E02-22</code>
+        
+        
+        <span class="ttext"><strong>Storage bucket creation and policies</strong> (<code>docs/authorization-model.md</code> §11) — four buckets, three private and one public CDN bucket; <code>0002</code> deliberately writes no <code>storage.objects</code> policies and explains why, but nothing creates the buckets or owns the signed-URL discipline that <code>invoice.pdf_asset_id</code> depends on (<code>docs/gst-invoicing.md</code> §8 note 6). Pairs with <code>E04-07</code></span>
+      </li>
+      <li class="task" data-id="E02-23" data-seed="0" data-risk="high" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-23"></button>
+        <code class="tid">E02-23</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="ttext"><strong>The <code>[AZ-02]</code> tripwire test</strong> — fail the authorization suite the moment a grant of <code>orders.view</code> <strong>without</strong> <code>orders.view_pii</code> is issued. <code>orders.view_pii</code> is not enforceable by RLS (RLS filters rows, not columns), and the model is safe today only because every role template holds both. Named in <code>docs/authorization-model.md</code> §14, in <code>[AZ-02]</code>&#39;s own recommendation and in <code>docs/dpdp-compliance.md</code> §5.1, and owned by nobody. This is what makes <code>[AZ-02]</code>&#39;s deadline enforce itself before <code>E20-09</code>&#39;s analyst role exists</span>
       </li></ul>
       </details>
     </article>
@@ -1021,13 +1049,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/15</span>
+          <span class="meter-num">0/20</span>
         </div>
       </header>
       <p class="summary">Written before any UI code exists. The motion catalogue is what produces &quot;fluid&quot; instead of &quot;flying bird&quot;.</p>
       
       <details>
-        <summary>Context &amp; 15 tasks</summary>
+        <summary>Context &amp; 20 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Source: <code>Graybag_Design Package</code> — VAG Rounded Next font family, primary <code>#00af52</code>, secondary <code>#145f48</code> / <code>#ffbb39</code>, accent <code>#b3cf3f</code> / <code>#e5ea98</code>, pattern assets, and the 06_App UI mocks.</p>
 <p>The motion system is a <strong>closed catalogue</strong>. New screens implement from it; it is only amended when a genuinely new kind of interaction appears, and that is a deliberate joint decision.</p></div>
@@ -1136,6 +1164,41 @@
         
         
         <span class="ttext"><strong>Reconcile <code>docs/design-tokens.md</code> against <code>00_Graybag_Brand Guidelines.pdf</code></strong> — 21.8 MB, never read (over the file-read limit, no rasteriser runnable in the overnight sandbox). If it specifies tints, tonal steps, a type scale or usage rules, the brand document wins. The token file is provisional until this is done. <code>DS-05</code></span>
+      </li>
+      <li class="task" data-id="E13-16" data-seed="0" data-risk="high" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-16"></button>
+        <code class="tid">E13-16</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="ttext"><strong>Correct <code>docs/design-tokens.md</code> §2.3&#39;s mock-02 fix — the substitution it prescribes does not work.</strong> <code>forest-600 #104c3a</code> on <code>primary-600 #009646</code> is <strong>2.57:1</strong>, not the 3.25:1 claimed, and still fails the 3:1 control-boundary bar. The 3.25:1 figure belongs to <strong><code>forest-700 #0c3b2d</code></strong>. Fix the token, add a <code>text.onBrandField</code>-style role for a control on a brand field, and correct three ratios that round the wrong way (<code>danger-700</code> 6.57 not 6.63, <code>neutral-800</code> 14.57 not 14.56, <code>neutral-900</code> 18.07 not 18.06). <code>E13-14</code> currently asks Andy to approve a worked example that is wrong</span>
+      </li>
+      <li class="task" data-id="E13-17" data-seed="0" data-risk="high" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-17"></button>
+        <code class="tid">E13-17</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="ttext"><strong>Resolve the five semantic-role pairs that fail the bar <code>E13-13</code> will assert.</strong> Walking <code>docs/design-tokens.md</code> §2.9: <code>text.tertiary</code> on <code>bg.surfaceMuted</code> <strong>4.23</strong> (placeholder text inside an input — the role&#39;s commonest use); <code>text.tertiary</code> on <code>bg.canvas</code> <strong>4.50</strong>, exactly at the bar; <code>text.danger</code> on the <code>danger-50</code> banner fill §2.8 pairs it with <strong>4.44</strong>; <code>border.default</code> on <code>bg.surface</code> <strong>2.28</strong> against the 3:1 a control boundary needs, and §2.9 assigns it to *&quot;input and card outlines&quot;*; <code>text.onBrand</code> on <code>bg.surfaceBrand</code> <strong>3.85</strong>, where the role map has no legal body-text colour at all for a surface described as carrying controls. None of this is fixed by approving <code>DS-01</code>. Options and a recommendation are <code>[DS-06]</code></span>
+      </li>
+      <li class="task" data-id="E13-20" data-seed="0" data-risk="high" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-20"></button>
+        <code class="tid">E13-20</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="ttext"><strong><code>M09</code>&#39;s 8-second timeout-and-retry must not apply to Pay.</strong> <code>docs/motion-system.md</code> <code>M09</code> reverts the button and offers a retry after 8s; <code>docs/order-lifecycle.md</code> §13 says <code>payment_pending</code> shows an unbounded waiting state, and <code>docs/payments-design.md</code> §3.3 says a UPI collect sits pending for minutes. A retry affordance at 8 seconds manufactures §10.6b&#39;s genuine double capture — *&quot;this <strong>will</strong> happen&quot;* — which <code>[OL-05]</code> says the schema cannot currently record. Pay (and Place Order where it opens the Razorpay sheet) uses the waiting state and <code>GET /checkout/:group/status</code>; <code>M09</code>&#39;s timeout stays for Cancel Order and Save Recipient</span>
+      </li>
+      <li class="task" data-id="E13-18" data-seed="0" data-risk="" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-18"></button>
+        <code class="tid">E13-18</code>
+        
+        
+        <span class="ttext">Correct <code>M01</code>&#39;s allow/deny lists — it permits press feedback on *&quot;the quantity stepper&quot;* and then excludes *&quot;anything under 32pt visually — a 28pt stepper button&quot;*. <code>docs/design-tokens.md</code> §4.1 confirms the stepper draws at ~28pt; the deny list is the correct one</span>
+      </li>
+      <li class="task" data-id="E13-19" data-seed="0" data-risk="" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-19"></button>
+        <code class="tid">E13-19</code>
+        
+        
+        <span class="ttext">Reconcile <code>M04</code>&#39;s container-height animation with §7 rule 6 and the §9 lint gate, which fail the build on animating anything but <code>transform</code>/<code>opacity</code> outside the two files implementing <code>M10</code> and <code>M14</code>. <code>M04</code> is the third height animation and is not exempted, so <code>E13-11</code> as specified would fail every implementation of the catalogue&#39;s most-used pattern. Either exempt <code>M04</code> or drop the height animation</span>
       </li></ul>
       </details>
     </article>
@@ -1608,13 +1671,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/28</span>
+          <span class="meter-num">0/30</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 28 tasks</summary>
+        <summary>Context &amp; 30 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -1764,7 +1827,7 @@
         <code class="tid">E06-22</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="ttext"><strong>Ledger reason codes</strong> (§10, §8.4 gap 2) — <code>ledger_transaction.reason_code</code> is <code>not null references reason_code(code)</code> and none of the eight seeded codes names a money movement, so no ledger posting can be written at all. Seed the <code>category = &#39;ledger&#39;</code> vocabulary: <code>sale</code>, <code>provider_fee</code>, <code>settlement</code>, <code>wallet_hold</code>, <code>wallet_hold_reversal</code>, <code>refund_to_wallet</code>, <code>refund_to_source</code>, <code>revenue_share</code>, <code>refund_mdr_recovery</code>, <code>payout</code>, plus <code>provider_initiated</code> for <code>[PAY-07]</code>. <strong>Blocks <code>E06-07</code> outright.</strong> Migration <code>0003</code>, with <code>E06-20</code>. Correct <code>docs/data-model.md</code> §8.4&#39;s worked example in the same PR — it omits the MDR posting, so the clearing account is permanently overstated</span>
+        <span class="ttext"><strong>Ledger reason codes</strong> (§10, §8.4 gap 2) — <code>ledger_transaction.reason_code</code> is <code>not null references reason_code(code)</code> and none of the eight seeded codes names a money movement, so no ledger posting can be written at all. Seed the <code>category = &#39;ledger&#39;</code> vocabulary: <code>sale</code>, <code>provider_fee</code>, <code>settlement</code>, <code>wallet_hold</code>, <code>wallet_hold_reversal</code>, <code>refund_to_wallet</code>, <code>refund_to_source</code>, <code>revenue_share</code>, <code>refund_mdr_recovery</code>, <code>payout</code>, plus <code>provider_initiated</code> for <code>[PAY-07]</code>. <strong>Blocks <code>E06-07</code> outright.</strong> Migration <code>0003</code>, with <code>E06-20</code>. Correct <code>docs/data-model.md</code> §8.4&#39;s worked example <strong>and <code>docs/order-lifecycle.md</code> §8.4 step 6</strong> in the same PR — both omit the MDR posting (<code>docs/payments-design.md</code> §10 row 3), so the clearing account is permanently overstated by the fee and tier-3 reconciliation can never balance</span>
       </li>
       <li class="task" data-id="E06-23" data-seed="0" data-risk="high" data-owner="build">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-23"></button>
@@ -1814,6 +1877,20 @@
         
         
         <span class="ttext"><strong>Expo config plugin for UPI app visibility</strong> (§3.3) — Android 11+ <code>&lt;queries&gt;</code> for the UPI intent app chooser, plus iOS <code>LSApplicationQueriesSchemes</code>. Without it the app list is silently empty and checkout degrades to UPI collect/QR, which is the flow <code>E06-02</code> exists to replace</span>
+      </li>
+      <li class="task" data-id="E06-30" data-seed="0" data-risk="high" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-30"></button>
+        <code class="tid">E06-30</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="ttext"><strong><code>order_group_status = &#39;payment_failed&#39;</code> is currently unreachable.</strong> <code>docs/order-lifecycle.md</code> §5 rule G3 requires every member cancelled with <code>cancel_reason_code = &#39;payment_failed&#39;</code>, but §10.4 step 3 makes the sweeper write <code>checkout_expired</code> for <strong>both</strong> &quot;every attempt terminally failed&quot; and &quot;never started&quot;. Every failed checkout therefore falls through to G4 (<code>cancelled</code>) and G3 never fires — while §12.1 scenario 5 asserts the group reaches <code>payment_failed</code>. Split the reason code on whether any attempt reached <code>failed</code>, and fix §10.4 in the same PR</span>
+      </li>
+      <li class="task" data-id="E06-31" data-seed="0" data-risk="" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-31"></button>
+        <code class="tid">E06-31</code>
+        
+        
+        <span class="ttext"><strong>Define and assert the ledger sign convention.</strong> <code>ledger_entry</code> carries a <code>ledger_direction</code> enum, and no document says which direction is positive for which <code>ledger_account_type</code>. Two nightly assertions run in opposite directions: the wallet is a liability (posting #1 <strong>debits</strong> it when the customer spends, so its balance is credits − debits, invariant <code>I8</code>) and <code>provider:razorpay:clearing</code> is an asset (posting #2 <strong>debits</strong> it on capture, so its balance is debits − credits, <code>docs/payments-design.md</code> §8.3). A single-signed <code>balance()</code> helper is wrong for half the accounts. Write it into <code>docs/data-model.md</code> §8.4 as a per-account-type normal-balance table and unit-test both directions</span>
       </li></ul>
       </details>
     </article>
@@ -1830,13 +1907,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/19</span>
+          <span class="meter-num">0/21</span>
         </div>
       </header>
       <p class="summary">Compliant GST invoices emailed as PDF on every purchase, plus the revenue-share and payout reporting that sits on the same numbers.</p>
       <p class="deps">Depends on <code>E06</code></p>
       <details>
-        <summary>Context &amp; 19 tasks</summary>
+        <summary>Context &amp; 21 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>GrayBag is the <strong>seller of record</strong> and pays kitchens monthly. Cart currently shows a single &quot;5% tax&quot; line; a compliant invoice needs the CGST/SGST split. Place of supply is Mohali / SAS Nagar (intra-state).</p>
 <p>Blocked on E00-10 / E00-11 for GSTIN, SAC code and the school-share GST treatment.</p></div>
@@ -1973,6 +2050,20 @@
         
         
         <span class="ttext">Invoice-number renderer as a pure function of <code>(financial_year, sequence_no)</code>, asserting every rendered value is ≤ 16 characters and matches <code>^[A-Za-z0-9/-]+$</code></span>
+      </li>
+      <li class="task" data-id="E07-20" data-seed="0" data-risk="critical" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-20"></button>
+        <code class="tid">E07-20</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="ttext"><strong>Move the placeholder guard before the money moves.</strong> <code>E07-13</code> as specified refuses to allocate an invoice number inside <code>settle_payment()</code> — which <code>docs/gst-invoicing.md</code> §2 itself calls &quot;the checkout&#39;s <strong>post-capture</strong> step&quot;. Under auto-capture (<code>[OL-01]</code>) the customer is already charged, the settlement transaction rolls back, <code>PY2</code> returns <code>200</code> and our own 5-minute sweep retries the failure forever: every customer charged, no order created, no 5xx, no alert but a growing <code>payment_webhook_event</code> backlog. Refuse <code>POST /checkout</code> in production while <code>seller_gstin</code> or <code>sac_code</code> matches <code>^«.*»$</code>, <strong>and</strong> add a boot assertion on the payments Edge Functions in the same shape as <code>E06-14</code>&#39;s key-prefix check. Keep <code>E07-13</code> as defence in depth. Test: with a placeholder in config, checkout returns a typed refusal and no Razorpay order is created</span>
+      </li>
+      <li class="task" data-id="E07-21" data-seed="0" data-risk="high" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-21"></button>
+        <code class="tid">E07-21</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="ttext"><strong>Derive the CGST/SGST-vs-IGST split in the cart and checkout pricing path</strong>, not only on the invoice. <code>E07-17</code> fixes the invoice; <code>E07-06</code> and <code>docs/order-lifecycle.md</code> §8.2 step 7 compute the split &quot;per <code>M2</code>&quot;, i.e. hard-coded intra-state. The three launch cities span three state codes (Punjab <code>03</code>, Chandigarh <code>04</code>, Haryana <code>06</code> — <code>docs/data-model.md</code> §3.1), so at most one can be intra-state under a single GSTIN and a parent at a Panchkula school would be shown CGST+SGST and invoiced IGST. <code>L7</code> requires the charged total to equal the displayed total, so this is not cosmetic. Share one pricing function between checkout and the invoice builder. See <code>[GST-06]</code></span>
       </li></ul>
       </details>
     </article>
@@ -2103,13 +2194,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/12</span>
+          <span class="meter-num">0/13</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 12 tasks</summary>
+        <summary>Context &amp; 13 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -2196,6 +2287,13 @@
         
         <span class="badge r-you">you</span>
         <span class="ttext"><strong>Decision parked</strong>: default delivery mode (classroom bulk vs counter pickup) until real usage data exists. Both are supported</span>
+      </li>
+      <li class="task" data-id="E09-13" data-seed="0" data-risk="" data-owner="build">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-13"></button>
+        <code class="tid">E09-13</code>
+        
+        
+        <span class="ttext"><code>E09-07</code>&#39;s <strong>last-4-phone fallback search is an Edge Function, never a table read.</strong> <code>docs/data-model.md</code> §13.3 rule 4 says the kitchen needs <strong>no</strong> tier A beyond those four digits, and <code>docs/authorization-model.md</code> §14 names the mechanism; <code>E09-07</code> as written says nothing about it, and a table read would hand a kitchen operator the whole <code>phone_e164</code>. Rate-limited, logs the lookup to <code>audit_log</code>, returns the order and nothing else</span>
       </li></ul>
       </details>
     </article>
