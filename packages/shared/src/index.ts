@@ -15,3 +15,13 @@ export {
   type ClientEnv,
   type ServerEnv,
 } from './env.js';
+
+export {
+  ConfigUnavailableError,
+  createConfigCache,
+  gstSplitBps,
+  type ConfigCache,
+  type ConfigCacheOptions,
+  type ConfigFetcher,
+  type EffectiveConfig,
+} from './config-cache.js';
