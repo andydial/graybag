@@ -32,7 +32,7 @@ In Bubble, `Order` is readable by everyone and 10 types have no privacy rules at
 - [x] `E02-07` (risk:critical) (mvp) Permission model: `grant(user, permission, scope_type, scope_id)`. Discrete permissions include `orders.view`, `orders.mark_delivered`, `orders.refund`, `orders.view_financials`, `menu.edit`, `school.onboard`, `reports.view`
 - [x] `E02-08` (risk:critical) (mvp) Row Level Security policies on every table; **default deny**
 - [x] `E02-09` (risk:critical) (mvp) Authorization test suite — for each table, assert every role can and cannot see exactly what it should. This suite must fail loudly if a policy is ever removed
-- [ ] `E02-10` (mvp) Resolution-chain resolver (platform -> kitchen -> school) with unit tests, plus config cache
+- [x] `E02-10` (mvp) Resolution-chain resolver (platform -> kitchen -> school) with unit tests, plus config cache
 - [ ] `E02-11` Reporting **partitioned and indexed** by city + kitchen from day one (materialised aggregates are deferred to `E18-22`)
 - [ ] `E02-12` Design a `menu_item_capacity(menu_item, service_date, remaining)` table now, unused, so per-dish limits drop in later without a rewrite
 - [x] `E02-13` (mvp) Correlation ID on every order, threaded through all logs and events
