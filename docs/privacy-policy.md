@@ -98,7 +98,7 @@ noted, and each is covered by a data-processing agreement (`E20-11`).
 | Our **SMS provider** («SMS-PROVIDER-NAME-PENDING-E20-11») | Sends the one-time password to sign you in | Your mobile number and the OTP message |
 | **Sentry** | Error reporting | Diagnostic data, **scrubbed** of personal data (§2.3). Retained ~30 days |
 | **Better Stack** | Log management | Application logs identified by an internal correlation id, **not** by a child's name. Retained ~30 days |
-| **Expo / EAS** | Delivers app updates and push notifications | Your device push token and the notification text |
+| **Expo / EAS** | Delivers app updates and push notifications | Your device push token and the notification text. **Notification text never contains your child's name, class, section or allergies** — it refers to your order neutrally (for example "Your lunch order has been delivered"), because a push message appears on a lock screen. This is enforced by test (`E20-29`) |
 | **Netlify** | Hosts the website | Website access logs |
 | Our **email provider** («EMAIL-PROVIDER-NAME-PENDING-E07-04», `[DP-05]`) | Sends receipts, invoices and the confirmation email | Your email address, and your invoice — **which carries your child's first name** (`G7`) |
 | The **school** | Receives the food and hands it over | **Aggregate reports only** — counts and money, **never** a child-level record or a child's name. School staff who hand food over see the child's name for that delivery only |
@@ -199,7 +199,7 @@ tell you now and again at the moment you confirm deletion.
 | Consent records | «CONSENT-RETENTION-PENDING-E20-01» (proposed: 3 years after account deletion) | Deleted |
 | Device push token | ~12 months of inactivity | Deleted |
 | Diagnostic data (Sentry) and logs (Better Stack) | ~30 days | Deleted |
-| Sign-in / OTP records | ~90 days | Deleted |
+| Sign-in / one-time-password (OTP) records | Held by our sign-in provider and kept for the period its settings allow (short) | Deleted by the provider |
 
 ---
 

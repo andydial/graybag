@@ -109,8 +109,13 @@ names. `[DP-01]`, `[confirm in E20-01]`.
 
 ### 2.2 What we hold
 
-The classification is already normative in `docs/data-model.md` §13.3 and is repeated here
-because every rule in §5 and §6 keys off it.
+The classification is normative in `docs/data-model.md` §13.3, and this section **extends and
+completes** it — it repeats the §13.3 rows and adds the two columns that §13.3 did not yet name
+(`order_line.allergen_codes_snapshot` = tier S; `invoice_line.description` = tier P, first name
+only, `G7`). Those two additions are being folded back into `docs/data-model.md` §13.3 so the
+two documents agree; **`data-model.md` §13.3 remains the authoritative source once merged**, and
+this table must not diverge from it. It is repeated here because every rule in §5 and §6 keys
+off the classification.
 
 | Tier | Meaning | Columns | Consent purpose that authorises it |
 |---|---|---|---|
@@ -247,10 +252,10 @@ must say so **before** the confirmation, not after.
 
 | Purpose | Required? | On withdrawal |
 |---|---|---|
-| `child_data_processing` | yes | **The dependent is deactivated.** `deleted_at` is set, all future ordering for them stops immediately, and §6.5's erasure pipeline runs. Past orders and invoices survive under the statutory basis (`D15`) and the parent is told so in the confirmation |
-| `order_fulfilment` | yes | Same as above — we cannot deliver food to a child whose name we may not give the kitchen. Practically this is the same button; it is a separate purpose because the *recipient* of the data is different and the notice has to say so |
+| `child_data_processing` | yes | **The dependent is deactivated.** `deleted_at` is set on that **recipient only**, all future ordering for them stops immediately, and §6.5's erasure pipeline runs with **`scope = 'recipient'`** (only that child's rows and data — **never** the parent's account or their other children). Past orders and invoices survive under the statutory basis (`D15`) and the parent is told so in the confirmation |
+| `order_fulfilment` | yes | Same as above — `scope = 'recipient'`, that child only. We cannot deliver food to a child whose name we may not give the kitchen. Practically this is the same button; it is a separate purpose because the *recipient* of the data is different and the notice has to say so |
 | `allergen_health_data` | no | **Every `recipient_allergen` row and `recipient.allergy_note` is deleted outright.** Add-to-cart warnings stop. The rest of the account is untouched. The confirmation must say, in plain words, that we will no longer warn them |
-| `school_reporting_aggregate` | yes | Cannot be withdrawn while ordering continues, because the school's aggregate count is a consequence of the meal being delivered on its premises. **If a lawyer disagrees, this becomes optional and the report excludes the order** — `[DP-05]` |
+| `school_reporting_aggregate` | yes | Cannot be withdrawn while ordering continues, because the school's aggregate count is a consequence of the meal being delivered on its premises. **If a lawyer disagrees, this becomes optional and the report excludes the order** — `[DP-04]` (is the school a fiduciary, processor or recipient) |
 | `marketing_email`, `marketing_push` | no | Sending stops on the next send. `notification_preference` is updated in the same transaction |
 | `product_analytics` | no | Client stops emitting. Already-emitted events are not retrievable from the vendor per-user — which is itself a reason to send as little as possible (§5.3) |
 
@@ -533,7 +538,7 @@ which are cheap now and awkward later:
 | `notification_delivery` | **12 months** | `delete` | Holds an email address / phone number per row | no |
 | `device_token` | Revoke at **90 days** inactive; delete at **12 months** | `delete` | | no |
 | `idempotency_key` | **24 hours** | `delete` | Already in the schema | no |
-| `otp_attempt` / auth logs | **90 days** | `delete` | Fraud investigation window | no |
+| OTP / auth-log state (Supabase `auth` / GoTrue schema) | **Governed by the auth provider's (GoTrue) retention setting** — our purge job does not reach the `auth` schema | vendor-side | OTP and sign-in state lives in Supabase's managed `auth` (GoTrue) schema, not in a table we own. There is **no `otp_attempt` table in `0001`**, so our purge job cannot delete it and must not claim to. Its retention is whatever the auth provider is configured to. **`E20-33`** builds an owned `otp_attempt` table (needed by `E03-10`'s per-number/per-IP throttle counting); once it exists it gets its own real retention row (proposed **90 days** — fraud investigation window). | no |
 | `purge_run` | **Retain** | retain | It is the evidence that retention happened | no |
 | `school_report` | **3 years** | retain | Aggregates only — no personal data in it at all | no |
 | Sentry events | **30 days** (vendor-side setting) | `delete` | Should contain no personal data anyway (§5.3); the short window is defence in depth | no |
@@ -588,44 +593,80 @@ no policies, so the failure mode is "nobody can read anything") and `MI3` (every
 for): **the resting state must be loud.** A retention schedule that silently omits a table is
 indistinguishable from one that covers it, right up until a regulator asks. `E20-19`.
 
-### 6.5 The erasure pipeline — a fixed order
+### 6.5 The erasure pipeline — a fixed order, with a `scope`
 
 Triggered by: a `data_subject_request` of type `erasure`, an in-app account deletion (`E03-08`,
-an app-store requirement on both platforms), or withdrawal of a required consent (§3.5). One
-Edge Function, running as `service_role`, in this order — **the order matters**:
+an app-store requirement on both platforms), or withdrawal of a required consent for **one
+child** (§3.5). One Edge Function, running as `service_role`, in the fixed order below — **the
+order matters** — but it takes a **`scope` parameter that decides which rows it touches**:
+
+| `scope` | Triggered by | What it erases |
+|---|---|---|
+| **`recipient`** | Withdrawal of `child_data_processing` / `order_fulfilment` for **one dependent** (§3.5); a `data_subject_request` scoped to a single child | **Only that dependent** — the child's `recipient` row, its tier-S and tier-P data, its consent withdrawals, its snapshots on historical orders. **The parent's `app_user` row and every other dependent are untouched.** |
+| **`account`** | In-app account deletion (`E03-08`); a `data_subject_request` of type `erasure` against the whole account | The account: every dependent (each run through the `recipient` steps), **plus** the parent's own tier-A data, tokens and preferences |
+
+> **The bug this fixes (review §2.5).** The pipeline was written for `account` and then invoked
+> from a **single-child** withdrawal (§3.5). Run unscoped, withdrawing consent for one child of
+> two would soft-delete and anonymise the **parent** (step 1's `app_user.deleted_at`, step 5's
+> `app_user` names/phone/email) and delete the parent's device tokens (step 4) — taking the
+> other child with it. A single child's withdrawal must run **`scope = 'recipient'`** and touch
+> nothing on `app_user`.
+
+The steps, annotated with which scope runs them:
 
 ```
-1. Stop access first.       set app_user.deleted_at / recipient.deleted_at.
-                            The restrictive deny_dead_accounts policy takes effect
-                            immediately; sessions die; nothing further can be ordered.
-                            This is the part the user actually asked for, and it is
-                            the part that must not wait for the rest to succeed.
+                              scope
+1. Stop access first.         recipient: set recipient.deleted_at for THAT child only.
+                              account:   set app_user.deleted_at AND every recipient.deleted_at.
+                              The restrictive deny_dead_accounts policy takes effect
+                              immediately on the row(s) set; nothing further can be ordered
+                              for the deactivated subject. This is the part the user asked
+                              for, and it must not wait for the rest to succeed.
+                              (See step 2 — record the withdrawal BEFORE this in the same
+                              transaction, because after this no customer-facing path can.)
 
-2. Record the withdrawal.   insert consent_record(action = 'withdrawn') for every live
-                            purpose — BEFORE anything else, because after step 1 no
-                            customer-facing path can write it (§3.2, §3.6).
+2. Record the withdrawal.     both: insert consent_record(action = 'withdrawn') for every
+                              live purpose of the affected subject(s) — in recipient scope,
+                              only that child's purposes; in account scope, the child
+                              purposes AND the adult's self purposes. This runs FIRST,
+                              in the same transaction as step 1, because once step 1's
+                              deleted_at is set no customer-facing path can write it
+                              (§3.2, §3.6); the pipeline can only because it is service_role.
 
-3. Delete tier S outright.  recipient_allergen rows; recipient.allergy_note.
-                            No statutory basis, so no anonymisation half-measure.
+3. Delete tier S outright.    both: recipient_allergen rows; recipient.allergy_note, for
+                              the affected recipient(s). No statutory basis, so no
+                              anonymisation half-measure.
 
-4. Revoke.                  guardian_link.revoked_at; device_token rows deleted;
-                            notification_preference off.
+4. Revoke.                    recipient: guardian_link.revoked_at for links to THAT child.
+                              account:   also delete the parent's device_token rows and
+                                         turn notification_preference off.
+                              (In recipient scope the parent keeps their tokens and
+                              preferences — they still have an account and other children.)
 
-5. Anonymise tier A and P.  app_user names/phone/email; recipient names, class, section.
-                            Set anonymised_at.
+5. Anonymise tier A and P.    recipient: recipient names, class, section for that child.
+                              account:   also app_user names/phone/email.
+                              Set anonymised_at on each row touched.
 
-6. Tier-P snapshots on      Null recipient_name_snapshot / class / section on orders
-   historical orders.       past the §6.2 window. Orders inside the window keep them
-                            until the nightly purge reaches them — the kitchen may still
-                            have to deliver a meal that is already paid for.
+6. Tier-P snapshots on         both: null recipient_name_snapshot / class / section on the
+   historical orders.          affected recipient's orders past the §6.2 window. Orders
+                               inside the window keep them until the nightly purge reaches
+                               them — the kitchen may still have to deliver a meal that is
+                               already paid for.
 
-7. Leave alone, on purpose. invoice.buyer_*_snapshot, invoice_line.description,
-                            ledger entries, the order rows themselves. These are the
-                            statutory record (D15).
+7. Leave alone, on purpose.   both: invoice.buyer_*_snapshot, invoice_line.description,
+                              ledger entries, the order rows themselves. These are the
+                              statutory record (D15).
 
-8. Evidence.                audit_log + purge_run. Close the data_subject_request with
-                            a resolution_note naming what was deleted and what was kept.
+8. Evidence.                  both: audit_log + purge_run. Close the data_subject_request
+                              with a resolution_note naming the scope, what was deleted and
+                              what was kept.
 ```
+
+**`E20-18`'s "one Edge Function running the fixed order" must respect this `scope` parameter** —
+the order of the steps is still fixed, but steps 1, 4 and 5 do less work in `recipient` scope,
+and none of them may touch `app_user` in `recipient` scope. A test must assert that a
+`recipient`-scope run leaves the parent's `app_user` row and any sibling `recipient` rows
+byte-for-byte unchanged.
 
 **Never `ON DELETE CASCADE`.** Every foreign key into a personal-data table is `RESTRICT`
 precisely so that an erasure cannot quietly take the books with it.
@@ -1004,8 +1045,24 @@ every row of it is currently unfilled.**
    and the email sender. Whether that requires anything specific under DPDP's transfer rules is
    `[DP-05]` and `[confirm in E20-01]`.
 2. **Push notification bodies are an egress path nobody thinks of.** "Aarav's lunch has been
-   delivered" is tier P leaving for Expo's servers and appearing on a lock screen. The
-   notification copy rule belongs with `E08` and needs the same sentinel test as `E20-10`.
+   delivered" is tier P leaving for Expo's servers and appearing on a lock screen. The rule,
+   concretely (**`E20-29`**):
+   - **No push or notification body may contain tier-P or tier-S data** — in practice, **no
+     child's name** (and never a class, section, school or allergen). Refer to the order by a
+     neutral phrase ("Your order has been delivered", "Your lunch order is confirmed"), or by an
+     order reference the recipient already knows, not by the child.
+   - This copy is authored in the **`E08` notification templates**, and the two that will be
+     tempted to name the child are **`E08-03`** (*order confirmed — push + email with pickup
+     code*) and **`E08-05`** (*order delivered — push*). Those are where the rule bites.
+   - It is **covered by the same sentinel-name test as `E20-10`**: a fixture containing a
+     sentinel child name must not appear in any rendered push/notification body or any outbound
+     Expo Push payload. The test runs against the `E08` templates, not only against Sentry and
+     analytics.
+   - **The decision "may a push body EVER name a child at all" is `[DP-08]`** and is
+     `(owner:andy)` / `E20-01` — not decided here. `E20-29` builds the rule and the test on the
+     conservative default (no child name); if `[DP-08]` later permits a child's first name to an
+     opted-in parent on that parent's own device, the rule and the sentinel test are relaxed to
+     match, not before.
 
 ---
 
