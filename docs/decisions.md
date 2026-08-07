@@ -264,3 +264,14 @@ these are the mechanism choices that sit under it.
 | EN3 | **`loadClientEnv()` throws if a server-only secret is merely *present*, not just if it is used** | A client build that can *see* `SUPABASE_SERVICE_ROLE_KEY` is one careless `process.env` reference from shipping the credential that bypasses RLS. Failing on presence turns a code-review question into a build failure. `E01-18` asserts the same property on the built bundle; this asserts it at the source |
 | EN4 | **Secrets are written by `npm run secrets:set -- <env>` from a gitignored per-environment file, never through a provider dashboard** | Hand-editing is how the legacy app ended up with a live key in an export. A dashboard has no validation, no record of what changed, and no way to tell afterwards whether staging and production diverged. The script validates before a single value leaves the machine |
 | EN5 | **The secrets file must name its own environment, and the script refuses if it disagrees with the command line** | `secrets:set -- staging` pointed at a file of production values is one typo, and it is the typo that moves real money. The file declaring `APP_ENV` makes the two halves check each other |
+
+## CI
+
+Made in `E01-08` while building `.github/workflows/ci.yml` and `integration.yml`.
+
+| # | Decision | Why |
+|---|---|---|
+| CI1 | **The PR gate is the smoke test only — typecheck, lint, migration rules, unit tests. Anything needing a real Postgres runs in a separate workflow** | CLAUDE.md's testing rhythm is explicit: ~60s on every push, the full suite overnight. A Supabase stack takes minutes to come up, and paying that on every commit is how a team learns to work around CI. Locally the smoke test runs in 6s. **Note this resolves a conflict**: `E01-08`'s own wording asks for "integration tests against a seeded ephemeral DB" in the CI pipeline, which the newer CLAUDE.md rhythm contradicts. CLAUDE.md wins; the integration job exists, it is just not the per-push gate |
+| CI2 | **The integration workflow also runs on any PR touching `supabase/**`, not only nightly** | A schema change is exactly the change the smoke test cannot judge. Running it on the PRs that could break it, rather than discovering it eight hours later, costs a few minutes on a small fraction of PRs |
+| CI3 | **The Supabase CLI is a devDependency, not `supabase/setup-cli`** | One pinned version for CI and laptops both. A migration that replays in CI and not on a developer's machine — or the reverse — is a debugging session with no useful outcome |
+| CI4 | **The smoke test includes `node scripts/build-backlog.mjs`** | The build fails on a malformed epic file, and a missing `## Tasks` heading otherwise silently drops a whole section from the dashboard Andy works from. It costs about a second |
