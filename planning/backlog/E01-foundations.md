@@ -28,7 +28,7 @@ Everything after this inherits the quality bar set here. Getting tests and envir
 - [x] `E01-10` (mvp) Database migration tooling + rule that every schema change ships as a reversible migration
 - [ ] `E01-11` Test harness: unit (Vitest), integration (against real Postgres), E2E mobile (Maestro or Detox), E2E web (Playwright)
 - [ ] `E01-12` Coverage gate with an **actual threshold number** + a `test:all` command that must be green before any merge
-- [ ] `E01-13` (mvp) Seed/fixture data representing 3 schools, 1 kitchen, 3 menus, several users and dependents
+- [x] `E01-13` (mvp) Seed/fixture data representing 3 schools, 1 kitchen, 3 menus, several users and dependents
 - [ ] `E01-14` (mvp) Deploy pipeline: merge to `main` -> staging; tagged release -> production, with manual approval
 - [ ] `E01-15` (risk:critical) Enable **Supabase PITR** on production; define RPO and RTO explicitly
 - [ ] `E01-16` (risk:critical) Off-Supabase encrypted export of database + storage on a schedule (do not rely on a single vendor)
