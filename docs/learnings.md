@@ -1072,3 +1072,28 @@ it was built. Any formula that upgrades `icu4c` silently invalidates it. Nothing
 describing nothing anyone runs. **Rule: on this machine, treat any `brew install` as capable of
 breaking the Node toolchain, and re-run `npm run smoke` immediately afterwards** — the failure
 appears in a completely unrelated command and reads like a corrupted install.
+
+## 2026-08-07 — `supabase link` is broken against the current API; use `db push --db-url`
+
+**Context:** Applying `0001`/`0002` to the new staging project (`E01-04`).
+**What happened:** `supabase link --project-ref …` failed with `LegacyLinkApiKeysNetworkError`
+— a `SchemaError` complaining that `inserted_at` on one of the returned API keys did not match
+the CLI's strict ISO-8601 regex. `supabase migration list --linked` then failed with
+"Cannot find project ref". CLI 2.112.0, which **is** the latest published version, so there is
+no upgrade to wait for.
+**Cause:** Supabase's move to the new publishable/secret API keys. The CLI's legacy
+api-keys endpoint returns a timestamp shape its own validator rejects. Nothing to do with us.
+**Fix / rule:** Skip linking. `supabase db push --db-url "<connection string>" --include-all`
+does the whole job and maintains `supabase_migrations.schema_migrations` correctly.
+
+Two connection facts worth keeping:
+- **The direct host `db.<ref>.supabase.co` does not resolve over IPv4** on new projects. Use
+  the **session pooler**, `aws-0-ap-south-1.pooler.supabase.com:5432`, user
+  `postgres.<project-ref>`. Note `aws-0`, not `aws-1` — `aws-1` resolves and accepts a TCP
+  connection, then rejects the tenant, which looks like a wrong password rather than a wrong host.
+- The CLI **accepts the four-digit migration prefix** (`0001_…`). It prints a warning about
+  `<timestamp>_name.sql` only for files it skips, and it recorded `0001`/`0002` in the history
+  table. `E01-10`'s convention is safe.
+
+The `deploy-staging.yml` workflow still uses `supabase link`; it will need the `--db-url` form
+if this is not fixed upstream by the time the first deploy runs. Flagged in `E01-14`.
