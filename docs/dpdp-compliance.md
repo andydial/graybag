@@ -538,6 +538,7 @@ which are cheap now and awkward later:
 | `notification_delivery` | **12 months** | `delete` | Holds an email address / phone number per row | no |
 | `device_token` | Revoke at **90 days** inactive; delete at **12 months** | `delete` | | no |
 | `idempotency_key` | **24 hours** | `delete` | Already in the schema | no |
+| `migration.migration_review`, `migration.legacy_id_map` | **Torn down once the review queue is worked** — no later than `E17-22` (cutover-day manual review). Not a rolling window; a one-off teardown | `delete` | These are **migration scaffolding that holds live tier-A/P data**: `migration_review` parks ambiguous/duplicate phone matches (`E03-11`, `[DM-11]`), so `detail jsonb` and `legacy_id` will contain legacy **phone numbers and probably names**; `legacy_id_map` is the same shape. They exist only to reconcile Bubble ids during cutover and have no reason to outlive it. Until they are classified they are the loud resting state §6.4 wants — see below | no |
 | OTP / auth-log state (Supabase `auth` / GoTrue schema) | **Governed by the auth provider's (GoTrue) retention setting** — our purge job does not reach the `auth` schema | vendor-side | OTP and sign-in state lives in Supabase's managed `auth` (GoTrue) schema, not in a table we own. There is **no `otp_attempt` table in `0001`**, so our purge job cannot delete it and must not claim to. Its retention is whatever the auth provider is configured to. **`E20-33`** builds an owned `otp_attempt` table (needed by `E03-10`'s per-number/per-IP throttle counting); once it exists it gets its own real retention row (proposed **90 days** — fraud investigation window). | no |
 | `purge_run` | **Retain** | retain | It is the evidence that retention happened | no |
 | `school_report` | **3 years** | retain | Aggregates only — no personal data in it at all | no |
@@ -592,6 +593,16 @@ Rule 5's coverage assertion is the same instinct as `D17` (RLS on from the first
 no policies, so the failure mode is "nobody can read anything") and `MI3` (every row accounted
 for): **the resting state must be loud.** A retention schedule that silently omits a table is
 indistinguishable from one that covers it, right up until a regulator asks. `E20-19`.
+
+**The `migration` schema is exactly this failure mode, caught.** `migration.migration_review` and
+`migration.legacy_id_map` carry tier-A/P data (legacy phone numbers, and probably names, in
+`detail jsonb` / `legacy_id`) and had **no** retention row and **no** place in the §6.5 erasure
+pipeline. The coverage assertion above should therefore **fail** on them until they are classified
+— which is the correct, loud outcome, and the production instance of the same live-children's-data
+concern `E16-13` raises about staging. They are not erased per-recipient (they predate any new-stack
+`app_user`/`recipient` and are keyed on legacy ids); instead they are **torn down as a unit once the
+migration-review queue is worked** (no later than `E17-22`'s cutover-day manual review). §6.2 now
+carries their row; `E20-32` owns adding the teardown job and asserting the schema is empty afterward.
 
 ### 6.5 The erasure pipeline — a fixed order, with a `scope`
 

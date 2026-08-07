@@ -19,6 +19,73 @@ Format — newest first:
 
 ---
 
+## 2026-08-07 — Why the overnight corpus contained these contradictions (from the Q15 review fixes)
+
+**Context:** Q15 read fourteen unattended runs (~18,000 lines of spec, ~4,200 of SQL) against each
+other for the first time; five agents fixed the affected docs/migrations. The defects clustered, and
+the clusters have named root causes worth not repeating. One crisp lesson each, with the *why*:
+
+1. **A guard described by prose position is not a guard placed by transaction position.** The invoice
+   placeholder guard was written as firing at "the post-capture step" — but auto-capture (`OL-01`)
+   means the money is already gone by then, so it stranded every captured payment. **A guard whose
+   job is to *prevent* an action must be shown to run before that action's irreversible step**, not
+   merely somewhere in the prose. Re-check every "refuse/abort" against where in the txn timeline it
+   actually executes.
+2. **An enum value goes dead when its only writer collapses two cases into one code.**
+   `order_group_status = 'payment_failed'` was unreachable because the sweeper wrote
+   `checkout_expired` for both "failed" and "never started". **A status a derivation table can hold
+   needs at least one code path that produces its precondition — and a *reachability* test, not just
+   a transition-correctness test.** (Scenario 5 was that test, written before the producing path.)
+3. **Double-entry hides sign bugs.** Every transaction summing to zero (I10) makes a wrong-signed
+   `balance()` invisible until you total a single account. **Define the ledger sign convention per
+   account type once and explicitly, and test that a credit-normal and a debit-normal account give
+   opposite signs from the same posting.** Never ship a single-sign helper.
+4. **"Uptime" ≠ "the cron ran".** Pointing a liveness requirement at an uptime monitor is a category
+   error: a silently-stopped cron produces *silence*, not a failed probe. **Job liveness needs a
+   heartbeat-overdue alert, separate from uptime and from error alerts.**
+5. **A "normative + repeated" table drifts when the copy is edited but the source is not.** dpdp
+   §2.2 gained two tier rows the normative `data-model.md` §13.3 never got. **When one doc declares
+   itself normative and another repeats it, the copy must add no rows — any addition goes into the
+   source first** (ideally the consumer is generated from / lint-checked against it).
+6. **Forward task-ID references rot when a doc cites IDs a *later* run will mint.** Q12 reserved a
+   range; Q13/Q14 took it, and every forward reference — including a whole pre-submission checklist —
+   silently came to mean a different task. **Cite by description/placeholder, or allocate the ID in
+   the backlog first; never cite an ID you are yourself minting for a later run.**
+7. **A spec's "work to do" list that is not updated when the work lands produces phantom findings.**
+   The review "found missing" three authz controls (`effective_config_public()`, the §10 revokes,
+   the tripwire) that were already in `0002`, because `authorization-model.md` §14 still said "work
+   this document creates". **A spec that lists work must be updated in the same PR that does the work,
+   or it becomes a source of false findings.**
+8. **Anchored greps lie about SQL inside `do $$` blocks.** `grep -c '^revoke\|^grant'` returned 0 on
+   a file with 25 revoke/grant statements — Supabase idiom indents them, wraps them in `do $$`, or
+   issues them via `execute format(...)`. **A "does this migration contain X" check must be
+   case-insensitive and not anchored to column 0 — and reading beats grepping for a control.**
+9. **A pipeline written for one scope, reused for another, silently over-reaches.** The DPDP erasure
+   pipeline was authored for whole-*account* deletion, then pointed at a single-*child* consent
+   withdrawal — unscoped, it would anonymise the parent and delete the sibling. **Any "run the
+   pipeline" reference must state its scope, and the erasure function needs a test that a
+   recipient-scope run leaves parent + siblings byte-for-byte unchanged.**
+10. **A published policy must not promise retention for a table that does not exist.** privacy §6 and
+    dpdp §6.2 both scheduled "OTP records — 90 days — delete", but there is no `otp_attempt` table —
+    OTP state lives in Supabase's managed `auth`/GoTrue schema our purge job cannot reach. **Every
+    retention row and customer-facing retention line must name a table/vendor that exists and that
+    some job actually enforces;** vendor-held data is described as vendor-governed, not as ours.
+11. **Contrast ratios must be recomputed with the formula CI will use, and role maps validated
+    against real fills.** §2.3's "3.25:1" was correct in value but attached to the wrong token
+    (`forest-600`, actually 2.57, vs `forest-700`), and `neutral-500` was justified against white
+    then paired with a `neutral-100` fill it fails on. **Reproduce every contrast number with the
+    same formula `E13-13` uses, state both hexes, and walk the role map against every background it
+    is actually composed with — not against white only.**
+12. **Clock offsets must be re-derived from the single anchor in one pass.** The runbook had T+14h
+    right (Sat 12:00) but everything from the soak on was 24h short (T+32h labelled Monday 06:00,
+    actually T+56h), and Phase H claimed an 18h span for a 42h period. **Derive every offset from the
+    one T-0 anchor in a single pass and check weekday + clock + delta together, rather than editing
+    one row.**
+13. **A migration running as `system` cannot use actor-gated transitions.** `NULL→draft` is admin-only
+    (`orders.create_on_behalf`), so a `system` backfill cannot legally produce `draft`; with invariant
+    I12 (no draft rows) any "map legacy state → draft" is doubly wrong. **A migration status map must
+    target only statuses reachable by the actor the backfill runs as.**
+
 ## 2026-08-07 — Break-glass and a live data exposure are the same 30 days, and nobody had written that down
 
 **Context:** Q14, writing `docs/cutover-runbook.md` and reconciling `R3` (keep Bubble 30 days as
