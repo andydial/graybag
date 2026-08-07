@@ -1,0 +1,69 @@
+name: Deploy to staging
+
+# Merge to main -> staging. No approval, no ceremony: staging exists to be broken.
+#
+# What "deploy" means today is database migrations. Edge Functions deploy as soon as
+# there are any (E06), the web app goes to Netlify in E12, and the mobile app ships
+# through EAS in E17 — each adds a step here rather than a new pipeline.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never run two deploys at the same target concurrently. `db push` applies migrations
+# in order, and two of them interleaving against one database is a corrupted migration
+# history that has to be repaired by hand. Queue instead of cancelling: a half-applied
+# deploy that gets cancelled is worse than a slow one.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  database:
+    name: Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The same rules the smoke test enforces. Cheap, and it means a deploy cannot be
+      # the first thing to notice a malformed migration.
+      - name: Migration rules
+        run: npm run check:migrations
+
+      - name: Link the staging project
+        run: npx supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+
+      # Shows what `db push` is about to do, in the log, before it does it. When a
+      # deploy goes wrong this is the line that says which migration was new.
+      - name: Pending migrations
+        run: npx supabase migration list --linked
+
+      - name: Apply migrations
+        run: npx supabase db push --include-all
+
+      - name: Deploy Edge Functions
+        run: |
+          if [ -d supabase/functions ] && [ -n "$(ls -A supabase/functions 2>/dev/null)" ]; then
+            npx supabase functions deploy --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+          else
+            echo "No Edge Functions yet — skipping. They arrive with E06."
+          fi

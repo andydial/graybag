@@ -1,0 +1,72 @@
+name: Deploy to production
+
+# A tagged release, and only a tagged release, reaches production — and only after a
+# human approves it.
+#
+# The approval is not in this file. It is the `production` GitHub Environment's
+# required-reviewer rule, which pauses the job before ANY step runs and, crucially,
+# before the secrets scoped to that environment are made available. A gate written as
+# a workflow step could be edited away in the same PR it is meant to guard; an
+# environment rule is repository configuration and cannot be.
+#
+# Set up by scripts/setup-github.mjs. Verify with:
+#   gh api repos/andydial/graybag/environments/production
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  database:
+    name: Migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # Production deploys run the full smoke test rather than trusting that the tagged
+      # commit was green on main. A tag can be moved, and it can be cut from a commit
+      # that never had a CI run of its own.
+      - name: Smoke test
+        run: npm run smoke
+
+      - name: Link the production project
+        run: npx supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+
+      # Printed before anything is applied, so the approver's decision and the actual
+      # change are both in one log.
+      - name: Pending migrations
+        run: npx supabase migration list --linked
+
+      - name: Apply migrations
+        run: npx supabase db push --include-all
+
+      - name: Deploy Edge Functions
+        run: |
+          if [ -d supabase/functions ] && [ -n "$(ls -A supabase/functions 2>/dev/null)" ]; then
+            npx supabase functions deploy --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+          else
+            echo "No Edge Functions yet — skipping. They arrive with E06."
+          fi
