@@ -199,7 +199,9 @@ see — including nothing, silently.** `resolve_effective_config()` is `STABLE` 
 `SECURITY DEFINER` (deliberately, so it can be inlined). It joins `platform_config`,
 `kitchen_config` and `school_config`, none of which a customer may read. Once `0002` is
 applied it returns a null row for every customer, with no error. §7.6 fixes this with
-`effective_config_public()`; the trap is recorded in `docs/learnings.md`.
+`effective_config_public()`, a `SECURITY DEFINER` wrapper that **exists in `0002` §1.7** and is
+exercised by the test suite (Part 8, `§9` items 25–26); the trap is recorded in
+`docs/learnings.md`.
 
 **`auth.uid()` is `STABLE`, not `IMMUTABLE`, and is re-evaluated per row unless wrapped.**
 Write `(select auth.uid())`, not `auth.uid()`, in every predicate. The scalar subquery is
@@ -680,10 +682,14 @@ Plus the §6.1 guard trigger. No `INSERT` policy: the row is created by the sign
 Function alongside the `auth.users` row, and by migration.
 
 > **KitchenOperator gets nothing here, deliberately.** §13.3 rule 4 says kitchen staff need no
-> tier A data beyond the last four digits of a phone number for the E09-07 fallback search.
-> That search must therefore be an **Edge Function** that takes four digits and returns
-> matching *orders*, never a table read. If `app_user` is ever opened to kitchen scope, rule 4
-> is broken and E20-09 fails.
+> tier A data beyond the last four digits of a phone number for the last-4 fallback search
+> (**`E09-13`**; `E09-07` builds the search UI but says nothing about the mechanism). That
+> search must therefore be an **Edge Function** that takes four digits and returns only a
+> **match boolean / the matching *orders*** — never the phone number, and never a `SELECT` on
+> `app_user`. A table read would hand a kitchen operator the whole number. If `app_user` is
+> ever opened to kitchen scope, rule 4 is broken and E20-09 fails. This is enforced today by the
+> *absence* of any kitchen-scoped policy on `app_user`; the mechanism is written here so
+> `E09-13` cannot regress it into a table read.
 
 #### `recipient` — tier P, and `allergy_note` is tier S
 
@@ -1682,20 +1688,27 @@ Blocks `E05-10`, `E09-08`.
 
 ## 14. Work this document creates
 
-Not appended to the backlog by this run — Q15 reconciles the overnight batch against
-`planning/backlog/` and should pick these up. Each is unowned build work.
+Each is unowned build work. **Status column added by the Q15 overnight-review reconciliation**
+(`docs/overnight-review.md` §2.10, §2.11): several items the original run listed as "to be
+created" were in fact already written into `0002` / the test suite by Q04, and the review's
+`grep -c '^revoke\|^grant' 0002` = 0 was a **false negative** — every `revoke`/`grant` in `0002`
+is indented, inside a `do $$` block, or issued via `execute format(...)`, so none begins at
+column 0. The anchored regex missed them; the controls are present. Where an item is done, this
+table now says so, so the same finding is not re-raised a third time.
 
-| Work | Epic | Note |
-|---|---|---|
-| The §4 helper functions and their grants | E02-08 | Prerequisite for `0002`; 21 functions |
-| The §6.1 protected-column guard triggers | E02-08 | Four tables, exhaustively listed |
-| `effective_config_public()` (§7.6) | E02-10 | Without it the config resolver silently returns null for every customer |
-| `auth_recipient_has_visible_order()` (§7.2) | E02-08 | The need-to-know tightening on children's data |
-| The §10 privilege revokes | E02-08 | Second layer under RLS |
-| Storage bucket policies (§11) | E02-08 / E04-07 | Four buckets, one public |
-| The §12 structural invariants | E02-09 | Cheap, catch whole classes of mistake |
-| A test that fails if `orders.view` is granted without `orders.view_pii` | E02-09 | Makes `[AZ-02]`'s deadline enforce itself |
-| Last-4-phone order search as an Edge Function, never a table read | E09-07 | Follows from §13.3 rule 4 |
+| Work | Epic | Status | Note |
+|---|---|---|---|
+| The §4 helper functions and their grants | E02-08 | **done** in `0002` §1, §14 | 25 functions + per-function `revoke all … from public` / `grant execute … to authenticated, service_role` |
+| The §6.1 protected-column guard triggers | E02-08 | **done** in `0002` §2 | Four tables, exhaustively listed |
+| `effective_config_public()` (§7.6) | E02-20 (was E02-10) | **done** in `0002` §1.7 | The `SECURITY DEFINER` wrapper that stops `resolve_effective_config()` returning a null row for every customer once RLS is on. Asserted by test Part 8 (`§9` items 25–26) |
+| `auth_recipient_has_visible_order()` (§7.2) | E02-08 | **done** in `0002` §1.6 | The need-to-know tightening on children's data |
+| The §10 privilege revokes | E02-21 (was E02-08) | **done** in `0002` §14 | Second layer under RLS: `revoke all … from anon`, `revoke insert/update/delete` on every class-3 table from `authenticated`, per-function `revoke … from public`. Asserted by test Part 1 (`has_table_privilege`) and the §10 grant tripwire in Part 9 |
+| Storage **bucket creation** (§11) | E02-22 | **done** in `0002` §15 | Four buckets (`dish-images` public, `invoices`/`reports`/`imports` private), guarded so the file still applies without the storage extension. Bucket *policies* are deliberately none — a private bucket with RLS on and nothing to permit denies everyone |
+| Storage **signed-URL discipline** (§11) | E02-22 | **not built** | The Edge Functions that mint short-lived signed URLs for `invoices` / `reports` / `imports` after checking `auth_owns_group()` / `invoices.view` / `reports.view`. `invoice.pdf_asset_id` (`gst-invoicing.md` §8 note 6) depends on this. Buckets are provisioned via the storage API/CLI in real environments, so this is a provisioning + Edge-Function task, not schema SQL |
+| The §12 structural invariants | E02-09 | **done** in test Parts 1–2 | Cheap, catch whole classes of mistake |
+| A test that fails if `orders.view` is granted without `orders.view_pii` | E02-23 (was E02-09) | **done** in test Part 9 | The `[AZ-02]` tripwire: fails the moment a role template *or* a live grant bundles `orders.view` without `orders.view_pii` (city scope excluded, where `orders.view_pii` is not grantable) |
+| A test that fails if a forbidden write grant appears | E02-23 | **done** in test Part 9 | The §10 grant tripwire: asserts the exact set of tables on which `authenticated` may hold `INSERT`/`UPDATE`/`DELETE`, so any new direct customer-plane write grant that would bypass RLS fails CI |
+| Last-4-phone order search as an Edge Function, never a table read | E09-13 (was E09-07) | **not built** | Follows from §13.3 rule 4. The kitchen needs **no** tier-A data beyond the last four digits, so this is served by an **Edge Function** that takes four digits and returns only a **match boolean / the matching orders' last-4**, never a `SELECT` on `app_user`. A table read would hand a kitchen operator the whole phone number. Enforced today by the *absence* of any kitchen-scoped policy on `app_user` (§7.2); the mechanism is stated here so `E09-13` cannot regress it into a table read |
 
 ---
 

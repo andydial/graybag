@@ -1348,7 +1348,8 @@ reset role;
 
 
 -- =============================================================================
--- PART 9 — Helper functions, menu reachability, and the [AZ-02] tripwire
+-- PART 9 — Helper functions, menu reachability, and the self-enforcing tripwires
+--          ([AZ-02] orders.view_pii, and the §10 forbidden-write-grant tripwire)
 -- =============================================================================
 
 do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}', true); end $$;
@@ -1419,6 +1420,54 @@ select is_empty(
                            and g2.revoked_at is null
                            and (g2.expires_at is null or g2.expires_at > now())) $$,
   '[AZ-02]: no live grant of orders.view without orders.view_pii (city scope excluded — orders.view_pii is not grantable there)');
+
+-- -----------------------------------------------------------------------------
+-- The §10 GRANT tripwire — the [AZ-02] recommendation's sibling for table
+-- privileges (authorization-model.md §14, dpdp-compliance.md §5.1).
+--
+-- Part 1 already asserts the NEGATIVE for class 3 ("authenticated holds no
+-- INSERT/UPDATE/DELETE on any class-3 table") and for anon ("no table privilege at
+-- all"). This asserts the POSITIVE COMPLEMENT: the exact set of tables on which
+-- authenticated is ALLOWED to hold a write privilege. Together they pin the write
+-- surface from both sides, so the moment a forbidden grant appears — someone runs
+-- `GRANT INSERT ON "order" TO authenticated`, or opens a direct customer-plane write
+-- that would bypass RLS on a class-3 table — this set_eq fails and names the table.
+--
+-- The allowed set is defined structurally, not as a hand-kept literal that would
+-- drift: it is every table in public that is NOT class 3. That is the union of the
+-- class-1 customer-owned and class-2 back-office-catalogue tables (§5 Rule 4), plus
+-- `city` and `kitchen`, which are class 3 by policy but deliberately kept out of
+-- §10's revoke list (they are stopped by RLS alone — see the city/kitchen INSERT
+-- assertions in Part 6). A class-3 table is precisely one whose writes are
+-- service_role only, so it must appear in NEITHER the revoke list NOR this allowed
+-- set; a table drifting between the two lists is exactly the mistake this catches.
+select set_eq(
+  $$ select t.tablename from pg_tables t
+      where t.schemaname = 'public'
+        and t.tablename not in (select tbl from tests_tmp.tests_class3)
+        and not exists (select 1 from pg_depend d
+                         where d.objid = to_regclass('public.' || quote_ident(t.tablename))
+                           and d.deptype = 'e')
+        and ( has_table_privilege('authenticated', 'public.' || quote_ident(t.tablename), 'INSERT')
+           or has_table_privilege('authenticated', 'public.' || quote_ident(t.tablename), 'UPDATE')
+           or has_table_privilege('authenticated', 'public.' || quote_ident(t.tablename), 'DELETE') ) $$,
+  $$ select t.tablename from pg_tables t
+      where t.schemaname = 'public'
+        and t.tablename not in (select tbl from tests_tmp.tests_class3)
+        and not exists (select 1 from pg_depend d
+                         where d.objid = to_regclass('public.' || quote_ident(t.tablename))
+                           and d.deptype = 'e') $$,
+  '§10 grant tripwire: authenticated holds a write privilege on EXACTLY the non-class-3 tables — a forbidden grant on any class-3 table (a direct customer-plane write that would bypass RLS) fails here the moment it appears');
+
+-- The same tripwire, stated the other way for an unambiguous failure message: no
+-- class-3 table may carry ANY write privilege for authenticated at the grant level.
+-- (Part 1 asserts the INSERT/UPDATE/DELETE trio table-by-table; this is the set form,
+-- so a single new grant names its own table.)
+select is_empty(
+  $$ select t.tbl || ':' || pv.priv from tests_tmp.tests_class3 t
+      cross join (values ('INSERT'),('UPDATE'),('DELETE')) as pv(priv)
+     where has_table_privilege('authenticated', 'public.' || quote_ident(t.tbl), pv.priv) $$,
+  '§10 grant tripwire: no class-3 table carries INSERT, UPDATE or DELETE for authenticated — the second layer under RLS, asserted as a set');
 
 -- §11 — storage. Three private buckets and one public one; the private ones have no
 -- policy at all, which is the point.
