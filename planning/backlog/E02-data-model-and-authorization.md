@@ -30,7 +30,7 @@ In Bubble, `Order` is readable by everyone and 10 types have no privacy rules at
 - [x] `E02-05` (risk:high) (mvp) Money entities: `ledger_entry`, `payment`, `refund`, `payout`, `invoice`. **All amounts stored as integer paise** — never floats
 - [x] `E02-06` (mvp) Config entities: `platform_config`, `kitchen_config`, `school_config`, `break_time`
 - [x] `E02-07` (risk:critical) (mvp) Permission model: `grant(user, permission, scope_type, scope_id)`. Discrete permissions include `orders.view`, `orders.mark_delivered`, `orders.refund`, `orders.view_financials`, `menu.edit`, `school.onboard`, `reports.view`
-- [ ] `E02-08` (risk:critical) (mvp) Row Level Security policies on every table; **default deny**
+- [x] `E02-08` (risk:critical) (mvp) Row Level Security policies on every table; **default deny**
 - [ ] `E02-09` (risk:critical) (mvp) Authorization test suite — for each table, assert every role can and cannot see exactly what it should. This suite must fail loudly if a policy is ever removed
 - [ ] `E02-10` (mvp) Resolution-chain resolver (platform -> kitchen -> school) with unit tests, plus config cache
 - [ ] `E02-11` Reporting **partitioned and indexed** by city + kitchen from day one (materialised aggregates are deferred to `E18-22`)

@@ -769,8 +769,9 @@ create policy recipient_allergen_delete_guardian on recipient_allergen for delet
   using (auth_can_manage_recipient(recipient_id));
 
 -- Fulfilment. A kitchen must not send a peanut dish to an allergic child.
+-- KITCHEN- or SCHOOL-scoped grants only (0004) — see the note below.
 create policy recipient_allergen_read_fulfilment on recipient_allergen for select to authenticated
-  using (auth_recipient_has_visible_order(recipient_id, 'orders.view_pii'));
+  using (auth_recipient_has_fulfilment_order(recipient_id));
 ```
 
 `DELETE` is permitted here and nowhere else in the customer plane, because §13.4 says a
@@ -781,6 +782,24 @@ it.
 `consent.view` does not open it. Reading a child's health record requires `service_role`
 through a named, audited Edge Function. If that turns out to be operationally impossible, it
 becomes a new permission (`recipient.view_health`) rather than a widening of `users.view`.
+
+**And `orders.view_pii` does not open it either — that took a migration to make true
+(`0004`).** The fulfilment policy above originally resolved through
+`auth_recipient_has_visible_order`, which calls `auth_has_permission`, which treats a
+**platform-scope grant as satisfying any scope check**. `orders.view_pii` is grantable at
+`{platform,kitchen,school}` and `platform_admin` holds every permission at platform scope —
+so the paragraph above was true of `users.view` and `consent.view` and false in practice,
+because the widening arrived through a third permission it did not mention. The first run of
+`supabase/tests/authorization.test.sql` caught it (`E02-09`).
+
+`auth_recipient_has_fulfilment_order` matches **`kitchen` or `school` scope only**, and names
+the allowed scopes positively so that a later decision to allow city-scoped `orders.view_pii`
+cannot silently re-open it. Fulfilment happens at a kitchen; it never happens at the platform.
+
+The general lesson, worth applying to every "role X cannot read table Y" claim in this
+document: **a table is only as protected as the union of every policy on it.** Enumerating the
+permissions that do *not* open a table proves nothing unless the permissions that *do* have
+been checked for over-broad scope.
 
 ### 7.3 Organisations
 

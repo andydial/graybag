@@ -1097,3 +1097,35 @@ Two connection facts worth keeping:
 
 The `deploy-staging.yml` workflow still uses `supabase link`; it will need the `--db-url` form
 if this is not fixed upstream by the time the first deploy runs. Flagged in `E01-14`.
+
+## 2026-08-07 — A table is only as protected as the UNION of its policies
+
+**Context:** First-ever execution of `supabase/tests/authorization.test.sql` (`E02-09`,
+`E02-18`), against the real staging project.
+**What happened:** Two assertions failed saying a PlatformAdmin could read
+`recipient_allergen` — tier S, children's health data, and the one table
+`docs/authorization-model.md` §7.2 says in bold that PlatformAdmin has **no** read policy on.
+**Cause:** Both the document and `0002` were reasoning about the wrong thing. They enumerated
+the permissions that do *not* open the table — `users.view` doesn't, `consent.view` doesn't —
+and concluded it was closed. The way in was a **third** permission neither mentioned:
+the fulfilment policy, written so a kitchen cannot send a peanut dish to an allergic child,
+resolves through `auth_has_permission`, and that function treats **`scope_type = 'platform'`
+as satisfying any scope check**. `orders.view_pii` is grantable at platform scope and
+`platform_admin` holds every permission there. Nobody widened anything; the widening was
+present from the first day the two policies coexisted.
+**Fix / rule:** `0004` adds `auth_recipient_has_fulfilment_order`, which honours **kitchen and
+school scope only** and names the allowed scopes positively so a future city-scoped
+`orders.view_pii` cannot silently re-open it.
+
+Two rules worth carrying forward:
+
+1. **"Role X cannot read table Y" is a claim about the union of every policy on Y**, never
+   about the permissions you happened to think of. Proving it by enumerating what does *not*
+   grant access proves nothing.
+2. **A platform-scope grant satisfies every scope check.** Any policy whose safety depends on
+   the caller being *operationally local* — in a kitchen, at a school — must say so
+   positively rather than relying on scope resolution, because scope resolution is designed
+   to widen.
+
+This is the entire value of the suite, delivered on its first run, and it was invisible for
+as long as the suite went unexecuted.
