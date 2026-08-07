@@ -27,3 +27,7 @@ Kitchen staff today log in via "Admin Login" on the website and see all orders. 
 - [ ] `E09-11` Works well on a tablet/phone in a kitchen — large tap targets, readable at arm's length
 - [ ] `E09-11a` (risk:high) **Printable / CSV production and packing lists** — the kitchen must be able to work at 7am even if the app or their network is down
 - [ ] `E09-12` (owner:andy) **Decision parked**: default delivery mode (classroom bulk vs counter pickup) until real usage data exists. Both are supported
+
+Added by Q15 (`docs/overnight-review.md` §2.11).
+
+- [ ] `E09-13` `E09-07`'s **last-4-phone fallback search is an Edge Function, never a table read.** `docs/data-model.md` §13.3 rule 4 says the kitchen needs **no** tier A beyond those four digits, and `docs/authorization-model.md` §14 names the mechanism; `E09-07` as written says nothing about it, and a table read would hand a kitchen operator the whole `phone_e164`. Rate-limited, logs the lookup to `audit_log`, returns the order and nothing else
