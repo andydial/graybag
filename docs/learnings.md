@@ -1020,7 +1020,7 @@ port 22 is ever blocked). Diagnostic rule worth keeping: when a push fails, time
 failure in seconds is a rejection, and only a failure in minutes is a timeout. Bisect the
 *payload size* with a throwaway repo before assuming the repository's own history is at fault.
 
-## 2026-08-07 — `node --test <directory>` silently runs nothing on Node 22.5.1
+## 2026-08-07 — `node --test <directory>` silently runs nothing on Node 22.x
 
 **Context:** Adding tests for `scripts/check-migrations.mjs`, following the pattern already
 used by `tools/menu-import`.
@@ -1028,9 +1028,47 @@ used by `tools/menu-import`.
 `MODULE_NOT_FOUND` — it tried to load the *directory* as a module. Checking the existing
 `tools/menu-import` suite, whose `npm test` was `node --test test/`, showed the same thing:
 **its 95 tests had not been running.** Run as `node --test test/*.test.mjs` all 95 pass.
-**Cause:** The directory form of `--test` does not resolve on Node 22.5.1 (`.nvmrc` pins 22).
-It worked on the Node 20 the importer was written against.
+**Cause:** The directory form of `--test` does not resolve on Node 22.x — confirmed on both
+22.5.1 and 22.23.2, so this is not a point-release regression to wait out. It worked on the
+Node 20 the importer was written against.
 **Fix / rule:** Both call sites now pass an explicit glob. General rule: **a test command that
 reports a small number of tests is as suspicious as one that fails.** `pass 0 / fail 1` from a
 95-test suite looked like one broken test and was actually the whole suite never loading —
 check the *count*, not just the exit code, whenever a suite is moved or a runner is upgraded.
+
+## 2026-08-07 — The schema and seed can be checked offline, without Docker
+
+**Context:** Docker Desktop could not be installed (the boot volume was full), so
+`supabase start` was unavailable and `supabase/seed.sql` was about to be written blind.
+**What happened:** `brew install postgresql@17` plus a ~40-line stub of the Supabase-provided
+objects was enough to apply `0001`, `0002` and `seed.sql` for real. It immediately caught a
+bug that reading would not have: the fixture UUIDs used a mnemonic prefix `k1000000-…` for
+kitchens, and **`k` is not a hex digit**, so every kitchen id was an invalid uuid literal.
+**Cause:** n/a — this is a technique note, not a defect.
+**Fix / rule:** The stub needs only: roles `anon` / `authenticated` / `service_role`; schemas
+`auth` and `storage`; `auth.users(id uuid primary key, …)`; `auth.uid()` reading
+`request.jwt.claims`; and `storage.buckets` / `storage.objects`. Create the roles
+conditionally — roles are **cluster-wide, not per-database**, so a plain `create role` fails
+on the second run and, under `ON_ERROR_STOP`, silently aborts the whole bootstrap.
+
+**What this does NOT prove**, and the distinction matters: it is not GoTrue. The pgTAP
+authorization suite still cannot run this way (`docs/testing-strategy.md` §6) because
+impersonation depends on the real auth schema, and pgTAP itself has no Homebrew formula. Use
+this for *DDL and fixture* checks — column names, constraints, uuid literals, insert order —
+and treat `supabase db reset` in CI as the authority. It turns a minutes-long feedback loop
+into a seconds-long one for exactly the class of error that is otherwise found last.
+
+## 2026-08-07 — `brew install postgresql@17` broke the Homebrew Node binary
+
+**Context:** Installing a local Postgres so `supabase/seed.sql` could be checked without Docker.
+**What happened:** The install pulled `icu4c` forward to `icu4c@78`, deleting
+`libicui18n.74.dylib`. The Homebrew `node` 22.5.1 binary links against exactly that file, so
+**every `node` and `npm` command died with a dyld error** — mid-task, with nothing else changed.
+**Cause:** Homebrew's `node` bottle links dynamically against whatever `icu4c` was current when
+it was built. Any formula that upgrades `icu4c` silently invalidates it. Nothing warns you.
+**Fix / rule:** Installed `node@22` (22.23.2, built against the current `icu4c`) and relinked:
+`brew install node@22 && brew unlink node && brew link --overwrite --force node@22`. Chosen over
+`brew reinstall node`, which would have jumped 22.5.1 → 26.7.0 and left `.nvmrc`'s pin of 22
+describing nothing anyone runs. **Rule: on this machine, treat any `brew install` as capable of
+breaking the Node toolchain, and re-run `npm run smoke` immediately afterwards** — the failure
+appears in a completely unrelated command and reads like a corrupted install.
