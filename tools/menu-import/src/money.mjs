@@ -36,8 +36,8 @@ export function toPaise(raw) {
 
   const cleaned = text
     .replace(CURRENCY, '')
-    .replace(/[\s ]/g, '')
-    .replace(/[   ]/g, '') // non-breaking spaces Excel likes to paste
+    .replace(/[\s\u00A0]/g, '')
+    .replace(/[\u00A0\u202F\u2009]/g, '') // non-breaking spaces Excel likes to paste
     .replace(/,/g, '') // handles both 1,200 and the Indian 1,20,500
     .replace(/^\+/, '')
 

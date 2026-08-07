@@ -1,0 +1,73 @@
+name: Integration
+
+# Everything that needs a real Postgres: the migrations replaying from 0001, the seed
+# data loading, and the pgTAP authorization suite.
+#
+# NOT on every push. CLAUDE.md's testing rhythm puts a ~60s smoke test on every push
+# and the full suite overnight, because a Supabase stack takes minutes to come up and
+# paying that on every commit is how people start skipping CI. So this runs:
+#
+#   * nightly, alongside scripts/nightly.sh;
+#   * on any PR that touches the schema, the seed data or this workflow — a change
+#     there is exactly the change the smoke test cannot judge;
+#   * on demand.
+#
+# The suite CANNOT run against a bare postgres:16 image. `app_user.id` is a foreign key
+# to `auth.users(id)` and impersonation reads auth.uid() from request.jwt.claims, so the
+# GoTrue auth schema must exist — which means the real Supabase local stack.
+# docs/testing-strategy.md §6.
+
+on:
+  schedule:
+    - cron: '0 18 * * *' # 18:00 UTC — 23:30 IST
+  pull_request:
+    paths:
+      - 'supabase/**'
+      - '.github/workflows/integration.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database:
+    name: Migrations, seed and authorization suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # The CLI is a devDependency so local and CI run the identical version; a
+      # migration that replays here and not on a laptop is a debugging session
+      # nobody needs.
+      - name: Start the local Supabase stack
+        run: npx supabase start
+
+      # `db reset` replays every migration from 0001 into an empty database and then
+      # applies supabase/seed.sql. If the migration set has a gap, a bad dependency
+      # order or a broken seed, it fails here rather than against staging.
+      - name: Replay migrations and seed
+        run: npx supabase db reset
+
+      # Non-negotiable #2. This is the highest-value test in the repository: it asserts
+      # an exact policy set, so it fails when a policy is REMOVED and — the direction
+      # that actually leaks — when one is ADDED.
+      - name: Authorization suite (pgTAP)
+        run: npx supabase test db
+
+      - name: Stop
+        if: always()
+        run: npx supabase stop --no-backup

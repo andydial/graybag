@@ -1,0 +1,57 @@
+name: CI
+
+# The ~60 second smoke test, on every push and every PR. This is the gate that
+# branch protection requires (E01-02).
+#
+# It exists so the nightly full suite is not spending eight hours debugging a typo
+# (CLAUDE.md, "Testing rhythm"). It is deliberately NOT the whole suite: anything
+# needing a real Postgres runs in integration.yml, and everything runs overnight
+# via scripts/nightly.sh.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Migration rules
+        run: npm run check:migrations
+
+      - name: Unit tests
+        run: npm test
+
+      # The backlog is generated from planning/backlog/*.md and the build fails on a
+      # malformed epic file (a missing "## Tasks" heading). Cheap, and it catches a
+      # broken epic before the dashboard silently loses a whole section.
+      - name: Backlog builds
+        run: node scripts/build-backlog.mjs

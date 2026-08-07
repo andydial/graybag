@@ -10,10 +10,14 @@
     "packages/*"
   ],
   "scripts": {
+    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm test",
+    "test:all": "npm run smoke && npm run test:db",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
     "test": "npm run test:scripts && npm run test:tools && npm run test --workspaces --if-present",
     "test:scripts": "node --test scripts/test/*.test.mjs",
     "test:tools": "npm --prefix tools/menu-import test",
+    "test:db": "npx supabase db reset && npx supabase test db",
     "check:migrations": "node scripts/check-migrations.mjs",
     "secrets:set": "tsx scripts/set-secrets.mts",
     "backlog": "node scripts/build-backlog.mjs",
@@ -22,9 +26,14 @@
     "overnight": "bash scripts/overnight.sh"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/node": "^26.1.2",
+    "eslint": "^9.39.5",
+    "globals": "^17.9.0",
+    "supabase": "^2.112.0",
     "tsx": "^4.23.11",
     "typescript": "^5.9.2",
+    "typescript-eslint": "^8.66.0",
     "vitest": "^4.1.10"
   }
 }
