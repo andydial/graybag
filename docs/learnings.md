@@ -1001,3 +1001,36 @@ and the script still wrote the state file and reported success.
 instead of no-opping. General rule for the repo tooling: **a script that recognises no work to
 do must fail loudly, not report success.** The tooling here is the only record of what is
 done — a silent no-op means Andy is told a task is ticked when it is not.
+
+## 2026-08-07 — `git push` over HTTPS caps out below 1 MB on this network
+
+**Context:** First push of the repo to `github.com/andydial/graybag` (36 MB packed).
+**What happened:** `git push` failed with `HTTP 400` and, once HTTP/1.1 was forced,
+`HTTP 408`, after only ~12 s — far too fast to be a bandwidth timeout. Pushing one commit at
+a time got exactly one commit in before failing on `21c0e2b baseline`, the commit that adds
+the 46 MB `Legacy-Application/` design package (including a 21.8 MB brand-guidelines PDF).
+**Cause:** Not GitHub, and not repo size as such. A bisect with throwaway repos of
+incompressible data put the ceiling **between 512 KB and 1 MB of POST body**: 128/256/512 KB
+push fine, 1 MB and up always fail. That is the signature of a middlebox on this connection
+capping request bodies, not of anything git or GitHub is doing. Two red herrings cost time —
+the machine's boot volume was simultaneously 100% full, and Apple's git 2.39.3 defaults to
+HTTP/2, which turns the same failure into a `400` instead of a `408`.
+**Fix / rule:** **Use SSH for this repo, not HTTPS** (`ssh.github.com:443` is reachable if
+port 22 is ever blocked). Diagnostic rule worth keeping: when a push fails, time it — a
+failure in seconds is a rejection, and only a failure in minutes is a timeout. Bisect the
+*payload size* with a throwaway repo before assuming the repository's own history is at fault.
+
+## 2026-08-07 — `node --test <directory>` silently runs nothing on Node 22.5.1
+
+**Context:** Adding tests for `scripts/check-migrations.mjs`, following the pattern already
+used by `tools/menu-import`.
+**What happened:** `node --test scripts/test/` reported `tests 1 / pass 0 / fail 1` with a
+`MODULE_NOT_FOUND` — it tried to load the *directory* as a module. Checking the existing
+`tools/menu-import` suite, whose `npm test` was `node --test test/`, showed the same thing:
+**its 95 tests had not been running.** Run as `node --test test/*.test.mjs` all 95 pass.
+**Cause:** The directory form of `--test` does not resolve on Node 22.5.1 (`.nvmrc` pins 22).
+It worked on the Node 20 the importer was written against.
+**Fix / rule:** Both call sites now pass an explicit glob. General rule: **a test command that
+reports a small number of tests is as suspicious as one that fails.** `pass 0 / fail 1` from a
+95-test suite looked like one broken test and was actually the whole suite never loading —
+check the *count*, not just the exit code, whenever a suite is moved or a runner is upgraded.

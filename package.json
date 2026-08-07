@@ -5,16 +5,23 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
+    "test": "npm run test:scripts && npm run test:tools && npm run test --workspaces --if-present",
+    "test:scripts": "node --test scripts/test/*.test.mjs",
+    "test:tools": "npm --prefix tools/menu-import test",
+    "check:migrations": "node scripts/check-migrations.mjs",
     "backlog": "node scripts/build-backlog.mjs",
     "backlog:serve": "node scripts/serve-backlog.mjs",
     "backlog:sync": "node scripts/sync-state.mjs",
     "overnight": "bash scripts/overnight.sh"
   },
   "devDependencies": {
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.10"
   }
 }
