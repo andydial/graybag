@@ -1,7 +1,7 @@
 ---
 title: Refund & Cancellation Policy — GrayBag
 status: DRAFT TEMPLATE for a lawyer to review. Refund mechanics are grounded in the built system; the customer-facing terms need Andy's sign-off on a few open values.
-sources: docs/order-lifecycle.md §4 (transitions T10–T13), §7 (refund_status); docs/payments-design.md §9 (refund shapes, destination, amount arithmetic, MDR), §7.1 wallet; docs/decisions.md (M5 MDR from school share, M7 wallet default, PY3 refund speed, PY6 refund arithmetic, D15 retention); docs/open-questions.md ([OL-02] cutoff-in-flight, [PAY-02] wallet/source split, [PAY-03] speed, [PAY-04] MDR)
+sources: docs/order-lifecycle.md §4 (transitions T10–T13), §7 (refund_status); docs/payments-design.md §9 (refund shapes, destination, amount arithmetic, MDR), §7.1 wallet; docs/decisions.md (M5 MDR from school share, M7 wallet default, PY6 refund arithmetic, D15 retention); docs/open-questions.md ([OL-02] cutoff-in-flight, [PAY-02] wallet/source split, [PAY-03] refund speed, [PAY-04] MDR)
 covers: E20-06 (companion to Terms); refund mechanics in E06-08, E06-09
 ---
 
@@ -75,9 +75,9 @@ order is automatically cancelled and refunded (`[OL-02]`). The grace window is
 - **Wallet refunds are instant.** The balance is available to spend on your next order straight away.
   Wallet credit is store credit (see Terms §5).
 - **Refunds to your original payment method** are sent at Razorpay's normal speed and typically reach
-  your bank in **T+5 to T+7 working days** (`PY3`, refund speed `normal`). We do not offer a paid
+  your bank in **T+5 to T+7 working days** (`[PAY-03]`, refund speed `normal`). We do not offer a paid
   instant-to-bank option, because the wallet already gives you an instant, free alternative.
-  `[PAY-03]` — Andy may decide to offer instant refunds for specific cases (e.g. a double charge).
+  `[PAY-03]` is open — Andy may decide to offer instant refunds for specific cases (e.g. a double charge).
 
 ### 3.1 If you paid partly from your wallet and partly by card
 
@@ -99,8 +99,9 @@ back; some of it simply returns the way it came.
 - Every amount is calculated in exact paise. We never round a refund down.
 
 Any card-processing fee Razorpay charged on the original payment is **not** deducted from your
-refund — you get the full amount back. (Internally, that fee is absorbed by GrayBag or the kitchen,
-not by you — `M5`, `[PAY-04]`.)
+refund — you get the full amount back. (Internally, that fee comes out of the school's share or is
+absorbed by GrayBag, never out of your pocket — `M5` puts it on the school's share, `[PAY-04]` has
+GrayBag absorb it where no share was earned.)
 
 ---
 
