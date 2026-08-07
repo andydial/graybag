@@ -36,7 +36,7 @@ In Bubble, `Order` is readable by everyone and 10 types have no privacy rules at
 - [ ] `E02-11` Reporting **partitioned and indexed** by city + kitchen from day one (materialised aggregates are deferred to `E18-22`)
 - [ ] `E02-12` Design a `menu_item_capacity(menu_item, service_date, remaining)` table now, unused, so per-dish limits drop in later without a rewrite
 - [x] `E02-13` (mvp) Correlation ID on every order, threaded through all logs and events
-- [ ] `E02-14` (mvp) Fix legacy modelling defects: single parent-child link (not two), single user pointer per role on order, single payment id field, real time types for break times, no denormalised date parts
+- [x] `E02-14` (mvp) Fix legacy modelling defects: single parent-child link (not two), single user pointer per role on order, single payment id field, real time types for break times, no denormalised date parts
 - [ ] `E02-15` (risk:high) (mvp) `policy_version` + `user_policy_acceptance` tables (consumed by `E20-03`)
 - [ ] `E02-16` (mvp) Consent records table with purpose, timestamp and policy version (consumed by `E20-02`)
 - [ ] `E02-17` Mobile numbers stored normalised as **E.164** with a uniqueness constraint — the legacy field is a number type that loses leading zeros and country codes
