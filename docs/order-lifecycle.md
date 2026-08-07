@@ -259,7 +259,7 @@ Four things about it that are easy to get wrong:
    — transaction-local, so it cannot leak into the next request on a pooled connection. The
    `true` third argument is what makes it `SET LOCAL`; without it the setting outlives the
    transaction and the next request on that connection inherits the wrong actor.
-4. **The `AFTER` trigger writes `order_event`, not the Edge Function.** `I3` in §12 asserts
+4. **The `AFTER` trigger writes `order_event`, not the Edge Function.** `I2` in §12 asserts
    one event per transition; that is only true if the writing is not optional. The event's
    `reason_code`, `note` and `metadata` come from `app.reason_code` / `app.note` GUCs set the
    same way. `order_event` is append-only — `UPDATE` and `DELETE` are revoked from every
@@ -280,7 +280,7 @@ in that group's row lock. First matching rule wins.
 | G1 | Any member is `draft`, none is beyond `draft` | `draft` |
 | G2 | No `captured` payment exists and at least one member is `pending_payment` | `pending_payment` |
 | G3 | No `captured` payment exists and every member is `cancelled` with `cancel_reason_code = 'payment_failed'` | `payment_failed` |
-| G4 | No `captured` payment exists and every member is `cancelled` | `cancelled` |
+| G4 | No `captured` payment exists and every member is `cancelled` (any other reason, e.g. `checkout_expired` or `customer_cancelled`) | `cancelled` |
 | G5 | A `captured` payment exists, `Σ completed refunds = captured amount`, and every member is `cancelled` or `refunded` | `refunded` |
 | G6 | A `captured` payment exists and `Σ completed refunds > 0` | `partially_refunded` |
 | G7 | A `captured` payment exists | `paid` |
@@ -288,6 +288,13 @@ in that group's row lock. First matching rule wins.
 Note G6 sits above G7 deliberately: a group with a completed partial refund is
 `partially_refunded` even though most of it is still going to be delivered. The kitchen does
 not read the group status; the customer's order list and the reconciliation report do.
+
+G3 sits above G4 for the same "first match wins" reason: a group whose members were all
+cancelled with `cancel_reason_code = 'payment_failed'` derives to `payment_failed`, and any
+other all-cancelled group (including `checkout_expired`) derives to `cancelled`. This is
+reachable — the §10.4 sweeper writes `payment_failed` to every member when any `payment`
+attempt reached `failed`, and `checkout_expired` only when nothing was ever attempted (§10.4
+step 3). §12.1 scenario 5 relies on exactly this split.
 
 `Σ completed refunds` **excludes `failed` refunds**, and so must the over-refund guard — see
 §7.3, which corrects the constraint as stated in `docs/data-model.md` §8.3.
@@ -515,11 +522,22 @@ the race between a fast callback and a fast webhook serialises rather than doubl
    (§9.4).
 5. Allocate the invoice number from the `invoice_sequence` counter row with
    `UPDATE … RETURNING` inside this transaction (`D14`, `M3` — never a `SEQUENCE`), and write
-   `invoice` + `invoice_line`. One invoice per group (`[DM-02]`).
+   `invoice` + `invoice_line`. One invoice per group (`[DM-02]`). The issuer refuses to allocate
+   a number while `seller_gstin` or `sac_code` is still a placeholder (`E07-13`,
+   `docs/gst-invoicing.md` §2) — but this is **defence in depth only**. Reaching it in
+   production means the money is already captured (step 3 has run), so the refusal rolls this
+   transaction back and strands a captured payment; the *primary* guard is `E07-20`'s refusal at
+   `POST /checkout` (§8.2), which fails **before** authorization, plus a boot assertion on the
+   payments Edge Functions. This allocation-time check must never be the only one that fires.
 6. Post the sale to the ledger (`[DM-03]`, double-entry): **debit** `provider:razorpay:clearing`
    for `payable_paise` and **debit** `platform:suspense` for the wallet portion; **credit**
    `platform:revenue` for the taxable value and `platform:tax_payable:cgst` / `:sgst` for the
-   tax. `ledger_transaction`'s unique `(source_type, source_id, reason_code)` makes the posting
+   tax. Then post the MDR in a separate transaction (`reason_code = 'provider_fee'`): **debit**
+   `platform:provider_fees` and **credit** `provider:razorpay:clearing` for the fee plus its
+   GST, so the clearing account holds only what Razorpay will actually settle. Omitting it
+   overstates clearing permanently by the MDR — see `docs/payments-design.md` §10 note 3 and
+   posting #3; `E06-22` seeds the `sale` and `provider_fee` reason codes this step needs.
+   `ledger_transaction`'s unique `(source_type, source_id, reason_code)` makes each posting
    itself idempotent (`D16`).
 7. Set `order_group.paid_at`; the derivation trigger takes the group to `paid`.
 8. Enqueue notifications (`E08-03` — push and email, with the pickup codes).
@@ -636,9 +654,22 @@ A scheduled job, every 5 minutes. For each `order_group` at `pending_payment` ol
    the clock alone. A UPI collect request can sit pending for minutes, and closing a checkout
    whose payment is about to succeed is how you create §10.5.
 2. If any attempt captured → run `settle_payment()`. It is late but correct.
-3. If every attempt is terminally failed or never started → T6 for every member order with
-   `cancel_reason_code = 'checkout_expired'`, reverse the wallet hold (§10.7), release any
-   capacity decrement.
+3. If no attempt captured, close the group with T6 for every member order, reverse the wallet
+   hold (§10.7), and release any capacity decrement. **The reason code splits on whether the
+   customer ever actually tried to pay:**
+   - **Any `payment` attempt reached `failed`** (a declined card, a rejected UPI collect) →
+     `cancel_reason_code = 'payment_failed'`. This is the case §3.1 and rule G3 mean by a failed
+     checkout, and it is what makes `order_group_status = 'payment_failed'` reachable — see the
+     note below.
+   - **No attempt was ever made, or every attempt is still non-terminal past the TTL** (the
+     customer opened checkout and walked away, or the sheet never returned) →
+     `cancel_reason_code = 'checkout_expired'`.
+
+   Both land on T6, whose guard already admits either code. The distinction is not cosmetic: it
+   is the difference between "your card was declined, try again" and "this checkout timed out",
+   and it is the only thing that lets rule G3 (§5) ever match. Without the split, every swept
+   group would carry `checkout_expired`, G3 could never fire, and `payment_failed` would be a
+   dead status. `E06-30` implements the split.
 
 **[verify in E19-01]** — how long a UPI collect request can remain pending, and whether Razorpay
 expires it itself. That number sets the TTL floor.
@@ -754,7 +785,7 @@ Each one is a test, and each one fails loudly. `E06-13` supplies the payment fix
 | **I5** | `Σ` refunds at `pending`/`processing`/`completed` for a group `≤` the group's captured amount | Constraint trigger, §7.3 |
 | **I6** | No `invoice` exists for a group that has never had a `captured` payment | pgTAP; `M3` — failed payments must not burn invoice numbers |
 | **I7** | Invoice numbers are gapless within a financial year | `E07-01`; `invoice_fy_sequence_unique` plus a gap query |
-| **I8** | `wallet_balance.balance_paise = Σ` ledger entries for that account | Nightly, `[DM-04]` |
+| **I8** | `wallet_balance.balance_paise = balance(user:<id>:wallet)`, where the wallet is a **liability** so `balance = Σcredits − Σdebits` over that account's ledger entries (the sign convention is fixed in `docs/payments-design.md` §10.1 — clearing runs the opposite way) | Nightly, `[DM-04]` |
 | **I9** | Every `captured` payment has exactly one sale `ledger_transaction` | `ledger_transaction_source_unique` + nightly count |
 | **I10** | Every `ledger_transaction` sums to zero across its entries | Constraint trigger, `[DM-03]` |
 | **I11** | `pickup_code` is non-null **iff** the order is at or past `paid` and `delivery_mode = 'counter'` and codes are enabled | pgTAP |

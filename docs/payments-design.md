@@ -533,8 +533,22 @@ retention acceptable.
 Stated explicitly because it is a real transfer of responsibility: the moment the endpoint
 answers `200`, Razorpay is done. Every subsequent attempt is ours, driven by the 5-minute sweep
 over `processing_status in ('pending','failed')`. If that job is not running, events are
-recorded and never applied, and the only thing that notices is the daily reconciliation. The
-sweep needs its own liveness alert (`E15-03`), not just an error alert.
+recorded and never applied, and the only thing that notices is the daily reconciliation.
+
+The sweep therefore needs a **job-liveness alert of its own** — one that fires when the cron has
+not *run* within its expected interval, distinct from both an error alert (the job ran and
+threw) and an uptime alert (`E15-03` — the site or API is unreachable). A cron that silently
+stopped produces neither a 5xx nor a failed HTTP probe: it produces **silence**, so uptime
+monitoring cannot see it. `E15-03` is the wrong control here and is explicitly not it.
+
+This is not specific to the webhook sweep. **All six scheduled jobs in
+`docs/order-lifecycle.md` §11 need the same guarantee** — a job that records a heartbeat on each
+run and an alert that pages when a heartbeat is overdue for its cadence (5-min sweeps within
+minutes, the daily jobs within hours). `E15-06`'s daily digest carries each job's *last
+outcome* but not its *liveness*, so a job that stopped emitting anything at all is exactly what
+it misses. `E15-13` is the dedicated job-liveness monitor covering the webhook retry sweep, the
+abandoned-checkout sweeper, the in-flight payment and refund reconcilers, the daily
+reconciliation, and the idempotency-key purge.
 
 ---
 
@@ -994,6 +1008,51 @@ Notes on the shape:
   is postable exactly once per source object, which is layer 6 of §7.1. Note this is *why* the
   ledger needs movement-shaped reason codes rather than the *why*-shaped ones: two different
   postings against one refund (#6 and #8) must differ in `reason_code` or the second is refused.
+
+### 10.1 The sign convention — which way `balance()` runs, per account type
+
+The postings above are debit/credit *pairs*; nothing in them says which direction is
+**positive** when you compute an account's balance. That is not a free choice, and it is not
+uniform across accounts. State it once, here, because two nightly assertions
+(`docs/order-lifecycle.md` I8 and §8.3's clearing-balance check) depend on it and they run in
+**opposite** directions. `E06-31` implements it.
+
+Every account has a `normal_balance` (`docs/data-model.md` §8.4). `balance()` is defined so a
+healthy account is non-negative in its own normal direction:
+
+```
+balance(account) = Σ(entries on the normal side) − Σ(entries on the opposite side)
+
+  normal_balance = 'debit'  ⇒  balance = Σdebits  − Σcredits
+  normal_balance = 'credit' ⇒  balance = Σcredits − Σdebits
+```
+
+Per `ledger_account_type`, that resolves to:
+
+| `account_type` | `normal_balance` | `balance()` is | Because it is a |
+|---|---|---|---|
+| `wallet` | credit | `Σcredits − Σdebits` | **liability** — money we owe the customer; a hold (#1) *debits* it when they spend |
+| `revenue` | credit | `Σcredits − Σdebits` | income |
+| `tax_payable` | credit | `Σcredits − Σdebits` | liability to the government |
+| `payable` | credit | `Σcredits − Σdebits` | liability to a school/kitchen |
+| `provider_clearing` | debit | `Σdebits − Σcredits` | **asset** — money at Razorpay; a capture (#2) *debits* it |
+| `provider_fees` | debit | `Σdebits − Σcredits` | expense |
+| `receivable` | debit | `Σdebits − Σcredits` | asset |
+| `suspense` | debit | `Σdebits − Σcredits` | asset-side holding account |
+
+The two assertions therefore read opposite columns of the same ledger:
+
+- **I8** — `wallet_balance.balance_paise = balance(user:<id>:wallet)` — the wallet is a
+  **liability**, so its balance is `Σcredits − Σdebits`.
+- **§8.3 clearing** — `balance(provider:razorpay:clearing)` = what Razorpay says is pending —
+  clearing is an **asset**, so its balance is `Σdebits − Σcredits`.
+
+**A single-sign `balance()` helper is therefore wrong.** A helper that hard-codes
+`Σdebits − Σcredits` (or its negation) for every account gets exactly half of them backwards,
+and the failure is silent because a balanced two-sided posting still sums to zero across the
+transaction (I10) — the sign bug only surfaces when you compute a *per-account* total. The
+helper must branch on `ledger_account.normal_balance`, and the test asserts a `credit`-normal
+and a `debit`-normal account with the same posting come out with opposite signs.
 
 ---
 

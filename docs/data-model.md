@@ -1990,9 +1990,17 @@ Drives E20-09, E20-10, the audit redaction rule (§12.6) and the RLS work in Q03
 
 | Tier | Meaning | Columns |
 |---|---|---|
-| **S — special category** | Health data about a minor. Never logged, never leaves the database except to the kitchen for fulfilment, never to Sentry or analytics | `recipient_allergen.*`, `recipient.allergy_note` |
-| **P — personal, child** | Identifies a minor | `recipient.first_name`, `recipient.last_name`, `recipient.school_id`, `recipient.school_class_id`, `recipient.class_label`, `recipient.section_label`, `order.recipient_name_snapshot`, `order.class_label_snapshot`, `order.section_label_snapshot` |
+| **S — special category** | Health data about a minor. Never logged, never leaves the database except to the kitchen for fulfilment, never to Sentry or analytics | `recipient_allergen.*`, `recipient.allergy_note`, `order_line.allergen_codes_snapshot` |
+| **P — personal, child** | Identifies a minor | `recipient.first_name`, `recipient.last_name`, `recipient.school_id`, `recipient.school_class_id`, `recipient.class_label`, `recipient.section_label`, `order.recipient_name_snapshot`, `order.class_label_snapshot`, `order.section_label_snapshot`, `invoice_line.description` |
 | **A — personal, adult** | Identifies the customer | `app_user.first_name`, `app_user.last_name`, `app_user.phone_e164`, `app_user.email`, `invoice.buyer_*_snapshot` |
+
+This classification is **normative**; `docs/dpdp-compliance.md` §2.2 repeats it rather than
+re-deriving it, so every column that carries regulated data must appear here. Two snapshot
+columns are on the list for the same reason their parents are: `order_line.allergen_codes_snapshot`
+is tier S because it is the allergen set as declared *on the day* (§7.4), and
+`invoice_line.description` is tier P because it carries the recipient's first name (`G7`,
+`docs/gst-invoicing.md` §4.3) — and, being a statutory record, it is retained through erasure
+(`DM-15`), which is exactly why §4.3 limits it to a first name and nothing more. `E20-31`.
 
 Rules that follow, all of which are testable:
 
@@ -2123,8 +2131,12 @@ E18 requires the schema not preclude these. Each drops in as data or as one tabl
 
 ## 14. Open decisions
 
-Nineteen. All are also listed in `docs/open-questions.md`. **"Modelled as" is what this
-document assumes so that it stays coherent — it is not a decision.**
+Nineteen. Each is tracked in `docs/open-questions.md`, though not all under its `DM-nn` id:
+`DM-14` in particular is carried there as the accountant question "Is the Excel `Price`
+GST-inclusive?" (under "Blocked on Andy") without a `DM-` label, and `DM-20` is filed as a
+consequence of it — so a reader chasing the literal string `DM-14` in that file will not find
+it. **"Modelled as" is what this document assumes so that it stays coherent — it is not a
+decision.**
 
 ### 14.1 Needs Andy (product or business)
 
