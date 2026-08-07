@@ -310,6 +310,172 @@ notifiable breach, and that question does not improve with age.
 | `[AZ-07]` | Who may progress a `data_subject_request`. The `consent.view` / `users.manage` mismatch makes the update a **silent no-op** for a grantee holding only `consent.view`, and `E20-04` is the task that will trip over it. It was deliberately left as-is in `0002` to be settled "with `E20-04` in front of you" — this document is that moment |
 | `[DS-04]` | The other regulated-display question (the FSSAI veg / non-veg mark). Worth asking the same lawyer in the same conversation |
 
+## Raised by the policy drafts (`docs/{privacy-policy,terms,refund-policy}.md`, Q11)
+
+Customer-facing / commercial values the three policy drafts surfaced. Most are **not** new DPDP
+questions (those are `[DP-01]`…`[DP-07]`); they are the "what do we actually tell the customer"
+side, which needs Andy and, for two of them, the lawyer. **None of these are decided.**
+
+- **`[PP-01]` Customer self-cancellation window.** How long before the kitchen cutoff may a
+  customer cancel their own order and get a full refund? The system has
+  `customer_cancellation_cutoff_minutes` and `customer_cancellation_allowed` (lifecycle T10) but
+  the number is unchosen. **Options:** (a) same as the order cutoff — cancel any time up to cutoff;
+  (b) a buffer (e.g. 60 min before cutoff) so the kitchen's headcount is stable earlier; (c) no
+  self-cancel, contact-us only. **Recommended: (a) or a small buffer, as config per kitchen.**
+  **Does NOT block launch** (a value can ship), but a value must be chosen before the refund policy
+  is published. Owner: Andy (product). Blocks `E00-19`.
+- **`[PP-02]` Post-delivery / problem-with-order refund stance.** §2.3 of the refund policy
+  currently says post-delivery refunds are goodwill-only and at GrayBag's discretion. Is there a
+  stated window to report a problem (e.g. "same day"), and is any category automatic (wrong item
+  delivered)? **Recommended:** state a same-day report window and make "wrong item / not delivered"
+  an automatic refund; keep "didn't like it" discretionary. **Does NOT block launch.** Owner: Andy
+  (product), with a light legal check on the wording. Blocks `E00-19`.
+- **`[PP-03]` Allergy liability wording.** Terms §8 and the privacy notice both say the allergy
+  warning is an aid, not a guarantee, and that a serious-allergy child must not rely on the app
+  alone. The exact wording (`«ALLERGY-LIABILITY-WORDING-PENDING-E20-01»`) is health-and-safety
+  language and **must** be drafted/approved by a lawyer. **Recommended:** do not soften it; if
+  anything, strengthen the "do not rely solely on the app" line. **BLOCKS launch** — shipping an app
+  that shows allergy warnings for children without reviewed liability wording is the single riskiest
+  gap in these documents. Owner: Andy → lawyer (`E20-01`, `E20-25`).
+- **`[PP-04]` Liability cap wording.** Terms §10 caps liability at the order value with a carve-out
+  for death/personal injury. `«LIABILITY-CAP-WORDING-PENDING-E20-01»` needs a lawyer — a cap that
+  tries to exclude what cannot be excluded under Indian law is unenforceable and looks bad.
+  **Does NOT block launch** independently but rides with `E20-01`. Owner: lawyer (`E20-25`).
+- **`[PP-05]` Wallet credit and RBI PPI.** Terms §5 states wallet credit is refund-only store credit
+  and cash top-up is not offered. The RBI Prepaid Payment Instrument question for cash top-up is
+  already open (top of this file); the drafts assume refund-only credit is outside PPI regulation.
+  **Recommended:** keep top-up out of v1 (already the plan); have the lawyer confirm refund-only
+  credit needs no PPI licence before we describe it as "store credit". **Does NOT block launch** for
+  v1 (no top-up), but the sentence should be lawyer-checked. Owner: lawyer (`E20-01`).
+- **`[PP-06]` Minimum age to hold an account.** Terms §2 states 18+. The system has `is_self`
+  recipients (a college student ordering for themselves may be 17). Is an account holder required to
+  be 18, and what about a 16–17 self-ordering college student? **Recommended:** keep account holder
+  = 18+; a minor eats via a guardian's account. **Does NOT block launch.** Owner: Andy (product),
+  light legal check.
+
+## Raised by the store-submission pack (`docs/store-submission.md`, Q12)
+
+App Privacy (Apple) / Data Safety (Google) declaration questions the store pack surfaced. Every
+answer was derived from `docs/dpdp-compliance.md` §2.2 and `docs/data-model.md` §13.3, **not** from
+`docs/privacy-policy.md`, which did not exist at Q12's HEAD — so all of these must be reconciled
+against the final policy (`E17-14`). **None of these are decided.**
+
+- **`[SS-01]` Which Data Safety "purpose" values do we claim for phone and email?** Google forces
+  each data type into a fixed purpose list. Phone (OTP) is clearly "Account management" + "App
+  functionality"; email is "App functionality" (receipts/invoices). The question is whether we also
+  tick "Fraud prevention" for phone. **Recommended:** App functionality + Account management only;
+  do not claim Fraud prevention or Analytics against contact data, to keep the label minimal and
+  honest. **Does NOT block launch** — a wording choice within an honest range, resolvable at
+  submission.
+- **`[SS-02]` Do we declare "Data shared with third parties" for the Razorpay payer prefill?** The
+  paying adult's phone + email are sent to Razorpay as `prefill` (payments-design §3.7). Razorpay is
+  arguably a processor (App functionality) rather than a party we "share" with, but `[DP-04]`/§2.1 of
+  dpdp-compliance flags Razorpay may be an **independent fiduciary**, which under the store
+  definitions leans towards "shared". **Recommended:** declare payer phone + email as **shared** with
+  the payment processor for "App functionality / to complete the payment" — the conservative, honest
+  reading. Confirm against the final privacy policy and `E20-11` processor review. **Does NOT block
+  launch**, but must be consistent with the policy.
+- **`[SS-03]` App Privacy: is declared allergy data "Health & Fitness → Health"?** A child's declared
+  allergies are health data (tier S), collected, linked to identity, not used for tracking.
+  **Recommended:** declare "Health" collected, linked to identity, purpose "App functionality", not
+  used for tracking. There is no genuine ambiguity — flagged so it is not "simplified" away. **Does
+  NOT block launch.**
+- **`[SS-04]` Do the store consoles need the grievance-officer contact, and is it the same as the
+  App Store "privacy contact"?** The four `«…-PENDING-E20-21»` grievance tokens are unresolved. No
+  store field needs the officer's name directly, but the privacy-policy URL both stores require will
+  contain them. **Recommended:** already covered by `E20-21` + `E20-22`; noted so the store
+  submission is not blocked on a *store* question when it is really an `E20-21` question. **Blocks
+  launch, transitively** — a production privacy-policy URL containing a `«…-PENDING-…»` token must
+  not ship (`E20-22`), and the store listing links that URL.
+
+## Raised by the secret-rotation policy and testing strategy (`docs/secret-rotation-policy.md`, `docs/testing-strategy.md`, Q13)
+
+**None of these are decided.**
+
+- **`[SEC-01]` Secret rotation cadences — accept or shorten.** **Options:** (a) as recommended —
+  180 days for high-value provider secrets (Razorpay key secret, webhook secret, service-role, SMS,
+  DB), 90 days for CI tokens, 365 days for the off-Supabase backup encryption key, plus immediate
+  rotation on any suspected exposure; (b) shorter (e.g. 90 days everywhere) — tighter leak-lifetime
+  bound, more rotation friction, more chances to botch a dual-secret webhook rotation;
+  (c) compliance-driven, if a school contract or payments partner imposes a cadence. **Recommended:
+  (a).** It bounds a silent leak's lifetime while keeping rotation rare enough that the dual-secret
+  webhook dance is done correctly. **Does NOT block launch** — policy Andy ratifies; the mechanics
+  work at any cadence. Owner: Andy (decision).
+- **`[SEC-02]` Does the Supabase plan expose zero-downtime JWT key rotation?** Rotating the Supabase
+  Auth JWT signing secret invalidates every JWT signed with the old one; with `U3`'s long-lived
+  refresh tokens a hard rotation logs everyone out (mass re-OTP). **Options:** (a) seamless via JWKS
+  overlap if the plan supports it; (b) maintenance window + accepted re-login on the 180-day clock,
+  coupled to service-role rotation; (c) only ever rotate the JWT secret on suspected compromise,
+  accepting the mass logout as the correct incident response. **Recommended: (a) if available, else
+  (b).** Do NOT shorten the refresh-token TTL to make rotation cheaper — that permanently raises OTP
+  cost against a rare event, the wrong side of `U3`. **Does NOT block launch.** Owner: Andy
+  (credentialed — check the plan).
+- **`[TEST-01]` Coverage threshold numbers.** **Options:** (a) recommended — 80% global line
+  coverage, 90% floor on `packages/shared`, with money-math and authorization held to effectively
+  100% by *suite completeness* (property tests + the exact-policy-set assertion) rather than by an
+  lcov number; (b) higher blanket gate (90–95% everywhere) — risks rewarding assertion-free tests on
+  UI/glue; (c) lower / advisory — contradicts `E01-12` and non-negotiable #6. **Recommended: (a).**
+  The real risk (money, authz) is already gated by specific-tests-present, not a percentage.
+  **Does NOT block launch**, but `E01-12` needs a ratified number before CI can enforce a gate —
+  blocking for "CI is green means something". Owner: Andy (decision).
+
+## Raised by the cutover runbook (`docs/cutover-runbook.md`, Q14)
+
+Cutover-execution questions. **None of these are decided.** Several block scheduling the cutover
+weekend (`E17-09`) rather than the build.
+
+- **`[CO-01]` When is the cutover weekend, and how long is the ordering freeze?** **Options:** (a) a
+  Friday-night → Monday-morning window (Bubble read-only Friday ~22:00 IST after the last weekly
+  cutoff, migrate/validate Saturday, soak Sunday, open Monday 06:00 before the first cutoff); (b) a
+  tighter Saturday–Sunday window with less soak time; (c) cut over during a school-holiday week when
+  no service days fall inside the window. **Recommended: (c) if a holiday week is available within
+  the launch timeline, otherwise (a)** — schools do not serve on Sat/Sun in the current cities, so
+  no `service_date` falls inside the freeze. **BLOCKS launch** — `E17-09` cannot be scheduled without
+  it. Owner: Andy (a date decision, depends on the school calendar).
+- **`[CO-02]` Does Bubble go fully read-only, or stay writable for 30 days?** The runbook assumes
+  Bubble is read-only at freeze and kept so as the 30-day break-glass (`R3`). If a full technical
+  lock is not achievable in Bubble, the compensating control is to disable the payment and
+  order-create workflows only. **Recommended:** achieve read-only by disabling Bubble's order-create
+  and payment workflows and pointing DNS at the new site; leave data readable for support lookups.
+  Confirm what "read-only" Bubble actually permits. **BLOCKS launch (partial)** — the break-glass
+  story in `R3` depends on it. Owner: Andy (credentialed — Bubble editor; a validation).
+- **`[CO-03]` Cutover-time in-flight orders and payments: how are they drained?** At freeze there may
+  be Bubble orders paid-but-not-delivered (future service date) and Bubble payments in flight (UPI
+  collect pending) that do not fit the E16 historical migration cleanly. **Recommended (built into
+  runbook §4):** drain rather than migrate — stop new Bubble payments at freeze; let in-flight Bubble
+  payments settle or fail on Bubble during a fixed drain window before the migration snapshot;
+  migrate resulting settled orders as history; reconcile anything still pending at snapshot by hand
+  against the Razorpay dashboard. **BLOCKS launch** — `E16-01`/`E16-04` need to know whether
+  future-dated paid Bubble orders come across as fulfillable orders or closed history. Owner: Andy +
+  build. Resolved by `E17-14`.
+- **`[CO-04]` Do future-dated paid Bubble orders get fulfilled by the new kitchen ops, or refunded?**
+  A parent who paid on Bubble for next Tuesday's lunch has a real obligation. **Options:** (a) migrate
+  future-dated paid orders as real `paid` orders so the kitchen packing list includes them, with the
+  money as an **opening ledger credit** posture (no second charge) — honest but the harder migration;
+  (b) refund-and-reorder on Bubble before cutover — cleaner technically but charges/inconveniences
+  paying customers and risks a coverage gap. **Recommended: (a).** **BLOCKS launch.** Owner: Andy
+  (product/commercial, ideally with the kitchen) + build.
+- **`[CO-05]` Legacy prepaid/wallet balances at cutover.** Ties to `E00-18` / `E16-16`. If off-system
+  prepaid balances exist they must land as **opening ledger credits** before the first new-stack
+  order, or customers lose money. **Recommended:** resolve `E00-18` before scheduling the weekend;
+  if balances exist, `E16-16` is a blocking predecessor of `E17-09`. **BLOCKS launch if balances
+  exist.** Owner: Andy.
+- **`[CO-06]` Is the legacy Bubble exposure (`[DP-03]`) already a notifiable breach, and does keeping
+  Bubble live 30 days extend the exposure window?** Not new — this is `[DP-03]`, flagged because the
+  cutover plan is the moment it becomes operational: keeping Bubble read-only for 30 days (`R3`) keeps
+  the publicly-readable `Order`/`Child` surface live 30 more days unless it is locked down. The
+  runbook adds a pre-cutover step to lock down or take offline the public Bubble Data API
+  independently of the read-only decision. **Recommended:** fold into `E20-23` (prepare the facts) and
+  ask the lawyer (`E20-01`) before the weekend, not after. **BLOCKS launch** — a live regulatory
+  clock. Owner: Andy + lawyer. This is the R3 ↔ `[DP-03]` tension made operational; addressed by
+  `E17-15`.
+- **`[CO-07]` What is the go/no-go authority when the team is one person?** Every go/no-go gate in the
+  runbook names Andy as the decider; `[DP-01]`'s deputy question applies. The compensating control is
+  that the runbook's default action at every failed gate is to **NOT proceed and roll back**, which
+  is safe without a second human (`R8`). **Recommended:** accept single-signer for v1; the
+  rollback-by-default design is the mitigation. Revisit with `[DP-01]`. **Does NOT block launch.**
+  Owner: Andy.
+
 ## Parked (deliberately, until real data exists)
 
 | Q | Notes |

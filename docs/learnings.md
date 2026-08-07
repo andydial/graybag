@@ -19,6 +19,113 @@ Format — newest first:
 
 ---
 
+## 2026-08-07 — Break-glass and a live data exposure are the same 30 days, and nobody had written that down
+
+**Context:** Q14, writing `docs/cutover-runbook.md` and reconciling `R3` (keep Bubble 30 days as
+break-glass) against `[DP-03]` (the legacy Bubble exposure may be a notifiable breach).
+**What happened:** `R3` and `[DP-03]` turn out to be in direct tension. Keeping Bubble read-only for
+30 days as rollback insurance keeps the publicly-readable `Order`/`Child` surface — the exposure
+`[DP-03]` is about — live for 30 more days. The break-glass insurance *is* the exposure.
+**Cause:** The two decisions were made in different documents for different reasons and neither
+mentioned the other. Break-glass is a release-safety property; the exposure is a compliance property;
+they touch the same running Bubble instance.
+**Fix / rule:** The runbook resolves it by **locking the public Bubble Data API at freeze while
+keeping data readable to authenticated admin for support** — so break-glass does not mean "keep the
+exposure running". Whether Bubble permits that split is unverified (`[CO-02]`), and `E17-15` owns the
+lockdown independently of the read-only decision. General rule, same family as the `M5`/`[DM-18]` and
+`OL-05` interactions: **when two decisions touch the same running system for unrelated reasons, state
+the interaction explicitly — the tension is invisible in either document alone.**
+
+## 2026-08-07 — The in-flight-order problem shrinks to almost nothing if the freeze lands on a non-service day
+
+**Context:** Q14, deciding how the cutover weekend drains live money and fulfilment state.
+**What happened:** The obvious fear — orders and payments moving through the system at the moment of
+cutover — turns out to be small in the current cities, because they do not serve food on weekends. No
+`service_date` falls inside a weekend freeze, so the only live-money surface is *future-dated* paid
+orders and *pending* Bubble payments. Both can be drained on Bubble before the migration snapshot
+rather than migrated mid-flight.
+**Cause:** The in-flight surface is a function of *when* the freeze lands, not of the migration
+mechanics. A freeze that begins after the last weekday cutoff has passed has no service day inside it.
+**Fix / rule:** The freeze begins only **after the last weekday order cutoff has passed** (`R6`), and
+in-flight Bubble payments are **drained on Bubble, not migrated as live state** (`R7`, `E17-14`) —
+settle-or-fail before the snapshot, anything still pending reconciled by hand against Razorpay. Two
+related cutover-day loads that are operational rather than code: OTP re-login is a **comms campaign
+with a technical backstop** (`U2` re-auth is unavoidable; the risk is a user not knowing and churning,
+mitigated by `E17-16`), and `E03-11`'s ambiguous-phone-match `migration_review` queue will have real
+rows Monday morning that someone must work or those families cannot log in (`E17-17`).
+
+## 2026-08-07 — A rotation policy without "what breaks during the window" is half a policy
+
+**Context:** Q13, writing `docs/secret-rotation-policy.md` and `docs/testing-strategy.md`.
+**What happened:** The dangerous secret in this stack is the Razorpay **webhook secret**. It is
+callee-verified and the handler returns `200` to a bad signature (correctly, per `PY2`), so a naive
+swap silently drops every event signed with the old secret between the two changes — no 5xx, no
+Razorpay retry, no signal. This is the same blind spot as the "record it and return 200" webhook
+learning; rotation walks straight into it.
+**Cause:** Secrets come in two shapes and only one rotates atomically. **Caller-initiated** secrets
+(key secret, SMS key, API tokens) swap between requests with zero downtime. **Callee-verified**
+secrets (webhook secret, JWT signing secret) cannot swap atomically with respect to in-flight
+messages and need an overlap window. Filing every secret into one of these two buckets makes each
+rotation procedure obvious.
+**Fix / rule:** The dual-secret (`_PREVIOUS`) window plus `E06-28`'s alert are the mitigations for the
+webhook secret, and both are load-bearing — captured in the policy and the testing doc. Two further
+constraints recorded there: **payment paths are testable in CI without live keys** (a provider stub
+authored from `docs/payments-design.md` §12 — HMAC verification, idempotency via replay against real
+Postgres constraints, and the dual-secret rotation path are all offline-testable), **but the stub
+encodes assumptions until `E19-01` returns** and must be corrected to reality then — native UPI intent
+is *not* CI-testable and stays with `E19-01` on a real device. And the **authorization pgTAP suite
+needs the GoTrue `auth` schema present** (`app_user.id` → `auth.users`, `auth.uid()` reads
+`request.jwt.claims`), so CI must run `supabase start` — it cannot use a bare `postgres:16` image, a
+real constraint on `E01-08`'s CI design.
+
+## 2026-08-07 — The store data-safety label has no field for the S/P/A tiers, no "we don't collect X", and no child/adult distinction
+
+**Context:** Q12, writing the App Privacy / Data Safety answers in `docs/store-submission.md`.
+**What happened:** The store declarations traced one-to-one to the `docs/dpdp-compliance.md` §2.2
+tier S/P/A model — mechanical once that spec existed (tier S = Health/allergies, tier P = child
+name/class/section, tier A = adult phone/email/name). But three shapes the model relies on have
+**nowhere to live on the store form**: (1) there is no child-vs-adult distinction, so children's and
+adults' identifiers collapse into the same "data type" rows — the child-specific protection lives in
+the app and the policy, not in the label; (2) there is no place to say "we deliberately do NOT
+collect X" — yet the deliberate non-collection (no child DOB, no child photo, no precise location, no
+advertising ID, no tracking) is what makes the label short: "No" to Tracking, Location, Advertising;
+(3) "Data linked to you" (Apple) is decided purely by whether data sits against an account —
+everything GrayBag collects is linked (there is an `app_user` row); Sentry crash data is the only
+"not linked" candidate, and only because §5.3 + `PY8` + `E20-10` scrub all tiers out of it.
+**Cause:** The store forms are a fixed taxonomy built for a general audience; the project's
+protections are finer-grained than the form can express.
+**Fix / rule:** Record it so nobody later tries to encode the S/P/A tiers into the store form (there
+is no field for it) and so the absence of tracking/location/advertising is understood as an asset,
+not an omission. Two hard cross-checks that fall out: **both stores require the declared collection to
+match the linked privacy policy exactly** — the store answers were derived from
+`docs/dpdp-compliance.md`, not the (then-nonexistent) `docs/privacy-policy.md`, so they must be
+reconciled against the final policy before submission (`E17-19`, blocks `E17-04`); and Apple now
+**mandates an in-app "account deletion" answer plus a web URL** for any app supporting account
+creation — GrayBag has in-app deletion (`E03-08`), so the answer is "yes" and the URL points at the
+Settings→Privacy / grievance flow (`E17-20`).
+
+## 2026-08-07 — The refund policy is almost entirely already-decided; the privacy policy is almost entirely blocked
+
+**Context:** Q11, drafting `docs/{privacy-policy,terms,refund-policy}.md` as templates for a lawyer.
+**What happened:** The three documents pulled apart cleanly by how much is actually open. The refund
+*mechanics* are fully pinned down by `docs/order-lifecycle.md` T10–T13 and `docs/payments-design.md`
+§9 — the only genuinely open parts are two customer-facing values (`[PP-01]` cancellation window,
+`[PP-02]` post-delivery stance). The privacy notice, by contrast, is provisional almost end to end on
+`E20-01` (legal entity, DSR deadlines, breach timelines, cross-border, RBI PPI, jurisdiction) plus
+the `E20-21` grievance identity and the `E00-10` invoice values.
+**Cause:** Refund behaviour is a property of the system we built and already specified; the privacy
+notice is a set of legal claims we are not qualified to make. Same shape as Q10 — the machinery is
+decidable now, the law is not.
+**Fix / rule:** All `«…-PENDING-…»` tokens follow the `G3`/`E20-22` convention so **one CI check**
+covers invoices, the grievance block and all three policies, and the token names **encode the owner
+task** (`-PENDING-E20-01`, `-PENDING-E00-10`, `-PENDING-E20-21`, `-PENDING-ANDY`) so a reviewer sees
+at a glance who unblocks each. Two facts that must survive legal review verbatim: **the invoice
+carries a child's first name and survives erasure** (`G7` + `D15`), which the notice must disclose up
+front, not bury (§6.6 of the compliance spec calls a buried disclosure "a complaint we caused
+ourselves"); and the allergy disclaimer is the **top launch risk** (`[PP-03]`) — a food business
+serving children that shows allergy warnings must address the duty-of-care surface head-on, and a
+lawyer trimming either line for brevity would reintroduce the exact problem.
+
 ## 2026-08-07 — Soft-deleting a dependent makes their consent withdrawal permanently unrecordable
 
 **Context:** Q10, writing the consent flow for `docs/dpdp-compliance.md`. The schema already

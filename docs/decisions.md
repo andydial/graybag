@@ -196,3 +196,44 @@ document draws the line between the two.
 | R3 | **Keep Bubble 30 days post-cutover** as break-glass | ~AUD $100. Cheap insurance on a live payments system. |
 | R4 | **Ship as an update to the existing apps**, not new listings | Bundle IDs are owned: iOS `com.gracord.graybag`, Android `com.Gracord.Graybag`. Typo in "gracord" is permanent and must not be changed. |
 | R5 | Timeline ~3.5–4 months at 20–30 hrs/week | Full scope. Compressible by deferring subscriptions, wallet top-up and offline. |
+| R6 | **The cutover freeze begins only after the last weekday order cutoff has passed**, so no `service_date` falls inside the freeze window (Q14, `docs/cutover-runbook.md`) | Makes the freeze a weekend (or holiday-week) event and shrinks the in-flight surface to future-dated paid orders and pending payments, which are *drained on Bubble* rather than migrated mid-flight. The current cities do not serve on weekends, so a weekend freeze contains no service day. `[CO-01]` |
+| R7 | **Bubble in-flight payments are not migrated as live state.** They are drained (settle-or-fail on Bubble) before the migration snapshot; anything still pending at snapshot is reconciled by hand against the Razorpay dashboard (Q14) | The new stack's payment state machine must never inherit a half-open attempt it did not create — mirrors `L4` (choose the recoverable failure). `E17-14`, `[CO-03]` |
+| R8 | **Every cutover go/no-go gate defaults to roll back, not proceed**, so a single unavailable decision-maker fails safe (Q14) | GrayBag is one person; there is no second signer mid-weekend (`[CO-07]`, next to `[DP-01]`). Rollback-by-default is the compensating control, and rollback triggers are named per phase in the runbook |
+
+## Policy documents
+
+Made in Q11 while drafting `docs/{privacy-policy,terms,refund-policy}.md` as lawyer templates. None
+override an existing entry; these are choices about how the three documents are structured. The *law*
+in them is provisional on `E20-01`, exactly as with the DPDP machinery — every unresolved value is a
+`«…-PENDING-…»` token guarded by `G3`/`E20-22`.
+
+| # | Decision | Why |
+|---|---|---|
+| PP1 | **The three policies cross-reference rather than duplicate.** Refund detail lives only in `refund-policy.md`; Terms §6 summarises and links; the privacy notice does not restate refund mechanics. The refund policy is declared "part of the Terms" so it is contractually binding | Same instinct as the `api/` module rule (`A4`) and the token source (`S8`): one source per fact, so a change to the cancellation window edits one document, not three |
+| PP2 | **Retention numbers in the privacy notice are written as the §6.2 *proposals* with tokens, never as decided values.** The parent-facing table quotes the proposed number in prose ("proposed: 8 years") next to the token | Consistent with `C6` and `[DP-02]`: inventing a number in a published policy would be inventing the law. Quoting the proposal means the lawyer edits a number rather than a blank |
+| PP3 | **The allergy disclaimer is stated in both the Terms (§8) and the privacy notice, and flagged as the top launch risk** | A food business serving children that shows allergy warnings has a duty-of-care surface these documents must address head-on. `[PP-03]` BLOCKS launch — the wording is health-and-safety language that must be lawyer-reviewed (`E20-25`) |
+| PP4 | **Cross-border wording distinguishes adult data (may leave India via Sentry/Expo/email) from child data (never leaves India by design)** | Mirrors `[DP-05]` and the §5.3 egress rules exactly, so the notice does not over-claim "all your data stays in India" — which would be false for Sentry and Expo, and a false privacy claim is itself a problem |
+
+## Store submission
+
+Made in Q12 while writing `docs/store-submission.md`. Mechanism / presentation choices about the
+App Privacy (Apple) and Data Safety (Google) declarations — honest and low-stakes, recorded so they
+are not silently reversed at submission time.
+
+| # | Decision | Why |
+|---|---|---|
+| SUB1 | **The store data-safety declarations are generated from the tier S/P/A model, and the privacy policy is the single source of truth they must match.** If policy and label ever disagree, the policy wins and the label is corrected, never the reverse | Same instinct as the `api/` module rule and the token-source rule: one source, derived outputs. Both stores require the declared collection to match the linked policy exactly, so the reconciliation is mandatory (`E17-14`) |
+| SUB2 | **Declare conservatively: broad on "what", narrow on "why".** When a data type could honestly be declared collected or not, declare it collected; when a purpose could be read broadly or narrowly, declare it narrowly | Over-declaring collection is safe (the app looks slightly more data-hungry); under-declaring is a policy violation and a takedown risk. Over-declaring *purpose* (e.g. Analytics on contact data) invites scrutiny we do not need. `[SS-01]`, `[SS-02]` |
+| SUB3 | **GrayBag declares NO tracking (Apple ATT) and NO advertising ID** — no cross-app/cross-site tracking, no ad SDK, no advertising identifier, so no ATT prompt is required | s.9 of DPDP forbids profiling a child (dpdp §3.3). Recorded because adding any analytics/attribution SDK later would flip this and require an ATT prompt + a label change — it must be a conscious decision, not a dependency someone quietly adds |
+
+## Secret rotation and testing
+
+Made in Q13 while writing `docs/secret-rotation-policy.md` and `docs/testing-strategy.md`. The
+cadence *numbers* and the coverage *number* are open (`[SEC-01]`, `[SEC-02]`, `[TEST-01]`); the
+choices below are the mechanisms that hold at any number.
+
+| # | Decision | Why |
+|---|---|---|
+| SR1 | **Provider secrets are stored only as Supabase Edge Function env vars / project settings, never in a committed `.env`; the service-role key never has a human copy** | The service-role key is the one credential that bypasses RLS (defeats non-negotiable #2). Concentrating it in the Edge Function tier — which the `api/` write rule (`A4`) already mandates — means exactly one place to rotate and one place to leak from |
+| SR2 | **Coverage is a hard merge gate, but money and authorization correctness are gated by suite completeness (property tests + the exact-policy-set `set_eq`), not by a coverage percentage** | A percentage can be satisfied without asserting the thing that matters; an exact-policy-set assertion fails when a policy is *added* — the direction that leaks — which no coverage number would catch. `[TEST-01]`, `E01-12` |
+| SR3 | **CI proves everything server-side and every signature/idempotency invariant offline; native UPI client behaviour is proven once by the `E19-01` spike, not by CI** | A CI stub cannot validate a native app-switch, and pretending it does hides the `E06-29` `<queries>` failure that only reproduces on a real Android 11+ device. The provider stub is testable but encodes assumptions until `E19-01` corrects it |
