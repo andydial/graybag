@@ -58,13 +58,35 @@ editing config — it is baked into every invoice issued before the fix.
 | `«LEGAL-NAME-PENDING-E00-10»`, `«ADDRESS-PENDING-E00-10»` | Andy | `seller_legal_name`, `seller_address` |
 
 **The guard.** In staging and development the placeholder renders literally, in angle quotes,
-so it is impossible to mistake for a real GSTIN. **In production the invoice issuer must refuse
-to allocate a number at all** while `seller_gstin` matches `^«.*»$` or `sac_code` does. The
-refusal is deliberately loud and deliberately early: it fails the checkout's post-capture step
-rather than producing a document, because an invoice issued with a placeholder GSTIN is a
-non-compliant tax document that cannot be corrected without a credit note and a reissue. Being
-unable to complete a purchase on day one is a smaller problem than a month of invalid invoices.
-`E07-13`.
+so it is impossible to mistake for a real GSTIN. The refusal is deliberately loud and
+deliberately early, and it fires **before any money moves**, because an invoice issued with a
+placeholder GSTIN is a non-compliant tax document that cannot be corrected without a credit
+note and a reissue. Being unable to *start* a purchase on day one is a smaller problem than a
+month of invalid invoices — and a much smaller problem than charging the customer and then
+being unable to issue the order, which is what a post-capture guard produces.
+
+The guard has three layers, primary first:
+
+1. **Primary — refuse `POST /checkout` in production** while `seller_gstin` matches `^«.*»$`
+   or `sac_code` does. This fails the checkout **before authorization or capture**, so no money
+   is ever taken against an order that cannot be invoiced. The resolved seller config is read at
+   checkout for exactly this test; a placeholder is a `503`-shaped "not open for business yet"
+   refusal, not a customer-visible error mid-payment.
+2. **Boot assertion** on every payments Edge Function, in the same shape as `E06-14`'s
+   key-prefix check (`docs/payments-design.md` §2.2): in production, refuse to start if the
+   resolved `seller_gstin` or `sac_code` is still a placeholder. A misconfigured deploy is a
+   hard boot failure, not a per-request surprise, so a placeholder can never reach a live
+   checkout at all.
+3. **Defence in depth — the invoice issuer still refuses to allocate a number** while either
+   placeholder stands, so a code path that ever reached settlement without passing layer 1
+   (a support-composed order, a future job) cannot mint a non-compliant document. This layer
+   must never be the *only* one that fires: by the time it does, `settle_payment()` is already
+   inside the settlement transaction after the money was captured (`docs/order-lifecycle.md`
+   §8.4), so it rolls the settlement back and strands a captured payment — the failure the
+   primary guard exists to prevent.
+
+`E07-13` owns the allocation-time check; `E07-20` owns the primary checkout guard and the boot
+assertion.
 
 The same reasoning applies to the state code: with a placeholder GSTIN we do not know whether
 the supply is intra-state, so we cannot know whether to charge CGST+SGST or IGST. §3.2.
@@ -763,7 +785,7 @@ Resolved here: **`[DM-19]` — rounding is per line, per component, half-up** (�
 | 12 | `DELETE FROM invoice` is rejected; `UPDATE invoice_sequence SET last_sequence_no = last_sequence_no - 1` is rejected; setting it forward by 2 is rejected | §5.1 controls 4 and 5 |
 | 13 | The gap audit query returns `missing = 0`, `lo = 1`, counter = `max(sequence_no)` on a seeded year, and detects an injected hole | §5.6 |
 | 14 | Every rendered `invoice_number` is ≤ 16 characters and matches `^[A-Za-z0-9/-]+$` | §5.2 |
-| 15 | Issuing with a placeholder GSTIN or SAC fails in production mode and allocates no number | §2 |
+| 15 | In production, a placeholder GSTIN or SAC (a) refuses `POST /checkout` before any capture, (b) fails a payments Edge Function's boot assertion, and (c) as defence in depth allocates no invoice number if settlement is ever reached | §2 |
 | 16 | No `invoice_line.description` contains a class or section label | §4.3 |
 | 17 | Credit note amounts equal the invoice figures exactly and are not recomputed; three single-unit refunds of a 3-unit line sum to `invoice_line.total_paise` | §7, `PY6` |
 | 18 | The §6.6 inclusive vectors, marked skipped until `[DM-20]` returns — present so the flip is a config change and not a build | §6.6 |
