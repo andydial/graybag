@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 34 open of 35.
+Your tasks only — 33 open of 35.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -29,7 +29,7 @@ in VS Code or on GitHub without opening anything.
 ## Needed within 2–3 weeks
 
 - [ ] `E00-09` _(fast-follow)_ Open account with SMS provider (MSG91 or Gupshup); link DLT Entity ID, Header and Template IDs
-- [ ] `E00-12` Confirm whether menu Price in the Excel is GST-inclusive or exclusive (cart currently adds 5% on top)
+- [x] `E00-12` Confirm whether menu Price in the Excel is GST-inclusive or exclusive (cart currently adds 5% on top)
 - [ ] `E00-13` Verify direct access to Apple Developer account and Google Play Console independent of Bubble
 - [ ] `E00-14` Locate original dish images (Bubble CDN URLs die on migration); inventory what is missing
 - [ ] `E00-15` Export a full Bubble data dump (users, children, orders, dish_in_order, schools, kitchens, menus) — hand it over; the build side inspects and reports on it in E19-04
