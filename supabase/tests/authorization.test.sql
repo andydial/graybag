@@ -92,6 +92,24 @@ $$;
 -- assertion below report as an error rather than a failure.
 select * from no_plan();
 
+-- -----------------------------------------------------------------------------
+-- A NOTE ON throws_ok, because getting it wrong is silent and this suite did.
+--
+-- pgTAP's signatures are:
+--     throws_ok(sql, errcode)
+--     throws_ok(sql, errcode, errmsg)
+--     throws_ok(sql, errcode, errmsg, description)
+--
+-- So `throws_ok(sql, '42501', 'my description')` compares the DESCRIPTION against
+-- the error message and fails on every correctly-denied statement — 17 of them here.
+-- The denial is working; the assertion is asking the wrong question, and the failure
+-- reads like a security hole rather than a typo.
+--
+-- Always pass four arguments, with `null` for errmsg unless the exact wording is the
+-- thing under test. Asserting the SQLSTATE and not the prose also keeps the suite
+-- from breaking when an error message is reworded.
+-- -----------------------------------------------------------------------------
+
 
 -- =============================================================================
 -- PART 0 — Fixtures and the impersonation harness
@@ -1086,7 +1104,7 @@ select throws_ok(
   $$ insert into consent_record (user_id, subject_type, subject_id, purpose_code, action, capture_method)
      values ('a0000000-0000-0000-0000-000000000001', 'recipient', 'd1000000-0000-0000-0000-000000000002',
              'child_data', 'granted', 'in_app_checkbox') $$,
-  '42501',
+  '42501', null,
   '§9 item 9: Customer A cannot record a consent_record ABOUT Customer B''s child');
 select lives_ok(
   $$ insert into consent_record (user_id, subject_type, subject_id, purpose_code, action, capture_method)
@@ -1096,11 +1114,11 @@ select lives_ok(
 
 -- §9 item 10 — the §6.1 guard triggers. RLS cannot protect a column; these can.
 select throws_ok($$ update app_user set is_disabled = true where id = 'a0000000-0000-0000-0000-000000000001' $$,
-                 '42501', '§9 item 10 / §6.1: a customer cannot set is_disabled on their own app_user row');
+                 '42501', null, '§9 item 10 / §6.1: a customer cannot set is_disabled on their own app_user row');
 select throws_ok($$ update app_user set deleted_at = now() where id = 'a0000000-0000-0000-0000-000000000001' $$,
-                 '42501', '§9 item 10 / §6.1: a customer cannot set deleted_at on their own app_user row');
+                 '42501', null, '§9 item 10 / §6.1: a customer cannot set deleted_at on their own app_user row');
 select throws_ok($$ update app_user set phone_e164 = '+919999999999' where id = 'a0000000-0000-0000-0000-000000000001' $$,
-                 '42501', '§6.1: a customer cannot rewrite phone_e164 without re-verifying by OTP');
+                 '42501', null, '§6.1: a customer cannot rewrite phone_e164 without re-verifying by OTP');
 select lives_ok($$ update app_user set first_name = 'Asha Rani' where id = 'a0000000-0000-0000-0000-000000000001' $$,
                 '§6.1: …but the columns that ARE theirs to set remain editable');
 
@@ -1108,17 +1126,17 @@ select lives_ok($$ update app_user set first_name = 'Asha Rani' where id = 'a000
 -- somebody else's child, which is D10's single answer turned back into two.
 select throws_ok($$ update guardian_link set recipient_id = 'd1000000-0000-0000-0000-000000000002'
                      where id = 'd1a00000-0000-0000-0000-000000000001' $$,
-                 '42501', '§9 item 11 / §6.1: a guardian cannot re-point a guardian_link at another child');
+                 '42501', null, '§9 item 11 / §6.1: a guardian cannot re-point a guardian_link at another child');
 select throws_ok($$ update guardian_link set user_id = 'a0000000-0000-0000-0000-000000000002'
                      where id = 'd1a00000-0000-0000-0000-000000000001' $$,
-                 '42501', '§6.1: …nor at another user');
+                 '42501', null, '§6.1: …nor at another user');
 select lives_ok($$ update guardian_link set revoked_at = now()
                     where id = 'd1a00000-0000-0000-0000-000000000002' $$,
                 '§7.2: …but a manager CAN revoke a co-guardian''s link, which is the whole point of [AZ-05]');
 
 -- §6.1 on recipient, and the customer-plane write surface that IS open (class 1).
 select throws_ok($$ update recipient set deleted_at = now() where id = 'd1000000-0000-0000-0000-000000000001' $$,
-                 '42501', '§6.1: a guardian cannot soft-delete a recipient directly — erasure is an Edge Function (D15)');
+                 '42501', null, '§6.1: a guardian cannot soft-delete a recipient directly — erasure is an Edge Function (D15)');
 select lives_ok($$ update recipient set allergy_note = 'severe peanut allergy'
                     where id = 'd1000000-0000-0000-0000-000000000001' $$,
                 '§7.2: a guardian with can_manage CAN edit their own child''s details');
@@ -1196,29 +1214,29 @@ select is(tests_insert_sqlstate('permission_grant'), '42501', '§9 item 12: no I
 -- absent by design.
 select throws_ok($$ insert into city (code, name, state_name, gst_state_code)
                     values ('x', 'X', 'X', '01') $$,
-                 '42501', '§7.1: city is class 3 — stopped by RLS, since §10 does not revoke its write privileges');
+                 '42501', null, '§7.1: city is class 3 — stopped by RLS, since §10 does not revoke its write privileges');
 select throws_ok($$ insert into kitchen (code, name, city_id)
                     values ('x', 'X', 'c1000000-0000-0000-0000-000000000001') $$,
-                 '42501', '§7.3: kitchen creation is class 3 too');
+                 '42501', null, '§7.3: kitchen creation is class 3 too');
 reset role;
 
 -- §9 item 14 — the append-only guarantee, which is a trigger and not a grant, and
 -- therefore holds even for the role that bypasses RLS.
 set local role service_role;
 select throws_ok($$ update order_event set note = 'rewritten' where order_id = 'e2000000-0000-0000-0000-000000000001' $$,
-                 '23001', '§9 item 14: order_event is append-only even for service_role');
+                 '23001', null, '§9 item 14: order_event is append-only even for service_role');
 select throws_ok($$ delete from order_event where order_id = 'e2000000-0000-0000-0000-000000000001' $$,
-                 '23001', '§9 item 14: …and cannot be deleted either');
+                 '23001', null, '§9 item 14: …and cannot be deleted either');
 select throws_ok($$ update ledger_entry set amount_paise = 1 where transaction_id = 'e7000000-0000-0000-0000-000000000001' $$,
-                 '23001', '§9 item 14: ledger_entry is append-only even for service_role — corrections are reversals');
+                 '23001', null, '§9 item 14: ledger_entry is append-only even for service_role — corrections are reversals');
 select throws_ok($$ update ledger_transaction set memo = 'x' where id = 'e7000000-0000-0000-0000-000000000001' $$,
-                 '23001', '§9 item 14: ledger_transaction is append-only even for service_role');
+                 '23001', null, '§9 item 14: ledger_transaction is append-only even for service_role');
 select throws_ok($$ update consent_record set action = 'withdrawn' where user_id = 'a0000000-0000-0000-0000-000000000001' $$,
-                 '23001', '§9 item 14: consent_record is append-only even for service_role — a withdrawal is a new row');
+                 '23001', null, '§9 item 14: consent_record is append-only even for service_role — a withdrawal is a new row');
 select throws_ok($$ update user_policy_acceptance set source = 'web' where user_id = 'a0000000-0000-0000-0000-000000000001' $$,
-                 '23001', '§9 item 14: user_policy_acceptance is append-only even for service_role');
+                 '23001', null, '§9 item 14: user_policy_acceptance is append-only even for service_role');
 select throws_ok($$ update audit_log set action = 'x' where actor_type = 'admin' $$,
-                 '23001', '§9 item 14: audit_log is append-only even for service_role');
+                 '23001', null, '§9 item 14: audit_log is append-only even for service_role');
 reset role;
 
 
@@ -1328,7 +1346,7 @@ select throws_ok(
   $$ insert into permission_grant (user_id, permission_code, scope_type, scope_id, granted_by_user_id)
      values ('a0000000-0000-0000-0000-00000000000d', 'orders.view', 'school', null,
              'a0000000-0000-0000-0000-000000000009') $$,
-  '23514',
+  '23514', null,
   '§9 item 23: a school-scoped permission_grant with a null scope_id cannot be inserted — it would silently mean "every school"');
 
 -- §9 items 25-26 — the silent-null trap that §7.6 exists to close.
@@ -1341,8 +1359,8 @@ select is((select cgst_rate_bps from effective_config_public('c3000000-0000-0000
           '§7.6 / M2: …and the statutory tax rate really is in it, because the cart has to show CGST 2.5% + SGST 2.5% rather than a single lump "5% tax"');
 select is((select revenue_share_bps from resolve_effective_config('c3000000-0000-0000-0000-000000000001')), null::integer,
           '§7.6 / M4: revenue_share_bps is reachable by NO customer path — it is not a column on effective_config_public at all, and the raw resolver returns null');
-select ok((select price_is_tax_inclusive is null from effective_config_public('c3000000-0000-0000-0000-000000000001')),
-          '[DM-14] / [DM-20]: price_is_tax_inclusive is NULL until Andy answers, and the function faithfully returns NULL. The client must treat this as "tax display unavailable", never as false');
+select is((select price_is_tax_inclusive from effective_config_public('c3000000-0000-0000-0000-000000000001')), false,
+          '[DM-14] / [DM-20] ANSWERED (SC2, migration 0003): prices are GST-EXCLUSIVE, and the customer-facing resolver surfaces it. This assertion previously required NULL — "nobody has said" — and is inverted rather than deleted because the flag decides what every stored price MEANS');
 
 select is_empty($$ select 1 from platform_config $$,
                 '§7.6: a customer cannot read platform_config directly — revenue_share_bps sits on the same rows as the cutoff (M4)');
