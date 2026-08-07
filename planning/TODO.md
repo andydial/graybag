@@ -20,11 +20,11 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E00-06` **[high]** _(fast-follow)_ Start TRAI DLT registration: Principal Entity on one operator portal (PAN, GST cert, CIN, signatory, letterhead; ~Rs 5,000)
 - [ ] `E00-07` **[high]** _(fast-follow)_ Register DLT Header / Sender ID GRYBAG as Transactional / Service Implicit
 - [ ] `E00-08` **[high]** _(fast-follow)_ Register 5 DLT content templates: OTP login, order confirmation, pickup code, refund confirmation, order cancelled
-- [ ] `E00-10` **[high]** Accountant: obtain GSTIN, confirm SAC code (996331 assumed), confirm CGST/SGST split for Mohali / SAS Nagar
-- [ ] `E00-11` **[high]** Accountant: confirm whether the school's 10% revenue share attracts 18% GST on the school's invoice to GrayBag
+- [ ] `E00-10` **[high]** _(fast-follow)_ Accountant: obtain GSTIN, confirm SAC code (996331 assumed), confirm CGST/SGST split for Mohali / SAS Nagar
+- [ ] `E00-11` **[high]** _(fast-follow)_ Accountant: confirm whether the school's 10% revenue share attracts 18% GST on the school's invoice to GrayBag
 - [ ] `E19-03` **[high]** VAG Rounded Next licence check — confirm the licence permits app embedding and webfont use. If not, the entire design system needs a different typeface before E13-01
-- [ ] `E20-01` **[critical]** Confirm DPDP obligations that apply to GrayBag with a lawyer or the accountant — children's data, verifiable parental consent, grievance officer, breach reporting timelines
-- [ ] `E20-25` **[high]** Lawyer to review and approve the allergy liability ([PP-03]) and liability cap ([PP-04]) wording in docs/terms.md §8 and §10 — health-and-safety language, must not ship unreviewed. Rides with E20-01
+- [ ] `E20-01` **[critical]** _(fast-follow)_ Confirm DPDP obligations that apply to GrayBag with a lawyer or the accountant — children's data, verifiable parental consent, grievance officer, breach reporting timelines
+- [ ] `E20-25` **[high]** _(fast-follow)_ Lawyer to review and approve the allergy liability ([PP-03]) and liability cap ([PP-04]) wording in docs/terms.md §8 and §10 — health-and-safety language, must not ship unreviewed. Rides with E20-01
 
 ## Needed within 2–3 weeks
 
@@ -34,13 +34,13 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E00-14` Locate original dish images (Bubble CDN URLs die on migration); inventory what is missing
 - [ ] `E00-15` Export a full Bubble data dump (users, children, orders, dish_in_order, schools, kitchens, menus) — hand it over; the build side inspects and reports on it in E19-04
 - [ ] `E00-18` Check whether any legacy prepaid card / wallet balances exist off-system for early users; if so they must be migrated as opening ledger credits (see E16-15)
-- [ ] `E00-19` Decide the customer self-cancellation window ([PP-01]) and the post-delivery refund stance ([PP-02]) for the refund policy. These are the final customer-facing values docs/refund-policy.md is blocked on; drafts ship with tokens until set
+- [ ] `E00-19` _(fast-follow)_ Decide the customer self-cancellation window ([PP-01]) and the post-delivery refund stance ([PP-02]) for the refund policy. These are the final customer-facing values docs/refund-policy.md is blocked on; drafts ship with tokens until set
 - [ ] `E01-00` One-off: authorise the GitHub (gh auth login) and Supabase CLIs on your machine — after this the build side creates and manages both
-- [ ] `E20-21` Decide and supply the named grievance officer: name, designation, email and published address. E20-07 cannot publish a placeholder, and the four «…-PENDING-E20-21» tokens in docs/dpdp-compliance.md §7.2 block launch
+- [ ] `E20-21` _(fast-follow)_ Decide and supply the named grievance officer: name, designation, email and published address. E20-07 cannot publish a placeholder, and the four «…-PENDING-E20-21» tokens in docs/dpdp-compliance.md §7.2 block launch
 
 ## Decisions to make (no rush, but they gate later work)
 
-- [ ] `E09-12` Decision parked: default delivery mode (classroom bulk vs counter pickup) until real usage data exists. Both are supported
+- [ ] `E09-12` _(fast-follow)_ Decision parked: default delivery mode (classroom bulk vs counter pickup) until real usage data exists. Both are supported
 - [ ] `E18-01` _(fast-follow)_ Decide: parent subscribes in-app vs school buys in bulk and bills through school fees
 - [ ] `E18-02` _(fast-follow)_ Decide: auto-generate daily orders vs subscription acts as prepaid credit with daily dish selection
 - [ ] `E18-03` _(fast-follow)_ Decide: meal-pack composition (e.g. 20 meals = main + drink + dessert) and whether the customer chooses dishes
@@ -52,8 +52,8 @@ in VS Code or on GitHub without opening anything.
 
 - [ ] `E12-10` Make the DNS change at the registrar when the cutover plan is ready
 - [ ] `E13-09` Review the motion spec with Andy once, before app UI work starts
-- [ ] `E13-14` DS-01 — approve the "500 rule": #00af52 stays the identity colour but functional green moves to primary-700 #007e3b for fills and text. White on #00af52 is 2.90:1 and fails every WCAG bar, so the mocks cannot ship as drawn. This changes what every button, price and field label looks like. Options and the recommendation are in docs/open-questions.md; the consequences are worked through in docs/design-tokens.md §2.1
-- [ ] `E17-01` Confirm Play App Signing / upload key status (low risk — mandatory since Aug 2021, so almost certainly enabled)
+- [ ] `E13-14` _(fast-follow)_ DS-01 — approve the "500 rule": #00af52 stays the identity colour but functional green moves to primary-700 #007e3b for fills and text. White on #00af52 is 2.90:1 and fails every WCAG bar, so the mocks cannot ship as drawn. This changes what every button, price and field label looks like. Options and the recommendation are in docs/open-questions.md; the consequences are worked through in docs/design-tokens.md §2.1
+- [ ] `E17-01` _(fast-follow)_ Confirm Play App Signing / upload key status (low risk — mandatory since Aug 2021, so almost certainly enabled)
 - [ ] `E17-04` Submit the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from E20; you sign them off in the consoles
 - [ ] `E17-06` TestFlight build + Play internal testing track, ~15 beta users invited
 - [ ] `E17-12` Support plan for the first two weeks (who answers, how fast, what the common issues will be)

@@ -1,12 +1,15 @@
 #!/usr/bin/env node
-// Applies / refreshes the (mvp) marker on backlog tasks from the rules below.
+// Applies the (mvp) marker to backlog tasks.
 //
 //   node scripts/tag-mvp.mjs           # apply
-//   node scripts/tag-mvp.mjs --dry     # show what would change, write nothing
+//   node scripts/tag-mvp.mjs --dry     # report only
 //
-// Rule: everything is MVP unless excluded. New tasks therefore default to MVP —
-// safer to see something and cut it than to have it silently vanish from the
-// launch list. Scope reasoning lives in docs/mvp-scope.md.
+// EXPLICIT INCLUDE LIST. Anything not named here is fast-follow, including any
+// task added later. That is deliberate: the backlog grows on every review pass,
+// and an exclude-list default is how a 161-task MVP became 288.
+//
+// To put something in v1 you must add its id here, on purpose.
+// Scope and reasoning: docs/mvp-scope.md
 
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -16,44 +19,51 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'planning', 'backlog');
 const DRY = process.argv.includes('--dry');
 
-// Whole epics out of MVP
-const EXCLUDE_EPICS = new Set(['E11', 'E18']);
+const MVP = new Set(`
+E00-01 E00-02 E00-03 E00-04 E00-05 E00-12 E00-13 E00-14 E00-15 E00-18
 
-// Individual tasks out of MVP
-const EXCLUDE_IDS = new Set([
-  // DLT / SMS — no longer on the critical path (auth is Google/Apple/email OTP)
-  'E00-06', 'E00-07', 'E00-08', 'E00-09',
-  // Phone OTP — fast-follow addition
-  'E03-01', 'E03-02', 'E03-03', 'E03-04', 'E03-10',
-  // Foundations
-  'E01-09',                                          // PR preview environments
-  // Ordering
-  'E05-05',                                          // allergen blocking warning (tags still import)
-  // Payments — ledger stays, wallet UX defers
-  'E06-09', 'E06-10',
-  // Revenue share / payouts stay a spreadsheet
-  'E07-09', 'E07-10', 'E07-11', 'E07-12',
-  // Push notifications — all of them
-  'E08-01', 'E08-02', 'E08-04', 'E08-05', 'E08-07',
-  'E08-08', 'E08-09', 'E08-12', 'E08-13', 'E08-14',
-  // Kitchen aggregates, packing lists, pickup codes
-  'E09-01', 'E09-02', 'E09-03', 'E09-06', 'E09-07', 'E09-11a',
-  // Admin extras
-  'E10-10', 'E10-11', 'E10-13', 'E10-14',
-  // Automated a11y testing (manual pass E13-08 stays)
-  'E13-10',
-  // Full offline reads (menu cache E04-10 stays — that is the perf win)
-  'E14-10',
-  // Observability extras (Sentry, uptime, correlation ids, rate limiting stay)
-  'E15-09', 'E15-11', 'E15-12',
-  // Automated retention purge (the policy stays)
-  'E20-05',
-]);
+E01-00 E01-01 E01-02 E01-04 E01-05 E01-06 E01-07 E01-08 E01-10 E01-13 E01-14
+
+E02-01 E02-02 E02-03 E02-04 E02-05 E02-06 E02-07 E02-08 E02-09 E02-10
+E02-13 E02-14 E02-15 E02-16
+
+E03-05 E03-06 E03-07 E03-08 E03-09 E03-12 E03-13 E03-14 E03-15 E03-16 E03-17
+
+E04-01 E04-02 E04-03 E04-04 E04-05 E04-06 E04-07 E04-08 E04-09 E04-10 E04-12 E04-13
+
+E05-01 E05-02 E05-04 E05-06 E05-07 E05-08 E05-09 E05-10 E05-11 E05-12 E05-13
+
+E06-02 E06-03 E06-04 E06-05 E06-06 E06-07 E06-08 E06-11 E06-12 E06-13
+E06-14 E06-16 E06-20 E06-21 E06-29
+
+E07-01 E07-02 E07-04 E07-05 E07-06 E07-07 E07-13 E07-16 E07-20
+
+E08-03 E08-06 E08-10 E08-11
+
+E09-04 E09-05 E09-08 E09-09 E09-11
+
+E10-01 E10-02 E10-03 E10-04 E10-06 E10-07 E10-08 E10-12
+
+E12-01 E12-02 E12-04 E12-06 E12-09 E12-10
+
+E13-01 E13-02 E13-03 E13-04 E13-05 E13-06 E13-07 E13-08 E13-09
+
+E14-01 E14-02 E14-03 E14-05 E14-06 E14-07 E14-08 E14-09 E14-11 E14-14
+
+E15-01 E15-02 E15-03 E15-04 E15-05 E15-10
+
+E16-01 E16-02 E16-03 E16-04 E16-05 E16-06 E16-08 E16-09 E16-10 E16-11 E16-15
+
+E17-02 E17-03 E17-04 E17-06 E17-07 E17-08 E17-09 E17-10 E17-11 E17-12 E17-13
+
+E19-01 E19-02 E19-03 E19-04
+
+E20-02 E20-03 E20-04 E20-06 E20-07 E20-10
+`.trim().split(/\s+/));
 
 const LINE = /^(\s*-\s*\[[ xX]\]\s*`([A-Z0-9-]+)`\s*)((?:\(risk:\w+\)\s*)?(?:\(owner:\w+\)\s*)?)((?:\(mvp\)\s*)?)(.*)$/;
 
-let tagged = 0, untagged = 0, unchanged = 0;
-const changes = [];
+let added = 0, removed = 0, same = 0, seen = new Set();
 
 for (const f of readdirSync(SRC).filter((x) => x.endsWith('.md'))) {
   const p = join(SRC, f);
@@ -62,17 +72,21 @@ for (const f of readdirSync(SRC).filter((x) => x.endsWith('.md'))) {
     const m = line.match(LINE);
     if (!m) return line;
     const [, head, id, markers, existing, rest] = m;
-    const epic = id.split('-')[0];
-    const shouldBeMvp = !EXCLUDE_EPICS.has(epic) && !EXCLUDE_IDS.has(id);
-    const hasMvp = existing.trim() === '(mvp)';
-    if (shouldBeMvp === hasMvp) { unchanged++; return line; }
-    if (shouldBeMvp) { tagged++; changes.push(`  + ${id}`); return `${head}${markers}(mvp) ${rest}`; }
-    untagged++; changes.push(`  - ${id}`);
+    seen.add(id);
+    const want = MVP.has(id);
+    const has = existing.trim() === '(mvp)';
+    if (want === has) { same++; return line; }
+    if (want) { added++; return `${head}${markers}(mvp) ${rest}`; }
+    removed++;
     return `${head}${markers}${rest}`;
   }).join('\n');
   if (out !== before && !DRY) writeFileSync(p, out);
 }
 
-console.log(`tag-mvp${DRY ? ' (dry run)' : ''}: +${tagged} tagged, -${untagged} untagged, ${unchanged} unchanged`);
-if (changes.length && changes.length <= 60) console.log(changes.join('\n'));
+const missing = [...MVP].filter((id) => !seen.has(id));
+console.log(`tag-mvp${DRY ? ' (dry run)' : ''}: MVP list has ${MVP.size} ids · +${added} tagged, -${removed} untagged, ${same} unchanged`);
+if (missing.length) {
+  console.log(`\n  WARNING — ${missing.length} id(s) in the MVP list do not exist in the backlog:`);
+  console.log('  ' + missing.join(', '));
+}
 if (!DRY) console.log('\nNow run: node scripts/build-backlog.mjs');

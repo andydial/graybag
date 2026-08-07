@@ -99,6 +99,41 @@ there. Everything else goes in its directory:
 
 If you are about to create a file at the root, you are almost certainly in the wrong place.
 
+
+## Scope discipline — read before adding anything
+
+`docs/mvp-scope.md` defines v1: **173 tasks, listed explicitly in `scripts/tag-mvp.mjs`.**
+Anything not in that list is fast-follow, including anything you add later.
+
+- **Never add an id to the MVP list yourself.** If you believe something must be in v1, say
+  so and let Andy decide. The backlog grew from 161 to 288 because new work quietly defaulted
+  into scope; that must not happen again.
+- **Build only what the current block calls for** (`planning/build-order.md`). Finish it
+  green before starting the next.
+- When a fix or review surfaces new work, append it to the epic **untagged**. It is
+  fast-follow until Andy says otherwise.
+- Prefer folding a small correction into the task it corrects over creating a new task.
+
+### v1 scope facts you must not drift from
+
+- **Mohali only.** One state, so GST is a flat 5% shown as CGST 2.5% + SGST 2.5%. Do not
+  build IGST, place-of-supply derivation or multi-state logic.
+- **No passwords.** Google Sign-In, Sign in with Apple, email OTP. No phone OTP in v1.
+- **No push notifications** in v1. Email only.
+- **Compliance in v1 is six tasks** — consent at child creation, the policy-version
+  acceptance gate, published privacy/terms/refund, grievance officer contact, account
+  deletion, and no PII in logs or Sentry. Nothing more.
+
+## Testing rhythm
+
+- **Every push:** a smoke test of roughly 60 seconds — typecheck, lint, unit tests. That is
+  all CI runs. It exists so the nightly run is not debugging a typo across eight hours of
+  work.
+- **Every night:** `scripts/nightly.sh` runs the full suite and hands failures back to you
+  to fix, up to three rounds.
+- **Never** weaken, skip or delete a test to make the suite pass. If a test is genuinely
+  wrong, fix it and say plainly in your summary that you changed a test and why.
+
 ## Non-negotiables
 
 1. **The `api/` module rule.** Every backend call from the mobile app goes through one
@@ -113,7 +148,8 @@ If you are about to create a file at the root, you are almost certainly in the w
    allergies. Never log it, never send it to Sentry or analytics, never put it in school
    reports.
 5. **Never commit the `.bubble` export.** It contains live secrets.
-6. **Nothing merges without CI green.** No exceptions, including for "small" changes.
+6. **Nothing merges without the smoke test green.** The full suite runs nightly.
+7. **Mohali-only, 5% flat GST, no passwords, no push, six compliance tasks.** Do not drift.
 
 ## Performance priorities
 

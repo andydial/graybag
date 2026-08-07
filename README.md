@@ -28,6 +28,14 @@ Only `README.md`, `CLAUDE.md`, `package.json` and dotfiles live at the root.
 | `planning/README.md` | How the backlog works |
 | `planning/TODO.md` | Andy's tasks only (generated — read, don't edit) |
 
+## Scope
+
+**v1 is 173 tasks** — see `docs/mvp-scope.md`. Mohali only, flat 5% GST, Google/Apple/email
+login, no push notifications, six compliance tasks. Everything else is fast-follow and stays
+in the backlog untagged.
+
+`planning/build-order.md` is the sequence: one block at a time, green before moving on.
+
 ## The backlog
 
 ```bash
