@@ -21,7 +21,7 @@ Everything after this inherits the quality bar set here. Getting tests and envir
 - [ ] `E01-04` (mvp) Create Supabase **staging** project in Mumbai (`ap-south-1`)
 - [ ] `E01-05` (mvp) Create Supabase **production** project in Mumbai (`ap-south-1`)
 - [ ] `E01-06` (mvp) Local dev: Docker Postgres + Supabase CLI, seed script, works fully offline
-- [ ] `E01-07` (risk:high) (mvp) Secrets per environment — Razorpay **test** keys in staging, **live** keys in prod, never in code, never hand-edited
+- [x] `E01-07` (risk:high) (mvp) Secrets per environment — Razorpay **test** keys in staging, **live** keys in prod, never in code, never hand-edited
 - [ ] `E01-08` (mvp) CI pipeline: typecheck, lint, unit tests, integration tests against a seeded ephemeral DB
 - [ ] `E01-08a` (risk:high) CI security gates: **gitleaks** secret scanning (pre-commit and CI), Dependabot/Renovate, `npm audit` gate
 - [ ] `E01-09` PR preview environments with a throwaway seeded database, destroyed on merge

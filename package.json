@@ -15,12 +15,15 @@
     "test:scripts": "node --test scripts/test/*.test.mjs",
     "test:tools": "npm --prefix tools/menu-import test",
     "check:migrations": "node scripts/check-migrations.mjs",
+    "secrets:set": "tsx scripts/set-secrets.mts",
     "backlog": "node scripts/build-backlog.mjs",
     "backlog:serve": "node scripts/serve-backlog.mjs",
     "backlog:sync": "node scripts/sync-state.mjs",
     "overnight": "bash scripts/overnight.sh"
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
+    "tsx": "^4.23.11",
     "typescript": "^5.9.2",
     "vitest": "^4.1.10"
   }

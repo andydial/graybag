@@ -5,6 +5,8 @@ node_modules/
 .env
 .env.*
 !.env.example
+# Filled-in secrets, one file per environment. Never committed. See docs/environments.md
+.secrets.*.env
 .DS_Store
 dist/
 build/

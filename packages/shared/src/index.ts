@@ -5,3 +5,13 @@
 // Edge Functions. That module lands in Block 5 (E14-08); this file is its entry point.
 
 export const PACKAGE_NAME = '@graybag/shared';
+
+export {
+  EnvError,
+  SERVER_ONLY_VARS,
+  loadClientEnv,
+  loadServerEnv,
+  type AppEnv,
+  type ClientEnv,
+  type ServerEnv,
+} from './env.js';
