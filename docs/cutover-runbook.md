@@ -51,7 +51,7 @@ weekend is postponed — a slipped date is cheaper than a failed cutover.
 | P1 | Closed beta exit criteria met (`E17-07`): ≥40 real orders / ≥8 users, zero unreconciled payments, ≥97% payment success, ≥99.5% crash-free, zero signature failures, ≥1 full + ≥1 partial refund end to end | Beta report | Andy |
 | P2 | **Both dress rehearsals passed** (`E16-09`, `E16-10`), timed, against pseudonymised data (`E16-13`); the validation suite (`E16-08`) was green on rehearsal #2 | Rehearsal reports with wall-clock timings | Operator |
 | P3 | Migration total wall-clock time from rehearsal #2 **fits inside the freeze window** with ≥50% headroom | Rehearsal #2 timing vs `[CO-01]` window | Operator |
-| P4 | **Point-in-time-restore of the new Supabase project rehearsed** (`E16-18`, proposed) and restore time is inside the rollback SLA | Restore rehearsal log | Operator |
+| P4 | **Point-in-time-restore of the new Supabase project rehearsed** (`E16-18`) and restore time is inside the rollback SLA | Restore rehearsal log | Operator |
 | P5 | All E.164 phone normalisation done (`E16-14`); duplicate/unparseable/missing-number report reviewed; ambiguous matches parked for manual review (`E03-11`, `[DM-11]`) | `E16-14` report | Andy + operator |
 | P6 | Users with **no usable mobile number** (`E16-12`) identified and contacted by a non-OTP channel — they cannot receive an OTP and must not be silently stranded | Contact log | Andy |
 | P7 | Legacy prepaid/wallet balances resolved (`E00-18`, `E16-16`, `[CO-05]`): either "none exist" confirmed, or the opening-ledger-credit migration is built and validated | Balance decision | Andy |
@@ -77,8 +77,8 @@ red: postpone. This gate is the last cheap decision point — everything after i
 | **E. Validate** | `T+8h` → `T+12h` | Full validation suite + reconciliation | Reversible until Gate G3 |
 | **F. Point of no return** | `T+12h` (Gate G3) | Decide: cut over, or roll back | **The line** |
 | **G. Cut over** | `T+12h` → `T+14h` | DNS to new web; new app "live"; smoke tests | Hard to reverse (see §9) |
-| **H. Soak** | `T+14h` → `T+32h` (Sun) | Monitored quiet period, no ordering pressure (weekend) | Roll forward preferred |
-| **I. Open** | `T+32h` (Mon 06:00) | Ordering opens before the first weekday cutoff; comms #2 sent | Roll forward |
+| **H. Soak** | `T+14h` → `T+56h` (Sat 12:00 → Mon 06:00) | Monitored quiet period, no ordering pressure (weekend) | Roll forward preferred |
+| **I. Open** | `T+56h` (Mon 06:00) | Ordering opens before the first weekday cutoff; comms #2 sent | Roll forward |
 | **J. Phased rollout** | Mon → +7d | iOS phased / Android staged, with the halt button (`E17-10`) | Halt/revert (Android); OTA (iOS) |
 | **K. Decommission** | +30d | Cancel Bubble, archive export (`E17-13`) | — |
 
@@ -173,9 +173,17 @@ in the order the rehearsals established:
 4. Menus, dishes, `dish_allergen`; **re-host all dish images** (`E16-05`) — Bubble CDN URLs die;
    report any that cannot be sourced.
 5. Full **order history** with line items, totals and dates preserved (`E16-04`), status mapped
-   on db_value (`new→draft` etc.). The migration must run with `app.actor_type = 'system'` set
-   around the backfill, or the order-status transition trigger rejects every insert
-   (`docs/order-lifecycle.md` §4.4).
+   on db_value to a **legal v1 order status only — never `draft`**. `draft` is unreachable in v1
+   (`docs/order-lifecycle.md` §3.2), invariant **I12** asserts no `draft` order exists (also
+   asserted in `docs/payments-design.md` §8.3), and the §4.4 trigger permits `NULL→draft` only
+   for an `admin` actor holding `orders.create_on_behalf` — not for the `system` actor this
+   backfill runs as. A `draft` row would therefore be rejected at insert, or trip I12 on the
+   first nightly run. Legacy orders are historical and terminal, so map a completed/paid legacy
+   order to **`paid`**, a legacy-cancelled order to **`cancelled`** (with the matching
+   `cancel_reason_code`), and — only if any legacy order was genuinely awaiting payment at
+   snapshot — to **`pending_payment`**. Do **not** emit `draft`. The migration must run with
+   `app.actor_type = 'system'` set around the backfill, or the order-status transition trigger
+   rejects every insert (`docs/order-lifecycle.md` §4.4).
 6. **Opening ledger credits** for any legacy prepaid/wallet balances (`E16-16`) and for the
    future-dated-paid-order posture (§4b), if that path was chosen.
 
@@ -195,7 +203,7 @@ Run the **validation suite** (`E16-08`) and record every number in the timeline 
 | **Ledger balances** | Every `ledger_transaction` sums to zero (I10); every wallet balance equals its ledger sum (I8, `[DM-04]`) |
 | **Auth default-deny** | The `authorization.test.sql` suite is green; the `anon`-sees-zero-rows assertion passes (`[AZ-03]`) — the single most important property, and the exact thing the legacy app got wrong |
 | **No orphans** | No order without a customer, no line without an order, no recipient without a live guardian link |
-| **Reconciliation baseline** | Tier-2 daily reconciliation (`E06-11`) run for the beta+cutover window shows **zero unexplained breaks** (`E17-18`, proposed) — no B1/B2/B4/B5/B6 |
+| **Reconciliation baseline** | Tier-2 daily reconciliation (`E06-11`) run for the beta+cutover window shows **zero unexplained breaks** (`E17-18`) — no B1/B2/B4/B5/B6 |
 | **Manual-review queue sized** | `migration_review` row count is known and worked (or scheduled to be worked Monday, §6.4) |
 
 **Gate G2 — validation clean?** Every check above green. This gate is still fully reversible:
@@ -237,7 +245,7 @@ achievable. Default is **NO-GO → roll back to Bubble.**
 **Gate G4 — smoke tests clean?** All green. NO-GO → §9.2 rollback (this is the expensive one;
 weigh it against rolling forward with a known, contained bug).
 
-### H. Soak (`T+14h` → `T+32h`, Saturday evening → Monday 06:00)
+### H. Soak (`T+14h` → `T+56h`, Saturday afternoon → Monday 06:00)
 
 The weekend is the soak. No school serves, so there is no ordering pressure. Monitor:
 - Sentry error rate, webhook signature failures (any is a page — `PY3`, `E15-05`).
@@ -247,7 +255,7 @@ The weekend is the soak. No school serves, so there is no ordering pressure. Mon
 Fix forward via OTA for JS-level issues. A schema-level problem discovered here is the argument
 for §9.2 rollback while it is still Saturday.
 
-### I. Open (`T+32h`, Monday 06:00 — before the first weekday cutoff)
+### I. Open (`T+56h`, Monday 06:00 — before the first weekday cutoff)
 
 1. **Work the `migration_review` queue** (§6.4) so ambiguous-match families can log in.
 2. Confirm the kitchen packing list for Monday/the week is correct, **including any migrated
@@ -263,7 +271,7 @@ maintenance banner, and either fix-forward fast or invoke §9.2.
 
 `E03-11` blocks auto-claim on any ambiguous/duplicate phone match, so a real number of families
 land in `migration_review` and **cannot log in until a human resolves them**. This is not a code
-path on the weekend, it is a task with a person attached (`E17-17`, proposed). Budget Monday
+path on the weekend, it is a task with a person attached (`E17-17`). Budget Monday
 morning for it, and give support (`E17-12`) a script for "I can't log in" that checks this queue
 first.
 
@@ -327,7 +335,7 @@ so a mass "sign in with a code" message would strand them.
 > Thanks,
 > The GrayBag team
 
-### 8.2 Comms #2 — when ordering reopens (`T+32h`, Monday)
+### 8.2 Comms #2 — when ordering reopens (`T+56h`, Monday)
 
 > **Subject: GrayBag is live — sign in with a text code**
 >
@@ -437,7 +445,7 @@ runs *alongside* the breach runbook, not instead of it.
 | **G2** | `T+12h` | Validation suite + reconciliation clean (§5.E)? | Roll back to Bubble (§9.1) |
 | **G3** | `T+12h` | **Point of no return** — cut over? | Roll back to Bubble (§9.1) |
 | **G4** | `T+14h` | Prod smoke tests clean (§6.G)? | Weigh §9.2 vs fix-forward |
-| **G5** | `T+32h` Mon | Kitchen can fulfil; reconciliation clean; review queue in hand? | Hold ordering; fix-forward or §9.2 |
+| **G5** | `T+56h` Mon | Kitchen can fulfil; reconciliation clean; review queue in hand? | Hold ordering; fix-forward or §9.2 |
 
 Every gate is Andy's to sign. Every default is the safe one.
 
@@ -445,8 +453,8 @@ Every gate is Andy's to sign. Every default is the safe one.
 
 ## 11. Open questions this runbook depends on
 
-All are in `docs/_overnight-merge/Q14-notes.md` (proposed `[CO-01]`…`[CO-07]`) pending merge into
-`docs/open-questions.md`. The ones that **block scheduling the weekend**:
+All are in `docs/open-questions.md` (`[CO-01]`…`[CO-07]`). The ones that **block scheduling the
+weekend**:
 
 | Q | One line | Blocks |
 |---|---|---|
