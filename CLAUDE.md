@@ -100,6 +100,20 @@ there. Everything else goes in its directory:
 If you are about to create a file at the root, you are almost certainly in the wrong place.
 
 
+## Build rhythm
+
+Work **one block at a time** from `planning/build-order.md`.
+
+- Within a block, complete **one task at a time and commit each separately**. Never batch
+  several tasks into one commit — a bad task must be revertable on its own.
+- At the end of every block: run `npm run test:all`, fix everything that fails, commit the
+  fixes, then **STOP and report**.
+- **Do not start the next block without being told.** This is the rule that keeps Andy in
+  control of when tokens get spent. Treat it as absolute.
+
+Never weaken, skip or delete a test to make the suite pass. If a test is genuinely wrong,
+fix it and say plainly in your summary that you changed a test and why.
+
 ## Scope discipline — read before adding anything
 
 `docs/mvp-scope.md` defines v1: **173 tasks, listed explicitly in `scripts/tag-mvp.mjs`.**
@@ -116,8 +130,11 @@ Anything not in that list is fast-follow, including anything you add later.
 
 ### v1 scope facts you must not drift from
 
-- **Mohali only.** One state, so GST is a flat 5% shown as CGST 2.5% + SGST 2.5%. Do not
-  build IGST, place-of-supply derivation or multi-state logic.
+- **Mohali only** (confirmed 2026-08-07). One state, so GST is a flat 5% shown as
+  CGST 2.5% + SGST 2.5%. Do not build IGST, place-of-supply derivation or multi-state logic.
+- **Menu prices are GST-EXCLUSIVE** (confirmed 2026-08-07). 5% is added on top at checkout,
+  as the current Bubble cart does. The cart, checkout and invoice pricing paths must all
+  assume exclusive.
 - **No passwords.** Google Sign-In, Sign in with Apple, email OTP. No phone OTP in v1.
 - **No push notifications** in v1. Email only.
 - **Compliance in v1 is six tasks** — consent at child creation, the policy-version
