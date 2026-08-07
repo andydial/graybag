@@ -66,6 +66,13 @@ not reach Claude Code. The status bar tells you which mode you are in.
 `node scripts/sync-state.mjs` reconciles `backlog-state.json` with the markdown
 checkboxes in both directions. Commit both and git is your permanent audit trail.
 
+## Scope tags
+
+`(mvp)` marks a v1 task. The list is explicit in `scripts/tag-mvp.mjs` — **an id must be
+added there deliberately**. Everything else, including anything added later, is fast-follow.
+Re-run `node scripts/tag-mvp.mjs` after a batch of new tasks; it warns about ids in the list
+that no longer exist.
+
 ## Regenerating
 
 ```bash

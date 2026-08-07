@@ -26,6 +26,6 @@ summary: React Native + Expo shell, navigation, the api/ module discipline, and 
 - [ ] `E14-09` (mvp) Network resilience: retries with backoff, clear offline state, no infinite spinners
 - [ ] `E14-10` Read-only offline mode wired to the menu cache and cached order history
 - [ ] `E14-11` (mvp) OTA updates via EAS Update, with a rollback path
-- [ ] `E14-12` (mvp) Force-upgrade mechanism for breaking changes (replaces the legacy `update_app` view)
-- [ ] `E14-13` (mvp) E2E test suite on a real device profile in CI
+- [ ] `E14-12` Force-upgrade mechanism for breaking changes (replaces the legacy `update_app` view)
+- [ ] `E14-13` E2E test suite on a real device profile in CI
 - [ ] `E14-14` (mvp) Screens rebuilt to the new design system — Home, Menu, Dish detail, Cart, Checkout, Orders, Order detail, Profile, Dependents, Login, Signup, T&Cs

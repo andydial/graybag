@@ -14,11 +14,11 @@ summary: The backend Andy needs to run the business — school onboarding, menu 
 - [ ] `E10-02` (mvp) Kitchen management: create, activate/deactivate, assign schools
 - [ ] `E10-03` (mvp) Menu management UI: create menu, add/remove/edit dishes, activate/retire, assign to schools
 - [ ] `E10-04` (mvp) Excel menu upload with validation, diff preview and apply (front end for E04-04)
-- [ ] `E10-05` (mvp) Dish image management
+- [ ] `E10-05` Dish image management
 - [ ] `E10-06` (risk:medium) (mvp) **Config UI with visible inheritance** — e.g. `Cutoff: 12:00 AM (platform default)` with an "Override for this school" toggle. Covers cutoff, revenue share %, break times, price overrides
 - [ ] `E10-07` (mvp) User management: search, view, disable, assign back-office grants
 - [ ] `E10-08` (mvp) Order dashboard across all kitchens with refund capability
-- [ ] `E10-09` (mvp) Revenue share / payout report with edit-before-confirm and mark-as-paid
+- [ ] `E10-09` Revenue share / payout report with edit-before-confirm and mark-as-paid
 - [ ] `E10-10` Business metrics: orders per day, revenue, active users, per-school breakdown
 - [ ] `E10-11` Audit log of admin actions (who changed a price, who issued a refund)
 - [ ] `E10-12` (mvp) Single web app, three permission levels (PlatformAdmin, KitchenOperator, SchoolViewer) — not three apps

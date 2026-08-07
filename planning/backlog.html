@@ -234,20 +234,20 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Open account with SMS provider (MSG91 or Gupshup); link DLT Entity ID, Header and Template IDs</span>
       </li>
-      <li class="task" data-id="E00-10" data-seed="0" data-risk="high" data-owner="andy" data-mvp="1">
+      <li class="task" data-id="E00-10" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-10"></button>
         <code class="tid">E00-10</code>
         <span class="badge r-high">high</span>
         <span class="badge r-you">you</span>
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Accountant: obtain <strong>GSTIN</strong>, confirm <strong>SAC code</strong> (996331 assumed), confirm CGST/SGST split for Mohali / SAS Nagar</span>
       </li>
-      <li class="task" data-id="E00-11" data-seed="0" data-risk="high" data-owner="andy" data-mvp="1">
+      <li class="task" data-id="E00-11" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-11"></button>
         <code class="tid">E00-11</code>
         <span class="badge r-high">high</span>
         <span class="badge r-you">you</span>
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Accountant: confirm whether the school&#39;s 10% revenue share attracts 18% GST on the school&#39;s invoice to GrayBag</span>
       </li>
       <li class="task" data-id="E00-12" data-seed="0" data-risk="" data-owner="andy" data-mvp="1">
@@ -282,12 +282,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Export a full Bubble <strong>data</strong> dump (users, children, orders, dish_in_order, schools, kitchens, menus) — hand it over; the build side inspects and reports on it in <code>E19-04</code></span>
       </li>
-      <li class="task" data-id="E00-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E00-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-17"></button>
         <code class="tid">E00-17</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Draft the <strong>secret rotation policy</strong> for Andy to approve: which keys, how often, who does it, where they are stored</span>
       </li>
       <li class="task" data-id="E00-18" data-seed="0" data-risk="" data-owner="andy" data-mvp="1">
@@ -298,20 +298,20 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Check whether any legacy <strong>prepaid card / wallet balances</strong> exist off-system for early users; if so they must be migrated as opening ledger credits (see <code>E16-15</code>)</span>
       </li>
-      <li class="task" data-id="E00-19" data-seed="0" data-risk="" data-owner="andy" data-mvp="1">
+      <li class="task" data-id="E00-19" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-19"></button>
         <code class="tid">E00-19</code>
         
         <span class="badge r-you">you</span>
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Decide the customer <strong>self-cancellation window</strong> (<code>[PP-01]</code>) and the <strong>post-delivery refund stance</strong> (<code>[PP-02]</code>) for the refund policy. These are the final customer-facing values <code>docs/refund-policy.md</code> is blocked on; drafts ship with tokens until set</span>
       </li>
-      <li class="task" data-id="E00-20" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E00-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-20"></button>
         <code class="tid">E00-20</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Implement the <strong>rotation logbook + a scheduled reminder</strong> (calendar or Better Stack heartbeat) driving the <code>docs/secret-rotation-policy.md</code> §1 cadences, so 180/90/365-day rotations are prompted, not remembered. The reminder mechanism only — the credentialed rotation itself stays Andy&#39;s</span>
       </li></ul>
       </details>
@@ -363,12 +363,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Branch protection on <code>main</code>: PR required, CI must pass, no direct pushes</span>
       </li>
-      <li class="task" data-id="E01-03" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E01-03" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-03"></button>
         <code class="tid">E01-03</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><code>CONTRIBUTING.md</code> + <code>CLAUDE.md</code> (project conventions for Claude Code) + <code>README.md</code></span>
       </li>
       <li class="task" data-id="E01-04" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -427,20 +427,20 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Database migration tooling + rule that every schema change ships as a reversible migration</span>
       </li>
-      <li class="task" data-id="E01-11" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E01-11" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-11"></button>
         <code class="tid">E01-11</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Test harness: unit (Vitest), integration (against real Postgres), E2E mobile (Maestro or Detox), E2E web (Playwright)</span>
       </li>
-      <li class="task" data-id="E01-12" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E01-12" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-12"></button>
         <code class="tid">E01-12</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Coverage gate with an <strong>actual threshold number</strong> + a <code>test:all</code> command that must be green before any merge</span>
       </li>
       <li class="task" data-id="E01-13" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -459,44 +459,44 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Deploy pipeline: merge to <code>main</code> -&gt; staging; tagged release -&gt; production, with manual approval</span>
       </li>
-      <li class="task" data-id="E01-15" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E01-15" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-15"></button>
         <code class="tid">E01-15</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Enable <strong>Supabase PITR</strong> on production; define RPO and RTO explicitly</span>
       </li>
-      <li class="task" data-id="E01-16" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E01-16" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-16"></button>
         <code class="tid">E01-16</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Off-Supabase encrypted export of database + storage on a schedule (do not rely on a single vendor)</span>
       </li>
-      <li class="task" data-id="E01-17" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E01-17" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-17"></button>
         <code class="tid">E01-17</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Timed restore drill</strong> — restore a backup into a clean project and verify integrity. Phase 1 exit gate, repeated before cutover</span>
       </li>
-      <li class="task" data-id="E01-18" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E01-18" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-18"></button>
         <code class="tid">E01-18</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">CI check that no <code>service_role</code> key or Razorpay secret ever appears in the mobile bundle or the web client build output</span>
       </li>
-      <li class="task" data-id="E01-19" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E01-19" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-19"></button>
         <code class="tid">E01-19</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Provider stub server for Razorpay</strong> (answers <code>/v1/orders</code>, <code>/v1/payments/:id</code>, <code>/v1/payments/:id/refund</code>, <code>/v1/payments</code>, <code>/v1/refunds</code>, <code>/v1/settlements/recon/combined</code>) built from the <code>docs/payments-design.md</code> §12 checklist, used by the offline CI payment tests in <code>docs/testing-strategy.md</code> §5. Must be corrected against <code>E19-01</code>&#39;s answers when they land. Overlaps <code>E06-13</code> — if <code>E06-13</code> already owns the fixtures, fold this in there rather than duplicating</span>
       </li></ul>
       </details>
@@ -553,28 +553,28 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Bubble export dry run</strong> — inspect the dump from <code>E00-15</code>: real row shapes, mobile-number quality, image URLs, what is and is not obtainable. Feeds <code>E16</code></span>
       </li>
-      <li class="task" data-id="E19-05" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E19-05" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-05"></button>
         <code class="tid">E19-05</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Supabase Edge Function + connection pooling probe</strong> — confirm concurrency limits and pooler behaviour under a burst, so the plan size is chosen on evidence not guesswork</span>
       </li>
-      <li class="task" data-id="E19-06" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E19-06" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-06"></button>
         <code class="tid">E19-06</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Write up each spike&#39;s result as a short note in <code>docs/</code>, including anything that changes a decision in <code>docs/decisions.md</code></span>
       </li>
-      <li class="task" data-id="E19-07" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E19-07" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-07"></button>
         <code class="tid">E19-07</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Answer the 20-item verification checklist in <code>docs/payments-design.md</code> §12</strong> as part of <code>E19-01</code> — signature algorithms and header names, the webhook event set and event-id header, retry policy and response timeout, auto-capture under UPI intent, UPI collect pending window, refund idempotency and listing, whether MDR is in the capture payload, the settlement recon endpoint, and the payments-list windowing. Each row names what breaks if the answer differs. <strong>Note two corrections to <code>E19-01</code> as written</strong>: the official Razorpay RN SDK is a native module, so the spike needs an <strong>EAS development build, not a bare managed Expo app</strong> (<code>[PAY-01]</code>), and it must run on a <strong>real Android 11+ handset</strong> or the <code>&lt;queries&gt;</code> failure in <code>E06-29</code> will not reproduce</span>
       </li></ul>
       </details>
@@ -602,12 +602,12 @@
 <p>notification to the Data Protection Board. The legacy Bubble app had none of this and</p>
 <p>also exposed the data publicly.</p></div>
         <ul class="tasks">
-      <li class="task" data-id="E20-01" data-seed="0" data-risk="critical" data-owner="andy" data-mvp="1">
+      <li class="task" data-id="E20-01" data-seed="0" data-risk="critical" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-01"></button>
         <code class="tid">E20-01</code>
         <span class="badge r-critical">critical</span>
         <span class="badge r-you">you</span>
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Confirm DPDP obligations that apply to GrayBag with a lawyer or the accountant — children&#39;s data, verifiable parental consent, grievance officer, breach reporting timelines</span>
       </li>
       <li class="task" data-id="E20-02" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
@@ -658,20 +658,20 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Named <strong>grievance officer</strong> with contact details published on the website and in the app</span>
       </li>
-      <li class="task" data-id="E20-08" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-08" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-08"></button>
         <code class="tid">E20-08</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Breach notification runbook</strong> — who is told, in what order, within what deadline</span>
       </li>
-      <li class="task" data-id="E20-09" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-09" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-09"></button>
         <code class="tid">E20-09</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Purpose limitation enforced in code: kitchen staff see what they need to prepare and deliver, never more; school reports carry aggregates only</span>
       </li>
       <li class="task" data-id="E20-10" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -682,196 +682,196 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Exclude children&#39;s data and PII from product analytics and from Sentry payloads (scrubbing rules, verified by test)</span>
       </li>
-      <li class="task" data-id="E20-11" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-11" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-11"></button>
         <code class="tid">E20-11</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Data-processing review of every third party touching personal data (Supabase, Razorpay, SMS provider, Sentry, Netlify, Expo) — where the data sits and what the contract says</span>
       </li>
-      <li class="task" data-id="E20-12" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-12" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-12"></button>
         <code class="tid">E20-12</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Seed <code>policy_document</code>, <code>policy_version</code> and <code>consent_purpose</code> with the <strong>approved</strong> wording once <code>E20-01</code> returns. Deliberately unseeded in <code>0001</code> — a consent record pointing at wording nobody approved is evidence of the wrong thing</span>
       </li>
-      <li class="task" data-id="E20-13" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-13" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-13"></button>
         <code class="tid">E20-13</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><code>0003</code>: add <code>&#39;retain&#39;</code> to <code>retention_policy.action</code> and make <code>retention_days</code> nullable for it, so &quot;kept indefinitely, by law, and here is the basis&quot; is recordable. Today the table can only express purging</span>
       </li>
-      <li class="task" data-id="E20-14" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-14" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-14"></button>
         <code class="tid">E20-14</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><code>0003</code>: add <code>dsr_ack_days</code>, <code>dsr_response_days</code>, <code>breach_board_hours</code> and <code>breach_cert_in_hours</code> to <code>platform_config</code>, so every statutory deadline is one config value quoted in one place. <code>data_subject_request.due_at</code> is <code>not null</code> with no default and currently has no legal number to compute from</span>
       </li>
-      <li class="task" data-id="E20-15" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-15" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-15"></button>
         <code class="tid">E20-15</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><code>0003</code>: split <code>consent_record_insert_self</code> on <code>action</code>. A <code>granted</code> row keeps the <code>auth_can_manage_recipient()</code> requirement; a <code>withdrawn</code> row is permitted where the caller is the <code>user_id</code> of an existing grant. Today a co-guardian with <code>can_manage = false</code>, or one whose link was revoked, <strong>cannot withdraw the consent they gave</strong> (<code>[DP-07]</code>)</span>
       </li>
-      <li class="task" data-id="E20-16" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-16" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-16"></button>
         <code class="tid">E20-16</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Removing a dependent writes the <code>withdrawn</code> <code>consent_record</code> rows in the <strong>same transaction</strong> that sets <code>deleted_at</code> — after which no customer-facing path can write them at all. Test: no <code>granted</code> row survives in <code>current_consent</code> for a removed dependent</span>
       </li>
-      <li class="task" data-id="E20-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-17"></button>
         <code class="tid">E20-17</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Overdue-DSR alerting: warn at 50% of the window, <strong>page</strong> the moment any <code>data_subject_request</code> passes <code>due_at</code>, and list open requests with days remaining in the daily digest. Nothing errors when a date passes</span>
       </li>
-      <li class="task" data-id="E20-18" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-18" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-18"></button>
         <code class="tid">E20-18</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">The erasure pipeline as one Edge Function running the fixed order in <code>docs/dpdp-compliance.md</code> §6.5, with a pgTAP test asserting tier-S rows are gone, tier-P snapshots nulled, <code>invoice.buyer_*_snapshot</code> intact and <code>consent_record</code> retained</span>
       </li>
-      <li class="task" data-id="E20-19" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-19" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-19"></button>
         <code class="tid">E20-19</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Purge job: dry run first with a volume tripwire, <code>purge_run</code> evidence on every run including dry runs, and a <strong>coverage assertion</strong> that every table holding tier S/P/A data has a <code>retention_policy</code> row. A table with no row alerts rather than defaulting to &quot;keep forever&quot;</span>
       </li>
-      <li class="task" data-id="E20-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-20"></button>
         <code class="tid">E20-20</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Breach drill</strong> — run the runbook end to end against a simulated exposure, once before launch and annually. An untested runbook is a document, not a control</span>
       </li>
-      <li class="task" data-id="E20-21" data-seed="0" data-risk="" data-owner="andy" data-mvp="1">
+      <li class="task" data-id="E20-21" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-21"></button>
         <code class="tid">E20-21</code>
         
         <span class="badge r-you">you</span>
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Decide and supply the <strong>named grievance officer</strong>: name, designation, email and published address. <code>E20-07</code> cannot publish a placeholder, and the four <code>«…-PENDING-E20-21»</code> tokens in <code>docs/dpdp-compliance.md</code> §7.2 block launch</span>
       </li>
-      <li class="task" data-id="E20-22" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-22" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-22"></button>
         <code class="tid">E20-22</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Placeholder guard: CI fails if any <code>«…-PENDING-…»</code> token reaches a production build of the app or the website. Same control as <code>G3</code> does for the invoice GSTIN</span>
       </li>
-      <li class="task" data-id="E20-23" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-23" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-23"></button>
         <code class="tid">E20-23</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Prepare the <strong>legacy-exposure incident pack</strong> for <code>E20-01</code> to assess: what <code>Order</code>, <code>Child</code>, <code>Dish_In_Order</code> and <code>Temp</code> exposed, since when, how many records, and whether the Data API was public (<code>E00-04</code>, <code>E00-05</code>). Facts only — whether it is a notifiable breach is the lawyer&#39;s call (<code>[DP-03]</code>)</span>
       </li>
-      <li class="task" data-id="E20-24" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-24" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-24"></button>
         <code class="tid">E20-24</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Draft <strong>privacy policy, terms and refund policy</strong> delivered as <code>docs/{privacy-policy,terms,refund-policy}.md</code> (Q11), as lawyer templates grounded in <code>docs/dpdp-compliance.md</code> and <code>docs/payments-design.md</code>, every unresolved value a <code>«…-PENDING-…»</code> token. Legal review of all three is <code>E20-01</code>; this is the drafting</span>
       </li>
-      <li class="task" data-id="E20-25" data-seed="0" data-risk="high" data-owner="andy" data-mvp="1">
+      <li class="task" data-id="E20-25" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-25"></button>
         <code class="tid">E20-25</code>
         <span class="badge r-high">high</span>
         <span class="badge r-you">you</span>
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Lawyer to review and approve the <strong>allergy liability</strong> (<code>[PP-03]</code>) and <strong>liability cap</strong> (<code>[PP-04]</code>) wording in <code>docs/terms.md</code> §8 and §10 — health-and-safety language, must not ship unreviewed. Rides with <code>E20-01</code></span>
       </li>
-      <li class="task" data-id="E20-26" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-26" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-26"></button>
         <code class="tid">E20-26</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Wire the three policy documents into the app <strong>policy gate</strong> (<code>E20-03</code>) and the website footer / app Settings → Privacy, rendered from the static build not a public table read (<code>[AZ-03]</code>). The grievance block (<code>§7.2</code>) must be reachable without an account</span>
       </li>
-      <li class="task" data-id="E20-27" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-27" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-27"></button>
         <code class="tid">E20-27</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Extend the <code>E20-22</code> placeholder guard to scan <code>docs/privacy-policy.md</code>, <code>docs/terms.md</code> and <code>docs/refund-policy.md</code> for <code>«…-PENDING-…»</code> tokens in any production/published build</span>
       </li>
-      <li class="task" data-id="E20-28" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-28"></button>
         <code class="tid">E20-28</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Confirm the third-party-recipient list declared in the store <strong>Data Safety</strong> form (Razorpay, Supabase, SMS provider, Sentry, push) matches the processor register in <code>docs/dpdp-compliance.md</code> §9 and the <code>E20-11</code> review, so the label, the policy and the DPA register cannot drift apart (<code>[SS-02]</code>)</span>
       </li>
-      <li class="task" data-id="E20-29" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-29" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-29"></button>
         <code class="tid">E20-29</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Push/notification bodies must not contain tier-P/S data.</strong> A body like &quot;Aarav&#39;s lunch has been delivered&quot; is a child&#39;s name on a lock screen and in transit to Expo/EAS. The rule now lives in <code>dpdp-compliance.md</code> §9; build the same sentinel-name test as <code>E20-10</code> over the <code>E08</code> templates (<code>E08-03</code>, <code>E08-05</code>) and the Expo push payload. Copy decision is <code>[DP-08]</code> (review finding #7)</span>
       </li>
-      <li class="task" data-id="E20-30" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-30" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-30"></button>
         <code class="tid">E20-30</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Scoped erasure Edge Function (<code>recipient</code> vs <code>account</code>).</strong> <code>dpdp-compliance.md</code> §6.5 now takes a <code>scope</code> param so a single child&#39;s consent withdrawal no longer anonymises the parent or deletes siblings; <code>E20-18</code> must honour it. Build the function and a test that a <code>recipient</code>-scope run leaves the parent <code>app_user</code> and sibling <code>recipient</code> rows byte-for-byte unchanged (review finding #4)</span>
       </li>
-      <li class="task" data-id="E20-31" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-31" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-31"></button>
         <code class="tid">E20-31</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Tier-classification coverage assertion.</strong> <code>data-model.md</code> §13.3 is now the complete normative source (added <code>order_line.allergen_codes_snapshot</code>=S, <code>invoice_line.description</code>=P) and <code>dpdp-compliance.md</code> §2.2 defers to it. Implement §6.4&#39;s assertion that every tier-S/P/A table has a <code>retention_policy</code> row, keyed off §13.3 (review finding #13)</span>
       </li>
-      <li class="task" data-id="E20-32" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-32" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-32"></button>
         <code class="tid">E20-32</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>migration.migration_review</code> and <code>migration.legacy_id_map</code> hold tier-A/P data (phone/name in <code>detail</code>/<code>legacy_id</code>) with no retention row and no place in erasure.</strong> Add their retention rows to <code>dpdp-compliance.md</code> §6.2 and a teardown after <code>E17-22</code>/the review queue is worked; §6.4&#39;s coverage assertion should fail until they are classified (review finding #18)</span>
       </li>
-      <li class="task" data-id="E20-33" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-33" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-33"></button>
         <code class="tid">E20-33</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Build an owned <code>otp_attempt</code> table for <code>E03-10</code>&#39;s throttle counting, with a real retention row.</strong> Today OTP state lives only in Supabase&#39;s managed <code>auth</code>/GoTrue schema; the published policy line was corrected to say so. <code>E03-10</code> needs a table to count against (review finding #17)</span>
       </li>
-      <li class="task" data-id="E20-34" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-34" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-34"></button>
         <code class="tid">E20-34</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Reconcile <code>product_analytics</code> across the three documents that disagree</strong> (privacy-policy collects it, dpdp §5.1 names a vendor but §9 register has no row, store-submission declares &quot;no Analytics&quot;). Pick a vendor + declare Analytics, OR cut analytics for v1 and remove the consent purpose/policy line/recipient. Decision + options are <code>[DP-09]</code>; rides with <code>[DP-05]</code> (review finding #19)</span>
       </li></ul>
       </details>
@@ -988,20 +988,20 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Resolution-chain resolver (platform -&gt; kitchen -&gt; school) with unit tests, plus config cache</span>
       </li>
-      <li class="task" data-id="E02-11" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-11" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-11"></button>
         <code class="tid">E02-11</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Reporting <strong>partitioned and indexed</strong> by city + kitchen from day one (materialised aggregates are deferred to <code>E18-22</code>)</span>
       </li>
-      <li class="task" data-id="E02-12" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-12" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-12"></button>
         <code class="tid">E02-12</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Design a <code>menu_item_capacity(menu_item, service_date, remaining)</code> table now, unused, so per-dish limits drop in later without a rewrite</span>
       </li>
       <li class="task" data-id="E02-13" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -1036,60 +1036,60 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Consent records table with purpose, timestamp and policy version (consumed by <code>E20-02</code>)</span>
       </li>
-      <li class="task" data-id="E02-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-17"></button>
         <code class="tid">E02-17</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Mobile numbers stored normalised as <strong>E.164</strong> with a uniqueness constraint — the legacy field is a number type that loses leading zeros and country codes</span>
       </li>
-      <li class="task" data-id="E02-18" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-18" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-18"></button>
         <code class="tid">E02-18</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Actually run</strong> <code>0002_rls_policies.sql</code> and <code>supabase/tests/authorization.test.sql</code> against <code>supabase start</code> and fix what falls out. Both were written offline in <code>Q04</code> and have never been executed. Until this is green, <code>E02-08</code> and <code>E02-09</code> are not done</span>
       </li>
-      <li class="task" data-id="E02-19" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-19" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-19"></button>
         <code class="tid">E02-19</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Wire <code>supabase test db</code> into CI as a <strong>required</strong> check. It cannot run against a bare <code>postgres:16</code> service container — <code>app_user.id</code> references <code>auth.users(id)</code> and the suite impersonates via <code>request.jwt.claims</code>. Constrains <code>E01-08</code> / <code>E01-11</code></span>
       </li>
-      <li class="task" data-id="E02-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-20"></button>
         <code class="tid">E02-20</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>effective_config_public()</code></strong> (<code>docs/authorization-model.md</code> §7.6) — <code>resolve_effective_config()</code> is invoker-rights and joins three config tables no customer may read, so the moment <code>0002</code> applies it returns a <strong>null row for every customer, with no error</strong>. Cutoff time, break times and prices all resolve to nothing in the app. Extends <code>E02-10</code>; must land with it, not after</span>
       </li>
-      <li class="task" data-id="E02-21" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-21"></button>
         <code class="tid">E02-21</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>The §10 table-privilege revokes</strong> — <code>0002_rls_policies.sql</code> contains <strong>zero</strong> <code>GRANT</code>/<code>REVOKE</code> statements, so the &quot;second layer underneath RLS&quot; that <code>docs/authorization-model.md</code> §10 specifies does not exist. Low live exposure today (RLS with no write policy already denies writes) but it is a specified control with no implementation. Ride it with <code>E02-18</code></span>
       </li>
-      <li class="task" data-id="E02-22" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-22" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-22"></button>
         <code class="tid">E02-22</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Storage bucket creation and policies</strong> (<code>docs/authorization-model.md</code> §11) — four buckets, three private and one public CDN bucket; <code>0002</code> deliberately writes no <code>storage.objects</code> policies and explains why, but nothing creates the buckets or owns the signed-URL discipline that <code>invoice.pdf_asset_id</code> depends on (<code>docs/gst-invoicing.md</code> §8 note 6). Pairs with <code>E04-07</code></span>
       </li>
-      <li class="task" data-id="E02-23" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-23" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-23"></button>
         <code class="tid">E02-23</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>The <code>[AZ-02]</code> tripwire test</strong> — fail the authorization suite the moment a grant of <code>orders.view</code> <strong>without</strong> <code>orders.view_pii</code> is issued. <code>orders.view_pii</code> is not enforceable by RLS (RLS filters rows, not columns), and the model is safe today only because every role template holds both. Named in <code>docs/authorization-model.md</code> §14, in <code>[AZ-02]</code>&#39;s own recommendation and in <code>docs/dpdp-compliance.md</code> §5.1, and owned by nobody. This is what makes <code>[AZ-02]</code>&#39;s deadline enforce itself before <code>E20-09</code>&#39;s analyst role exists</span>
       </li></ul>
       </details>
@@ -1193,12 +1193,12 @@
         <span class="badge r-later">later</span>
         <span class="ttext">OTP cost and abuse guardrails: per-number and per-IP throttles, alerting on spikes</span>
       </li>
-      <li class="task" data-id="E03-11" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E03-11" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-11"></button>
         <code class="tid">E03-11</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">~~Migration path for the ~400 existing users: match on <strong>normalised E.164</strong> mobile number~~ — <strong>superseded by <code>E03-16</code></strong>: migration now matches on <strong>email</strong> per <code>U1</code> (the legacy phone <code>number</code> field lost leading zeros/<code>+91</code>, an account-takeover vector). Kept for history; do not build the phone-match path</span>
       </li>
       <li class="task" data-id="E03-12" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -1351,84 +1351,84 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Review the motion spec with Andy once, before app UI work starts</span>
       </li>
-      <li class="task" data-id="E13-11" data-seed="0" data-risk="medium" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E13-11" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-11"></button>
         <code class="tid">E13-11</code>
         <span class="badge r-medium">medium</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Lint rules that keep both systems closed</strong> — fail the build on any colour literal, <code>fontSize</code>, <code>borderRadius</code> or raw spacing number outside <code>packages/shared/src/design/</code>; any numeric literal passed to <code>withTiming</code> / <code>transition-duration</code>; any <code>cubic-bezier</code> or <code>Easing.bezier</code> outside <code>motion.ts</code>; any <code>withSpring</code> outside the cart-badge module; <code>transition: all</code>; and animating any property other than <code>transform</code> / <code>opacity</code> outside the two files implementing <code>M10</code> and <code>M14</code>. Without this, both documents decay into suggestions</span>
       </li>
-      <li class="task" data-id="E13-12" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E13-12" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-12"></button>
         <code class="tid">E13-12</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><code>packages/shared/src/design/motion.ts</code> exporting <code>duration</code>, <code>ease</code> and <code>spring</code> and nothing else, plus the <strong>reduce-motion test harness</strong> — every animated component gets a test that renders with reduce-motion on and asserts the §10 substitute, not merely that &quot;nothing animates&quot;. A component that silently drops a state change under reduce motion is an accessibility bug no visual review catches</span>
       </li>
-      <li class="task" data-id="E13-13" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E13-13" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-13"></button>
         <code class="tid">E13-13</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Contrast assertion in CI</strong> — walk the <code>docs/design-tokens.md</code> §2.9 semantic role map plus a declared list of legitimate foreground/background pairs, compute the WCAG 2.1 ratio, assert the stated minimum. A brand refresh that lightens a green then fails the build instead of shipping</span>
       </li>
-      <li class="task" data-id="E13-14" data-seed="0" data-risk="" data-owner="andy" data-mvp="1">
+      <li class="task" data-id="E13-14" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-14"></button>
         <code class="tid">E13-14</code>
         
         <span class="badge r-you">you</span>
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>DS-01</code> — approve the &quot;500 rule&quot;</strong>: <code>#00af52</code> stays the identity colour but functional green moves to <code>primary-700 #007e3b</code> for fills and text. White on <code>#00af52</code> is 2.90:1 and fails every WCAG bar, so the mocks cannot ship as drawn. This changes what every button, price and field label looks like. Options and the recommendation are in <code>docs/open-questions.md</code>; the consequences are worked through in <code>docs/design-tokens.md</code> §2.1</span>
       </li>
-      <li class="task" data-id="E13-15" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E13-15" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-15"></button>
         <code class="tid">E13-15</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Reconcile <code>docs/design-tokens.md</code> against <code>00_Graybag_Brand Guidelines.pdf</code></strong> — 21.8 MB, never read (over the file-read limit, no rasteriser runnable in the overnight sandbox). If it specifies tints, tonal steps, a type scale or usage rules, the brand document wins. The token file is provisional until this is done. <code>DS-05</code></span>
       </li>
-      <li class="task" data-id="E13-16" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
+      <li class="task" data-id="E13-16" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-16"></button>
         <code class="tid">E13-16</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Correct <code>docs/design-tokens.md</code> §2.3&#39;s mock-02 fix — the substitution it prescribes does not work.</strong> <code>forest-600 #104c3a</code> on <code>primary-600 #009646</code> is <strong>2.57:1</strong>, not the 3.25:1 claimed, and still fails the 3:1 control-boundary bar. The 3.25:1 figure belongs to <strong><code>forest-700 #0c3b2d</code></strong>. Fix the token, add a <code>text.onBrandField</code>-style role for a control on a brand field, and correct three ratios that round the wrong way (<code>danger-700</code> 6.57 not 6.63, <code>neutral-800</code> 14.57 not 14.56, <code>neutral-900</code> 18.07 not 18.06). <code>E13-14</code> currently asks Andy to approve a worked example that is wrong</span>
       </li>
-      <li class="task" data-id="E13-17" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E13-17" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-17"></button>
         <code class="tid">E13-17</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Resolve the five semantic-role pairs that fail the bar <code>E13-13</code> will assert.</strong> Walking <code>docs/design-tokens.md</code> §2.9: <code>text.tertiary</code> on <code>bg.surfaceMuted</code> <strong>4.23</strong> (placeholder text inside an input — the role&#39;s commonest use); <code>text.tertiary</code> on <code>bg.canvas</code> <strong>4.50</strong>, exactly at the bar; <code>text.danger</code> on the <code>danger-50</code> banner fill §2.8 pairs it with <strong>4.44</strong>; <code>border.default</code> on <code>bg.surface</code> <strong>2.28</strong> against the 3:1 a control boundary needs, and §2.9 assigns it to *&quot;input and card outlines&quot;*; <code>text.onBrand</code> on <code>bg.surfaceBrand</code> <strong>3.85</strong>, where the role map has no legal body-text colour at all for a surface described as carrying controls. None of this is fixed by approving <code>DS-01</code>. Options and a recommendation are <code>[DS-06]</code></span>
       </li>
-      <li class="task" data-id="E13-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E13-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-20"></button>
         <code class="tid">E13-20</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>M09</code>&#39;s 8-second timeout-and-retry must not apply to Pay.</strong> <code>docs/motion-system.md</code> <code>M09</code> reverts the button and offers a retry after 8s; <code>docs/order-lifecycle.md</code> §13 says <code>payment_pending</code> shows an unbounded waiting state, and <code>docs/payments-design.md</code> §3.3 says a UPI collect sits pending for minutes. A retry affordance at 8 seconds manufactures §10.6b&#39;s genuine double capture — *&quot;this <strong>will</strong> happen&quot;* — which <code>[OL-05]</code> says the schema cannot currently record. Pay (and Place Order where it opens the Razorpay sheet) uses the waiting state and <code>GET /checkout/:group/status</code>; <code>M09</code>&#39;s timeout stays for Cancel Order and Save Recipient</span>
       </li>
-      <li class="task" data-id="E13-18" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
+      <li class="task" data-id="E13-18" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-18"></button>
         <code class="tid">E13-18</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Correct <code>M01</code>&#39;s allow/deny lists — it permits press feedback on *&quot;the quantity stepper&quot;* and then excludes *&quot;anything under 32pt visually — a 28pt stepper button&quot;*. <code>docs/design-tokens.md</code> §4.1 confirms the stepper draws at ~28pt; the deny list is the correct one</span>
       </li>
-      <li class="task" data-id="E13-19" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
+      <li class="task" data-id="E13-19" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-19"></button>
         <code class="tid">E13-19</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Reconcile <code>M04</code>&#39;s container-height animation with §7 rule 6 and the §9 lint gate, which fail the build on animating anything but <code>transform</code>/<code>opacity</code> outside the two files implementing <code>M10</code> and <code>M14</code>. <code>M04</code> is the third height animation and is not exempted, so <code>E13-11</code> as specified would fail every implementation of the catalogue&#39;s most-used pattern. Either exempt <code>M04</code> or drop the height animation</span>
       </li></ul>
       </details>
@@ -1492,28 +1492,28 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Payment-specific alerting: failed webhook, signature mismatch, reconciliation drift, refund failure</span>
       </li>
-      <li class="task" data-id="E15-06" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E15-06" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-06"></button>
         <code class="tid">E15-06</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Daily automated health digest email (orders, errors, payment success rate, reconciliation status)</span>
       </li>
-      <li class="task" data-id="E15-07" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E15-07" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-07"></button>
         <code class="tid">E15-07</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Performance monitoring: slow queries, slow API calls, app cold start, tracked over time</span>
       </li>
-      <li class="task" data-id="E15-08" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E15-08" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-08"></button>
         <code class="tid">E15-08</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Runbook: the ~10 most likely failures and the exact first step for each</span>
       </li>
       <li class="task" data-id="E15-09" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
@@ -1548,12 +1548,12 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Cost monitoring</strong>: billing alerts on Supabase, Expo/EAS, Sentry and the SMS provider, plus a cost-per-order figure in the daily digest</span>
       </li>
-      <li class="task" data-id="E15-13" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E15-13" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-13"></button>
         <code class="tid">E15-13</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Job-liveness monitor.</strong> A silently-stopped cron produces silence, not a failed uptime probe (<code>E15-03</code> is uptime, not liveness). Emit a heartbeat per scheduled job — the webhook-retry sweep, the abandoned-checkout sweeper, the in-flight payment &amp; refund reconcilers, the daily reconciliation, the idempotency-key purge (<code>docs/order-lifecycle.md</code> §11) — and page when a heartbeat is overdue for its cadence. Distinct from <code>E15-03</code> uptime and from per-job error alerts. Named in <code>docs/payments-design.md</code> §6.6 / <code>PY2</code> (review finding #22)</span>
       </li></ul>
       </details>
@@ -1662,12 +1662,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">App-side menu cache: store menu JSON + version locally, refetch only on version change</span>
       </li>
-      <li class="task" data-id="E04-11" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E04-11" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-11"></button>
         <code class="tid">E04-11</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Read-only offline: cached menu and past orders browsable with no network</span>
       </li>
       <li class="task" data-id="E04-12" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -1722,12 +1722,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Change school on a dependent or on self, from onboarded schools only</span>
       </li>
-      <li class="task" data-id="E05-03" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E05-03" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-03"></button>
         <code class="tid">E05-03</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Support a customer with dependents at <strong>multiple schools</strong></span>
       </li>
       <li class="task" data-id="E05-04" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -1810,12 +1810,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><code>POST /checkout/preflight</code> — re-runs every checkout guard (cutoff, price, availability, allergens, wallet balance) and returns the server&#39;s prices without writing. Advisory only; §8.1 of <code>docs/order-lifecycle.md</code> says why it is never a guard</span>
       </li>
-      <li class="task" data-id="E05-14" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E05-14" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-14"></button>
         <code class="tid">E05-14</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Abandoned-checkout sweeper</strong> — every 5 minutes, close <code>order_group</code>s left at <code>pending_payment</code> past the TTL. Must reconcile each non-terminal attempt against Razorpay *before* cancelling, reverse the wallet hold and release any capacity decrement. TTL is <code>[OL-03]</code></span>
       </li></ul>
       </details>
@@ -1923,20 +1923,20 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">OTA updates via EAS Update, with a rollback path</span>
       </li>
-      <li class="task" data-id="E14-12" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E14-12" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-12"></button>
         <code class="tid">E14-12</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Force-upgrade mechanism for breaking changes (replaces the legacy <code>update_app</code> view)</span>
       </li>
-      <li class="task" data-id="E14-13" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E14-13" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-13"></button>
         <code class="tid">E14-13</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">E2E test suite on a real device profile in CI</span>
       </li>
       <li class="task" data-id="E14-14" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -2077,12 +2077,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Environment-scoped Razorpay keys verified — staging can never reach live keys</span>
       </li>
-      <li class="task" data-id="E06-15" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-15" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-15"></button>
         <code class="tid">E06-15</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Payment status monotonicity</strong> (<code>L3</code>, §6.2) — webhook handling moves <code>payment.status</code> on a capture rank and never downgrades. Out-of-order delivery fixtures (<code>authorized</code> arriving after <code>captured</code>) are part of the test, not an afterthought</span>
       </li>
       <li class="task" data-id="E06-16" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2093,28 +2093,28 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><code>GET /checkout/:group/status</code> — the app-kill-mid-payment path (§10.3). Reconciles against Razorpay rather than reporting our own row, and settles if a capture happened. Called on launch for every locally-known non-terminal group</span>
       </li>
-      <li class="task" data-id="E06-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-17"></button>
         <code class="tid">E06-17</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>In-flight reconcilers</strong> — <code>payment</code> rows stuck at <code>created</code>/<code>authorized</code> past the TTL, and <code>refund</code> rows stuck at <code>pending</code>/<code>processing</code>, are asked about at Razorpay and closed (§11)</span>
       </li>
-      <li class="task" data-id="E06-18" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-18" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-18"></button>
         <code class="tid">E06-18</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Duplicate capture path</strong> (§10.6b) — record the second real capture and immediately raise a full refund to <strong>source</strong> with <code>reason_code = &#39;duplicate_payment&#39;</code>, plus an alert. <strong>Blocked on <code>[OL-05]</code></strong>: the schema currently cannot record it</span>
       </li>
-      <li class="task" data-id="E06-19" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-19" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-19"></button>
         <code class="tid">E06-19</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Wallet-leg reversal</strong> — a wallet hold taken at checkout is reversed by a <code>reversal_of_transaction_id</code> posting the moment the group closes, and a hold is never left outstanding against a dead checkout (§10.7). The nightly wallet-vs-ledger assertion in <code>E06-11</code> is what catches a missed one</span>
       </li>
       <li class="task" data-id="E06-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2133,60 +2133,60 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Correct the over-refund guard (§7.3) — it must sum refunds at <code>pending</code>, <code>processing</code> <strong>and</strong> <code>completed</code>, and take the <code>order_group</code> row lock, so two admins refunding the same order concurrently cannot both pass. <code>docs/data-model.md</code> §8.3 states it wrongly in both directions</span>
       </li>
-      <li class="task" data-id="E06-22" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-22" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-22"></button>
         <code class="tid">E06-22</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Ledger reason codes</strong> (§10, §8.4 gap 2) — <code>ledger_transaction.reason_code</code> is <code>not null references reason_code(code)</code> and none of the eight seeded codes names a money movement, so no ledger posting can be written at all. Seed the <code>category = &#39;ledger&#39;</code> vocabulary: <code>sale</code>, <code>provider_fee</code>, <code>settlement</code>, <code>wallet_hold</code>, <code>wallet_hold_reversal</code>, <code>refund_to_wallet</code>, <code>refund_to_source</code>, <code>revenue_share</code>, <code>refund_mdr_recovery</code>, <code>payout</code>, plus <code>provider_initiated</code> for <code>[PAY-07]</code>. <strong>Blocks <code>E06-07</code> outright.</strong> Migration <code>0003</code>, with <code>E06-20</code>. Correct <code>docs/data-model.md</code> §8.4&#39;s worked example <strong>and <code>docs/order-lifecycle.md</code> §8.4 step 6</strong> in the same PR — both omit the MDR posting (<code>docs/payments-design.md</code> §10 row 3), so the clearing account is permanently overstated by the fee and tier-3 reconciliation can never balance</span>
       </li>
-      <li class="task" data-id="E06-23" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-23" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-23"></button>
         <code class="tid">E06-23</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Add <code>bank</code> to <code>ledger_account_type</code></strong> and seed <code>platform:bank</code> (§8.4 gap 1) — there is no cash account, so a settlement has nowhere to land and <code>provider:razorpay:clearing</code> never clears. Blocks tier-3 reconciliation *and* payouts (<code>E07-10</code>). Note <code>ALTER TYPE … ADD VALUE</code> cannot be *used* in the transaction that adds it, so the value lands in <code>0003</code> and its first use in <code>0004</code></span>
       </li>
-      <li class="task" data-id="E06-24" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-24" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-24"></button>
         <code class="tid">E06-24</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Add <code>CHECK (destination &lt;&gt; &#39;source&#39; or payment_id is not null)</code> to <code>refund</code> (§9.9) — nothing today prevents a refund to a source that does not exist. Migration <code>0003</code></span>
       </li>
-      <li class="task" data-id="E06-25" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-25" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-25"></button>
         <code class="tid">E06-25</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Razorpay payload redaction, with a test</strong> (§3.7, §6.5) — no recipient name, class, section, allergen, dish name, card PAN or VPA may appear in an outbound Razorpay request or in <code>payment.notes</code> / <code>payment_webhook_event.payload</code>. The test seeds a sentinel recipient name and asserts it appears in neither. Non-negotiable #4</span>
       </li>
-      <li class="task" data-id="E06-26" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-26" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-26"></button>
         <code class="tid">E06-26</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Webhook secret rotation runbook</strong> (§2.4) — dual-secret verification via <code>RAZORPAY_WEBHOOK_SECRET_PREVIOUS</code>, because the secret belongs to the Razorpay endpoint and cannot be swapped atomically with respect to events in flight. Feeds <code>E00-17</code></span>
       </li>
-      <li class="task" data-id="E06-27" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-27" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-27"></button>
         <code class="tid">E06-27</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Tier-3 settlement reconciliation</strong> (§8.4) — ingest the Razorpay settlement recon report, backfill <code>provider_fee_paise</code> / <code>provider_tax_paise</code>, post the settlement to <code>platform:bank</code>, and assert <code>balance(provider:razorpay:clearing)</code> equals what Razorpay says is pending. Depends on <code>E06-23</code></span>
       </li>
-      <li class="task" data-id="E06-28" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-28" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-28"></button>
         <code class="tid">E06-28</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Distinguish a misconfigured webhook secret from an attack</strong> (§5.6) — a wrong secret fails 100% of webhooks, records them all, returns <code>200</code> and therefore produces no 5xx and no retries. Alert on ~100% signature failure since a deploy, <strong>and</strong> on zero verified events in a window in which orders were placed. Under <code>E15-05</code></span>
       </li>
       <li class="task" data-id="E06-29" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -2197,20 +2197,20 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Expo config plugin for UPI app visibility</strong> (§3.3) — Android 11+ <code>&lt;queries&gt;</code> for the UPI intent app chooser, plus iOS <code>LSApplicationQueriesSchemes</code>. Without it the app list is silently empty and checkout degrades to UPI collect/QR, which is the flow <code>E06-02</code> exists to replace</span>
       </li>
-      <li class="task" data-id="E06-30" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-30" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-30"></button>
         <code class="tid">E06-30</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>order_group_status = &#39;payment_failed&#39;</code> is currently unreachable.</strong> <code>docs/order-lifecycle.md</code> §5 rule G3 requires every member cancelled with <code>cancel_reason_code = &#39;payment_failed&#39;</code>, but §10.4 step 3 makes the sweeper write <code>checkout_expired</code> for <strong>both</strong> &quot;every attempt terminally failed&quot; and &quot;never started&quot;. Every failed checkout therefore falls through to G4 (<code>cancelled</code>) and G3 never fires — while §12.1 scenario 5 asserts the group reaches <code>payment_failed</code>. Split the reason code on whether any attempt reached <code>failed</code>, and fix §10.4 in the same PR</span>
       </li>
-      <li class="task" data-id="E06-31" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-31" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-31"></button>
         <code class="tid">E06-31</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Define and assert the ledger sign convention.</strong> <code>ledger_entry</code> carries a <code>ledger_direction</code> enum, and no document says which direction is positive for which <code>ledger_account_type</code>. Two nightly assertions run in opposite directions: the wallet is a liability (posting #1 <strong>debits</strong> it when the customer spends, so its balance is credits − debits, invariant <code>I8</code>) and <code>provider:razorpay:clearing</code> is an asset (posting #2 <strong>debits</strong> it on capture, so its balance is debits − credits, <code>docs/payments-design.md</code> §8.3). A single-signed <code>balance()</code> helper is wrong for half the accounts. Write it into <code>docs/data-model.md</code> §8.4 as a per-account-type normal-balance table and unit-test both directions</span>
       </li></ul>
       </details>
@@ -2255,12 +2255,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Invoice PDF: GrayBag GSTIN, invoice no + date, customer, place of supply, SAC code, taxable value, <strong>CGST 2.5% + SGST 2.5%</strong>, total. <strong>Rounding rule fixed and unit-tested</strong> against worked examples — per line or per invoice, decided once</span>
       </li>
-      <li class="task" data-id="E07-03" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-03" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-03"></button>
         <code class="tid">E07-03</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Include the 4-digit <strong>pickup code</strong> on the invoice</span>
       </li>
       <li class="task" data-id="E07-04" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -2295,12 +2295,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Credit note / refund document for refunded orders</span>
       </li>
-      <li class="task" data-id="E07-08" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-08" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-08"></button>
         <code class="tid">E07-08</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Invoice archive: customer can re-download any past invoice from the app</span>
       </li>
       <li class="task" data-id="E07-09" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
@@ -2343,20 +2343,20 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Production guard: the invoice issuer <strong>refuses to allocate a number</strong> while <code>seller_gstin</code> or <code>sac_code</code> still holds an <code>«…-PENDING-E00-10»</code> placeholder. Staging renders the placeholder literally</span>
       </li>
-      <li class="task" data-id="E07-14" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-14" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-14"></button>
         <code class="tid">E07-14</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Daily gapless-series audit per financial year — <code>count(*) = max(sequence_no)</code>, <code>min = 1</code>, <code>invoice_sequence.last_sequence_no = max(sequence_no)</code>. <strong>Pages, does not warn</strong></span>
       </li>
-      <li class="task" data-id="E07-15" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-15" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-15"></button>
         <code class="tid">E07-15</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Guard triggers: an <code>invoice</code> row can never be <code>DELETE</code>d, and <code>invoice_sequence.last_sequence_no</code> may only increase, by exactly 1</span>
       </li>
       <li class="task" data-id="E07-16" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -2367,28 +2367,28 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Financial year derived from <code>issued_at</code> in the platform timezone, with tests at 05:20 IST 1 Apr and 23:50 IST 31 Mar</span>
       </li>
-      <li class="task" data-id="E07-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-17"></button>
         <code class="tid">E07-17</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Derive the CGST/SGST vs IGST split per invoice from <code>left(seller_gstin, 2)</code> against <code>place_of_supply_state_code</code> — never hard-coded. See <code>[GST-02]</code></span>
       </li>
-      <li class="task" data-id="E07-18" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-18"></button>
         <code class="tid">E07-18</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">The invoice PDF is rendered once and stored; <code>E07-08</code>&#39;s archive and every support reprint serve the stored bytes and never re-render</span>
       </li>
-      <li class="task" data-id="E07-19" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-19" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-19"></button>
         <code class="tid">E07-19</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Invoice-number renderer as a pure function of <code>(financial_year, sequence_no)</code>, asserting every rendered value is ≤ 16 characters and matches <code>^[A-Za-z0-9/-]+$</code></span>
       </li>
       <li class="task" data-id="E07-20" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
@@ -2399,12 +2399,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Move the placeholder guard before the money moves.</strong> <code>E07-13</code> as specified refuses to allocate an invoice number inside <code>settle_payment()</code> — which <code>docs/gst-invoicing.md</code> §2 itself calls &quot;the checkout&#39;s <strong>post-capture</strong> step&quot;. Under auto-capture (<code>[OL-01]</code>) the customer is already charged, the settlement transaction rolls back, <code>PY2</code> returns <code>200</code> and our own 5-minute sweep retries the failure forever: every customer charged, no order created, no 5xx, no alert but a growing <code>payment_webhook_event</code> backlog. Refuse <code>POST /checkout</code> in production while <code>seller_gstin</code> or <code>sac_code</code> matches <code>^«.*»$</code>, <strong>and</strong> add a boot assertion on the payments Edge Functions in the same shape as <code>E06-14</code>&#39;s key-prefix check. Keep <code>E07-13</code> as defence in depth. Test: with a placeholder in config, checkout returns a typed refusal and no Razorpay order is created</span>
       </li>
-      <li class="task" data-id="E07-21" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-21" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-21"></button>
         <code class="tid">E07-21</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Derive the CGST/SGST-vs-IGST split in the cart and checkout pricing path</strong>, not only on the invoice. <code>E07-17</code> fixes the invoice; <code>E07-06</code> and <code>docs/order-lifecycle.md</code> §8.2 step 7 compute the split &quot;per <code>M2</code>&quot;, i.e. hard-coded intra-state. The three launch cities span three state codes (Punjab <code>03</code>, Chandigarh <code>04</code>, Haryana <code>06</code> — <code>docs/data-model.md</code> §3.1), so at most one can be intra-state under a single GSTIN and a parent at a Panchkula school would be shown CGST+SGST and invoiced IGST. <code>L7</code> requires the charged total to equal the displayed total, so this is not cosmetic. Share one pricing function between checkout and the invoice builder. See <code>[GST-06]</code></span>
       </li></ul>
       </details>
@@ -2632,12 +2632,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Permission split enforced: <code>orders.mark_delivered</code> separate from <code>orders.refund</code> and <code>orders.view_financials</code></span>
       </li>
-      <li class="task" data-id="E09-10" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E09-10" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-10"></button>
         <code class="tid">E09-10</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Kitchen users scoped to their kitchen(s) — currently all-access is acceptable, but the scoping must exist</span>
       </li>
       <li class="task" data-id="E09-11" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -2648,20 +2648,20 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Works well on a tablet/phone in a kitchen — large tap targets, readable at arm&#39;s length</span>
       </li>
-      <li class="task" data-id="E09-12" data-seed="0" data-risk="" data-owner="andy" data-mvp="1">
+      <li class="task" data-id="E09-12" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-12"></button>
         <code class="tid">E09-12</code>
         
         <span class="badge r-you">you</span>
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Decision parked</strong>: default delivery mode (classroom bulk vs counter pickup) until real usage data exists. Both are supported</span>
       </li>
-      <li class="task" data-id="E09-13" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E09-13" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-13"></button>
         <code class="tid">E09-13</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><code>E09-07</code>&#39;s <strong>last-4-phone fallback search is an Edge Function, never a table read.</strong> <code>docs/data-model.md</code> §13.3 rule 4 says the kitchen needs <strong>no</strong> tier A beyond those four digits, and <code>docs/authorization-model.md</code> §14 names the mechanism; <code>E09-07</code> as written says nothing about it, and a table read would hand a kitchen operator the whole <code>phone_e164</code>. Rate-limited, logs the lookup to <code>audit_log</code>, returns the order and nothing else</span>
       </li></ul>
       </details>
@@ -2716,12 +2716,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Excel menu upload with validation, diff preview and apply (front end for E04-04)</span>
       </li>
-      <li class="task" data-id="E10-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E10-05" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-05"></button>
         <code class="tid">E10-05</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Dish image management</span>
       </li>
       <li class="task" data-id="E10-06" data-seed="0" data-risk="medium" data-owner="build" data-mvp="1">
@@ -2748,12 +2748,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Order dashboard across all kitchens with refund capability</span>
       </li>
-      <li class="task" data-id="E10-09" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E10-09" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-09"></button>
         <code class="tid">E10-09</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Revenue share / payout report with edit-before-confirm and mark-as-paid</span>
       </li>
       <li class="task" data-id="E10-10" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
@@ -2914,12 +2914,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Find-out-more / interest submission form (replaces <code>findoutmoresubmission</code>)</span>
       </li>
-      <li class="task" data-id="E12-03" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-03" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-03"></button>
         <code class="tid">E12-03</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Investor submission form (replaces <code>investorsubmission</code>) — creator-only visibility</span>
       </li>
       <li class="task" data-id="E12-04" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -2930,12 +2930,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Privacy policy, refund policy, terms, and the <strong>DPDP grievance officer contact</strong> (<code>E20-07</code>) — required by both app stores and by law</span>
       </li>
-      <li class="task" data-id="E12-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-05" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-05"></button>
         <code class="tid">E12-05</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">App store badges and deep links to the mobile app</span>
       </li>
       <li class="task" data-id="E12-06" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -2946,20 +2946,20 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Back-office login entry point (admin / kitchen)</span>
       </li>
-      <li class="task" data-id="E12-07" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-07" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-07"></button>
         <code class="tid">E12-07</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">SEO, meta tags, sitemap, favicon, social preview images</span>
       </li>
-      <li class="task" data-id="E12-08" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-08" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-08"></button>
         <code class="tid">E12-08</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Lighthouse performance <strong>and accessibility</strong> budgets enforced in CI, with actual threshold numbers</span>
       </li>
       <li class="task" data-id="E12-09" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -3059,12 +3059,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Data quality report: duplicates, orphans, test/junk records, users without mobile numbers</span>
       </li>
-      <li class="task" data-id="E16-07" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E16-07" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-07"></button>
         <code class="tid">E16-07</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Decide per-record what to leave behind (test data) vs migrate</span>
       </li>
       <li class="task" data-id="E16-08" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
@@ -3099,28 +3099,28 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Rollback plan: exactly what happens if validation fails mid-cutover</span>
       </li>
-      <li class="task" data-id="E16-12" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E16-12" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-12"></button>
         <code class="tid">E16-12</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Users without a usable mobile number — identify early and contact them before cutover</span>
       </li>
-      <li class="task" data-id="E16-13" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E16-13" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-13"></button>
         <code class="tid">E16-13</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Dress rehearsals must run against <strong>pseudonymised data</strong>, or in an isolated project with mandatory teardown. Do not copy live children&#39;s names and allergies into staging and leave them there</span>
       </li>
-      <li class="task" data-id="E16-14" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E16-14" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-14"></button>
         <code class="tid">E16-14</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Normalise all mobile numbers to <strong>E.164</strong>; produce a report of duplicates, unparseable and missing numbers before cutover</span>
       </li>
       <li class="task" data-id="E16-15" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -3131,36 +3131,36 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Hand-verified lookup table mapping legacy break-time option values to real times (the legacy values are wrong — see constraints above)</span>
       </li>
-      <li class="task" data-id="E16-16" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E16-16" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-16"></button>
         <code class="tid">E16-16</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">If any legacy prepaid / wallet balances exist (see <code>E00-18</code>), migrate them as <strong>opening ledger credits</strong> so nobody loses money at cutover</span>
       </li>
-      <li class="task" data-id="E16-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E16-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-17"></button>
         <code class="tid">E16-17</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Migrate kitchen staff from an <code>owner-email</code> string on the Kitchen record to real user accounts with scoped grants</span>
       </li>
-      <li class="task" data-id="E16-18" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E16-18" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-18"></button>
         <code class="tid">E16-18</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Point-in-time restore rehearsal</strong>: prove the new Supabase project can be restored to the pre-cutover snapshot within the rollback SLA the <code>docs/cutover-runbook.md</code> assumes. Feeds the runbook&#39;s rollback plan</span>
       </li>
-      <li class="task" data-id="E16-19" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E16-19" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-19"></button>
         <code class="tid">E16-19</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>The migration status map must target only statuses reachable by the <code>system</code> backfill actor — never <code>draft</code>.</strong> <code>docs/cutover-runbook.md</code> §5.D.5 previously mapped legacy <code>new→draft</code>; <code>draft</code> is unreachable in v1 (<code>order-lifecycle.md</code> §3.2, invariant I12) and the §4.4 trigger only allows <code>NULL→draft</code> for an admin with <code>orders.create_on_behalf</code>, so a system backfill row is rejected at insert or trips I12 on the first nightly run. The runbook spec is now corrected; the migration code must implement the legal mapping (paid/cancelled/pending_payment) and assert no draft rows are produced (review finding #9)</span>
       </li></ul>
       </details>
@@ -3192,12 +3192,12 @@
 <p>4. <strong>Keep the Bubble subscription 30 days</strong> as break-glass, then cancel.</p>
 <p>Note: Android supports halt-and-revert; <strong>iOS has no true rollback</strong>, so a fix means a new build through review (24–48h). OTA updates cover most JS-level fixes without review.</p></div>
         <ul class="tasks">
-      <li class="task" data-id="E17-01" data-seed="0" data-risk="" data-owner="andy" data-mvp="1">
+      <li class="task" data-id="E17-01" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-01"></button>
         <code class="tid">E17-01</code>
         
         <span class="badge r-you">you</span>
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Confirm Play App Signing / upload key status (low risk — mandatory since Aug 2021, so almost certainly enabled)</span>
       </li>
       <li class="task" data-id="E17-02" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -3224,12 +3224,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Submit</strong> the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from <code>E20</code>; you sign them off in the consoles</span>
       </li>
-      <li class="task" data-id="E17-05" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E17-05" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-05"></button>
         <code class="tid">E17-05</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Review both stores&#39; policies on apps used by children; confirm no additional obligations apply</span>
       </li>
       <li class="task" data-id="E17-06" data-seed="0" data-risk="" data-owner="andy" data-mvp="1">
@@ -3296,100 +3296,100 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Decommission Bubble after 30 days; export and archive everything first</span>
       </li>
-      <li class="task" data-id="E17-14" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E17-14" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-14"></button>
         <code class="tid">E17-14</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Drain plan for Bubble in-flight payments and future-dated paid orders</strong> before the migration snapshot: fixed drain window, settle-or-fail on Bubble, manual worksheet for anything still pending, reconciled by hand against the Razorpay dashboard. Resolves <code>[CO-03]</code>; closely tied to <code>E16-01</code></span>
       </li>
-      <li class="task" data-id="E17-15" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E17-15" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-15"></button>
         <code class="tid">E17-15</code>
         <span class="badge r-critical">critical</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Lock down the public Bubble Data API at freeze</strong> independently of the read-only decision, so 30-day break-glass (<code>R3</code>) does not extend the <code>[DP-03]</code> public exposure. Verify what Bubble read-only actually permits (<code>[CO-02]</code>). Ties to <code>E20-23</code></span>
       </li>
-      <li class="task" data-id="E17-16" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E17-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-16"></button>
         <code class="tid">E17-16</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>OTP re-login comms campaign</strong>: pre-cutover email + push (where a token survives), an in-app login-screen explainer, and a separate manual outreach channel for <code>E16-12</code>&#39;s no-mobile users who cannot receive an OTP. Execution of <code>E17-11</code>&#39;s drafts (<code>U2</code>)</span>
       </li>
-      <li class="task" data-id="E17-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E17-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-17"></button>
         <code class="tid">E17-17</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Cutover-day manual-review staffing</strong>: budget time to work the <code>migration_review</code> (ambiguous phone match) queue from <code>E03-11</code> on the Monday, or those families cannot log in</span>
       </li>
-      <li class="task" data-id="E17-18" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E17-18" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-18"></button>
         <code class="tid">E17-18</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Reconciliation checkpoint at T+0 of new-stack live</strong>: run the tier-2 daily reconciliation (<code>E06-11</code>) against Razorpay for the beta+cutover window before opening ordering, so no pre-existing break is inherited silently</span>
       </li>
-      <li class="task" data-id="E17-19" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E17-19" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-19"></button>
         <code class="tid">E17-19</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Cross-check <code>docs/store-submission.md</code>&#39;s App Privacy and Data Safety answers against the <strong>final</strong> <code>docs/privacy-policy.md</code> (Q11) and reconcile any divergence — the store answers were derived from <code>docs/dpdp-compliance.md</code>, not the policy, which did not yet exist. Blocks <code>E17-04</code> (<code>[SS-01]</code>, <code>[SS-02]</code>)</span>
       </li>
-      <li class="task" data-id="E17-20" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E17-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-20"></button>
         <code class="tid">E17-20</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Wire the App Store &quot;account deletion&quot; support answer + URL and the Play Store &quot;Data deletion&quot; URL to the in-app erasure flow (<code>E03-08</code> / <code>E20-18</code>), so both stores&#39; deletion requirements point at a real, reachable path</span>
       </li>
-      <li class="task" data-id="E17-21" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E17-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-21"></button>
         <code class="tid">E17-21</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Produce the store <strong>screenshot assets</strong> from the shot-list in <code>docs/store-submission.md</code> §5 on the required device sizes, once the app shell (<code>E14</code>) and design system (<code>E13</code>) render real screens. Use synthetic/sentinel child data only — never a real child&#39;s name, class or allergy in a store screenshot (DPDP tier S/P; CLAUDE.md #4)</span>
       </li>
-      <li class="task" data-id="E17-22" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E17-22" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-22"></button>
         <code class="tid">E17-22</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Verify the store listing text against each store&#39;s <strong>field length limits</strong> (App Store 30-char name / 30-char subtitle / 170-char promotional text; Play 30-char title / 80-char short description / 4000-char full description) before submission</span>
       </li>
-      <li class="task" data-id="E17-23" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
+      <li class="task" data-id="E17-23" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-23"></button>
         <code class="tid">E17-23</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Fix the stale forward task-ID references and measurable slips the store-submission pack and runbook accumulated when Q13/Q14 took the ID range Q12 reserved: store-submission.md E17-14→19/15→20/16→21/17→22 and E20-24→28; decisions.md <code>SUB1</code> and open-questions.md Q12 preamble E17-14→19; refund-policy.md PY3→[PAY-03] and the M5/kitchen MDR wording; keyword count 83→80 and subtitle 28→29; and the runbook&#39;s dead <code>_overnight-merge</code> reference + &quot;proposed&quot; labels. Done in the review-fix pass (review finding #11/#26/#28/§3.3)</span>
       </li>
-      <li class="task" data-id="E17-24" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
+      <li class="task" data-id="E17-24" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-24"></button>
         <code class="tid">E17-24</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">Correct the cutover-runbook clock: <code>T+32h</code> was mislabelled Monday 06:00 (that is <code>T+56h</code>); soak is Sat 12:00 → Mon 06:00 = 42h, not 18h. All labels (§2 rows H/I, §6 Phase H &amp; I, §8.2, §10 G5) now consistent, anchored on the fixed business constraint that ordering reopens before the first weekday cutoff. Feeds precondition P3. Done in the review-fix pass (review finding #12)</span>
       </li>
-      <li class="task" data-id="E17-25" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E17-25" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-25"></button>
         <code class="tid">E17-25</code>
         
         
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext"><strong>Decouple Gate G3 (point of no return) from the overnight run.</strong> Reach the reversible Gate G2 overnight, then a mandatory operator rest gate, then sign G3 fresh (Sat afternoon or Sun morning) — the weekend freeze has slack (42h soak, no Sat/Sun service). Implements the option chosen in <code>[CO-08]</code> (review finding #23)</span>
       </li></ul>
       </details>
