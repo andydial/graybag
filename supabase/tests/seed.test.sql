@@ -124,12 +124,14 @@ select is(
   'and overrides the revenue share, in basis points'
 );
 
--- `price_is_tax_inclusive` is [DM-20] and is NOT DECIDED. A fixture that picks a value
--- is a guess about money that propagates into every invoice a test asserts, so the
--- seed must leave it unset and this assertion is what keeps it that way.
-select ok(
-  (select price_is_tax_inclusive is null from platform_config where id = 1),
-  'price_is_tax_inclusive is still unset — [DM-20] is open and the fixture must not guess'
+-- `price_is_tax_inclusive` was [DM-20] and is now ANSWERED: prices are GST-EXCLUSIVE
+-- (`docs/decisions.md` SC2, migration 0003). The assertion is kept and inverted rather
+-- than deleted, because the value is the single flag that decides what every stored
+-- price MEANS, and it flipping unnoticed would be silent and expensive.
+select is(
+  (select price_is_tax_inclusive from platform_config where id = 1),
+  false,
+  'prices are GST-exclusive — SC2, set by 0003'
 );
 
 -- -----------------------------------------------------------------------------
