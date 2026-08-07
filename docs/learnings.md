@@ -1129,3 +1129,24 @@ Two rules worth carrying forward:
 
 This is the entire value of the suite, delivered on its first run, and it was invisible for
 as long as the suite went unexecuted.
+
+## 2026-08-07 — Running a seeded pgTAP suite against an unseeded database
+
+**Context:** Block 2's exit step is `npm run test:all`, whose `test:db` half needs
+`supabase start` — and no container runtime could be installed (`E01-06`). Two of the three
+pgTAP suites create their own fixtures and run anywhere, but `seed.test.sql` asserts
+`supabase/seed.sql`, which only `supabase db reset` applies. Staging must never be seeded
+(`seed.sql` says so in its header), so the suite looked unrunnable.
+**What happened:** Splicing works. Strip `seed.sql`'s own `begin;`/`commit;`, insert the body
+into `seed.test.sql`'s transaction just before `plan()`, and run the combined file. All 28
+assertions passed and the closing `rollback` left staging at zero rows in every seeded table —
+verified afterwards, not assumed.
+**Fix / rule:** A pgTAP suite that ends in `rollback` can borrow ANY dataset for the length of
+one transaction, including against a shared environment, **provided the data source's own
+transaction control is stripped first** — a stray `commit;` in the spliced file would end the
+test's transaction early and leave the fixtures behind permanently.
+
+Worth generalising: this is the same property that makes the whole pgTAP approach safe against
+staging, and it is why the authorization suite could be run against a real Supabase project
+rather than waiting for Docker. **Always confirm the rollback actually happened by counting
+rows afterwards** — the cost of being wrong is a shared database quietly full of fixtures.
