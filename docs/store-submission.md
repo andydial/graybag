@@ -38,7 +38,7 @@ and `docs/data-model.md` §13.3 — the columns and purposes that actually exist
 policy.** Apple rejects App Privacy answers that contradict the policy; Google's Data Safety form
 states it must match the policy. So:
 
-> **BLOCKER — `E17-14`.** Before submission, cross-check every answer in §2 and §3 against the
+> **BLOCKER — `E17-19`.** Before submission, cross-check every answer in §2 and §3 against the
 > **final** `docs/privacy-policy.md`. Where they diverge, the policy is the source of truth and
 > the store answer is corrected to match it (decision SUB1 in the Q12 notes). This is a
 > pre-submission gate on `E17-04`.
@@ -105,7 +105,7 @@ Both stores now ask these explicitly.
 | Does the app collect data about children? | **Yes** — a parent/guardian declares a dependent child's name, class, section and (optionally) allergies | `data-model.md` §4.2; dpdp §2.2 tier P/S |
 | Is there verifiable parental consent? | **Yes** — purpose-scoped consent captured at dependent creation, recorded with timestamp and policy version | `E20-02`, dpdp §3; `C1`–`C4` |
 | Does the app support **account deletion**? | **Yes, in-app** (Settings → Privacy), plus a web request path | `E03-08`, dpdp §6.5 erasure pipeline |
-| Account-deletion URL (required by both stores) | `https://graybag.com/«ACCOUNT-DELETION-URL-PENDING-E17-15»` | wire to the erasure flow, `E17-15` |
+| Account-deletion URL (required by both stores) | `https://graybag.com/«ACCOUNT-DELETION-URL-PENDING-E17-20»` | wire to the erasure flow, `E17-20` |
 
 ---
 
@@ -200,9 +200,9 @@ purpose**. It also asks about **security practices** and **deletion**.
 |---|---|---|
 | Is data **encrypted in transit**? | **Yes** — HTTPS/TLS to Supabase and all providers | `A2`, standard |
 | Can users **request deletion** of their data? | **Yes** — in-app (Settings → Privacy → Raise a request) and web | `E03-08`, dpdp §6.5/§7 |
-| Data-deletion URL | `https://graybag.com/«ACCOUNT-DELETION-URL-PENDING-E17-15»` | `E17-15` |
+| Data-deletion URL | `https://graybag.com/«ACCOUNT-DELETION-URL-PENDING-E17-20»` | `E17-20` |
 | Does the app follow the **Families / children** policy? | See `E17-05` — accounts are held by adults; declare per that task's finding | §1.3 |
-| Committed to Play's **Data safety** accuracy | Yes | must match privacy policy — `E17-14` |
+| Committed to Play's **Data safety** accuracy | Yes | must match privacy policy — `E17-19` |
 | Independent security review | Not claimed for v1 | — |
 
 **Retention note for the form / policy:** some data is retained by **statute** beyond account
@@ -238,19 +238,19 @@ may be an independent fiduciary (`DP-04`), so the payer contact is declared **sh
 Declare "No / not collected" for: **Location** (precise or approximate), **Contacts**,
 **Calendar**, **SMS or call logs** (OTP is read via SMS Retriever autofill on Android, `U3`,
 which does **not** grant SMS-log access — it is a one-time autofill token and is *not* "reading
-SMS" in the Data Safety sense; confirm wording in `E17-14`), **Photos/Videos**, **Audio**,
+SMS" in the Data Safety sense; confirm wording in `E17-19`), **Photos/Videos**, **Audio**,
 **Web browsing history**, **Installed apps**, **Advertising ID** (SUB3), **child DOB/age**, and
 **child photo**.
 
-> One to double-check in `E17-14`/`E17-05`: Android **SMS Retriever** (`U3`). It receives the OTP
+> One to double-check in `E17-19`/`E17-05`: Android **SMS Retriever** (`U3`). It receives the OTP
 > via a hashed one-time message and does **not** request the `READ_SMS` permission, so we do not
 > "access SMS". If any build ever requests `READ_SMS`/`RECEIVE_SMS`, Play's Permissions
 > Declaration and the SMS/Call-Log policy apply and this answer changes.
 
-### 3.3 Third-party recipients (for the policy + `E20-24`)
+### 3.3 Third-party recipients (for the policy + `E20-28`)
 
 The Data Safety form's "shared" answers and the privacy policy must name the recipients
-consistently with the processor register (dpdp §9, `E20-11`, and new task `E20-24`):
+consistently with the processor register (dpdp §9, `E20-11`, and new task `E20-28`):
 
 | Recipient | Role | Gets |
 |---|---|---|
@@ -267,7 +267,7 @@ consistently with the processor register (dpdp §9, `E20-11`, and new task `E20-
 
 Draft copy for both stores. Length limits differ (App Store: name ≤30, subtitle ≤30,
 promotional text ≤170, keywords field ≤100 total; Play: title ≤30, short description ≤80, full
-description ≤4000). `E17-17` verifies each field against the live limits before submission.
+description ≤4000). `E17-22` verifies each field against the live limits before submission.
 
 ### 4.1 App name / title
 
@@ -276,7 +276,7 @@ description ≤4000). `E17-17` verifies each field against the live limits befor
 
 ### 4.2 Subtitle (App Store, ≤30) / promotional line
 
-- **Order school meals in seconds** (28)
+- **Order school meals in seconds** (29)
 - Alt: **Healthy school lunches, sorted** (30)
 
 ### 4.3 Short description (Play, ≤80)
@@ -321,7 +321,7 @@ data-model §1.7. Do not add a claim here that is not backed by a shipped featur
 
 > school,meals,lunch,tiffin,canteen,food,order,kids,allergy,parents,india,upi,menu
 
-(83 chars — verify. Do **not** repeat words already in the app name; Apple indexes those
+(80 chars — verify. Do **not** repeat words already in the app name; Apple indexes those
 separately. No competitor names.)
 
 ### 4.6 What's-new / release notes (update under `R4`)
@@ -338,7 +338,7 @@ re-authenticates once. Customer comms for it are `E17-11`.)*
 ## 5. Screenshot shot-list
 
 Both stores need screenshots at set device sizes (App Store: 6.9"/6.5" iPhone, and iPad if the
-listing is universal; Play: phone, plus 7"/10" tablet if declared). `E17-16` produces the real
+listing is universal; Play: phone, plus 7"/10" tablet if declared). `E17-21` produces the real
 assets once `E14` (app shell) and `E13` (design system) render real screens. The shot-list, in
 listing order (first two carry the store; lead with value, not chrome):
 
@@ -354,7 +354,7 @@ listing order (first two carry the store; lead with value, not chrome):
 
 **Hard rule for every screenshot (DPDP tier S/P, CLAUDE.md #4):** use **synthetic/sentinel**
 child data only — a made-up name, class, section and allergy. Never a real child's name, class
-or allergy in a store asset. `E17-16` enforces this; it is the same rule as the sentinel-name
+or allergy in a store asset. `E17-21` enforces this; it is the same rule as the sentinel-name
 test in `E06-25`/`E20-10`.
 
 Design constraints for the assets: brand palette and the "500 rule" for any functional green
@@ -365,15 +365,15 @@ faked.
 
 ## 6. Pre-submission checklist (for Andy, `E17-04`)
 
-- [ ] `E17-14` App Privacy (§2) and Data Safety (§3) reconciled against the final
+- [ ] `E17-19` App Privacy (§2) and Data Safety (§3) reconciled against the final
       `docs/privacy-policy.md`. **Gate.**
 - [ ] `E17-05` Child-audience obligations confirmed per store; §1.3 audience set accordingly.
 - [ ] `E20-21` Grievance-officer tokens resolved; privacy-policy URL live and public with no
       `«…-PENDING-…»` token (`E20-22` guard green).
-- [ ] `E17-15` Account-deletion / data-deletion URL live and wired to the erasure flow.
-- [ ] `E17-16` Screenshots produced at required sizes, sentinel data only.
-- [ ] `E17-17` All listing text within each store's length limits.
-- [ ] `E20-24` Third-party-recipient list matches the processor register and `E20-11`.
+- [ ] `E17-20` Account-deletion / data-deletion URL live and wired to the erasure flow.
+- [ ] `E17-21` Screenshots produced at required sizes, sentinel data only.
+- [ ] `E17-22` All listing text within each store's length limits.
+- [ ] `E20-28` Third-party-recipient list matches the processor register and `E20-11`.
 - [ ] Payment Info declared **not collected by the app** on both stores (Razorpay SDK holds it).
 - [ ] Tracking / Advertising ID declared **No** on both stores (SUB3).
 
