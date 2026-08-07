@@ -41,6 +41,11 @@ if (existsSync(STATE)) {
   try { done = JSON.parse(readFileSync(STATE, 'utf8')).done || {}; } catch { done = {}; }
 }
 
+// What was already on the record before this run. An owner:andy task that Andy has
+// already closed stays closed — the guard below exists to stop Claude Code closing
+// one, not to reopen one every time the script runs without --andy.
+const alreadyDone = new Set(Object.keys(done));
+
 // push: markdown -> state
 if (mode === 'push' || mode === 'both') {
   for (const f of files) {
@@ -55,7 +60,7 @@ if (mode === 'push' || mode === 'both') {
 const blocked = [];
 if (!ALLOW_ANDY) {
   for (const id of Object.keys(done)) {
-    if (andyOwned.has(id)) { delete done[id]; blocked.push(id); }
+    if (andyOwned.has(id) && !alreadyDone.has(id)) { delete done[id]; blocked.push(id); }
   }
 }
 

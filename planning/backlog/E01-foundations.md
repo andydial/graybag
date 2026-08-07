@@ -25,7 +25,7 @@ Everything after this inherits the quality bar set here. Getting tests and envir
 - [ ] `E01-08` (mvp) CI pipeline: typecheck, lint, unit tests, integration tests against a seeded ephemeral DB
 - [ ] `E01-08a` (risk:high) CI security gates: **gitleaks** secret scanning (pre-commit and CI), Dependabot/Renovate, `npm audit` gate
 - [ ] `E01-09` PR preview environments with a throwaway seeded database, destroyed on merge
-- [ ] `E01-10` (mvp) Database migration tooling + rule that every schema change ships as a reversible migration
+- [x] `E01-10` (mvp) Database migration tooling + rule that every schema change ships as a reversible migration
 - [ ] `E01-11` Test harness: unit (Vitest), integration (against real Postgres), E2E mobile (Maestro or Detox), E2E web (Playwright)
 - [ ] `E01-12` Coverage gate with an **actual threshold number** + a `test:all` command that must be green before any merge
 - [ ] `E01-13` (mvp) Seed/fixture data representing 3 schools, 1 kitchen, 3 menus, several users and dependents

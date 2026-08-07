@@ -7,7 +7,7 @@
   "main": "src/import.mjs",
   "bin": { "graybag-menu-import": "src/cli.mjs" },
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test test/*.test.mjs",
     "demo": "node demo.mjs"
   },
   "engines": { "node": ">=20" }
