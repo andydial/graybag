@@ -16,7 +16,7 @@ Everything after this inherits the quality bar set here. Getting tests and envir
 
 - [x] `E01-00` (owner:andy) (mvp) One-off: authorise the GitHub (`gh auth login`) and Supabase CLIs on your machine — after this the build side creates and manages both
 - [x] `E01-01` (mvp) Create GitHub repo, private, monorepo layout (`apps/mobile`, `apps/web`, `packages/shared`, `supabase/`)
-- [ ] `E01-02` (mvp) Branch protection on `main`: PR required, CI must pass, no direct pushes
+- [x] `E01-02` (mvp) Branch protection on `main`: PR required, CI must pass, no direct pushes
 - [ ] `E01-03` `CONTRIBUTING.md` + `CLAUDE.md` (project conventions for Claude Code) + `README.md`
 - [ ] `E01-04` (mvp) Create Supabase **staging** project in Mumbai (`ap-south-1`)
 - [ ] `E01-05` (mvp) Create Supabase **production** project in Mumbai (`ap-south-1`)
