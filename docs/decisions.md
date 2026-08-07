@@ -310,3 +310,16 @@ Made in `E01-02`.
 | BP2 | **Pull request required, but `required_approving_review_count: 0`** | GitHub does not allow approving your own pull request, and Andy is the only developer — requiring one approval would block every merge permanently. Zero still forces the *pull request*, which is what gives the status check something to run against and what produces a reviewable diff. Raise it to 1 the day there is a second developer |
 | BP3 | **`strict_required_status_checks_policy: true` — a branch must be up to date with `main` before it can merge** | Otherwise the check that passed is a check for a tree that never existed on `main`. Costs a rebase on a busy repo; this one is not busy |
 | BP4 | **The required check is named `Smoke test`, matching the `name:` of the job in `ci.yml`** | The coupling is invisible and silent: rename the job and the gate waits forever for a check that will never report, which looks like a hung PR rather than a broken rule. Renaming one means renaming both in the same commit |
+
+## Scope confirmations — 2026-08-07
+
+Two questions that had been open since the plan was written, answered by Andy in conversation
+and now binding. Both were previously carried as "assumed" in `docs/open-questions.md`; those
+entries are struck and point here.
+
+| # | Decision | Why |
+|---|---|---|
+| SC1 | **Mohali only for v1. Confirmed 2026-08-07** — one city, one state. GST is a flat 5% shown as CGST 2.5% + SGST 2.5%, `gst_state_code` 03 (Punjab) everywhere. **No IGST, no place-of-supply derivation, no multi-state logic is to be built** | The kitchen is in the same state as every school served, so intra-state supply is the only case that can arise. Chandigarh (UT) and Panchkula (Haryana) are different state codes and would drag in IGST and possibly extra registrations; they are a fast-follow once live. This was already the working assumption — confirming it means the code may now *rely* on it rather than leaving room for a second state |
+| SC2 | **Menu prices are GST-EXCLUSIVE. Confirmed 2026-08-07** — the stored `price_paise` is the taxable value, and 5% is added on top at checkout, matching what the Bubble cart does today. `platform_config.price_is_tax_inclusive = false` | Closes `[DM-14]` / `[DM-20]`, and takes option (a) of `[GST-01]` — **the cheap answer**. The inclusive path would have required relaxing `order_line`'s `check (line_subtotal_paise = unit_price_paise * quantity)`, because deriving a per-unit taxable value from a tax-inclusive price multiplies the rounding error by the quantity: four ₹99.00 tax-inclusive dishes come to ₹396.02, not ₹396.00, and no arrangement of integers fixes it while that constraint holds. Exclusive pricing makes the constraint true by construction and leaves `invoice.round_off_paise` at zero |
+
+**Consequence to carry out, not yet done at the time of writing:** `platform_config.price_is_tax_inclusive` is still `NULL` in `0001`, which was deliberate — `[DM-20]` chose "nullable and unset so tax calculation refuses to run until answered" precisely so that this moment would be explicit. `0001` is already applied to staging and must not be edited (`MG5`), so the value is set by a new migration and the column made `NOT NULL`. Tracked under `E02-06`.

@@ -25,7 +25,7 @@ Every item here is either a live security exposure or has a multi-week external 
 - [ ] `E00-09` (owner:andy) Open account with SMS provider (MSG91 or Gupshup); link DLT Entity ID, Header and Template IDs
 - [ ] `E00-10` (risk:high) (owner:andy) Accountant: obtain **GSTIN**, confirm **SAC code** (996331 assumed), confirm CGST/SGST split for Mohali / SAS Nagar
 - [ ] `E00-11` (risk:high) (owner:andy) Accountant: confirm whether the school's 10% revenue share attracts 18% GST on the school's invoice to GrayBag
-- [ ] `E00-12` (owner:andy) (mvp) Confirm whether menu `Price` in the Excel is GST-inclusive or exclusive (cart currently adds 5% on top)
+- [x] `E00-12` (owner:andy) (mvp) Confirm whether menu `Price` in the Excel is GST-inclusive or exclusive (cart currently adds 5% on top)
 - [ ] `E00-13` (owner:andy) (mvp) Verify direct access to Apple Developer account and Google Play Console independent of Bubble
 - [ ] `E00-14` (owner:andy) (mvp) Locate original dish images (Bubble CDN URLs die on migration); inventory what is missing
 - [ ] `E00-15` (owner:andy) (mvp) Export a full Bubble **data** dump (users, children, orders, dish_in_order, schools, kitchens, menus) — hand it over; the build side inspects and reports on it in `E19-04`
