@@ -122,8 +122,10 @@ straight out of the box.
 | `forest-800` | `#092b20` | — | — | Illustration shadow |
 
 Mock 02 puts a `#145f48` button on a `#00af52` field: **2.63:1**, below the 3:1 a control
-boundary needs. `forest-600` on `primary-600` is **3.25:1** and passes. That single pair of
-substitutions is the whole fix for that screen.
+boundary needs. `forest-700 #0c3b2d` on `primary-600 #009646` is **3.25:1** and passes. Note
+`forest-600 #104c3a` on `primary-600` is only **2.57:1** and still fails the 3:1 bar, so the
+substitution must go all the way to `forest-700`. That single pair of substitutions is the
+whole fix for that screen.
 
 ### §2.4 Secondary — amber
 
@@ -182,8 +184,8 @@ reads faintly magenta.) The tint is small enough that nobody will call it green.
 | `neutral-500` | `#6e746e` | 4.79 ✓ | Placeholder text, tertiary text, inactive tab icon |
 | `neutral-600` | `#5b615b` | 6.35 ✓✓ | Secondary text — captions, metadata, helper text |
 | `neutral-700` | `#3d423d` | 10.27 ✓✓ | Body text on a tinted surface |
-| `neutral-800` | `#262a26` | 14.56 ✓✓ | Headings |
-| `neutral-900` | `#141714` | 18.06 ✓✓ | Primary text |
+| `neutral-800` | `#262a26` | 14.57 ✓✓ | Headings |
+| `neutral-900` | `#141714` | 18.07 ✓✓ | Primary text |
 
 The mocks use `#b0b0b0`-ish placeholders (roughly 2.4:1). `neutral-500` is the darkest grey
 that still reads as "placeholder"; anything lighter fails, and a placeholder is content.
@@ -198,7 +200,7 @@ notification dot, which is a stand-in rather than a decision.
 | `danger-50` | `#fef3f2` | — | — | Error banner fill |
 | `danger-200` | `#fecdca` | — | — | Error banner border |
 | **`danger-600`** | **`#d92d20`** | 4.83 ✓ | 4.83 ✓ | Error text, destructive button fill, required-field marker |
-| `danger-700` | `#b42318` | 6.63 ✓ | 6.63 ✓ | Pressed destructive |
+| `danger-700` | `#b42318` | 6.57 ✓ | 6.57 ✓ | Pressed destructive |
 
 `#d92d20` is deliberately chosen to pass 4.5:1 in **both** directions, so one token covers
 error text on white and a white label on a destructive button.
@@ -219,16 +221,16 @@ This is what makes a dark theme a new mapping file rather than a rewrite (`[DS-0
 | `bg.scrim` | `rgba(20, 23, 20, 0.48)` | Behind sheets and dialogs |
 | `text.primary` | `neutral-900` | |
 | `text.secondary` | `neutral-600` | |
-| `text.tertiary` | `neutral-500` | Placeholder, timestamps |
+| `text.tertiary` | `neutral-500` | Placeholder, timestamps. **⚠ [DS-06]:** on `bg.surfaceMuted` (`neutral-100`) this is **4.23:1** and on `bg.canvas` (`neutral-50`) **4.50:1** — placeholder text inside an input field is the first case and **fails AA (4.5)**. The choice (darken the ink, lighten the muted surface, or accept large-text-only) is brand-visible and pending `[DS-06]` |
 | `text.disabled` | `neutral-400` | |
-| `text.onBrand` | `neutral-0` | White, and only on `primary-700`+ or `forest-500`+ |
+| `text.onBrand` | `neutral-0` | White, and only on `primary-700`+ or `forest-500`+. **⚠ [DS-06]:** white on `bg.surfaceBrand` (`primary-600`) is **3.85:1** — legal for large text (≥18.66px bold / 24px) but **fails AA (4.5) for body text**, and `bg.surfaceBrand` is `primary-600` by definition. The role map therefore has **no legal body-text colour for that surface**; body text on `surfaceBrand` is forbidden until `[DS-06]` resolves (darken the surface to `primary-700`, or restrict `surfaceBrand` to large text / controls only) |
 | `text.link` | `primary-700` | Always also underlined or in a pressable shape |
 | `text.price` | `primary-700` | Tabular figures — §3.5 |
-| `text.danger` | `danger-600` | |
+| `text.danger` | `danger-600` | On `neutral-0`/`neutral-50` this passes (4.83). **⚠ [DS-06]:** on a `danger-50` error-banner fill (§2.8) it is **4.44:1** and **fails AA (4.5)**; use `danger-700` (6.57) for text on `danger-50`, pending `[DS-06]` |
 | `text.warning` | `amber-700` | |
 | `border.subtle` | `neutral-300` | Decorative dividers |
-| `border.default` | `neutral-400` | Input and card outlines |
-| `border.strong` | `neutral-500` | Outlined control that must meet 3:1 |
+| `border.default` | `neutral-400` | Decorative-weight outlines only. **`neutral-400` on `neutral-0` is 2.28:1 and does NOT meet the 3:1 UI-boundary bar (WCAG 1.4.11).** An input or card outline that is the *only* thing marking a control boundary must use `border.strong`, not this token |
+| `border.strong` | `neutral-500` | Outlined control that must meet 3:1 (4.79 on `neutral-0`). **This is the correct token for input and card outlines** — the boundary of a UI component that carries no other visible affordance |
 | `border.brand` | `primary-600` | Selected / active outline |
 | `border.danger` | `danger-600` | |
 | `action.primaryBg` | `primary-700` | |

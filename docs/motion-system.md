@@ -155,7 +155,7 @@ is **not**, and what it degrades to under reduce-motion.
 or cancel, it returns. `duration.fast` (120ms), `ease.standard`, both directions.
 
 **Allowed on.** Every tappable element that has a visible surface: buttons, cards, list rows,
-chips, the quantity stepper, the tab bar.
+chips, the tab bar.
 
 **Not on.** Inline text links (they get a colour change instead, `M04` at `fast`). Anything
 under 32pt visually — a 28pt stepper button scaling to 0.97 is invisible and just costs frames;
@@ -331,18 +331,32 @@ rotation is replaced by a static glyph with an opacity pulse at `base`.
 ### `M09` — In-flight action feedback
 
 **What.** For a write that goes to the network and that the user must not repeat — Place Order,
-Pay, Cancel Order, Save Recipient. The button's label cross-fades (`M04`) to an **indeterminate
-progress track inside the same pill**. The button keeps its exact size and position. It is
-disabled but not removed and not dimmed to invisibility.
+Cancel Order, Save Recipient, and (with the timeout caveat below) Pay. The button's label
+cross-fades (`M04`) to an **indeterminate progress track inside the same pill**. The button
+keeps its exact size and position. It is disabled but not removed and not dimmed to
+invisibility.
 
 **Not a rotating spinner, and never full-screen.** A modal blocking spinner over the whole app
 is forbidden. The only thing that is busy is the control the user pressed.
 
 **Timeout.** If the call has not returned in 8 seconds, the button reverts to its label and an
 inline `M10` error appears with a retry. The user is never left holding a button that is
-spinning forever.
+spinning forever. **This 8-second timeout-and-retry applies to Place Order, Cancel Order and
+Save Recipient only.**
 
-**Allowed on.** Exactly the writes above, and their equivalents in the back office.
+**Pay is explicitly excluded from the timeout-and-retry.** A retry button at 8 seconds on Pay
+manufactures a double charge: a UPI collect can sit `pending` for up to ~30 minutes
+(`[OL-03]`), and if the customer taps retry and then pays another way, attempt 1 may still
+succeed — two real debits for one cart (`order-lifecycle.md` §10.6b), which `[OL-05]` says the
+schema cannot currently record, so it cannot even be reconciled and refunded. Pay therefore
+follows `order-lifecycle.md` §13's `payment_pending` (202) behaviour instead: the control shows
+the same in-flight track with **no timeout**, the app polls `GET /checkout/:group/status`, and
+it presents an **unbounded waiting state** — never a success screen, never an 8-second retry.
+The waiting state resolves only when the poll returns a terminal status, or when the checkout's
+own TTL expires server-side (`[OL-03]`). This implements `E13-20`.
+
+**Allowed on.** Exactly the writes above, and their equivalents in the back office. **Pay uses
+`M09`'s in-flight track but not its timeout — see the Pay exclusion above.**
 
 **Not on.** Add to cart, quantity change, favourite, and every other optimistic action. Those
 apply instantly and reconcile in the background (`E14-08`) — see §7 rule 8.
@@ -489,9 +503,10 @@ these should not be.
    it is not staggering.
 
 6. **Animate `transform` and `opacity` only.** Never width, height, top, left, margin or
-   padding — with exactly two documented exceptions, `M10`'s and `M14`'s height collapses, both
-   of which are short and confined to a single row. On web the same rule applies and is what
-   keeps everything off the layout thread.
+   padding — with exactly **three** documented exceptions: `M10`'s and `M14`'s height collapses
+   (both short and confined to a single row), and `M04`'s container-height animation when a
+   cross-faded region changes height (see `M04` and §10). On web the same rule applies and is
+   what keeps everything off the layout thread.
 
 7. **All animation runs on the UI thread.** Reanimated worklets. Never `Animated` with
    `useNativeDriver: false`. Never `setState` per frame. A dropped frame on the mid-range
@@ -567,8 +582,8 @@ mechanical gates — gate 1 and gate 3 are `E13-12`, gate 2 is `E13-11`:
    - any `Easing.bezier(...)` or `cubic-bezier(...)` literal outside `motion.ts`,
    - any `withSpring` outside the single cart-badge module,
    - `transition: all` on web,
-   - animating any property other than `transform` / `opacity`, outside the two files
-     implementing `M10` and `M14`.
+   - animating any property other than `transform` / `opacity`, outside the three files
+     implementing `M04`'s container-height animation, `M10` and `M14`.
 3. **Reduce-motion tests.** Every animated component has a test that renders with reduce-motion
    on and asserts the substitute from §10 — not merely that "nothing animates". A component that
    silently drops a state change under reduce motion is an accessibility bug that no visual
