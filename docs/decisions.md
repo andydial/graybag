@@ -43,9 +43,10 @@ read the reasoning first.
 
 | # | Decision | Why |
 |---|---|---|
-| U1 | **Phone + OTP** primary for app users; email/password for back-office only | Firebase Phone Auth does not support India. India norm, no passwords to forget. ~Rs 0.15/OTP; at ~4 logins/user/year this is ~Rs 1,000/month at 20k users. |
+| U1 | **Google / Apple / email-OTP sign-in — no phone OTP, no passwords.** *Supersedes the original "Phone + OTP" decision.* Google Sign-In is primary; Sign in with Apple on iOS (Apple requires it once Google is offered); email OTP via Supabase `signInWithOtp` for non-Google addresses. Phone OTP becomes a fast-follow *addition*, not a replacement. Mobile number stays a **profile field** (kitchen contact + last-4 search), never a login credential. Back-office unchanged (email). | DLT SMS registration had weeks of lead time on the launch critical path — Google/Apple/email have none. Cheaper (no ~Rs 0.15/OTP, no SMS account). Lower friction for an Android-heavy audience already signed into Google. Removes an account-takeover migration risk: the legacy `mobile` field is a *number* type that already lost leading zeros and `+91`, whereas Bubble exports email, so `E03-16` matches on email unambiguously. Email infra (SPF/DKIM/DMARC) is already required for GST invoices (`E07-05`), so the work is shared, not extra. DLT registration (`E00-06`…`E00-09`) continues *off* the critical path for future order-update SMS. |
 | U2 | **No password migration** | Bubble cannot export password hashes — a hard limitation. Everyone re-authenticates once regardless, so switching to OTP costs nothing extra. |
-| U3 | Long-lived refresh tokens (90–180 days) + Android SMS Retriever | Keeps OTP volume (and cost) low and removes typing. |
+| U3 | Long-lived refresh tokens (90–180 days) with silent refresh | Returning users rarely re-authenticate, keeping friction (and, for email OTP, message volume) low. Android SMS Retriever now rides with the phone-OTP fast-follow (`U1`), not v1. |
+| U4 | **Sender identity for all transactional mail** (OTP, confirmations, invoices) | From `GrayBag <orders@graybag.com>`; Reply-To `support@graybag.com` (parents reply — it must reach a human); no `no-reply@` addresses. Exactly **one** SPF record on the domain — extend the existing Google Workspace record, never add a second (two SPF records fail silently and are the commonest cause of spam-foldering). DMARC starts `p=none`, tighten to `p=quarantine` after two weeks of reports. Shared infra with `E07-05`. |
 
 ## Product
 

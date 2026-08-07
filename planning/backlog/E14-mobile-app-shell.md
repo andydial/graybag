@@ -16,16 +16,16 @@ summary: React Native + Expo shell, navigation, the api/ module discipline, and 
 
 ## Tasks
 
-- [ ] `E14-01` Expo project scaffolded with the existing bundle IDs, app icon and splash from the brand package
-- [ ] `E14-02` (risk:critical) **Enforce the `api/` module rule** — lint rule that fails the build if a screen imports the Supabase client directly, or if any privileged key reaches the bundle (`E01-18`)
-- [ ] `E14-03` Navigation structure: Home / Menu, Cart, Orders, Profile
-- [ ] `E14-05` List virtualisation for the menu; no jank at 50+ items with images
-- [ ] `E14-06` Image loading: progressive, cached to disk, correct size for the device, never re-downloaded
-- [ ] `E14-07` Cold start budget set to the **numbers produced by `E19-02`** and enforced in CI as a failing gate
-- [ ] `E14-08` Optimistic UI on cart actions; sync in the background
-- [ ] `E14-09` Network resilience: retries with backoff, clear offline state, no infinite spinners
+- [ ] `E14-01` (mvp) Expo project scaffolded with the existing bundle IDs, app icon and splash from the brand package
+- [ ] `E14-02` (risk:critical) (mvp) **Enforce the `api/` module rule** — lint rule that fails the build if a screen imports the Supabase client directly, or if any privileged key reaches the bundle (`E01-18`)
+- [ ] `E14-03` (mvp) Navigation structure: Home / Menu, Cart, Orders, Profile
+- [ ] `E14-05` (mvp) List virtualisation for the menu; no jank at 50+ items with images
+- [ ] `E14-06` (mvp) Image loading: progressive, cached to disk, correct size for the device, never re-downloaded
+- [ ] `E14-07` (mvp) Cold start budget set to the **numbers produced by `E19-02`** and enforced in CI as a failing gate
+- [ ] `E14-08` (mvp) Optimistic UI on cart actions; sync in the background
+- [ ] `E14-09` (mvp) Network resilience: retries with backoff, clear offline state, no infinite spinners
 - [ ] `E14-10` Read-only offline mode wired to the menu cache and cached order history
-- [ ] `E14-11` OTA updates via EAS Update, with a rollback path
-- [ ] `E14-12` Force-upgrade mechanism for breaking changes (replaces the legacy `update_app` view)
-- [ ] `E14-13` E2E test suite on a real device profile in CI
-- [ ] `E14-14` Screens rebuilt to the new design system — Home, Menu, Dish detail, Cart, Checkout, Orders, Order detail, Profile, Dependents, Login, Signup, T&Cs
+- [ ] `E14-11` (mvp) OTA updates via EAS Update, with a rollback path
+- [ ] `E14-12` (mvp) Force-upgrade mechanism for breaking changes (replaces the legacy `update_app` view)
+- [ ] `E14-13` (mvp) E2E test suite on a real device profile in CI
+- [ ] `E14-14` (mvp) Screens rebuilt to the new design system — Home, Menu, Dish detail, Cart, Checkout, Orders, Order detail, Profile, Dependents, Login, Signup, T&Cs

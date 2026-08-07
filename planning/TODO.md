@@ -17,9 +17,9 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E00-02` **[critical]** Rotate the Stripe test secret key and the 2 Bubble marketplace plugin app secrets found in the same file
 - [ ] `E00-04` **[high]** Check whether Bubble's Data API is exposed publicly; if so, disable it (Order and Child data are currently world-readable)
 - [ ] `E00-05` **[high]** Tighten Bubble privacy rules as a stopgap on the live app: Order (currently everyone can search/view all), Child, Dish_In_Order, Temp
-- [ ] `E00-06` **[high]** Start TRAI DLT registration: Principal Entity on one operator portal (PAN, GST cert, CIN, signatory, letterhead; ~Rs 5,000)
-- [ ] `E00-07` **[high]** Register DLT Header / Sender ID GRYBAG as Transactional / Service Implicit
-- [ ] `E00-08` **[high]** Register 5 DLT content templates: OTP login, order confirmation, pickup code, refund confirmation, order cancelled
+- [ ] `E00-06` **[high]** _(fast-follow)_ Start TRAI DLT registration: Principal Entity on one operator portal (PAN, GST cert, CIN, signatory, letterhead; ~Rs 5,000)
+- [ ] `E00-07` **[high]** _(fast-follow)_ Register DLT Header / Sender ID GRYBAG as Transactional / Service Implicit
+- [ ] `E00-08` **[high]** _(fast-follow)_ Register 5 DLT content templates: OTP login, order confirmation, pickup code, refund confirmation, order cancelled
 - [ ] `E00-10` **[high]** Accountant: obtain GSTIN, confirm SAC code (996331 assumed), confirm CGST/SGST split for Mohali / SAS Nagar
 - [ ] `E00-11` **[high]** Accountant: confirm whether the school's 10% revenue share attracts 18% GST on the school's invoice to GrayBag
 - [ ] `E19-03` **[high]** VAG Rounded Next licence check — confirm the licence permits app embedding and webfont use. If not, the entire design system needs a different typeface before E13-01
@@ -28,7 +28,7 @@ in VS Code or on GitHub without opening anything.
 
 ## Needed within 2–3 weeks
 
-- [ ] `E00-09` Open account with SMS provider (MSG91 or Gupshup); link DLT Entity ID, Header and Template IDs
+- [ ] `E00-09` _(fast-follow)_ Open account with SMS provider (MSG91 or Gupshup); link DLT Entity ID, Header and Template IDs
 - [ ] `E00-12` Confirm whether menu Price in the Excel is GST-inclusive or exclusive (cart currently adds 5% on top)
 - [ ] `E00-13` Verify direct access to Apple Developer account and Google Play Console independent of Bubble
 - [ ] `E00-14` Locate original dish images (Bubble CDN URLs die on migration); inventory what is missing
@@ -41,12 +41,12 @@ in VS Code or on GitHub without opening anything.
 ## Decisions to make (no rush, but they gate later work)
 
 - [ ] `E09-12` Decision parked: default delivery mode (classroom bulk vs counter pickup) until real usage data exists. Both are supported
-- [ ] `E18-01` Decide: parent subscribes in-app vs school buys in bulk and bills through school fees
-- [ ] `E18-02` Decide: auto-generate daily orders vs subscription acts as prepaid credit with daily dish selection
-- [ ] `E18-03` Decide: meal-pack composition (e.g. 20 meals = main + drink + dessert) and whether the customer chooses dishes
-- [ ] `E18-04` Decide: unused meals at period end — expire, roll over, or refund
-- [ ] `E18-05` Decide: mid-period cancellation and pro-rata refund policy
-- [ ] `E18-06` Decide: per-school / per-kitchen subscription pricing (near certain to be needed across cities)
+- [ ] `E18-01` _(fast-follow)_ Decide: parent subscribes in-app vs school buys in bulk and bills through school fees
+- [ ] `E18-02` _(fast-follow)_ Decide: auto-generate daily orders vs subscription acts as prepaid credit with daily dish selection
+- [ ] `E18-03` _(fast-follow)_ Decide: meal-pack composition (e.g. 20 meals = main + drink + dessert) and whether the customer chooses dishes
+- [ ] `E18-04` _(fast-follow)_ Decide: unused meals at period end — expire, roll over, or refund
+- [ ] `E18-05` _(fast-follow)_ Decide: mid-period cancellation and pro-rata refund policy
+- [ ] `E18-06` _(fast-follow)_ Decide: per-school / per-kitchen subscription pricing (near certain to be needed across cities)
 
 ## Later — release and rollout
 

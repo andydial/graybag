@@ -44,7 +44,7 @@ function parseFrontmatter(text) {
   return [meta, m[2]];
 }
 
-const TASK_RE = /^\s*-\s*\[([ xX])\]\s*`([A-Z0-9-]+)`\s*(?:\(risk:(\w+)\)\s*)?(?:\(owner:(\w+)\)\s*)?(.+)$/gm;
+const TASK_RE = /^\s*-\s*\[([ xX])\]\s*`([A-Z0-9-]+)`\s*(?:\(risk:(\w+)\)\s*)?(?:\(owner:(\w+)\)\s*)?(\(mvp\)\s*)?(.+)$/gm;
 
 function parseTasks(body) {
   const tasks = [];
@@ -56,7 +56,8 @@ function parseTasks(body) {
       id: m[2],
       risk: (m[3] || '').toLowerCase(),
       owner: (m[4] || 'build').toLowerCase(),
-      title: m[5].trim(),
+      mvp: !!m[5],
+      title: m[6].trim(),
     });
   }
   return tasks;
@@ -124,11 +125,12 @@ const epicHtml = phaseGroups.map((p) => {
   const inPhase = epics.filter((e) => e.phase === p);
   const cards = inPhase.map((e) => {
     const rows = e.tasks.map((t) => `
-      <li class="task" data-id="${esc(t.id)}" data-seed="${t.done ? '1' : '0'}" data-risk="${esc(t.risk)}" data-owner="${esc(t.owner)}"${t.done ? ' data-seed="1"' : ''}>
+      <li class="task" data-id="${esc(t.id)}" data-seed="${t.done ? '1' : '0'}" data-risk="${esc(t.risk)}" data-owner="${esc(t.owner)}" data-mvp="${t.mvp ? '1' : '0'}"${t.done ? ' data-seed="1"' : ''}>
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle ${esc(t.id)}"></button>
         <code class="tid">${esc(t.id)}</code>
         ${t.risk ? `<span class="badge r-${esc(t.risk)}">${esc(t.risk)}</span>` : ''}
         ${t.owner === 'andy' ? '<span class="badge r-you">you</span>' : ''}
+        ${t.mvp ? '<span class="badge r-mvp">v1</span>' : '<span class="badge r-later">later</span>'}
         <span class="ttext">${inline(t.title)}</span>
       </li>`).join('');
     return `
@@ -172,7 +174,7 @@ const html = `<!doctype html>
     --ink:#0f1b17; --ink-2:#4a5a58; --brand:#145f48; --meter:#008f45; --track:#e3eae7;
     --c-bg:#fdecea; --c-fg:#b3261e; --h-bg:#fdf1e0; --h-fg:#8a4b00;
     --m-bg:#e8f3ef; --m-fg:#145f48; --l-bg:#eef1f0; --l-fg:#42504f;
-    --y-bg:#fff8e3; --y-fg:#6b4a00;
+    --y-bg:#fff8e3; --y-fg:#6b4a00; --v-bg:#e4eed4; --v-fg:#3d5210;
   }
   @media (prefers-color-scheme: dark){
     :root{
@@ -180,7 +182,7 @@ const html = `<!doctype html>
       --ink:#e8efe9; --ink-2:#a6b8b1; --brand:#8fd6ae; --meter:#00af52; --track:#22312c;
       --c-bg:#3a1613; --c-fg:#ffb4aa; --h-bg:#3a2708; --h-fg:#ffd08a;
       --m-bg:#14322a; --m-fg:#8fd6ae; --l-bg:#232e2b; --l-fg:#b6c4c0;
-      --y-bg:#332a10; --y-fg:#ffd98a;
+      --y-bg:#332a10; --y-fg:#ffd98a; --v-bg:#26331a; --v-fg:#c8de92;
     }
   }
   *{box-sizing:border-box}
@@ -228,6 +230,8 @@ const html = `<!doctype html>
   .r-medium{background:var(--m-bg);color:var(--m-fg)}
   .r-low{background:var(--l-bg);color:var(--l-fg)}
   .r-you{background:var(--y-bg);color:var(--y-fg);border:1px solid var(--y-fg)}
+  .r-mvp{background:var(--v-bg);color:var(--v-fg)}
+  .r-later{background:transparent;color:var(--ink-2);border:1px solid var(--line)}
   .summary{color:var(--ink-2);font-size:13.5px;margin:8px 0 4px}
   .deps{font-size:12px;color:var(--ink-2);margin:0 0 6px}
   summary{cursor:pointer;font-size:13px;color:var(--brand);font-weight:550;padding:4px 0}
@@ -262,7 +266,7 @@ const html = `<!doctype html>
     <div class="kpi"><div class="n" id="kDone">0</div><div class="k">Done</div></div>
     <div class="kpi"><div class="n" id="kOpen">0</div><div class="k">Open</div></div>
     <div class="kpi"><div class="n" id="kCrit">0</div><div class="k">Open critical</div></div>
-    <div class="kpi"><div class="n" id="kHigh">0</div><div class="k">Open high</div></div>
+    <div class="kpi"><div class="n" id="kMvp">0</div><div class="k">MVP open</div></div>
     <div class="kpi"><div class="n" id="kMine">0</div><div class="k">Yours to do</div></div>
   </div>
 
@@ -282,6 +286,11 @@ const html = `<!doctype html>
       <option value="andy">Only mine (Andy)</option>
       <option value="build">Only build tasks</option>
     </select>
+    <select id="scope" aria-label="Filter by scope">
+      <option value="">All scope</option>
+      <option value="1">MVP (v1) only</option>
+      <option value="0">Fast-follow only</option>
+    </select>
     <select id="risk" aria-label="Filter by risk">
       <option value="">All risk levels</option>
       <option value="critical">Critical only</option>
@@ -299,7 +308,7 @@ const html = `<!doctype html>
   <footer>
     Task definitions live in <code>backlog/*.md</code>; ticks live in
     <code>backlog-state.json</code>, written on every click.
-    <code>backlog.html#mine</code> opens straight to your tasks.
+    <code>#mine</code> opens your tasks, <code>#v1</code> opens the open MVP list.
   </footer>
 </div>
 
@@ -340,7 +349,7 @@ const html = `<!doctype html>
   window.addEventListener('beforeunload', function(e){ if(pending){ e.preventDefault(); e.returnValue=''; } });
 
   function render(){
-    var total=tasks.length, d=0, crit=0, high=0, mine=0;
+    var total=tasks.length, d=0, crit=0, mvpOpen=0, mine=0;
     tasks.forEach(function(t){
       var isDone=!!done[t.dataset.id];
       t.classList.toggle('is-done', isDone);
@@ -348,7 +357,7 @@ const html = `<!doctype html>
       if(isDone) d++;
       else{
         if(t.dataset.risk==='critical') crit++;
-        if(t.dataset.risk==='high') high++;
+        if(t.dataset.mvp==='1') mvpOpen++;
         if(t.dataset.owner==='andy') mine++;
       }
     });
@@ -356,7 +365,7 @@ const html = `<!doctype html>
     document.getElementById('kDone').textContent=d;
     document.getElementById('kOpen').textContent=total-d;
     document.getElementById('kCrit').textContent=crit;
-    document.getElementById('kHigh').textContent=high;
+    document.getElementById('kMvp').textContent=mvpOpen;
     document.getElementById('kMine').textContent=mine;
     var pct=total?Math.round(d/total*100):0;
     document.getElementById('overallBar').style.width=pct+'%';
@@ -383,12 +392,12 @@ const html = `<!doctype html>
 
   var q=document.getElementById('q'), ph=document.getElementById('phase'),
       rk=document.getElementById('risk'), sf=document.getElementById('state'),
-      ow=document.getElementById('owner');
+      ow=document.getElementById('owner'), sc=document.getElementById('scope');
   var rank={critical:3,high:2,medium:1,low:0,'':0};
   function apply(){
     var term=q.value.toLowerCase().trim(), phase=ph.value, risk=rk.value,
-        state=sf.value, owner=ow.value;
-    var anyFilter=!!(term||risk||state||owner);
+        state=sf.value, owner=ow.value, scope=sc.value;
+    var anyFilter=!!(term||risk||state||owner||scope);
     document.querySelectorAll('section.phase').forEach(function(sec){
       var anyEpic=false;
       sec.querySelectorAll('article.epic').forEach(function(ep){
@@ -398,6 +407,7 @@ const html = `<!doctype html>
           var ok=(!risk || rank[t.dataset.risk||'']>=rank[risk])
               && (!state || (state==='open' ? !d : d))
               && (!owner || (t.dataset.owner||'build')===owner)
+              && (!scope || (t.dataset.mvp||'0')===scope)
               && (!term || t.textContent.toLowerCase().indexOf(term)>-1
                    || ep.querySelector('.epic-title').textContent.toLowerCase().indexOf(term)>-1);
           t.classList.toggle('hidden', !ok);
@@ -410,7 +420,8 @@ const html = `<!doctype html>
       sec.classList.toggle('hidden', !anyEpic);
     });
   }
-  [q,ph,rk,sf,ow].forEach(function(el){ el.addEventListener('input',apply); });
+  [q,ph,rk,sf,ow,sc].forEach(function(el){ el.addEventListener('input',apply); });
+  if(location.hash==='#v1'){ sc.value='1'; sf.value='open'; }
   if(location.hash==='#mine'){ ow.value='andy'; sf.value='open';
     document.querySelectorAll('details').forEach(function(d){ d.open=true; }); }
 
@@ -457,7 +468,8 @@ for (const [heading, test] of GROUPS) {
   todo += `\n## ${heading}\n\n`;
   for (const t of items) {
     const r = t.risk ? ` **[${t.risk}]**` : '';
-    todo += `- [${t.done ? 'x' : ' '}] \`${t.id}\`${r} ${strip(t.title)}\n`;
+    const v = t.mvp ? '' : ' _(fast-follow)_';
+    todo += `- [${t.done ? 'x' : ' '}] \`${t.id}\`${r}${v} ${strip(t.title)}\n`;
   }
 }
 todo += `\n---\n\nFull backlog: \`backlog/\` (markdown) or open \`backlog.html\` for the overview.\n`;
