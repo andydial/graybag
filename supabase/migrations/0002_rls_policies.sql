@@ -713,10 +713,13 @@ create policy app_user_update_self on app_user for update to authenticated
 -- auth.users row, and by migration.
 --
 -- KITCHEN STAFF GET NOTHING HERE, DELIBERATELY (§13.3 rule 4). They need tier P and
--- tier S data, never tier A. The E09-07 last-four-digits fallback search must
--- therefore be an EDGE FUNCTION that takes four digits and returns matching ORDERS
--- — never a table read. If app_user is ever opened to kitchen scope, rule 4 is
--- broken and E20-09 fails.
+-- tier S data, never tier A. The last-four-digits fallback search (E09-13; E09-07
+-- builds the UI, E09-13 owns the mechanism) must therefore be an EDGE FUNCTION that
+-- takes four digits and returns ONLY a match boolean / the matching ORDERS — never
+-- the phone number, and never a SELECT on this table. A table read would hand a
+-- kitchen operator the whole number. The ABSENCE of any kitchen-scoped policy on
+-- app_user is what enforces this. If app_user is ever opened to kitchen scope, rule 4
+-- is broken and E20-09 fails.
 
 -- recipient — tier P, and allergy_note is tier S.
 create policy recipient_read_guardian on recipient for select to authenticated
