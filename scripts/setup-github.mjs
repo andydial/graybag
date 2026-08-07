@@ -106,7 +106,78 @@ for (const env of ENVIRONMENTS) {
   console.log('  applied');
 }
 
+// ---------------------------------------------------------------------------
+// Branch protection on the default branch (E01-02): PR required, CI must pass,
+// no direct pushes, no force-push, no deletion.
+//
+// A ruleset rather than classic branch protection: it is the current API, and
+// `bypass_actors: []` means the rule binds repository admins too. That is the point.
+// Non-negotiable #6 says nothing merges without the smoke test green, and a rule the
+// owner can walk past is a preference.
+// ---------------------------------------------------------------------------
+
+const RULESET = {
+  name: 'main',
+  target: 'branch',
+  enforcement: 'active',
+  conditions: { ref_name: { include: ['~DEFAULT_BRANCH'], exclude: [] } },
+  bypass_actors: [],
+  rules: [
+    { type: 'deletion' },
+    { type: 'non_fast_forward' },
+    {
+      type: 'pull_request',
+      parameters: {
+        // Zero, not one. Andy is the only developer, and GitHub does not let you
+        // approve your own pull request — requiring an approval would block every
+        // merge forever. The rule still forces the *pull request*, which is what
+        // gives the status check something to run against.
+        required_approving_review_count: 0,
+        dismiss_stale_reviews_on_push: true,
+        require_code_owner_review: false,
+        require_last_push_approval: false,
+        required_review_thread_resolution: false,
+        allowed_merge_methods: ['squash', 'merge', 'rebase'],
+      },
+    },
+    {
+      type: 'required_status_checks',
+      parameters: {
+        // "strict" = the branch must be up to date with the base before merging, so
+        // the check that passed is the check for the tree that actually lands.
+        strict_required_status_checks_policy: true,
+        // Matches the `name:` of the job in .github/workflows/ci.yml. If that job is
+        // renamed, rename it here in the same commit or the gate silently waits for
+        // a check that will never report.
+        required_status_checks: [{ context: 'Smoke test' }],
+      },
+    },
+  ],
+};
+
+console.log('\nbranch protection (default branch)');
+console.log('  pull request required, 0 approvals (solo developer — see the script)');
+console.log('  required check   : Smoke test');
+console.log('  force-push       : blocked');
+console.log('  deletion         : blocked');
+console.log('  admin bypass     : none');
+
+if (DRY) {
+  console.log('  [dry run — nothing sent]');
+} else {
+  const existing = JSON.parse(api('GET', `repos/${REPO}/rulesets`));
+  const mine = existing.find((r) => r.name === RULESET.name);
+  if (mine) {
+    api('PUT', `repos/${REPO}/rulesets/${mine.id}`, RULESET);
+    console.log(`  updated ruleset ${mine.id}`);
+  } else {
+    const created = JSON.parse(api('POST', `repos/${REPO}/rulesets`, RULESET));
+    console.log(`  created ruleset ${created.id}`);
+  }
+}
+
 console.log(
   `\nVerify:  gh api repos/${REPO}/environments/production --jq '.protection_rules'\n` +
+  `         gh api repos/${REPO}/rulesets --jq '.[] | {name, enforcement}'\n` +
   `Secrets for these environments are set by:  npm run secrets:set -- <env>\n`,
 );
