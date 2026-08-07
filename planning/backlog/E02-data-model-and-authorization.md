@@ -25,7 +25,7 @@ In Bubble, `Order` is readable by everyone and 10 types have no privacy rules at
 
 - [x] `E02-01` (risk:critical) (mvp) Draft target ERD; review with Andy before any migration is written
 - [x] `E02-02` (mvp) Core entities: `user`, `recipient`, `guardian_link`, `school`, `kitchen`, `city`
-- [ ] `E02-03` (mvp) Menu entities: `dish`, `menu`, `menu_item`, `menu_assignment`, `allergen`, `dish_allergen`
+- [x] `E02-03` (mvp) Menu entities: `dish`, `menu`, `menu_item`, `menu_assignment`, `allergen`, `dish_allergen`
 - [ ] `E02-04` (mvp) Order entities: `order`, `order_line`, with dish name/price/allergens **snapshotted** at order time
 - [ ] `E02-05` (risk:high) (mvp) Money entities: `ledger_entry`, `payment`, `refund`, `payout`, `invoice`. **All amounts stored as integer paise** — never floats
 - [ ] `E02-06` (mvp) Config entities: `platform_config`, `kitchen_config`, `school_config`, `break_time`
