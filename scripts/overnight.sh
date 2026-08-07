@@ -92,7 +92,7 @@ Rules for this unattended run:
 - Record anything non-obvious you learned in docs/learnings.md.
 - Finish with a short summary of what you produced and what a human needs to check."
 
-  if claude -p "$PROMPT" --permission-mode acceptEdits >"$LOG" 2>&1; then
+  if claude -p "$PROMPT" --dangerously-skip-permissions >"$LOG" 2>&1; then
     OK=1; RESULT="ok"
   else
     OK=0; RESULT="FAILED (see log)"
