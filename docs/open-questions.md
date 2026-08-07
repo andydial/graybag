@@ -24,6 +24,7 @@ Grouped by who unblocks them. Items here block specific backlog tasks.
 | Q | Blocks | Notes |
 |---|---|---|
 | ~~Is the Excel `Price` GST-inclusive or exclusive?~~ **ANSWERED 2026-08-07: EXCLUSIVE** | ~~`E04-04`, `E07-06`~~ | Closed. 5% is added on top at checkout, as the cart already does. See `SC2` in `docs/decisions.md`; closes `[DM-14]`, `[DM-20]` and takes option (a) of `[GST-01]`. `E00-12` closed |
+| ~~Do school staff accounts that use an email address as a username have real, deliverable mailboxes?~~ **RAISED AND ANSWERED 2026-08-07: YES — they are real, accessible inboxes** | ~~`E03-14`, `E03-06`~~ | Closed, no change to scope. Email OTP (`E03-14`) reaches those accounts, so `E03-06` (email + password) **stays back-office-only** and does not widen. Recorded because the alternative was expensive: if those usernames had been unroutable, the only passwordless factor those staff have would not have reached them, and `E03-06` would have had to grow to cover real school users — a scope change to auth discovered during cutover rather than now |
 | Original dish images — can all be re-sourced? | `E04-13`, `E16-05` | Bubble CDN URLs die on migration |
 | Bubble data export (row counts for users/children/orders/lines) | `E16-06` | Needed to size migration and spot junk data |
 | **VAG Rounded Next licence** — does it permit app embedding and webfont use? | `E19-03`, `E00-16`, all of `E13` | A bad answer means a different typeface before any UI is built |

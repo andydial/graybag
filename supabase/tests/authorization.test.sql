@@ -86,7 +86,11 @@ begin
 end;
 $$;
 
-select plan(no_plan);
+-- `select * from no_plan()`, not `plan(no_plan)`. no_plan() is a set-returning
+-- function; the bare identifier parses as a column reference and fails with
+-- "column no_plan does not exist" — which aborts the transaction and makes every
+-- assertion below report as an error rather than a failure.
+select * from no_plan();
 
 
 -- =============================================================================
@@ -391,7 +395,11 @@ insert into audit_log (actor_user_id, actor_type, action, source) values
 -- decoration: [AZ-02] says orders.view_pii cannot be enforced by RLS and is safe
 -- ONLY while that is true, and Part 9 asserts it.
 insert into permission_grant (user_id, permission_code, scope_type, scope_id, granted_by_user_id, expires_at, revoked_at)
-select u, p, s::scope_type, sid, 'a0000000-0000-0000-0000-000000000009', exp, rev
+-- Every column needs an explicit cast: literals inside a VALUES list resolve to
+-- `text`, not to `unknown`, so they do NOT implicitly coerce to uuid the way a bare
+-- literal in a plain INSERT would.
+select u::uuid, p, s::scope_type, sid::uuid,
+       'a0000000-0000-0000-0000-000000000009'::uuid, exp::timestamptz, rev::timestamptz
 from (values
   -- kitchOpA @ kitchenA
   ('a0000000-0000-0000-0000-000000000006','orders.view','kitchen','c2000000-0000-0000-0000-000000000001'::uuid,null::timestamptz,null::timestamptz),
@@ -450,12 +458,21 @@ declare
   r record;
   c bigint;
 begin
+  -- Driven off pg_class/pg_namespace rather than pg_tables + to_regclass.
+  -- to_regclass() resolves a name, and resolving a name in a schema the CURRENT role
+  -- has no USAGE on raises `permission denied for schema ...` — from the FOR query
+  -- itself, outside the per-table exception handler below, so it aborts the whole
+  -- transaction. That is exactly the case this function exists to measure: `anon` has
+  -- no USAGE on `migration`, which is a STRONGER denial than RLS returning no rows,
+  -- and the suite must record it as zero rather than die on it.
   for r in
-    select t.tablename from pg_tables t
-     where t.schemaname = p_schema
+    select c.relname::text as tablename
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = p_schema
+       and c.relkind = 'r'
        and not exists (select 1 from pg_depend d
-                        where d.objid = to_regclass(quote_ident(t.schemaname) || '.' || quote_ident(t.tablename))
-                          and d.deptype = 'e')
+                        where d.objid = c.oid and d.deptype = 'e')
      order by 1
   loop
     begin
