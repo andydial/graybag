@@ -18,7 +18,7 @@ Everything after this inherits the quality bar set here. Getting tests and envir
 - [x] `E01-01` (mvp) Create GitHub repo, private, monorepo layout (`apps/mobile`, `apps/web`, `packages/shared`, `supabase/`)
 - [x] `E01-02` (mvp) Branch protection on `main`: PR required, CI must pass, no direct pushes
 - [ ] `E01-03` `CONTRIBUTING.md` + `CLAUDE.md` (project conventions for Claude Code) + `README.md`
-- [ ] `E01-04` (mvp) Create Supabase **staging** project in Mumbai (`ap-south-1`)
+- [x] `E01-04` (mvp) Create Supabase **staging** project in Mumbai (`ap-south-1`)
 - [ ] `E01-05` (mvp) Create Supabase **production** project in Mumbai (`ap-south-1`)
 - [ ] `E01-06` (mvp) Local dev: Docker Postgres + Supabase CLI, seed script, works fully offline
 - [x] `E01-07` (risk:high) (mvp) Secrets per environment — Razorpay **test** keys in staging, **live** keys in prod, never in code, never hand-edited

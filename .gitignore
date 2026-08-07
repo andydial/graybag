@@ -18,3 +18,6 @@ planning/.backlog-history/
 # Claude Code local state. The agent worktrees were committed as gitlinks (mode
 # 160000), which points a clone at repositories that exist only on this machine.
 .claude/
+
+# Supabase CLI local link state — contains the linked project ref, not committed
+supabase/.temp/
