@@ -1165,3 +1165,38 @@ Worth generalising: this is the same property that makes the whole pgTAP approac
 staging, and it is why the authorization suite could be run against a real Supabase project
 rather than waiting for Docker. **Always confirm the rollback actually happened by counting
 rows afterwards** — the cost of being wrong is a shared database quietly full of fixtures.
+
+## 2026-08-08 — A suite that reports `Tests: 0` also reports `Result: PASS` to anyone not reading
+
+**Context:** `E02-24`. The first CI run that ever executed `integration.yml` died on
+`duplicate key value violates unique constraint "users_pkey"`.
+**What happened:** `supabase db reset` applies `seed.sql` and *then* runs the suites, and the
+two had been written against the same UUID space — `a0` = user, `d1` = order, `e1` = … — with
+seventeen ids in common. The first fixture insert aborted the transaction, pg_prove recorded
+`Tests: 0` for `authorization.test.sql`, and the run still printed a summary line with a
+plausible total. `E02-18` had recorded the suite green, and it *was* green, against a local
+database still holding an older seed.
+**Cause, and the part worth keeping:** the ids were only the first layer. Fixing them moved
+the failure from line 147 to line 183 (`city_code_key`, `code = 'sas_nagar'`), because `0001`
+has around forty unique constraints on **natural** keys — slugs, phone numbers, emails — and
+primary keys were never the whole story. Three CI rounds would have found them one at a time;
+a static diff of every literal shared between the two files found all six at once.
+**Fix / rule:** fixtures live in their own namespace — `7e57` in the UUID's second group,
+`test_` on slugs, a `757…` phone range — enforced statically by
+`scripts/check-test-fixtures.mjs` in the smoke test, and `integration.yml` now fails on
+`Dubious` / `No subtests run` / fewer than `MIN_TESTS` assertions.
+
+**The general rule: exit status is not evidence that a test ran.** A suite has two failure
+modes, "asserted and was wrong" and "never asserted", and only the first one is red by
+default. Any suite whose value is that it fails loudly needs a separate check that it ran at
+all — a floor on the assertion count is enough, and it is one line.
+
+**And the finding underneath it (`E02-25`, still open).** With the collisions gone the suite
+reaches its own harness assertion and fails on `permission denied for table order`.
+`docs/authorization-model.md` §10 begins by asserting that *Supabase's default privileges give
+`authenticated` SELECT/INSERT/UPDATE/DELETE on new tables in `public`, and RLS is what stops
+them* — true on a real project, false on the local CLI stack, where migrations are applied by
+a role with different default privileges. So **the environment CI runs in does not have the
+privilege baseline the model is written against.** That is worse than either a pass or a fail:
+it means a green suite locally is not evidence about production. §10's grants and revokes need
+to exist as a migration so the baseline is stated rather than inherited.

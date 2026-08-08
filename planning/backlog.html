@@ -889,13 +889,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/24</span>
+          <span class="meter-num">0/25</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 24 tasks</summary>
+        <summary>Context &amp; 25 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -1099,6 +1099,14 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>The authorization suite and <code>seed.sql</code> collide on the same UUIDs, so <code>npm run test:db</code> fails from a clean database.</strong> <code>supabase/seed.sql:229</code> inserts <code>auth.users</code> <code>a0000000-0000-0000-0000-000000000001</code>; <code>supabase/tests/authorization.test.sql:147</code> inserts the *same* id as its own fixture, so <code>db reset &amp;&amp; supabase test db</code> dies on <code>duplicate key value violates unique constraint &quot;users_pkey&quot;</code> before a single assertion runs — <code>Tests: 0</code>, not one failure but the whole suite skipped. Found by the first CI run that ever executed it (PR #1, <code>integration.yml</code>). It passed locally in <code>E02-18</code> only because the local database still held an older seed; a fresh one always fails. Non-negotiable #2 says this suite must fail loudly when a policy changes — right now it does not run at all. Fix by moving the test fixtures to a UUID range <code>seed.sql</code> cannot use, and add a guard asserting the ranges stay disjoint so the next fixture cannot silently re-collide</span>
+      </li>
+      <li class="task" data-id="E02-25" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-25"></button>
+        <code class="tid">E02-25</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>CI and production do not have the same privilege baseline, so the authorization suite proves different things in each.</strong> <code>docs/authorization-model.md</code> §10 opens by stating the model&#39;s foundation — *&quot;Supabase&#39;s default privileges give <code>anon</code> and <code>authenticated</code> SELECT/INSERT/UPDATE/DELETE on new tables in <code>public</code>; RLS is what actually stops them.&quot;* On a real Supabase project that is true, which is why the suite went 172/172 against staging in <code>E02-18</code>. On the local CLI stack it is <strong>not</strong>: with <code>E02-24</code> fixed, the suite reaches its own Part 0 harness assertion at <code>authorization.test.sql:583</code> and dies on <code>ERROR: permission denied for table order</code> — <code>authenticated</code> has no privilege on the table at all, because migrations there are applied by a role whose default privileges differ. Neither environment is wrong on its own; what is wrong is that <strong>the suite cannot mean the same thing in both</strong>, and the one it runs in nightly is not the one that serves customers. Decide the baseline explicitly rather than inheriting it: implement §10&#39;s grants and revokes as a migration so privileges are stated in version control instead of assumed from the platform, which also closes <code>E02-21</code>. Until then a green suite locally is not evidence about production, and a red one is not necessarily a bug in the policies</span>
       </li></ul>
       </details>
     </article>
