@@ -19,6 +19,41 @@ Format — newest first:
 
 ---
 
+## 2026-08-08 — A payment SDK's manifest is three artefacts deep, and unpinned
+
+**Context:** setting up `E19-01`. Before burning an EAS build and a handset session, checked
+statically whether `react-native-razorpay` supplies the Android 11+ `<queries>` block that UPI
+intent needs.
+
+**What happened:** the RN wrapper's `AndroidManifest.xml` declares only `CheckoutActivity` — no
+`<queries>` — which appears to confirm `docs/payments-design.md` §3.3 and make `E06-29` real
+work. Two levels down it is the opposite: `com.razorpay:checkout` is a near-empty wrapper AAR
+whose POM pulls in `com.razorpay:standard-core`, and *that* manifest declares `<queries>` with
+`scheme="upi" host="pay"`. Manifest merging means the block is probably already there.
+
+**Cause:** "does this library declare X in its manifest?" is not answerable from the library.
+Android merges manifests transitively, so the question is only ever answerable about the
+**merged** manifest of a real build artefact. Reading the top-level package's manifest and
+stopping produces a confident wrong answer in both directions.
+
+**The part that actually matters:** `checkout`'s POM declares `standard-core` at version
+`LATEST`. A payments SDK is entering the app on a floating version — two builds a week apart can
+embed different code, and the `<queries>` block we might rely on can change with no diff on our
+side and nothing in a lockfile. That turns `E06-29` from "add the block" into "assert the merged
+manifest still has a block we do not control" (`E06-30`) plus "pin the version" (`E19-08`).
+
+**Fix / rule:** verify manifest questions against the **merged** manifest, and check the POM for
+floating versions on anything in the payment path. Cost about twenty minutes of `curl` against
+Maven Central and answered three checklist rows without a device — worth doing before any spike
+that needs a build and a handset, not after.
+
+**Second, smaller:** the same wrapper asks for `com.facebook.react:react-native:+`, a coordinate
+that stops at 0.71.0-rc.0 on Maven Central; current RN publishes as `react-android`. RN's Gradle
+plugin substitutes it, which is why such libraries still build — but it is the first suspect if
+the build fails, and worth recognising on sight rather than debugging from scratch.
+
+---
+
 ## 2026-08-07 — Why the overnight corpus contained these contradictions (from the Q15 review fixes)
 
 **Context:** Q15 read fourteen unattended runs (~18,000 lines of spec, ~4,200 of SQL) against each

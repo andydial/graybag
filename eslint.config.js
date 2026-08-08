@@ -69,6 +69,18 @@ export default tseslint.config(
   },
 
   {
+    // Expo config plugins must be CommonJS — Expo `require()`s them from its own config
+    // loader, so this is a constraint of the platform rather than a style choice.
+    files: ['tools/spike-mobile/plugins/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'commonjs',
+      globals: globals.node,
+    },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+
+  {
     files: ['**/*.test.ts', '**/*.test.mjs'],
     languageOptions: { globals: { ...globals.node } },
   },

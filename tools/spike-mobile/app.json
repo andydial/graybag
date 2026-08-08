@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "GrayBag Spikes",
+    "slug": "graybag-spikes",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "in.graybag.spikes",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "gpay",
+          "phonepe",
+          "paytmmp",
+          "bhim",
+          "credpay",
+          "upi"
+        ]
+      }
+    },
+    "android": {
+      "package": "in.graybag.spikes",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "plugins": [
+      "expo-image",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "45e9b0be-c8e4-45a2-8aef-d12cb666c4e3"
+      }
+    },
+    "owner": "anuragdial"
+  }
+}

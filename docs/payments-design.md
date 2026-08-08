@@ -194,8 +194,23 @@ on iOS.
 In an Expo project the manifest is generated, so this needs an **Expo config plugin** adding
 either the `<queries><intent><action android:name="android.intent.action.VIEW"/><data
 android:scheme="upi"/></intent></queries>` form or the explicit package list the Razorpay SDK
-documents. `E06-29`. **[verify in E19-01]** — which form the SDK actually requires, and whether
-its own manifest already merges one in.
+documents. `E06-29`.
+
+> **Partial answer, 2026-08-08 (`E19-01` setup, static analysis — not yet device-confirmed).**
+> The assumption above is right about the RN wrapper and wrong about the SDK beneath it.
+> `react-native-razorpay@3.0.0`'s manifest declares only `CheckoutActivity` and no `<queries>`
+> — but it depends on `com.razorpay:checkout`, which depends transitively on
+> `com.razorpay:standard-core`, **whose AAR manifest does declare a `<queries>` block**
+> containing `scheme="upi" host="pay"`. Manifest merging should pull that into the app, so the
+> chooser may already work with nothing added.
+>
+> **This makes it worse, not better.** `checkout` declares that dependency at version `LATEST`,
+> so the block we would be relying on is unpinned and can change between builds with no change
+> on our side. `E06-29` should therefore become an **assertion on the merged manifest**
+> (`E06-30`) plus a **version pin** (`E19-08`), not just a config plugin. The plugin is written
+> and verified regardless, at `tools/spike-mobile/plugins/withUpiQueries.js`, and the spike ships
+> with it **off** so the device can tell us which of the two situations we are in.
+> See `docs/spike-runbook.md` §1.2–1.3.
 
 On iOS, intent is app-switch by URL scheme, which needs the PSP schemes in
 `LSApplicationQueriesSchemes`. iOS UPI usage in this audience is a small fraction of Android's;
