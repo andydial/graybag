@@ -146,10 +146,27 @@ const RULESET = {
         // "strict" = the branch must be up to date with the base before merging, so
         // the check that passed is the check for the tree that actually lands.
         strict_required_status_checks_policy: true,
-        // Matches the `name:` of the job in .github/workflows/ci.yml. If that job is
-        // renamed, rename it here in the same commit or the gate silently waits for
-        // a check that will never report.
-        required_status_checks: [{ context: 'Smoke test' }],
+        // Each context matches the `name:` of a job. If a job is renamed, rename it
+        // here in the same commit or the gate silently waits for a check that will
+        // never report.
+        //
+        //   Smoke test                              -> .github/workflows/ci.yml
+        //   Migrations, seed and authorization suite -> .github/workflows/integration.yml
+        //
+        // The integration job was added to this list on 2026-08-08. It had been
+        // advisory, and on that day a PR merged with it RED — the authorization suite
+        // was reporting `Tests: 0` and nothing stopped the merge. Non-negotiable #2
+        // says that must be impossible, and a check nobody has to satisfy is not a
+        // control (same reasoning as BP1).
+        //
+        // That job MUST NOT carry a `paths:` filter while it is required: a required
+        // check that does not run leaves the PR waiting for a status forever. The
+        // filter therefore lives inside the job, which always reports. See the trigger
+        // note at the top of integration.yml.
+        required_status_checks: [
+          { context: 'Smoke test' },
+          { context: 'Migrations, seed and authorization suite' },
+        ],
       },
     },
   ],
@@ -157,7 +174,8 @@ const RULESET = {
 
 console.log('\nbranch protection (default branch)');
 console.log('  pull request required, 0 approvals (solo developer — see the script)');
-console.log('  required check   : Smoke test');
+console.log('  required checks  : Smoke test');
+console.log('                     Migrations, seed and authorization suite');
 console.log('  force-push       : blocked');
 console.log('  deletion         : blocked');
 console.log('  admin bypass     : none');
