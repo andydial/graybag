@@ -673,11 +673,25 @@ select is_empty($$ select t.tbl || ':' || pv.priv from tests_tmp.tests_class3 t
                    where has_table_privilege('authenticated', 'public.' || quote_ident(t.tbl), pv.priv) $$,
                 '§10: authenticated holds no INSERT/UPDATE/DELETE privilege on any class-3 table');
 
-select is_empty($$ select tablename from pg_tables where schemaname = 'public'
-                    and (has_table_privilege('anon', 'public.' || quote_ident(tablename), 'SELECT')
-                      or has_table_privilege('anon', 'public.' || quote_ident(tablename), 'INSERT')
-                      or has_table_privilege('anon', 'public.' || quote_ident(tablename), 'UPDATE')
-                      or has_table_privilege('anon', 'public.' || quote_ident(tablename), 'DELETE')) $$,
+-- IDENTIFY THE TABLE BY OID, NOT BY A RECONSTRUCTED NAME. The obvious form of this
+-- query — select from pg_tables where schemaname = 'public', then call
+-- has_table_privilege('anon', 'public.' || tablename, …) — is a latent error, and it
+-- fired the first time this assertion was ever reached: `relation "public.pg_statistic"
+-- does not exist`. pg_tables spans every schema, and SQL does not promise that the
+-- schemaname filter is applied before the function call in the same WHERE clause. The
+-- planner is free to evaluate has_table_privilege() on a pg_catalog row first, and
+-- 'public.' || 'pg_statistic' resolves to nothing, which is an ERROR rather than false.
+-- It "passed" on staging only because the plan happened to differ there.
+--
+-- c.oid needs no name resolution, so there is nothing left to reorder.
+select is_empty($$ select c.relname
+                     from pg_class c
+                     join pg_namespace n on n.oid = c.relnamespace
+                    where n.nspname = 'public' and c.relkind in ('r','p')
+                      and (has_table_privilege('anon', c.oid, 'SELECT')
+                        or has_table_privilege('anon', c.oid, 'INSERT')
+                        or has_table_privilege('anon', c.oid, 'UPDATE')
+                        or has_table_privilege('anon', c.oid, 'DELETE')) $$,
                 '§10: anon holds no table privilege at all in public — the second layer under RLS');
 
 
@@ -1493,22 +1507,25 @@ select is_empty(
 -- assertions in Part 6). A class-3 table is precisely one whose writes are
 -- service_role only, so it must appear in NEITHER the revoke list NOR this allowed
 -- set; a table drifting between the two lists is exactly the mistake this catches.
+-- By OID, for the reason spelled out at the anon assertion in Part 1: a
+-- 'public.' || tablename string built from a pg_tables row that may not be in public
+-- is an error waiting for the planner to reorder the WHERE clause.
 select set_eq(
-  $$ select t.tablename from pg_tables t
-      where t.schemaname = 'public'
-        and t.tablename not in (select tbl from tests_tmp.tests_class3)
+  $$ select c.relname from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind in ('r','p')
+        and c.relname not in (select tbl from tests_tmp.tests_class3)
         and not exists (select 1 from pg_depend d
-                         where d.objid = to_regclass('public.' || quote_ident(t.tablename))
-                           and d.deptype = 'e')
-        and ( has_table_privilege('authenticated', 'public.' || quote_ident(t.tablename), 'INSERT')
-           or has_table_privilege('authenticated', 'public.' || quote_ident(t.tablename), 'UPDATE')
-           or has_table_privilege('authenticated', 'public.' || quote_ident(t.tablename), 'DELETE') ) $$,
-  $$ select t.tablename from pg_tables t
-      where t.schemaname = 'public'
-        and t.tablename not in (select tbl from tests_tmp.tests_class3)
+                         where d.objid = c.oid and d.deptype = 'e')
+        and ( has_table_privilege('authenticated', c.oid, 'INSERT')
+           or has_table_privilege('authenticated', c.oid, 'UPDATE')
+           or has_table_privilege('authenticated', c.oid, 'DELETE') ) $$,
+  $$ select c.relname from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind in ('r','p')
+        and c.relname not in (select tbl from tests_tmp.tests_class3)
         and not exists (select 1 from pg_depend d
-                         where d.objid = to_regclass('public.' || quote_ident(t.tablename))
-                           and d.deptype = 'e') $$,
+                         where d.objid = c.oid and d.deptype = 'e') $$,
   '§10 grant tripwire: authenticated holds a write privilege on EXACTLY the non-class-3 tables — a forbidden grant on any class-3 table (a direct customer-plane write that would bypass RLS) fails here the moment it appears');
 
 -- The same tripwire, stated the other way for an unambiguous failure message: no
