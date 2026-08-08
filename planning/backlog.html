@@ -1068,13 +1068,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>effective_config_public()</code></strong> (<code>docs/authorization-model.md</code> §7.6) — <code>resolve_effective_config()</code> is invoker-rights and joins three config tables no customer may read, so the moment <code>0002</code> applies it returns a <strong>null row for every customer, with no error</strong>. Cutoff time, break times and prices all resolve to nothing in the app. Extends <code>E02-10</code>; must land with it, not after</span>
       </li>
-      <li class="task" data-id="E02-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E02-21" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-21"></button>
         <code class="tid">E02-21</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>The §10 table-privilege revokes</strong> — <code>0002_rls_policies.sql</code> contains <strong>zero</strong> <code>GRANT</code>/<code>REVOKE</code> statements, so the &quot;second layer underneath RLS&quot; that <code>docs/authorization-model.md</code> §10 specifies does not exist. Low live exposure today (RLS with no write policy already denies writes) but it is a specified control with no implementation. Ride it with <code>E02-18</code></span>
+        <span class="ttext"><strong>The §10 table-privilege revokes</strong> — *(premise corrected 2026-08-08: <code>0002</code> does contain the revokes; they are inside <code>do $$ … $$</code> blocks and <code>execute format(...)</code>, which a grep for a leading <code>grant</code>/<code>revoke</code> misses. What was genuinely absent was the <strong>GRANT</strong> those revokes subtract from — closed by <code>0005</code>, see <code>docs/decisions.md</code> PB1–PB5.)* The original wording said <code>0002_rls_policies.sql</code> contains <strong>zero</strong> <code>GRANT</code>/<code>REVOKE</code> statements, so the &quot;second layer underneath RLS&quot; that <code>docs/authorization-model.md</code> §10 specifies does not exist. Low live exposure today (RLS with no write policy already denies writes) but it is a specified control with no implementation. Ride it with <code>E02-18</code></span>
       </li>
       <li class="task" data-id="E02-22" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-22"></button>
@@ -1092,7 +1092,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The <code>[AZ-02]</code> tripwire test</strong> — fail the authorization suite the moment a grant of <code>orders.view</code> <strong>without</strong> <code>orders.view_pii</code> is issued. <code>orders.view_pii</code> is not enforceable by RLS (RLS filters rows, not columns), and the model is safe today only because every role template holds both. Named in <code>docs/authorization-model.md</code> §14, in <code>[AZ-02]</code>&#39;s own recommendation and in <code>docs/dpdp-compliance.md</code> §5.1, and owned by nobody. This is what makes <code>[AZ-02]</code>&#39;s deadline enforce itself before <code>E20-09</code>&#39;s analyst role exists</span>
       </li>
-      <li class="task" data-id="E02-24" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-24" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-24"></button>
         <code class="tid">E02-24</code>
         <span class="badge r-high">high</span>
@@ -1100,7 +1100,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>The authorization suite and <code>seed.sql</code> collide on the same UUIDs, so <code>npm run test:db</code> fails from a clean database.</strong> <code>supabase/seed.sql:229</code> inserts <code>auth.users</code> <code>a0000000-0000-0000-0000-000000000001</code>; <code>supabase/tests/authorization.test.sql:147</code> inserts the *same* id as its own fixture, so <code>db reset &amp;&amp; supabase test db</code> dies on <code>duplicate key value violates unique constraint &quot;users_pkey&quot;</code> before a single assertion runs — <code>Tests: 0</code>, not one failure but the whole suite skipped. Found by the first CI run that ever executed it (PR #1, <code>integration.yml</code>). It passed locally in <code>E02-18</code> only because the local database still held an older seed; a fresh one always fails. Non-negotiable #2 says this suite must fail loudly when a policy changes — right now it does not run at all. Fix by moving the test fixtures to a UUID range <code>seed.sql</code> cannot use, and add a guard asserting the ranges stay disjoint so the next fixture cannot silently re-collide</span>
       </li>
-      <li class="task" data-id="E02-25" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E02-25" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-25"></button>
         <code class="tid">E02-25</code>
         <span class="badge r-critical">critical</span>
