@@ -23,8 +23,10 @@ could not be read at all.
 
 ## ⚠ The source file is missing
 
-`Legacy-Application/.../GrayBag_School_Menu 1 1.xlsx` **is not in this repository.** The
-only thing under `Legacy-Application/Legacy-DB/` is `gray-bag-23660.bubble`, which is the
+`.../GrayBag_School_Menu 1 1.xlsx` **is not in this repository, and never was.** The
+legacy design package itself also lives outside git now, at
+`../Legacy-Application-backup/` (see `docs/decisions.md`). The only thing under its
+`Legacy-DB/` is `gray-bag-23660.bubble`, which is the
 Bubble *application definition* — it contains the page and workflow structure, not the dish
 rows. `grep`ing it for allergen data returns only the terms-and-conditions text.
 

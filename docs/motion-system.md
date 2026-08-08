@@ -3,7 +3,7 @@ title: Motion system
 status: specification — no code exists yet
 produced_by: Q05
 implements: E13-04, E13-05, E13-06, E13-07
-source: Legacy-Application/Graybag_Design Package — 06_App UI
+source: ../Legacy-Application-backup/Graybag_Design Package — 06_App UI (not in this repo; see docs/decisions.md)
 companion: docs/design-tokens.md
 review: E13-09 (owner:andy) — Andy reviews this once before app UI work starts
 ---

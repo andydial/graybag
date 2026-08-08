@@ -333,3 +333,28 @@ Made in `E02-08` / `E02-09`, on the first execution of `supabase/tests/authoriza
 | AZ8 | **Fulfilment access to `recipient_allergen` is bound to `kitchen` or `school` scope, never `platform`** (`0004`, `auth_recipient_has_fulfilment_order`) | `auth_has_permission` treats a platform-scope grant as satisfying any scope check, so `platform_admin`'s `orders.view_pii` opened the kitchen fulfilment policy on every child who had ever ordered — contradicting §7.2's stated model and non-negotiable #4. Fulfilment happens at a kitchen; it never happens at the platform, so the policy now says that positively rather than inheriting scope widening |
 | AZ9 | **`auth_recipient_has_visible_order` is left unchanged and the new function sits beside it** | The old function is still correct for `recipient` itself, which is tier P (name, class, section) and where platform-admin access *is* intended. Narrowing it globally would have removed access the model deliberately grants — the fix belongs at the one policy whose data class demands it |
 | AZ10 | **The allowed scopes are enumerated positively (`school`, `kitchen`) rather than excluding `platform`** | `city` is not reachable today because `0001` restricts `orders.view_pii` to `{platform,kitchen,school}`. An exclusion list would silently admit `city` the day that restriction changes; an inclusion list fails closed |
+
+## The legacy design package is not in git — 2026-08-08
+
+`Legacy-Application/` was removed from all 66 commits with `git filter-repo` on 2026-08-08,
+before the repository had ever been pushed. Nothing was published, there were no
+collaborators and no remote history, so this was the cheapest possible moment to do it —
+every commit SHA below the root changed, which is only harmless because nobody had a clone.
+
+**The assets are not lost.** They live at `../Legacy-Application-backup/` — a sibling of this
+repository, `/Volumes/Data/AD/Projects/Claude/Code/GrayBag/Legacy-Application-backup`, 63
+files, 46 MB, copied and verified byte-for-byte before the rewrite. `Legacy-Application/` is
+now in `.gitignore`, so the directory can be copied back into the working tree whenever a
+task needs it (`planning/OVERNIGHT.md` step 3 does exactly that) without any risk of it being
+committed again.
+
+| # | Decision | Why |
+|---|---|---|
+| RH1 | **The 46 MB design package is kept outside git rather than in it** | Git stores a new full copy of every binary on every change and can diff none of it. The package is a 21.8 MB brand-guidelines PDF, `.ai` and `.pptx` sources, patterns and nine UI mocks — none of which git adds any value to holding. It inflated the packed repository from under 1 MB to 36 MB, which is a permanent tax on every clone and every CI checkout, forever, for files that change perhaps twice a year and are read by humans, not by the build |
+| RH2 | **The licensed fonts are the harder half of the reason** | Ten `VAG-Rounded-Next-*.ttf` files were committed. A git repository is a redistribution channel, and the licence has never been checked (`E13-14`, `owner:andy`, still open). Keeping the binaries in history meant the answer to "may we redistribute this typeface?" was already "we have been". Outside git, the licence question stays a question about *use*, which is the answer-able one, and the repo can go public without that being a decision nobody made |
+| RH3 | **`filter-repo` over `git rm`** | `git rm` in a new commit leaves every byte in history, so clone cost and the redistribution point both stand. Only rewriting removes them. The root commit `b5805b7` never contained the package, so its SHA survived the rewrite and the branch remained a clean fast-forward onto the unborn `origin/main` |
+| RH4 | **A verified byte-for-byte copy and a full `--all` bundle were taken first** | `filter-repo` deletes the stripped paths from the working tree as well as from history — without the copy the assets would have been gone from disk the moment it ran. `../graybag-pre-rewrite.bundle` (36 MB, `git bundle verify` clean) holds the entire pre-rewrite history including the five merged agent worktree branches, so the rewrite is reversible in full |
+
+**One caution.** `../Legacy-Application-backup/` contains `Legacy-DB/gray-bag-23660.bubble`,
+the Bubble export with live secrets. It was never committed — `*.bubble` has always been
+gitignored — and it must not be moved into this or any other repository. Non-negotiable #5.

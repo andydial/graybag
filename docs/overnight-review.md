@@ -678,7 +678,8 @@ Recorded because a review that only lists faults gives no sense of the base rate
 - **`[MI-01]` is still true.** No `.xlsx` exists anywhere in the repository, so `[DM-13]` cannot
   be closed and the twelve-code allergen seed list remains unvalidated against real data.
 - **`00_Graybag_Brand Guidelines.pdf` is present** at
-  `Legacy-Application/Graybag_Design Package/`, 21.8 MB. `DS-05`/`E13-15` records it as
+  `../Legacy-Application-backup/Graybag_Design Package/` (outside git since 2026-08-08 —
+  see `docs/decisions.md`), 21.8 MB. `DS-05`/`E13-15` records it as
   unreadable in the sandbox Q05 ran in. It may now be readable a few pages at a time; that is
   `E13-15`'s job, not this review's, but it is worth knowing the blocker may be softer than
   recorded.

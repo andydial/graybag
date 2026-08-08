@@ -3,7 +3,7 @@ title: Design tokens
 status: specification — no code exists yet
 produced_by: Q05
 specifies: E13-01 (the code is still to be written) and the contrast half of E13-08
-source: Legacy-Application/Graybag_Design Package — 02_Colour Palette, 00_Assests/Font, 05_Pattern, 06_App UI
+source: ../Legacy-Application-backup/Graybag_Design Package — 02_Colour Palette, 00_Assests/Font, 05_Pattern, 06_App UI (not in this repo; see docs/decisions.md)
 companion: docs/motion-system.md
 ---
 
