@@ -153,11 +153,26 @@ choices in it were not forced by `docs/design-tokens.md`.
 | S23 | **The test asserts each type token's brand *band*, not its size** | `E13-15` moved three sizes because they sat outside every band the brand specifies, and finding that took reading a 40-page PDF. Asserting `h3 === 20` would let a future change move it back to 18 and stay green; asserting "h3 is inside the Subheading band at its weight" cannot. The list of styles allowed to set their own weight — `label`, `button`, `overline`, `bodyStrong` — is explicit and capped at four, so "the brand says Regular" cannot be argued away one token at a time |
 | S24 | **Every semantic role is asserted to resolve to a value that exists in a ramp** | This is the test that catches a hand-typed hex in `semantic.ts`, which is exactly how a token system springs a leak: the value looks right, it is in the right file, and it belongs to nothing. Alongside it sit the `E13-17` regression guards — `neutral[500]`, `amber[700]` and `danger[600]` are each asserted never to appear as ink again, because each of them passed against white and failed on the surface the role actually lives on |
 
-Two things the module deliberately does **not** do. It contains no contrast function —
-that arrives with `E13-13`, which is the task that has a bar to assert. And it contains no
-motion tokens: those are `motion.ts` (`E13-12`), because `docs/motion-system.md` wins over
-`docs/design-tokens.md` wherever the two disagree, and one file per authority keeps that
-resolvable.
+One thing the module deliberately does **not** do: it contains no contrast function. That
+arrives with `E13-13`, which is the task that has a bar to assert.
+
+### The reduce-motion substitute is data, not a convention — `E13-12`, 2026-08-09
+
+| # | Decision | Why |
+|---|---|---|
+| S25 | **`motion.ts` exports `duration`, `ease`, `spring`, `stagger` and the reduce-motion catalogue, and nothing else** | `S1`'s closed catalogue holds only if there is no third place to put a number. `E13-11` fails the build on a literal passed to `withTiming`, a `cubic-bezier` outside this file, or a second `withSpring` — and a lint rule needs somewhere to point people instead. The web `cubic-bezier(…)` string is generated from the same array the native curve uses, because a hand-written bezier in a stylesheet is the motion equivalent of a hard-coded hex |
+| S26 | **§10's reduce-motion substitutions live in code as a table, keyed by pattern, and every one of the fourteen must have an entry** | The bug this exists to catch is invisible to every visual review, because the reviewer has reduce motion off: a component that *drops* a state change rather than substituting one. A substitute is a different animation, not the absence of one — `M02` still cross-fades, `M06` still changes the count. A pattern with no entry is a pattern nobody decided about, and the default behaviour of "no entry" is silently doing nothing. `M12` is `null` deliberately: the navigator and the OS own screen push and pop, and honouring reduce motion there is theirs. The test asserts `M12` is the **only** `null` |
+| S27 | **`resolveDuration()` returns `duration.instant` rather than skipping the animation** | A zero-duration transition still fires its completion callback. A component whose state advance hangs off that callback — and several will — silently breaks under reduce motion if the animation is skipped instead of shortened. Returning a number rather than `undefined` is the whole point, and it is asserted |
+
+The spring's numbers are asserted from physics rather than transcribed: ζ = damping /
+2√(stiffness·mass) must sit between 0.5 and 1 (below that it reads as jelly, at 1 it does
+not pop, and the cart badge exists to be noticed from across the screen), and the ~4τ
+settle must land inside the 350ms ceiling. That way a future tweak to `stiffness` fails on
+the property that matters instead of on a number somebody copied.
+
+One test bug of mine, fixed rather than accommodated: six staggered items is **five**
+steps of 30ms, not six — the first item has no delay. The spec's own "150ms" was right and
+my assertion was arithmetic.
 
 ### A timeout is only offered on a write that cannot move money — `E13-20`, 2026-08-09
 

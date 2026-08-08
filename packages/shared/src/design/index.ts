@@ -13,9 +13,12 @@
  * properties from the same modules at build time. A Figma file, if one appears, is
  * downstream of this directory, not upstream of it.
  *
- * Motion tokens are **not** here. They live in `motion.ts` (`E13-12`) and are specified
- * by `docs/motion-system.md`, which wins over `docs/design-tokens.md` wherever the two
- * disagree about a duration or an easing curve.
+ * Motion tokens sit alongside in `motion.ts` (`E13-12`) and are specified by
+ * `docs/motion-system.md`, which wins over `docs/design-tokens.md` wherever the two
+ * disagree about a duration or an easing curve. They are re-exported here for
+ * convenience but they are a separate authority, and `E13-11`'s lint rules treat them as
+ * one: a `cubic-bezier` outside `motion.ts` is a build failure, exactly as a hex outside
+ * `color.ts` is.
  *
  * The specification: `docs/design-tokens.md`. Where this code and that document
  * disagree, one of them is a bug and neither is automatically right — but the ratios in
@@ -56,3 +59,17 @@ export {
   icon,
 } from './elevation.js';
 export type { ElevationToken, ZIndexToken } from './elevation.js';
+
+export {
+  motion,
+  duration,
+  ease,
+  spring,
+  stagger,
+  reduceMotion,
+  cubicBezier,
+  resolveDuration,
+  MOTION_PATTERNS,
+  DURATION_CEILING_MS,
+} from './motion.js';
+export type { MotionPattern } from './motion.js';

@@ -1399,13 +1399,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Lint rules that keep both systems closed</strong> — fail the build on any colour literal, <code>fontSize</code>, <code>borderRadius</code> or raw spacing number outside <code>packages/shared/src/design/</code>; any numeric literal passed to <code>withTiming</code> / <code>transition-duration</code>; any <code>cubic-bezier</code> or <code>Easing.bezier</code> outside <code>motion.ts</code>; any <code>withSpring</code> outside the cart-badge module; <code>transition: all</code>; and animating any property other than <code>transform</code> / <code>opacity</code> outside the two files implementing <code>M10</code> and <code>M14</code>. Without this, both documents decay into suggestions</span>
       </li>
-      <li class="task" data-id="E13-12" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E13-12" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-12"></button>
         <code class="tid">E13-12</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><code>packages/shared/src/design/motion.ts</code> exporting <code>duration</code>, <code>ease</code> and <code>spring</code> and nothing else, plus the <strong>reduce-motion test harness</strong> — every animated component gets a test that renders with reduce-motion on and asserts the §10 substitute, not merely that &quot;nothing animates&quot;. A component that silently drops a state change under reduce motion is an accessibility bug no visual review catches</span>
+        <span class="ttext"><code>packages/shared/src/design/motion.ts</code> exporting <code>duration</code>, <code>ease</code> and <code>spring</code> and nothing else, plus the <strong>reduce-motion test harness</strong> — every animated component gets a test that renders with reduce-motion on and asserts the §10 substitute, not merely that &quot;nothing animates&quot;. A component that silently drops a state change under reduce motion is an accessibility bug no visual review catches. <strong>Done 2026-08-09</strong> — <code>packages/shared/src/design/motion.ts</code>, 24 assertions. §10&#39;s substitutions are a table keyed by pattern with an entry required for all fourteen; <code>M12</code> is <code>null</code> because the navigator owns it, and the test asserts it is the only one. <code>resolveDuration()</code> returns <code>instant</code> rather than skipping, so completion callbacks still fire. The spring is asserted from physics (ζ between 0.5 and 1, ~4τ settle inside the ceiling) rather than transcribed. <code>S25</code>–<code>S27</code></span>
       </li>
       <li class="task" data-id="E13-13" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-13"></button>
