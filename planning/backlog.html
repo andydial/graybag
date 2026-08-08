@@ -545,7 +545,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>VAG Rounded Next licence check</strong> — confirm the licence permits app embedding and webfont use. If not, the entire design system needs a different typeface before <code>E13-01</code></span>
       </li>
-      <li class="task" data-id="E19-04" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E19-04" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-04"></button>
         <code class="tid">E19-04</code>
         <span class="badge r-high">high</span>
@@ -1119,13 +1119,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/17</span>
+          <span class="meter-num">0/19</span>
         </div>
       </header>
       <p class="summary">Google / Apple / email-OTP sign-in for app users (phone OTP deferred to a fast-follow), email for back-office. No password migration is possible from Bubble. See decision U1 (revised).</p>
       <p class="deps">Depends on <code>E01</code> <code>E02</code> <code>E00</code></p>
       <details>
-        <summary>Context &amp; 17 tasks</summary>
+        <summary>Context &amp; 19 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Per decision <strong>U1</strong> (revised), v1 auth is Google Sign-In (primary), Sign in with Apple (iOS, required once Google is offered), and email OTP via Supabase <code>signInWithOtp</code> — no phone OTP and no passwords. Phone OTP + DLT SMS (see E00) become a fast-follow *addition*; DLT registration leaves the launch critical path but continues for future order-update SMS. Bubble does not export password hashes, so every existing user re-authenticates once regardless; migration now matches on <strong>email</strong> (<code>E03-16</code>), not the lossy legacy phone <code>number</code> field.</p></div>
         <ul class="tasks">
@@ -1264,6 +1264,22 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Collect mobile number as a profile field (kitchen contact, last-4 search) — not a login credential</span>
+      </li>
+      <li class="task" data-id="E03-18" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-18"></button>
+        <code class="tid">E03-18</code>
+        <span class="badge r-high">high</span>
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">Decide the <strong>support policy for the ~15 people who appear to hold two accounts</strong> under different spellings of the same school domain (<code>ais.amity.edu</code> vs <code>ais.amity.edu.in</code> vs <code>aismohali.amity.edu</code>) — found by <code>E19-04</code>. As email strings they are distinct and will migrate to distinct accounts, which is correct; but each of those parents will see their children and order history split across two logins. This is a support-model decision, not a data fix: <strong>do not merge them automatically</strong> — <code>ais.amity.edu</code> and <code>ais.amity.edu.in</code> may be genuinely separate mailboxes, and a wrong merge shows one parent another family&#39;s child</span>
+      </li>
+      <li class="task" data-id="E03-19" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-19"></button>
+        <code class="tid">E03-19</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Produce the two-account list for <code>E03-18</code> as a support artefact and build the merge-on-request path (user confirms, then histories combine) rather than a bulk merge at cutover</span>
       </li></ul>
       </details>
     </article>
@@ -3009,23 +3025,96 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/19</span>
+          <span class="meter-num">0/40</span>
         </div>
       </header>
       <p class="summary">Move ~400 users, dependents and full order history off Bubble. Rehearsed at least twice before the real thing.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E04</code> <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 19 tasks</summary>
+        <summary>Context &amp; 40 tasks</summary>
         <div class="context"><h4>Known constraints</h4>
+<p>Verified against the real export on 2026-08-08 (<code>E19-04</code>). Full evidence in</p>
+<p><strong><code>docs/bubble-recon-findings.md</code></strong> — read it before writing <code>E16-01</code>. Several constraints below</p>
+<p>were written from the schema and turned out to be wrong; those are struck rather than deleted.</p>
 <ul>
-<li>Bubble <strong>cannot export password hashes</strong>. Every user re-authenticates once — mitigated by phone-OTP login matched on mobile number.</li>
-<li>Bubble CDN image URLs die on migration; images must be re-hosted.</li>
-<li>Legacy role values must be mapped on <strong>db_value</strong>, not label: <code>parent</code>, <code>admin</code>, <code>kitchen</code>, <code>collegestudent</code>, <code>staff</code> (= school admin), <code>teacher</code> (= school staff).</li>
-<li>Legacy has two parallel parent-child links (<code>Child.Parent</code> list and <code>Guardian_Link</code>) that must be reconciled into one.</li>
-<li>Order status values map from <code>new / received / accepted / delivered / cancelled / refunded</code>.</li>
-<li><strong>Break-Start-Times db values contradict their labels</strong> in the legacy option set (<code>10__00_am</code> renders as &quot;10:40AM - 11:15AM&quot;). Migrating on db_value silently puts orders in the wrong break — this needs a hand-verified lookup table.</li>
-<li>Legacy <code>mobile</code> is a <strong>number</strong> field, so leading zeros and country codes are already lost. Normalisation and de-duplication must happen before any account can be claimed by OTP.</li>
-</ul></div>
+<li>Bubble <strong>cannot export password hashes</strong>. Every user re-authenticates once — matched on <strong>email</strong></li>
+</ul>
+<p>  (<code>E03-16</code>), not phone.</p>
+<ul>
+<li>Bubble CDN image URLs die on migration; images must be re-hosted. <strong>Confirmed:</strong> all 85 dish</li>
+</ul>
+<p>  photos are protocol-relative <code>cdn.bubble.io</code> URLs; <strong>82 resolve, 3 return a permanent 403</strong></p>
+<p>  (~2.0 MB total). Mirror them now, not at cutover.</p>
+<ul>
+<li>~~Legacy role values must be mapped on <strong>db_value</strong>, not label~~ — **the CSV export emits labels,</li>
+</ul>
+<p>  not db values**, so db_value mapping is not possible from an export. Live labels are <code>Parent</code></p>
+<p>  (362), <code>School Staff</code> (37), <code>KitchenStaff</code> (4), <code>SuperAdmin</code> (1). <code>School Staff</code> is ambiguous</p>
+<p>  between the <code>staff</code> (= school admin) and <code>teacher</code> (= school staff) db values and must be</p>
+<p>  disambiguated before <code>E16-02</code> — see <code>E16-20</code>.</p>
+<ul>
+<li>~~Legacy has two parallel parent-child links (<code>Child.Parent</code> list and <code>Guardian_Link</code>) that must be</li>
+</ul>
+<p>  reconciled into one.~~ — **<code>Guardian_Link</code> was never used and is not in the export at all.</p>
+<p>  <code>Child.Parent</code> is the sole mechanism**, so there is nothing to reconcile (<code>E16-03</code> closed).</p>
+<ul>
+<li><strong><code>Child.Parent</code> did not survive the CSV export</strong> — empty on all 1,115 rows, and the</li>
+</ul>
+<p>  <code>parent-email</code> fallback is filled on 2. The only residue is <code>User.child</code>, which exports as</p>
+<p>  comma-joined <strong>display names</strong>, 48 of 376 of which are ambiguous. **Only 369 of 1,115 children</p>
+<p>  (33%) have any recoverable parent.** The relationship must be re-extracted from Bubble via the</p>
+<p>  Data API or a flattened text field (<code>E16-21</code>) — it must not be reconstructed by name matching.</p>
+<ul>
+<li>~~Order status values map from <code>new / received / accepted / delivered / cancelled / refunded</code>.~~</li>
+</ul>
+<p>  — <strong>only three values are in live use, and the export shows labels:</strong> <code>Paid</code> 281, <code>Draft</code> 78,</p>
+<p>  <code>Cancelled</code> 2. Nothing ever reached a fulfilment state; legacy tracked payment, not delivery.</p>
+<ul>
+<li><strong>The 78 <code>Draft</code> orders are abandoned carts, not orders</strong> — none has a payment id, 45 have no</li>
+</ul>
+<p>  order date and no break. Do not migrate them in any status (<code>E16-19</code>, <code>E16-36</code>).</p>
+<ul>
+<li>~~<strong>Break-Start-Times db values contradict their labels</strong>~~ — the contradiction is real in the</li>
+</ul>
+<p>  option set but <strong>cannot bite an export, which emits the label</strong>. The two live labels are</p>
+<p>  self-consistent with the two <code>Break-Timings</code> rows. Migrate on the <strong>label string</strong>; <code>E16-15</code></p>
+<p>  shrinks to asserting that. Break windows are effectively kitchen-wide, not per-school.</p>
+<ul>
+<li>~~Legacy <code>mobile</code> is a <strong>number</strong> field, so leading zeros and country codes are already lost.~~ —</li>
+</ul>
+<p>  <strong>the field is empty for all 404 users.</strong> There are no phone numbers to normalise, de-duplicate</p>
+<p>  or contact on. <code>E16-14</code> and <code>E16-12</code> are struck; the new system starts with zero phone numbers</p>
+<p>  and acquires them via <code>E03-17</code>.</p>
+<ul>
+<li><strong>Email is clean and is a sound migration key</strong>: 404/404 present, 404 distinct, 404 valid, zero</li>
+</ul>
+<p>  duplicates, zero placeholders. Every order&#39;s <code>order-parent</code> resolves to a user. The risks are</p>
+<p>  <strong>deliverability</strong> (12 accounts on mistyped domains cannot receive an OTP) and ~15 people holding</p>
+<p>  two accounts under different spellings of the same school domain — neither is a collision.</p>
+<ul>
+<li><strong>Money is rupee decimals and confirms GST-exclusive pricing</strong>: <code>order-total ÷ Σ line_total</code> is</li>
+</ul>
+<p>  exactly <strong>1.05</strong> on 280 of 282 non-draft orders. Every total converts to whole paise with no</p>
+<p>  float artefact. <code>Dish-In-Order.unit_price</code> is empty but recoverable as <code>line_total ÷ quantity</code></p>
+<p>  (matches a menu price on 894 of 896 lines).</p>
+<ul>
+<li><strong><code>Order.all-dishes-in-order</code> survived intact</strong> as <code> , </code>-joined Bubble ids — 636 references, zero</li>
+</ul>
+<p>  dangling, zero truncation, and it is the *only* order→line edge (every reverse pointer on</p>
+<p>  <code>Dish-In-Order</code> is empty).</p>
+<ul>
+<li><strong>Dishes are referenced by name, and 6 of 79 names are duplicated</strong> — 138 of 911 line items are</li>
+</ul>
+<p>  ambiguous. Four collisions resolve by <code>(name, menu, price)</code>; two are genuinely identical.</p>
+<ul>
+<li><strong>The <code>Menu</code>, <code>Guardian_Link</code> and <code>Temp</code> tables were not exported.</strong> Menus exist only as name</li>
+</ul>
+<p>  strings; both must be recreated by hand.</p>
+<ul>
+<li><strong><code>Child.allergies</code> is empty on all 1,115 rows</strong> — there is no allergy history to migrate. But</li>
+</ul>
+<p>  <code>Dish-In-Order.special-comments</code> (127 rows, 15 with dietary language) *is* health-adjacent data</p>
+<p>  about a named child and must be treated as regulated (<code>E16-24</code>).</p></div>
         <ul class="tasks">
       <li class="task" data-id="E16-01" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-01"></button>
@@ -3043,13 +3132,13 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Role mapping: legacy enum -&gt; Customer + back-office grants</span>
       </li>
-      <li class="task" data-id="E16-03" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E16-03" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-03"></button>
         <code class="tid">E16-03</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Reconcile the two parent-child link mechanisms into a single relationship; report conflicts rather than guessing</span>
+        <span class="ttext">~~Reconcile the two parent-child link mechanisms into a single relationship; report conflicts rather than guessing~~ — <strong>closed 2026-08-08 with nothing to reconcile.</strong> <code>Guardian_Link</code> was never used and does not appear in the export at all; <code>Child.Parent</code> is the sole parent↔child mechanism (confirmed by Andy, corroborated by <code>E19-04</code>). The task&#39;s premise was wrong, not its work. The *real* problem is that <code>Child.Parent</code> did not survive the export — that is <code>E16-21</code>, not this</span>
       </li>
       <li class="task" data-id="E16-04" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-04"></button>
@@ -3121,7 +3210,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Users without a usable mobile number — identify early and contact them before cutover</span>
+        <span class="ttext">~~Users without a usable mobile number — identify early and contact them before cutover~~ — <strong>superseded by <code>E16-23</code></strong>: the export has no mobile numbers at all, so this would name all 404 users. The list worth producing is the 12 accounts on an <strong>undeliverable email domain</strong>, who cannot claim their account by OTP. Kept for history</span>
       </li>
       <li class="task" data-id="E16-13" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-13"></button>
@@ -3137,7 +3226,7 @@
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Normalise all mobile numbers to <strong>E.164</strong>; produce a report of duplicates, unparseable and missing numbers before cutover</span>
+        <span class="ttext">~~Normalise all mobile numbers to <strong>E.164</strong>; produce a report of duplicates, unparseable and missing numbers before cutover~~ — <strong>struck 2026-08-08 (<code>E19-04</code>): <code>User.mobile</code> is empty on all 404 rows.</strong> There is no input. Phone numbers enter the new system only via <code>E03-17</code>, post-login. Kept for history; do not build this</span>
       </li>
       <li class="task" data-id="E16-15" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-15"></button>
@@ -3145,7 +3234,7 @@
         <span class="badge r-high">high</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Hand-verified lookup table mapping legacy break-time option values to real times (the legacy values are wrong — see constraints above)</span>
+        <span class="ttext">Hand-verified lookup table mapping legacy break-time values to real times — <strong>reduced in scope by <code>E19-04</code></strong>: the export emits <strong>labels</strong>, not the contradictory db values, and the two live labels agree with the two <code>Break-Timings</code> rows. The table is those two rows; the work is asserting the migration joins on the label and never on a db value</span>
       </li>
       <li class="task" data-id="E16-16" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-16"></button>
@@ -3178,6 +3267,174 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The migration status map must target only statuses reachable by the <code>system</code> backfill actor — never <code>draft</code>.</strong> <code>docs/cutover-runbook.md</code> §5.D.5 previously mapped legacy <code>new→draft</code>; <code>draft</code> is unreachable in v1 (<code>order-lifecycle.md</code> §3.2, invariant I12) and the §4.4 trigger only allows <code>NULL→draft</code> for an admin with <code>orders.create_on_behalf</code>, so a system backfill row is rejected at insert or trips I12 on the first nightly run. The runbook spec is now corrected; the migration code must implement the legal mapping (paid/cancelled/pending_payment) and assert no draft rows are produced (review finding #9)</span>
+      </li>
+      <li class="task" data-id="E16-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-20"></button>
+        <code class="tid">E16-20</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Disambiguate the legacy <code>School Staff</code> role label before <code>E16-02</code> — the CSV export emits labels, not db values, so <code>School Staff</code> (37 users) could be either <code>staff</code> (= school admin) or <code>teacher</code> (= school staff), which are different grant sets. Resolve from the Bubble editor&#39;s option set or from what those 37 accounts can actually do, and write the label→db_value→grant table down. Do not guess</span>
+      </li>
+      <li class="task" data-id="E16-21" data-seed="0" data-risk="critical" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-21"></button>
+        <code class="tid">E16-21</code>
+        <span class="badge r-critical">critical</span>
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Re-extract <code>Child.Parent</code> from Bubble with real ids</strong> — the CSV export drops list-of-thing fields, so the sole parent↔child link is absent (0/1,115) and only 33% of children have any recoverable parent. Either pull <code>Child</code> via the Bubble Data API (which returns list fields as id arrays) or add a Bubble-side text field flattening <code>Child.Parent</code> to comma-joined parent <strong>emails</strong> and re-export. Both need the Bubble editor. Without this the relationship cannot be migrated safely</span>
+      </li>
+      <li class="task" data-id="E16-22" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-22"></button>
+        <code class="tid">E16-22</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Prepare the <code>E16-21</code> extraction so it is a single click for Andy: write the Data API request (or the exact Bubble field expression and export steps), plus the parser and the assertion that every returned parent id resolves to a user. Hand it over ready to run</span>
+      </li>
+      <li class="task" data-id="E16-23" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-23"></button>
+        <code class="tid">E16-23</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Produce the <strong>undeliverable-email contact list</strong> — the 12 accounts on a mistyped domain (<code>ais.amity.eduh</code>, <code>gmail.coma</code>, and 10 similar) cannot receive an email OTP and so cannot claim their account. Two have order history. This replaces the phone-based list <code>E16-12</code> was going to produce</span>
+      </li>
+      <li class="task" data-id="E16-24" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-24"></button>
+        <code class="tid">E16-24</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Classify <code>Dish_In_Order.special-comments</code> as <strong>regulated data under non-negotiable #4</strong> — 127 rows of free text about a named child, 15 of them containing dietary or allergy language. Add it to the no-log / no-Sentry / excluded-from-school-reports lists in <code>docs/dpdp-compliance.md</code>, which do not currently name it</span>
+      </li>
+      <li class="task" data-id="E16-25" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-25"></button>
+        <code class="tid">E16-25</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Dish identity resolution: line items and menu items reference dishes by <strong>name</strong>, and 6 of 79 names are duplicated, leaving 138 of 911 lines ambiguous. Resolve on <code>(name, menu, implied unit price)</code>; for the two collisions that are genuinely identical, pick the lowest Bubble id deterministically and record that choice</span>
+      </li>
+      <li class="task" data-id="E16-26" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-26"></button>
+        <code class="tid">E16-26</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Reconstruct <code>unit_price</code> as <code>line_total ÷ quantity</code> (<code>Dish_In_Order.unit_price</code> is empty on all 911 rows), assert it matches a menu price, and report the exceptions — 894 of 896 matched in the dry run</span>
+      </li>
+      <li class="task" data-id="E16-27" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-27"></button>
+        <code class="tid">E16-27</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Repair or re-author the double-encoded UTF-8 in the dish catalogue (42 of 85 descriptions, 25 of 85 calorie counts, 3 special-comments). Re-authoring is preferable since the menu copy is being rewritten anyway. Either way, assert no <code>Ã</code>, <code>Â</code> or <code>â€</code> sequence survives into the new database</span>
+      </li>
+      <li class="task" data-id="E16-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-28"></button>
+        <code class="tid">E16-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Mirror the 82 dish images that still resolve (~2.0 MB) into Supabase Storage <strong>now, not at cutover</strong> — the Bubble CDN dies with the app. URLs are protocol-relative and need <code>https:</code> prefixing; 79 of 85 contain <code>%20</code>-encoded spaces</span>
+      </li>
+      <li class="task" data-id="E16-29" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-29"></button>
+        <code class="tid">E16-29</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">Decide what happens to the <strong>3 dish photos that return a permanent 403</strong> and cannot be sourced from Bubble — Aloo Chana Chaat, Tomato/Cucumber Cheese Sandwich, Brown Wheat Pasta with Mushroom and Pesto. New photography, or ship them with a category placeholder</span>
+      </li>
+      <li class="task" data-id="E16-30" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-30"></button>
+        <code class="tid">E16-30</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Normalise <code>Child.class</code> to a canonical enum via a hand-built alias map (114 of 1,115 children sit outside <code>Nursery</code>/<code>LKG</code>/<code>UKG</code>/<code>I</code>–<code>XII</code>, with variants like <code>4th</code>, <code>Grade-2</code>, <code>Kg1</code>, <code>Nursary</code>). Keep <code>section</code> as <strong>free text</strong> with trimming and casing only — the house names (<code>Gems</code>, <code>Pearls</code>, <code>Lotus</code>) and streams (<code>Commerce</code>, <code>Arts</code>, <code>Medical</code>) among its 25 values are real, so it must not be enumerated</span>
+      </li>
+      <li class="task" data-id="E16-31" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-31"></button>
+        <code class="tid">E16-31</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Derive all order date parts from <code>order_date</code> and discard Bubble&#39;s denormalised <code>order_month</code> / <code>order_week</code> / <code>order_year</code> — they disagree with <code>order_date</code> on 5 orders, and <code>order_ymd</code> is empty on all 361</span>
+      </li>
+      <li class="task" data-id="E16-32" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-32"></button>
+        <code class="tid">E16-32</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Coerce Bubble&#39;s <strong>blank-means-false</strong> boolean convention explicitly at the migration boundary — <code>Menu_Item.is_active</code> is blank on 36 of 84 rows, <code>User.disabled</code> on 6 of 404, <code>School.isCollege</code> on all 4. A nullable boolean here produces menu items that are neither active nor inactive</span>
+      </li>
+      <li class="task" data-id="E16-33" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-33"></button>
+        <code class="tid">E16-33</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Payment reconciliation exceptions for <code>E16-08</code>: 2 <code>Paid</code> orders whose totals cannot be rebuilt from their lines (₹120.45 against ₹109, ₹151.40 against ₹139), and 1 <code>Paid</code> order with no payment id at all (manually marked paid in the Bubble editor, so unreconcilable against Razorpay). Surface all three rather than forcing a formula</span>
+      </li>
+      <li class="task" data-id="E16-34" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-34"></button>
+        <code class="tid">E16-34</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">Decide the treatment of the <strong>1 <code>Cancelled</code> order that carries a payment id</strong> — money was taken and the order cancelled, and legacy had no <code>refunded</code> status to express what happened next. Confirm whether a refund was issued outside the system; if not, it is an opening ledger credit under <code>E16-16</code></span>
+      </li>
+      <li class="task" data-id="E16-35" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-35"></button>
+        <code class="tid">E16-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Recreate the two menus by hand — the <code>Menu</code> table was not exported at all, so menus survive only as the name strings <code>Sky Bites - Amity</code> and <code>School Menu - May 2026</code> on <code>Menu_Item</code>, <code>School_Menu</code> and <code>Kitchen.default_menu</code></span>
+      </li>
+      <li class="task" data-id="E16-36" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-36"></button>
+        <code class="tid">E16-36</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Exclude the <strong>78 <code>Draft</code> orders and 275 orphan <code>Dish_In_Order</code> rows</strong> from the migration, with the dropped counts and notional values (₹14,558 and ₹30,612) reported rather than silently discarded. Drafts are abandoned carts — none has a payment id — and migrating them as <code>pending_payment</code> would manufacture 78 fake open orders that the nightly sweeper immediately expires</span>
+      </li>
+      <li class="task" data-id="E16-37" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-37"></button>
+        <code class="tid">E16-37</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">Decide what to do with the <strong>746 roster children who have no recoverable parent</strong> — bulk-imported by the school on 2025-09-21, each with a unique <code>school-code</code>, none linked to an account. Migrate them as unlinked records for parents to claim in-app, or leave them behind and re-import from a fresh school roster</span>
+      </li>
+      <li class="task" data-id="E16-38" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-38"></button>
+        <code class="tid">E16-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Confirm the new order model accepts a <strong>self-recipient order</strong> before <code>E16-04</code> runs — 13 legacy orders have <code>recipient_type = Staff</code> and no child, i.e. the ordering adult is the recipient</span>
+      </li>
+      <li class="task" data-id="E16-39" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-39"></button>
+        <code class="tid">E16-39</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">Tell the kitchen that <strong>no allergy data is migrating</strong> — <code>Child.allergies</code> is empty on all 1,115 legacy rows, so every allergy record in the new system starts blank. They may believe they hold this data</span>
+      </li>
+      <li class="task" data-id="E16-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-40"></button>
+        <code class="tid">E16-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Validation-set caveat for <code>E16-08</code>: Amity International School is 95% of children, 95% of orders and 77% of users. Multi-school behaviour is close to untested in production data, so per-school logic needs synthetic coverage rather than migrated-data coverage</span>
       </li></ul>
       </details>
     </article>

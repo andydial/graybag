@@ -381,3 +381,26 @@ removes the platform's own grant, because Postgres does not record who granted w
 state is therefore not the pre-`0005` state; it is an app returning permission denied for every
 read, and a backend that cannot write. `0001` and `0002`'s revokes are deliberately not undone:
 rolling back a baseline must never re-open a class-3 write.
+
+## What the real Bubble export changed — 2026-08-08
+
+`E19-04`, the export dry run. Full evidence in `docs/bubble-recon-findings.md`; the export folder
+itself is deleted after review and was never copied into the repo. Six of `E16`'s known constraints
+were written from the schema and turned out to be wrong about the data. These are the choices made
+in response, and the reasoning that must not be re-litigated silently.
+
+| # | Decision | Why |
+|---|---|---|
+| BR1 | **Email is the sole migration key, and that is now settled rather than preferred** | `User.mobile` is empty on all 404 rows — not lossy, absent. `U1`/`E03-16` had already chosen email because the legacy `number` field was an account-takeover vector; the export removes the fallback entirely, so there is no longer a decision to revisit under pressure at cutover. Email itself is sound: 404/404 present, 404 distinct, 404 valid, zero duplicates, zero placeholders |
+| BR2 | **The parent↔child relationship is re-extracted from Bubble, never reconstructed by name matching** | The CSV export drops list-of-thing fields, so `Child.Parent` is empty on all 1,115 rows and `User.child` survives only as comma-joined *display names* — 48 of 376 references ambiguous, 33% of children reachable at all. Name matching at a 12.8% ambiguity rate, on data about minors, fails in exactly the direction non-negotiable #2 exists to prevent: showing one parent another family's child. A 90%-correct link is worse than no link, because no link is visible and a wrong link is not. `E16-21` gets the ids out properly instead |
+| BR3 | **The 78 `Draft` orders are not migrated in any status** | They are abandoned carts: none has a payment id, 45 have no order date and no break. `E16-19` already forbids producing `draft` rows (unreachable for the `system` actor, trips I12). The tempting alternative — `pending_payment` — would manufacture 78 fake open orders that the nightly sweeper expires on day one, turning a data-quality artefact into user-visible noise and a false ₹14,558 in the funnel |
+| BR4 | **Migrate on the option *label*, not the db_value — the opposite of what `E16` said** | The constraint "map on db_value, not label" was correct about Bubble's internals and useless in practice: **the CSV export emits labels only**. This inverts two constraints at once. For breaks it is good news — the labels are self-consistent with the `Break-Timings` rows, so the `10__00_am`-renders-as-"10:40AM" contradiction cannot reach us and `E16-15` shrinks to an assertion. For roles it is bad news — `School Staff` is ambiguous between the `staff` and `teacher` db values, which carry different grants, so `E16-20` must resolve it from the editor before `E16-02` |
+| BR5 | **Accounts on mistyped domains migrate as-is and are contacted, not corrected** | 12 users sit on domains like `ais.amity.eduh` and `gmail.coma`. Auto-correcting to the obvious intended domain would silently reassign an account — including two with order history — to an address its owner never entered, which is an account-takeover by typo-fix. They migrate unchanged and become the pre-cutover contact list (`E16-23`), replacing the phone-based list `E16-12` was going to produce |
+| BR6 | **Dish images are mirrored now, not at cutover** | 82 of 85 resolve today and die with the Bubble app; the whole set is ~2.0 MB. Carrying a live external dependency into the cutover window buys nothing and can only get worse. The 3 that already return a permanent 403 are a content decision (`E16-29`), not a migration failure |
+| BR7 | **`Dish_In_Order.special-comments` is reclassified as regulated data** | 127 rows of free text attached to a named child, 15 containing dietary or allergy language. Nobody classified it, because the field the DPDP work guards — `Child.allergies` — turned out to be empty on all 1,115 rows. The sensitive data was in the field nobody was watching. Non-negotiable #4 applies to it (`E16-24`) |
+
+**One thing the data confirmed rather than changed.** `order-total ÷ Σ line_total` is exactly
+**1.05** on 280 of 282 non-draft orders. The `docs/mvp-scope.md` fact that menu prices are
+GST-exclusive and 5% is added at checkout is not just Andy's recollection — it is measurable to the
+paise in fourteen months of production orders. Every total also converts to whole paise with no
+float artefact, so non-negotiable #3 costs nothing here.
