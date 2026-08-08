@@ -889,13 +889,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/23</span>
+          <span class="meter-num">0/24</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 23 tasks</summary>
+        <summary>Context &amp; 24 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -964,7 +964,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Permission model: <code>grant(user, permission, scope_type, scope_id)</code>. Discrete permissions include <code>orders.view</code>, <code>orders.mark_delivered</code>, <code>orders.refund</code>, <code>orders.view_financials</code>, <code>menu.edit</code>, <code>school.onboard</code>, <code>reports.view</code></span>
       </li>
-      <li class="task" data-id="E02-08" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-08" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-08"></button>
         <code class="tid">E02-08</code>
         <span class="badge r-critical">critical</span>
@@ -972,7 +972,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Row Level Security policies on every table; <strong>default deny</strong></span>
       </li>
-      <li class="task" data-id="E02-09" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-09" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-09"></button>
         <code class="tid">E02-09</code>
         <span class="badge r-critical">critical</span>
@@ -980,7 +980,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Authorization test suite — for each table, assert every role can and cannot see exactly what it should. This suite must fail loudly if a policy is ever removed</span>
       </li>
-      <li class="task" data-id="E02-10" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E02-10" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-10"></button>
         <code class="tid">E02-10</code>
         
@@ -1044,7 +1044,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Mobile numbers stored normalised as <strong>E.164</strong> with a uniqueness constraint — the legacy field is a number type that loses leading zeros and country codes</span>
       </li>
-      <li class="task" data-id="E02-18" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E02-18" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-18"></button>
         <code class="tid">E02-18</code>
         <span class="badge r-critical">critical</span>
@@ -1091,6 +1091,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The <code>[AZ-02]</code> tripwire test</strong> — fail the authorization suite the moment a grant of <code>orders.view</code> <strong>without</strong> <code>orders.view_pii</code> is issued. <code>orders.view_pii</code> is not enforceable by RLS (RLS filters rows, not columns), and the model is safe today only because every role template holds both. Named in <code>docs/authorization-model.md</code> §14, in <code>[AZ-02]</code>&#39;s own recommendation and in <code>docs/dpdp-compliance.md</code> §5.1, and owned by nobody. This is what makes <code>[AZ-02]</code>&#39;s deadline enforce itself before <code>E20-09</code>&#39;s analyst role exists</span>
+      </li>
+      <li class="task" data-id="E02-24" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-24"></button>
+        <code class="tid">E02-24</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The authorization suite and <code>seed.sql</code> collide on the same UUIDs, so <code>npm run test:db</code> fails from a clean database.</strong> <code>supabase/seed.sql:229</code> inserts <code>auth.users</code> <code>a0000000-0000-0000-0000-000000000001</code>; <code>supabase/tests/authorization.test.sql:147</code> inserts the *same* id as its own fixture, so <code>db reset &amp;&amp; supabase test db</code> dies on <code>duplicate key value violates unique constraint &quot;users_pkey&quot;</code> before a single assertion runs — <code>Tests: 0</code>, not one failure but the whole suite skipped. Found by the first CI run that ever executed it (PR #1, <code>integration.yml</code>). It passed locally in <code>E02-18</code> only because the local database still held an older seed; a fresh one always fails. Non-negotiable #2 says this suite must fail loudly when a policy changes — right now it does not run at all. Fix by moving the test fixtures to a UUID range <code>seed.sql</code> cannot use, and add a guard asserting the ranges stay disjoint so the next fixture cannot silently re-collide</span>
       </li></ul>
       </details>
     </article>
