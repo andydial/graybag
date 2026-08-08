@@ -106,8 +106,11 @@ Work **one block at a time** from `planning/build-order.md`.
 
 - Within a block, complete **one task at a time and commit each separately**. Never batch
   several tasks into one commit — a bad task must be revertable on its own.
-- At the end of every block: run `npm run test:all`, fix everything that fails, commit the
-  fixes, then **STOP and report**.
+- **Push after every commit.** A `.git/hooks/post-commit` hook does this automatically; if
+  it is ever missing or the push failed, run `git push` yourself. Work that exists only on
+  Andy's laptop is one disk failure from gone. Never end a block with unpushed commits.
+- At the end of every block: run `npm run test:all`, fix everything that fails, commit and
+  push the fixes, then **STOP and report**. State in the report that everything is pushed.
 - **Do not start the next block without being told.** This is the rule that keeps Andy in
   control of when tokens get spent. Treat it as absolute.
 
