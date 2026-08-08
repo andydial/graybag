@@ -27,13 +27,24 @@ every deny, the config resolution chain, consent and policy-version tables.
 
 **Done when:** the authorization suite is green and fails loudly if a policy is removed.
 
-## Block 3 — Spikes, in parallel  (E19)
+## Block 3 — Spikes, in parallel  (E19)  ✅ closed 2026-08-08, two parked
 
-Razorpay + UPI in a bare Expo app on a real Android · mid-range Android performance ·
+Razorpay + UPI on a real Android · mid-range Android performance ·
 VAG Rounded Next licence · Bubble export dry run.
 
 **Done when:** each has a written answer in `docs/`. Any bad answer changes the plan now
 rather than in week six.
+
+| Spike | State |
+|---|---|
+| `E19-04` Bubble export dry run | **Done.** `docs/bubble-recon-findings.md`; six `E16` constraints corrected, decisions `BR1`–`BR7` and `AR1`–`AR7` |
+| `E19-01` Razorpay + UPI | **Parked on Andy's handset** (expected 2026-08-09 am). All setup merged; five checklist rows already answered without a device. `docs/spike-runbook.md` §2 |
+| `E19-02` Android performance | **Parked with `E19-01`** — same APK, same session |
+| `E19-03` VAG Rounded Next licence | `owner:andy`, still open. `E13` proceeds on the token layer, which is typeface-agnostic by design |
+
+`E19-05`–`E19-08` are fast-follow, not Block 3 scope. **Block 4 started without waiting** —
+neither parked spike blocks the design system: `E19-02` validates `E13-05`'s framework choice
+rather than deciding it.
 
 ## Block 4 — Design system  (E13)
 
