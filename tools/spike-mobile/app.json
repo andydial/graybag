@@ -36,17 +36,7 @@
       }
     },
     "plugins": [
-      "expo-image",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "minSdkVersion": 24,
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35
-          }
-        }
-      ]
+      "expo-image"
     ],
     "extra": {
       "eas": {
