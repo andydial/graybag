@@ -19,6 +19,39 @@ Format — newest first:
 
 ---
 
+## 2026-08-09 — A 21.8 MB PDF was recorded as "unreadable" for two sessions; it reads 20 pages at a time
+
+**Context:** `E13-15`. `00_Graybag_Brand Guidelines.pdf` is the authority the whole token file
+defers to, and `docs/design-tokens.md` §1, `docs/open-questions.md` `DS-05` and the `E13-15` task
+text all said the same thing: 21.8 MB, over the file-read limit, and `magick` / `qlmanage` /
+`sips` could not be executed in the overnight sandbox. The token file carried "provisional" in
+its status line because of it.
+
+**What happened:** the file read without difficulty. The Read tool takes a `pages` parameter and
+renders a page range — 40 pages in two calls of 20. The size limit that applies to a text read
+does not apply to a paged PDF render, and no rasteriser of our own is involved.
+
+**Cause:** the blocker was real *in the sandbox it was discovered in* — an overnight run with no
+subprocess execution — and it was written down as a property of the file. Two sessions then read
+"could not be read", believed it, and worked around it. Nobody re-tested the assumption in the
+environment they were actually in, because it was recorded as a fact rather than as an
+observation with a context.
+
+**Fix / rule:** **when a blocker is recorded, record the environment it was observed in, and
+re-test it once in the current environment before planning around it.** The cost of re-testing
+was one tool call; the cost of not re-testing was `docs/design-tokens.md` sitting provisional
+through Blocks 3 and 4 and `E13-13`/`E13-14` being ordered behind it. The specific fact worth
+keeping: **large PDFs in this repo are readable via `Read` with `pages`, up to 20 pages a call**
+— which also applies to anything else in `Legacy-Application/`, none of which has been opened.
+
+Second, smaller finding, and the reason this was worth doing at all: reading the brand document
+found a contradiction that had been sitting inside `docs/design-tokens.md` since it was written.
+§3.2 said "**12 is the floor.** Nothing in the product is smaller" one line below a table that
+set `overline` to 11. An external source forced a line-by-line re-read of a document everyone had
+already accepted, and that is what surfaced it — not the source itself.
+
+---
+
 ## 2026-08-08 — A payment SDK's manifest is three artefacts deep, and unpinned
 
 **Context:** setting up `E19-01`. Before burning an EAS build and a handset session, checked

@@ -527,7 +527,7 @@
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Razorpay + UPI spike</strong> — Standard Checkout in test mode inside a bare Expo app, on a real low-end Android. Prove native UPI intent works and returns cleanly. Blocks the whole E06 design</span>
+        <span class="ttext"><strong>Razorpay + UPI spike</strong> — Standard Checkout in test mode, on a real Android 11+ handset. Prove native UPI intent works and returns cleanly. Blocks the whole E06 design. <strong>PARKED 2026-08-08 awaiting Andy&#39;s handset (expected 2026-08-09 morning): all setup is done and merged</strong> — harness at <code>tools/spike-mobile/</code>, release APK <strong>built and green</strong> on EAS (<code>28127b5b</code>), <code>adb</code> installed, order-creation and signature-verification scripts tested. Static analysis already answered five checklist rows (<code>docs/spike-results.md</code> §A). The remaining work is §2 of <code>docs/spike-runbook.md</code>, ~30–40 min with the phone in hand</span>
       </li>
       <li class="task" data-id="E19-02" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-02"></button>
@@ -535,7 +535,7 @@
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Low-end Android performance spike</strong> — bare Expo + Reanimated + Skia on a <strong>mid-range Android</strong> typical of private-school families (not the cheapest tier). Measure cold start, 50-item list scroll with images, and a shared-element transition. Sets the thresholds used in <code>E14-07</code> and validates the framework choice before <code>E13-05</code> is finalised</span>
+        <span class="ttext"><strong>Low-end Android performance spike</strong> — Expo + Reanimated + Skia on a <strong>mid-range Android</strong> typical of private-school families (not the cheapest tier). Measure cold start, 50-item list scroll with images, and a shared-element transition. Sets the thresholds used in <code>E14-07</code> and validates the framework choice before <code>E13-05</code> is finalised. <strong>PARKED 2026-08-08 with <code>E19-01</code></strong> — same APK, same session; the measurements are <code>adb</code> commands listed in <code>docs/spike-runbook.md</code> §2.5. Note <code>E13-05</code> proceeds without it: the framework choice is already made and this validates rather than decides it</span>
       </li>
       <li class="task" data-id="E19-03" data-seed="0" data-risk="high" data-owner="andy" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-03"></button>
@@ -1325,7 +1325,7 @@
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Apply the font decision from <code>E19-03</code> / <code>E00-16</code> (licence check happens in phase 0/1, not here)</span>
+        <span class="ttext">Apply the font decision from <code>E19-03</code> / <code>E00-16</code> (licence check happens in phase 0/1, not here). <strong><code>E13-15</code> changed which three weights are bundled</strong> — Regular 400, Medium 500, SemiBold 600, because the brand hierarchy uses Semi Bold for headings and Medium for subheadings and never uses Bold. Still three weights, so <code>E19-03</code>&#39;s question is the same size; only the filenames differ</span>
       </li>
       <li class="task" data-id="E13-03" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-03"></button>
@@ -1413,7 +1413,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Contrast assertion in CI</strong> — walk the <code>docs/design-tokens.md</code> §2.9 semantic role map plus a declared list of legitimate foreground/background pairs, compute the WCAG 2.1 ratio, assert the stated minimum. A brand refresh that lightens a green then fails the build instead of shipping</span>
+        <span class="ttext"><strong>Contrast assertion in CI</strong> — walk the <code>docs/design-tokens.md</code> §2.9 semantic role map plus a declared list of legitimate foreground/background pairs, compute the WCAG 2.1 ratio, assert the stated minimum. A brand refresh that lightens a green then fails the build instead of shipping. <strong><code>E13-15</code> added three pairs that must be asserted as permanently forbidden</strong>, because each is one a component could plausibly reach for: <code>text.link</code>/<code>text.price</code> on <code>bg.surfaceAccent</code> (4.09, fails AA — a price on a lime card must be <code>forest-500</code>); <code>border.accent</code> as a control boundary (1.27); <code>badge.bg</code> as an outline on <code>neutral-0</code> (1.69). It also added four role tokens to walk — <code>bg.surfaceAccent</code>, <code>border.accent</code>, <code>nav.itemActive</code>/<code>nav.itemInactive</code>, <code>badge.bg</code>/<code>badge.fg</code></span>
       </li>
       <li class="task" data-id="E13-14" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-14"></button>
@@ -1421,15 +1421,15 @@
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong><code>DS-01</code> — approve the &quot;500 rule&quot;</strong>: <code>#00af52</code> stays the identity colour but functional green moves to <code>primary-700 #007e3b</code> for fills and text. White on <code>#00af52</code> is 2.90:1 and fails every WCAG bar, so the mocks cannot ship as drawn. This changes what every button, price and field label looks like. Options and the recommendation are in <code>docs/open-questions.md</code>; the consequences are worked through in <code>docs/design-tokens.md</code> §2.1</span>
+        <span class="ttext"><strong><code>DS-01</code> — approve the &quot;500 rule&quot;</strong>: <code>#00af52</code> stays the identity colour but functional green moves to <code>primary-700 #007e3b</code> for fills and text. White on <code>#00af52</code> is 2.90:1 and fails every WCAG bar, so the mocks cannot ship as drawn. This changes what every button, price and field label looks like. Options and the recommendation are in <code>docs/open-questions.md</code>; the consequences are worked through in <code>docs/design-tokens.md</code> §2.1. <strong><code>E13-15</code> changed what is being asked, and Andy must be told this before he answers:</strong> the brand guidelines&#39; Colour Usage Guide assigns <code>#00AF52</code> to <strong>&quot;Buttons &amp; CTAs in UI&quot;</strong> in as many words, so approving the 500 rule means <strong>deviating from the brand book on one line</strong>, not just from the mocks. The case for doing it is that the brand document contains no contrast analysis anywhere — it was written for packaging, presentations and social. The dark-ink-on-green alternative now also contradicts the brand&#39;s five approved logo-on-colour pairings, which put white on <code>#00AF52</code></span>
       </li>
-      <li class="task" data-id="E13-15" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E13-15" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-15"></button>
         <code class="tid">E13-15</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Reconcile <code>docs/design-tokens.md</code> against <code>00_Graybag_Brand Guidelines.pdf</code></strong> — 21.8 MB, never read (over the file-read limit, no rasteriser runnable in the overnight sandbox). If it specifies tints, tonal steps, a type scale or usage rules, the brand document wins. The token file is provisional until this is done. <code>DS-05</code></span>
+        <span class="ttext"><strong>Reconcile <code>docs/design-tokens.md</code> against <code>00_Graybag_Brand Guidelines.pdf</code></strong> — 21.8 MB, never read (over the file-read limit, no rasteriser runnable in the overnight sandbox). If it specifies tints, tonal steps, a type scale or usage rules, the brand document wins. The token file is provisional until this is done. <code>DS-05</code>. <strong>Done 2026-08-09</strong> — the &quot;unreadable&quot; premise was a property of the overnight sandbox, not the file: it reads 20 pages a call. All 40 read. It specifies a type hierarchy, per-colour UI usage rules and a rounded-geometry rule (adopted, <code>S12</code>–<code>S15</code>); it specifies no tints, tonal steps, neutral ramp, spacing or contrast analysis, so those stand. Token file no longer provisional. Change list in <code>docs/design-tokens.md</code> §0</span>
       </li>
       <li class="task" data-id="E13-16" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-16"></button>

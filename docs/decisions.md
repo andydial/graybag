@@ -97,6 +97,29 @@ givens; everything below is a choice about how to build on them.
 | S10 | **No runtime animation player** — no Lottie, no Rive, no animated illustration, no confetti | It is a dependency, a bundle cost on a network-constrained product, and a standing invitation to break S1. The one celebratory moment in the mocks ("congratulations, your account is complete") is a static composition and stays one |
 | S11 | **Light mode only in v1** | Not in the mocks and not in the package; it roughly doubles the contrast surface to design and test. S7 is what keeps the door open. `DS-03` |
 
+### Taken on reading the brand guidelines — `E13-15`, 2026-08-09
+
+`00_Graybag_Brand Guidelines.pdf` had never been read; `docs/design-tokens.md` was provisional
+on that fact (`DS-05`). It has now been read in full. The rule going in was **the brand document
+wins on anything about the brand**, and these are the four places that rule actually bit. The
+per-change table is §0 of `docs/design-tokens.md`.
+
+| # | Decision | Why |
+|---|---|---|
+| S12 | **The type scale is derived from the brand's four bands, not merely checked against them.** Main Heading Semi Bold 48–32, Heading Semi Bold 32–28, Subheading Medium 24–20, Body Regular 16–12. Mobile sits at the bottom of each band: 32 / 28 / 24 / 20, body 16–12 | Three tokens were outside every band — `h3` 18 and `bodyLg` 17 in the unspecified 20–16 gap, `overline` 11 below the floor. Sizes are the cheapest thing in a design system to move and the most expensive to argue about later, so they move now, before `E13-01` writes them into code and `E13-03` builds components on them. The 11pt `overline` also contradicted this file's own "12 is the floor" sentence, sitting one line below it — reconciliation found a bug that was already here, which is the argument for doing reconciliation before code rather than after |
+| S13 | **There is no Bold in the product. The three bundled weights are Regular 400, Medium 500, SemiBold 600** | The brand's hierarchy uses Semi Bold for headings and Medium for subheadings; Bold appears in the specimen but in none of the four levels. The count stays at three, so `E19-03`'s licence question does not grow — it changes which three files it names, which only matters if the answer is priced per weight. `label` and `button` keep 600 in the Body band: they are UI chrome at 13 and 16 points, the brand hierarchy has no row for a button, and small type needs mass on a mid-range phone in daylight |
+| S14 | **The brand's Colour Usage Guide is adopted as four new role tokens** — `bg.surfaceAccent` and `border.accent` (`#E5EA98`: "light UI surfaces (cards, containers)", "soft separators"), `nav.itemActive` (`#145F48`: "secondary UI elements (tabs, toggles, footers)"), `badge.bg`/`badge.fg` (`#FFBB39`: "UI highlights (notifications, badges)") | These are UI instructions the brand gave and the token file had not picked up — the tab bar was heading for grey ink and cards for plain white. Adopting them costs nothing and it is the difference between a product that matches the brand book and one that merely uses its hexes. Each arrives with its contrast measured, which is how the trap was caught: **`text.link`/`text.price` on `bg.surfaceAccent` is 4.09:1 and fails AA** — a price on a lime card must be `forest-500`. `E13-13` asserts that as a forbidden pair rather than leaving it to review |
+| S15 | **`radius-none` is restricted to elements with no visible corner.** Containers, image frames and backgrounds are always rounded | The brand's Shapes & Geometry page names rounded corners as identity-critical and shows a square-cornered rectangle as its one ✗. This file had allowed `radius-none` on full-bleed images, which is right only when the image bleeds off every edge — a hero whose bottom edge lands inside the layout is an image frame and gets `radius-lg`. No numbers changed; the rule for choosing between them did |
+
+**What the brand document did *not* settle, and what got worse.** Its Colour Usage Guide assigns
+`#00AF52` to **"Buttons & CTAs in UI"** in as many words. `S6`, the 500 rule, puts the button
+fill at `primary-700` because white on `#00af52` is 2.90:1. **`DS-01` is therefore no longer a
+correction to the mocks — it is a documented deviation from the brand guideline**, and that is
+what `E13-14` now asks Andy to approve. It was not resolved here: `E13-15`'s mandate was to
+reconcile, the brand document contains no contrast analysis to weigh against, and the change is
+visible on every screen in the product. Recorded in §2.1 and §2.11 of the token file so that
+nobody re-derives the conflict from scratch and quietly picks a side.
+
 ## Order lifecycle
 
 Made in Q06 while writing `docs/order-lifecycle.md`, which is the specification `E05` and `E06`

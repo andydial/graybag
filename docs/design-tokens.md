@@ -1,9 +1,9 @@
 ---
 title: Design tokens
-status: specification — no code exists yet
+status: reconciled against the brand guidelines (E13-15, 2026-08-09) — no code exists yet
 produced_by: Q05
 specifies: E13-01 (the code is still to be written) and the contrast half of E13-08
-source: ../Legacy-Application-backup/Graybag_Design Package — 02_Colour Palette, 00_Assests/Font, 05_Pattern, 06_App UI (not in this repo; see docs/decisions.md)
+source: ../Legacy-Application/Graybag_Design Package — 00_Graybag_Brand Guidelines.pdf, 02_Colour Palette, 00_Assests/Font, 05_Pattern, 06_App UI (not in this repo; see docs/decisions.md)
 companion: docs/motion-system.md
 ---
 
@@ -19,8 +19,13 @@ companion: docs/motion-system.md
 > tonal ramp around it and one rule — **§2.1, "the 500 rule"** — that puts functional green one
 > or two steps darker than identity green. The mocks stay recognisable; they become legible.
 >
-> This needs Andy's eye once, because it changes what every button looks like:
-> **`[DS-01]`** in `docs/open-questions.md`, task `E13-14`.
+> **`00_Graybag_Brand Guidelines.pdf` has now been read in full** (`E13-15`, 2026-08-09) and
+> this file is reconciled against it. The brand document raised the stakes on one point rather
+> than settling it: its Colour Usage Guide assigns `#00AF52` to **"Buttons & CTAs in UI"** in as
+> many words. The 500 rule is therefore a **documented deviation from the brand guideline**, not
+> merely a correction of the mocks — and that is precisely what `[DS-01]` / `E13-14` asks Andy
+> to approve. Everything else the brand document specifies has been adopted; what changed is
+> listed in §0.
 
 # GrayBag — design tokens
 
@@ -38,27 +43,57 @@ the motion system is right and this file is a bug.** Motion tokens live there, n
 
 ---
 
+## §0 What the brand-guidelines reconciliation changed (`E13-15`, 2026-08-09)
+
+The rule going in was: **where the brand document specifies something, it wins.** It specifies
+a type hierarchy, per-colour UI usage rules, and a geometry rule. It specifies **no tints, no
+tonal steps, no neutral ramp, no spacing or radius numbers and no contrast analysis** — so
+§2.2–§2.8's ramps, §4, §5 and §6 stand on this file's own authority, which is what `DS-05` was
+waiting to learn.
+
+| # | The brand document says | This file said | Now |
+|---|---|---|---|
+| 1 | Headings are **Semi Bold**, subheadings **Medium**, body **Regular** | `display`/`h1`/`h2` at **700 Bold**, `h3` at 600 | Weights follow the brand: 600 / 600 / 500 / 500. **Bold 700 is dropped from the bundle**; the three weights are Regular 400, Medium 500, SemiBold 600 (§3.1) |
+| 2 | Body copy is **16–12 pt**; subheadings **24–20 pt** | `h3` 18, `bodyLg` 17, `overline` 11 | 18 and 17 fell in the brand's 20–16 gap and 11 below its floor. `h3` → 20, `bodyLg` → 16 with looser leading, `overline` → 12 (§3.2). This also removes a self-contradiction: §3.2 already said "12 is the floor" and then set `overline` to 11 |
+| 3 | `#00AF52` is for **"Buttons & CTAs in UI"** | Buttons are `primary-700` (§2.1) | **Unresolved on purpose.** The conflict is now with the brand guideline itself, not just the mocks, and it is escalated in `[DS-01]` / `E13-14`. Nothing changes here until Andy rules |
+| 4 | `#145F48` is for **text on yellow/light backgrounds** and **secondary UI (tabs, toggles, footers)** | `forest-500` was a dark-surface colour only | Adopted as a role — §2.11, and `nav.*` in §2.9 |
+| 5 | `#E5EA98` is for **light UI surfaces (cards, containers)**, **soft separators**, **table/chart backgrounds** | `lime-200` was "pale highlight surface, illustration ground" | Adopted — `bg.surfaceAccent` and `border.accent` (§2.9, §2.11) |
+| 6 | `#FFBB39` is for **UI highlights (notifications, badges)**; `#B3CF3F` for **decorative UI micro-interactions** | Amber was "highlight band"; lime "category tag" | Adopted, with the §2.10 teeth: a badge that carries meaning carries a number or a word, never colour alone (§2.11) |
+| 7 | **All containers, image frames and backgrounds use rounded edges** — the square-cornered rectangle is the explicit ✗ | `radius-none` was allowed on full-bleed images and table cells | `radius-none` is restricted to elements that have no visible corner (§5) |
+| 8 | The **monochrome** pattern is the variant for "App screens and digital layouts" | §1 listed six colourways with no in-app rule | The full-colour pattern is packaging and marketing only; in-product it is monochrome (§1) |
+| 9 | Five logo-on-colour pairings | §2.6 | **Confirmed exactly** — no change |
+| 10 | The five hexes | §1 | **Confirmed exactly**, including RGB and CMYK — no change |
+
+---
+
 ## §1 What the source package actually contains
 
 | Path in `Graybag_Design Package` | What it gives us |
 |---|---|
+| `00_Graybag_Brand Guidelines.pdf` | 40 pages. Brand essence, logo system, the five colours with RGB/CMYK, the **Colour Usage Guide** (§2.11), **Typography** and **Hierarchy** (§3), **Shapes & Geometry** (§5), and the pattern's two variants |
 | `02_Colour Palette/` | Five hexes, as folder-named files: primary `#00af52`; secondary `#145f48`, `#ffbb39`; accent `#b3cf3f`, `#e5ea98` |
 | `02_Colour Palette/Colour Palette_Guideline.png` | Five **approved logo-on-colour pairings** — see §2.6 |
-| `00_Assests/Font/` | VAG Rounded Next, ten weights: Thin, ExtraLight, Light, Regular, Medium, SemiBold, Bold, Heavy, Black, ExtraBlack |
+| `00_Assests/Font/` | VAG Rounded Next, ten weights: Thin, ExtraLight, Light, Regular, Medium, SemiBold, Bold, Heavy, Black, ExtraBlack. The guidelines show eight of them; only three are bundled (§3.1) |
 | `01_Graybag_Logo/` | Wordmark and icon, in full colour / white / black, transparent and filled |
 | `05_Pattern/` | A tone-on-tone vegetable pattern in six colourways (Green, Dark Green, Yellow, Grey, Dark Grey, Colourful) |
 | `06_App UI/*.png` | Nine screens: splash, onboarding, sign-in, account-complete, home, menu, dish detail sheet, location, cart |
 
-**What it does not contain, and which this file therefore has to invent:** a neutral/grey
-ramp, tonal steps around any brand hue, semantic roles (error, warning, disabled, focus), a
-type scale, a spacing scale, a radius scale, elevation, and any contrast analysis. Those are
-proposals, marked as such where the choice was not forced.
+The brand's official colour names, for talking to a designer: `#00AF52` **Fresh Lunch Green**,
+`#FFBB39` **Sunlit Snack Yellow**, `#145F48` **Deep Tiffin Green**, `#B3CF3F` **Citrus Zest
+Green**, `#E5EA98` **Light Lemon Mist**. The token names below are functional and stay
+functional — a ramp step cannot be called "Fresh Lunch Green" when there are ten of them.
 
-**`00_Graybag_Brand Guidelines.pdf` could not be read** — 21.8 MB, over the file-read limit,
-and although `magick`, `qlmanage` and `sips` are all installed, none of them could be executed
-in the sandbox this was written in. If it specifies a type scale, tints, tonal steps or usage
-rules, this file must be reconciled against it and **the brand document wins**. That check is
-`E13-15` / `DS-05`, and **this file is provisional until it is done**.
+**The pattern has two variants and they are not interchangeable.** Full-colour is for
+packaging, delivery bags, posters, social and presentation covers. **Monochrome is the variant
+the brand document assigns to "App screens and digital layouts"** — so in the product, the
+pattern is monochrome, tone-on-tone, and behind nothing that has to be read.
+
+**What the package does not contain, and which this file therefore has to invent:** a
+neutral/grey ramp, tonal steps around any brand hue, semantic roles (error, warning, disabled,
+focus), a spacing scale, a radius scale, elevation, and any contrast analysis. The brand
+document was read in full for `E13-15` and specifies none of them; those parts of this file are
+its own, and are marked as proposals where the choice was not forced. The **type scale is no
+longer** in that list — the brand specifies a hierarchy, and §3.2 is derived from it.
 
 ---
 
@@ -74,6 +109,15 @@ rules, this file must be reconciled against it and **the brand document wins**. 
 > Every *functional* use of a brand hue is one or more steps darker: `primary-600` for a
 > boundary or a large-text surface, `primary-700` for anything carrying body text or white
 > text, `amber-700` for warning text, `forest-600` for a control on a green field.
+
+**This rule contradicts the brand guideline in writing, and that has to be said out loud.** The
+Colour Usage Guide lists, under `#00AF52`: "Buttons & CTAs in UI". The 500 rule says the button
+fill is `primary-700`. Both cannot hold. The reason to propose breaking the brand rule rather
+than the accessibility one is that the brand document contains no contrast analysis at all — it
+was written for packaging, presentations and social, where "Buttons & CTAs in UI" is one line
+among nine and nothing on the page had to survive WCAG 1.4.3. The reason it is **not** settled
+here is that it is Andy's brand, the change is visible on every screen, and `E13-15`'s mandate
+was to reconcile, not to overrule. See `[DS-01]`, `E13-14`.
 
 Two consequences worth stating plainly, because they contradict the mocks:
 
@@ -112,11 +156,17 @@ white mix.
 the palette's workhorse for dark surfaces, because unlike the primary it is legible with white
 straight out of the box.
 
+The brand document goes further than this file originally did: it assigns Deep Tiffin Green to
+**"Text on yellow/light backgrounds"** and **"Secondary UI elements (tabs, toggles, footers)"**,
+and calls it suitable for headings. That is adopted — `forest-500` is the ink for the tab bar,
+switches and the web footer (§2.11), not a grey. It measures 7.61:1 on `neutral-0` and 7.15:1 on
+`neutral-50`, so it clears AAA on both app surfaces and needs no darker step to be legal.
+
 | Token | Hex | On white | White on it | Role |
 |---|---|---|---|---|
 | `forest-100` | `#dee9e5` | — | — | Muted surface, table header |
 | `forest-200` | `#b9cfc8` | — | — | Divider on a forest surface |
-| **`forest-500`** | **`#145f48`** | 7.61 ✓✓ | 7.61 ✓✓ | Dark surface, secondary text emphasis, header band (mock 05) |
+| **`forest-500`** | **`#145f48`** | 7.61 ✓✓ | 7.61 ✓✓ | Dark surface, secondary text emphasis, header band (mock 05), **active tab / toggle / footer ink** |
 | `forest-600` | `#104c3a` | — | 9.92 ✓✓ | Secondary button on a green field (mock 02 "Get Started") |
 | `forest-700` | `#0c3b2d` | — | 12.51 ✓✓ | Pressed state, deepest brand surface |
 | `forest-800` | `#092b20` | — | — | Illustration shadow |
@@ -134,12 +184,21 @@ whole fix for that screen.
 | `amber-100` | `#fff3db` | — | — | Warning banner fill, allergen-notice surface |
 | `amber-200` | `#ffe4b0` | — | — | Warning banner border |
 | `amber-300` | `#ffcf74` | — | — | Illustration |
-| **`amber-500`** | **`#ffbb39`** | 1.69 ✗ | 10.68 ✓✓ | **Identity/fill only (§2.1).** Highlight band, pattern colourway |
+| **`amber-500`** | **`#ffbb39`** | 1.69 ✗ | 10.68 ✓✓ | **Identity/fill only (§2.1).** Highlight band, pattern colourway, **notification and badge fill** |
 | `amber-700` | `#8f6920` | 4.99 ✓ | — | Warning **text** and warning icon |
 | `amber-800` | `#73541a` | 6.97 ✓ | — | Warning text on an `amber-100` surface |
 
 `forest-500` on `amber-500` is **4.50:1** and is the one text-on-amber pair that passes. Use
-it for the rare case where copy must sit on the brand amber.
+it for the rare case where copy must sit on the brand amber. The brand document's own line for
+this colour is "Text on yellow/light backgrounds" under `#145F48` — the same pair, arrived at
+from the other side.
+
+The brand document assigns amber to **"UI highlights (notifications, badges)"**, which is
+adopted. Two constraints come with it and neither is optional. First, `amber-500` on `neutral-0`
+is **1.69:1**, so a badge is a *shape with content in it*, never an outline — its own edge is
+invisible. Second, §2.10 applies with full force: a bare amber dot that means "something needs
+attention" conveys meaning by colour alone. A badge carries a number, a glyph or an
+accessibility label. `neutral-900` on `amber-500` is 10.68:1, so the count is easy to read.
 
 ### §2.5 Accent — lime
 
@@ -147,13 +206,31 @@ Accents are surfaces and graphic fills. **Neither lime ever colours text.**
 
 | Token | Hex | Neutral-900 on it | `forest-500` on it | Role |
 |---|---|---|---|---|
-| `lime-200` | `#e5ea98` | 14.24 ✓✓ | 6.00 ✓✓ | Pale highlight surface, empty-state illustration ground |
-| `lime-500` | `#b3cf3f` | 10.25 ✓✓ | 4.32 ✓³ | Accent fill, pattern colourway, category tag |
+| `lime-200` | `#e5ea98` | 14.24 ✓✓ | 6.00 ✓✓ | Pale highlight surface, empty-state illustration ground, **light UI surface (card, container), soft separator, table/chart ground** |
+| `lime-500` | `#b3cf3f` | 10.25 ✓✓ | 4.32 ✓³ | Accent fill, pattern colourway, category tag, **decorative micro-interaction** |
+
+The brand document is more specific about `#E5EA98` than this file was — "Light UI surfaces
+(cards, containers)", "Soft separators in digital layouts", "Table or chart backgrounds". Those
+are adopted as `bg.surfaceAccent` and `border.accent` (§2.9). Three numbers govern their use:
+
+- `lime-200` on `neutral-0` is **1.27:1** and on `neutral-50` **1.19:1**. A lime card is
+  distinguished by *fill*, faintly, and it is never the sole boundary of anything interactive.
+  A tappable card on a lime ground still needs `border.strong` or a control inside it.
+- Text on it is fine: `neutral-900` 14.24, `neutral-700` 8.09, `neutral-600` 5.01 — all pass AA.
+- **`primary-700` on `lime-200` is 4.09:1 and fails AA.** So a link, a price or any
+  `text.link`/`text.price` inside a lime surface must use `forest-500` (6.00) instead. This is
+  the only trap the new surface introduces and the §9 contrast test asserts it.
+
+`#B3CF3F`'s brand line is "Decorative UI micro-interactions" and "Subtle accents… tiny details,
+not large blocks" — which is the same instruction as "never colours text", stated for area
+rather than for legibility. It agrees with `M01`–`M14`: lime is what a micro-interaction may
+tint, and a micro-interaction is small.
 
 ### §2.6 The approved logo-on-colour pairings
 
-`Colour Palette_Guideline.png` fixes five and only five lockup treatments. These are brand
-rules, not accessibility rules, and they are not negotiable:
+`Colour Palette_Guideline.png` fixes five and only five lockup treatments, and the brand
+guidelines reproduce the same five on their own page — **confirmed identical under `E13-15`**.
+These are brand rules, not accessibility rules, and they are not negotiable:
 
 | Field | Logo colour |
 |---|---|
@@ -218,6 +295,7 @@ This is what makes a dark theme a new mapping file rather than a rewrite (`[DS-0
 | `bg.surfaceBrand` | `primary-600` | A green field that carries controls |
 | `bg.surfaceBrandFlat` | `primary-500` | A green field that carries **only** the logo |
 | `bg.surfaceInverse` | `forest-500` | Dark band (mock 05's "2.5 km" strip) |
+| `bg.surfaceAccent` | `lime-200` | **Brand-assigned (§2.11):** light UI surface — card, container, table/chart ground. 1.27:1 against `neutral-0`, so it is a fill and never a boundary. `text.link` and `text.price` are illegal on it (4.09) — use `forest-500` |
 | `bg.scrim` | `rgba(20, 23, 20, 0.48)` | Behind sheets and dialogs |
 | `text.primary` | `neutral-900` | |
 | `text.secondary` | `neutral-600` | |
@@ -232,6 +310,7 @@ This is what makes a dark theme a new mapping file rather than a rewrite (`[DS-0
 | `border.default` | `neutral-400` | Decorative-weight outlines only. **`neutral-400` on `neutral-0` is 2.28:1 and does NOT meet the 3:1 UI-boundary bar (WCAG 1.4.11).** An input or card outline that is the *only* thing marking a control boundary must use `border.strong`, not this token |
 | `border.strong` | `neutral-500` | Outlined control that must meet 3:1 (4.79 on `neutral-0`). **This is the correct token for input and card outlines** — the boundary of a UI component that carries no other visible affordance |
 | `border.brand` | `primary-600` | Selected / active outline |
+| `border.accent` | `lime-200` | **Brand-assigned (§2.11):** "soft separator in digital layouts". Decorative only — it is 1.27:1 on white and can never be the boundary of a control |
 | `border.danger` | `danger-600` | |
 | `action.primaryBg` | `primary-700` | |
 | `action.primaryBgPressed` | `primary-800` | |
@@ -241,6 +320,10 @@ This is what makes a dark theme a new mapping file rather than a rewrite (`[DS-0
 | `action.destructiveBg` | `danger-600` | |
 | `action.disabledBg` | `neutral-200` | |
 | `action.disabledFg` | `neutral-400` | |
+| `nav.itemActive` | `forest-500` | **Brand-assigned (§2.11):** active tab, active toggle track, footer ink. 7.61 on `neutral-0`, 7.15 on `neutral-50` |
+| `nav.itemInactive` | `neutral-500` | Inactive tab. 4.79 on `neutral-0` — passes, and stays a grey so the active state is the only coloured one |
+| `badge.bg` | `amber-500` | **Brand-assigned (§2.11):** notification and badge fill. Content-bearing shape only — see §2.4 |
+| `badge.fg` | `neutral-900` | 10.68 on `amber-500` |
 | `focus.ring` | `primary-700` | 2px, 2px offset, plus a 1px `neutral-0` inner ring |
 | `status.success` | `primary-700` | |
 | `status.warning` | `amber-700` | |
@@ -260,14 +343,42 @@ Non-negotiable, and it has two specific teeth in this product:
    Whether an e-commerce food operator must show it at the point of ordering is a legal
    question, raised in `docs/open-questions.md`.
 
+### §2.11 The brand's Colour Usage Guide, mapped to tokens
+
+The guidelines' Colour Usage Guide gives nine to ten uses per colour, most of them about
+packaging, presentations and social. Only the **UI** lines bind this file; the rest are recorded
+so nobody has to re-open the PDF to check whether a use was covered.
+
+| Brand colour | The UI lines, verbatim | Token |
+|---|---|---|
+| `#00AF52` Fresh Lunch Green | "Buttons & CTAs in UI"; "Highlighted icons and illustrations" | **Contested — `[DS-01]`.** This file says `action.primaryBg` = `primary-700` (§2.1). Icons and illustrations that carry nothing legible are `primary-500` and always were |
+| `#FFBB39` Sunlit Snack Yellow | "UI highlights (notifications, badges)"; "Icons that require emphasis" | `badge.bg` / `badge.fg` (§2.9). Content-bearing shapes only — §2.4 |
+| `#145F48` Deep Tiffin Green | "Text on yellow/light backgrounds"; "Secondary UI elements (tabs, toggles, footers)"; "Highlight bars and overlays" | `nav.itemActive`, `bg.surfaceInverse`, and the text colour on `amber-500` (4.50) and `lime-200` (6.00) |
+| `#B3CF3F` Citrus Zest Green | "Decorative UI micro-interactions"; "Subtle accents… tiny details, not large blocks" | `lime-500` as a graphic fill only. Never ink, never a large block, never a control |
+| `#E5EA98` Light Lemon Mist | "Light UI surfaces (cards, containers)"; "Soft separators in digital layouts"; "Table or chart backgrounds" | `bg.surfaceAccent`, `border.accent` (§2.9) |
+
+Non-UI lines, recorded and out of scope for the product: primary logo colour, packaging fronts
+and edges, key brand backgrounds, hero and title slides, section dividers and chapter titles,
+social template headers, stickers/labels/seals, ingredient tags, presentation callouts,
+background shapes behind product photos, infographic emphasis and outlines, shadows and depth
+elements, backgrounds behind the white monochrome logo, minimal packaging sections, and
+backgrounds for illustrations.
+
+**Two of the brand's own lines are load-bearing for accessibility and are worth keeping in
+view.** "Text on yellow/light backgrounds" is `#145F48` — the brand already knows nothing else
+in the palette is legible there. And `#B3CF3F` is confined to "tiny details, not large blocks",
+which is the same instruction §2.5 arrives at from contrast. Where the brand and WCAG agree,
+they agree completely; the single place they collide is `[DS-01]`.
+
 ---
 
 ## §3 Type
 
 ### §3.1 The family, and the fact that it is not settled
 
-**VAG Rounded Next.** Ten weights are in the package. **The licence has not been checked**
-(`E19-03`, `owner:andy`) and a bad answer changes every screen. Two things follow:
+**VAG Rounded Next.** Ten weights are in the package; the guidelines display eight. **The licence
+has not been checked** (`E19-03`, `owner:andy`) and a bad answer changes every screen. Two things
+follow:
 
 - **Use three weights, not ten.** That narrows the licence question to "may we embed three
   weights in a mobile app and serve them as webfonts", which is a much easier thing to buy or
@@ -277,11 +388,20 @@ Non-negotiable, and it has two specific teeth in this product:
   upright skeleton, with the full weight range and good hinting at small sizes. Alternatives
   considered and rejected in `[DS-02]`.
 
-| Token | VAG Rounded Next | Nunito fallback | Weight |
-|---|---|---|---|
-| `font.regular` | Regular | Nunito Regular | 400 |
-| `font.semibold` | SemiBold | Nunito SemiBold | 600 |
-| `font.bold` | Bold | Nunito Bold | 700 |
+**Which three changed under `E13-15`.** This file had picked Regular / SemiBold / **Bold**. The
+brand's Hierarchy page uses Semi Bold for both heading levels, **Medium** for subheadings and
+Regular for body — Bold appears nowhere in it. The bundle follows the hierarchy:
+
+| Token | VAG Rounded Next | Nunito fallback | Weight | Brand hierarchy level |
+|---|---|---|---|---|
+| `font.regular` | Regular | Nunito Regular | 400 | Body |
+| `font.medium` | Medium | Nunito Medium | 500 | Subheading |
+| `font.semibold` | SemiBold | Nunito SemiBold | 600 | Main Heading, Heading |
+
+**There is no Bold in the product.** A component asking for 700 is a bug, and it is one the
+no-literals lint rule (`E13-11`) catches, because weights come from these tokens. The bundle
+count is unchanged at three, so `E19-03`'s licence question is unchanged in size — only in which
+three files it names, which matters if the answer is "yes, for a fee per weight".
 
 Runtime stack while a webfont loads, and on the app's first cold start:
 
@@ -297,26 +417,59 @@ rounded-sans field is thin.
 
 ### §3.2 The scale
 
-Mobile-first, in points/CSS pixels. Line heights are all even numbers so they land on the
-4-point grid.
+The brand document specifies four levels, as ranges, in points:
 
-| Token | Size | Line height | Weight | Tracking | Used for |
-|---|---|---|---|---|---|
-| `display` | 32 | 38 | 700 | −0.02em | Marketing hero, one per page |
-| `h1` | 28 | 34 | 700 | −0.015em | Screen title on a scrolled-away large header |
-| `h2` | 22 | 28 | 700 | −0.01em | "welcome back", "Made Specially for your Child" |
-| `h3` | 18 | 24 | 600 | −0.005em | Section heading, sheet title, dish name |
-| `bodyLg` | 17 | 26 | 400 | 0 | Long-form copy — policies, T&Cs |
-| `body` | 16 | 24 | 400 | 0 | Default |
-| `bodyStrong` | 16 | 24 | 600 | 0 | Emphasis inside body |
-| `bodySm` | 14 | 20 | 400 | 0 | Dense lists, table cells |
-| `label` | 13 | 16 | 600 | +0.01em | Field labels, button labels ≤ small size |
-| `button` | 16 | 20 | 600 | +0.01em | Default button label |
-| `caption` | 12 | 16 | 400 | +0.01em | Metadata, helper text, timestamps |
-| `overline` | 11 | 14 | 600 | +0.08em | Uppercase eyebrow — "Our Food" (mock 06) |
+| Brand level | Weight | Range |
+|---|---|---|
+| Main Heading | Semi Bold | 48–32 pt |
+| Heading | Semi Bold | 32–28 pt |
+| Subheading | Medium | 24–20 pt |
+| Body | Regular | 16–12 pt |
 
-**12 is the floor.** Nothing in the product is smaller, including legal text and table cells.
-The audience is parents, largely 30–50; the mocks' 11–12pt greys are already at the limit.
+Those are the bands. Mobile lives at the bottom of each of them — a 48pt heading on a 360dp
+Android is a marketing artefact, not a screen title. The scale below is mobile-first, in
+points/CSS pixels, and **every entry sits inside a brand band at the brand's weight**. Line
+heights are all even numbers so they land on the 4-point grid.
+
+| Token | Size | Line height | Weight | Tracking | Brand band | Used for |
+|---|---|---|---|---|---|---|
+| `display` | 32 | 38 | 600 | −0.02em | Main Heading (floor) | Marketing hero, one per page |
+| `h1` | 28 | 34 | 600 | −0.015em | Heading (floor) | Screen title on a scrolled-away large header |
+| `h2` | 24 | 30 | 500 | −0.01em | Subheading (ceiling) | "welcome back", "Made Specially for your Child" |
+| `h3` | 20 | 26 | 500 | −0.005em | Subheading (floor) | Section heading, sheet title, dish name |
+| `bodyLg` | 16 | 26 | 400 | 0 | Body (ceiling) | Long-form copy — policies, T&Cs |
+| `body` | 16 | 24 | 400 | 0 | Body (ceiling) | Default |
+| `bodyStrong` | 16 | 24 | 500 | 0 | Body | Emphasis inside body |
+| `bodySm` | 14 | 20 | 400 | 0 | Body | Dense lists, table cells |
+| `label` | 13 | 16 | 600 | +0.01em | Body | Field labels, button labels ≤ small size |
+| `button` | 16 | 20 | 600 | +0.01em | Body (ceiling) | Default button label |
+| `caption` | 12 | 16 | 400 | +0.01em | Body (floor) | Metadata, helper text, timestamps |
+| `overline` | 12 | 16 | 600 | +0.08em | Body (floor) | Uppercase eyebrow — "Our Food" (mock 06) |
+
+**What `E13-15` changed here, and why each one had to move:**
+
+- **`h3` 18 → 20 and `bodyLg` 17 → 16.** The brand leaves a gap between 20 and 16 — nothing is
+  specified there — and both styles were sitting in it. `h3` moves to the floor of Subheading,
+  `bodyLg` to the ceiling of Body. `bodyLg` keeps its 26 line height, so it is still visibly
+  looser than `body` for long-form reading; the distinction was always leading, not size.
+- **`h2` 22 → 24.** 22 was already legal (inside 24–20) but left `h2` and `h3` two points apart
+  once `h3` rose to 20, which is not a hierarchy anyone can see. Taking `h2` to the band ceiling
+  gives a clean 32 / 28 / 24 / 20 ladder, all four inside brand bands.
+- **`overline` 11 → 12.** Below the brand's floor, and below **this file's own stated floor** —
+  §3.2 has said "12 is the floor" since it was written, with an 11pt token directly above the
+  sentence. Reading the brand document found a contradiction that was already here.
+- **Weights 700 → 600 / 500.** The brand's headings are Semi Bold and its subheadings Medium.
+  There is no Bold (§3.1).
+
+`label` and `button` stay at **600** although they sit in the Body band, where the brand says
+Regular. They are not editorial text — they are UI chrome at 13 and 16 points, and small type
+needs mass to read at a glance on a mid-range phone in daylight. The brand hierarchy is a
+document-typography spec; it has no row for "button". This is the one place §3.2 extends the
+brand rather than following it, and it extends it only into a case the brand does not cover.
+
+**12 is the floor, and now nothing violates it.** Nothing in the product is smaller, including
+legal text and table cells. The audience is parents, largely 30–50; the mocks' 11–12pt greys
+were already at the limit.
 
 ### §3.3 The brand's lowercase habit
 
@@ -326,8 +479,16 @@ headlines only**. Functional UI — button labels, field labels, screen titles, 
 anything a screen reader announces as an instruction — uses sentence case. Lowercase is allowed
 on `display` and `h2` in onboarding and marketing, nowhere else.
 
+The brand guidelines confirm this: their Hierarchy page sets both heading levels lowercase
+("graybag") and the subheading lowercase ("education meets convenience"), while the Body sample
+is sentence case — "At graybag, we ensure nutritious, fresh meals prepared daily for your
+child." The habit is a headline device in the brand's own examples, not a global rule.
+
 `overline` is the only uppercase style, and it carries `+0.08em` tracking because uppercase at
-11pt without tracking is unreadable.
+12pt without tracking is unreadable. One clarification, because the two rules look like they
+collide: the guidelines' Incorrect Usage page forbids **"Don't Use Uppercase"** — that is about
+the *logotype*, which is always `graybag` lowercase. It says nothing about UI text, and
+`overline` is not a lockup.
 
 ### §3.4 Dynamic type
 
@@ -411,9 +572,16 @@ Breakpoints (web only): `sm 480`, `md 768`, `lg 1024`, `xl 1280`.
 The logo is rounded, the typeface is rounded, and the mocks are pill-heavy. Generous radii are
 on-brand here in a way they would not be elsewhere.
 
+**The brand document makes this a rule rather than an inference.** Its Shapes & Geometry page:
+"Rounded corners are a key part of GrayBag's visual identity… **All graphic elements — including
+containers, image frames, and backgrounds — should use soft, rounded edges** to maintain
+consistency with the logo's geometry." The page's single ✗ example is a square-cornered
+rectangle. It gives no numbers, so the scale below stands unchanged — but it narrows
+`radius-none`, which this file had allowed on full-bleed images and table cells.
+
 | Token | Value | Used for |
 |---|---|---|
-| `radius-none` | 0 | Full-bleed images, table cells |
+| `radius-none` | 0 | **Only where there is no visible corner to round** — an image or fill that bleeds off every edge of the viewport, a divider, the interior of a table cell. **A container, an image frame or a background with a visible corner is never `radius-none`** (brand: Shapes & Geometry). A hero image with its bottom edge inside the layout is an image frame: it gets `radius-lg` |
 | `radius-xs` | 4 | Tag, allergen pill, badge dot |
 | `radius-sm` | 8 | Small control, inner element of a card |
 | `radius-md` | 12 | List row, image thumbnail, segmented control |
@@ -517,7 +685,10 @@ Three things are asserted in CI, because all three fail silently otherwise:
 1. **Contrast.** A unit test walks the §2.9 role map plus a declared list of legitimate
    foreground/background pairs, computes the WCAG 2.1 ratio, and asserts the minimum stated in
    this file. A future brand refresh that lightens a green then fails the build instead of
-   shipping. (`E13-13`)
+   shipping. (`E13-13`) Three pairs added by `E13-15` belong in that list as **expected
+   failures that must stay forbidden**, because each is a combination a component could
+   plausibly reach for: `text.link`/`text.price` on `bg.surfaceAccent` (4.09), `border.accent`
+   as a control boundary (1.27), and `badge.bg` as an outline on `neutral-0` (1.69).
 2. **No literals.** A lint rule fails on any hex, `rgb(`, `rgba(`, numeric `fontSize`, numeric
    `borderRadius` or raw spacing number outside `packages/shared/src/design/`. (`E13-11`)
 3. **Axe / Lighthouse accessibility budgets** on both the app and the web build, as gates, not
@@ -539,7 +710,11 @@ Full options and reasoning are in `docs/open-questions.md`. Summarised:
 | `DS-02` | If the VAG Rounded Next licence (`E19-03`) says no, which typeface? | Nunito |
 | `DS-03` | Dark mode in v1? | No — light only, but every colour is named by role (§2.9) so it stays a mapping file |
 | `DS-04` | Must the FSSAI veg / non-veg mark be displayed at the point of ordering? | Tokens reserve the statutory colours; the mark is not brand-tinted (§2.10) |
-| `DS-05` | `00_Graybag_Brand Guidelines.pdf` has never been read (§1). If it specifies tints, tonal steps or a type scale, what wins? | **The brand document wins on anything about the brand.** This file is provisional until `E13-15` closes |
+| `DS-05` | `00_Graybag_Brand Guidelines.pdf` has never been read (§1). If it specifies tints, tonal steps or a type scale, what wins? | **Closed 2026-08-09 by `E13-15`.** Read in full. It specifies a type hierarchy, per-colour UI usage rules and a geometry rule — all adopted (§0). It specifies **no** tints, tonal steps, neutral ramp, spacing, radius numbers or contrast analysis, so those parts of this file stand on their own authority. One conflict survives and is `DS-01`, not `DS-05` |
 
-The decisions this file makes, rather than defers, are recorded as `S6`–`S8` and `S11` in
-`docs/decisions.md`.
+**This file is no longer provisional.** `DS-05` was the caveat sitting under all of it; the one
+thing still outstanding is `DS-01`, and `DS-01` is now a larger question than it was — it is a
+deviation from a written brand rule (§2.1, §2.11) rather than only from the mocks.
+
+The decisions this file makes, rather than defers, are recorded as `S6`–`S8`, `S11` and
+`S12`–`S15` in `docs/decisions.md`.
