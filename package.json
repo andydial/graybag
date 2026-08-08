@@ -10,7 +10,7 @@
     "packages/*"
   ],
   "scripts": {
-    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm test",
+    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm test",
     "test:all": "npm run smoke && npm run test:db",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
@@ -23,6 +23,7 @@
     "db:reset": "npx supabase db reset",
     "db:status": "npx supabase status",
     "check:migrations": "node scripts/check-migrations.mjs",
+    "check:fixtures": "node scripts/check-test-fixtures.mjs",
     "secrets:set": "tsx scripts/set-secrets.mts",
     "backlog": "node scripts/build-backlog.mjs",
     "backlog:serve": "node scripts/serve-backlog.mjs",

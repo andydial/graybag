@@ -20,6 +20,23 @@
 -- auth.uid() (docs/learnings.md). This is a constraint on E01's CI design.
 --
 -- -----------------------------------------------------------------------------
+-- FIXTURE UUID NAMESPACE — READ BEFORE ADDING A FIXTURE (E02-24)
+--
+-- Every UUID this file inserts carries **7e57** ("test") in its second group:
+--
+--   a0000000-7e57-0000-0000-000000000001
+--            ^^^^
+--
+-- `supabase db reset` applies supabase/seed.sql BEFORE the suite runs, and seed.sql
+-- uses the same readable prefixes (a0 = user, d1 = order, e1 = …) with 0000 there.
+-- Seventeen ids overlapped, so the first insert died on a duplicate key and pg_prove
+-- reported `Tests: 0` — not one failing assertion, but the entire suite skipped while
+-- CI went green. That is the exact false confidence non-negotiable #2 exists to stop.
+--
+-- So: a new fixture gets 7e57, always. Nothing in seed.sql may use it.
+-- `scripts/check-test-fixtures.mjs` enforces the split and runs in the smoke test.
+--
+-- -----------------------------------------------------------------------------
 -- HOW A PERSONA IS IMPERSONATED, AND WHY THAT IS THE MOST DANGEROUS PART
 --
 --   select set_config('request.jwt.claims', '{"sub":"<uuid>","role":"authenticated"}', true);
@@ -132,130 +149,130 @@ select * from no_plan();
 -- column in the gotrue schema is nullable or defaulted, and touching more of it
 -- would couple this suite to a gotrue version.
 insert into auth.users (id) values
-  ('a0000000-0000-0000-0000-000000000001'),  -- custA          customer, guardian of recipA/recipA2
-  ('a0000000-0000-0000-0000-000000000002'),  -- custB          customer, guardian of recipB/recipB1
-  ('a0000000-0000-0000-0000-000000000003'),  -- custC          co-guardian of recipA, can_manage = false
-  ('a0000000-0000-0000-0000-000000000004'),  -- custDisabled   is_disabled, WITH data and WITH grants
-  ('a0000000-0000-0000-0000-000000000005'),  -- custDeleted    deleted_at set
-  ('a0000000-0000-0000-0000-000000000006'),  -- kitchOpA       kitchen_operator @ kitchenA
-  ('a0000000-0000-0000-0000-000000000007'),  -- kitchOpB       kitchen_operator @ kitchenB
-  ('a0000000-0000-0000-0000-000000000008'),  -- schoolViewer   school_viewer @ schoolA1
-  ('a0000000-0000-0000-0000-000000000009'),  -- platformAdmin  every permission @ platform
-  ('a0000000-0000-0000-0000-00000000000a'),  -- cityMgr        city-scoped @ cityA
-  ('a0000000-0000-0000-0000-00000000000b'),  -- expiredGrantee grant with expires_at in the past
-  ('a0000000-0000-0000-0000-00000000000c'),  -- revokedGrantee grant with revoked_at set
-  ('a0000000-0000-0000-0000-00000000000d');  -- schoolScoped   orders.view @ schoolA1 only
+  ('a0000000-7e57-0000-0000-000000000001'),  -- custA          customer, guardian of recipA/recipA2
+  ('a0000000-7e57-0000-0000-000000000002'),  -- custB          customer, guardian of recipB/recipB1
+  ('a0000000-7e57-0000-0000-000000000003'),  -- custC          co-guardian of recipA, can_manage = false
+  ('a0000000-7e57-0000-0000-000000000004'),  -- custDisabled   is_disabled, WITH data and WITH grants
+  ('a0000000-7e57-0000-0000-000000000005'),  -- custDeleted    deleted_at set
+  ('a0000000-7e57-0000-0000-000000000006'),  -- kitchOpA       kitchen_operator @ kitchenA
+  ('a0000000-7e57-0000-0000-000000000007'),  -- kitchOpB       kitchen_operator @ kitchenB
+  ('a0000000-7e57-0000-0000-000000000008'),  -- schoolViewer   school_viewer @ schoolA1
+  ('a0000000-7e57-0000-0000-000000000009'),  -- platformAdmin  every permission @ platform
+  ('a0000000-7e57-0000-0000-00000000000a'),  -- cityMgr        city-scoped @ cityA
+  ('a0000000-7e57-0000-0000-00000000000b'),  -- expiredGrantee grant with expires_at in the past
+  ('a0000000-7e57-0000-0000-00000000000c'),  -- revokedGrantee grant with revoked_at set
+  ('a0000000-7e57-0000-0000-00000000000d');  -- schoolScoped   orders.view @ schoolA1 only
 
 insert into app_user (id, phone_e164, first_name, last_name, is_disabled, deleted_at) values
-  ('a0000000-0000-0000-0000-000000000001', '+919000000001', 'Asha',   'Customer', false, null),
-  ('a0000000-0000-0000-0000-000000000002', '+919000000002', 'Bikram', 'Customer', false, null),
-  ('a0000000-0000-0000-0000-000000000003', '+919000000003', 'Chitra', 'Coguard',  false, null),
-  ('a0000000-0000-0000-0000-000000000004', '+919000000004', 'Dev',    'Disabled', true,  null),
-  ('a0000000-0000-0000-0000-000000000005', '+919000000005', 'Esha',   'Deleted',  false, now()),
-  ('a0000000-0000-0000-0000-000000000006', '+919000000006', 'Farid',  'Kitchen',  false, null),
-  ('a0000000-0000-0000-0000-000000000007', '+919000000007', 'Gita',   'Kitchen',  false, null),
-  ('a0000000-0000-0000-0000-000000000008', '+919000000008', 'Hari',   'School',   false, null),
-  ('a0000000-0000-0000-0000-000000000009', '+919000000009', 'Ira',    'Admin',    false, null),
-  ('a0000000-0000-0000-0000-00000000000a', '+919000000010', 'Jai',    'City',     false, null),
-  ('a0000000-0000-0000-0000-00000000000b', '+919000000011', 'Kiran',  'Expired',  false, null),
-  ('a0000000-0000-0000-0000-00000000000c', '+919000000012', 'Lata',   'Revoked',  false, null),
-  ('a0000000-0000-0000-0000-00000000000d', '+919000000013', 'Manish', 'Scoped',   false, null);
+  ('a0000000-7e57-0000-0000-000000000001', '+919000000001', 'Asha',   'Customer', false, null),
+  ('a0000000-7e57-0000-0000-000000000002', '+919000000002', 'Bikram', 'Customer', false, null),
+  ('a0000000-7e57-0000-0000-000000000003', '+919000000003', 'Chitra', 'Coguard',  false, null),
+  ('a0000000-7e57-0000-0000-000000000004', '+919000000004', 'Dev',    'Disabled', true,  null),
+  ('a0000000-7e57-0000-0000-000000000005', '+919000000005', 'Esha',   'Deleted',  false, now()),
+  ('a0000000-7e57-0000-0000-000000000006', '+919000000006', 'Farid',  'Kitchen',  false, null),
+  ('a0000000-7e57-0000-0000-000000000007', '+919000000007', 'Gita',   'Kitchen',  false, null),
+  ('a0000000-7e57-0000-0000-000000000008', '+919000000008', 'Hari',   'School',   false, null),
+  ('a0000000-7e57-0000-0000-000000000009', '+919000000009', 'Ira',    'Admin',    false, null),
+  ('a0000000-7e57-0000-0000-00000000000a', '+919000000010', 'Jai',    'City',     false, null),
+  ('a0000000-7e57-0000-0000-00000000000b', '+919000000011', 'Kiran',  'Expired',  false, null),
+  ('a0000000-7e57-0000-0000-00000000000c', '+919000000012', 'Lata',   'Revoked',  false, null),
+  ('a0000000-7e57-0000-0000-00000000000d', '+919000000013', 'Manish', 'Scoped',   false, null);
 
 insert into city (id, code, name, state_name, gst_state_code) values
-  ('c1000000-0000-0000-0000-000000000001', 'sas_nagar', 'SAS Nagar (Mohali)', 'Punjab', '03'),
-  ('c1000000-0000-0000-0000-000000000002', 'chandigarh','Chandigarh',         'Chandigarh', '04');
+  ('c1000000-7e57-0000-0000-000000000001', 'sas_nagar', 'SAS Nagar (Mohali)', 'Punjab', '03'),
+  ('c1000000-7e57-0000-0000-000000000002', 'chandigarh','Chandigarh',         'Chandigarh', '04');
 
 insert into kitchen (id, code, name, city_id) values
-  ('c2000000-0000-0000-0000-000000000001', 'kitchen_a', 'Kitchen A', 'c1000000-0000-0000-0000-000000000001'),
-  ('c2000000-0000-0000-0000-000000000002', 'kitchen_b', 'Kitchen B', 'c1000000-0000-0000-0000-000000000002');
+  ('c2000000-7e57-0000-0000-000000000001', 'kitchen_a', 'Kitchen A', 'c1000000-7e57-0000-0000-000000000001'),
+  ('c2000000-7e57-0000-0000-000000000002', 'kitchen_b', 'Kitchen B', 'c1000000-7e57-0000-0000-000000000002');
 
 -- schoolA1 and schoolA2 are both served by kitchenA — that pair is what makes the
 -- kitchen -> school scope-widening assertion (§9 item 15) meaningful.
 insert into school (id, code, name, city_id, kitchen_id, onboarded_at) values
-  ('c3000000-0000-0000-0000-000000000001', 'school_a1', 'School A1', 'c1000000-0000-0000-0000-000000000001', 'c2000000-0000-0000-0000-000000000001', now()),
-  ('c3000000-0000-0000-0000-000000000002', 'school_a2', 'School A2', 'c1000000-0000-0000-0000-000000000001', 'c2000000-0000-0000-0000-000000000001', now()),
-  ('c3000000-0000-0000-0000-000000000003', 'school_b1', 'School B1', 'c1000000-0000-0000-0000-000000000002', 'c2000000-0000-0000-0000-000000000002', now());
+  ('c3000000-7e57-0000-0000-000000000001', 'school_a1', 'School A1', 'c1000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', now()),
+  ('c3000000-7e57-0000-0000-000000000002', 'school_a2', 'School A2', 'c1000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', now()),
+  ('c3000000-7e57-0000-0000-000000000003', 'school_b1', 'School B1', 'c1000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000002', now());
 
 insert into school_class (id, school_id, class_label, section_label) values
-  ('c4000000-0000-0000-0000-000000000001', 'c3000000-0000-0000-0000-000000000001', '5', 'A');
+  ('c4000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', '5', 'A');
 
 insert into break_time (id, school_id, code, label, starts_at, ends_at) values
-  ('c5000000-0000-0000-0000-000000000001', 'c3000000-0000-0000-0000-000000000001', 'break_1', 'Morning break', '10:40', '11:15');
+  ('c5000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', 'break_1', 'Morning break', '10:40', '11:15');
 
 insert into break_time_class (break_time_id, school_class_id) values
-  ('c5000000-0000-0000-0000-000000000001', 'c4000000-0000-0000-0000-000000000001');
+  ('c5000000-7e57-0000-0000-000000000001', 'c4000000-7e57-0000-0000-000000000001');
 
 -- Recipients. recipOrphan is the D10 test: created_by_user_id is custA, but the only
 -- guardian_link is to custB, so custA must see nothing.
 insert into recipient (id, first_name, school_id, school_class_id, created_by_user_id) values
-  ('d1000000-0000-0000-0000-000000000001', 'Aarav', 'c3000000-0000-0000-0000-000000000001', 'c4000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001'),
-  ('d1000000-0000-0000-0000-000000000002', 'Bela',  'c3000000-0000-0000-0000-000000000001', null, 'a0000000-0000-0000-0000-000000000002'),
-  ('d1000000-0000-0000-0000-000000000003', 'Chetan','c3000000-0000-0000-0000-000000000003', null, 'a0000000-0000-0000-0000-000000000002'),
-  ('d1000000-0000-0000-0000-000000000004', 'Divya', 'c3000000-0000-0000-0000-000000000001', null, 'a0000000-0000-0000-0000-000000000004'),
-  ('d1000000-0000-0000-0000-000000000005', 'Eshan', 'c3000000-0000-0000-0000-000000000001', null, 'a0000000-0000-0000-0000-000000000001'),  -- recipOrphan
-  ('d1000000-0000-0000-0000-000000000006', 'Farah', 'c3000000-0000-0000-0000-000000000001', null, 'a0000000-0000-0000-0000-000000000001'),  -- recipRevoked
-  ('d1000000-0000-0000-0000-000000000007', 'Gopal', 'c3000000-0000-0000-0000-000000000002', null, 'a0000000-0000-0000-0000-000000000001');  -- recipA2, at schoolA2
+  ('d1000000-7e57-0000-0000-000000000001', 'Aarav', 'c3000000-7e57-0000-0000-000000000001', 'c4000000-7e57-0000-0000-000000000001', 'a0000000-7e57-0000-0000-000000000001'),
+  ('d1000000-7e57-0000-0000-000000000002', 'Bela',  'c3000000-7e57-0000-0000-000000000001', null, 'a0000000-7e57-0000-0000-000000000002'),
+  ('d1000000-7e57-0000-0000-000000000003', 'Chetan','c3000000-7e57-0000-0000-000000000003', null, 'a0000000-7e57-0000-0000-000000000002'),
+  ('d1000000-7e57-0000-0000-000000000004', 'Divya', 'c3000000-7e57-0000-0000-000000000001', null, 'a0000000-7e57-0000-0000-000000000004'),
+  ('d1000000-7e57-0000-0000-000000000005', 'Eshan', 'c3000000-7e57-0000-0000-000000000001', null, 'a0000000-7e57-0000-0000-000000000001'),  -- recipOrphan
+  ('d1000000-7e57-0000-0000-000000000006', 'Farah', 'c3000000-7e57-0000-0000-000000000001', null, 'a0000000-7e57-0000-0000-000000000001'),  -- recipRevoked
+  ('d1000000-7e57-0000-0000-000000000007', 'Gopal', 'c3000000-7e57-0000-0000-000000000002', null, 'a0000000-7e57-0000-0000-000000000001');  -- recipA2, at schoolA2
 
 insert into guardian_link (id, recipient_id, user_id, relationship, can_order, can_manage, is_primary, revoked_at) values
-  ('d1a00000-0000-0000-0000-000000000001', 'd1000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'mother',   true,  true,  true,  null),
-  ('d1a00000-0000-0000-0000-000000000002', 'd1000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000003', 'guardian', true,  false, false, null),
-  ('d1a00000-0000-0000-0000-000000000003', 'd1000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'father',   true,  true,  true,  null),
-  ('d1a00000-0000-0000-0000-000000000004', 'd1000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000002', 'father',   true,  true,  true,  null),
-  ('d1a00000-0000-0000-0000-000000000005', 'd1000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000004', 'father',   true,  true,  true,  null),
-  ('d1a00000-0000-0000-0000-000000000006', 'd1000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000002', 'mother',   true,  true,  true,  null),
-  ('d1a00000-0000-0000-0000-000000000007', 'd1000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000001', 'mother',   true,  true,  true,  now()),
-  ('d1a00000-0000-0000-0000-000000000008', 'd1000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000001', 'mother',   true,  true,  true,  null);
+  ('d1a00000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000001', 'a0000000-7e57-0000-0000-000000000001', 'mother',   true,  true,  true,  null),
+  ('d1a00000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000001', 'a0000000-7e57-0000-0000-000000000003', 'guardian', true,  false, false, null),
+  ('d1a00000-7e57-0000-0000-000000000003', 'd1000000-7e57-0000-0000-000000000002', 'a0000000-7e57-0000-0000-000000000002', 'father',   true,  true,  true,  null),
+  ('d1a00000-7e57-0000-0000-000000000004', 'd1000000-7e57-0000-0000-000000000003', 'a0000000-7e57-0000-0000-000000000002', 'father',   true,  true,  true,  null),
+  ('d1a00000-7e57-0000-0000-000000000005', 'd1000000-7e57-0000-0000-000000000004', 'a0000000-7e57-0000-0000-000000000004', 'father',   true,  true,  true,  null),
+  ('d1a00000-7e57-0000-0000-000000000006', 'd1000000-7e57-0000-0000-000000000005', 'a0000000-7e57-0000-0000-000000000002', 'mother',   true,  true,  true,  null),
+  ('d1a00000-7e57-0000-0000-000000000007', 'd1000000-7e57-0000-0000-000000000006', 'a0000000-7e57-0000-0000-000000000001', 'mother',   true,  true,  true,  now()),
+  ('d1a00000-7e57-0000-0000-000000000008', 'd1000000-7e57-0000-0000-000000000007', 'a0000000-7e57-0000-0000-000000000001', 'mother',   true,  true,  true,  null);
 
 insert into allergen (id, code, display_name) values
-  ('d3000000-0000-0000-0000-000000000001', 'peanut', 'Peanut');
+  ('d3000000-7e57-0000-0000-000000000001', 'peanut', 'Peanut');
 
 -- Two rows: recipA's is asserted on by the kitchen (the fulfilment path) and must
 -- survive the whole run; recipA2's exists so that the customer-plane DELETE — the
 -- only DELETE in the customer plane, §13.4 — can be exercised without destroying a
 -- fixture something else depends on.
 insert into recipient_allergen (recipient_id, allergen_id, severity) values
-  ('d1000000-0000-0000-0000-000000000001', 'd3000000-0000-0000-0000-000000000001', 'anaphylaxis'),
-  ('d1000000-0000-0000-0000-000000000007', 'd3000000-0000-0000-0000-000000000001', 'intolerance');
+  ('d1000000-7e57-0000-0000-000000000001', 'd3000000-7e57-0000-0000-000000000001', 'anaphylaxis'),
+  ('d1000000-7e57-0000-0000-000000000007', 'd3000000-7e57-0000-0000-000000000001', 'intolerance');
 
 insert into asset (id, kind, bucket, path) values
-  ('d2000000-0000-0000-0000-000000000001', 'dish_image',  'dish-images', 'dish/a.jpg'),
-  ('d2000000-0000-0000-0000-000000000002', 'invoice_pdf', 'invoices',    'inv/a.pdf'),
-  ('d2000000-0000-0000-0000-000000000003', 'report_pdf',  'reports',     'rep/a.pdf'),
-  ('d2000000-0000-0000-0000-000000000004', 'import_file', 'imports',     'imp/a.xlsx');
+  ('d2000000-7e57-0000-0000-000000000001', 'dish_image',  'dish-images', 'dish/a.jpg'),
+  ('d2000000-7e57-0000-0000-000000000002', 'invoice_pdf', 'invoices',    'inv/a.pdf'),
+  ('d2000000-7e57-0000-0000-000000000003', 'report_pdf',  'reports',     'rep/a.pdf'),
+  ('d2000000-7e57-0000-0000-000000000004', 'import_file', 'imports',     'imp/a.xlsx');
 
 insert into dish_category (id, code, display_name) values
-  ('d4000000-0000-0000-0000-000000000001', 'quick_bites', 'Quick bites');
+  ('d4000000-7e57-0000-0000-000000000001', 'quick_bites', 'Quick bites');
 
 insert into dish (id, kitchen_id, name, category_id, image_asset_id) values
-  ('d5000000-0000-0000-0000-000000000001', 'c2000000-0000-0000-0000-000000000001', 'Veg Sandwich', 'd4000000-0000-0000-0000-000000000001', 'd2000000-0000-0000-0000-000000000001'),
-  ('d5000000-0000-0000-0000-000000000002', 'c2000000-0000-0000-0000-000000000002', 'Paneer Roll',  'd4000000-0000-0000-0000-000000000001', null);
+  ('d5000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'Veg Sandwich', 'd4000000-7e57-0000-0000-000000000001', 'd2000000-7e57-0000-0000-000000000001'),
+  ('d5000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000002', 'Paneer Roll',  'd4000000-7e57-0000-0000-000000000001', null);
 
 insert into dish_allergen (dish_id, allergen_id) values
-  ('d5000000-0000-0000-0000-000000000001', 'd3000000-0000-0000-0000-000000000001');
+  ('d5000000-7e57-0000-0000-000000000001', 'd3000000-7e57-0000-0000-000000000001');
 
 insert into menu (id, kitchen_id, name, status) values
-  ('d6000000-0000-0000-0000-000000000001', 'c2000000-0000-0000-0000-000000000001', 'Menu A', 'active'),
-  ('d6000000-0000-0000-0000-000000000002', 'c2000000-0000-0000-0000-000000000002', 'Menu B', 'active');
+  ('d6000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'Menu A', 'active'),
+  ('d6000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000002', 'Menu B', 'active');
 
 insert into menu_item (id, menu_id, dish_id, price_paise) values
-  ('d7000000-0000-0000-0000-000000000001', 'd6000000-0000-0000-0000-000000000001', 'd5000000-0000-0000-0000-000000000001', 10000),
-  ('d7000000-0000-0000-0000-000000000002', 'd6000000-0000-0000-0000-000000000002', 'd5000000-0000-0000-0000-000000000002', 10000);
+  ('d7000000-7e57-0000-0000-000000000001', 'd6000000-7e57-0000-0000-000000000001', 'd5000000-7e57-0000-0000-000000000001', 10000),
+  ('d7000000-7e57-0000-0000-000000000002', 'd6000000-7e57-0000-0000-000000000002', 'd5000000-7e57-0000-0000-000000000002', 10000);
 
 insert into menu_assignment (id, school_id, menu_id, valid_from) values
-  ('d8000000-0000-0000-0000-000000000001', 'c3000000-0000-0000-0000-000000000001', 'd6000000-0000-0000-0000-000000000001', current_date - 1),
-  ('d8000000-0000-0000-0000-000000000002', 'c3000000-0000-0000-0000-000000000002', 'd6000000-0000-0000-0000-000000000001', current_date - 1),
-  ('d8000000-0000-0000-0000-000000000003', 'c3000000-0000-0000-0000-000000000003', 'd6000000-0000-0000-0000-000000000002', current_date - 1);
+  ('d8000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', 'd6000000-7e57-0000-0000-000000000001', current_date - 1),
+  ('d8000000-7e57-0000-0000-000000000002', 'c3000000-7e57-0000-0000-000000000002', 'd6000000-7e57-0000-0000-000000000001', current_date - 1),
+  ('d8000000-7e57-0000-0000-000000000003', 'c3000000-7e57-0000-0000-000000000003', 'd6000000-7e57-0000-0000-000000000002', current_date - 1);
 
 insert into menu_item_price_override (id, school_id, menu_item_id, price_paise, valid_from) values
-  ('d9000000-0000-0000-0000-000000000001', 'c3000000-0000-0000-0000-000000000001', 'd7000000-0000-0000-0000-000000000001', 9000, current_date - 1);
+  ('d9000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', 'd7000000-7e57-0000-0000-000000000001', 9000, current_date - 1);
 
 insert into menu_item_capacity (menu_item_id, service_date, capacity_total, remaining) values
-  ('d7000000-0000-0000-0000-000000000001', current_date, 100, 100);
+  ('d7000000-7e57-0000-0000-000000000001', current_date, 100, 100);
 
 -- school_menu_version rows are created by the trigger on school insert (0001 §14).
 
-insert into kitchen_config (kitchen_id) values ('c2000000-0000-0000-0000-000000000001');
-insert into school_config  (school_id)  values ('c3000000-0000-0000-0000-000000000001');
+insert into kitchen_config (kitchen_id) values ('c2000000-7e57-0000-0000-000000000001');
+insert into school_config  (school_id)  values ('c3000000-7e57-0000-0000-000000000001');
 insert into config_change_log (scope_type, scope_id, setting_key, old_value, new_value) values
   ('platform', null, 'order_cutoff_time', '"00:00"'::jsonb, '"09:00"'::jsonb);
 
@@ -265,68 +282,68 @@ insert into config_change_log (scope_type, scope_id, setting_key, old_value, new
 -- kitchenA serves; ogD/orderD belongs to the disabled account.
 insert into order_group (id, customer_user_id, idempotency_key, city_id, status,
                          subtotal_paise, tax_total_paise, discount_paise, wallet_applied_paise, payable_paise) values
-  ('e1000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'idem-a',  'c1000000-0000-0000-0000-000000000001', 'paid', 10000, 500, 0, 0, 10500),
-  ('e1000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000002', 'idem-b',  'c1000000-0000-0000-0000-000000000001', 'paid', 20000, 1000, 0, 0, 21000),
-  ('e1000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000002', 'idem-b1', 'c1000000-0000-0000-0000-000000000002', 'paid', 10000, 500, 0, 0, 10500),
-  ('e1000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'idem-a2', 'c1000000-0000-0000-0000-000000000001', 'paid', 10000, 500, 0, 0, 10500),
-  ('e1000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000004', 'idem-d',  'c1000000-0000-0000-0000-000000000001', 'paid', 10000, 500, 0, 0, 10500);
+  ('e1000000-7e57-0000-0000-000000000001', 'a0000000-7e57-0000-0000-000000000001', 'idem-a',  'c1000000-7e57-0000-0000-000000000001', 'paid', 10000, 500, 0, 0, 10500),
+  ('e1000000-7e57-0000-0000-000000000002', 'a0000000-7e57-0000-0000-000000000002', 'idem-b',  'c1000000-7e57-0000-0000-000000000001', 'paid', 20000, 1000, 0, 0, 21000),
+  ('e1000000-7e57-0000-0000-000000000003', 'a0000000-7e57-0000-0000-000000000002', 'idem-b1', 'c1000000-7e57-0000-0000-000000000002', 'paid', 10000, 500, 0, 0, 10500),
+  ('e1000000-7e57-0000-0000-000000000004', 'a0000000-7e57-0000-0000-000000000001', 'idem-a2', 'c1000000-7e57-0000-0000-000000000001', 'paid', 10000, 500, 0, 0, 10500),
+  ('e1000000-7e57-0000-0000-000000000005', 'a0000000-7e57-0000-0000-000000000004', 'idem-d',  'c1000000-7e57-0000-0000-000000000001', 'paid', 10000, 500, 0, 0, 10500);
 
 insert into "order" (id, order_group_id, order_ref, correlation_id, customer_user_id, recipient_id,
                      school_id, kitchen_id, city_id, service_date, break_time_id, delivery_mode, status,
                      subtotal_paise, tax_cgst_paise, tax_sgst_paise, total_paise,
                      cutoff_at, config_snapshot, school_name_snapshot, recipient_name_snapshot) values
-  ('e2000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001', 'GB-A0001', gen_random_uuid(), 'a0000000-0000-0000-0000-000000000001', 'd1000000-0000-0000-0000-000000000001', 'c3000000-0000-0000-0000-000000000001', 'c2000000-0000-0000-0000-000000000001', 'c1000000-0000-0000-0000-000000000001', current_date, 'c5000000-0000-0000-0000-000000000001', 'classroom', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Aarav'),
-  ('e2000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000002', 'GB-B0001', gen_random_uuid(), 'a0000000-0000-0000-0000-000000000002', 'd1000000-0000-0000-0000-000000000002', 'c3000000-0000-0000-0000-000000000001', 'c2000000-0000-0000-0000-000000000001', 'c1000000-0000-0000-0000-000000000001', current_date, null, 'counter', 'paid', 20000, 500, 500, 21000, now(), '{}'::jsonb, 'School A1', 'Bela'),
-  ('e2000000-0000-0000-0000-000000000003', 'e1000000-0000-0000-0000-000000000003', 'GB-B1001', gen_random_uuid(), 'a0000000-0000-0000-0000-000000000002', 'd1000000-0000-0000-0000-000000000003', 'c3000000-0000-0000-0000-000000000003', 'c2000000-0000-0000-0000-000000000002', 'c1000000-0000-0000-0000-000000000002', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School B1', 'Chetan'),
-  ('e2000000-0000-0000-0000-000000000004', 'e1000000-0000-0000-0000-000000000004', 'GB-A2001', gen_random_uuid(), 'a0000000-0000-0000-0000-000000000001', 'd1000000-0000-0000-0000-000000000007', 'c3000000-0000-0000-0000-000000000002', 'c2000000-0000-0000-0000-000000000001', 'c1000000-0000-0000-0000-000000000001', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A2', 'Gopal'),
-  ('e2000000-0000-0000-0000-000000000005', 'e1000000-0000-0000-0000-000000000005', 'GB-D0001', gen_random_uuid(), 'a0000000-0000-0000-0000-000000000004', 'd1000000-0000-0000-0000-000000000004', 'c3000000-0000-0000-0000-000000000001', 'c2000000-0000-0000-0000-000000000001', 'c1000000-0000-0000-0000-000000000001', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Divya');
+  ('e2000000-7e57-0000-0000-000000000001', 'e1000000-7e57-0000-0000-000000000001', 'GB-A0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, 'c5000000-7e57-0000-0000-000000000001', 'classroom', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Aarav'),
+  ('e2000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000002', 'GB-B0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000002', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'paid', 20000, 500, 500, 21000, now(), '{}'::jsonb, 'School A1', 'Bela'),
+  ('e2000000-7e57-0000-0000-000000000003', 'e1000000-7e57-0000-0000-000000000003', 'GB-B1001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000003', 'c3000000-7e57-0000-0000-000000000003', 'c2000000-7e57-0000-0000-000000000002', 'c1000000-7e57-0000-0000-000000000002', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School B1', 'Chetan'),
+  ('e2000000-7e57-0000-0000-000000000004', 'e1000000-7e57-0000-0000-000000000004', 'GB-A2001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000007', 'c3000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A2', 'Gopal'),
+  ('e2000000-7e57-0000-0000-000000000005', 'e1000000-7e57-0000-0000-000000000005', 'GB-D0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000004', 'd1000000-7e57-0000-0000-000000000004', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Divya');
 
 insert into order_line (order_id, line_no, menu_item_id, dish_id, quantity, unit_price_paise,
                         line_subtotal_paise, tax_cgst_paise, tax_sgst_paise, line_total_paise, dish_name_snapshot) values
-  ('e2000000-0000-0000-0000-000000000001', 1, 'd7000000-0000-0000-0000-000000000001', 'd5000000-0000-0000-0000-000000000001', 1, 10000, 10000, 250, 250, 10500, 'Veg Sandwich'),
-  ('e2000000-0000-0000-0000-000000000002', 1, 'd7000000-0000-0000-0000-000000000001', 'd5000000-0000-0000-0000-000000000001', 2, 10000, 20000, 500, 500, 21000, 'Veg Sandwich'),
-  ('e2000000-0000-0000-0000-000000000003', 1, 'd7000000-0000-0000-0000-000000000002', 'd5000000-0000-0000-0000-000000000002', 1, 10000, 10000, 250, 250, 10500, 'Paneer Roll');
+  ('e2000000-7e57-0000-0000-000000000001', 1, 'd7000000-7e57-0000-0000-000000000001', 'd5000000-7e57-0000-0000-000000000001', 1, 10000, 10000, 250, 250, 10500, 'Veg Sandwich'),
+  ('e2000000-7e57-0000-0000-000000000002', 1, 'd7000000-7e57-0000-0000-000000000001', 'd5000000-7e57-0000-0000-000000000001', 2, 10000, 20000, 500, 500, 21000, 'Veg Sandwich'),
+  ('e2000000-7e57-0000-0000-000000000003', 1, 'd7000000-7e57-0000-0000-000000000002', 'd5000000-7e57-0000-0000-000000000002', 1, 10000, 10000, 250, 250, 10500, 'Paneer Roll');
 
 insert into order_event (order_id, from_status, to_status, actor_type, note, correlation_id) values
-  ('e2000000-0000-0000-0000-000000000001', 'pending_payment', 'paid', 'payment_provider', 'internal note, not for the parent', gen_random_uuid());
+  ('e2000000-7e57-0000-0000-000000000001', 'pending_payment', 'paid', 'payment_provider', 'internal note, not for the parent', gen_random_uuid());
 
 -- Customer B gets a full money trail of their own, so that Customer A's isolation
 -- assertions have something real to fail against. An is_empty over a table holding
 -- only the caller's own rows passes for the wrong reason.
 insert into payment (id, order_group_id, provider_order_id, amount_paise, status, correlation_id) values
-  ('e3000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001', 'order_rzp_a', 10500, 'captured', gen_random_uuid()),
-  ('e3000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000002', 'order_rzp_b', 21000, 'captured', gen_random_uuid());
+  ('e3000000-7e57-0000-0000-000000000001', 'e1000000-7e57-0000-0000-000000000001', 'order_rzp_a', 10500, 'captured', gen_random_uuid()),
+  ('e3000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000002', 'order_rzp_b', 21000, 'captured', gen_random_uuid());
 
 insert into payment_webhook_event (provider, provider_event_id, event_type, signature_verified, payload) values
   ('razorpay', 'evt_a', 'payment.captured', true, '{}'::jsonb);
 
 insert into refund (id, order_group_id, order_id, payment_id, destination, amount_paise, reason_code, status, correlation_id) values
-  ('e4000000-0000-0000-0000-000000000001', 'e1000000-0000-0000-0000-000000000001', 'e2000000-0000-0000-0000-000000000001', 'e3000000-0000-0000-0000-000000000001', 'wallet', 5000, 'goodwill', 'completed', gen_random_uuid()),
-  ('e4000000-0000-0000-0000-000000000002', 'e1000000-0000-0000-0000-000000000002', 'e2000000-0000-0000-0000-000000000002', 'e3000000-0000-0000-0000-000000000002', 'wallet', 1000, 'goodwill', 'completed', gen_random_uuid());
+  ('e4000000-7e57-0000-0000-000000000001', 'e1000000-7e57-0000-0000-000000000001', 'e2000000-7e57-0000-0000-000000000001', 'e3000000-7e57-0000-0000-000000000001', 'wallet', 5000, 'goodwill', 'completed', gen_random_uuid()),
+  ('e4000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000002', 'e2000000-7e57-0000-0000-000000000002', 'e3000000-7e57-0000-0000-000000000002', 'wallet', 1000, 'goodwill', 'completed', gen_random_uuid());
 
 insert into refund_line (refund_id, order_line_id, quantity, amount_paise)
-select 'e4000000-0000-0000-0000-000000000001', ol.id, 1, 5000
+select 'e4000000-7e57-0000-0000-000000000001', ol.id, 1, 5000
   from order_line ol
- where ol.order_id = 'e2000000-0000-0000-0000-000000000001' and ol.line_no = 1;
+ where ol.order_id = 'e2000000-7e57-0000-0000-000000000001' and ol.line_no = 1;
 
 insert into refund_line (refund_id, order_line_id, quantity, amount_paise)
-select 'e4000000-0000-0000-0000-000000000002', ol.id, 1, 1000
+select 'e4000000-7e57-0000-0000-000000000002', ol.id, 1, 1000
   from order_line ol
- where ol.order_id = 'e2000000-0000-0000-0000-000000000002' and ol.line_no = 1;
+ where ol.order_id = 'e2000000-7e57-0000-0000-000000000002' and ol.line_no = 1;
 
 insert into ledger_account (id, code, owner_type, owner_id, account_type, normal_balance) values
-  ('e6000000-0000-0000-0000-000000000001', 'provider:razorpay:clearing', 'provider', null, 'provider_clearing', 'debit'),
-  ('e6000000-0000-0000-0000-000000000002', 'platform:revenue',           'platform', null, 'revenue',           'credit');
+  ('e6000000-7e57-0000-0000-000000000001', 'provider:razorpay:clearing', 'provider', null, 'provider_clearing', 'debit'),
+  ('e6000000-7e57-0000-0000-000000000002', 'platform:revenue',           'platform', null, 'revenue',           'credit');
 
 insert into ledger_transaction (id, reason_code, source_type, source_id, occurred_at) values
-  ('e7000000-0000-0000-0000-000000000001', 'migration_opening_balance', 'payment', 'e3000000-0000-0000-0000-000000000001', now());
+  ('e7000000-7e57-0000-0000-000000000001', 'migration_opening_balance', 'payment', 'e3000000-7e57-0000-0000-000000000001', now());
 
 insert into ledger_entry (transaction_id, account_id, direction, amount_paise) values
-  ('e7000000-0000-0000-0000-000000000001', 'e6000000-0000-0000-0000-000000000001', 'debit',  10500),
-  ('e7000000-0000-0000-0000-000000000001', 'e6000000-0000-0000-0000-000000000002', 'credit', 10500);
+  ('e7000000-7e57-0000-0000-000000000001', 'e6000000-7e57-0000-0000-000000000001', 'debit',  10500),
+  ('e7000000-7e57-0000-0000-000000000001', 'e6000000-7e57-0000-0000-000000000002', 'credit', 10500);
 
 insert into wallet_balance (user_id, balance_paise) values
-  ('a0000000-0000-0000-0000-000000000001', 5000);
+  ('a0000000-7e57-0000-0000-000000000001', 5000);
 
 insert into invoice_sequence (financial_year, last_sequence_no) values ('2026-27', 1);
 
@@ -334,57 +351,57 @@ insert into invoice (id, invoice_number, financial_year, sequence_no, order_grou
                      seller_gstin, seller_legal_name, seller_address, place_of_supply_state_code, sac_code,
                      buyer_name_snapshot, taxable_value_paise, cgst_rate_bps, cgst_paise,
                      sgst_rate_bps, sgst_paise, total_paise) values
-  ('e5000000-0000-0000-0000-000000000001', 'GB/2026-27/000001', '2026-27', 1, 'e1000000-0000-0000-0000-000000000001',
+  ('e5000000-7e57-0000-0000-000000000001', 'GB/2026-27/000001', '2026-27', 1, 'e1000000-7e57-0000-0000-000000000001',
    'PLACEHOLDER', 'GrayBag', 'Mohali', '03', '996331', 'Asha Customer',  10000, 250, 250, 250, 250, 10500),
-  ('e5000000-0000-0000-0000-000000000002', 'GB/2026-27/000002', '2026-27', 2, 'e1000000-0000-0000-0000-000000000002',
+  ('e5000000-7e57-0000-0000-000000000002', 'GB/2026-27/000002', '2026-27', 2, 'e1000000-7e57-0000-0000-000000000002',
    'PLACEHOLDER', 'GrayBag', 'Mohali', '03', '996331', 'Bikram Customer', 20000, 250, 500, 250, 500, 21000);
 
 insert into invoice_line (invoice_id, line_no, order_line_id, description, sac_code, quantity,
                           unit_price_paise, taxable_value_paise, cgst_paise, sgst_paise, total_paise)
-select 'e5000000-0000-0000-0000-000000000001', 1, ol.id, 'Veg Sandwich', '996331', 1, 10000, 10000, 250, 250, 10500
+select 'e5000000-7e57-0000-0000-000000000001', 1, ol.id, 'Veg Sandwich', '996331', 1, 10000, 10000, 250, 250, 10500
   from order_line ol
- where ol.order_id = 'e2000000-0000-0000-0000-000000000001' and ol.line_no = 1;
+ where ol.order_id = 'e2000000-7e57-0000-0000-000000000001' and ol.line_no = 1;
 
 insert into invoice_line (invoice_id, line_no, order_line_id, description, sac_code, quantity,
                           unit_price_paise, taxable_value_paise, cgst_paise, sgst_paise, total_paise)
-select 'e5000000-0000-0000-0000-000000000002', 1, ol.id, 'Veg Sandwich', '996331', 2, 10000, 20000, 500, 500, 21000
+select 'e5000000-7e57-0000-0000-000000000002', 1, ol.id, 'Veg Sandwich', '996331', 2, 10000, 20000, 500, 500, 21000
   from order_line ol
- where ol.order_id = 'e2000000-0000-0000-0000-000000000002' and ol.line_no = 1;
+ where ol.order_id = 'e2000000-7e57-0000-0000-000000000002' and ol.line_no = 1;
 
 -- Two payouts for schoolA1: one draft (a school must NEVER see this — §9 item 19)
 -- and one confirmed (a school must see exactly this one).
 insert into payout (id, payee_type, payee_id, period_start, period_end, gross_sales_paise,
                     share_bps, share_paise, net_payable_paise, status, notes) values
-  ('e8000000-0000-0000-0000-000000000001', 'school', 'c3000000-0000-0000-0000-000000000001', '2026-06-01', '2026-06-30', 100000, 1000, 10000, 10000, 'draft',     'internal working note'),
-  ('e8000000-0000-0000-0000-000000000002', 'school', 'c3000000-0000-0000-0000-000000000001', '2026-07-01', '2026-07-31', 100000, 1000, 10000, 10000, 'confirmed', 'agreed with the principal');
+  ('e8000000-7e57-0000-0000-000000000001', 'school', 'c3000000-7e57-0000-0000-000000000001', '2026-06-01', '2026-06-30', 100000, 1000, 10000, 10000, 'draft',     'internal working note'),
+  ('e8000000-7e57-0000-0000-000000000002', 'school', 'c3000000-7e57-0000-0000-000000000001', '2026-07-01', '2026-07-31', 100000, 1000, 10000, 10000, 'confirmed', 'agreed with the principal');
 
 insert into payout_line (payout_id, order_id, kind, amount_paise) values
-  ('e8000000-0000-0000-0000-000000000002', 'e2000000-0000-0000-0000-000000000001', 'revenue_share', 1000);
+  ('e8000000-7e57-0000-0000-000000000002', 'e2000000-7e57-0000-0000-000000000001', 'revenue_share', 1000);
 
 -- A second school's report exists so that "a SchoolViewer sees their own and no
 -- other" is a real assertion rather than a vacuous one.
 insert into school_report (id, school_id, period_month, share_bps, pdf_asset_id, status) values
-  ('e9000000-0000-0000-0000-000000000001', 'c3000000-0000-0000-0000-000000000001', '2026-07-01', 1000, 'd2000000-0000-0000-0000-000000000003', 'sent'),
-  ('e9000000-0000-0000-0000-000000000002', 'c3000000-0000-0000-0000-000000000003', '2026-07-01', 1000, null, 'sent');
+  ('e9000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', '2026-07-01', 1000, 'd2000000-7e57-0000-0000-000000000003', 'sent'),
+  ('e9000000-7e57-0000-0000-000000000002', 'c3000000-7e57-0000-0000-000000000003', '2026-07-01', 1000, null, 'sent');
 
 insert into policy_document (code, display_name, applies_to) values
   ('privacy_policy', 'Privacy policy', 'both');
 
 insert into policy_version (id, policy_code, version, effective_from, published_at, content_sha256) values
-  ('f1000000-0000-0000-0000-000000000001', 'privacy_policy', '1', now() - interval '1 day', now() - interval '1 day', 'sha-published'),
-  ('f1000000-0000-0000-0000-000000000002', 'privacy_policy', '2', now(),                    null,                    'sha-draft');
+  ('f1000000-7e57-0000-0000-000000000001', 'privacy_policy', '1', now() - interval '1 day', now() - interval '1 day', 'sha-published'),
+  ('f1000000-7e57-0000-0000-000000000002', 'privacy_policy', '2', now(),                    null,                    'sha-draft');
 
 insert into user_policy_acceptance (user_id, policy_version_id, source) values
-  ('a0000000-0000-0000-0000-000000000001', 'f1000000-0000-0000-0000-000000000001', 'app');
+  ('a0000000-7e57-0000-0000-000000000001', 'f1000000-7e57-0000-0000-000000000001', 'app');
 
 insert into consent_purpose (code, display_name, applies_to_subject) values
   ('child_data', 'Storing your child''s details', 'dependent');
 
 insert into consent_record (user_id, subject_type, subject_id, purpose_code, action, capture_method) values
-  ('a0000000-0000-0000-0000-000000000001', 'recipient', 'd1000000-0000-0000-0000-000000000001', 'child_data', 'granted', 'in_app_checkbox');
+  ('a0000000-7e57-0000-0000-000000000001', 'recipient', 'd1000000-7e57-0000-0000-000000000001', 'child_data', 'granted', 'in_app_checkbox');
 
 insert into data_subject_request (id, user_id, request_type, channel, due_at) values
-  ('f2000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'access', 'app', now() + interval '7 days');
+  ('f2000000-7e57-0000-0000-000000000001', 'a0000000-7e57-0000-0000-000000000001', 'access', 'app', now() + interval '7 days');
 
 insert into retention_policy (entity, retention_days, basis, action) values
   ('order_event', 365, 'operational', 'delete');
@@ -395,16 +412,16 @@ insert into idempotency_key (key, scope, request_hash, expires_at) values
   ('k-a', 'checkout', 'hash-a', now() + interval '1 day');
 
 insert into device_token (id, user_id, platform) values
-  ('f3000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'ios');
+  ('f3000000-7e57-0000-0000-000000000001', 'a0000000-7e57-0000-0000-000000000001', 'ios');
 
 insert into notification_preference (user_id, channel, category, enabled) values
-  ('a0000000-0000-0000-0000-000000000001', 'push', 'order_updates', true);
+  ('a0000000-7e57-0000-0000-000000000001', 'push', 'order_updates', true);
 
 insert into notification_delivery (user_id, channel, template_code) values
-  ('a0000000-0000-0000-0000-000000000001', 'push', 'order.delivered');
+  ('a0000000-7e57-0000-0000-000000000001', 'push', 'order.delivered');
 
 insert into audit_log (actor_user_id, actor_type, action, source) values
-  ('a0000000-0000-0000-0000-000000000009', 'admin', 'test.fixture', 'job');
+  ('a0000000-7e57-0000-0000-000000000009', 'admin', 'test.fixture', 'job');
 
 -- Grants. D11: templates are bundles that expand into grants, so the fixtures
 -- expand them by hand exactly as the admin UI will.
@@ -417,48 +434,48 @@ insert into permission_grant (user_id, permission_code, scope_type, scope_id, gr
 -- `text`, not to `unknown`, so they do NOT implicitly coerce to uuid the way a bare
 -- literal in a plain INSERT would.
 select u::uuid, p, s::scope_type, sid::uuid,
-       'a0000000-0000-0000-0000-000000000009'::uuid, exp::timestamptz, rev::timestamptz
+       'a0000000-7e57-0000-0000-000000000009'::uuid, exp::timestamptz, rev::timestamptz
 from (values
   -- kitchOpA @ kitchenA
-  ('a0000000-0000-0000-0000-000000000006','orders.view','kitchen','c2000000-0000-0000-0000-000000000001'::uuid,null::timestamptz,null::timestamptz),
-  ('a0000000-0000-0000-0000-000000000006','orders.view_pii','kitchen','c2000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-000000000006','orders.mark_delivered','kitchen','c2000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-000000000006','orders.cancel','kitchen','c2000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-000000000006','menu.view','kitchen','c2000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-000000000006','menu.edit','kitchen','c2000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-000000000006','dish.edit','kitchen','c2000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-000000000006','reports.view','kitchen','c2000000-0000-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-000000000006','orders.view','kitchen','c2000000-7e57-0000-0000-000000000001'::uuid,null::timestamptz,null::timestamptz),
+  ('a0000000-7e57-0000-0000-000000000006','orders.view_pii','kitchen','c2000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-000000000006','orders.mark_delivered','kitchen','c2000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-000000000006','orders.cancel','kitchen','c2000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-000000000006','menu.view','kitchen','c2000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-000000000006','menu.edit','kitchen','c2000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-000000000006','dish.edit','kitchen','c2000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-000000000006','reports.view','kitchen','c2000000-7e57-0000-0000-000000000001',null,null),
   -- kitchOpB @ kitchenB
-  ('a0000000-0000-0000-0000-000000000007','orders.view','kitchen','c2000000-0000-0000-0000-000000000002',null,null),
-  ('a0000000-0000-0000-0000-000000000007','orders.view_pii','kitchen','c2000000-0000-0000-0000-000000000002',null,null),
-  ('a0000000-0000-0000-0000-000000000007','menu.view','kitchen','c2000000-0000-0000-0000-000000000002',null,null),
-  ('a0000000-0000-0000-0000-000000000007','reports.view','kitchen','c2000000-0000-0000-0000-000000000002',null,null),
+  ('a0000000-7e57-0000-0000-000000000007','orders.view','kitchen','c2000000-7e57-0000-0000-000000000002',null,null),
+  ('a0000000-7e57-0000-0000-000000000007','orders.view_pii','kitchen','c2000000-7e57-0000-0000-000000000002',null,null),
+  ('a0000000-7e57-0000-0000-000000000007','menu.view','kitchen','c2000000-7e57-0000-0000-000000000002',null,null),
+  ('a0000000-7e57-0000-0000-000000000007','reports.view','kitchen','c2000000-7e57-0000-0000-000000000002',null,null),
   -- schoolViewer @ schoolA1
-  ('a0000000-0000-0000-0000-000000000008','reports.view','school','c3000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-000000000008','school.view','school','c3000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-000000000008','payouts.view','school','c3000000-0000-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-000000000008','reports.view','school','c3000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-000000000008','school.view','school','c3000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-000000000008','payouts.view','school','c3000000-7e57-0000-0000-000000000001',null,null),
   -- cityMgr @ cityA. orders.view_pii is NOT valid at city scope (0001 §17), which is
   -- why the [AZ-02] tripwire in Part 9 excludes city-scoped grants.
-  ('a0000000-0000-0000-0000-00000000000a','orders.view','city','c1000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-00000000000a','school.view','city','c1000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-00000000000a','reports.view','city','c1000000-0000-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-00000000000a','orders.view','city','c1000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-00000000000a','school.view','city','c1000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-00000000000a','reports.view','city','c1000000-7e57-0000-0000-000000000001',null,null),
   -- expired and revoked: identical grants, neither of which may authorize anything
-  ('a0000000-0000-0000-0000-00000000000b','orders.view','school','c3000000-0000-0000-0000-000000000001',now() - interval '1 day',null),
-  ('a0000000-0000-0000-0000-00000000000b','orders.view_pii','school','c3000000-0000-0000-0000-000000000001',now() - interval '1 day',null),
-  ('a0000000-0000-0000-0000-00000000000c','orders.view','school','c3000000-0000-0000-0000-000000000001',null,now()),
-  ('a0000000-0000-0000-0000-00000000000c','orders.view_pii','school','c3000000-0000-0000-0000-000000000001',null,now()),
+  ('a0000000-7e57-0000-0000-00000000000b','orders.view','school','c3000000-7e57-0000-0000-000000000001',now() - interval '1 day',null),
+  ('a0000000-7e57-0000-0000-00000000000b','orders.view_pii','school','c3000000-7e57-0000-0000-000000000001',now() - interval '1 day',null),
+  ('a0000000-7e57-0000-0000-00000000000c','orders.view','school','c3000000-7e57-0000-0000-000000000001',null,now()),
+  ('a0000000-7e57-0000-0000-00000000000c','orders.view_pii','school','c3000000-7e57-0000-0000-000000000001',null,now()),
   -- school-scoped only: the control for "widening is one-directional"
-  ('a0000000-0000-0000-0000-00000000000d','orders.view','school','c3000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-00000000000d','orders.view_pii','school','c3000000-0000-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-00000000000d','orders.view','school','c3000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-00000000000d','orders.view_pii','school','c3000000-7e57-0000-0000-000000000001',null,null),
   -- the disabled account holds real, live, unexpired grants. It must still see
   -- nothing anywhere (§9 item 8).
-  ('a0000000-0000-0000-0000-000000000004','orders.view','school','c3000000-0000-0000-0000-000000000001',null,null),
-  ('a0000000-0000-0000-0000-000000000004','orders.view_pii','school','c3000000-0000-0000-0000-000000000001',null,null)
+  ('a0000000-7e57-0000-0000-000000000004','orders.view','school','c3000000-7e57-0000-0000-000000000001',null,null),
+  ('a0000000-7e57-0000-0000-000000000004','orders.view_pii','school','c3000000-7e57-0000-0000-000000000001',null,null)
 ) as v(u, p, s, sid, exp, rev);
 
 -- platformAdmin: every permission, at platform.
 insert into permission_grant (user_id, permission_code, scope_type, scope_id, granted_by_user_id)
-select 'a0000000-0000-0000-0000-000000000009', code, 'platform', null, 'a0000000-0000-0000-0000-000000000009'
+select 'a0000000-7e57-0000-0000-000000000009', code, 'platform', null, 'a0000000-7e57-0000-0000-000000000009'
   from permission;
 
 -- -----------------------------------------------------------------------------
@@ -555,14 +572,14 @@ select is(current_user::text, session_user::text, 'harness: fixtures were loaded
 
 do $$ begin
   perform set_config('request.jwt.claims',
-    '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
+    '{"sub":"a0000000-7e57-0000-0000-000000000001","role":"authenticated"}', true);
 end $$;
 set local role authenticated;
 
 select is(current_user::text, 'authenticated', 'harness: SET LOCAL ROLE actually switched the Postgres role');
-select is((select auth.uid())::text, 'a0000000-0000-0000-0000-000000000001',
+select is((select auth.uid())::text, 'a0000000-7e57-0000-0000-000000000001',
           'harness: auth.uid() reads the impersonated subject from request.jwt.claims');
-select isnt_empty($$ select 1 from "order" where id = 'e2000000-0000-0000-0000-000000000001' $$,
+select isnt_empty($$ select 1 from "order" where id = 'e2000000-7e57-0000-0000-000000000001' $$,
                   'harness: an impersonated customer really does see their own order (so a later is_empty means something)');
 reset role;
 
@@ -903,7 +920,7 @@ select is_empty($$ select tbl from tests_seen where persona = 'anon' $$,
 -- =============================================================================
 
 -- ---- Customer A -------------------------------------------------------------
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000001","role":"authenticated"}', true); end $$;
 set local role authenticated;
 insert into tests_seen select 'custA', tbl from tests_visible_counts('public')    where n > 0;
 insert into tests_seen select 'custA', tbl from tests_visible_counts('migration') where n > 0;
@@ -924,7 +941,7 @@ select set_eq(
   '§8 Customer column: a customer reaches exactly these 38 tables — notably NOT kitchen, order_event ([AZ-06]), any config table, any ledger table, payout, permission or audit_log');
 
 -- ---- KitchenOperator @ kitchenA ---------------------------------------------
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000006","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000006","role":"authenticated"}', true); end $$;
 set local role authenticated;
 insert into tests_seen select 'kitchOpA', tbl from tests_visible_counts('public')    where n > 0;
 insert into tests_seen select 'kitchOpA', tbl from tests_visible_counts('migration') where n > 0;
@@ -946,7 +963,7 @@ select set_eq(
 -- role is re-entered: the set_eq above deliberately runs as the session role over the
 -- captured counts, and an is_empty run outside a persona would pass as postgres for
 -- entirely the wrong reason.
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000006","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000006","role":"authenticated"}', true); end $$;
 set local role authenticated;
 select is_empty($$ select 1 from payment $$,             '§9 item 16: a KitchenOperator sees no payment — they hold neither orders.view_financials nor orders.refund. This is D3''s promise and the only thing that makes it real');
 select is_empty($$ select 1 from refund $$,              '§9 item 16: a KitchenOperator sees no refund');
@@ -954,7 +971,7 @@ select is_empty($$ select 1 from invoice $$,             '§9 item 16: a Kitchen
 select is_empty($$ select 1 from ledger_entry $$,        '§9 item 16: a KitchenOperator sees no ledger_entry');
 select is_empty($$ select 1 from payout $$,              '§9 item 16: a KitchenOperator sees no payout');
 select is_empty($$ select 1 from app_user
-                    where id <> 'a0000000-0000-0000-0000-000000000006' $$,
+                    where id <> 'a0000000-7e57-0000-0000-000000000006' $$,
                 '§9 item 17 / §13.3 rule 4: a KitchenOperator sees NO app_user row but their own. The E09-07 last-4-digits search must be an Edge Function returning orders, never a table read');
 select is_empty($$ select 1 from guardian_link $$,       '§7.2: a KitchenOperator has no business knowing who a child''s parents are');
 select is_empty($$ select 1 from kitchen $$,
@@ -962,7 +979,7 @@ select is_empty($$ select 1 from kitchen $$,
 reset role;
 
 -- ---- SchoolViewer @ schoolA1 ------------------------------------------------
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000008","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000008","role":"authenticated"}', true); end $$;
 set local role authenticated;
 insert into tests_seen select 'schoolViewer', tbl from tests_visible_counts('public')    where n > 0;
 insert into tests_seen select 'schoolViewer', tbl from tests_visible_counts('migration') where n > 0;
@@ -979,7 +996,7 @@ select set_eq(
   '§8 SchoolViewer column: 18 tables. §13.3 rule 5 — none of tier S, P or A');
 
 -- ---- PlatformAdmin ----------------------------------------------------------
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000009","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000009","role":"authenticated"}', true); end $$;
 set local role authenticated;
 insert into tests_seen select 'platformAdmin', tbl from tests_visible_counts('public')    where n > 0;
 insert into tests_seen select 'platformAdmin', tbl from tests_visible_counts('migration') where n > 0;
@@ -1009,7 +1026,7 @@ select set_eq(
 -- PART 5 — Customer isolation (§9 items 5-11) and the deliberate PlatformAdmin gaps
 -- =============================================================================
 
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000009","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000009","role":"authenticated"}', true); end $$;
 set local role authenticated;
 
 -- §7.2. users.view does not open it, consent.view does not open it. Reading a
@@ -1029,128 +1046,128 @@ reset role;
 
 -- ---- The co-guardian: can_order but not can_manage ---------------------------
 -- Asserted BEFORE Customer A's write block, which revokes this very link.
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000003","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000003","role":"authenticated"}', true); end $$;
 set local role authenticated;
-select isnt_empty($$ select 1 from recipient where id = 'd1000000-0000-0000-0000-000000000001' $$,
+select isnt_empty($$ select 1 from recipient where id = 'd1000000-7e57-0000-0000-000000000001' $$,
                   '§4.2: can_manage = false still reaches the recipient (auth_can_reach_recipient)');
 -- Note the shape of this one. A failing USING clause does NOT raise: it filters the
 -- row out of the statement, so the UPDATE succeeds and touches nothing. Asserting
 -- throws_ok here would be asserting the wrong thing and would fail.
-select lives_ok($$ update recipient set first_name = 'Renamed' where id = 'd1000000-0000-0000-0000-000000000001' $$,
+select lives_ok($$ update recipient set first_name = 'Renamed' where id = 'd1000000-7e57-0000-0000-000000000001' $$,
                 '§4.2: an UPDATE by a can_manage = false guardian does not raise — RLS USING filters the row out');
-select is((select first_name from recipient where id = 'd1000000-0000-0000-0000-000000000001'), 'Aarav',
+select is((select first_name from recipient where id = 'd1000000-7e57-0000-0000-000000000001'), 'Aarav',
           '§4.2: …and the row is unchanged. auth_can_manage_recipient is a different function from auth_can_reach_recipient for exactly this reason');
-select is_empty($$ select 1 from recipient where id = 'd1000000-0000-0000-0000-000000000007' $$,
+select is_empty($$ select 1 from recipient where id = 'd1000000-7e57-0000-0000-000000000007' $$,
                 '§4.2: …and a co-guardian reaches only the child they are linked to, not the other guardian''s other children');
 reset role;
 
 -- ---- Customer A cannot see Customer B -----------------------------------------
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000001","role":"authenticated"}', true); end $$;
 set local role authenticated;
 
-select is_empty($$ select 1 from order_group where customer_user_id <> 'a0000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from order_group where customer_user_id <> 'a0000000-7e57-0000-0000-000000000001' $$,
                 '§9 item 5: Customer A cannot select Customer B''s order_group');
-select is_empty($$ select 1 from "order" where customer_user_id <> 'a0000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from "order" where customer_user_id <> 'a0000000-7e57-0000-0000-000000000001' $$,
                 '§9 item 5: Customer A cannot select Customer B''s order — the legacy Order was world-readable');
-select is_empty($$ select 1 from order_line where order_id = 'e2000000-0000-0000-0000-000000000002' $$,
+select is_empty($$ select 1 from order_line where order_id = 'e2000000-7e57-0000-0000-000000000002' $$,
                 '§9 item 5: Customer A cannot select Customer B''s order_line');
-select is_empty($$ select 1 from payment where order_group_id <> 'e1000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from payment where order_group_id <> 'e1000000-7e57-0000-0000-000000000001' $$,
                 '§9 item 5: Customer A cannot select Customer B''s payment');
-select is_empty($$ select 1 from refund where order_group_id <> 'e1000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from refund where order_group_id <> 'e1000000-7e57-0000-0000-000000000001' $$,
                 '§9 item 5: Customer A cannot select Customer B''s refund');
-select is_empty($$ select 1 from invoice where order_group_id <> 'e1000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from invoice where order_group_id <> 'e1000000-7e57-0000-0000-000000000001' $$,
                 '§9 item 5: Customer A cannot select Customer B''s invoice');
-select is_empty($$ select 1 from refund_line where refund_id = 'e4000000-0000-0000-0000-000000000002' $$,
+select is_empty($$ select 1 from refund_line where refund_id = 'e4000000-7e57-0000-0000-000000000002' $$,
                 '§9 item 5: Customer A cannot select Customer B''s refund_line (auth_owns_refund resolves through the group)');
-select is_empty($$ select 1 from invoice_line where invoice_id = 'e5000000-0000-0000-0000-000000000002' $$,
+select is_empty($$ select 1 from invoice_line where invoice_id = 'e5000000-7e57-0000-0000-000000000002' $$,
                 '§9 item 5: Customer A cannot select Customer B''s invoice_line (auth_owns_invoice resolves through the group)');
-select is_empty($$ select 1 from wallet_balance where user_id <> 'a0000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from wallet_balance where user_id <> 'a0000000-7e57-0000-0000-000000000001' $$,
                 '§9 item 5: Customer A cannot select Customer B''s wallet_balance');
-select is_empty($$ select 1 from device_token where user_id <> 'a0000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from device_token where user_id <> 'a0000000-7e57-0000-0000-000000000001' $$,
                 '§9 item 5: Customer A cannot select Customer B''s device_token');
-select is_empty($$ select 1 from consent_record where user_id <> 'a0000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from consent_record where user_id <> 'a0000000-7e57-0000-0000-000000000001' $$,
                 '§9 item 5: Customer A cannot select Customer B''s consent_record');
-select is_empty($$ select 1 from app_user where id <> 'a0000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from app_user where id <> 'a0000000-7e57-0000-0000-000000000001' $$,
                 '§9 item 5: Customer A cannot select any other app_user row');
 
 -- D10. This is the assertion the whole guardian_link design exists for.
-select is_empty($$ select 1 from recipient where id = 'd1000000-0000-0000-0000-000000000005' $$,
+select is_empty($$ select 1 from recipient where id = 'd1000000-7e57-0000-0000-000000000005' $$,
                 '§9 item 6 / D10: Customer A cannot select a recipient they CREATED but have no guardian_link to — created_by_user_id authorizes nothing');
-select is_empty($$ select 1 from recipient where id = 'd1000000-0000-0000-0000-000000000002' $$,
+select is_empty($$ select 1 from recipient where id = 'd1000000-7e57-0000-0000-000000000002' $$,
                 '§9 item 6: Customer A cannot select Customer B''s recipient');
-select is_empty($$ select 1 from recipient where id = 'd1000000-0000-0000-0000-000000000006' $$,
+select is_empty($$ select 1 from recipient where id = 'd1000000-7e57-0000-0000-000000000006' $$,
                 '§9 item 7: a REVOKED guardian_link grants nothing — the recipient behind it is invisible');
 select is_empty($$ select 1 from recipient_allergen
-                    where recipient_id not in ('d1000000-0000-0000-0000-000000000001',
-                                               'd1000000-0000-0000-0000-000000000007') $$,
+                    where recipient_id not in ('d1000000-7e57-0000-0000-000000000001',
+                                               'd1000000-7e57-0000-0000-000000000007') $$,
                 '§9 item 7: a revoked or absent link grants nothing on tier-S data either — Customer A sees the allergens of their own two children and nobody else''s');
 
-select isnt_empty($$ select 1 from recipient where id = 'd1000000-0000-0000-0000-000000000001' $$,
+select isnt_empty($$ select 1 from recipient where id = 'd1000000-7e57-0000-0000-000000000001' $$,
                   '§8 row 12: Customer A DOES see the recipient they hold a live guardian_link to');
-select isnt_empty($$ select 1 from recipient where id = 'd1000000-0000-0000-0000-000000000007' $$,
+select isnt_empty($$ select 1 from recipient where id = 'd1000000-7e57-0000-0000-000000000007' $$,
                   '§8 row 12: …including one at a second school (D2 — school lives on the recipient)');
 
 -- [AZ-05], written as yes and awaiting Andy.
 select isnt_empty($$ select 1 from guardian_link
-                      where recipient_id = 'd1000000-0000-0000-0000-000000000001'
-                        and user_id = 'a0000000-0000-0000-0000-000000000003' $$,
+                      where recipient_id = 'd1000000-7e57-0000-0000-000000000001'
+                        and user_id = 'a0000000-7e57-0000-0000-000000000003' $$,
                   '[AZ-05]: a guardian sees the OTHER guardians on their child (the link row)…');
-select is_empty($$ select 1 from app_user where id = 'a0000000-0000-0000-0000-000000000003' $$,
+select is_empty($$ select 1 from app_user where id = 'a0000000-7e57-0000-0000-000000000003' $$,
                 '[AZ-05]: …but not that guardian''s name, phone or email — app_user is not opened');
 
 -- §9 item 9. The DPDP-relevant property, and a database constraint rather than an
 -- Edge Function convention.
 select throws_ok(
   $$ insert into consent_record (user_id, subject_type, subject_id, purpose_code, action, capture_method)
-     values ('a0000000-0000-0000-0000-000000000001', 'recipient', 'd1000000-0000-0000-0000-000000000002',
+     values ('a0000000-7e57-0000-0000-000000000001', 'recipient', 'd1000000-7e57-0000-0000-000000000002',
              'child_data', 'granted', 'in_app_checkbox') $$,
   '42501', null,
   '§9 item 9: Customer A cannot record a consent_record ABOUT Customer B''s child');
 select lives_ok(
   $$ insert into consent_record (user_id, subject_type, subject_id, purpose_code, action, capture_method)
-     values ('a0000000-0000-0000-0000-000000000001', 'recipient', 'd1000000-0000-0000-0000-000000000001',
+     values ('a0000000-7e57-0000-0000-000000000001', 'recipient', 'd1000000-7e57-0000-0000-000000000001',
              'child_data', 'granted', 'in_app_checkbox') $$,
   '§7.9: …and can record one about their own child');
 
 -- §9 item 10 — the §6.1 guard triggers. RLS cannot protect a column; these can.
-select throws_ok($$ update app_user set is_disabled = true where id = 'a0000000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ update app_user set is_disabled = true where id = 'a0000000-7e57-0000-0000-000000000001' $$,
                  '42501', null, '§9 item 10 / §6.1: a customer cannot set is_disabled on their own app_user row');
-select throws_ok($$ update app_user set deleted_at = now() where id = 'a0000000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ update app_user set deleted_at = now() where id = 'a0000000-7e57-0000-0000-000000000001' $$,
                  '42501', null, '§9 item 10 / §6.1: a customer cannot set deleted_at on their own app_user row');
-select throws_ok($$ update app_user set phone_e164 = '+919999999999' where id = 'a0000000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ update app_user set phone_e164 = '+919999999999' where id = 'a0000000-7e57-0000-0000-000000000001' $$,
                  '42501', null, '§6.1: a customer cannot rewrite phone_e164 without re-verifying by OTP');
-select lives_ok($$ update app_user set first_name = 'Asha Rani' where id = 'a0000000-0000-0000-0000-000000000001' $$,
+select lives_ok($$ update app_user set first_name = 'Asha Rani' where id = 'a0000000-7e57-0000-0000-000000000001' $$,
                 '§6.1: …but the columns that ARE theirs to set remain editable');
 
 -- §9 item 11. Without this a guardian holding can_manage could re-point a link at
 -- somebody else's child, which is D10's single answer turned back into two.
-select throws_ok($$ update guardian_link set recipient_id = 'd1000000-0000-0000-0000-000000000002'
-                     where id = 'd1a00000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ update guardian_link set recipient_id = 'd1000000-7e57-0000-0000-000000000002'
+                     where id = 'd1a00000-7e57-0000-0000-000000000001' $$,
                  '42501', null, '§9 item 11 / §6.1: a guardian cannot re-point a guardian_link at another child');
-select throws_ok($$ update guardian_link set user_id = 'a0000000-0000-0000-0000-000000000002'
-                     where id = 'd1a00000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ update guardian_link set user_id = 'a0000000-7e57-0000-0000-000000000002'
+                     where id = 'd1a00000-7e57-0000-0000-000000000001' $$,
                  '42501', null, '§6.1: …nor at another user');
 select lives_ok($$ update guardian_link set revoked_at = now()
-                    where id = 'd1a00000-0000-0000-0000-000000000002' $$,
+                    where id = 'd1a00000-7e57-0000-0000-000000000002' $$,
                 '§7.2: …but a manager CAN revoke a co-guardian''s link, which is the whole point of [AZ-05]');
 
 -- §6.1 on recipient, and the customer-plane write surface that IS open (class 1).
-select throws_ok($$ update recipient set deleted_at = now() where id = 'd1000000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ update recipient set deleted_at = now() where id = 'd1000000-7e57-0000-0000-000000000001' $$,
                  '42501', null, '§6.1: a guardian cannot soft-delete a recipient directly — erasure is an Edge Function (D15)');
 select lives_ok($$ update recipient set allergy_note = 'severe peanut allergy'
-                    where id = 'd1000000-0000-0000-0000-000000000001' $$,
+                    where id = 'd1000000-7e57-0000-0000-000000000001' $$,
                 '§7.2: a guardian with can_manage CAN edit their own child''s details');
 -- Deletes recipA2's row, not recipA's: the kitchen fulfilment assertions in Part 7
 -- depend on recipA's allergen surviving, and a test that quietly destroys another
 -- test's fixture is a test that reports the wrong reason for a failure.
 select lives_ok($$ delete from recipient_allergen
-                    where recipient_id = 'd1000000-0000-0000-0000-000000000007' $$,
+                    where recipient_id = 'd1000000-7e57-0000-0000-000000000007' $$,
                 '§7.2 / §13.4: DELETE is permitted on recipient_allergen and nowhere else in the customer plane — a child''s health data is deleted outright on erasure, because there is no statutory reason to retain it');
 
 reset role;
 
 -- ---- §9 item 8: a disabled account, and a deleted one, see nothing anywhere ---
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000004","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000004","role":"authenticated"}', true); end $$;
 set local role authenticated;
 insert into tests_seen select 'custDisabled', tbl from tests_visible_counts('public') where n > 0;
 reset role;
@@ -1158,7 +1175,7 @@ reset role;
 select is_empty($$ select tbl from tests_seen where persona = 'custDisabled' $$,
                 '§9 item 8 / §5 Rule 5: a DISABLED account sees nothing in any table, despite owning orders and holding live, unexpired grants');
 
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000005","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000005","role":"authenticated"}', true); end $$;
 set local role authenticated;
 insert into tests_seen select 'custDeleted', tbl from tests_visible_counts('public') where n > 0;
 reset role;
@@ -1174,7 +1191,7 @@ select is_empty($$ select tbl from tests_seen where persona = 'custDeleted' $$,
 -- the test is "authenticated cannot insert, ever".
 -- =============================================================================
 
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000001","role":"authenticated"}', true); end $$;
 set local role authenticated;
 insert into tests_seen
 select 'class3-custA', t.tbl from tests_tmp.tests_class3 t
@@ -1186,7 +1203,7 @@ select is_empty($$ select tbl from tests_seen where persona = 'class3-custA' $$,
 
 -- §9 item 13 is the one people are surprised by. Platform admin is not a database
 -- superuser; it is a set of grants that open reads and authorize Edge Functions.
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000009","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000009","role":"authenticated"}', true); end $$;
 set local role authenticated;
 insert into tests_seen
 select 'class3-admin', t.tbl from tests_tmp.tests_class3 t
@@ -1197,7 +1214,7 @@ select is_empty($$ select tbl from tests_seen where persona = 'class3-admin' $$,
                 '§9 item 13: a PlatformAdmin holding EVERY permission also cannot INSERT into any class-3 table');
 
 -- The specific tables §9 item 12 names, spelled out so a failure is unambiguous.
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000001","role":"authenticated"}', true); end $$;
 set local role authenticated;
 select is(tests_insert_sqlstate('order'),            '42501', '§9 item 12: no INSERT into "order"');
 select is(tests_insert_sqlstate('order_group'),      '42501', '§9 item 12: no INSERT into order_group');
@@ -1216,24 +1233,24 @@ select throws_ok($$ insert into city (code, name, state_name, gst_state_code)
                     values ('x', 'X', 'X', '01') $$,
                  '42501', null, '§7.1: city is class 3 — stopped by RLS, since §10 does not revoke its write privileges');
 select throws_ok($$ insert into kitchen (code, name, city_id)
-                    values ('x', 'X', 'c1000000-0000-0000-0000-000000000001') $$,
+                    values ('x', 'X', 'c1000000-7e57-0000-0000-000000000001') $$,
                  '42501', null, '§7.3: kitchen creation is class 3 too');
 reset role;
 
 -- §9 item 14 — the append-only guarantee, which is a trigger and not a grant, and
 -- therefore holds even for the role that bypasses RLS.
 set local role service_role;
-select throws_ok($$ update order_event set note = 'rewritten' where order_id = 'e2000000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ update order_event set note = 'rewritten' where order_id = 'e2000000-7e57-0000-0000-000000000001' $$,
                  '23001', null, '§9 item 14: order_event is append-only even for service_role');
-select throws_ok($$ delete from order_event where order_id = 'e2000000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ delete from order_event where order_id = 'e2000000-7e57-0000-0000-000000000001' $$,
                  '23001', null, '§9 item 14: …and cannot be deleted either');
-select throws_ok($$ update ledger_entry set amount_paise = 1 where transaction_id = 'e7000000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ update ledger_entry set amount_paise = 1 where transaction_id = 'e7000000-7e57-0000-0000-000000000001' $$,
                  '23001', null, '§9 item 14: ledger_entry is append-only even for service_role — corrections are reversals');
-select throws_ok($$ update ledger_transaction set memo = 'x' where id = 'e7000000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ update ledger_transaction set memo = 'x' where id = 'e7000000-7e57-0000-0000-000000000001' $$,
                  '23001', null, '§9 item 14: ledger_transaction is append-only even for service_role');
-select throws_ok($$ update consent_record set action = 'withdrawn' where user_id = 'a0000000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ update consent_record set action = 'withdrawn' where user_id = 'a0000000-7e57-0000-0000-000000000001' $$,
                  '23001', null, '§9 item 14: consent_record is append-only even for service_role — a withdrawal is a new row');
-select throws_ok($$ update user_policy_acceptance set source = 'web' where user_id = 'a0000000-0000-0000-0000-000000000001' $$,
+select throws_ok($$ update user_policy_acceptance set source = 'web' where user_id = 'a0000000-7e57-0000-0000-000000000001' $$,
                  '23001', null, '§9 item 14: user_policy_acceptance is append-only even for service_role');
 select throws_ok($$ update audit_log set action = 'x' where actor_type = 'admin' $$,
                  '23001', null, '§9 item 14: audit_log is append-only even for service_role');
@@ -1245,62 +1262,62 @@ reset role;
 -- =============================================================================
 
 -- ---- §9 item 15: kitchen -> school widening, in both directions --------------
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000006","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000006","role":"authenticated"}', true); end $$;
 set local role authenticated;
-select isnt_empty($$ select 1 from "order" where school_id = 'c3000000-0000-0000-0000-000000000001' $$,
+select isnt_empty($$ select 1 from "order" where school_id = 'c3000000-7e57-0000-0000-000000000001' $$,
                   '§9 item 15: kitchenA''s operator sees orders at schoolA1');
-select isnt_empty($$ select 1 from "order" where school_id = 'c3000000-0000-0000-0000-000000000002' $$,
+select isnt_empty($$ select 1 from "order" where school_id = 'c3000000-7e57-0000-0000-000000000002' $$,
                   '§9 item 15: …and at schoolA2, the other school kitchenA serves — that IS the kitchen->school widening (E09-10)');
-select is_empty($$ select 1 from "order" where school_id = 'c3000000-0000-0000-0000-000000000003' $$,
+select is_empty($$ select 1 from "order" where school_id = 'c3000000-7e57-0000-0000-000000000003' $$,
                   '§9 item 15: …and NO order at a school served by a different kitchen');
-select isnt_empty($$ select 1 from recipient where id = 'd1000000-0000-0000-0000-000000000001' $$,
+select isnt_empty($$ select 1 from recipient where id = 'd1000000-7e57-0000-0000-000000000001' $$,
                   '§5 Rule 8: kitchenA''s operator sees the child they are cooking for');
-select is_empty($$ select 1 from recipient where id = 'd1000000-0000-0000-0000-000000000005' $$,
+select is_empty($$ select 1 from recipient where id = 'd1000000-7e57-0000-0000-000000000005' $$,
                   '§5 Rule 8: …and NOT a child enrolled at the same school who has never ordered. Need-to-know beats scope on children''s data');
-select isnt_empty($$ select 1 from recipient_allergen where recipient_id = 'd1000000-0000-0000-0000-000000000001' $$,
+select isnt_empty($$ select 1 from recipient_allergen where recipient_id = 'd1000000-7e57-0000-0000-000000000001' $$,
                   '§7.2: …but does see that child''s allergens, because a kitchen must not send a peanut dish to an allergic child');
 reset role;
 
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000007","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000007","role":"authenticated"}', true); end $$;
 set local role authenticated;
-select isnt_empty($$ select 1 from "order" where school_id = 'c3000000-0000-0000-0000-000000000003' $$,
+select isnt_empty($$ select 1 from "order" where school_id = 'c3000000-7e57-0000-0000-000000000003' $$,
                   '§9 item 15: kitchenB''s operator sees orders at schoolB1…');
-select is_empty($$ select 1 from "order" where school_id in ('c3000000-0000-0000-0000-000000000001','c3000000-0000-0000-0000-000000000002') $$,
+select is_empty($$ select 1 from "order" where school_id in ('c3000000-7e57-0000-0000-000000000001','c3000000-7e57-0000-0000-000000000002') $$,
                   '§9 item 15: …and none of kitchenA''s. Asserting the reverse direction is how an inverted comparison gets caught');
-select is_empty($$ select 1 from menu where kitchen_id = 'c2000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from menu where kitchen_id = 'c2000000-7e57-0000-0000-000000000001' $$,
                 '§7.4: kitchenB''s operator cannot read kitchenA''s menu');
 reset role;
 
 -- ---- §9 item 18-19: SchoolViewer -------------------------------------------
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000008","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000008","role":"authenticated"}', true); end $$;
 set local role authenticated;
-select isnt_empty($$ select 1 from school_report where school_id = 'c3000000-0000-0000-0000-000000000001' $$,
+select isnt_empty($$ select 1 from school_report where school_id = 'c3000000-7e57-0000-0000-000000000001' $$,
                   '§9 item 18: a SchoolViewer sees their own school_report — aggregates only, and the absence of recipient_id is the control');
-select is_empty($$ select 1 from school_report where school_id <> 'c3000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from school_report where school_id <> 'c3000000-7e57-0000-0000-000000000001' $$,
                 '§9 item 18: …and no other school''s');
 select is_empty($$ select 1 from "order" $$,             '§9 item 18: a SchoolViewer selects zero rows from "order"');
 select is_empty($$ select 1 from order_line $$,          '§9 item 18: …zero from order_line');
 select is_empty($$ select 1 from recipient $$,           '§9 item 18: …zero from recipient (tier P)');
 select is_empty($$ select 1 from recipient_allergen $$,  '§9 item 18: …zero from recipient_allergen (tier S)');
 select is_empty($$ select 1 from app_user
-                    where id <> 'a0000000-0000-0000-0000-000000000008' $$,
+                    where id <> 'a0000000-7e57-0000-0000-000000000008' $$,
                 '§9 item 18: …and no app_user row but their own (tier A)');
 select is_empty($$ select 1 from payout_line $$,
                 '§9 item 18 / [AZ-04]: …and zero from payout_line — a payout line names an order_id, which is order-level detail');
-select isnt_empty($$ select 1 from payout where id = 'e8000000-0000-0000-0000-000000000002' $$,
+select isnt_empty($$ select 1 from payout where id = 'e8000000-7e57-0000-0000-000000000002' $$,
                   '[AZ-04] option (a): a school DOES see its confirmed payout, MDR deduction and notes included');
-select is_empty($$ select 1 from payout where id = 'e8000000-0000-0000-0000-000000000001' $$,
+select is_empty($$ select 1 from payout where id = 'e8000000-7e57-0000-0000-000000000001' $$,
                 '§9 item 19 / [AZ-04]: a school sees NO payout at status draft');
 reset role;
 
 -- ---- §9 item 20: expired and revoked grants authorize nothing ---------------
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-00000000000b","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-00000000000b","role":"authenticated"}', true); end $$;
 set local role authenticated;
 select is_empty($$ select 1 from "order" $$,
                 '§9 item 20: a grant with expires_at in the past authorizes nothing');
 reset role;
 
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-00000000000c","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-00000000000c","role":"authenticated"}', true); end $$;
 set local role authenticated;
 select is_empty($$ select 1 from "order" $$,
                 '§9 item 20: a grant with revoked_at set authorizes nothing');
@@ -1309,30 +1326,30 @@ select is_empty($$ select 1 from "order" $$,
 -- Revoking is not the same as erasing the record of it (0001 §8: "revoked, never
 -- deleted"), and hiding it would make the admin UI unable to show grant history.
 select isnt_empty($$ select 1 from permission_grant
-                      where user_id = 'a0000000-0000-0000-0000-00000000000c' and revoked_at is not null $$,
+                      where user_id = 'a0000000-7e57-0000-0000-00000000000c' and revoked_at is not null $$,
                   '§7.8: a revoked grant remains VISIBLE to its own holder while authorizing nothing — grants are revoked, never deleted');
 reset role;
 
 -- ---- §9 items 21-22: widening is one-directional -----------------------------
 -- Asserted through auth_has_permission directly, because the comparison being
 -- inverted is exactly the bug that a row-level test would hide.
-select ok(auth_has_permission('a0000000-0000-0000-0000-00000000000d', 'orders.view', 'school', 'c3000000-0000-0000-0000-000000000001'),
+select ok(auth_has_permission('a0000000-7e57-0000-0000-00000000000d', 'orders.view', 'school', 'c3000000-7e57-0000-0000-000000000001'),
           '§9 item 21: a school-scoped grant satisfies a check at school scope');
-select ok(not auth_has_permission('a0000000-0000-0000-0000-00000000000d', 'orders.view', 'kitchen', 'c2000000-0000-0000-0000-000000000001'),
+select ok(not auth_has_permission('a0000000-7e57-0000-0000-00000000000d', 'orders.view', 'kitchen', 'c2000000-7e57-0000-0000-000000000001'),
           '§9 item 21: a school-scoped grant does NOT satisfy a check at kitchen scope — widening is one-directional');
-select ok(not auth_has_permission('a0000000-0000-0000-0000-00000000000d', 'orders.view', 'platform', null),
+select ok(not auth_has_permission('a0000000-7e57-0000-0000-00000000000d', 'orders.view', 'platform', null),
           '§9 item 21: …nor at platform scope');
-select ok(auth_has_permission('a0000000-0000-0000-0000-00000000000a', 'orders.view', 'school', 'c3000000-0000-0000-0000-000000000001'),
+select ok(auth_has_permission('a0000000-7e57-0000-0000-00000000000a', 'orders.view', 'school', 'c3000000-7e57-0000-0000-000000000001'),
           '§9 item 22: a city-scoped grant reaches a school in that city');
-select ok(auth_has_permission('a0000000-0000-0000-0000-00000000000a', 'orders.view', 'school', 'c3000000-0000-0000-0000-000000000002'),
+select ok(auth_has_permission('a0000000-7e57-0000-0000-00000000000a', 'orders.view', 'school', 'c3000000-7e57-0000-0000-000000000002'),
           '§9 item 22: …every school in that city');
-select ok(auth_has_permission('a0000000-0000-0000-0000-00000000000a', 'orders.view', 'kitchen', 'c2000000-0000-0000-0000-000000000001'),
+select ok(auth_has_permission('a0000000-7e57-0000-0000-00000000000a', 'orders.view', 'kitchen', 'c2000000-7e57-0000-0000-000000000001'),
           '§9 item 22: …and every kitchen in that city');
-select ok(not auth_has_permission('a0000000-0000-0000-0000-00000000000a', 'orders.view', 'school', 'c3000000-0000-0000-0000-000000000003'),
+select ok(not auth_has_permission('a0000000-7e57-0000-0000-00000000000a', 'orders.view', 'school', 'c3000000-7e57-0000-0000-000000000003'),
           '§9 item 22: …and NOTHING outside it. A Chandigarh report must never scan Mohali data (D9)');
-select ok(not auth_has_permission('a0000000-0000-0000-0000-00000000000a', 'orders.view', 'kitchen', 'c2000000-0000-0000-0000-000000000002'),
+select ok(not auth_has_permission('a0000000-7e57-0000-0000-00000000000a', 'orders.view', 'kitchen', 'c2000000-7e57-0000-0000-000000000002'),
           '§9 item 22: …no kitchen outside it either');
-select ok(not auth_has_permission('a0000000-0000-0000-0000-000000000004', 'orders.view', 'school', 'c3000000-0000-0000-0000-000000000001'),
+select ok(not auth_has_permission('a0000000-7e57-0000-0000-000000000004', 'orders.view', 'school', 'c3000000-7e57-0000-0000-000000000001'),
           '§9 item 8: a disabled account holds no permission, whatever its grants say');
 
 
@@ -1344,22 +1361,22 @@ select ok(not auth_has_permission('a0000000-0000-0000-0000-000000000004', 'order
 -- scope_id would silently mean "every school".
 select throws_ok(
   $$ insert into permission_grant (user_id, permission_code, scope_type, scope_id, granted_by_user_id)
-     values ('a0000000-0000-0000-0000-00000000000d', 'orders.view', 'school', null,
-             'a0000000-0000-0000-0000-000000000009') $$,
+     values ('a0000000-7e57-0000-0000-00000000000d', 'orders.view', 'school', null,
+             'a0000000-7e57-0000-0000-000000000009') $$,
   '23514', null,
   '§9 item 23: a school-scoped permission_grant with a null scope_id cannot be inserted — it would silently mean "every school"');
 
 -- §9 items 25-26 — the silent-null trap that §7.6 exists to close.
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000001","role":"authenticated"}', true); end $$;
 set local role authenticated;
 
-select isnt_empty($$ select 1 from effective_config_public('c3000000-0000-0000-0000-000000000001') $$,
+select isnt_empty($$ select 1 from effective_config_public('c3000000-7e57-0000-0000-000000000001') $$,
                   '§9 item 25: effective_config_public returns a row for a customer with a live recipient at that school');
-select is((select cgst_rate_bps from effective_config_public('c3000000-0000-0000-0000-000000000001')), 250,
+select is((select cgst_rate_bps from effective_config_public('c3000000-7e57-0000-0000-000000000001')), 250,
           '§7.6 / M2: …and the statutory tax rate really is in it, because the cart has to show CGST 2.5% + SGST 2.5% rather than a single lump "5% tax"');
-select is((select revenue_share_bps from resolve_effective_config('c3000000-0000-0000-0000-000000000001')), null::integer,
+select is((select revenue_share_bps from resolve_effective_config('c3000000-7e57-0000-0000-000000000001')), null::integer,
           '§7.6 / M4: revenue_share_bps is reachable by NO customer path — it is not a column on effective_config_public at all, and the raw resolver returns null');
-select is((select price_is_tax_inclusive from effective_config_public('c3000000-0000-0000-0000-000000000001')), false,
+select is((select price_is_tax_inclusive from effective_config_public('c3000000-7e57-0000-0000-000000000001')), false,
           '[DM-14] / [DM-20] ANSWERED (SC2, migration 0003): prices are GST-EXCLUSIVE, and the customer-facing resolver surfaces it. This assertion previously required NULL — "nobody has said" — and is inverted rather than deleted because the flag decides what every stored price MEANS');
 
 select is_empty($$ select 1 from platform_config $$,
@@ -1369,15 +1386,15 @@ select is_empty($$ select 1 from school_config $$,
 
 -- The tripwire. If someone "fixes" the config policies by opening them to customers,
 -- this test tells them exactly what they broke.
-select ok((select resolve_effective_config('c3000000-0000-0000-0000-000000000001') is null),
+select ok((select resolve_effective_config('c3000000-7e57-0000-0000-000000000001') is null),
           '§9 item 26 / docs/learnings.md: resolve_effective_config() returns a NULL ROW as authenticated — it is invoker-rights and inner-joins platform_config. Use effective_config_public()');
 reset role;
 
 -- A school in the picker but with no recipient of mine: the wrapper is gated on
 -- reachability, not on being logged in.
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000009","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000009","role":"authenticated"}', true); end $$;
 set local role authenticated;
-select isnt_empty($$ select 1 from effective_config_public('c3000000-0000-0000-0000-000000000003') $$,
+select isnt_empty($$ select 1 from effective_config_public('c3000000-7e57-0000-0000-000000000003') $$,
                   '§7.6: effective_config_public is reachable for any school in the picker (auth_school_is_public), which is what makes the add-a-child form fillable');
 reset role;
 
@@ -1387,36 +1404,36 @@ reset role;
 --          ([AZ-02] orders.view_pii, and the §10 forbidden-write-grant tripwire)
 -- =============================================================================
 
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-0000-0000-0000-000000000001","role":"authenticated"}', true); end $$;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000001","role":"authenticated"}', true); end $$;
 set local role authenticated;
 
 select ok(auth_is_live_user(),                                                                 '§4.1: auth_is_live_user is true for a live customer');
-select ok(auth_can_reach_recipient('d1000000-0000-0000-0000-000000000001'),                    '§4.2: auth_can_reach_recipient follows the live guardian_link');
-select ok(not auth_can_reach_recipient('d1000000-0000-0000-0000-000000000005'),                '§4.2 / D10: …and not created_by_user_id');
-select ok(not auth_can_reach_recipient('d1000000-0000-0000-0000-000000000006'),                '§4.2: …and not a revoked link');
-select ok(auth_can_manage_recipient('d1000000-0000-0000-0000-000000000001'),                   '§4.2: auth_can_manage_recipient honours can_manage');
-select ok(auth_can_order_for_recipient('d1000000-0000-0000-0000-000000000001'),                '§4.2: auth_can_order_for_recipient honours can_order — used by the checkout Edge Function, not by a policy');
-select ok(auth_can_reach_school('c3000000-0000-0000-0000-000000000001'),                       '§4.2: auth_can_reach_school is true where I have a live recipient');
-select ok(not auth_can_reach_school('c3000000-0000-0000-0000-000000000003'),                   '§4.2: …and false where I do not');
-select ok(auth_school_is_public('c3000000-0000-0000-0000-000000000003'),                       '§4.6: auth_school_is_public is true for any onboarded, active, non-offboarded school');
+select ok(auth_can_reach_recipient('d1000000-7e57-0000-0000-000000000001'),                    '§4.2: auth_can_reach_recipient follows the live guardian_link');
+select ok(not auth_can_reach_recipient('d1000000-7e57-0000-0000-000000000005'),                '§4.2 / D10: …and not created_by_user_id');
+select ok(not auth_can_reach_recipient('d1000000-7e57-0000-0000-000000000006'),                '§4.2: …and not a revoked link');
+select ok(auth_can_manage_recipient('d1000000-7e57-0000-0000-000000000001'),                   '§4.2: auth_can_manage_recipient honours can_manage');
+select ok(auth_can_order_for_recipient('d1000000-7e57-0000-0000-000000000001'),                '§4.2: auth_can_order_for_recipient honours can_order — used by the checkout Edge Function, not by a policy');
+select ok(auth_can_reach_school('c3000000-7e57-0000-0000-000000000001'),                       '§4.2: auth_can_reach_school is true where I have a live recipient');
+select ok(not auth_can_reach_school('c3000000-7e57-0000-0000-000000000003'),                   '§4.2: …and false where I do not');
+select ok(auth_school_is_public('c3000000-7e57-0000-0000-000000000003'),                       '§4.6: auth_school_is_public is true for any onboarded, active, non-offboarded school');
 select ok(not auth_is_back_office(),                                                           '§4.3: a customer is not back office');
-select ok(auth_customer_can_see_menu('d6000000-0000-0000-0000-000000000001'),                  '§4.5: a customer sees the menu assigned to their school today');
-select ok(not auth_customer_can_see_menu('d6000000-0000-0000-0000-000000000002'),              '§4.5: …and not a menu assigned only to a school they cannot reach');
-select ok(auth_customer_can_see_dish('d5000000-0000-0000-0000-000000000001'),                  '§4.5: …and the dishes on it');
-select ok(not auth_customer_can_see_dish('d5000000-0000-0000-0000-000000000002'),              '§4.5: …and not the other kitchen''s dishes');
-select ok(auth_owns_order('e2000000-0000-0000-0000-000000000001'),                             '§4.4: auth_owns_order');
-select ok(not auth_owns_order('e2000000-0000-0000-0000-000000000002'),                         '§4.4: …and not somebody else''s');
-select ok(auth_owns_group('e1000000-0000-0000-0000-000000000001'),                             '§4.4: auth_owns_group');
-select ok(auth_owns_refund('e4000000-0000-0000-0000-000000000001'),                            '§4.6: auth_owns_refund');
-select ok(auth_owns_invoice('e5000000-0000-0000-0000-000000000001'),                           '§4.6: auth_owns_invoice');
-select is(auth_break_time_school_id('c5000000-0000-0000-0000-000000000001'),
-          'c3000000-0000-0000-0000-000000000001'::uuid,                                        '§7.3 (addition): auth_break_time_school_id resolves the break to its school without inheriting break_time''s RLS');
+select ok(auth_customer_can_see_menu('d6000000-7e57-0000-0000-000000000001'),                  '§4.5: a customer sees the menu assigned to their school today');
+select ok(not auth_customer_can_see_menu('d6000000-7e57-0000-0000-000000000002'),              '§4.5: …and not a menu assigned only to a school they cannot reach');
+select ok(auth_customer_can_see_dish('d5000000-7e57-0000-0000-000000000001'),                  '§4.5: …and the dishes on it');
+select ok(not auth_customer_can_see_dish('d5000000-7e57-0000-0000-000000000002'),              '§4.5: …and not the other kitchen''s dishes');
+select ok(auth_owns_order('e2000000-7e57-0000-0000-000000000001'),                             '§4.4: auth_owns_order');
+select ok(not auth_owns_order('e2000000-7e57-0000-0000-000000000002'),                         '§4.4: …and not somebody else''s');
+select ok(auth_owns_group('e1000000-7e57-0000-0000-000000000001'),                             '§4.4: auth_owns_group');
+select ok(auth_owns_refund('e4000000-7e57-0000-0000-000000000001'),                            '§4.6: auth_owns_refund');
+select ok(auth_owns_invoice('e5000000-7e57-0000-0000-000000000001'),                           '§4.6: auth_owns_invoice');
+select is(auth_break_time_school_id('c5000000-7e57-0000-0000-000000000001'),
+          'c3000000-7e57-0000-0000-000000000001'::uuid,                                        '§7.3 (addition): auth_break_time_school_id resolves the break to its school without inheriting break_time''s RLS');
 
 -- The menu the customer actually sees: only the assigned, active one, with the
 -- school's price override alongside it.
-select isnt_empty($$ select 1 from menu_item_price_override where school_id = 'c3000000-0000-0000-0000-000000000001' $$,
+select isnt_empty($$ select 1 from menu_item_price_override where school_id = 'c3000000-7e57-0000-0000-000000000001' $$,
                   '§7.4: a customer sees their own school''s price override, or the app shows the wrong number');
-select is_empty($$ select 1 from menu where id = 'd6000000-0000-0000-0000-000000000002' $$,
+select is_empty($$ select 1 from menu where id = 'd6000000-7e57-0000-0000-000000000002' $$,
                 '§7.4: …and not another kitchen''s menu');
 select is_empty($$ select 1 from menu_item_capacity $$,
                 '§7.4: menu_item_capacity is not readable by a customer — "sold out" is not expressible client-side until E18-12 adds a policy. A known gap, not a surprise');
