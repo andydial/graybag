@@ -51,26 +51,27 @@ rather than deciding it.
 Tokens, component library, motion spec and catalogue, skeletons, accessibility pass.
 Andy reviews the motion spec once before any screen is built.
 
-**Stopped 2026-08-09 with three tasks blocked, and the block order is why.** Everything that
-can be built without a running app is done: the token module and its web output (`E13-01`),
-`motion.ts` and the reduce-motion harness (`E13-12`), the contrast gate (`E13-13`), the lint
-gates (`E13-11`), and the four documentation corrections (`E13-15`, `E13-16`, `E13-17`,
-`E13-20`). What remains cannot start here:
+**Closed 2026-08-09.** Everything that can be built without a running app is done: the token
+module and its web output (`E13-01`), `motion.ts` and the reduce-motion harness (`E13-12`), the
+contrast gate (`E13-13`), the lint gates (`E13-11`), and the four documentation corrections
+(`E13-15`, `E13-16`, `E13-17`, `E13-20`). `E13-14` / `DS-01` is **approved** — see below.
 
-| Task | Blocked on | Why |
+**Three tasks moved to Block 5, 2026-08-09, on Andy's ruling.** Block 4 was defined as
+including the component library and Block 5 as including the Expo scaffold that library needs;
+`apps/mobile` had no React, no React Native and no component test runner, so `E13-03` could not
+start. Moving the library was the cheaper of the two fixes — `E14-01` already exists and is
+specified, including the bundle IDs and the icon and splash from the brand package, and doing
+it twice would have produced two different scaffolds.
+
+| Moved | Now sits after | Why |
 |---|---|---|
-| `E13-03` component library | **`E14-01`** — Expo scaffold, **Block 5** | `apps/mobile` is a bare workspace: no React, no React Native, no Expo, no component test runner. Building the library would mean scaffolding the app inside Block 4, and `E14-01` has its own requirements — the existing bundle IDs, the icon and splash from the brand package — that would be done twice and differently |
+| `E13-03` component library | `E14-01` | Needs the Expo scaffold and a component test runner |
 | `E13-08` accessibility pass | `E13-03` | Three of its four parts are already asserted at the token layer — contrast by `E13-13`, tap targets and dynamic type by `E13-01`'s tests. The fourth, screen-reader labels, needs components to label |
 | `E13-10` automated a11y in CI | `E13-03`, `E12` | Axe and Lighthouse need something rendered. Untagged, so fast-follow regardless |
 
-Plus `E13-02`, which waits on `E19-03` (`owner:andy`, the VAG Rounded Next licence), and the
-two `owner:andy` tasks — `E13-09` (review the motion spec) and `E13-14` (`DS-01`).
-
-**This is a real ordering problem, not a slip.** Block 4 is defined as including the component
-library and Block 5 as including the scaffold that library needs. Either the scaffold moves
-into Block 4 or the component library moves into Block 5; the second is cheaper, because the
-scaffold's own task already exists and is specified. Recorded rather than fixed unilaterally —
-the block boundaries are Andy's call about when tokens get spent.
+Still open in `E13` and not moved: `E13-02`, which waits on `E19-03` (`owner:andy`, the VAG
+Rounded Next licence), and `E13-09` (`owner:andy`, Andy reviews the motion spec once before any
+screen is built).
 
 ## Block 5 — Menu & app shell  (E04, E14)
 
