@@ -1092,12 +1092,12 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The <code>[AZ-02]</code> tripwire test</strong> — fail the authorization suite the moment a grant of <code>orders.view</code> <strong>without</strong> <code>orders.view_pii</code> is issued. <code>orders.view_pii</code> is not enforceable by RLS (RLS filters rows, not columns), and the model is safe today only because every role template holds both. Named in <code>docs/authorization-model.md</code> §14, in <code>[AZ-02]</code>&#39;s own recommendation and in <code>docs/dpdp-compliance.md</code> §5.1, and owned by nobody. This is what makes <code>[AZ-02]</code>&#39;s deadline enforce itself before <code>E20-09</code>&#39;s analyst role exists</span>
       </li>
-      <li class="task" data-id="E02-24" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E02-24" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-24"></button>
         <code class="tid">E02-24</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-later">later</span>
+        <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>The authorization suite and <code>seed.sql</code> collide on the same UUIDs, so <code>npm run test:db</code> fails from a clean database.</strong> <code>supabase/seed.sql:229</code> inserts <code>auth.users</code> <code>a0000000-0000-0000-0000-000000000001</code>; <code>supabase/tests/authorization.test.sql:147</code> inserts the *same* id as its own fixture, so <code>db reset &amp;&amp; supabase test db</code> dies on <code>duplicate key value violates unique constraint &quot;users_pkey&quot;</code> before a single assertion runs — <code>Tests: 0</code>, not one failure but the whole suite skipped. Found by the first CI run that ever executed it (PR #1, <code>integration.yml</code>). It passed locally in <code>E02-18</code> only because the local database still held an older seed; a fresh one always fails. Non-negotiable #2 says this suite must fail loudly when a policy changes — right now it does not run at all. Fix by moving the test fixtures to a UUID range <code>seed.sql</code> cannot use, and add a guard asserting the ranges stay disjoint so the next fixture cannot silently re-collide</span>
       </li></ul>
       </details>
