@@ -65,8 +65,58 @@ jobs:
       # Non-negotiable #2. This is the highest-value test in the repository: it asserts
       # an exact policy set, so it fails when a policy is REMOVED and — the direction
       # that actually leaks — when one is ADDED.
+      #
+      # The output is teed rather than just streamed because "did it pass?" is not the
+      # only question this step has to answer. See the guard below.
       - name: Authorization suite (pgTAP)
-        run: npx supabase test db
+        run: |
+          set -o pipefail
+          npx supabase test db 2>&1 | tee /tmp/pgtap.log
+
+      # E02-24. A colliding fixture id does not fail one assertion — the first insert
+      # dies, pg_prove reports `Tests: 0` for that file, and the suite that is supposed
+      # to make a public order table impossible silently tests nothing. On 2026-08-08
+      # that had already happened: authorization.test.sql contributed zero assertions
+      # while the run reported a total.
+      #
+      # So exit status alone is not evidence. Assert the suite actually ran.
+      #
+      # MIN_TESTS is a floor, not the real count — it exists so that deleting most of
+      # the suite is caught, without this failing every time a legitimate assertion is
+      # added. Raise it when the suite grows substantially.
+      - name: Guard — the suite must actually have run
+        if: always()
+        env:
+          MIN_TESTS: '150'
+        run: |
+          if [ ! -s /tmp/pgtap.log ]; then
+            echo "::error::pgTAP produced no output at all — the suite did not run."
+            exit 1
+          fi
+
+          # "Dubious" / "No subtests run" is pg_prove telling us a file died before its
+          # plan. It is the exact signature of the E02-24 duplicate-key failure.
+          if grep -qE 'No subtests run|Dubious' /tmp/pgtap.log; then
+            echo "::error::A test file died before running its plan (Dubious / No subtests run)."
+            grep -nE 'No subtests run|Dubious|^# ' /tmp/pgtap.log || true
+            exit 1
+          fi
+
+          # Final line looks like: Files=3, Tests=245, 12 wallclock secs (...)
+          total=$(grep -oE 'Tests=[0-9]+' /tmp/pgtap.log | tail -1 | cut -d= -f2)
+          if [ -z "$total" ]; then
+            echo "::error::Could not find a 'Tests=N' summary in the pgTAP output."
+            tail -20 /tmp/pgtap.log
+            exit 1
+          fi
+
+          echo "pgTAP reported $total assertions (floor: $MIN_TESTS)."
+          if [ "$total" -lt "$MIN_TESTS" ]; then
+            echo "::error::Only $total assertions ran, expected at least $MIN_TESTS."
+            echo "Either the suite was cut down deliberately — in which case lower MIN_TESTS"
+            echo "in this workflow in the same commit — or a file silently failed to run."
+            exit 1
+          fi
 
       - name: Stop
         if: always()

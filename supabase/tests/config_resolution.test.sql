@@ -46,16 +46,16 @@ select plan(17);
 -- school cannot do.
 -- -----------------------------------------------------------------------------
 insert into city (id, code, name, state_name, gst_state_code)
-values ('c9000000-0000-0000-0000-000000000001', 'cfgtest_city', 'Config Test City', 'Punjab', '03');
+values ('c9000000-7e57-0000-0000-000000000001', 'cfgtest_city', 'Config Test City', 'Punjab', '03');
 
 insert into kitchen (id, code, name, city_id)
-values ('c9000000-0000-0000-0000-000000000002', 'cfgtest_kitchen', 'Config Test Kitchen',
-        'c9000000-0000-0000-0000-000000000001');
+values ('c9000000-7e57-0000-0000-000000000002', 'cfgtest_kitchen', 'Config Test Kitchen',
+        'c9000000-7e57-0000-0000-000000000001');
 
 insert into school (id, code, name, city_id, kitchen_id, onboarded_at) values
-  ('c9000000-0000-0000-0000-00000000000a', 'cfgtest_plain',   'Plain School',   'c9000000-0000-0000-0000-000000000001', 'c9000000-0000-0000-0000-000000000002', now()),
-  ('c9000000-0000-0000-0000-00000000000b', 'cfgtest_kitchen', 'Kitchen School', 'c9000000-0000-0000-0000-000000000001', 'c9000000-0000-0000-0000-000000000002', now()),
-  ('c9000000-0000-0000-0000-00000000000c', 'cfgtest_both',    'Both School',    'c9000000-0000-0000-0000-000000000001', 'c9000000-0000-0000-0000-000000000002', now());
+  ('c9000000-7e57-0000-0000-00000000000a', 'cfgtest_plain',   'Plain School',   'c9000000-7e57-0000-0000-000000000001', 'c9000000-7e57-0000-0000-000000000002', now()),
+  ('c9000000-7e57-0000-0000-00000000000b', 'cfgtest_kitchen', 'Kitchen School', 'c9000000-7e57-0000-0000-000000000001', 'c9000000-7e57-0000-0000-000000000002', now()),
+  ('c9000000-7e57-0000-0000-00000000000c', 'cfgtest_both',    'Both School',    'c9000000-7e57-0000-0000-000000000001', 'c9000000-7e57-0000-0000-000000000002', now());
 
 -- -----------------------------------------------------------------------------
 -- 1. No overrides anywhere -> the platform row, whatever it currently holds.
@@ -63,17 +63,17 @@ insert into school (id, code, name, city_id, kitchen_id, onboarded_at) values
 --    suite does not have to be edited every time a platform default is retuned.
 -- -----------------------------------------------------------------------------
 select is(
-  (select order_cutoff_time from resolve_effective_config('c9000000-0000-0000-0000-00000000000a')),
+  (select order_cutoff_time from resolve_effective_config('c9000000-7e57-0000-0000-00000000000a')),
   (select order_cutoff_time from platform_config where id = 1),
   'no override anywhere: cutoff falls through to the platform value'
 );
 select is(
-  (select cgst_rate_bps from resolve_effective_config('c9000000-0000-0000-0000-00000000000a')),
+  (select cgst_rate_bps from resolve_effective_config('c9000000-7e57-0000-0000-00000000000a')),
   (select cgst_rate_bps from platform_config where id = 1),
   'no override anywhere: tax rate falls through to the platform value'
 );
 select is(
-  (select price_is_tax_inclusive from resolve_effective_config('c9000000-0000-0000-0000-00000000000a')),
+  (select price_is_tax_inclusive from resolve_effective_config('c9000000-7e57-0000-0000-00000000000a')),
   false,
   'prices are GST-exclusive at every level — SC2, and platform-only by design'
 );
@@ -82,20 +82,20 @@ select is(
 -- 2. Kitchen override wins over platform.
 -- -----------------------------------------------------------------------------
 insert into kitchen_config (kitchen_id, order_cutoff_time, customer_cancellation_cutoff_minutes)
-values ('c9000000-0000-0000-0000-000000000002', '21:30', 45);
+values ('c9000000-7e57-0000-0000-000000000002', '21:30', 45);
 
 select is(
-  (select order_cutoff_time from resolve_effective_config('c9000000-0000-0000-0000-00000000000b')),
+  (select order_cutoff_time from resolve_effective_config('c9000000-7e57-0000-0000-00000000000b')),
   '21:30'::time,
   'kitchen override beats the platform default'
 );
 select is(
-  (select customer_cancellation_cutoff_minutes from resolve_effective_config('c9000000-0000-0000-0000-00000000000b')),
+  (select customer_cancellation_cutoff_minutes from resolve_effective_config('c9000000-7e57-0000-0000-00000000000b')),
   45,
   '…for every column it sets, not just the first'
 );
 select is(
-  (select max_advance_order_days from resolve_effective_config('c9000000-0000-0000-0000-00000000000b')),
+  (select max_advance_order_days from resolve_effective_config('c9000000-7e57-0000-0000-00000000000b')),
   (select max_advance_order_days from platform_config where id = 1),
   'a kitchen override of ONE column does not blank the columns it left null — this is the bug a row-level COALESCE would cause'
 );
@@ -104,20 +104,20 @@ select is(
 -- 3. School override wins over kitchen, which still wins over platform.
 -- -----------------------------------------------------------------------------
 insert into school_config (school_id, order_cutoff_time)
-values ('c9000000-0000-0000-0000-00000000000c', '19:00');
+values ('c9000000-7e57-0000-0000-00000000000c', '19:00');
 
 select is(
-  (select order_cutoff_time from resolve_effective_config('c9000000-0000-0000-0000-00000000000c')),
+  (select order_cutoff_time from resolve_effective_config('c9000000-7e57-0000-0000-00000000000c')),
   '19:00'::time,
   'school override beats the kitchen override'
 );
 select is(
-  (select customer_cancellation_cutoff_minutes from resolve_effective_config('c9000000-0000-0000-0000-00000000000c')),
+  (select customer_cancellation_cutoff_minutes from resolve_effective_config('c9000000-7e57-0000-0000-00000000000c')),
   45,
   '…while a column the school did NOT override still comes from the kitchen, not the platform'
 );
 select is(
-  (select max_advance_order_days from resolve_effective_config('c9000000-0000-0000-0000-00000000000c')),
+  (select max_advance_order_days from resolve_effective_config('c9000000-7e57-0000-0000-00000000000c')),
   (select max_advance_order_days from platform_config where id = 1),
   '…and a column neither overrode still comes from the platform. All three levels resolved in one row'
 );
@@ -136,19 +136,19 @@ select ok(
 );
 
 update school_config set customer_cancellation_allowed = false
- where school_id = 'c9000000-0000-0000-0000-00000000000c';
+ where school_id = 'c9000000-7e57-0000-0000-00000000000c';
 
 select is(
-  (select customer_cancellation_allowed from resolve_effective_config('c9000000-0000-0000-0000-00000000000c')),
+  (select customer_cancellation_allowed from resolve_effective_config('c9000000-7e57-0000-0000-00000000000c')),
   false,
   'an explicit FALSE override is honoured — false is a value, not an absence'
 );
 
 update school_config set customer_cancellation_allowed = null
- where school_id = 'c9000000-0000-0000-0000-00000000000c';
+ where school_id = 'c9000000-7e57-0000-0000-00000000000c';
 
 select is(
-  (select customer_cancellation_allowed from resolve_effective_config('c9000000-0000-0000-0000-00000000000c')),
+  (select customer_cancellation_allowed from resolve_effective_config('c9000000-7e57-0000-0000-00000000000c')),
   (select customer_cancellation_allowed from platform_config where id = 1),
   '…and setting it back to NULL resumes inheriting'
 );
@@ -162,12 +162,12 @@ select is(
 -- ROW WITH NO ERROR — cutoff, break times and prices all resolving to nothing.
 -- -----------------------------------------------------------------------------
 select is(
-  (select order_cutoff_time from effective_config_public('c9000000-0000-0000-0000-00000000000c')),
+  (select order_cutoff_time from effective_config_public('c9000000-7e57-0000-0000-00000000000c')),
   '19:00'::time,
   'effective_config_public resolves the same chain the internal resolver does'
 );
 select is(
-  (select cgst_rate_bps from effective_config_public('c9000000-0000-0000-0000-00000000000c')),
+  (select cgst_rate_bps from effective_config_public('c9000000-7e57-0000-0000-00000000000c')),
   (select cgst_rate_bps from platform_config where id = 1),
   '…including the statutory tax rate, because the cart must show CGST 2.5% + SGST 2.5% rather than one lump 5%'
 );
@@ -204,7 +204,7 @@ select cmp_ok(
 -- silent-null-row hazard §7.6 exists to close, in a second place.
 -- -----------------------------------------------------------------------------
 select is(
-  (select resolve_effective_config('c9000000-0000-0000-0000-0000000000ff')),
+  (select resolve_effective_config('c9000000-7e57-0000-0000-0000000000ff')),
   null::effective_config,
   'an unknown school id resolves to a NULL composite, not to platform defaults'
 );
