@@ -59,7 +59,7 @@ third-party dependency, which is a different and slightly worse problem.
 
 | # | Question | Answer | Why it matters |
 |---|---|---|---|
-| B1 | Does the EAS release build succeed? | **First attempt failed — my config, not the SDK** (see below). Fixed and rebuilt | A5 turned out not to be the cause |
+| B1 | Does the EAS release build succeed? | **Yes** — `28127b5b` FINISHED after the compileSdk fix. APK linked in the runbook §2.1. (First attempt failed on my config, not the SDK — see below) | A5 turned out not to be the cause |
 | B2 | Does a **UPI app chooser** list installed PSP apps? | *(pending)* | The entire spike. No chooser = silent degradation to collect/QR (§3.3) |
 | B3 | If not, does enabling `withUpiQueries` fix it? | *(pending)* | Decides whether `E06-29` is a fix or a regression test |
 | B4 | Does the app return cleanly after the PSP app-switch? | *(pending)* | §3.5. If not, the whole return path needs rework |
