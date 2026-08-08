@@ -194,11 +194,6 @@ const ALL = [
   ...motionRules.outsideHeightAnimation,
 ];
 
-const except = (...excluded) => {
-  const drop = new Set(excluded.flat().map((r) => r.selector));
-  return ALL.filter((r) => !drop.has(r.selector));
-};
-
 /**
  * The flat-config blocks.
  *
@@ -217,16 +212,72 @@ export function designSystemConfigs({
   motionModule = MOTION_MODULE,
   cartBadge = CART_BADGE_MODULE,
   heightModules = HEIGHT_ANIMATION_MODULES,
+  /**
+   * Rules from elsewhere that also need `no-restricted-syntax` (`E14-02`'s api-module
+   * gates).
+   *
+   * **`no-restricted-syntax` is a single shared slot and this parameter is the only safe
+   * way to add to it.** Flat config replaces a rule's options rather than merging them, so
+   * a second config block setting the same rule does not extend this set — it deletes it
+   * for every file it matches, silently, while the build stays green. That is `S33` stated
+   * as a mechanism rather than a warning: anything that needs this rule comes through
+   * here, gets composed into `ALL`, and therefore survives every exemption block below.
+   */
+  extraRestrictedSyntax = [],
+  /**
+   * Of those extra rules, the ones a given path is exempt from — same shape as the
+   * design-system exemptions: `{ [globOrPath]: rules[] }` is not used, because each exempt
+   * path already has a block below; instead this names rules dropped for `apiModuleDir`.
+   */
+  apiModuleDir = null,
+  apiModuleExemptRules = [],
+  envModuleFiles = [],
+  envModuleExemptRules = [],
 } = {}) {
+  const ALL_COMPOSED = [...ALL, ...extraRestrictedSyntax];
+
+  const exceptComposed = (...excluded) => {
+    const drop = new Set(excluded.flat().map((r) => r.selector));
+    return ALL_COMPOSED.filter((r) => !drop.has(r.selector));
+  };
+
   return [
-    { files: APP_FILES, rules: { 'no-restricted-syntax': ['error', ...ALL] } },
+    { files: APP_FILES, rules: { 'no-restricted-syntax': ['error', ...ALL_COMPOSED] } },
+
+    // `E14-02`. The `api/` module is the one place a Supabase read may be built, so it
+    // drops that rule and keeps every other — including the write-path gate, because
+    // "writes go through Edge Functions" is not relaxed by being inside the module. It is
+    // the rule the module exists to obey.
+    ...(apiModuleDir
+      ? [
+          {
+            files: [apiModuleDir],
+            rules: {
+              'no-restricted-syntax': ['error', ...exceptComposed(apiModuleExemptRules)],
+            },
+          },
+        ]
+      : []),
+
+    // `env.ts` defines the server-only names and its test asserts the list; both must be
+    // able to write the strings down.
+    ...(envModuleFiles.length > 0
+      ? [
+          {
+            files: envModuleFiles,
+            rules: {
+              'no-restricted-syntax': ['error', ...exceptComposed(envModuleExemptRules)],
+            },
+          },
+        ]
+      : []),
 
     // The token directory is the one place a literal may be written down. It still may not
     // hold an easing curve, a spring, or a height animation — only `motion.ts` and the
     // named component files get those.
     {
       files: [tokenDir],
-      rules: { 'no-restricted-syntax': ['error', ...except(tokenLiteralRules)] },
+      rules: { 'no-restricted-syntax': ['error', ...exceptComposed(tokenLiteralRules)] },
     },
 
     // `motion.ts` is inside the token directory, so it inherits the literal exemption and
@@ -236,7 +287,7 @@ export function designSystemConfigs({
       rules: {
         'no-restricted-syntax': [
           'error',
-          ...except(tokenLiteralRules, motionRules.outsideMotionModule),
+          ...exceptComposed(tokenLiteralRules, motionRules.outsideMotionModule),
         ],
       },
     },
@@ -244,14 +295,14 @@ export function designSystemConfigs({
     {
       files: [cartBadge],
       rules: {
-        'no-restricted-syntax': ['error', ...except(motionRules.outsideCartBadge)],
+        'no-restricted-syntax': ['error', ...exceptComposed(motionRules.outsideCartBadge)],
       },
     },
 
     {
       files: heightModules,
       rules: {
-        'no-restricted-syntax': ['error', ...except(motionRules.outsideHeightAnimation)],
+        'no-restricted-syntax': ['error', ...exceptComposed(motionRules.outsideHeightAnimation)],
       },
     },
   ];
