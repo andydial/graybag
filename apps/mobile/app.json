@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "GrayBag",
+    "slug": "graybag",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "graybag",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.gracord.graybag"
+    },
+    "android": {
+      "package": "com.Gracord.Graybag",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#00af52"
+      },
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#00af52",
+          "imageWidth": 220,
+          "resizeMode": "contain"
+        }
+      ]
+    ]
+  }
+}

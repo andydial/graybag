@@ -19,6 +19,43 @@ Format — newest first:
 
 ---
 
+## 2026-08-09 — Three traps in the Expo 57 test harness, all of which look like broken components
+
+**Context:** `E14-01`, standing up `apps/mobile` with a component test runner so `E13-03` can
+build the component library.
+
+**What happened / cause / fix — three separate things, in the order they bit:**
+
+**1. `jest-expo@57` is on the jest _29_ line, not 30.** Its dependencies are `babel-jest@^29`,
+`@jest/globals@^29`, `jest-environment-jsdom@^29`. Installing `jest@^30` alongside it left
+`jest-runtime@30` driving `jest-environment-node@29`, and the symptom was
+`TypeError: this._moduleMocker.clearMocksOnScope is not a function` — thrown from jest's own
+internals, naming nothing you wrote, on **every** suite. **Rule:** pin `jest` to the line
+`jest-expo` depends on, and check with
+`node -p "require('./node_modules/jest-runtime/package.json').version"` against
+`jest-environment-node`. A mixed jest install never says "mixed jest install".
+
+**2. `@testing-library/react-native/extend-expect` no longer exists** (removed in v12.4; the
+matchers are built in and self-register). Most tutorials still import it. The failure is
+`Cannot find module` **from the setup file**, so every suite fails to run and none of them are
+the one at fault.
+
+**3. `render` is async on RNTL v14 — it returns a Promise.** React 19's concurrent root commits
+outside the synchronous call, so the v13 pattern `const { getByTestId } = render(<C />)`
+destructures a Promise and yields `undefined`. The two symptoms are
+`TypeError: getByTestId is not a function` and, via the `screen` singleton,
+**`render function has not been called`** — which is actively misleading, because you did call
+it. **Rule: every `render` in `apps/mobile` is awaited.** `await render(<C />)` then query
+through `screen`. This applies to every component test `E13-03` writes, which is why it is
+here rather than in a comment in one file.
+
+**The general shape.** All three present as "the component is broken" when the component is
+fine and the harness is misassembled. When a *brand-new* test setup fails, suspect the harness
+before the code — and read the version constraints of the preset rather than the latest
+version of each package, which is what npm gives you by default.
+
+---
+
 ## 2026-08-09 — `ECONNRESET` is a transport failure, not a payload-size symptom
 
 **Context:** `docs/decisions.md` had grown to 98 KB and was being read into context on every
