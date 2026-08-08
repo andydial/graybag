@@ -352,10 +352,10 @@ did not.
 ## 2026-08-07 — The menu Excel is not in the repo, and the `.bubble` file does not contain the data
 
 **Context:** Q08, building `tools/menu-import/` to read
-`Legacy-Application/.../GrayBag_School_Menu 1 1.xlsx` and answer `[DM-13]` from the real
+`.../GrayBag_School_Menu 1 1.xlsx` and answer `[DM-13]` from the real
 allergen values.
 **What happened:** There is no `.xlsx` anywhere under the repository — `find` for `*.xls*`
-returns nothing. The obvious fallback, `Legacy-Application/Legacy-DB/gray-bag-23660.bubble`
+returns nothing. The obvious fallback, `Legacy-DB/gray-bag-23660.bubble`
 (1.4 MB), turns out to contain no dish rows either: grepping it for "allergen" returns two
 hits, both inside the terms-and-conditions *text*, not a field.
 **Cause:** A Bubble export is the **application definition** — pages, workflows, option sets,
@@ -1015,10 +1015,25 @@ push fine, 1 MB and up always fail. That is the signature of a middlebox on this
 capping request bodies, not of anything git or GitHub is doing. Two red herrings cost time —
 the machine's boot volume was simultaneously 100% full, and Apple's git 2.39.3 defaults to
 HTTP/2, which turns the same failure into a `400` instead of a `408`.
-**Fix / rule:** **Use SSH for this repo, not HTTPS** (`ssh.github.com:443` is reachable if
-port 22 is ever blocked). Diagnostic rule worth keeping: when a push fails, time it — a
+**Fix / rule:** Diagnostic rule worth keeping: when a push fails, time it — a
 failure in seconds is a rejection, and only a failure in minutes is a timeout. Bisect the
 *payload size* with a throwaway repo before assuming the repository's own history is at fault.
+
+**Superseded 2026-08-08 — the original fix here was "use SSH for this repo, not HTTPS".**
+SSH turned out to be unnecessary, and reaching for it would have preserved the actual
+problem. The 36 MB was one directory, `Legacy-Application/`, which had no business being in
+git at all (`docs/decisions.md` → RH1–RH4). Removing it with `git filter-repo` took the
+packed repository to **under 1 MB** and the push to `origin` then went over plain HTTPS
+first time. SSH would have made a 36 MB repository pushable; deleting the 36 MB made it
+small, which also fixes every future clone and CI checkout. **The transport was the
+symptom, not the cause.** Reach for a bigger pipe only after checking whether the payload
+should exist.
+
+The middlebox ceiling itself is real and still there — assume **any single push over ~512 KB
+on this network may fail**. It has not bitten since, because normal commits are kilobytes.
+If a large push is ever unavoidable, push in chunks (`git push origin <sha>:refs/heads/<b>`
+walking forward a few commits at a time) so each POST body stays under the cap; SSH remains
+the fallback, and `ssh.github.com:443` is reachable if port 22 is ever blocked.
 
 ## 2026-08-07 — `node --test <directory>` silently runs nothing on Node 22.x
 

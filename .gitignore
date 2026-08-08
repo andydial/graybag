@@ -1,6 +1,13 @@
 # Never commit the Bubble export — it contains live secrets
 *.bubble
 
+# The legacy design package: 46 MB of binaries git cannot diff, plus licensed
+# VAG Rounded Next fonts we are not entitled to redistribute via this repo.
+# Stripped from history 2026-08-08 — see docs/decisions.md. The assets live at
+# ../Legacy-Application-backup/ (sibling of this repo). Copy the directory back
+# in here when a task needs it; this rule keeps it from being committed again.
+Legacy-Application/
+
 node_modules/
 .env
 .env.*

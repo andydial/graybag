@@ -15,8 +15,10 @@ git commit -m "baseline before overnight run"
 claude --version
 claude -p "reply with OK"        # should print OK
 
-# 3. Copy the design package in so the motion-system task can read it
-cp -R "../Legacy-Application" .   # or adjust paths in overnight-queue.md Q05/Q08
+# 3. Copy the design package in so the motion-system task can read it.
+#    It is deliberately not in git (46 MB of binaries + licensed fonts) and is
+#    gitignored here, so this copy stays local. See docs/decisions.md.
+cp -R "../Legacy-Application-backup" ./Legacy-Application   # or adjust paths in overnight-queue.md Q05/Q08
 
 # 4. Dry-run ONE task now and read the result before trusting the loop
 STOP_AT=$(date -v+40M +%H:%M) npm run overnight
