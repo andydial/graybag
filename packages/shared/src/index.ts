@@ -25,3 +25,8 @@ export {
   type ConfigFetcher,
   type EffectiveConfig,
 } from './config-cache.js';
+
+// Design tokens (E13-01). One source, two outputs, no third (S8): `apps/mobile` imports
+// these objects directly and `apps/web` generates CSS custom properties from the same
+// modules at build time. Components import the semantic roles, never the ramps (S7).
+export * as design from './design/index.js';
