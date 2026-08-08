@@ -1391,13 +1391,13 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Review the motion spec with Andy once, before app UI work starts</span>
       </li>
-      <li class="task" data-id="E13-11" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E13-11" data-seed="1" data-risk="medium" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-11"></button>
         <code class="tid">E13-11</code>
         <span class="badge r-medium">medium</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Lint rules that keep both systems closed</strong> — fail the build on any colour literal, <code>fontSize</code>, <code>borderRadius</code> or raw spacing number outside <code>packages/shared/src/design/</code>; any numeric literal passed to <code>withTiming</code> / <code>transition-duration</code>; any <code>cubic-bezier</code> or <code>Easing.bezier</code> outside <code>motion.ts</code>; any <code>withSpring</code> outside the cart-badge module; <code>transition: all</code>; and animating any property other than <code>transform</code> / <code>opacity</code> outside the two files implementing <code>M10</code> and <code>M14</code>. Without this, both documents decay into suggestions</span>
+        <span class="ttext"><strong>Lint rules that keep both systems closed</strong> — fail the build on any colour literal, <code>fontSize</code>, <code>borderRadius</code> or raw spacing number outside <code>packages/shared/src/design/</code>; any numeric literal passed to <code>withTiming</code> / <code>transition-duration</code>; any <code>cubic-bezier</code> or <code>Easing.bezier</code> outside <code>motion.ts</code>; any <code>withSpring</code> outside the cart-badge module; <code>transition: all</code>; and animating any property other than <code>transform</code> / <code>opacity</code> outside the two files implementing <code>M10</code> and <code>M14</code>. Without this, both documents decay into suggestions. <strong>Done 2026-08-09</strong> — <code>config/eslint-design-system.js</code>, wired into <code>eslint.config.js</code>, with 25 cases in <code>scripts/test/eslint-design-system.test.mjs</code> that lint snippets at real paths against the <strong>repo&#39;s actual config</strong> and assert both halves of every exemption. Structured as one full rule set plus narrowing exemptions because flat config *replaces* rule options rather than merging them, and that failure is silent. <strong><code>E13-03</code> must build four components at the exact paths the config names</strong> — <code>cart/CartBadge.tsx</code> and <code>motion/{CollapsibleContainer,InlineError,SwipeRow}.tsx</code>; see <code>docs/design-tokens.md</code> §9.2. <code>S31</code>–<code>S34</code></span>
       </li>
       <li class="task" data-id="E13-12" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-12"></button>

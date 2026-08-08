@@ -156,6 +156,20 @@ choices in it were not forced by `docs/design-tokens.md`.
 One thing the module deliberately does **not** do: it contains no contrast function. That
 arrives with `E13-13`, which is the task that has a bar to assert.
 
+### The lint gate names four paths, three of which do not exist — `E13-11`, 2026-08-09
+
+| # | Decision | Why |
+|---|---|---|
+| S31 | **The gates ship before the UI they police**, in `config/eslint-design-system.js` | `eslint.config.js` says elsewhere that a rule with nothing to check is a rule nobody notices has stopped working, and that is right for the `api/` rules — they land with the module in Block 5. These are the deliberate exception, because their whole job is to stop the *first* component being written with a literal in it. Arriving after `E13-03` would mean arriving after the habit |
+| S32 | **The exempt paths are named explicitly, and `E13-03` must build those components there** — `CartBadge.tsx` for the one spring, `CollapsibleContainer.tsx` / `InlineError.tsx` / `SwipeRow.tsx` for `M04`, `M10` and `M14`'s height animations | The alternative is a glob — `**/motion/**`, or a `// eslint-disable` convention — and a glob quietly admits a second spring. Naming the file makes a fourth exemption a decision-log line rather than an edit, which is the same reasoning as `S1`'s closed catalogue applied to the enforcement layer instead of the spec |
+| S33 | **The rules are one full set plus narrowing exemptions, never several additive blocks** | ESLint flat config **replaces** a rule's options rather than merging them. Four blocks each adding a few `no-restricted-syntax` entries would leave only the last in force, and the failure is silent — a lint config that checks less than it did yesterday looks exactly like one that checks everything. So the base block carries every rule and each exempt path re-states the full set minus the one thing it may do. The test asserts the consequence directly: the cart badge may use `withSpring` **and** still fails on a raw hex |
+| S34 | **The `transform`/`opacity` gate is an approximation, and it says so** | It catches a `useAnimatedStyle` callback returning a disallowed key; it does not catch a style assembled elsewhere and returned by reference. Writing that down is the point — an approximate gate that fires on the ordinary case beats no gate, but only if nobody believes it is complete. `E19-02`'s frame budget covers the residue |
+
+The test lints snippets at real paths against the **repository's actual config**, not a
+fixture config, and asserts both halves of every exemption — that the rule fires outside
+it and that it does not fire inside. "The rule is in the config" and "the rule fires" are
+different claims and only the second is worth anything.
+
 ### The contrast test, and the hex that is three roles — `E13-13`, 2026-08-09
 
 `S19` said the test asserts a declared list of pairs plus a second list asserted to keep
