@@ -746,6 +746,14 @@ float precision and asserts `ratio >= bar`; the two-decimal number is for humans
 
 ### §9.1 The declared pair list
 
+> **Implemented (`E13-13`, 2026-08-09).** The lists below live in
+> `packages/shared/src/design/contrast.ts` as `LEGAL_PAIRS` and `FORBIDDEN_PAIRS`, and
+> `contrast.test.ts` walks both on every push. The tables here are the reasoning; the code
+> is the authority, and where they disagree the code is right (§9). Two assertions in that
+> file are not visible below and are worth knowing about: every ink role in the semantic
+> map must be covered by at least one legal pair, and every surface must be landed on by
+> at least one — so a new role cannot arrive unchecked.
+
 `E13-13` cannot be a cross-product of inks against surfaces. Walking one produces 78 "failures",
 almost all of them meaningless — white text on the white surface, a focus ring on the dark band,
 `text.tertiary` on a green field no grey ink ever touches. A test that flags those is a test
