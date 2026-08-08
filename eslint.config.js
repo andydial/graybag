@@ -5,21 +5,35 @@
 // integration expects to find it here. Everything else that could be moved has been —
 // the shared TypeScript options live in config/tsconfig.base.json.
 //
-// The two custom rules that enforce non-negotiable #1 — every backend call goes through
-// the `api/` module, and writes go through Edge Functions — are NOT here yet. They land
-// with the module itself in Block 5 (E14-08), because a rule with nothing to check is a
-// rule nobody notices has stopped working.
+// Two custom gate sets live here, both ahead of the code they police:
 //
-// The design-system and motion gates (E13-11) are the deliberate exception to that
-// reasoning: they are here *before* the UI code they police, because their whole job is to
-// stop the first component being written with a literal in it. They live in
-// config/eslint-design-system.js and are tested by scripts/test/eslint-design-system.test.mjs.
+//   - The design-system and motion gates (E13-11), in config/eslint-design-system.js.
+//     Their whole job is to stop the *first* component being written with a literal in it,
+//     so arriving after E13-03 would mean arriving after the habit (S31).
+//   - The `api/` module gates (E14-02), in config/eslint-api-module.js. Non-negotiable #1
+//     and A4: every backend call goes through one module, reads may use the Supabase
+//     client, writes always go through Edge Functions. Same reasoning — the rule exists to
+//     stop the first screen importing the client directly.
+//
+// **They share `no-restricted-syntax`, and that is why the api rules are passed *into*
+// designSystemConfigs rather than set in a block of their own.** Flat config replaces a
+// rule's options rather than merging them (S33), so a second block setting the same rule
+// would delete the design-system gates for every file it matched — silently, with the
+// build still green. scripts/test/eslint-api-module.test.mjs asserts one file can fail a
+// design rule and an api rule at once, which is the regression test for that collision.
 
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
 
 import { designSystemConfigs } from './config/eslint-design-system.js';
+import {
+  API_MODULE_DIR,
+  ENV_MODULE_FILES,
+  ALL_API_SYNTAX_RULES,
+  apiSyntaxRules,
+  apiImportConfigs,
+} from './config/eslint-api-module.js';
 
 export default tseslint.config(
   {
@@ -92,10 +106,23 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.node } },
   },
 
-  // E13-11. Last, so its narrowing exemptions are not themselves overridden — flat config
-  // replaces a rule's options rather than merging them, and order is the only thing that
-  // decides which `no-restricted-syntax` set is in force for a given file.
-  ...designSystemConfigs(),
+  // E14-02's import ban. Separate block because it uses `no-restricted-imports`, which
+  // nothing else sets — so it carries no replacement hazard.
+  ...apiImportConfigs(),
+
+  // E13-11 + E14-02. Last, so their narrowing exemptions are not themselves overridden —
+  // flat config replaces a rule's options rather than merging them, and order is the only
+  // thing that decides which `no-restricted-syntax` set is in force for a given file.
+  ...designSystemConfigs({
+    extraRestrictedSyntax: ALL_API_SYNTAX_RULES,
+    apiModuleDir: API_MODULE_DIR,
+    // Inside `api/` a Supabase *read* is the point. A Supabase *write* is not, and is not
+    // exempted here — `A4` says writes go through Edge Functions, and that rule is not
+    // relaxed by being inside the module it governs.
+    apiModuleExemptRules: apiSyntaxRules.outsideApiModule,
+    envModuleFiles: ENV_MODULE_FILES,
+    envModuleExemptRules: apiSyntaxRules.everywhere,
+  }),
 
   {
     // The design tests assert against the tokens, so they name colours, sizes and

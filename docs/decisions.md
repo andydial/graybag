@@ -17,6 +17,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | Area | IDs | Scope |
 |---|---|---|
 | [Architecture](decisions/architecture.md) | `A1`–`A8` | Stack, hosting, the `api/` module rule, observability |
+| [The `api/` module rule](decisions/api-module.md) | `AP1`–`AP4` | How `A4` is enforced: the lint gate, the shared `no-restricted-syntax` slot, the write ban |
 | [Data model](decisions/data-model.md) | `D1`–`D18` | Roles, recipients, config chain, ledger, money types, RLS default-deny |
 | [Auth](decisions/auth.md) | `U1`–`U4` | Google / Apple / email-OTP, no passwords, sender identity |
 | [Product](decisions/product.md) | `P1`–`P11` | Attendance, delivery, reports, offline, device tier |
