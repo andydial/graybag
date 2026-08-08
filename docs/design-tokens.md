@@ -803,6 +803,40 @@ somebody adds an illegal one.
 
 `text.disabled` and `action.disabledFg` are exempt under WCAG 1.4.3 and are asserted **absent**
 from both lists, so that "it's disabled" never becomes an argument for a low ratio elsewhere.
+That exemption is keyed by **role name, not by colour value** — `border.default` is the same
+`neutral-400` and is emphatically not exempt (`S28`).
+
+### §9.2 The lint gate, and the four paths it names
+
+Implemented by `E13-11` in `config/eslint-design-system.js`, wired into `eslint.config.js`, and
+tested by `scripts/test/eslint-design-system.test.mjs` — twenty-five cases that lint a snippet
+at a real path and assert both that the rule fires and that each exemption is exactly as narrow
+as intended.
+
+What fails the build: a colour literal or `rgba(`; a numeric `fontSize`, `lineHeight`,
+`letterSpacing` or `fontWeight`; a numeric `borderRadius`; a non-zero numeric `margin`,
+`padding` or `gap`; a numeric `duration` passed to `withTiming`; `transition: all`;
+`Easing.bezier(…)` or a `cubic-bezier(…)` string; `withSpring`; and a `useAnimatedStyle`
+returning any key other than `transform` or `opacity`.
+
+**Four paths are exempt, and three of them do not exist yet.** Naming them now is the point:
+the alternative is a glob, and a glob quietly admits a second spring.
+
+| Path | Exempt from | Why |
+|---|---|---|
+| `packages/shared/src/design/**` | Literals | The one place a hex, a size, a radius or a duration may be written down |
+| `packages/shared/src/design/motion.ts` | Easing curves | §9 gate 1 — one motion module |
+| `apps/mobile/src/components/cart/CartBadge.tsx` | `withSpring` | `S4` — one spring, one place |
+| `apps/mobile/src/components/motion/{CollapsibleContainer,InlineError,SwipeRow}.tsx` | The `transform`/`opacity` restriction | `M04`, `M10`, `M14` — the three height animations `E13-19` established |
+
+`E13-03` must build those components at exactly those paths. A fourth exemption is a line in
+`docs/decisions.md`, not an edit to the config.
+
+**One rule is an approximation and it is labelled as one.** The `transform`/`opacity` gate
+catches a `useAnimatedStyle` callback returning a style object with a disallowed key; it does
+not catch a style assembled elsewhere and returned by reference. That residue is what
+`E19-02`'s frame-budget gate and review are for. An approximate gate that fires on the ordinary
+case beats no gate, as long as nobody believes it is complete.
 
 ---
 

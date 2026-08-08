@@ -9,10 +9,17 @@
 // the `api/` module, and writes go through Edge Functions — are NOT here yet. They land
 // with the module itself in Block 5 (E14-08), because a rule with nothing to check is a
 // rule nobody notices has stopped working.
+//
+// The design-system and motion gates (E13-11) are the deliberate exception to that
+// reasoning: they are here *before* the UI code they police, because their whole job is to
+// stop the first component being written with a literal in it. They live in
+// config/eslint-design-system.js and are tested by scripts/test/eslint-design-system.test.mjs.
 
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
+
+import { designSystemConfigs } from './config/eslint-design-system.js';
 
 export default tseslint.config(
   {
@@ -83,5 +90,17 @@ export default tseslint.config(
   {
     files: ['**/*.test.ts', '**/*.test.mjs'],
     languageOptions: { globals: { ...globals.node } },
+  },
+
+  // E13-11. Last, so its narrowing exemptions are not themselves overridden — flat config
+  // replaces a rule's options rather than merging them, and order is the only thing that
+  // decides which `no-restricted-syntax` set is in force for a given file.
+  ...designSystemConfigs(),
+
+  {
+    // The design tests assert against the tokens, so they name colours, sizes and
+    // durations on purpose — that is the entire point of a test that catches drift.
+    files: ['packages/shared/src/design/**/*.test.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
   },
 );
