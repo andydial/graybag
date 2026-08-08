@@ -73,3 +73,14 @@ export {
   DURATION_CEILING_MS,
 } from './motion.js';
 export type { MotionPattern } from './motion.js';
+
+export {
+  BAR,
+  LEGAL_PAIRS,
+  FORBIDDEN_PAIRS,
+  EXEMPT_ROLES,
+  EXEMPT_VALUES,
+  contrastRatio,
+  relativeLuminance,
+} from './contrast.js';
+export type { Pair } from './contrast.js';

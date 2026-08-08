@@ -156,6 +156,22 @@ choices in it were not forced by `docs/design-tokens.md`.
 One thing the module deliberately does **not** do: it contains no contrast function. That
 arrives with `E13-13`, which is the task that has a bar to assert.
 
+### The contrast test, and the hex that is three roles — `E13-13`, 2026-08-09
+
+`S19` said the test asserts a declared list of pairs plus a second list asserted to keep
+failing. Building it surfaced one thing that had not been anticipated.
+
+| # | Decision | Why |
+|---|---|---|
+| S28 | **Exemptions are keyed by role name, never by colour value** | `text.disabled`, `action.disabledFg` and `border.default` are all `neutral[400]`. Only the first two are exempt under WCAG 1.4.3; `border.default` is in `FORBIDDEN_PAIRS` precisely because it is not — it is a decorative outline a component will reach for as a control boundary, and it is called "default", which is the whole reason it is tempting. The first version of the test matched exemptions on the hex and **silently exempted the one entry guarding a control boundary**. It is the same shape of mistake as `S16`: the value looks identical and the role is not |
+| S29 | **Every pair carries a note, and the failure message prints the ratio at four decimal places alongside it** | A failing contrast assertion that says "expected 4.09 to be at least 4.5" tells the reader nothing about whether the token moved or the pair was always wrong. Saying *"text.price on bg.surfaceAccent is 4.0912 — it is the price token and that is a card"* tells them what to do. An assertion nobody can act on is an assertion somebody deletes |
+| S30 | **The list is asserted not to shrink** | A pair list that quietly loses rows looks exactly like a pair list that passes. Floors on both lengths, set below the current counts, so the check catches deletion rather than blocking growth |
+
+`text.onBrand` on `bg.surfaceBrand` appears in **both** lists — legal at 3:1, forbidden at
+4.5:1. That is the entire content of "large text and controls only", expressed as two
+assertions rather than as a comment, and the test asserts it is the only pair allowed to
+appear twice.
+
 ### The reduce-motion substitute is data, not a convention — `E13-12`, 2026-08-09
 
 | # | Decision | Why |
