@@ -19,6 +19,33 @@ Format — newest first:
 
 ---
 
+## 2026-08-09 — `ECONNRESET` is a transport failure, not a payload-size symptom
+
+**Context:** `docs/decisions.md` had grown to 98 KB and was being read into context on every
+task. The working theory was that the oversized request was causing the `ECONNRESET`s on Andy's
+network, so splitting the file would fix both problems at once.
+
+**What happened:** the file was split (`DOC1`) and the context cost came down about 90%. The
+theory about `ECONNRESET` was still wrong.
+
+**Cause:** `ECONNRESET` means the peer sent a TCP RST — the connection was torn down by the
+other end or by something in the path. It comes from TLS negotiation failures, idle-timeout
+kills on an intermediary (home router, corporate proxy, VPN, CGNAT), flaky Wi-Fi, or MTU/
+fragmentation problems. **An oversized-but-valid HTTPS request body does not produce it**; a
+payload the server dislikes produces an HTTP status — `413`, `429`, a 4xx — not a reset. Size
+and resets are independent variables that happened to be observed together.
+
+**Fix / rule:** **Do not diagnose a network error from an application-layer symptom.** When
+`ECONNRESET` appears, look at the transport: try a different network (tether to a phone — this
+single test separates "my path" from "their service" faster than anything else), check whether
+a VPN or proxy is in the path, check MTU, and check the provider's status page. Reducing
+payload size is a fine thing to do for cost and latency — it was worth doing here on its own
+merits — but crediting it with fixing a reset means the real cause stays unfixed and comes
+back. Recorded because the wrong road is genuinely tempting: both facts were true at the same
+time, and one of them looked like it explained the other.
+
+---
+
 ## 2026-08-09 — A 21.8 MB PDF was recorded as "unreadable" for two sessions; it reads 20 pages at a time
 
 **Context:** `E13-15`. `00_Graybag_Brand Guidelines.pdf` is the authority the whole token file

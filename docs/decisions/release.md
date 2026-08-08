@@ -1,0 +1,16 @@
+# Decisions — Release
+
+`R1`–`R8` · part of the decision log. Index: `docs/decisions.md`. Superseded entries and build-log history: `docs/decisions-archive.md` (never authoritative).
+
+**Decision IDs are permanent and never move between files.** If you change a decision here, change it in the same PR as the code — never silently diverge.
+
+| # | Decision | Why |
+|---|---|---|
+| R1 | **Closed beta (~15 users, 2 weeks, real money) → cutover weekend → phased store rollout** | Andy ruled out a long parallel run and a pure big-bang. This gives a small real-money test then all-in, with a halt button. |
+| R2 | iOS Phased Release (7 days) + Android staged rollout 5/20/50/100, halted on Sentry error spikes | Native store capability; the "small set then all in" the business wanted. |
+| R3 | **Keep Bubble 30 days post-cutover** as break-glass | ~AUD $100. Cheap insurance on a live payments system. |
+| R4 | **Ship as an update to the existing apps**, not new listings | Bundle IDs are owned: iOS `com.gracord.graybag`, Android `com.Gracord.Graybag`. Typo in "gracord" is permanent and must not be changed. |
+| R5 | Timeline ~3.5–4 months at 20–30 hrs/week | Full scope. Compressible by deferring subscriptions, wallet top-up and offline. |
+| R6 | **The cutover freeze begins only after the last weekday order cutoff has passed**, so no `service_date` falls inside the freeze window (Q14, `docs/cutover-runbook.md`) | Makes the freeze a weekend (or holiday-week) event and shrinks the in-flight surface to future-dated paid orders and pending payments, which are *drained on Bubble* rather than migrated mid-flight. The current cities do not serve on weekends, so a weekend freeze contains no service day. `[CO-01]` |
+| R7 | **Bubble in-flight payments are not migrated as live state.** They are drained (settle-or-fail on Bubble) before the migration snapshot; anything still pending at snapshot is reconciled by hand against the Razorpay dashboard (Q14) | The new stack's payment state machine must never inherit a half-open attempt it did not create — mirrors `L4` (choose the recoverable failure). `E17-14`, `[CO-03]` |
+| R8 | **Every cutover go/no-go gate defaults to roll back, not proceed**, so a single unavailable decision-maker fails safe (Q14) | GrayBag is one person; there is no second signer mid-weekend (`[CO-07]`, next to `[DP-01]`). Rollback-by-default is the compensating control, and rollback triggers are named per phase in the runbook |

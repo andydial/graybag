@@ -14,6 +14,43 @@ reviewed: docs/data-model.md (Q01), supabase/migrations/0001_initial_schema.sql 
 
 # Overnight review — Q01 to Q14
 
+> ## Status — checked 2026-08-09
+>
+> **This document is still live: 17 of its 25 tracked findings are open, three of them
+> `[BLOCKS]`.** It is not archived and must not be, because it is the only written rationale
+> behind those open tasks, and six epic files cite it by section number.
+>
+> **Closed (8):** `E13-16`, `E13-17`, `E13-18`, `E13-19`, `E13-20` (findings 3, 5, 6, 24, 25) ·
+> `E17-23` (11, 26, 28) · `E17-24` (12) · `E02-21` (14).
+>
+> **Open — `[BLOCKS]` first:**
+>
+> | # | Finding | Sev | Task |
+> |---|---|---|---|
+> | 1 | Invoice placeholder guard fires **after** the customer's money is captured | **BLOCKS** | `E07-20` |
+> | 2 | Three launch cities span three GST state codes; the cart never derives the split | **BLOCKS** | `E07-21` |
+> | 4 | Withdrawing consent for one child erases the **parent's** account | **BLOCKS** | `E20-30` |
+> | 7 | Push-notification bodies are an unguarded tier-P egress path | HIGH | `E20-29` |
+> | 8 | `order_group_status = 'payment_failed'` is unreachable; test 5 expects it | HIGH | `E06-30` |
+> | 9 | Migration maps legacy `new → draft`; invariant I12 forbids `draft` | HIGH | `E16-19` |
+> | 10 | `resolve_effective_config()` returns null for every customer, silently | HIGH | `E02-20` |
+> | 13 | Tier classification differs between normative doc and consumer | MED | `E20-31` |
+> | 15 | Storage bucket policies specified, empty in `0002`, owned by nobody | MED | `E02-22` |
+> | 16 | `[AZ-02]` tripwire test named three times, owned by nobody | MED | `E02-23` |
+> | 17 | `otp_attempt` does not exist; published policy promises its retention | MED | `E20-33` |
+> | 18 | `migration.migration_review` holds tier-A/P data with no retention row | MED | `E20-32` |
+> | 19 | `product_analytics` purpose has no vendor and a contrary store declaration | MED | `E20-34` |
+> | 20 | The ledger's sign convention is never stated | MED | `E06-31` |
+> | 22 | Webhook retry sweep has no liveness alert, though `PY2` requires one | MED | `E15-13` |
+> | 23 | Cutover asks one person for ~15 continuous hours, irreversible gate at hour 13 | MED | `E17-25` |
+> | 27 | Last-4-phone search must be an Edge Function, owned by nobody | LOW | `E09-13` |
+>
+> Finding 21 (service-role rotation forces a mass re-OTP) carries no task — it is folded into
+> `[SEC-02]`.
+>
+> Re-check with:
+> `for id in E07-20 E20-30 …; do grep -rh "\`$id\`" planning/backlog/*.md; done`
+
 Fourteen unattended runs produced ~18,000 lines of specification and 4,200 lines of SQL, each
 written against the ones before it and none of them ever executed. This is the pass that reads
 them **against each other** rather than in sequence.

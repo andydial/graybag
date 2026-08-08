@@ -64,7 +64,9 @@ Fix the underlying causes, not the tests. Do not delete, skip or weaken a test t
 pass; if a test is genuinely wrong, fix it and say clearly in your summary that you changed
 a test and why.
 
-Read CLAUDE.md, docs/decisions.md and docs/mvp-scope.md first. Stay inside the MVP scope —
+Read CLAUDE.md and docs/mvp-scope.md first, plus docs/decisions.md — which is an index — then
+open only the docs/decisions/<area>.md files covering what you are about to touch. Never read
+the whole log, and do not read docs/decisions-archive.md at all. Stay inside the MVP scope —
 do not build fast-follow work. Record anything non-obvious in docs/learnings.md.
 Do not run git commit; this script handles it." --dangerously-skip-permissions >>"$LOG" 2>&1
 

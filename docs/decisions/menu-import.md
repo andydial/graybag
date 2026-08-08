@@ -1,0 +1,18 @@
+# Decisions — Menu import
+
+`MI1`–`MI6` · part of the decision log. Index: `docs/decisions.md`. Superseded entries and build-log history: `docs/decisions-archive.md` (never authoritative).
+
+**Decision IDs are permanent and never move between files.** If you change a decision here, change it in the same PR as the code — never silently diverge.
+
+Made in Q08 while building `tools/menu-import/`, the prototype that proves the spreadsheet
+format before `E04-04` is built. The source workbook is **not in the repository** (`[MI-01]`),
+so everything below is a choice about how the importer behaves, not a claim about the data.
+
+| # | Decision | Why |
+|---|---|---|
+| MI1 | **A blank `Allergens` cell means *unknown*, never *none*.** `allergens_declared_none` is true only when the cell says so explicitly; a blank cell imports with no tags **and a warning** | These are the same JSON — an empty tag list — and they are opposite facts. A kitchen that has not filled the cell in has told us nothing, and rendering that as "no allergens" at add-to-cart is precisely the failure `D7` exists to prevent. Making the distinction a stored field rather than an inference is what stops it being lost the first time someone writes `if (!dish.allergens.length)` |
+| MI2 | **What fails a row versus what merely warns is decided by whether being wrong could hurt someone**, not by how confident the parser is | Unparseable calories become `null` with a warning, because a missing calorie count harms nobody and a *guessed* one is worse than none. An unrecognised allergen fails the row outright. So does anything about money. The rule is written down because the natural instinct when an import strands 30 rows is to relax whichever check is loudest, and it must be obvious which checks are not available for relaxing |
+| MI3 | **Every row below the header is accounted for: a dish, a rejection, or a counted blank.** `accepted + rejected + skipped == rows_below_header` is asserted by a test | A menu importer that quietly drops the four rows it did not understand produces a menu that is *almost* right, which is the hardest kind of wrong to notice. Unrecognised *columns* are reported for the same reason. Follows the same instinct as `D17` — the resting state must be loud |
+| MI4 | **Zero dependencies. `.xlsx` reading is ~300 lines of `node:zlib` in `src/zip.mjs` and `src/xlsx.mjs`** | The repo has no `node_modules` and no lockfile, and this has to run for a non-developer with `node` and nothing else. Cost accepted: no ZIP64, no `.xls`, no `.csv`, and **no styles — so date cells are not interpreted**. No column in this format is a date; that is the first thing to fix if one is ever added. It throws a clear message on each rather than misreading |
+| MI5 | **The importer never decides anything the data model has left open.** `food_type` is `null` on every dish (`[DM-17]`) and `price_is_tax_inclusive` is `null` on every dish (`[DM-20]`), both emitted explicitly rather than omitted | An importer is the most tempting place in the system to quietly settle an open question, because it is the only place that has to produce a value for every field. Writing the null explicitly, and emitting a file-level notice on every run, means the gap stays visible instead of being answered by whatever the first consumer defaults to |
+| MI6 | **The allergen synonym table carries kitchen vocabulary, not textbook vocabulary** — `paneer`, `maida`, `til`, `kaju`, `sarson`, `atta`, `dahi` | The people who write the Allergens column write what they cook with. A table that only knows "milk" and "wheat" pushes every real cell into the unmapped bucket, and a validator that fails everything gets switched off |
