@@ -8,8 +8,9 @@ name: Integration
 # paying that on every commit is how people start skipping CI. So this runs:
 #
 #   * nightly, alongside scripts/nightly.sh;
-#   * on any PR that touches the schema, the seed data or this workflow — a change
-#     there is exactly the change the smoke test cannot judge;
+#   * on any PR, but doing real work only when that PR touches the schema, the seed
+#     data or this workflow — a change there is exactly the change the smoke test
+#     cannot judge. See the trigger note below for why the filter is not on `paths:`;
 #   * on demand.
 #
 # The suite CANNOT run against a bare postgres:16 image. `app_user.id` is a foreign key
@@ -17,13 +18,21 @@ name: Integration
 # GoTrue auth schema must exist — which means the real Supabase local stack.
 # docs/testing-strategy.md §6.
 
+# NOTE ON THE TRIGGER — this workflow is a REQUIRED status check (E01-02 ruleset),
+# and that is why there is no `paths:` filter here any more.
+#
+# A required check that does not run does not pass — GitHub holds the PR at
+# "Expected — waiting for status to be reported", forever. Path-filtering a required
+# check therefore blocks every PR that does not touch the filtered paths, which is
+# most of them. Same class of silent-coupling trap as BP4 in docs/decisions.md.
+#
+# The cost concern that motivated the filter is still real, so it moved inside the
+# job: the "Is the database in scope?" step below decides, and the expensive steps
+# are skipped when it is not. The job still reports, so the gate is satisfiable.
 on:
   schedule:
     - cron: '0 18 * * *' # 18:00 UTC — 23:30 IST
   pull_request:
-    paths:
-      - 'supabase/**'
-      - '.github/workflows/integration.yml'
   workflow_dispatch:
 
 permissions:
@@ -40,26 +49,61 @@ jobs:
     timeout-minutes: 25
 
     steps:
+      # fetch-depth: 0 so the scope step below can diff against the PR base.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Replaces the old `paths:` trigger filter. On a pull request, run the stack only
+      # if this PR actually touches the schema, the seed or this workflow. Everywhere
+      # else — nightly, workflow_dispatch — always run.
+      #
+      # The job reports either way, which is what lets it be a required check.
+      - name: Is the database in scope?
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "reason=event is ${{ github.event_name }}, always run" >> "$GITHUB_OUTPUT"
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          base='${{ github.event.pull_request.base.sha }}'
+          head='${{ github.event.pull_request.head.sha }}'
+          changed=$(git diff --name-only "$base" "$head" \
+            -- 'supabase/**' '.github/workflows/integration.yml' | head -50)
+
+          if [ -n "$changed" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Database-relevant files changed:"
+            echo "$changed" | sed 's/^/  /'
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No changes under supabase/ or this workflow — skipping the stack."
+          fi
 
       - uses: actions/setup-node@v4
+        if: steps.scope.outputs.run == 'true'
         with:
           node-version-file: .nvmrc
           cache: npm
 
       - name: Install
+        if: steps.scope.outputs.run == 'true'
         run: npm ci
 
       # The CLI is a devDependency so local and CI run the identical version; a
       # migration that replays here and not on a laptop is a debugging session
       # nobody needs.
       - name: Start the local Supabase stack
+        if: steps.scope.outputs.run == 'true'
         run: npx supabase start
 
       # `db reset` replays every migration from 0001 into an empty database and then
       # applies supabase/seed.sql. If the migration set has a gap, a bad dependency
       # order or a broken seed, it fails here rather than against staging.
       - name: Replay migrations and seed
+        if: steps.scope.outputs.run == 'true'
         run: npx supabase db reset
 
       # Non-negotiable #2. This is the highest-value test in the repository: it asserts
@@ -69,6 +113,7 @@ jobs:
       # The output is teed rather than just streamed because "did it pass?" is not the
       # only question this step has to answer. See the guard below.
       - name: Authorization suite (pgTAP)
+        if: steps.scope.outputs.run == 'true'
         run: |
           set -o pipefail
           npx supabase test db 2>&1 | tee /tmp/pgtap.log
@@ -85,7 +130,7 @@ jobs:
       # the suite is caught, without this failing every time a legitimate assertion is
       # added. Raise it when the suite grows substantially.
       - name: Guard — the suite must actually have run
-        if: always()
+        if: always() && steps.scope.outputs.run == 'true'
         env:
           MIN_TESTS: '150'
         run: |
@@ -119,5 +164,5 @@ jobs:
           fi
 
       - name: Stop
-        if: always()
+        if: always() && steps.scope.outputs.run == 'true'
         run: npx supabase stop --no-backup

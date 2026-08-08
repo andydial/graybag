@@ -164,22 +164,22 @@ insert into auth.users (id) values
   ('a0000000-7e57-0000-0000-00000000000d');  -- schoolScoped   orders.view @ schoolA1 only
 
 insert into app_user (id, phone_e164, first_name, last_name, is_disabled, deleted_at) values
-  ('a0000000-7e57-0000-0000-000000000001', '+919000000001', 'Asha',   'Customer', false, null),
-  ('a0000000-7e57-0000-0000-000000000002', '+919000000002', 'Bikram', 'Customer', false, null),
-  ('a0000000-7e57-0000-0000-000000000003', '+919000000003', 'Chitra', 'Coguard',  false, null),
-  ('a0000000-7e57-0000-0000-000000000004', '+919000000004', 'Dev',    'Disabled', true,  null),
-  ('a0000000-7e57-0000-0000-000000000005', '+919000000005', 'Esha',   'Deleted',  false, now()),
-  ('a0000000-7e57-0000-0000-000000000006', '+919000000006', 'Farid',  'Kitchen',  false, null),
-  ('a0000000-7e57-0000-0000-000000000007', '+919000000007', 'Gita',   'Kitchen',  false, null),
-  ('a0000000-7e57-0000-0000-000000000008', '+919000000008', 'Hari',   'School',   false, null),
-  ('a0000000-7e57-0000-0000-000000000009', '+919000000009', 'Ira',    'Admin',    false, null),
-  ('a0000000-7e57-0000-0000-00000000000a', '+919000000010', 'Jai',    'City',     false, null),
-  ('a0000000-7e57-0000-0000-00000000000b', '+919000000011', 'Kiran',  'Expired',  false, null),
-  ('a0000000-7e57-0000-0000-00000000000c', '+919000000012', 'Lata',   'Revoked',  false, null),
-  ('a0000000-7e57-0000-0000-00000000000d', '+919000000013', 'Manish', 'Scoped',   false, null);
+  ('a0000000-7e57-0000-0000-000000000001', '+917570000001', 'Asha',   'Customer', false, null),
+  ('a0000000-7e57-0000-0000-000000000002', '+917570000002', 'Bikram', 'Customer', false, null),
+  ('a0000000-7e57-0000-0000-000000000003', '+917570000003', 'Chitra', 'Coguard',  false, null),
+  ('a0000000-7e57-0000-0000-000000000004', '+917570000004', 'Dev',    'Disabled', true,  null),
+  ('a0000000-7e57-0000-0000-000000000005', '+917570000005', 'Esha',   'Deleted',  false, now()),
+  ('a0000000-7e57-0000-0000-000000000006', '+917570000006', 'Farid',  'Kitchen',  false, null),
+  ('a0000000-7e57-0000-0000-000000000007', '+917570000007', 'Gita',   'Kitchen',  false, null),
+  ('a0000000-7e57-0000-0000-000000000008', '+917570000008', 'Hari',   'School',   false, null),
+  ('a0000000-7e57-0000-0000-000000000009', '+917570000009', 'Ira',    'Admin',    false, null),
+  ('a0000000-7e57-0000-0000-00000000000a', '+917570000010', 'Jai',    'City',     false, null),
+  ('a0000000-7e57-0000-0000-00000000000b', '+917570000011', 'Kiran',  'Expired',  false, null),
+  ('a0000000-7e57-0000-0000-00000000000c', '+917570000012', 'Lata',   'Revoked',  false, null),
+  ('a0000000-7e57-0000-0000-00000000000d', '+917570000013', 'Manish', 'Scoped',   false, null);
 
 insert into city (id, code, name, state_name, gst_state_code) values
-  ('c1000000-7e57-0000-0000-000000000001', 'sas_nagar', 'SAS Nagar (Mohali)', 'Punjab', '03'),
+  ('c1000000-7e57-0000-0000-000000000001', 'test_sas_nagar', 'SAS Nagar (Mohali)', 'Punjab', '03'),
   ('c1000000-7e57-0000-0000-000000000002', 'chandigarh','Chandigarh',         'Chandigarh', '04');
 
 insert into kitchen (id, code, name, city_id) values
@@ -241,7 +241,7 @@ insert into asset (id, kind, bucket, path) values
   ('d2000000-7e57-0000-0000-000000000004', 'import_file', 'imports',     'imp/a.xlsx');
 
 insert into dish_category (id, code, display_name) values
-  ('d4000000-7e57-0000-0000-000000000001', 'quick_bites', 'Quick bites');
+  ('d4000000-7e57-0000-0000-000000000001', 'test_quick_bites', 'Quick bites');
 
 insert into dish (id, kitchen_id, name, category_id, image_asset_id) values
   ('d5000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'Veg Sandwich', 'd4000000-7e57-0000-0000-000000000001', 'd2000000-7e57-0000-0000-000000000001'),
@@ -1134,7 +1134,7 @@ select throws_ok($$ update app_user set is_disabled = true where id = 'a0000000-
                  '42501', null, '§9 item 10 / §6.1: a customer cannot set is_disabled on their own app_user row');
 select throws_ok($$ update app_user set deleted_at = now() where id = 'a0000000-7e57-0000-0000-000000000001' $$,
                  '42501', null, '§9 item 10 / §6.1: a customer cannot set deleted_at on their own app_user row');
-select throws_ok($$ update app_user set phone_e164 = '+919999999999' where id = 'a0000000-7e57-0000-0000-000000000001' $$,
+select throws_ok($$ update app_user set phone_e164 = '+917579999999' where id = 'a0000000-7e57-0000-0000-000000000001' $$,
                  '42501', null, '§6.1: a customer cannot rewrite phone_e164 without re-verifying by OTP');
 select lives_ok($$ update app_user set first_name = 'Asha Rani' where id = 'a0000000-7e57-0000-0000-000000000001' $$,
                 '§6.1: …but the columns that ARE theirs to set remain editable');

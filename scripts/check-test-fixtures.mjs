@@ -22,6 +22,18 @@
 //
 // seed.test.sql is exempt: its whole job is asserting seed.sql's contents, so it
 // must name the very ids everything else has to avoid.
+//
+// UUIDS ARE NOT THE WHOLE STORY
+//
+// Namespacing the ids got the suite from line 147 to line 183, where it died on
+// `city_code_key` — code = 'sas_nagar'. Primary keys were never the only uniqueness
+// in the schema; there are ~40 unique constraints on natural keys, and seed.sql and
+// the fixtures were picking the same slugs and the same phone numbers.
+//
+// So this also checks phone numbers, emails and slug-shaped codes. Values that are
+// legitimately shared — status enums, given names, and composite keys whose parent
+// id differs — are allowlisted below with the reason, because the alternative is a
+// check nobody can keep green.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
@@ -36,8 +48,34 @@ const ASSERTS_THE_SEED = new Set(['seed.test.sql']);
 
 const MARKER = '7e57';
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+const PHONE = /\+[1-9][0-9]{7,14}/g;
+const EMAIL = /'[^']*@[^']*'/g;
+// Slug-shaped literals — the schema's `code text not null unique` columns.
+const SLUG = /'([a-z][a-z0-9_]{2,40})'/g;
 
-const uuidsIn = (path) => new Set(readFileSync(path, 'utf8').match(UUID) ?? []);
+// Values that appear in both seed.sql and the fixtures and are SAFE to share.
+// Each needs a reason, so that adding to this list is a decision rather than a
+// way of silencing the check.
+const SHARED_ON_PURPOSE = new Map([
+  // Status / enum / role values. Not unique columns at all.
+  ['active', 'status enum'],
+  ['authenticated', 'postgres role name'],
+  ['draft', 'status enum'],
+  ['father', 'guardian relationship enum'],
+  ['mother', 'guardian relationship enum'],
+  ['guardian', 'guardian relationship enum'],
+  ['school', 'scope_type enum'],
+  ['counter', 'delivery mode enum'],
+  // Composite uniques whose OTHER column already differs between seed and tests.
+  ['break_1', 'break_time is unique on (school_id, code); the school ids differ'],
+]);
+
+const readText = (path) => readFileSync(path, 'utf8');
+const uuidsIn = (path) => new Set(readText(path).match(UUID) ?? []);
+const phonesIn = (path) => new Set(readText(path).match(PHONE) ?? []);
+const emailsIn = (path) => new Set(readText(path).match(EMAIL) ?? []);
+const slugsIn = (path) =>
+  new Set([...readText(path).matchAll(SLUG)].map((m) => m[1]).filter((s) => !SHARED_ON_PURPOSE.has(s)));
 const secondGroup = (uuid) => uuid.split('-')[1];
 
 const failures = [];
@@ -84,6 +122,25 @@ for (const file of testFiles) {
         collisions.map((u) => `    ${u}`).join('\n') +
         `\n  db reset seeds first, so these die on a duplicate key and the suite reports Tests: 0.`,
     );
+  }
+
+  // 4. Natural keys. ~40 unique constraints in 0001 are on these, not on the pk.
+  const naturalKeys = [
+    ['phone number', phonesIn(join(TESTS, file)), phonesIn(SEED), 'uq_app_user_phone'],
+    ['email', emailsIn(join(TESTS, file)), emailsIn(SEED), 'uq_app_user_email'],
+    ['slug/code', slugsIn(join(TESTS, file)), slugsIn(SEED), 'the `code text not null unique` columns'],
+  ];
+
+  for (const [label, mine, seeded, constraint] of naturalKeys) {
+    const shared = [...mine].filter((v) => seeded.has(v));
+    if (shared.length > 0) {
+      failures.push(
+        `supabase/tests/${file} shares ${shared.length} ${label}(s) with seed.sql:\n` +
+          shared.map((v) => `    ${v}`).join('\n') +
+          `\n  These collide on ${constraint}. Give the fixture its own value, or — if the\n` +
+          `  value is genuinely safe to share — add it to SHARED_ON_PURPOSE with the reason.`,
+      );
+    }
   }
 }
 
