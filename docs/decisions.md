@@ -141,6 +141,16 @@ reconcile, the brand document contains no contrast analysis to weigh against, an
 visible on every screen in the product. Recorded in §2.1 and §2.11 of the token file so that
 nobody re-derives the conflict from scratch and quietly picks a side.
 
+### A timeout is only offered on a write that cannot move money — `E13-20`, 2026-08-09
+
+| # | Decision | Why |
+|---|---|---|
+| S21 | **`M09` has two endings, and which one a control gets is decided by whether money can move.** Ending A times out at 8 seconds and offers a retry — Cancel Order, Save Recipient, back-office writes. Ending B has no timeout at all: the in-flight track stays, the app polls `GET /checkout/:group/status`, and the waiting state resolves only on a terminal status or the checkout's server-side TTL. **Ending B is Pay, and Place Order wherever it opens the Razorpay sheet or returns `payment_pending` (202)** | A retry affordance at 8 seconds manufactures the double capture `order-lifecycle.md` §10.6b says *will* happen. A UPI collect sits `pending` for up to ~30 minutes (`[OL-03]`), so eight seconds is the ordinary case rather than a stall; if the customer retries and pays another way, attempt 1 may still succeed, and `[OL-05]` says the schema cannot record two captures against one group — so it cannot be reconciled or refunded afterwards either. **The Pay exclusion had already been written into `M09`; Place Order had not**, and Place Order is the control that *opens* the sheet. Excluding Pay alone excludes the second tap and not the first, which is the wrong one. The rule that generalises is the title of this section, and it **does not relax if `[OL-05]` is later fixed** — a recordable double charge is still a double charge |
+
+The reduce-motion substitute follows the same split rather than collapsing to one label: Ending
+B reads "Waiting for your bank…" and does not time out. A reduce-motion user must not get a
+version of the flow that quietly gives up where the default one waits.
+
 ## Order lifecycle
 
 Made in Q06 while writing `docs/order-lifecycle.md`, which is the specification `E05` and `E06`
