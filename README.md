@@ -22,7 +22,9 @@ Only `README.md`, `CLAUDE.md`, `package.json` and dotfiles live at the root.
 | File | What it is |
 |---|---|
 | `CLAUDE.md` | Conventions Claude Code must follow. Read before changing anything |
-| `docs/decisions.md` | Every architectural and product decision, with the reasoning |
+| `docs/decisions.md` | Index of the decision log — start here |
+| `docs/decisions/` | The decisions themselves, one file per area, with the reasoning |
+| `docs/decisions-archive.md` | Superseded decisions and build-log history. Never authoritative |
 | `docs/open-questions.md` | What is undecided and who unblocks it |
 | `docs/learnings.md` | What broke, what didn't work, non-obvious constraints |
 | `planning/README.md` | How the backlog works |

@@ -65,7 +65,7 @@ Andy stay oriented across sessions.
 
 | File | What goes in it | When to write |
 |---|---|---|
-| `docs/decisions.md` | Architectural and product decisions, each with **why** | Any time you make a non-obvious choice, or change an existing one |
+| `docs/decisions.md` | **Index** of the decision log. Decisions live one file per area in `docs/decisions/` | Any time you make a non-obvious choice, or change an existing one |
 | `docs/learnings.md` | What broke and why, approaches that did not work, non-obvious constraints, gotchas in Supabase / Razorpay / Expo / the stores | Immediately after debugging anything that took more than ~20 minutes |
 | `docs/open-questions.md` | What is undecided and who unblocks it | When you hit a question you cannot answer — flag it, do not guess |
 
@@ -77,8 +77,17 @@ Rules:
   it stops the same hour being spent twice.
 - **Update rather than append when something turns out to be wrong.** Strike the old entry
   and say what replaced it — do not leave two contradictory records.
-- **Read `docs/decisions.md` before changing anything architectural.** If a decision needs
-  to change, change it in that file in the same PR. Never silently diverge in code.
+- **Read `docs/decisions.md` before changing anything architectural — it is an index — then
+  open only the `docs/decisions/<area>.md` files covering what you are touching.** Never read
+  the whole log; that is what `DOC1` exists to prevent. If a decision needs to change, change
+  it in its area file in the same PR. Never silently diverge in code.
+- **Decision IDs are permanent and never move between files** (`DOC1`), exactly like task IDs.
+  Cite them bare — `SUB1`, `M2`, `PY3` — never as a path. Add a new decision by appending to
+  its area file; only a whole new area touches the index.
+- **`docs/decisions-archive.md` is history, not context. Do not read it by default** — only
+  when you need to know why a decision was reversed. It is never authoritative: if it
+  disagrees with an area file, the area file wins. When you supersede a decision, move the old
+  entry there with a line saying what replaced it.
 - Convert relative dates to absolute ("by end of next week" → an actual date).
 
 ## Repository layout

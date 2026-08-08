@@ -1,0 +1,117 @@
+# Decisions — Design system and motion
+
+`S1`–`S34` · part of the decision log. Index: `docs/decisions.md`. Superseded entries and build-log history: `docs/decisions-archive.md` (never authoritative).
+
+**Decision IDs are permanent and never move between files.** If you change a decision here, change it in the same PR as the code — never silently diverge.
+
+Made in Q05 while writing `docs/design-tokens.md` and `docs/motion-system.md`. The brand
+palette, the typeface and the nine mock screens come from `Graybag_Design Package` and are
+givens; everything below is a choice about how to build on them.
+
+| # | Decision | Why |
+|---|---|---|
+| S1 | **The motion catalogue is closed.** Fourteen entries, `M01`–`M14`. New screens implement from it; they do not invent. An `M15` requires a line in this file naming the genuinely new interaction | Fluidity is not more motion, it is the *same* motion everywhere. An open catalogue reopens as a per-component free-for-all within about three sprints, and the result is the "flying bird" feel the rebuild exists to remove. A reviewer should reject a bespoke animation the way they reject a hard-coded hex |
+| S2 | **Four duration tokens (0 / 120 / 200 / 320ms) and a hard 350ms ceiling.** No other duration exists; a numeric literal fails lint | The network is the constraint, not the CPU (P11). Animation time is added *on top of* an already-long wait, so a 400ms transition is not elegant — it is 400ms of extra nothing. Below ~100ms the user cannot learn where the new thing came from; above ~350ms the motion stops being a cue and becomes a wait |
+| S3 | **Three easing curves, named by role** — `standard` (on screen before and after), `enter` (arriving), `exit` (leaving) — not by shape | Makes choosing a curve a mechanical question about the content rather than a matter of taste, which is what stops a fourth curve appearing. `linear` is permitted in exactly one place, `M03`'s shimmer, because a loop with easing visibly pulses |
+| S4 | **Exactly one spring, `spring.pop`, allowed in exactly one place: the cart badge (`M06`).** Any `withSpring` outside that module fails the build | A spring is a fourth *kind* of motion — no fixed duration, it overshoots, and it composes badly with the three curves. It is allowed once because adding to cart is the only action whose confirmation appears somewhere other than where the user is looking, so it must attract the eye. Everywhere else, attracting the eye is a bug. Note the deliberate asymmetry with `E13-04`, which asked for three easing curves: three curves is what §3 delivers, and the spring is named separately so its single use site is obvious |
+| S5 | **Skeletons for every first load. No spinners anywhere, and never a full-screen blocking spinner** | On an unreliable connection a skeleton shows the *shape* of what is coming, which reads as progress; a spinner reads as a stall. The rule that makes it work is geometric: a skeleton's boxes must match the real content's boxes exactly, so nothing shifts when the data lands. Two deliberate non-skeletons: empty states and error states are real compositions |
+| S6 | **The 500 rule.** `#00af52`, `#ffbb39`, `#b3cf3f` and `#e5ea98` are **identity** colours, not ink — logo, pattern, illustration, brand fields with nothing legible on them. Every functional use of a brand hue is one or more steps darker | White on `#00af52` is 2.90:1 and fails everything, including the 3:1 a control boundary needs. This keeps the brand exactly as supplied while making the product legible, instead of the alternative — changing the brand green, or shipping an accessibility defect that `E13-10` would fail CI on anyway. **Needs Andy's validation once: `DS-01` / `E13-14`** |
+| S7 | **Components import semantic roles (`bg.surface`, `text.price`, `action.primaryBg`), never ramp steps (`primary-700`)** | It is what makes a future dark mode a second mapping file rather than a rewrite (`DS-03`), and it is what makes a contrast test possible at all — the test walks the role map, which a component reaching directly into a ramp would escape |
+| S8 | **One token source, two outputs, no third.** `packages/shared/src/design/` is authored once; mobile imports the objects, web generates CSS custom properties from the same modules at build time. A Figma file, if one appears, is downstream | Two hand-maintained copies of a palette diverge, and the divergence is invisible until someone screenshots both products side by side. Same reasoning as the `api/` module rule (A4) |
+| S9 | **The back office is deliberately near-motionless** — five of the fourteen patterns, no stagger on tables, static skeletons with no shimmer | A kitchen operator marking forty orders delivered before a break is using a work tool in a hurry. Motion there is a tax on time, and a shimmer over a table of numbers is actively harder to read than the word "Loading" |
+| S10 | **No runtime animation player** — no Lottie, no Rive, no animated illustration, no confetti | It is a dependency, a bundle cost on a network-constrained product, and a standing invitation to break S1. The one celebratory moment in the mocks ("congratulations, your account is complete") is a static composition and stays one |
+| S11 | **Light mode only in v1** | Not in the mocks and not in the package; it roughly doubles the contrast surface to design and test. S7 is what keeps the door open. `DS-03` |
+
+### Taken on reading the brand guidelines — `E13-15`, 2026-08-09
+
+**The brand document wins on anything about the brand.** These are the four places that rule
+bit. Per-change table: §0 of `docs/design-tokens.md`. Narrative in the archive.
+
+| # | Decision | Why |
+|---|---|---|
+| S12 | **The type scale is derived from the brand's four bands, not merely checked against them.** Main Heading Semi Bold 48–32, Heading Semi Bold 32–28, Subheading Medium 24–20, Body Regular 16–12. Mobile sits at the bottom of each band: 32 / 28 / 24 / 20, body 16–12 | Three tokens were outside every band — `h3` 18 and `bodyLg` 17 in the unspecified 20–16 gap, `overline` 11 below the floor. Sizes are the cheapest thing in a design system to move and the most expensive to argue about later, so they move now, before `E13-01` writes them into code and `E13-03` builds components on them. The 11pt `overline` also contradicted this file's own "12 is the floor" sentence, sitting one line below it — reconciliation found a bug that was already here, which is the argument for doing reconciliation before code rather than after |
+| S13 | **There is no Bold in the product. The three bundled weights are Regular 400, Medium 500, SemiBold 600** | The brand's hierarchy uses Semi Bold for headings and Medium for subheadings; Bold appears in the specimen but in none of the four levels. The count stays at three, so `E19-03`'s licence question does not grow — it changes which three files it names, which only matters if the answer is priced per weight. `label` and `button` keep 600 in the Body band: they are UI chrome at 13 and 16 points, the brand hierarchy has no row for a button, and small type needs mass on a mid-range phone in daylight |
+| S14 | **The brand's Colour Usage Guide is adopted as four new role tokens** — `bg.surfaceAccent` and `border.accent` (`#E5EA98`: "light UI surfaces (cards, containers)", "soft separators"), `nav.itemActive` (`#145F48`: "secondary UI elements (tabs, toggles, footers)"), `badge.bg`/`badge.fg` (`#FFBB39`: "UI highlights (notifications, badges)") | These are UI instructions the brand gave and the token file had not picked up — the tab bar was heading for grey ink and cards for plain white. Adopting them costs nothing and it is the difference between a product that matches the brand book and one that merely uses its hexes. Each arrives with its contrast measured, which is how the trap was caught: **`text.link`/`text.price` on `bg.surfaceAccent` is 4.09:1 and fails AA** — a price on a lime card must be `forest-500`. `E13-13` asserts that as a forbidden pair rather than leaving it to review |
+| S15 | **`radius-none` is restricted to elements with no visible corner.** Containers, image frames and backgrounds are always rounded | The brand's Shapes & Geometry page names rounded corners as identity-critical and shows a square-cornered rectangle as its one ✗. This file had allowed `radius-none` on full-bleed images, which is right only when the image bleeds off every edge — a hero whose bottom edge lands inside the layout is an image frame and gets `radius-lg`. No numbers changed; the rule for choosing between them did |
+
+### The failing role pairs, and why they were all the same mistake — `E13-17`, 2026-08-09
+
+`DS-06` listed five failing semantic-role pairs; walking the whole §2.9 map found eight, and
+found they are one error repeated. Narrative in the archive.
+
+| # | Decision | Why |
+|---|---|---|
+| S16 | **An ink token is chosen against the darkest surface it may legitimately sit on, never against white** | `neutral-500`, `danger-600` and `amber-700` were each picked by measuring against `neutral-0`, each passed there, and each failed somewhere real: a placeholder's home is inside an input on `neutral-100` (4.2280), error text's home is the `danger-50` banner it exists to pair with (4.4441), warning text lands on the muted fill (4.4057). That is one mistake made three times, and it is the kind that only shows up when you enumerate rather than reason. Stating it as a rule is what stops the fourth |
+| S17 | **The ink moves, never the bar and never a brand hue.** `text.tertiary` → `neutral-600`, `text.secondary` → `neutral-700` (to keep three visible steps), `text.danger` → `danger-700`, `text.warning` → `amber-800`, and `nav.itemInactive` / `status.warning` / `status.danger` follow their ink. `neutral-500` and `amber-700` stop being text colours | Six of the seven values are greys, an error red and a warning brown — **none is in `02_Colour Palette` and none is visible as "the brand changing"**, which is why this did not need Andy despite being filed as though it did. The alternative, lightening `bg.surfaceMuted` so the old ink passed, would have moved a surface every screen uses in order to save one grey |
+| S18 | **`bg.surfaceBrandStrong = primary-700` is added, and `bg.surfaceBrand` is narrowed to controls and large text** | White on `primary-600` is 3.85 — legal for a control boundary and large text, illegal for body text — and `bg.surfaceBrand` was *defined* as the green field that carries things. The role map had **no legal body-text colour for any green surface**, which is not a tuning problem, it is a hole. Adding the surface fixes it without weakening `text.onBrand`, and it introduces no new colour: `primary-700` is what `action.primaryBg` already is. It is `DS-01`'s consequence applied to a surface, so it stands or falls with `E13-14` |
+| S19 | **The contrast test asserts a declared list of pairs, plus a second list asserted to keep failing** | A cross-product of inks against surfaces yields 78 "failures", nearly all meaningless — white on white, a focus ring on the dark band. A test that flags those is a test someone switches off, and then it protects nothing. The forbidden list matters as much as the legal one: `text.price` on a lime card (4.09), `border.default` as a control boundary (2.28), `neutral-500` as any ink — each is a combination a component would plausibly reach for, and a test that only checks legal pairs never notices a new illegal one. Both lists are §9.1 |
+| S20 | **Ratios are compared at full float precision with `>=`, never at two decimal places** | Four wrong numbers in this file share one cause: rounding before judging. `forest-600` on `primary-600` (`E13-16`), then `forest-500` on `amber-500` at **4.4994**, `neutral-500` on `neutral-50` at **4.4969**, `primary-700` on `primary-100` at **4.4734**. Every one prints as a pass. The two-decimal figure is for humans; the assertion uses the float |
+
+**Still open, and it is Andy's.** The brand's Colour Usage Guide assigns `#00AF52` to "Buttons
+& CTAs in UI"; `S6` puts the button fill at `primary-700` because white on `#00af52` is 2.90:1.
+**`DS-01` is therefore a documented deviation from the brand guideline, not a correction to the
+mocks** — that is what `E13-14` asks Andy to approve. Recorded in §2.1 and §2.11 of the token
+file; full reasoning in the archive.
+
+### Writing the tokens as code — `E13-01`, 2026-08-09
+
+`packages/shared/src/design/` exists: `color.ts`, `semantic.ts`, `type.ts`, `space.ts`,
+`radius.ts`, `elevation.ts`, `index.ts`, 129 assertions across three test files. Three choices
+in it were not forced by `docs/design-tokens.md`.
+
+| # | Decision | Why |
+|---|---|---|
+| S22 | **The brand's five hexes are written down a second time, on purpose, in `color.test.ts` — with their RGB decomposition** | Everywhere else in the repo, duplicating a constant is the bug. Here the duplicate *is* the check: it is the only thing that notices if somebody tidies a ramp and `#00af52` drifts to `#00af53`. The RGB assertion is there because a transposed hex digit produces a plausible-looking hex and an obviously wrong colour, and only one of those is visible in a diff |
+| S23 | **The test asserts each type token's brand *band*, not its size** | `E13-15` moved three sizes because they sat outside every band the brand specifies, and finding that took reading a 40-page PDF. Asserting `h3 === 20` would let a future change move it back to 18 and stay green; asserting "h3 is inside the Subheading band at its weight" cannot. The list of styles allowed to set their own weight — `label`, `button`, `overline`, `bodyStrong` — is explicit and capped at four, so "the brand says Regular" cannot be argued away one token at a time |
+| S24 | **Every semantic role is asserted to resolve to a value that exists in a ramp** | This is the test that catches a hand-typed hex in `semantic.ts`, which is exactly how a token system springs a leak: the value looks right, it is in the right file, and it belongs to nothing. Alongside it sit the `E13-17` regression guards — `neutral[500]`, `amber[700]` and `danger[600]` are each asserted never to appear as ink again, because each of them passed against white and failed on the surface the role actually lives on |
+
+The module deliberately contains **no contrast function**. That arrives with `E13-13`, the task
+that has a bar to assert.
+
+### The lint gate names four paths, three of which do not exist — `E13-11`, 2026-08-09
+
+| # | Decision | Why |
+|---|---|---|
+| S31 | **The gates ship before the UI they police**, in `config/eslint-design-system.js` | `eslint.config.js` says elsewhere that a rule with nothing to check is a rule nobody notices has stopped working, and that is right for the `api/` rules — they land with the module in Block 5. These are the deliberate exception, because their whole job is to stop the *first* component being written with a literal in it. Arriving after `E13-03` would mean arriving after the habit |
+| S32 | **The exempt paths are named explicitly, and `E13-03` must build those components there** — `CartBadge.tsx` for the one spring, `CollapsibleContainer.tsx` / `InlineError.tsx` / `SwipeRow.tsx` for `M04`, `M10` and `M14`'s height animations | The alternative is a glob — `**/motion/**`, or a `// eslint-disable` convention — and a glob quietly admits a second spring. Naming the file makes a fourth exemption a decision-log line rather than an edit, which is the same reasoning as `S1`'s closed catalogue applied to the enforcement layer instead of the spec |
+| S33 | **The rules are one full set plus narrowing exemptions, never several additive blocks** | ESLint flat config **replaces** a rule's options rather than merging them. Four blocks each adding a few `no-restricted-syntax` entries would leave only the last in force, and the failure is silent — a lint config that checks less than it did yesterday looks exactly like one that checks everything. So the base block carries every rule and each exempt path re-states the full set minus the one thing it may do. The test asserts the consequence directly: the cart badge may use `withSpring` **and** still fails on a raw hex |
+| S34 | **The `transform`/`opacity` gate is an approximation, and it says so** | It catches a `useAnimatedStyle` callback returning a disallowed key; it does not catch a style assembled elsewhere and returned by reference. Writing that down is the point — an approximate gate that fires on the ordinary case beats no gate, but only if nobody believes it is complete. `E19-02`'s frame budget covers the residue |
+
+The test lints snippets at real paths against the **repository's actual config**, not a fixture
+config, and asserts both halves of every exemption.
+
+### The contrast test, and the hex that is three roles — `E13-13`, 2026-08-09
+
+Building the test `S19` specified surfaced one thing that had not been anticipated.
+
+| # | Decision | Why |
+|---|---|---|
+| S28 | **Exemptions are keyed by role name, never by colour value** | `text.disabled`, `action.disabledFg` and `border.default` are all `neutral[400]`. Only the first two are exempt under WCAG 1.4.3; `border.default` is in `FORBIDDEN_PAIRS` precisely because it is not — it is a decorative outline a component will reach for as a control boundary, and it is called "default", which is the whole reason it is tempting. The first version of the test matched exemptions on the hex and **silently exempted the one entry guarding a control boundary**. It is the same shape of mistake as `S16`: the value looks identical and the role is not |
+| S29 | **Every pair carries a note, and the failure message prints the ratio at four decimal places alongside it** | A failing contrast assertion that says "expected 4.09 to be at least 4.5" tells the reader nothing about whether the token moved or the pair was always wrong. Saying *"text.price on bg.surfaceAccent is 4.0912 — it is the price token and that is a card"* tells them what to do. An assertion nobody can act on is an assertion somebody deletes |
+| S30 | **The list is asserted not to shrink** | A pair list that quietly loses rows looks exactly like a pair list that passes. Floors on both lengths, set below the current counts, so the check catches deletion rather than blocking growth |
+
+`text.onBrand` on `bg.surfaceBrand` appears in **both** lists — legal at 3:1, forbidden at
+4.5:1. That is "large text and controls only" expressed as two assertions rather than a
+comment, and the test asserts it is the only pair allowed to appear twice.
+
+### The reduce-motion substitute is data, not a convention — `E13-12`, 2026-08-09
+
+| # | Decision | Why |
+|---|---|---|
+| S25 | **`motion.ts` exports `duration`, `ease`, `spring`, `stagger` and the reduce-motion catalogue, and nothing else** | `S1`'s closed catalogue holds only if there is no third place to put a number. `E13-11` fails the build on a literal passed to `withTiming`, a `cubic-bezier` outside this file, or a second `withSpring` — and a lint rule needs somewhere to point people instead. The web `cubic-bezier(…)` string is generated from the same array the native curve uses, because a hand-written bezier in a stylesheet is the motion equivalent of a hard-coded hex |
+| S26 | **§10's reduce-motion substitutions live in code as a table, keyed by pattern, and every one of the fourteen must have an entry** | The bug this exists to catch is invisible to every visual review, because the reviewer has reduce motion off: a component that *drops* a state change rather than substituting one. A substitute is a different animation, not the absence of one — `M02` still cross-fades, `M06` still changes the count. A pattern with no entry is a pattern nobody decided about, and the default behaviour of "no entry" is silently doing nothing. `M12` is `null` deliberately: the navigator and the OS own screen push and pop, and honouring reduce motion there is theirs. The test asserts `M12` is the **only** `null` |
+| S27 | **`resolveDuration()` returns `duration.instant` rather than skipping the animation** | A zero-duration transition still fires its completion callback. A component whose state advance hangs off that callback — and several will — silently breaks under reduce motion if the animation is skipped instead of shortened. Returning a number rather than `undefined` is the whole point, and it is asserted |
+
+The spring's numbers are asserted from physics rather than transcribed — ζ between 0.5 and 1,
+and the ~4τ settle inside the 350ms ceiling — so a future tweak to `stiffness` fails on the
+property that matters instead of on a copied number. Working in the archive.
+
+### A timeout is only offered on a write that cannot move money — `E13-20`, 2026-08-09
+
+| # | Decision | Why |
+|---|---|---|
+| S21 | **`M09` has two endings, and which one a control gets is decided by whether money can move.** Ending A times out at 8 seconds and offers a retry — Cancel Order, Save Recipient, back-office writes. Ending B has no timeout at all: the in-flight track stays, the app polls `GET /checkout/:group/status`, and the waiting state resolves only on a terminal status or the checkout's server-side TTL. **Ending B is Pay, and Place Order wherever it opens the Razorpay sheet or returns `payment_pending` (202)** | A retry affordance at 8 seconds manufactures the double capture `order-lifecycle.md` §10.6b says *will* happen. A UPI collect sits `pending` for up to ~30 minutes (`[OL-03]`), so eight seconds is the ordinary case rather than a stall; if the customer retries and pays another way, attempt 1 may still succeed, and `[OL-05]` says the schema cannot record two captures against one group — so it cannot be reconciled or refunded afterwards either. **The Pay exclusion had already been written into `M09`; Place Order had not**, and Place Order is the control that *opens* the sheet. Excluding Pay alone excludes the second tap and not the first, which is the wrong one. The rule that generalises is the title of this section, and it **does not relax if `[OL-05]` is later fixed** — a recordable double charge is still a double charge |
+
+The reduce-motion substitute follows the same split rather than collapsing to one label: Ending
+B reads "Waiting for your bank…" and does not time out. A reduce-motion user must not get a
+version of the flow that quietly gives up where the default one waits.
