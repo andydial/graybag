@@ -1300,13 +1300,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/20</span>
+          <span class="meter-num">0/22</span>
         </div>
       </header>
       <p class="summary">Written before any UI code exists. The motion catalogue is what produces &quot;fluid&quot; instead of &quot;flying bird&quot;.</p>
       
       <details>
-        <summary>Context &amp; 20 tasks</summary>
+        <summary>Context &amp; 22 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Source: <code>Graybag_Design Package</code> — VAG Rounded Next font family, primary <code>#00af52</code>, secondary <code>#145f48</code> / <code>#ffbb39</code>, accent <code>#b3cf3f</code> / <code>#e5ea98</code>, pattern assets, and the 06_App UI mocks.</p>
 <p>The motion system is a <strong>closed catalogue</strong>. New screens implement from it; it is only amended when a genuinely new kind of interaction appears, and that is a deliberate joint decision.</p></div>
@@ -1470,6 +1470,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Reconcile <code>M04</code>&#39;s container-height animation with §7 rule 6 and the §9 lint gate, which fail the build on animating anything but <code>transform</code>/<code>opacity</code> outside the two files implementing <code>M10</code> and <code>M14</code>. <code>M04</code> is the third height animation and is not exempted, so <code>E13-11</code> as specified would fail every implementation of the catalogue&#39;s most-used pattern. Either exempt <code>M04</code> or drop the height animation</span>
+      </li>
+      <li class="task" data-id="E13-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-21"></button>
+        <code class="tid">E13-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Wire the generated stylesheet into the web build.</strong> <code>packages/shared/src/design/css.ts</code> emits <code>cssVariableSheet()</code>; nothing writes it to disk yet, because <code>apps/web</code> is still a bare workspace. When the web app is scaffolded, the build must regenerate the sheet rather than commit it, and CI must fail if a committed copy has drifted — a generated file that can be edited by hand is a second source, which is the exact thing <code>S8</code> exists to prevent</span>
+      </li>
+      <li class="task" data-id="E13-22" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-22"></button>
+        <code class="tid">E13-22</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The <code>transform</code>/<code>opacity</code> lint gate is an approximation and should be tightened once real components exist.</strong> It catches a <code>useAnimatedStyle</code> callback returning a disallowed key; it does not catch a style assembled elsewhere and returned by reference (<code>S34</code>, <code>docs/design-tokens.md</code> §9.2). Worth revisiting with actual call sites to see whether the gap is reachable in practice before spending a custom ESLint rule on it</span>
       </li></ul>
       </details>
     </article>
