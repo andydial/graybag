@@ -7,9 +7,15 @@ status: agreed 2026-08-07 — supersedes the earlier 288-task version
 
 ## The rule
 
-**173 tasks are in v1. Everything else is fast-follow.** The list is explicit and lives in
+**174 tasks are in v1. Everything else is fast-follow.** The list is explicit and lives in
 `scripts/tag-mvp.mjs`. Anything not named there — including anything added later — is
 fast-follow by default.
+
+> **173 → 174 on 2026-08-08.** Andy scoped `E02-24` into v1: the authorization suite was
+> reporting `Tests: 0` and passing, because its fixture ids collided with `seed.sql`. A suite
+> that silently tests nothing is false confidence, which is the one thing non-negotiable #2
+> exists to prevent — so the fix is v1, not fast-follow. This is the only id added to the list
+> since it was written, and it was added by Andy's explicit decision, not by drift.
 
 That default is deliberate. The previous version used an exclude-list, so every review pass
 quietly added tasks to v1 and a 161-task plan became 288 without anyone deciding it should.
