@@ -109,6 +109,19 @@ Work **one block at a time** from `planning/build-order.md`.
 - **Push after every commit.** A `.git/hooks/post-commit` hook does this automatically; if
   it is ever missing or the push failed, run `git push` yourself. Work that exists only on
   Andy's laptop is one disk failure from gone. Never end a block with unpushed commits.
+- **`main` is protected — branch, PR, and then merge it yourself.** Direct pushes to `main`
+  are rejected (`GH013`), so work goes on a branch and opens a PR. **Once both required
+  checks pass, merge your own PR** — do not leave it sitting for Andy:
+
+  ```bash
+  gh pr checks <n>                          # both must pass
+  gh pr merge <n> --rebase --delete-branch
+  git checkout main && git pull --ff-only
+  ```
+
+  Waiting for Andy to merge a green PR just parks finished work behind a person who has
+  nothing left to decide. If a check **fails**, fix it — never merge red, and never reach
+  for `--admin` or force-merge to get around a failing check.
 - At the end of every block: run `npm run test:all`, fix everything that fails, commit and
   push the fixes, then **STOP and report**. State in the report that everything is pushed.
 - **Do not start the next block without being told.** This is the rule that keeps Andy in

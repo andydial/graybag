@@ -1,7 +1,12 @@
 ---
 title: E19-01 / E19-02 spike runbook
-status: setup complete 2026-08-08 — awaiting the handset session
+status: PARKED 2026-08-08 — setup complete, waiting only on Andy's handset (expected 2026-08-09 morning)
 ---
+
+> **Parked, pick-up-and-go.** Everything that can be done without an Android handset is done and
+> merged. **§2 is the whole remaining job** and needs no preparation beyond plugging the phone
+> in — the APK is built, `adb` is installed, and the two laptop-side scripts are tested.
+> Budget roughly 30–40 minutes. Nothing else in Block 3 is blocked on this; the rest is closed.
 
 # Spike runbook — `E19-01` (Razorpay + UPI) and `E19-02` (Android performance)
 
