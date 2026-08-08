@@ -42,6 +42,36 @@ That is the whole of v1.
 | **Compliance** | Six tasks in v1, nineteen deferred | Consent at child creation cannot be retrofitted for people who already signed up, and both stores refuse to publish without a live privacy policy and data-deletion URL. The rest — erasure pipeline, breach runbook, DSR alerting, processor register, purge job, legal review — waits |
 | **Push notifications** | None in v1 | Prod has none today. The 9pm cutoff reminder is the strongest fast-follow candidate |
 
+## Signup-to-first-order conversion is a named v1 requirement
+
+Agreed 2026-08-08 (decision `AR7`). This sits with the scope decisions above rather than in a
+performance or design doc, because it is a **goal of v1**, not a quality attribute of it. The
+funnel is the thing being replaced; an app that is technically correct and converts worse than
+the Bubble one has wasted the migration.
+
+**The path from opening the app to paying for a first order must be as close to frictionless as
+we can make it.** Concretely, for v1:
+
+- **Google one-tap is the front door.** No passwords, no email/password form, no phone OTP
+  (`U1`).
+- **No separate email-verification step** — Google verifies the address, and an email OTP cannot
+  succeed on an address the user cannot read (`AR4`). Adding a verification screen would be pure
+  friction with no security gain.
+- **No unnecessary fields at signup.** Anything that can be collected later, on the screen that
+  actually needs it, is collected later. Mobile number is a profile field acquired post-login
+  (`E03-17`), not a signup field — and after the migration nobody has one anyway.
+- **Adding a child must not be a wall in front of the menu.** Browsing works before any dependent
+  exists. The child is required to *order*, not to *look*, and the prompt belongs at the point of
+  ordering where its purpose is obvious.
+- **No blocking step that can be deferred.** Consent at child creation (`E20`) and the
+  policy-version gate are legal requirements and stay — they are the exception, and they sit at
+  the moment they are actually about.
+
+**Any task that adds a step to that path needs an explicit justification recorded with it.** This
+is a scope constraint, not a suggestion: the reason the previous plan drifted from 161 tasks to
+288 was that nobody had to argue for an addition. Same rule here, applied to the funnel rather
+than the task list.
+
 ## What ships despite not being in production today
 
 Parity cannot mean parity with today's mistakes.

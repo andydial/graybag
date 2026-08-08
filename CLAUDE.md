@@ -138,6 +138,12 @@ Anything not in that list is fast-follow, including anything you add later.
 - **Menu prices are GST-EXCLUSIVE** (confirmed 2026-08-07). 5% is added on top at checkout,
   as the current Bubble cart does. The cart, checkout and invoice pricing paths must all
   assume exclusive.
+- **Onboarding and first-order conversion is a primary goal, not a nice-to-have.** Signup to
+  first order must be as close to frictionless as we can make it: Google one-tap, no
+  email/password, no separate email-verification step, no unnecessary fields, no blocking step
+  that can be deferred — and **adding a child must not be a wall in front of browsing the menu**.
+  Any task that adds a step to that path needs an explicit justification recorded with it. See
+  `docs/mvp-scope.md` and decision `AR7`.
 - **No passwords.** Google Sign-In, Sign in with Apple, email OTP. No phone OTP in v1.
 - **No push notifications** in v1. Email only.
 - **Compliance in v1 is six tasks** — consent at child creation, the policy-version

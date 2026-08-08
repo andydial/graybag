@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 39 open of 41.
+Your tasks only — 38 open of 41.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -54,7 +54,7 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E12-10` Make the DNS change at the registrar when the cutover plan is ready
 - [ ] `E13-09` Review the motion spec with Andy once, before app UI work starts
 - [ ] `E13-14` _(fast-follow)_ DS-01 — approve the "500 rule": #00af52 stays the identity colour but functional green moves to primary-700 #007e3b for fills and text. White on #00af52 is 2.90:1 and fails every WCAG bar, so the mocks cannot ship as drawn. This changes what every button, price and field label looks like. Options and the recommendation are in docs/open-questions.md; the consequences are worked through in docs/design-tokens.md §2.1
-- [ ] `E16-21` **[critical]** _(fast-follow)_ Re-extract Child.Parent from Bubble with real ids — the CSV export drops list-of-thing fields, so the sole parent↔child link is absent (0/1,115) and only 33% of children have any recoverable parent. Either pull Child via the Bubble Data API (which returns list fields as id arrays) or add a Bubble-side text field flattening Child.Parent to comma-joined parent emails and re-export. Both need the Bubble editor. Without this the relationship cannot be migrated safely
+- [x] `E16-21` _(fast-follow)_ ~~Re-extract Child.Parent from Bubble with real ids~~ — closed 2026-08-08 by AR1: Child.Parent was never used. Its emptiness is the accurate state, not export damage, so there is nothing to re-extract. Parent↔child is derived from Order instead (order-parent + child), and a child nobody has ordered for correctly has no parent. Andy confirmed this in conversation
 - [ ] `E16-29` _(fast-follow)_ Decide what happens to the 3 dish photos that return a permanent 403 and cannot be sourced from Bubble — Aloo Chana Chaat, Tomato/Cucumber Cheese Sandwich, Brown Wheat Pasta with Mushroom and Pesto. New photography, or ship them with a category placeholder
 - [ ] `E16-34` _(fast-follow)_ Decide the treatment of the 1 Cancelled order that carries a payment id — money was taken and the order cancelled, and legacy had no refunded status to express what happened next. Confirm whether a refund was issued outside the system; if not, it is an opening ledger credit under E16-16
 - [ ] `E16-37` _(fast-follow)_ Decide what to do with the 746 roster children who have no recoverable parent — bulk-imported by the school on 2025-09-21, each with a unique school-code, none linked to an account. Migrate them as unlinked records for parents to claim in-app, or leave them behind and re-import from a fresh school roster
