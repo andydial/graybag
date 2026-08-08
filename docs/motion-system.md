@@ -331,38 +331,50 @@ rotation is replaced by a static glyph with an opacity pulse at `base`.
 ### `M09` — In-flight action feedback
 
 **What.** For a write that goes to the network and that the user must not repeat — Place Order,
-Cancel Order, Save Recipient, and (with the timeout caveat below) Pay. The button's label
-cross-fades (`M04`) to an **indeterminate progress track inside the same pill**. The button
-keeps its exact size and position. It is disabled but not removed and not dimmed to
-invisibility.
+Pay, Cancel Order and Save Recipient. The button's label cross-fades (`M04`) to an
+**indeterminate progress track inside the same pill**. The button keeps its exact size and
+position. It is disabled but not removed and not dimmed to invisibility.
 
 **Not a rotating spinner, and never full-screen.** A modal blocking spinner over the whole app
 is forbidden. The only thing that is busy is the control the user pressed.
 
-**Timeout.** If the call has not returned in 8 seconds, the button reverts to its label and an
-inline `M10` error appears with a retry. The user is never left holding a button that is
-spinning forever. **This 8-second timeout-and-retry applies to Place Order, Cancel Order and
-Save Recipient only.**
+**`M09` has two endings, and which one a control gets is decided by whether money can move.**
 
-**Pay is explicitly excluded from the timeout-and-retry.** A retry button at 8 seconds on Pay
-manufactures a double charge: a UPI collect can sit `pending` for up to ~30 minutes
-(`[OL-03]`), and if the customer taps retry and then pays another way, attempt 1 may still
-succeed — two real debits for one cart (`order-lifecycle.md` §10.6b), which `[OL-05]` says the
-schema cannot currently record, so it cannot even be reconciled and refunded. Pay therefore
-follows `order-lifecycle.md` §13's `payment_pending` (202) behaviour instead: the control shows
-the same in-flight track with **no timeout**, the app polls `GET /checkout/:group/status`, and
-it presents an **unbounded waiting state** — never a success screen, never an 8-second retry.
-The waiting state resolves only when the poll returns a terminal status, or when the checkout's
-own TTL expires server-side (`[OL-03]`). This implements `E13-20`.
+**Ending A — timeout and retry, at 8 seconds.** The button reverts to its label and an inline
+`M10` error appears with a retry. The user is never left holding a button that is spinning
+forever. **Ending A applies to Cancel Order and Save Recipient, and to their back-office
+equivalents. Nothing else.**
 
-**Allowed on.** Exactly the writes above, and their equivalents in the back office. **Pay uses
-`M09`'s in-flight track but not its timeout — see the Pay exclusion above.**
+**Ending B — the unbounded waiting state, with no timeout at all.** The control keeps the
+in-flight track, the app polls `GET /checkout/:group/status`, and the screen presents a waiting
+state that resolves only when the poll returns a terminal status or the checkout's own TTL
+expires server-side (`[OL-03]`). Never a success screen before settlement is confirmed, never a
+retry affordance. **Ending B applies to Pay, and to Place Order wherever it opens the Razorpay
+sheet or returns `payment_pending` (202)** — which, per `order-lifecycle.md` §13, is the normal
+path rather than an edge case.
+
+**Why a retry button at 8 seconds is a defect and not a convenience.** It manufactures a double
+charge. A UPI collect can sit `pending` for up to ~30 minutes (`[OL-03]`); if the customer taps
+retry and then pays another way, attempt 1 may still succeed — two real debits for one cart
+(`order-lifecycle.md` §10.6b), which `[OL-05]` says the schema cannot currently record, so it
+cannot even be reconciled and refunded afterwards. Eight seconds is not a long wait on a UPI
+collect; it is the ordinary case. **The rule to carry: a timeout is only ever offered on a write
+that cannot move money.** This implements `E13-20`.
+
+**Place Order was the half of this that `E13-20` caught.** The Pay exclusion had already been
+written; Place Order was still listed under the 8-second timeout, and Place Order is the control
+that *opens* the Razorpay sheet. Excluding Pay while leaving Place Order on a timeout excludes
+the second tap and not the first, which is the wrong one.
+
+**Allowed on.** Exactly the writes above, and their equivalents in the back office.
 
 **Not on.** Add to cart, quantity change, favourite, and every other optimistic action. Those
 apply instantly and reconcile in the background (`E14-08`) — see §7 rule 8.
 
-**Reduce motion.** The indeterminate track becomes a static filled track with the label
-"Placing order…".
+**Reduce motion.** The indeterminate track becomes a static filled track with a label —
+"Placing order…" under Ending A. Under Ending B the label must not imply a bounded wait:
+"Waiting for your bank…", and it stays until the poll resolves. A reduce-motion user gets the
+same unbounded semantics, not a version that quietly gives up.
 
 ---
 
@@ -551,7 +563,7 @@ Read across. **`—` means the pattern is not permitted on that surface at all.*
 | `M06` Cart badge spring | ✓ **cart badge only** | — | — |
 | `M07` Sheet / dialog | ✓ | ✓ dialogs only (contact form) | ✓ confirms and side panels; **entrance at `base`, not `slow`** |
 | `M08` Pull to refresh | ✓ menu, orders, kitchen queue | — | ✓ kitchen queue on tablet; desktop uses an explicit Refresh with `M09` |
-| `M09` In-flight action | ✓ place order, pay, cancel, save | ✓ form submit | ✓ every write |
+| `M09` In-flight action | ✓ place order + pay (**Ending B**, no timeout), cancel + save (**Ending A**, 8s) | ✓ form submit — Ending A | ✓ every write — Ending A |
 | `M10` Inline error | ✓ | ✓ | ✓ |
 | `M11` Tab / segment indicator | ✓ | ✓ | ✓ |
 | `M12` Screen push / pop | ✓ platform default | — (page loads) | — (routes cross-fade with `M04`) |
@@ -606,7 +618,7 @@ correct and slow at the same time.
 | `M06` Cart badge | Count changes with `M04` at `fast`; no scale, no spring |
 | `M07` Sheet / dialog | Sheet and scrim cross-fade at `base`; no translate, no scale |
 | `M08` Pull to refresh | Gesture unchanged; indicator is a static glyph with an opacity pulse |
-| `M09` In-flight | Static filled track plus a text label |
+| `M09` In-flight | Static filled track plus a text label. Ending B keeps its unbounded semantics — the label says "Waiting for your bank…" and does not time out |
 | `M10` Inline error | Fade at `fast`; no height animation |
 | `M11` Tab indicator | Indicator jumps; panel still cross-fades |
 | `M12` Push / pop | OS and navigator handle it — do not reimplement |
@@ -670,6 +682,7 @@ tracked in `docs/open-questions.md`:
 |---|---|
 | `E19-02` — the mid-range Android performance spike | Sets the frame budget in §9 and validates `M05`, the only pattern that could fail it. **`M05` is provisional until that spike runs**; if a shared element cannot hold 60fps on the target profile, it is deleted and dish detail becomes a plain `M07` sheet |
 | `[DS-01]` — the primary-green contrast fix | Changes the colour of `M01`'s pressed states and `M09`'s progress track, not their timing |
+| `[OL-05]` — the schema cannot record a double capture | Not a question this document answers, but it is **why `M09` Ending B has no timeout**. If `[OL-05]` were resolved and a double capture were recordable and refundable, an 8-second retry on Pay would still be wrong — it would just stop being unreconcilable. The motion rule does not relax if the schema improves |
 
 `E13-09` (`owner:andy`) is Andy reviewing this document once, before app UI work starts. The
 one thing worth his time is §6 `M05` and §7 rule 9 — how much personality the app is allowed to
