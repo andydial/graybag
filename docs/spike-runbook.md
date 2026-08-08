@@ -124,9 +124,18 @@ that signature until a real payment happens — that is §2.4.
 
 ### 2.1 Get the build
 
-> **Build:** https://expo.dev/accounts/anuragdial/projects/graybag-spikes/builds/28127b5b-5872-451e-a135-31463149d454
+> **APK (built, green, ready):**
+> https://expo.dev/artifacts/eas/tb1HfSZCA2TRkhJ2y_yBeIjHP1xjJj79OhVi9S1RXGA.apk
+>
+> Build page: https://expo.dev/accounts/anuragdial/projects/graybag-spikes/builds/28127b5b-5872-451e-a135-31463149d454
 
-Download the APK from that page.
+Download it, or straight to the phone:
+
+```bash
+curl -L -o ~/Downloads/graybag-spike.apk \
+  https://expo.dev/artifacts/eas/tb1HfSZCA2TRkhJ2y_yBeIjHP1xjJj79OhVi9S1RXGA.apk
+adb install -r ~/Downloads/graybag-spike.apk
+```
 
 **The first attempt (`811e73ef`) failed, and it was my config, not the SDK.** `app.json` pinned
 `compileSdkVersion: 35` via `expo-build-properties`, below the 36 that Expo SDK 57's own
