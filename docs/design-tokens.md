@@ -108,7 +108,7 @@ longer** in that list — the brand specifies a hierarchy, and §3.2 is derived 
 >
 > Every *functional* use of a brand hue is one or more steps darker: `primary-600` for a
 > boundary or a large-text surface, `primary-700` for anything carrying body text or white
-> text, `amber-700` for warning text, `forest-600` for a control on a green field.
+> text, `amber-800` for warning text, `forest-700` for a control on a green field.
 
 **This rule contradicts the brand guideline in writing, and that has to be said out loud.** The
 Colour Usage Guide lists, under `#00AF52`: "Buttons & CTAs in UI". The 500 rule says the button
@@ -185,13 +185,18 @@ whole fix for that screen.
 | `amber-200` | `#ffe4b0` | — | — | Warning banner border |
 | `amber-300` | `#ffcf74` | — | — | Illustration |
 | **`amber-500`** | **`#ffbb39`** | 1.69 ✗ | 10.68 ✓✓ | **Identity/fill only (§2.1).** Highlight band, pattern colourway, **notification and badge fill** |
-| `amber-700` | `#8f6920` | 4.99 ✓ | — | Warning **text** and warning icon |
+| `amber-700` | `#8f6920` | 4.99 ✓ | — | **Not an ink token** (`E13-17`) — 4.4057 on `bg.surfaceMuted`. Graphic use only |
 | `amber-800` | `#73541a` | 6.97 ✓ | — | Warning text on an `amber-100` surface |
 
-`forest-500` on `amber-500` is **4.50:1** and is the one text-on-amber pair that passes. Use
-it for the rare case where copy must sit on the brand amber. The brand document's own line for
-this colour is "Text on yellow/light backgrounds" under `#145F48` — the same pair, arrived at
-from the other side.
+**Text on brand amber is `forest-700 #0c3b2d` (7.40) or `neutral-900` (10.68) — never
+`forest-500`.** This file said for a while that `forest-500` on `amber-500` was "4.50:1 and the
+one text-on-amber pair that passes". It is **4.4994:1**, which rounds to 4.50 and is below the
+bar. Corrected by `E13-17`; it is the fourth error of the class `E13-16` found, and the reason
+§9 now requires four decimal places internally and a strict `>=` comparison.
+
+The brand document's own line for this colour is "Text on yellow/light backgrounds" under
+`#145F48`, so the brand recommends this pair and the brand's recommendation misses AA by six
+ten-thousandths. `forest-700` is the nearest token that honours the instruction and is legal.
 
 The brand document assigns amber to **"UI highlights (notifications, badges)"**, which is
 adopted. Two constraints come with it and neither is optional. First, `amber-500` on `neutral-0`
@@ -258,14 +263,29 @@ reads faintly magenta.) The tint is small enough that nobody will call it green.
 | `neutral-200` | `#e4e6e4` | — | Hairline on a tinted surface, skeleton edge |
 | `neutral-300` | `#d2d5d2` | 1.48 | Divider, input border (decorative weight) |
 | `neutral-400` | `#a8ada8` | 2.28 | **Disabled** text and icons only — exempt from contrast rules |
-| `neutral-500` | `#6e746e` | 4.79 ✓ | Placeholder text, tertiary text, inactive tab icon |
-| `neutral-600` | `#5b615b` | 6.35 ✓✓ | Secondary text — captions, metadata, helper text |
-| `neutral-700` | `#3d423d` | 10.27 ✓✓ | Body text on a tinted surface |
+| `neutral-500` | `#6e746e` | 4.79 ✓ | **Not an ink token** (`E13-17`). Outlined-control boundary — `border.strong`, where the bar is 3:1 |
+| `neutral-600` | `#5b615b` | 6.35 ✓✓ | Tertiary text — placeholder, timestamps, inactive tab icon |
+| `neutral-700` | `#3d423d` | 10.27 ✓✓ | Secondary text — captions, metadata, helper text; body text on a tinted surface |
 | `neutral-800` | `#262a26` | 14.57 ✓✓ | Headings |
 | `neutral-900` | `#141714` | 18.07 ✓✓ | Primary text |
 
-The mocks use `#b0b0b0`-ish placeholders (roughly 2.4:1). `neutral-500` is the darkest grey
-that still reads as "placeholder"; anything lighter fails, and a placeholder is content.
+**The ink ladder moved down one step under `E13-17`, and that is the single fix for most of what
+was failing.** `neutral-500` was chosen as "the darkest grey that still reads as placeholder"
+and measured **against white** — 4.79, a pass. But a placeholder's actual home is inside an
+input, on `bg.surfaceMuted neutral-100`, where it is **4.2280** and fails; on `bg.canvas` it is
+**4.4969**, which rounds to the bar and misses it. Nothing was wrong with the grey. The
+background it was checked against was wrong.
+
+So tertiary ink becomes `neutral-600` — 5.01 to 6.35 across every surface it may legitimately
+land on — secondary moves to `neutral-700` so there are still three visible steps, and
+`neutral-500` stops being a text colour at all. It stays useful as `border.strong`, where the
+bar is 3:1 and 4.79 clears it comfortably. The mocks' `#b0b0b0`-ish placeholders (roughly 2.4:1)
+were never in the running either way; a placeholder is content.
+
+**The rule this produced, which governs every ink token in this file:** *an ink is chosen
+against the darkest surface it may legitimately sit on, never against white.* Three separate
+tokens — `neutral-500`, `danger-600` and `amber-700` — were each picked against `neutral-0` and
+each failed somewhere real. That is one mistake made three times, not three mistakes.
 
 ### §2.8 Semantic — error
 
@@ -282,6 +302,12 @@ notification dot, which is a stand-in rather than a decision.
 `#d92d20` is deliberately chosen to pass 4.5:1 in **both** directions, so one token covers
 error text on white and a white label on a destructive button.
 
+**But not on a tinted fill.** `danger-600` on the `danger-50` banner it was designed to pair
+with is **4.4441**, and on `bg.surfaceMuted` **4.27**. Under `E13-17`, `text.danger` is
+**`danger-700`** (6.57 white, 6.05 on `danger-50`, 5.81 on `neutral-100`, 5.18 on `lime-200`) —
+legal everywhere error text can appear. `danger-600` keeps the two jobs where it is measured
+correctly: `action.destructiveBg` (white on it, 4.83) and `border.danger` (3:1 bar).
+
 ### §2.9 Semantic roles
 
 The component layer references **only** this table. It never reaches for a ramp step directly.
@@ -292,22 +318,23 @@ This is what makes a dark theme a new mapping file rather than a rewrite (`[DS-0
 | `bg.canvas` | `neutral-50` | The app background |
 | `bg.surface` | `neutral-0` | Cards, sheets, rows |
 | `bg.surfaceMuted` | `neutral-100` | Inputs, image placeholders, skeletons |
-| `bg.surfaceBrand` | `primary-600` | A green field that carries controls |
+| `bg.surfaceBrand` | `primary-600` | A green field that carries **controls and large text only** — white on it is 3.85, which clears the 3:1 control-boundary and large-text bars and nothing else. **Body text on this surface is forbidden**; use `bg.surfaceBrandStrong` (`E13-17`) |
+| `bg.surfaceBrandStrong` | `primary-700` | A green field that carries **body text**. White on it is 5.19 ✓. Added by `E13-17` because the role map previously had no legal body-text colour for any green field |
 | `bg.surfaceBrandFlat` | `primary-500` | A green field that carries **only** the logo |
 | `bg.surfaceInverse` | `forest-500` | Dark band (mock 05's "2.5 km" strip) |
 | `bg.surfaceAccent` | `lime-200` | **Brand-assigned (§2.11):** light UI surface — card, container, table/chart ground. 1.27:1 against `neutral-0`, so it is a fill and never a boundary. `text.link` and `text.price` are illegal on it (4.09) — use `forest-500` |
 | `bg.scrim` | `rgba(20, 23, 20, 0.48)` | Behind sheets and dialogs |
 | `text.primary` | `neutral-900` | |
-| `text.secondary` | `neutral-600` | |
-| `text.tertiary` | `neutral-500` | Placeholder, timestamps. **⚠ [DS-06]:** on `bg.surfaceMuted` (`neutral-100`) this is **4.23:1** and on `bg.canvas` (`neutral-50`) **4.50:1** — placeholder text inside an input field is the first case and **fails AA (4.5)**. The choice (darken the ink, lighten the muted surface, or accept large-text-only) is brand-visible and pending `[DS-06]` |
-| `text.disabled` | `neutral-400` | |
-| `text.onBrand` | `neutral-0` | White, and only on `primary-700`+ or `forest-500`+. **⚠ [DS-06]:** white on `bg.surfaceBrand` (`primary-600`) is **3.85:1** — legal for large text (≥18.66px bold / 24px) but **fails AA (4.5) for body text**, and `bg.surfaceBrand` is `primary-600` by definition. The role map therefore has **no legal body-text colour for that surface**; body text on `surfaceBrand` is forbidden until `[DS-06]` resolves (darken the surface to `primary-700`, or restrict `surfaceBrand` to large text / controls only) |
-| `text.link` | `primary-700` | Always also underlined or in a pressable shape |
-| `text.price` | `primary-700` | Tabular figures — §3.5 |
-| `text.danger` | `danger-600` | On `neutral-0`/`neutral-50` this passes (4.83). **⚠ [DS-06]:** on a `danger-50` error-banner fill (§2.8) it is **4.44:1** and **fails AA (4.5)**; use `danger-700` (6.57) for text on `danger-50`, pending `[DS-06]` |
-| `text.warning` | `amber-700` | |
+| `text.secondary` | `neutral-700` | Captions, metadata, helper text. Was `neutral-600`; moved down by `E13-17` so that tertiary could take `neutral-600` and the ladder keeps three visible steps |
+| `text.tertiary` | `neutral-600` | Placeholder, timestamps, inactive tab. Was `neutral-500`, which is **4.2280** on `bg.surfaceMuted` — the role's commonest home, inside an input — and **4.4969** on `bg.canvas`. `neutral-600` is 5.01–6.35 on every surface it may legitimately land on (`E13-17`) |
+| `text.disabled` | `neutral-400` | Exempt from contrast rules (WCAG 1.4.3), but see §2.10 — disabled state is never conveyed by dimness alone |
+| `text.onBrand` | `neutral-0` | White, and only on `bg.surfaceBrandStrong` (`primary-700`, 5.19), `forest-500` (7.61) or darker. **Not on `bg.surfaceBrand`** — white on `primary-600` is 3.85, which is legal for large text and control boundaries and illegal for body text. `E13-17` resolved this by adding the surface rather than by weakening the ink |
+| `text.link` | `primary-700` | Always also underlined or in a pressable shape. **On `bg.surfaceAccent` use `forest-500`** (`primary-700` is 4.09 there); **on `action.secondaryBg` use `primary-900`** (`primary-700` is 4.4734 on `primary-100` — another pair that rounds to 4.47 and reads as a pass at a glance) |
+| `text.price` | `primary-700` | Tabular figures — §3.5. Same two substitutions as `text.link`: `forest-500` on `bg.surfaceAccent`, `primary-900` on `action.secondaryBg`. A price is the most likely thing to be dropped onto a tinted chip, so this is the substitution most likely to be needed |
+| `text.danger` | `danger-700` | Was `danger-600`, which is **4.4441** on the `danger-50` banner fill it exists to pair with and **4.27** on `bg.surfaceMuted`. `danger-700` is 5.18–6.57 everywhere error text appears (`E13-17`). `danger-600` keeps `action.destructiveBg` and `border.danger`, where it is measured correctly |
+| `text.warning` | `amber-800` | Was `amber-700`, which is **4.4057** on `bg.surfaceMuted`. `amber-800` is 5.50–6.97 across the warning surfaces (`E13-17`) |
 | `border.subtle` | `neutral-300` | Decorative dividers |
-| `border.default` | `neutral-400` | Decorative-weight outlines only. **`neutral-400` on `neutral-0` is 2.28:1 and does NOT meet the 3:1 UI-boundary bar (WCAG 1.4.11).** An input or card outline that is the *only* thing marking a control boundary must use `border.strong`, not this token |
+| `border.default` | `neutral-400` | **Decorative-weight outlines only, and this is now enforced rather than advised.** `neutral-400` on `neutral-0` is 2.28:1 and does not meet the 3:1 UI-boundary bar (WCAG 1.4.11). An input or card outline that is the *only* thing marking a control boundary uses `border.strong`. `E13-13` asserts `border.default` as a **forbidden** control boundary so the rule cannot decay into a code-review habit |
 | `border.strong` | `neutral-500` | Outlined control that must meet 3:1 (4.79 on `neutral-0`). **This is the correct token for input and card outlines** — the boundary of a UI component that carries no other visible affordance |
 | `border.brand` | `primary-600` | Selected / active outline |
 | `border.accent` | `lime-200` | **Brand-assigned (§2.11):** "soft separator in digital layouts". Decorative only — it is 1.27:1 on white and can never be the boundary of a control |
@@ -316,19 +343,31 @@ This is what makes a dark theme a new mapping file rather than a rewrite (`[DS-0
 | `action.primaryBgPressed` | `primary-800` | |
 | `action.primaryFg` | `neutral-0` | |
 | `action.secondaryBg` | `primary-100` | Tonal button, the mock-08 "Change" pill |
-| `action.secondaryFg` | `primary-900` | |
+| `action.secondaryFg` | `primary-900` | 8.68 on `primary-100`. This was already right — which is why the tonal *button* was never a failing pair, and why `text.price` on the same fill was: they had different inks for the same background |
 | `action.destructiveBg` | `danger-600` | |
 | `action.disabledBg` | `neutral-200` | |
 | `action.disabledFg` | `neutral-400` | |
 | `nav.itemActive` | `forest-500` | **Brand-assigned (§2.11):** active tab, active toggle track, footer ink. 7.61 on `neutral-0`, 7.15 on `neutral-50` |
-| `nav.itemInactive` | `neutral-500` | Inactive tab. 4.79 on `neutral-0` — passes, and stays a grey so the active state is the only coloured one |
+| `nav.itemInactive` | `neutral-600` | Inactive tab. 6.35 on `neutral-0`, 5.97 on `neutral-50`. Follows `text.tertiary` down (`E13-17`) — a tab bar sits on the canvas as often as on a surface, and `neutral-500` was 4.4969 there. Stays a grey so the active state is the only coloured one |
 | `badge.bg` | `amber-500` | **Brand-assigned (§2.11):** notification and badge fill. Content-bearing shape only — see §2.4 |
 | `badge.fg` | `neutral-900` | 10.68 on `amber-500` |
 | `focus.ring` | `primary-700` | 2px, 2px offset, plus a 1px `neutral-0` inner ring |
 | `status.success` | `primary-700` | |
-| `status.warning` | `amber-700` | |
-| `status.danger` | `danger-600` | |
+| `status.warning` | `amber-800` | Follows `text.warning` (`E13-17`) — a status colour is ink |
+| `status.danger` | `danger-700` | Follows `text.danger` (`E13-17`) |
 | `status.info` | `forest-500` | **No blue is introduced.** Informational = forest |
+
+**`E13-17` changed seven values in this table and added two roles.** `text.secondary`,
+`text.tertiary`, `text.danger`, `text.warning`, `nav.itemInactive`, `status.warning` and
+`status.danger` moved one step darker; `bg.surfaceBrandStrong` was added, and
+`bg.surfaceBrand`'s definition narrowed to exclude body text. Nothing was lightened and no bar
+was lowered. The full pair list `E13-13` asserts is §9.1.
+
+**None of it is brand-visible in the sense `DS-01` is.** Six of the seven are greys, an error
+red and a warning brown — none is a brand hue and none appears in `02_Colour Palette`. The
+seventh, `bg.surfaceBrandStrong = primary-700`, is the same green `action.primaryBg` already
+uses, so it introduces no new colour to the product; it is `DS-01`'s consequence applied to a
+surface rather than a fill, and it stands or falls with `E13-14`.
 
 ### §2.10 Colour never carries meaning alone
 
@@ -353,7 +392,7 @@ so nobody has to re-open the PDF to check whether a use was covered.
 |---|---|---|
 | `#00AF52` Fresh Lunch Green | "Buttons & CTAs in UI"; "Highlighted icons and illustrations" | **Contested — `[DS-01]`.** This file says `action.primaryBg` = `primary-700` (§2.1). Icons and illustrations that carry nothing legible are `primary-500` and always were |
 | `#FFBB39` Sunlit Snack Yellow | "UI highlights (notifications, badges)"; "Icons that require emphasis" | `badge.bg` / `badge.fg` (§2.9). Content-bearing shapes only — §2.4 |
-| `#145F48` Deep Tiffin Green | "Text on yellow/light backgrounds"; "Secondary UI elements (tabs, toggles, footers)"; "Highlight bars and overlays" | `nav.itemActive`, `bg.surfaceInverse`, and the text colour on `amber-500` (4.50) and `lime-200` (6.00) |
+| `#145F48` Deep Tiffin Green | "Text on yellow/light backgrounds"; "Secondary UI elements (tabs, toggles, footers)"; "Highlight bars and overlays" | `nav.itemActive`, `bg.surfaceInverse`, and the text colour on `lime-200` (6.00). **On `amber-500` the brand's own recommendation is 0.0006 short of AA** — `forest-500` is 4.4994, so text on brand amber is `forest-700` (7.40). See §2.4 |
 | `#B3CF3F` Citrus Zest Green | "Decorative UI micro-interactions"; "Subtle accents… tiny details, not large blocks" | `lime-500` as a graphic fill only. Never ink, never a large block, never a control |
 | `#E5EA98` Light Lemon Mist | "Light UI surfaces (cards, containers)"; "Soft separators in digital layouts"; "Table or chart backgrounds" | `bg.surfaceAccent`, `border.accent` (§2.9) |
 
@@ -698,6 +737,65 @@ All the ratios quoted in this document are WCAG 2.1 relative-luminance calculati
 the stated background, computed while writing it. They are reproducible by the test in (1);
 if the test disagrees with a number here, the test is right and this file is a bug.
 
+**Compare at full precision, and compare with `>=`.** Four ratios in this file have now been
+wrong because they were rounded to two places before being judged: `forest-600` on
+`primary-600` (`E13-16`), and under `E13-17` `forest-500` on `amber-500` (**4.4994**),
+`neutral-500` on `neutral-50` (**4.4969**) and `primary-700` on `primary-100` (**4.4734**).
+Every one of them prints as "4.50" or "4.47" and reads as a pass. The test computes to full
+float precision and asserts `ratio >= bar`; the two-decimal number is for humans only.
+
+### §9.1 The declared pair list
+
+`E13-13` cannot be a cross-product of inks against surfaces. Walking one produces 78 "failures",
+almost all of them meaningless — white text on the white surface, a focus ring on the dark band,
+`text.tertiary` on a green field no grey ink ever touches. A test that flags those is a test
+somebody switches off.
+
+**So the pair list is declared, not generated**, and this is it. Anything not in this table is
+not a legal combination; adding a row is a deliberate act with a ratio attached.
+
+| Foreground | Background | Ratio | Bar |
+|---|---|---|---|
+| `text.primary` | `bg.canvas`, `bg.surface`, `bg.surfaceMuted`, `bg.surfaceAccent` | 14.24–18.07 | 4.5 |
+| `text.secondary` | `bg.canvas`, `bg.surface`, `bg.surfaceMuted`, `bg.surfaceAccent` | 8.09–10.27 | 4.5 |
+| `text.tertiary` | `bg.canvas`, `bg.surface`, `bg.surfaceMuted`, `bg.surfaceAccent` | 5.01–6.35 | 4.5 |
+| `text.onBrand` | `bg.surfaceBrandStrong`, `bg.surfaceInverse` | 5.19, 7.61 | 4.5 |
+| `text.onBrand` | `bg.surfaceBrand` | 3.85 | **3.0** — large text and controls only |
+| `text.link`, `text.price` | `bg.canvas`, `bg.surface`, `bg.surfaceMuted` | 4.58–5.19 | 4.5 |
+| `text.link`, `text.price` (substituted `forest-500`) | `bg.surfaceAccent` | 6.00 | 4.5 |
+| `text.link`, `text.price` (substituted `primary-900`) | `action.secondaryBg` | 8.68 | 4.5 |
+| `text.danger` | `bg.canvas`, `bg.surface`, `bg.surfaceMuted`, `bg.surfaceAccent`, `danger-50` | 5.18–6.57 | 4.5 |
+| `text.warning` | `bg.canvas`, `bg.surface`, `bg.surfaceMuted`, `bg.surfaceAccent`, `amber-100` | 5.50–6.97 | 4.5 |
+| `action.primaryFg` | `action.primaryBg`, `action.primaryBgPressed` | 5.19, 7.14 | 4.5 |
+| `action.secondaryFg` | `action.secondaryBg` | 8.68 | 4.5 |
+| `neutral-0` | `action.destructiveBg` | 4.83 | 4.5 |
+| `nav.itemActive` | `bg.canvas`, `bg.surface` | 7.15, 7.61 | 4.5 |
+| `nav.itemInactive` | `bg.canvas`, `bg.surface` | 5.97, 6.35 | 4.5 |
+| `badge.fg` | `badge.bg` | 10.68 | 4.5 |
+| `forest-700` | `amber-500` | 7.40 | 4.5 — the only legal ink on brand amber (§2.4) |
+| `border.strong`, `border.brand` | `bg.canvas`, `bg.surface` | 3.62–4.79 | **3.0** |
+| `border.danger` | `bg.canvas`, `bg.surface` | 4.54–4.83 | **3.0** |
+| `focus.ring` | `bg.canvas`, `bg.surface`, `bg.surfaceMuted` | 4.58–5.19 | **3.0** |
+| `forest-700` | `bg.surfaceBrand` | 3.25 | **3.0** — a control on a brand field (§2.3) |
+
+**And a second list, asserted to keep failing.** These are combinations a component would
+plausibly reach for and must not; a test that only checks the legal pairs never notices when
+somebody adds an illegal one.
+
+| Forbidden | Ratio | Why it is tempting |
+|---|---|---|
+| `text.link` / `text.price` (`primary-700`) on `bg.surfaceAccent` | 4.09 | It is the price token and that is a card |
+| `text.link` / `text.price` (`primary-700`) on `action.secondaryBg` | 4.4734 | Prints as 4.47 and looks fine |
+| `forest-500` on `amber-500` | 4.4994 | The brand document recommends exactly this pair |
+| `text.onBrand` (body) on `bg.surfaceBrand` | 3.85 | `surfaceBrand` is named as the surface that carries things |
+| `border.default` (`neutral-400`) as a control boundary | 2.28 | It is called "default" |
+| `border.accent` (`lime-200`) as a control boundary | 1.27 | The brand calls it a separator |
+| `badge.bg` (`amber-500`) as an outline on `neutral-0` | 1.69 | A badge looks like it has an edge |
+| `neutral-500` as any text colour | 4.2280 on `bg.surfaceMuted` | It passes on white, which is where it will be checked |
+
+`text.disabled` and `action.disabledFg` are exempt under WCAG 1.4.3 and are asserted **absent**
+from both lists, so that "it's disabled" never becomes an argument for a low ratio elsewhere.
+
 ---
 
 ## §10 Open questions
@@ -710,6 +808,7 @@ Full options and reasoning are in `docs/open-questions.md`. Summarised:
 | `DS-02` | If the VAG Rounded Next licence (`E19-03`) says no, which typeface? | Nunito |
 | `DS-03` | Dark mode in v1? | No — light only, but every colour is named by role (§2.9) so it stays a mapping file |
 | `DS-04` | Must the FSSAI veg / non-veg mark be displayed at the point of ordering? | Tokens reserve the statutory colours; the mark is not brand-tinted (§2.10) |
+| `DS-06` | Which end moves on the semantic-role pairs that fail the bar? | **Closed 2026-08-09 by `E13-17`.** The ink moved, never the bar and never a brand hue: seven role values one step darker, `bg.surfaceBrandStrong` added. §2.9, and the pair list in §9.1 |
 | `DS-05` | `00_Graybag_Brand Guidelines.pdf` has never been read (§1). If it specifies tints, tonal steps or a type scale, what wins? | **Closed 2026-08-09 by `E13-15`.** Read in full. It specifies a type hierarchy, per-colour UI usage rules and a geometry rule — all adopted (§0). It specifies **no** tints, tonal steps, neutral ramp, spacing, radius numbers or contrast analysis, so those parts of this file stand on their own authority. One conflict survives and is `DS-01`, not `DS-05` |
 
 **This file is no longer provisional.** `DS-05` was the caveat sitting under all of it; the one
