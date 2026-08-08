@@ -84,3 +84,6 @@ export {
   relativeLuminance,
 } from './contrast.js';
 export type { Pair } from './contrast.js';
+
+export { cssVariables, cssVariableSheet } from './css.js';
+export type { CssVar } from './css.js';
