@@ -1239,7 +1239,7 @@
         <span class="badge r-high">high</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Email OTP via Supabase <code>signInWithOtp</code> for non-Google addresses</span>
+        <span class="ttext">Email OTP via Supabase <code>signInWithOtp</code> for non-Google addresses. <strong>No separate email-verification step is needed or wanted</strong> (<code>AR4</code>): Google verifies the address as part of its flow, and an OTP cannot succeed on an address the user cannot read — verification is a property of both mechanisms, not a step to add. Adding one would put a blocking screen on the signup path that <code>AR7</code> exists to protect</span>
       </li>
       <li class="task" data-id="E03-15" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-15"></button>
@@ -3025,13 +3025,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/40</span>
+          <span class="meter-num">0/43</span>
         </div>
       </header>
       <p class="summary">Move ~400 users, dependents and full order history off Bubble. Rehearsed at least twice before the real thing.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E04</code> <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 40 tasks</summary>
+        <summary>Context &amp; 43 tasks</summary>
         <div class="context"><h4>Known constraints</h4>
 <p>Verified against the real export on 2026-08-08 (<code>E19-04</code>). Full evidence in</p>
 <p><strong><code>docs/bubble-recon-findings.md</code></strong> — read it before writing <code>E16-01</code>. Several constraints below</p>
@@ -3046,24 +3046,27 @@
 <p>  photos are protocol-relative <code>cdn.bubble.io</code> URLs; <strong>82 resolve, 3 return a permanent 403</strong></p>
 <p>  (~2.0 MB total). Mirror them now, not at cutover.</p>
 <ul>
-<li>~~Legacy role values must be mapped on <strong>db_value</strong>, not label~~ — **the CSV export emits labels,</li>
+<li>~~Legacy role values must be mapped on <strong>db_value</strong>, not label~~ — <strong>roles are binary</strong> (<code>AR3</code>):</li>
 </ul>
-<p>  not db values**, so db_value mapping is not possible from an export. Live labels are <code>Parent</code></p>
-<p>  (362), <code>School Staff</code> (37), <code>KitchenStaff</code> (4), <code>SuperAdmin</code> (1). <code>School Staff</code> is ambiguous</p>
-<p>  between the <code>staff</code> (= school admin) and <code>teacher</code> (= school staff) db values and must be</p>
-<p>  disambiguated before <code>E16-02</code> — see <code>E16-20</code>.</p>
+<p>  legacy <code>parent</code>, <code>teacher</code>, <code>staff</code> and <code>collegestudent</code> all map to <strong>Customer</strong>; only <code>admin</code></p>
+<p>  and <code>kitchen</code> get back-office grants. The export emitting labels rather than db values therefore</p>
+<p>  stops mattering — the <code>School Staff</code> label was ambiguous between <code>staff</code> and <code>teacher</code>, and both</p>
+<p>  land in the same place. <code>E16-20</code> closed; <code>E16-02</code> unblocked.</p>
 <ul>
 <li>~~Legacy has two parallel parent-child links (<code>Child.Parent</code> list and <code>Guardian_Link</code>) that must be</li>
 </ul>
-<p>  reconciled into one.~~ — **<code>Guardian_Link</code> was never used and is not in the export at all.</p>
-<p>  <code>Child.Parent</code> is the sole mechanism**, so there is nothing to reconcile (<code>E16-03</code> closed).</p>
+<p>  reconciled into one.~~ — <strong>neither was used.</strong> <code>Guardian_Link</code> is absent from the export and</p>
+<p>  <code>Child.Parent</code> is empty on all 1,115 rows because it was never populated, not because the export</p>
+<p>  damaged it (<code>E16-03</code>, <code>E16-21</code> both closed).</p>
 <ul>
-<li><strong><code>Child.Parent</code> did not survive the CSV export</strong> — empty on all 1,115 rows, and the</li>
+<li>**Parent↔child comes from <code>Order</code> (<code>order-parent</code> + <code>child</code>), and dependents are created *from*</li>
 </ul>
-<p>  <code>parent-email</code> fallback is filled on 2. The only residue is <code>User.child</code>, which exports as</p>
-<p>  comma-joined <strong>display names</strong>, 48 of 376 of which are ambiguous. **Only 369 of 1,115 children</p>
-<p>  (33%) have any recoverable parent.** The relationship must be re-extracted from Bubble via the</p>
-<p>  Data API or a flattened text field (<code>E16-21</code>) — it must not be reconstructed by name matching.</p>
+<p>  orders rather than matched to the roster<strong> (<code>AR1</code>/<code>AR2</code>). </strong>A child nobody has ordered for has no</p>
+<p>  parent, and that is correct data, not missing data.** Do not use <code>User.child</code> as a recovery path.</p>
+<p>  Measured: 146 distinct child names appear on orders → **131 dependents with an unambiguous</p>
+<p>  parent<strong>; </strong>15 names stay ambiguous<strong> even after narrowing by school, and </strong>6 names are ordered</p>
+<p>  for by more than one parent email** (mother and father both ordering is indistinguishable from</p>
+<p>  two same-named children at one school). Report those 21, never guess them.</p>
 <ul>
 <li>~~Order status values map from <code>new / received / accepted / delivered / cancelled / refunded</code>.~~</li>
 </ul>
@@ -3088,9 +3091,16 @@
 <ul>
 <li><strong>Email is clean and is a sound migration key</strong>: 404/404 present, 404 distinct, 404 valid, zero</li>
 </ul>
-<p>  duplicates, zero placeholders. Every order&#39;s <code>order-parent</code> resolves to a user. The risks are</p>
-<p>  <strong>deliverability</strong> (12 accounts on mistyped domains cannot receive an OTP) and ~15 people holding</p>
-<p>  two accounts under different spellings of the same school domain — neither is a collision.</p>
+<p>  duplicates, zero placeholders. Every order&#39;s <code>order-parent</code> resolves to a user. Verification</p>
+<p>  needs no work — Google verifies the address, and an email OTP cannot succeed on one the user</p>
+<p>  cannot read (<code>AR4</code>).</p>
+<ul>
+<li><strong>⚠ The key is moving underneath us.</strong> Amity — 95% of children and 95% of orders — is moving</li>
+</ul>
+<p>  everyone to a <strong>new email domain</strong> over the coming weeks, and the old accounts may be deleted</p>
+<p>  (<code>AR5</code>). A dump taken today keys the migration to addresses that will not exist at cutover, and</p>
+<p>  up to 154 Amity accounts are exposed. **Re-export close to cutover and reconcile changed</p>
+<p>  addresses** (<code>E16-41</code>). This outranks the 12 mistyped domains, which are 12 static rows.</p>
 <ul>
 <li><strong>Money is rupee decimals and confirms GST-exclusive pricing</strong>: <code>order-total ÷ Σ line_total</code> is</li>
 </ul>
@@ -3268,34 +3278,34 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The migration status map must target only statuses reachable by the <code>system</code> backfill actor — never <code>draft</code>.</strong> <code>docs/cutover-runbook.md</code> §5.D.5 previously mapped legacy <code>new→draft</code>; <code>draft</code> is unreachable in v1 (<code>order-lifecycle.md</code> §3.2, invariant I12) and the §4.4 trigger only allows <code>NULL→draft</code> for an admin with <code>orders.create_on_behalf</code>, so a system backfill row is rejected at insert or trips I12 on the first nightly run. The runbook spec is now corrected; the migration code must implement the legal mapping (paid/cancelled/pending_payment) and assert no draft rows are produced (review finding #9)</span>
       </li>
-      <li class="task" data-id="E16-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E16-20" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-20"></button>
         <code class="tid">E16-20</code>
-        <span class="badge r-high">high</span>
+        
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Disambiguate the legacy <code>School Staff</code> role label before <code>E16-02</code> — the CSV export emits labels, not db values, so <code>School Staff</code> (37 users) could be either <code>staff</code> (= school admin) or <code>teacher</code> (= school staff), which are different grant sets. Resolve from the Bubble editor&#39;s option set or from what those 37 accounts can actually do, and write the label→db_value→grant table down. Do not guess</span>
+        <span class="ttext">~~Disambiguate the legacy <code>School Staff</code> role label before <code>E16-02</code>~~ — <strong>closed 2026-08-08 by <code>AR3</code>: roles are binary.</strong> Legacy <code>parent</code>, <code>teacher</code>, <code>staff</code> and <code>collegestudent</code> all map to <strong>Customer</strong>; only <code>admin</code> and <code>kitchen</code> get back-office grants. <code>School Staff</code> was ambiguous between <code>staff</code> and <code>teacher</code>, and under a binary model both land in the same place, so the ambiguity stops mattering and no Bubble-editor lookup is needed. <code>E16-02</code> unblocked</span>
       </li>
-      <li class="task" data-id="E16-21" data-seed="0" data-risk="critical" data-owner="andy" data-mvp="0">
+      <li class="task" data-id="E16-21" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-21"></button>
         <code class="tid">E16-21</code>
-        <span class="badge r-critical">critical</span>
+        
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Re-extract <code>Child.Parent</code> from Bubble with real ids</strong> — the CSV export drops list-of-thing fields, so the sole parent↔child link is absent (0/1,115) and only 33% of children have any recoverable parent. Either pull <code>Child</code> via the Bubble Data API (which returns list fields as id arrays) or add a Bubble-side text field flattening <code>Child.Parent</code> to comma-joined parent <strong>emails</strong> and re-export. Both need the Bubble editor. Without this the relationship cannot be migrated safely</span>
+        <span class="ttext">~~Re-extract <code>Child.Parent</code> from Bubble with real ids~~ — <strong>closed 2026-08-08 by <code>AR1</code>: <code>Child.Parent</code> was never used.</strong> Its emptiness is the accurate state, not export damage, so there is nothing to re-extract. Parent↔child is derived from <code>Order</code> instead (<code>order-parent</code> + <code>child</code>), and a child nobody has ordered for correctly has no parent. Andy confirmed this in conversation</span>
       </li>
-      <li class="task" data-id="E16-22" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E16-22" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-22"></button>
         <code class="tid">E16-22</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Prepare the <code>E16-21</code> extraction so it is a single click for Andy: write the Data API request (or the exact Bubble field expression and export steps), plus the parser and the assertion that every returned parent id resolves to a user. Hand it over ready to run</span>
+        <span class="ttext">~~Prepare the <code>E16-21</code> extraction so it is a single click for Andy~~ — <strong>closed 2026-08-08 with <code>E16-21</code>.</strong> There is no extraction to prepare. The equivalent preparation work is now <code>E16-42</code>: build the order-derived dependent resolution and its exception report</span>
       </li>
-      <li class="task" data-id="E16-23" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E16-23" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-23"></button>
         <code class="tid">E16-23</code>
-        <span class="badge r-high">high</span>
+        
         
         <span class="badge r-later">later</span>
         <span class="ttext">Produce the <strong>undeliverable-email contact list</strong> — the 12 accounts on a mistyped domain (<code>ais.amity.eduh</code>, <code>gmail.coma</code>, and 10 similar) cannot receive an email OTP and so cannot claim their account. Two have order history. This replaces the phone-based list <code>E16-12</code> was going to produce</span>
@@ -3332,13 +3342,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Repair or re-author the double-encoded UTF-8 in the dish catalogue (42 of 85 descriptions, 25 of 85 calorie counts, 3 special-comments). Re-authoring is preferable since the menu copy is being rewritten anyway. Either way, assert no <code>Ã</code>, <code>Â</code> or <code>â€</code> sequence survives into the new database</span>
       </li>
-      <li class="task" data-id="E16-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E16-28" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-28"></button>
         <code class="tid">E16-28</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Mirror the 82 dish images that still resolve (~2.0 MB) into Supabase Storage <strong>now, not at cutover</strong> — the Bubble CDN dies with the app. URLs are protocol-relative and need <code>https:</code> prefixing; 79 of 85 contain <code>%20</code>-encoded spaces</span>
+        <span class="ttext">Mirror the 82 dish images that still resolve (~2.0 MB) <strong>now, not at cutover</strong> — the Bubble CDN dies with the app. <strong>Done 2026-08-08 (<code>AR6</code>)</strong>: all 82 downloaded off the Bubble CDN by <code>tools/mirror-dish-images/</code>, held outside git with a committed manifest and checksums. Upload into Supabase Storage is <code>E16-43</code>, and no longer depends on Bubble being alive</span>
       </li>
       <li class="task" data-id="E16-29" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-29"></button>
@@ -3435,6 +3445,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Validation-set caveat for <code>E16-08</code>: Amity International School is 95% of children, 95% of orders and 77% of users. Multi-school behaviour is close to untested in production data, so per-school logic needs synthetic coverage rather than migrated-data coverage</span>
+      </li>
+      <li class="task" data-id="E16-41" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-41"></button>
+        <code class="tid">E16-41</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Re-export from Bubble close to cutover and reconcile changed email addresses</strong> (<code>AR5</code>) — Amity, which is 95% of children and 95% of orders, is moving everyone to a new email domain over the coming weeks and the old accounts may be deleted. Email is the migration key, so a dump taken today keys the migration to addresses that will not exist at cutover; up to 154 accounts are exposed. Diff the fresh export against the previous one on <code>unique id</code> (which is stable) and produce a moved/added/deleted-address report before the dress rehearsals, not after. This outranks <code>E16-23</code></span>
+      </li>
+      <li class="task" data-id="E16-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-42"></button>
+        <code class="tid">E16-42</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Build the order-derived dependent resolution (<code>AR1</code>/<code>AR2</code>): create a dependent per distinct (<code>order-parent</code>, <code>child</code> name, <code>school</code>) triple, and emit an exception report rather than guessing — 15 child names stay ambiguous after narrowing by school, and 6 are ordered for by more than one parent email. Assert that no child is silently attached to two parents, and that no roster row is auto-merged into an order-derived dependent</span>
+      </li>
+      <li class="task" data-id="E16-43" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-43"></button>
+        <code class="tid">E16-43</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Upload the mirrored dish images into Supabase Storage and rewrite the dish records to point at them. The download half is done (<code>E16-28</code>), so this no longer depends on Bubble being alive and can run whenever the storage bucket exists</span>
       </li></ul>
       </details>
     </article>

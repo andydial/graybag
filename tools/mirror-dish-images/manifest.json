@@ -1,0 +1,859 @@
+{
+  "generated": "2026-08-08",
+  "task": "E16-28",
+  "source": "Bubble CDN (dies when the Bubble app is decommissioned)",
+  "outDir": "/Users/andy/graybag-dish-images",
+  "note": "Binaries live outside the repo. This manifest is the committed record; E16-43 uploads from it.",
+  "counts": {
+    "total": 85,
+    "ok": 82,
+    "failed": 3,
+    "noUrl": 0
+  },
+  "images": [
+    {
+      "dish": "Wheat Jaggery Cake",
+      "id": "1751068956804x158696559691264600",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754874106249x821625218974780400/Wheat%20jaggery%20cake%20copy.png",
+      "file": "f1754874106249x821625218974780400__Wheat-jaggery-cake-copy.png",
+      "bytes": 29645,
+      "contentType": "image/png",
+      "sha256": "dfd58759097e5059d916442b2f8b613ee3993ce1e9b8e62d09f866ecbc60dbd8",
+      "status": "ok"
+    },
+    {
+      "dish": "French Butter Croissant",
+      "id": "1751068956804x307346726140140600",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754874123136x789938147638019000/Butter%20Croissant%20copy.jpg",
+      "file": "f1754874123136x789938147638019000__Butter-Croissant-copy.jpg",
+      "bytes": 8671,
+      "contentType": "image/jpeg",
+      "sha256": "eb4163f4a06c250c989e200556a49002afcfe69de4959a8bed97b3a19a6c7c45",
+      "status": "ok"
+    },
+    {
+      "dish": "Pain Au Chocolat",
+      "id": "1751068956804x656330743180066700",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754874179541x267884610763363680/Pain%20au%20chocolat.png",
+      "file": "f1754874179541x267884610763363680__Pain-au-chocolat.png",
+      "bytes": 8746,
+      "contentType": "image/png",
+      "sha256": "992c7218546f41bb45a1a3d93261a6d8356e7c02185c2075eb3871742683f79b",
+      "status": "ok"
+    },
+    {
+      "dish": "Carrot And Raisin Cake",
+      "id": "1751068956804x820523134006956500",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754874192084x177125002257864540/CarrorRaisin%20Cake.png",
+      "file": "f1754874192084x177125002257864540__CarrorRaisin-Cake.png",
+      "bytes": 9817,
+      "contentType": "image/png",
+      "sha256": "4fcdfe1529d472043c01fbca310fb5f445f25542fc95ecd0b18392515f97c24a",
+      "status": "ok"
+    },
+    {
+      "dish": "Tomato, Cucumber Cheese Sandwich In Brown Bread",
+      "id": "1751068956805x153486284508529860",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873551038x479595192719923760/Veg-Cuc-Tom-Cheese-Sandwich%20copy.jpg",
+      "file": "f1754873551038x479595192719923760__Veg-Cuc-Tom-Cheese-Sandwich-copy.jpg",
+      "bytes": 10879,
+      "contentType": "image/jpeg",
+      "sha256": "4d6825a4ab97c24b27e566867c5cc27deda528794e7ad541153c386f2d19511e",
+      "status": "ok"
+    },
+    {
+      "dish": "Paneer Tikka Sandwich In Focaccia Bread",
+      "id": "1751068956805x155143217195583100",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873650758x140423968393557090/Paneer%20tikka%20sandwich%20copy.png",
+      "file": "f1754873650758x140423968393557090__Paneer-tikka-sandwich-copy.png",
+      "bytes": 26931,
+      "contentType": "image/png",
+      "sha256": "cc6e9c3ddb4fabc2a87bb13d9b7eac35992e5197c8ac400d81d7e6bfe7297152",
+      "status": "ok"
+    },
+    {
+      "dish": "Brown Wheat Brownie With Choco Sauce",
+      "id": "1751068956805x173763608008315600",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873756714x967697705606347400/Brownie%20with%20choco%20copy.png",
+      "file": "f1754873756714x967697705606347400__Brownie-with-choco-copy.png",
+      "bytes": 26351,
+      "contentType": "image/png",
+      "sha256": "c5e1202bac49c6667815953e85a7561492a1b270eb00670ff726025bfd7fc6fd",
+      "status": "ok"
+    },
+    {
+      "dish": "Veg Sandwich In Brown Bread",
+      "id": "1751068956805x388091610578040500",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873839418x787671876992162700/VegSandwichBrownBread%20copy.png",
+      "file": "f1754873839418x787671876992162700__VegSandwichBrownBread-copy.png",
+      "bytes": 26980,
+      "contentType": "image/png",
+      "sha256": "5d708dd05894f005941a23fc8b6959df598dec1c60a0c42061b2f5ab022aa913",
+      "status": "ok"
+    },
+    {
+      "dish": "Blueberry Muffin",
+      "id": "1751068956805x636647856382776400",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873918028x102234934416258080/Blueberry%20Muffin%20copy.png",
+      "file": "f1754873918028x102234934416258080__Blueberry-Muffin-copy.png",
+      "bytes": 22187,
+      "contentType": "image/png",
+      "sha256": "c9daee290edd2d9514b1c1b3ae7fc761ae71d1e6274907328fbc5f26e7dcaf12",
+      "status": "ok"
+    },
+    {
+      "dish": "Choco Muffin",
+      "id": "1751068956805x764116958381420700",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754874007518x576600639666719900/Choco%20muffin%20copy.png",
+      "file": "f1754874007518x576600639666719900__Choco-muffin-copy.png",
+      "bytes": 22390,
+      "contentType": "image/png",
+      "sha256": "d92b2ec0db1be86118595d85b48f63737c3bc6759259c5cee69117c92acdd4be",
+      "status": "ok"
+    },
+    {
+      "dish": "Bagels With Cream Cheese",
+      "id": "1751068956808x434891866366537540",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873498951x459144020726113000/BagelCheeseCream%20copy.png",
+      "file": "f1754873498951x459144020726113000__BagelCheeseCream-copy.png",
+      "bytes": 26164,
+      "contentType": "image/png",
+      "sha256": "fa056a243370c82cd24dc037a8b91b7187259993cc5b245d1be90abf3a83931f",
+      "status": "ok"
+    },
+    {
+      "dish": "Veg Chilly Puff (Maida)",
+      "id": "1751068956809x201360143180394180",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872812343x901462509771598500/MixVegPuff.jpg",
+      "file": "f1754872812343x901462509771598500__MixVegPuff.jpg",
+      "bytes": 13802,
+      "contentType": "image/jpeg",
+      "sha256": "333c79329f6602a6dbb9d8df151269d3a65a8029ba965fd4aa6abb0eb58853aa",
+      "status": "ok"
+    },
+    {
+      "dish": "Aloo & Pea Tikki Cheese Burger (Wheat Burger)",
+      "id": "1751068956809x556265520042649150",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872938878x728982054273545000/Aloo%20pea%20tikki%20burger%20copy.png",
+      "file": "f1754872938878x728982054273545000__Aloo-pea-tikki-burger-copy.png",
+      "bytes": 25189,
+      "contentType": "image/png",
+      "sha256": "0a0113993c85b3021ec9e9760912acf3828989ab8f63bc3b93af286f48bbffef",
+      "status": "ok"
+    },
+    {
+      "dish": "Boiled Egg Mix In Brown Wheat Multigrain Sub Sandwich",
+      "id": "1751068956809x565964505118322900",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873141116x412803614645805800/EggSub%20copy.png",
+      "file": "f1754873141116x412803614645805800__EggSub-copy.png",
+      "bytes": 26270,
+      "contentType": "image/png",
+      "sha256": "987090a6c80483451b0863f00e48ae76b68a57fccb1752b069d7ebc61663b525",
+      "status": "ok"
+    },
+    {
+      "dish": "Paneer Jalferzi Wrap (Atta Wrap)",
+      "id": "1751068956809x629236588467374500",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873246189x634827020218958700/Paneer%20Jalfrezi%20wrap%20copy.png",
+      "file": "f1754873246189x634827020218958700__Paneer-Jalfrezi-wrap-copy.png",
+      "bytes": 24274,
+      "contentType": "image/png",
+      "sha256": "1630576fd6b2697858c6175109e7621c6c76a4fb515c8bc7f57d852b266ca03b",
+      "status": "ok"
+    },
+    {
+      "dish": "Paneer Croissant (Maida Base)",
+      "id": "1751068956809x795650377231993400",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873263536x143082324923322620/Paneer%20Croissant%20copy.jpg",
+      "file": "f1754873263536x143082324923322620__Paneer-Croissant-copy.jpg",
+      "bytes": 9921,
+      "contentType": "image/jpeg",
+      "sha256": "3395badf91d38009897ddc72a0140dd26744a0dd13bf76496a0e0ef9b88c5bb2",
+      "status": "ok"
+    },
+    {
+      "dish": "Cheese Garlic Bread (Maida Bread)",
+      "id": "1751068956809x796477323085994200",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873369689x616426897876802800/CheeseGarlic%20Bread%20copy.png",
+      "file": "f1754873369689x616426897876802800__CheeseGarlic-Bread-copy.png",
+      "bytes": 23537,
+      "contentType": "image/png",
+      "sha256": "50830018ef7152749dd2f05dbee34224abd19b38b2add56ce87ccc1489240151",
+      "status": "ok"
+    },
+    {
+      "dish": "Mushroom Croissant (Maida Base)",
+      "id": "1751068956809x907509860918670500",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873388579x379217377345962400/Mushroom%20Croissant%20copy.jpg",
+      "file": "f1754873388579x379217377345962400__Mushroom-Croissant-copy.jpg",
+      "bytes": 10373,
+      "contentType": "image/jpeg",
+      "sha256": "74cfcd8c4fccf7a41955fd109c3abfe4f102c34dd6de35d9a2dca0ed27cdd7be",
+      "status": "ok"
+    },
+    {
+      "dish": "Vada Pao (Atta Base Bread)",
+      "id": "1751068956809x950160930414243100",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754873403303x366691622600059600/Vada%20Pav%20copy.jpg",
+      "file": "f1754873403303x366691622600059600__Vada-Pav-copy.jpg",
+      "bytes": 10736,
+      "contentType": "image/jpeg",
+      "sha256": "588f039a0d227154dd272f1052282ed7b1f20d46ab00671491deae3596e05a2e",
+      "status": "ok"
+    },
+    {
+      "dish": "Mexican Style Veg Filling Wrap (Atta Wrap)",
+      "id": "1751068956810x202618328802040000",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872768190x235598055892187300/MexVegWrap.png",
+      "file": "f1754872768190x235598055892187300__MexVegWrap.png",
+      "bytes": 25821,
+      "contentType": "image/png",
+      "sha256": "1f461a195cd7c23a96bc99a3753e69b4782d06d4ccdcce6375df4e1624dd9a1d",
+      "status": "ok"
+    },
+    {
+      "dish": "Veg Manchurian With Fried Rice",
+      "id": "1751068956811x329156539650981000",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872539178x517744921645375360/Veg%20ManchurianRice%20copy.jpg",
+      "file": "f1754872539178x517744921645375360__Veg-ManchurianRice-copy.jpg",
+      "bytes": 10458,
+      "contentType": "image/jpeg",
+      "sha256": "9111f158475b34c28dbbc118250f89443e6c57eb65124eaf95073c0e465dd93e",
+      "status": "ok"
+    },
+    {
+      "dish": "Rajma With Rice Or Prantha",
+      "id": "1751068956811x458739705102099840",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872557189x700316216700172000/Rajma%20%26%20Rice%20copy.jpg",
+      "file": "f1754872557189x700316216700172000__Rajma-Rice-copy.jpg",
+      "bytes": 10890,
+      "contentType": "image/jpeg",
+      "sha256": "3bc5c0c392e8033a1fbfc1fbb6cb931d87fc92f59b2c4c4b489c3759838c8d5c",
+      "status": "ok"
+    },
+    {
+      "dish": "Fried Rice With Exotic Veg",
+      "id": "1751068956811x610991847600959000",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872596824x651095748975403200/Veg%20Fried%20Rice%20copy.jpg",
+      "file": "f1754872596824x651095748975403200__Veg-Fried-Rice-copy.jpg",
+      "bytes": 10532,
+      "contentType": "image/jpeg",
+      "sha256": "263ec6f450f422c05380dd76ec564b523311687796464c37573783f51e90f85d",
+      "status": "ok"
+    },
+    {
+      "dish": "Egg Roll (Atta Wrap)",
+      "id": "1751068956811x660338023605968600",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872644925x616713545185636100/EGG%20ROLL%20copy.jpg",
+      "file": "f1754872644925x616713545185636100__EGG-ROLL-copy.jpg",
+      "bytes": 10594,
+      "contentType": "image/jpeg",
+      "sha256": "9f62d706d05954fe9b9faa65992cab37ae7666dcb7bf5184374f590b4beed76a",
+      "status": "ok"
+    },
+    {
+      "dish": "Paneer Gravy With Rice /Wheat Prantha",
+      "id": "1751068956811x689699990859977200",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872702294x622797077981404000/Paneer%20Rice%20Parantha.png",
+      "file": "f1754872702294x622797077981404000__Paneer-Rice-Parantha.png",
+      "bytes": 29567,
+      "contentType": "image/png",
+      "sha256": "01617c54a2a467387536f25a2065aafdc4c2c9ec01f107a023b1c86266651c21",
+      "status": "ok"
+    },
+    {
+      "dish": "Dal Makhni With Rice/Wheat Prantha",
+      "id": "1751068956811x899033102354014100",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872722242x811017474069904800/DaalMakhanaiRice.png",
+      "file": "f1754872722242x811017474069904800__DaalMakhanaiRice.png",
+      "bytes": 29973,
+      "contentType": "image/png",
+      "sha256": "51e578fb1e2ff5a1eac581ed272396bee03fcf8c7c16f1d73ddb619ef5f5b5d0",
+      "status": "ok"
+    },
+    {
+      "dish": "Chole Masala With Rice /Wheat Prantha /Wheat Atta Kulcha",
+      "id": "1751068956811x959695653570769400",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872745319x438229361307079550/Cholle%20rice%20parantha.png",
+      "file": "f1754872745319x438229361307079550__Cholle-rice-parantha.png",
+      "bytes": 31092,
+      "contentType": "image/png",
+      "sha256": "6e3a3691ada3e0df44395fa545764d5f5f4ffd26cb5428a96e404c768e7048d9",
+      "status": "ok"
+    },
+    {
+      "dish": "Corn And Mix Pepper Salad",
+      "id": "1751068956812x480724353239390100",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872486229x703279025853675000/Corn%20pepper%20salad.png",
+      "file": "f1754872486229x703279025853675000__Corn-pepper-salad.png",
+      "bytes": 13876,
+      "contentType": "image/png",
+      "sha256": "ee9856176e7d6d8ca839825bbc93ba4889ab0b5e9d6d46a3a8196e916eddcc04",
+      "status": "ok"
+    },
+    {
+      "dish": "Bhel Puri Salad",
+      "id": "1751068956812x783511747475615000",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872504463x647833633270959600/Bhelpuri%20Salad%20copy.jpg",
+      "file": "f1754872504463x647833633270959600__Bhelpuri-Salad-copy.jpg",
+      "bytes": 10876,
+      "contentType": "image/jpeg",
+      "sha256": "f83d85701cdf4c8e9160c3efb0208e5489450bdbf944237821cbec2e9d470337",
+      "status": "ok"
+    },
+    {
+      "dish": "Aloo Channa Chat (White And Black Channa)",
+      "id": "1751068956812x785709064418025300",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872521002x202880170127136770/Aloo%20Chana%20Chaat.png",
+      "file": "f1754872521002x202880170127136770__Aloo-Chana-Chaat.png",
+      "status": "failed",
+      "error": "HTTP 403"
+    },
+    {
+      "dish": "Banana And Honey Shake",
+      "id": "1751068956813x101483837751406690",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872380495x624946050869049500/Banana%20Honey%20Shake.png",
+      "file": "f1754872380495x624946050869049500__Banana-Honey-Shake.png",
+      "bytes": 9539,
+      "contentType": "image/png",
+      "sha256": "b7f81b39756bd17ce79ce4f7c29ddd78f554ee9e1891e24cbdc410068a9f5a18",
+      "status": "ok"
+    },
+    {
+      "dish": "Mango Shake (Seasonal)",
+      "id": "1751068956813x251651141909131170",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872399840x464962851321648600/Mango%20Shake%20copy.jpg",
+      "file": "f1754872399840x464962851321648600__Mango-Shake-copy.jpg",
+      "bytes": 9224,
+      "contentType": "image/jpeg",
+      "sha256": "4d983c17e6555fb1a3a0b410076f4845737181c0347abc1217a7546dbe7f3613",
+      "status": "ok"
+    },
+    {
+      "dish": "Three Beans Salad",
+      "id": "1751068956813x468595151498087500",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872415344x918762681376623600/3BeanSalad%20copy.jpg",
+      "file": "f1754872415344x918762681376623600__3BeanSalad-copy.jpg",
+      "bytes": 10155,
+      "contentType": "image/jpeg",
+      "sha256": "1c8c7a43362e5912c3905a348467477c0e868e08819e1c771ce5ff52c75add5e",
+      "status": "ok"
+    },
+    {
+      "dish": "Quinoa Salad",
+      "id": "1751068956813x569682156705211260",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872428601x912386381338797300/QUINOA%20SALAD%20copy.jpg",
+      "file": "f1754872428601x912386381338797300__QUINOA-SALAD-copy.jpg",
+      "bytes": 11955,
+      "contentType": "image/jpeg",
+      "sha256": "4553b4b19ef7d130ab291fd7b0553a49473ba951320037f3acad0bba831d9779",
+      "status": "ok"
+    },
+    {
+      "dish": "Hot Choco Milk",
+      "id": "1751068956813x621942374217471900",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872440519x260963796874116100/Hot%20Chocolate%20copy.jpg",
+      "file": "f1754872440519x260963796874116100__Hot-Chocolate-copy.jpg",
+      "bytes": 9475,
+      "contentType": "image/jpeg",
+      "sha256": "d3382e74df159fd9e8b41fe695ca630bf3489dbc8c5a2db752c36deff75e341f",
+      "status": "ok"
+    },
+    {
+      "dish": "Fruit Salad",
+      "id": "1751068956813x664916371811283800",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872458707x693520871230647300/Fruit%20Salad.png",
+      "file": "f1754872458707x693520871230647300__Fruit-Salad.png",
+      "bytes": 14007,
+      "contentType": "image/png",
+      "sha256": "480275e4e5e8d254953a4241e169aa4eefaa6fad9df575af5abeedeba47b39a0",
+      "status": "ok"
+    },
+    {
+      "dish": "Lemon Ice Tea",
+      "id": "1751068956814x489412216784268000",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872321290x756653448167112100/Lemon%20Iced%20Tea%20copy.jpg",
+      "file": "f1754872321290x756653448167112100__Lemon-Iced-Tea-copy.jpg",
+      "bytes": 9914,
+      "contentType": "image/jpeg",
+      "sha256": "9bfb092871210e39335b4b2a7404ab924dbebba361925f60ba9e0eae423c96c7",
+      "status": "ok"
+    },
+    {
+      "dish": "Lemonade",
+      "id": "1751068956814x819085531963631900",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872335303x859375106972114000/Lemonade.png",
+      "file": "f1754872335303x859375106972114000__Lemonade.png",
+      "bytes": 9182,
+      "contentType": "image/png",
+      "sha256": "c15ea613f8b2e2b5def0c1071eb4e79de15469ec0c244a196e18b964ac5f21c5",
+      "status": "ok"
+    },
+    {
+      "dish": "Strawberry Shake (Seasonal)",
+      "id": "1751068956814x870381594421953900",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872351390x397410476537185540/Strawberry%20Shake%20copy.jpg",
+      "file": "f1754872351390x397410476537185540__Strawberry-Shake-copy.jpg",
+      "bytes": 9233,
+      "contentType": "image/jpeg",
+      "sha256": "b707df31eb8c5d2a1d239e506c5264ec3affbbb2c9971ddc41773e01fec8c9a8",
+      "status": "ok"
+    },
+    {
+      "dish": "Peach Ice Tea",
+      "id": "1751068956814x900098835367759000",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872365665x176750836605845220/Peach%20Iced%20Tea%20copy.jpg",
+      "file": "f1754872365665x176750836605845220__Peach-Iced-Tea-copy.jpg",
+      "bytes": 9778,
+      "contentType": "image/jpeg",
+      "sha256": "e4775e9caa7640a4a5a39fa58d0361319dabe6ad9229c8641bf85896ad206098",
+      "status": "ok"
+    },
+    {
+      "dish": "Tomato, Cucumber Cheese Sandwich In Brown Bread",
+      "id": "1751068957564x244673467482757540",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872031040x521862415525608400/Veg-Cuc-Tom-Cheese-Sandwich%20copy.jpg",
+      "file": "f1754872031040x521862415525608400__Veg-Cuc-Tom-Cheese-Sandwich-copy.jpg",
+      "status": "failed",
+      "error": "HTTP 403"
+    },
+    {
+      "dish": "Hot Coffee",
+      "id": "1751068957564x483261028215033340",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872080095x771711366400012000/Cappuccino%20copy.jpg",
+      "file": "f1754872080095x771711366400012000__Cappuccino-copy.jpg",
+      "bytes": 9014,
+      "contentType": "image/jpeg",
+      "sha256": "a9a935b963f681ce885e8c95ca024e842b6e38956a0ef248808eac9490f09a28",
+      "status": "ok"
+    },
+    {
+      "dish": "Tea",
+      "id": "1751068957564x545175872992901500",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872101085x990676533142443000/Tea.png",
+      "file": "f1754872101085x990676533142443000__Tea.png",
+      "bytes": 14876,
+      "contentType": "image/png",
+      "sha256": "4c21374e123896cc759cbf31f9dda32dcb94ab1508ebe3d8be122d82aa736c0f",
+      "status": "ok"
+    },
+    {
+      "dish": "Cold Coffee",
+      "id": "1751068957564x640273735166589400",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754872307518x402026593055903040/Cold%20Coffee%20copy.png",
+      "file": "f1754872307518x402026593055903040__Cold-Coffee-copy.png",
+      "bytes": 14541,
+      "contentType": "image/png",
+      "sha256": "24530586c1f9a46bfe7c20d67b3fdb358109be7de07ed118f52a7bee73a1be52",
+      "status": "ok"
+    },
+    {
+      "dish": "Masala Corn",
+      "id": "1751068957565x156602631589117800",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754871833365x869954805108934900/MASALA%20CORNS%20copy.jpg",
+      "file": "f1754871833365x869954805108934900__MASALA-CORNS-copy.jpg",
+      "bytes": 9581,
+      "contentType": "image/jpeg",
+      "sha256": "d80c63f42ad3e74f2f4eca6fb71df077bfec88223e846ca29208054a5003dc76",
+      "status": "ok"
+    },
+    {
+      "dish": "Brown Wheat Pasta With Veg And Tomato Sauce",
+      "id": "1751068957565x370002508235305800",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754871887242x732125982287341200/Brown%20Wheat%20Pasta.png",
+      "file": "f1754871887242x732125982287341200__Brown-Wheat-Pasta.png",
+      "bytes": 29848,
+      "contentType": "image/png",
+      "sha256": "f7caf7c715079c3990824e82d8a9568673136b8be6b5c71772bfce3ac025846b",
+      "status": "ok"
+    },
+    {
+      "dish": "Brown Wheat Pasta With Mushroom And Pesto Cream Sauce",
+      "id": "1751068957565x375934141297079360",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754871900052x887165553885596000/BrownWheat%20Mushroom%20pesto%20pasta.png",
+      "file": "f1754871900052x887165553885596000__BrownWheat-Mushroom-pesto-pasta.png",
+      "status": "failed",
+      "error": "HTTP 403"
+    },
+    {
+      "dish": "Butter Corn",
+      "id": "1751068957565x800981728189924500",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754871954707x115269067185386200/PLAIN%20BUTTER%20CORNS%20copy.jpg",
+      "file": "f1754871954707x115269067185386200__PLAIN-BUTTER-CORNS-copy.jpg",
+      "bytes": 9720,
+      "contentType": "image/jpeg",
+      "sha256": "e68e9d512b529a6cc85f0ec3a5704887fb2490a94aab9f319d6c14026383b3ae",
+      "status": "ok"
+    },
+    {
+      "dish": "Banana And Honey Shake",
+      "id": "1751068957566x302678275476653300",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1754871793895x612874611505700400/BANANA%20SHAKE%20copy.jpg",
+      "file": "f1754871793895x612874611505700400__BANANA-SHAKE-copy.jpg",
+      "bytes": 8426,
+      "contentType": "image/jpeg",
+      "sha256": "49160b8e2045276734619fa2a2fbd4326b652946d42c325b3527d5b532a19f57",
+      "status": "ok"
+    },
+    {
+      "dish": "Omelette w Toast",
+      "id": "1779449140805x388231208917267000",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487009316x875579961280836000/Omelette%20with%20Toast.png",
+      "file": "f1779487009316x875579961280836000__Omelette-with-Toast.png",
+      "bytes": 29900,
+      "contentType": "image/png",
+      "sha256": "b312fa8200a76531824f5f61f3c3083adca5959fcb88b1c59e4352017e7e9343",
+      "status": "ok"
+    },
+    {
+      "dish": "Boiled Eggs (3 pcs)",
+      "id": "1779449140805x998293772833065500",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487021811x478061451547259000/Boiled%20Eggs%20-%203%20Pieces.png",
+      "file": "f1779487021811x478061451547259000__Boiled-Eggs---3-Pieces.png",
+      "bytes": 28058,
+      "contentType": "image/png",
+      "sha256": "feef178bd712164ec49ac51c72cb0c8097d9d061c6dd74899ababae7e34a4549",
+      "status": "ok"
+    },
+    {
+      "dish": "Idli Sambar",
+      "id": "1779449140806x193032194737593700",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487032445x102485583322428080/Idli%20Sambar.png",
+      "file": "f1779487032445x102485583322428080__Idli-Sambar.png",
+      "bytes": 26347,
+      "contentType": "image/png",
+      "sha256": "7136004ade8d01fdcd6a2fb75f6411d0a50288f86e3481ea20719a49d035227e",
+      "status": "ok"
+    },
+    {
+      "dish": "French Toast with Choco Syrup",
+      "id": "1779449140806x206081468704266900",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487051496x886902594295829500/French%20toast%20with%20choco%20syrup.png",
+      "file": "f1779487051496x886902594295829500__French-toast-with-choco-syrup.png",
+      "bytes": 31500,
+      "contentType": "image/png",
+      "sha256": "3bf5a690049a7498635ac1634d72b5493a9336ba711cfa4e27fe7d84582a19d3",
+      "status": "ok"
+    },
+    {
+      "dish": "Mix Veg Poha",
+      "id": "1779449140806x346491320241788740",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487062794x950736100404073100/Mixed%20Veg%20poha.png",
+      "file": "f1779487062794x950736100404073100__Mixed-Veg-poha.png",
+      "bytes": 30901,
+      "contentType": "image/png",
+      "sha256": "73d770cc935c5c052540e85b8a48874638a53b3cf83d62b50a4cd58eb1ded20d",
+      "status": "ok"
+    },
+    {
+      "dish": "Stuffed Paratha",
+      "id": "1779449140806x422240165857332740",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487077135x580050894582723200/Stuffed%20Parantha.png",
+      "file": "f1779487077135x580050894582723200__Stuffed-Parantha.png",
+      "bytes": 31359,
+      "contentType": "image/png",
+      "sha256": "82f4ad139d1522f5564f9aea06250dba365802346791a368a007212c5283b802",
+      "status": "ok"
+    },
+    {
+      "dish": "Pancakes w Honey",
+      "id": "1779449140806x477366637079625000",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487089952x317145068216261950/Pancakes%20with%20honey.png",
+      "file": "f1779487089952x317145068216261950__Pancakes-with-honey.png",
+      "bytes": 27133,
+      "contentType": "image/png",
+      "sha256": "766b9fbb68d8e0ebf8be019ae68c386f257af4cf5d4b2eb70b782abae91278b8",
+      "status": "ok"
+    },
+    {
+      "dish": "Scrambled Egg w Toast",
+      "id": "1779449140806x709927428863947400",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487133391x988728738908148100/Scrambled%20Eggs%20and%20Bread.png",
+      "file": "f1779487133391x988728738908148100__Scrambled-Eggs-and-Bread.png",
+      "bytes": 30444,
+      "contentType": "image/png",
+      "sha256": "b1247ef89796dbf180e653853176137c436df1a8d7004a55ece955a9196b74a5",
+      "status": "ok"
+    },
+    {
+      "dish": "Veggie Wrap",
+      "id": "1779449140807x283731477430231740",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487144332x329320210137516100/Veggie%20Wrap.png",
+      "file": "f1779487144332x329320210137516100__Veggie-Wrap.png",
+      "bytes": 25916,
+      "contentType": "image/png",
+      "sha256": "9b794ecaaa10596f390f7295087775a5fb1ef5c9168247a3e9d0cf9ce393c729",
+      "status": "ok"
+    },
+    {
+      "dish": "Paneer Wrap",
+      "id": "1779449140807x884156469936501300",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487156815x406087365349873540/Paneer%20Wrap.png",
+      "file": "f1779487156815x406087365349873540__Paneer-Wrap.png",
+      "bytes": 25817,
+      "contentType": "image/png",
+      "sha256": "271ef2b41d6e29537620267fa838a872894241512c3c8bb529904979cc9fcb3e",
+      "status": "ok"
+    },
+    {
+      "dish": "Mixed Fruits",
+      "id": "1779449140808x206833398330332540",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487202235x771414165578133200/Mixed%20Fruit.png",
+      "file": "f1779487202235x771414165578133200__Mixed-Fruit.png",
+      "bytes": 28740,
+      "contentType": "image/png",
+      "sha256": "d473311ae6ad743977c8567c97824d588738b207d5df04be49c2649c3278983e",
+      "status": "ok"
+    },
+    {
+      "dish": "Sprouts",
+      "id": "1779449140808x834907511420349700",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487217545x580051300564541200/Sprout%20Salad.png",
+      "file": "f1779487217545x580051300564541200__Sprout-Salad.png",
+      "bytes": 34193,
+      "contentType": "image/png",
+      "sha256": "56425cd30274a9951318e4ee57b6b85fa1a27162cde0aaca1b102cb418dfa915",
+      "status": "ok"
+    },
+    {
+      "dish": "Corn and Cheese Puff",
+      "id": "1779449140809x220913038397098080",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487233124x360740641037447200/Corn%20Cheese%20puff.png",
+      "file": "f1779487233124x360740641037447200__Corn-Cheese-puff.png",
+      "bytes": 25025,
+      "contentType": "image/png",
+      "sha256": "d7bf5ca63dc7b24aa4faab7b74f1fee2fbd51eaf4716ff9524d1687f7b09fa42",
+      "status": "ok"
+    },
+    {
+      "dish": "Veg and Cheese Sandwich",
+      "id": "1779449140809x406105864955550500",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487254176x365290592604912100/VeggieCheeseSandwich.png",
+      "file": "f1779487254176x365290592604912100__VeggieCheeseSandwich.png",
+      "bytes": 26049,
+      "contentType": "image/png",
+      "sha256": "c4f20d355c630c6af4bf3732ddba3f21dde62e274a4354b6f4e5a3acdfb484ae",
+      "status": "ok"
+    },
+    {
+      "dish": "Corn and Pepper Sandwich",
+      "id": "1779449140809x456924985028412900",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487274228x715808395626004600/Corn%20pepper%20sandwich.png",
+      "file": "f1779487274228x715808395626004600__Corn-pepper-sandwich.png",
+      "bytes": 29170,
+      "contentType": "image/png",
+      "sha256": "70368487497d02d413f97af381661b5771137da9435fcecb01225d989179e558",
+      "status": "ok"
+    },
+    {
+      "dish": "Paneer Puff",
+      "id": "1779449140809x494690560453747900",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487291118x655879426959711300/paneer%20puff.png",
+      "file": "f1779487291118x655879426959711300__paneer-puff.png",
+      "bytes": 25233,
+      "contentType": "image/png",
+      "sha256": "7a27fc2adaaab6ce7588ea0471825ec5d1bc335634babf3a644eadc56a56d0e9",
+      "status": "ok"
+    },
+    {
+      "dish": "Egg Sandwich",
+      "id": "1779449140809x655270608909390200",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487375740x142734394591291120/Egg%20Sandwich%20copy.jpg",
+      "file": "f1779487375740x142734394591291120__Egg-Sandwich-copy.jpg",
+      "bytes": 10374,
+      "contentType": "image/jpeg",
+      "sha256": "fe1ca3636e98e1b3a0a9edca95922eabe7935726084ea429eca297af4834b053",
+      "status": "ok"
+    },
+    {
+      "dish": "Paneer Sandwich",
+      "id": "1779449140809x908188532520013700",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487388711x569935425528190500/Paneer%20Sandwich.png",
+      "file": "f1779487388711x569935425528190500__Paneer-Sandwich.png",
+      "bytes": 30907,
+      "contentType": "image/png",
+      "sha256": "54c5da7c523284d61b381981b2726dfbec6672601cca258ba5b23d7d3dbf3264",
+      "status": "ok"
+    },
+    {
+      "dish": "Chana Rice",
+      "id": "1779449140810x731494902361811600",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487399693x919200553014092300/Channa%20%26%20Rice%20copy.jpg",
+      "file": "f1779487399693x919200553014092300__Channa-Rice-copy.jpg",
+      "bytes": 10382,
+      "contentType": "image/jpeg",
+      "sha256": "662c9e7801c86ff80ee0558028d083efccb0a1d5f21038264a0856a27b448376",
+      "status": "ok"
+    },
+    {
+      "dish": "Quinoa Khichdi",
+      "id": "1779449140810x752114686422033400",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487411753x739673262138518000/Quinoa%20Khichdi.png",
+      "file": "f1779487411753x739673262138518000__Quinoa-Khichdi.png",
+      "bytes": 30044,
+      "contentType": "image/png",
+      "sha256": "53a7ec3bf9fd2ddecbabf15ca586eae80e778e6d9a9079cc321ae03577a7af95",
+      "status": "ok"
+    },
+    {
+      "dish": "Rajma Rice",
+      "id": "1779449140810x961113269333929200",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487422251x907395194766418300/Rajma%20%26%20Rice%20copy.jpg",
+      "file": "f1779487422251x907395194766418300__Rajma-Rice-copy.jpg",
+      "bytes": 10890,
+      "contentType": "image/jpeg",
+      "sha256": "3bc5c0c392e8033a1fbfc1fbb6cb931d87fc92f59b2c4c4b489c3759838c8d5c",
+      "status": "ok"
+    },
+    {
+      "dish": "Lemon Ice Tea",
+      "id": "1779449140811x167420404257264000",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487436496x117430366468593840/Lemon%20Iced%20Tea%20copy.jpg",
+      "file": "f1779487436496x117430366468593840__Lemon-Iced-Tea-copy.jpg",
+      "bytes": 9914,
+      "contentType": "image/jpeg",
+      "sha256": "9bfb092871210e39335b4b2a7404ab924dbebba361925f60ba9e0eae423c96c7",
+      "status": "ok"
+    },
+    {
+      "dish": "Hot Chocolate Chocolate",
+      "id": "1779449140811x318146422163813950",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487445587x819879180232040000/Hot%20Chocolate%20copy.jpg",
+      "file": "f1779487445587x819879180232040000__Hot-Chocolate-copy.jpg",
+      "bytes": 9475,
+      "contentType": "image/jpeg",
+      "sha256": "d3382e74df159fd9e8b41fe695ca630bf3489dbc8c5a2db752c36deff75e341f",
+      "status": "ok"
+    },
+    {
+      "dish": "Peach Ice Tea",
+      "id": "1779449140811x329057596426032260",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487454194x605782077449382500/Peach%20Iced%20Tea%20copy.jpg",
+      "file": "f1779487454194x605782077449382500__Peach-Iced-Tea-copy.jpg",
+      "bytes": 9778,
+      "contentType": "image/jpeg",
+      "sha256": "e4775e9caa7640a4a5a39fa58d0361319dabe6ad9229c8641bf85896ad206098",
+      "status": "ok"
+    },
+    {
+      "dish": "Cold Coffee",
+      "id": "1779449140811x332934727636901000",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487467224x704132887350809100/Cold%20Coffee%20copy.png",
+      "file": "f1779487467224x704132887350809100__Cold-Coffee-copy.png",
+      "bytes": 14541,
+      "contentType": "image/png",
+      "sha256": "24530586c1f9a46bfe7c20d67b3fdb358109be7de07ed118f52a7bee73a1be52",
+      "status": "ok"
+    },
+    {
+      "dish": "Fried Rice with Manchurian",
+      "id": "1779449140811x374358487804802750",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487478209x641964009680002300/Fried%20Rice%20Manchurian.png",
+      "file": "f1779487478209x641964009680002300__Fried-Rice-Manchurian.png",
+      "bytes": 29421,
+      "contentType": "image/png",
+      "sha256": "d078448803ef0f8aabeae05cda3592aa84e86eece1d14eeac1043731ce701a93",
+      "status": "ok"
+    },
+    {
+      "dish": "Banana Shake",
+      "id": "1779449140811x569879533872676740",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487487776x804965176846193000/BANANA%20SHAKE%20copy.jpg",
+      "file": "f1779487487776x804965176846193000__BANANA-SHAKE-copy.jpg",
+      "bytes": 8426,
+      "contentType": "image/jpeg",
+      "sha256": "49160b8e2045276734619fa2a2fbd4326b652946d42c325b3527d5b532a19f57",
+      "status": "ok"
+    },
+    {
+      "dish": "Brownie Shake",
+      "id": "1779449140812x575803748111743040",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487497480x330042719197170900/Brownie%20Shake.png",
+      "file": "f1779487497480x330042719197170900__Brownie-Shake.png",
+      "bytes": 25680,
+      "contentType": "image/png",
+      "sha256": "490a87395784279976373534729bc40fff0f0a75a1da31990068e24b481ee436",
+      "status": "ok"
+    },
+    {
+      "dish": "Mango Shake",
+      "id": "1779449140812x650563047183700700",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487511344x924026444863693700/Mango%20Shake%20copy.jpg",
+      "file": "f1779487511344x924026444863693700__Mango-Shake-copy.jpg",
+      "bytes": 9224,
+      "contentType": "image/jpeg",
+      "sha256": "4d983c17e6555fb1a3a0b410076f4845737181c0347abc1217a7546dbe7f3613",
+      "status": "ok"
+    },
+    {
+      "dish": "Oreo Shake",
+      "id": "1779449140812x753190154787433700",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487524103x272634394144960930/OREO%20Shake%20copy.jpg",
+      "file": "f1779487524103x272634394144960930__OREO-Shake-copy.jpg",
+      "bytes": 7262,
+      "contentType": "image/jpeg",
+      "sha256": "a6cb521c4efc0a545e723acef5770a14992f5942d2ef7803207a44acf3719861",
+      "status": "ok"
+    },
+    {
+      "dish": "Veg Hot Dog",
+      "id": "1779449140813x257214124201923230",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487550266x355494917184756100/Veg%20hotdog.png",
+      "file": "f1779487550266x355494917184756100__Veg-hotdog.png",
+      "bytes": 30838,
+      "contentType": "image/png",
+      "sha256": "0d5460289b3c049cdf94dff66a4dc99929b768aa04135c1296974f8b1a8c8753",
+      "status": "ok"
+    },
+    {
+      "dish": "Chocolate Doughnut",
+      "id": "1779449140813x265442094742111900",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487561338x600332929579468800/Chocolate%20Doughnut.png",
+      "file": "f1779487561338x600332929579468800__Chocolate-Doughnut.png",
+      "bytes": 29499,
+      "contentType": "image/png",
+      "sha256": "1ff7122f7790f092d19b06fed2c88a5c6a7fdeeded5bd36291520d3274da9d0a",
+      "status": "ok"
+    },
+    {
+      "dish": "Chocolate Muffin",
+      "id": "1779449140813x342013160528765760",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487570771x954629295742914700/Choco%20muffin%20copy.png",
+      "file": "f1779487570771x954629295742914700__Choco-muffin-copy.png",
+      "bytes": 22390,
+      "contentType": "image/png",
+      "sha256": "d92b2ec0db1be86118595d85b48f63737c3bc6759259c5cee69117c92acdd4be",
+      "status": "ok"
+    },
+    {
+      "dish": "Eggless Brownie",
+      "id": "1779449140813x687006561270116600",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487581142x765863867087217600/Eggless%20Brownie.png",
+      "file": "f1779487581142x765863867087217600__Eggless-Brownie.png",
+      "bytes": 28721,
+      "contentType": "image/png",
+      "sha256": "11ca883d9bb7a7ccd2da0d589e6b8af45c9bf65a7a93397e48f311b89b6eea42",
+      "status": "ok"
+    },
+    {
+      "dish": "Strawberry Shake",
+      "id": "1779449140813x858431197571919200",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487593481x249927906616814980/Strawberry%20Shake%20copy.jpg",
+      "file": "f1779487593481x249927906616814980__Strawberry-Shake-copy.jpg",
+      "bytes": 9233,
+      "contentType": "image/jpeg",
+      "sha256": "b707df31eb8c5d2a1d239e506c5264ec3affbbb2c9971ddc41773e01fec8c9a8",
+      "status": "ok"
+    },
+    {
+      "dish": "Blueberry Muffin",
+      "id": "1779449140814x964330968712913400",
+      "url": "https://81ea348cb56d39185712220c19b1fd74.cdn.bubble.io/f1779487607506x689780554381920400/Blueberry%20Muffin%20copy.png",
+      "file": "f1779487607506x689780554381920400__Blueberry-Muffin-copy.png",
+      "bytes": 22187,
+      "contentType": "image/png",
+      "sha256": "c9daee290edd2d9514b1c1b3ae7fc761ae71d1e6274907328fbc5f26e7dcaf12",
+      "status": "ok"
+    }
+  ]
+}

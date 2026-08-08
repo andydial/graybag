@@ -254,8 +254,9 @@ in-app after login. Report every ambiguous match rather than resolving it.
 
 All 85 are protocol-relative (`//<hash>.cdn.bubble.io/f<id>/<filename>`) on a single CDN host, so
 they need `https:` prefixing before use. 79 of 85 contain `%20`-encoded spaces in the filename.
-Formats: 52 PNG, 33 JPG. Total payload **≈ 2.0 MB** across the 82 that fetch — 8.7 KB to 42 KB
-each, average 24 KB. Re-hosting is a two-minute job, not a project.
+Formats: 52 PNG, 33 JPG. Total payload **1.56 MB** across the 82 that fetch (the CDN's
+`Content-Length` headers over-report at ~2.0 MB; the bytes actually delivered are 1.56 MB).
+Re-hosting is a two-minute job, not a project.
 
 The 3 that return 403 do so consistently, on `HEAD` and on `GET`, with a browser user-agent. They
 are:
@@ -267,8 +268,13 @@ are:
 These are the "cannot be sourced" cases `E16-05` asks us to report. They need new photography or a
 placeholder.
 
-**These URLs die when the Bubble app is decommissioned.** Mirror all 82 now, into the repo's asset
-pipeline or Supabase Storage, rather than at cutover. There is no reason to carry this risk.
+**These URLs die when the Bubble app is decommissioned.**
+
+> **Done, 2026-08-08 (`AR6`, `E16-28`).** All 82 have been pulled off the Bubble CDN by
+> `tools/mirror-dish-images/`. The binaries live **outside** the repository; the committed record
+> is `manifest.json` — per-image source URL, byte count, content type and SHA-256 — and
+> `npm --prefix tools/mirror-dish-images run verify` re-checks the local copies against it.
+> Uploading into Supabase Storage is `E16-43` and no longer depends on Bubble being alive.
 
 ---
 

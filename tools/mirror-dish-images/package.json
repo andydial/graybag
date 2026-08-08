@@ -1,0 +1,13 @@
+{
+  "name": "@graybag/mirror-dish-images",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Mirrors the legacy Bubble dish images off the CDN before it dies (E16-28, decision AR6)",
+  "main": "mirror.mjs",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "verify": "node mirror.mjs --verify"
+  },
+  "engines": { "node": ">=20" }
+}

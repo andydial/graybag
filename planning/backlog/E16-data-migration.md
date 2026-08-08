@@ -19,19 +19,22 @@ were written from the schema and turned out to be wrong; those are struck rather
 - Bubble CDN image URLs die on migration; images must be re-hosted. **Confirmed:** all 85 dish
   photos are protocol-relative `cdn.bubble.io` URLs; **82 resolve, 3 return a permanent 403**
   (~2.0 MB total). Mirror them now, not at cutover.
-- ~~Legacy role values must be mapped on **db_value**, not label~~ — **the CSV export emits labels,
-  not db values**, so db_value mapping is not possible from an export. Live labels are `Parent`
-  (362), `School Staff` (37), `KitchenStaff` (4), `SuperAdmin` (1). `School Staff` is ambiguous
-  between the `staff` (= school admin) and `teacher` (= school staff) db values and must be
-  disambiguated before `E16-02` — see `E16-20`.
+- ~~Legacy role values must be mapped on **db_value**, not label~~ — **roles are binary** (`AR3`):
+  legacy `parent`, `teacher`, `staff` and `collegestudent` all map to **Customer**; only `admin`
+  and `kitchen` get back-office grants. The export emitting labels rather than db values therefore
+  stops mattering — the `School Staff` label was ambiguous between `staff` and `teacher`, and both
+  land in the same place. `E16-20` closed; `E16-02` unblocked.
 - ~~Legacy has two parallel parent-child links (`Child.Parent` list and `Guardian_Link`) that must be
-  reconciled into one.~~ — **`Guardian_Link` was never used and is not in the export at all.
-  `Child.Parent` is the sole mechanism**, so there is nothing to reconcile (`E16-03` closed).
-- **`Child.Parent` did not survive the CSV export** — empty on all 1,115 rows, and the
-  `parent-email` fallback is filled on 2. The only residue is `User.child`, which exports as
-  comma-joined **display names**, 48 of 376 of which are ambiguous. **Only 369 of 1,115 children
-  (33%) have any recoverable parent.** The relationship must be re-extracted from Bubble via the
-  Data API or a flattened text field (`E16-21`) — it must not be reconstructed by name matching.
+  reconciled into one.~~ — **neither was used.** `Guardian_Link` is absent from the export and
+  `Child.Parent` is empty on all 1,115 rows because it was never populated, not because the export
+  damaged it (`E16-03`, `E16-21` both closed).
+- **Parent↔child comes from `Order` (`order-parent` + `child`), and dependents are created *from*
+  orders rather than matched to the roster** (`AR1`/`AR2`). **A child nobody has ordered for has no
+  parent, and that is correct data, not missing data.** Do not use `User.child` as a recovery path.
+  Measured: 146 distinct child names appear on orders → **131 dependents with an unambiguous
+  parent**; **15 names stay ambiguous** even after narrowing by school, and **6 names are ordered
+  for by more than one parent email** (mother and father both ordering is indistinguishable from
+  two same-named children at one school). Report those 21, never guess them.
 - ~~Order status values map from `new / received / accepted / delivered / cancelled / refunded`.~~
   — **only three values are in live use, and the export shows labels:** `Paid` 281, `Draft` 78,
   `Cancelled` 2. Nothing ever reached a fulfilment state; legacy tracked payment, not delivery.
@@ -46,9 +49,14 @@ were written from the schema and turned out to be wrong; those are struck rather
   or contact on. `E16-14` and `E16-12` are struck; the new system starts with zero phone numbers
   and acquires them via `E03-17`.
 - **Email is clean and is a sound migration key**: 404/404 present, 404 distinct, 404 valid, zero
-  duplicates, zero placeholders. Every order's `order-parent` resolves to a user. The risks are
-  **deliverability** (12 accounts on mistyped domains cannot receive an OTP) and ~15 people holding
-  two accounts under different spellings of the same school domain — neither is a collision.
+  duplicates, zero placeholders. Every order's `order-parent` resolves to a user. Verification
+  needs no work — Google verifies the address, and an email OTP cannot succeed on one the user
+  cannot read (`AR4`).
+- **⚠ The key is moving underneath us.** Amity — 95% of children and 95% of orders — is moving
+  everyone to a **new email domain** over the coming weeks, and the old accounts may be deleted
+  (`AR5`). A dump taken today keys the migration to addresses that will not exist at cutover, and
+  up to 154 Amity accounts are exposed. **Re-export close to cutover and reconcile changed
+  addresses** (`E16-41`). This outranks the 12 mistyped domains, which are 12 static rows.
 - **Money is rupee decimals and confirms GST-exclusive pricing**: `order-total ÷ Σ line_total` is
   exactly **1.05** on 280 of 282 non-draft orders. Every total converts to whole paise with no
   float artefact. `Dish-In-Order.unit_price` is empty but recoverable as `line_total ÷ quantity`
@@ -88,15 +96,15 @@ were written from the schema and turned out to be wrong; those are struck rather
 
 <!-- Appended 2026-08-08 from E19-04. Untagged = fast-follow until Andy says otherwise. -->
 
-- [ ] `E16-20` (risk:high) Disambiguate the legacy `School Staff` role label before `E16-02` — the CSV export emits labels, not db values, so `School Staff` (37 users) could be either `staff` (= school admin) or `teacher` (= school staff), which are different grant sets. Resolve from the Bubble editor's option set or from what those 37 accounts can actually do, and write the label→db_value→grant table down. Do not guess
-- [ ] `E16-21` (risk:critical) (owner:andy) **Re-extract `Child.Parent` from Bubble with real ids** — the CSV export drops list-of-thing fields, so the sole parent↔child link is absent (0/1,115) and only 33% of children have any recoverable parent. Either pull `Child` via the Bubble Data API (which returns list fields as id arrays) or add a Bubble-side text field flattening `Child.Parent` to comma-joined parent **emails** and re-export. Both need the Bubble editor. Without this the relationship cannot be migrated safely
-- [ ] `E16-22` Prepare the `E16-21` extraction so it is a single click for Andy: write the Data API request (or the exact Bubble field expression and export steps), plus the parser and the assertion that every returned parent id resolves to a user. Hand it over ready to run
-- [ ] `E16-23` (risk:high) Produce the **undeliverable-email contact list** — the 12 accounts on a mistyped domain (`ais.amity.eduh`, `gmail.coma`, and 10 similar) cannot receive an email OTP and so cannot claim their account. Two have order history. This replaces the phone-based list `E16-12` was going to produce
+- [x] `E16-20` ~~Disambiguate the legacy `School Staff` role label before `E16-02`~~ — **closed 2026-08-08 by `AR3`: roles are binary.** Legacy `parent`, `teacher`, `staff` and `collegestudent` all map to **Customer**; only `admin` and `kitchen` get back-office grants. `School Staff` was ambiguous between `staff` and `teacher`, and under a binary model both land in the same place, so the ambiguity stops mattering and no Bubble-editor lookup is needed. `E16-02` unblocked
+- [x] `E16-21` (owner:andy) ~~Re-extract `Child.Parent` from Bubble with real ids~~ — **closed 2026-08-08 by `AR1`: `Child.Parent` was never used.** Its emptiness is the accurate state, not export damage, so there is nothing to re-extract. Parent↔child is derived from `Order` instead (`order-parent` + `child`), and a child nobody has ordered for correctly has no parent. Andy confirmed this in conversation
+- [x] `E16-22` ~~Prepare the `E16-21` extraction so it is a single click for Andy~~ — **closed 2026-08-08 with `E16-21`.** There is no extraction to prepare. The equivalent preparation work is now `E16-42`: build the order-derived dependent resolution and its exception report
+- [ ] `E16-23` Produce the **undeliverable-email contact list** — the 12 accounts on a mistyped domain (`ais.amity.eduh`, `gmail.coma`, and 10 similar) cannot receive an email OTP and so cannot claim their account. Two have order history. This replaces the phone-based list `E16-12` was going to produce
 - [ ] `E16-24` (risk:high) Classify `Dish_In_Order.special-comments` as **regulated data under non-negotiable #4** — 127 rows of free text about a named child, 15 of them containing dietary or allergy language. Add it to the no-log / no-Sentry / excluded-from-school-reports lists in `docs/dpdp-compliance.md`, which do not currently name it
 - [ ] `E16-25` Dish identity resolution: line items and menu items reference dishes by **name**, and 6 of 79 names are duplicated, leaving 138 of 911 lines ambiguous. Resolve on `(name, menu, implied unit price)`; for the two collisions that are genuinely identical, pick the lowest Bubble id deterministically and record that choice
 - [ ] `E16-26` Reconstruct `unit_price` as `line_total ÷ quantity` (`Dish_In_Order.unit_price` is empty on all 911 rows), assert it matches a menu price, and report the exceptions — 894 of 896 matched in the dry run
 - [ ] `E16-27` Repair or re-author the double-encoded UTF-8 in the dish catalogue (42 of 85 descriptions, 25 of 85 calorie counts, 3 special-comments). Re-authoring is preferable since the menu copy is being rewritten anyway. Either way, assert no `Ã`, `Â` or `â€` sequence survives into the new database
-- [ ] `E16-28` Mirror the 82 dish images that still resolve (~2.0 MB) into Supabase Storage **now, not at cutover** — the Bubble CDN dies with the app. URLs are protocol-relative and need `https:` prefixing; 79 of 85 contain `%20`-encoded spaces
+- [x] `E16-28` Mirror the 82 dish images that still resolve (~2.0 MB) **now, not at cutover** — the Bubble CDN dies with the app. **Done 2026-08-08 (`AR6`)**: all 82 downloaded off the Bubble CDN by `tools/mirror-dish-images/`, held outside git with a committed manifest and checksums. Upload into Supabase Storage is `E16-43`, and no longer depends on Bubble being alive
 - [ ] `E16-29` (owner:andy) Decide what happens to the **3 dish photos that return a permanent 403** and cannot be sourced from Bubble — Aloo Chana Chaat, Tomato/Cucumber Cheese Sandwich, Brown Wheat Pasta with Mushroom and Pesto. New photography, or ship them with a category placeholder
 - [ ] `E16-30` Normalise `Child.class` to a canonical enum via a hand-built alias map (114 of 1,115 children sit outside `Nursery`/`LKG`/`UKG`/`I`–`XII`, with variants like `4th`, `Grade-2`, `Kg1`, `Nursary`). Keep `section` as **free text** with trimming and casing only — the house names (`Gems`, `Pearls`, `Lotus`) and streams (`Commerce`, `Arts`, `Medical`) among its 25 values are real, so it must not be enumerated
 - [ ] `E16-31` Derive all order date parts from `order_date` and discard Bubble's denormalised `order_month` / `order_week` / `order_year` — they disagree with `order_date` on 5 orders, and `order_ymd` is empty on all 361
@@ -109,3 +117,6 @@ were written from the schema and turned out to be wrong; those are struck rather
 - [ ] `E16-38` Confirm the new order model accepts a **self-recipient order** before `E16-04` runs — 13 legacy orders have `recipient_type = Staff` and no child, i.e. the ordering adult is the recipient
 - [ ] `E16-39` (owner:andy) Tell the kitchen that **no allergy data is migrating** — `Child.allergies` is empty on all 1,115 legacy rows, so every allergy record in the new system starts blank. They may believe they hold this data
 - [ ] `E16-40` Validation-set caveat for `E16-08`: Amity International School is 95% of children, 95% of orders and 77% of users. Multi-school behaviour is close to untested in production data, so per-school logic needs synthetic coverage rather than migrated-data coverage
+- [ ] `E16-41` (risk:high) **Re-export from Bubble close to cutover and reconcile changed email addresses** (`AR5`) — Amity, which is 95% of children and 95% of orders, is moving everyone to a new email domain over the coming weeks and the old accounts may be deleted. Email is the migration key, so a dump taken today keys the migration to addresses that will not exist at cutover; up to 154 accounts are exposed. Diff the fresh export against the previous one on `unique id` (which is stable) and produce a moved/added/deleted-address report before the dress rehearsals, not after. This outranks `E16-23`
+- [ ] `E16-42` Build the order-derived dependent resolution (`AR1`/`AR2`): create a dependent per distinct (`order-parent`, `child` name, `school`) triple, and emit an exception report rather than guessing — 15 child names stay ambiguous after narrowing by school, and 6 are ordered for by more than one parent email. Assert that no child is silently attached to two parents, and that no roster row is auto-merged into an order-derived dependent
+- [ ] `E16-43` Upload the mirrored dish images into Supabase Storage and rewrite the dish records to point at them. The download half is done (`E16-28`), so this no longer depends on Bubble being alive and can run whenever the storage bucket exists
