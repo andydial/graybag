@@ -211,6 +211,9 @@ smoke alarm, not the measurement.
 **Cold start** — kill the app first, or you are measuring a warm start:
 
 ```bash
+# if the component name is wrong, this prints the right one:
+adb shell cmd package resolve-activity --brief in.graybag.spikes | tail -1
+
 adb shell am force-stop in.graybag.spikes
 adb shell am start -W -n in.graybag.spikes/.MainActivity
 ```
