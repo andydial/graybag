@@ -141,6 +141,24 @@ reconcile, the brand document contains no contrast analysis to weigh against, an
 visible on every screen in the product. Recorded in §2.1 and §2.11 of the token file so that
 nobody re-derives the conflict from scratch and quietly picks a side.
 
+### Writing the tokens as code — `E13-01`, 2026-08-09
+
+`packages/shared/src/design/` now exists: `color.ts`, `semantic.ts`, `type.ts`, `space.ts`,
+`radius.ts`, `elevation.ts`, `index.ts`, and 129 assertions across three test files. Three
+choices in it were not forced by `docs/design-tokens.md`.
+
+| # | Decision | Why |
+|---|---|---|
+| S22 | **The brand's five hexes are written down a second time, on purpose, in `color.test.ts` — with their RGB decomposition** | Everywhere else in the repo, duplicating a constant is the bug. Here the duplicate *is* the check: it is the only thing that notices if somebody tidies a ramp and `#00af52` drifts to `#00af53`. The RGB assertion is there because a transposed hex digit produces a plausible-looking hex and an obviously wrong colour, and only one of those is visible in a diff |
+| S23 | **The test asserts each type token's brand *band*, not its size** | `E13-15` moved three sizes because they sat outside every band the brand specifies, and finding that took reading a 40-page PDF. Asserting `h3 === 20` would let a future change move it back to 18 and stay green; asserting "h3 is inside the Subheading band at its weight" cannot. The list of styles allowed to set their own weight — `label`, `button`, `overline`, `bodyStrong` — is explicit and capped at four, so "the brand says Regular" cannot be argued away one token at a time |
+| S24 | **Every semantic role is asserted to resolve to a value that exists in a ramp** | This is the test that catches a hand-typed hex in `semantic.ts`, which is exactly how a token system springs a leak: the value looks right, it is in the right file, and it belongs to nothing. Alongside it sit the `E13-17` regression guards — `neutral[500]`, `amber[700]` and `danger[600]` are each asserted never to appear as ink again, because each of them passed against white and failed on the surface the role actually lives on |
+
+Two things the module deliberately does **not** do. It contains no contrast function —
+that arrives with `E13-13`, which is the task that has a bar to assert. And it contains no
+motion tokens: those are `motion.ts` (`E13-12`), because `docs/motion-system.md` wins over
+`docs/design-tokens.md` wherever the two disagree, and one file per authority keeps that
+resolvable.
+
 ### A timeout is only offered on a write that cannot move money — `E13-20`, 2026-08-09
 
 | # | Decision | Why |
