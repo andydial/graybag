@@ -510,13 +510,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/7</span>
+          <span class="meter-num">0/8</span>
         </div>
       </header>
       <p class="summary">Short, throwaway experiments that answer the questions capable of invalidating later work. Each is timeboxed to a day or two and needs almost no infrastructure.</p>
       
       <details>
-        <summary>Context &amp; 7 tasks</summary>
+        <summary>Context &amp; 8 tasks</summary>
         <div class="context"><h4>Why these are first</h4>
 <p>Each of these can invalidate a large amount of downstream work if the answer is bad.</p>
 <p>Doing them in phase 1 costs days; discovering them in phase 4 costs weeks.</p></div>
@@ -576,6 +576,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Answer the 20-item verification checklist in <code>docs/payments-design.md</code> §12</strong> as part of <code>E19-01</code> — signature algorithms and header names, the webhook event set and event-id header, retry policy and response timeout, auto-capture under UPI intent, UPI collect pending window, refund idempotency and listing, whether MDR is in the capture payload, the settlement recon endpoint, and the payments-list windowing. Each row names what breaks if the answer differs. <strong>Note two corrections to <code>E19-01</code> as written</strong>: the official Razorpay RN SDK is a native module, so the spike needs an <strong>EAS development build, not a bare managed Expo app</strong> (<code>[PAY-01]</code>), and it must run on a <strong>real Android 11+ handset</strong> or the <code>&lt;queries&gt;</code> failure in <code>E06-29</code> will not reproduce</span>
+      </li>
+      <li class="task" data-id="E19-08" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-08"></button>
+        <code class="tid">E19-08</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Pin the Razorpay Android SDK version.</strong> <code>com.razorpay:checkout:1.6.41</code> declares its dependency on <code>com.razorpay:standard-core</code> as version <code>LATEST</code>, so two builds a week apart can embed different payment SDK code with nothing in our lockfile to show it — including a different <code>&lt;queries&gt;</code> block (see <code>docs/spike-runbook.md</code> §1.3). Add a Gradle <code>resolutionStrategy</code> force (or an explicit pinned <code>implementation</code>) via <code>expo-build-properties</code>, so we choose when the payment SDK changes. Found by <code>E19-04</code>&#39;s sibling static analysis during <code>E19-01</code> setup</span>
       </li></ul>
       </details>
     </article>
@@ -1994,13 +2002,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/30</span>
+          <span class="meter-num">0/31</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 30 tasks</summary>
+        <summary>Context &amp; 31 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -2244,6 +2252,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Define and assert the ledger sign convention.</strong> <code>ledger_entry</code> carries a <code>ledger_direction</code> enum, and no document says which direction is positive for which <code>ledger_account_type</code>. Two nightly assertions run in opposite directions: the wallet is a liability (posting #1 <strong>debits</strong> it when the customer spends, so its balance is credits − debits, invariant <code>I8</code>) and <code>provider:razorpay:clearing</code> is an asset (posting #2 <strong>debits</strong> it on capture, so its balance is debits − credits, <code>docs/payments-design.md</code> §8.3). A single-signed <code>balance()</code> helper is wrong for half the accounts. Write it into <code>docs/data-model.md</code> §8.4 as a per-account-type normal-balance table and unit-test both directions</span>
+      </li>
+      <li class="task" data-id="E06-30" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-30"></button>
+        <code class="tid">E06-30</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Assert the merged <code>AndroidManifest.xml</code> contains the UPI <code>&lt;queries&gt;</code> block at build time</strong>, rather than assuming our config plugin is what puts it there. Static analysis during <code>E19-01</code> setup found the block is supplied by <code>com.razorpay:standard-core</code>, which <code>com.razorpay:checkout</code> pulls in at version <code>LATEST</code> — so the thing <code>E06-29</code> depends on is a floating third-party dependency we do not control. A build-time assertion turns a silent degradation to UPI collect/QR into a failed build. Pairs with <code>E19-08</code> (pin the version)</span>
       </li></ul>
       </details>
     </article>
