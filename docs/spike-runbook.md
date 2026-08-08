@@ -84,8 +84,13 @@ On Maven Central that coordinate tops out at **0.71.0-rc.0**; current React Nati
 
 React Native's Gradle plugin normally rewrites this coordinate via a dependency substitution
 rule, which is why libraries with this line still build — but it is the kind of thing that fails
-loudly on a version bump. **The EAS build in §2.1 is what confirms it**, and it is the single
-most likely reason for that build to fail.
+loudly on a version bump.
+
+> **Resolved, 2026-08-08.** The first EAS build got past dependency resolution and compiled the
+> Razorpay module cleanly, with no `Could not find com.facebook.react` anywhere in the log. The
+> substitution works on 0.86.2. **Recorded as a known oddity to recognise on sight, not a live
+> problem** — but it stays written down, because the failure mode returns on an RN major bump
+> and it is much cheaper to recognise than to debug.
 
 ### 1.5 Callback signature construction — verified in the abstract
 
@@ -114,12 +119,21 @@ that signature until a real payment happens — that is §2.4.
 
 ### 2.1 Get the build
 
-An Android release APK was queued on EAS at setup time:
+> **Build:** https://expo.dev/accounts/anuragdial/projects/graybag-spikes/builds/28127b5b-5872-451e-a135-31463149d454
 
-> **Build:** https://expo.dev/accounts/anuragdial/projects/graybag-spikes/builds/811e73ef-9c50-41ba-811b-b492fcf2ae5a
+Download the APK from that page.
 
-If it succeeded, download the APK from that page. If it failed, §1.4 is the first suspect —
-paste the Gradle error back and it gets fixed rather than guessed at.
+**The first attempt (`811e73ef`) failed, and it was my config, not the SDK.** `app.json` pinned
+`compileSdkVersion: 35` via `expo-build-properties`, below the 36 that Expo SDK 57's own
+dependency set requires, so it died at `:app:checkReleaseAarMetadata`. The pin is removed —
+Expo 57's defaults are correct, and its targetSdk 36 is comfortably above the 30 at which
+Android enforces the package-visibility rules this whole spike is about.
+
+That failure was still worth its 13 minutes: `checkReleaseAarMetadata` runs *after* dependency
+resolution and after every library compiles, so reaching it proved that **`react-native-razorpay`
+builds clean against RN 0.86 under the New Architecture** and that **§1.4's stale
+`react-native:+` coordinate resolves without complaint.** Those were the two risks most likely
+to sink `[PAY-01]`. Neither is live.
 
 To rebuild after any change:
 

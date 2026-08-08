@@ -22,6 +22,31 @@ every row below is filled and anything contradicting `docs/payments-design.md` h
 | A5 | Does the wrapper reference a stale RN artefact? | **Yes** — `com.facebook.react:react-native:+`, which on Maven Central stops at 0.71.0-rc.0; current RN publishes as `react-android`. RN's gradle plugin normally substitutes it. The EAS build is the confirmation | its `android/build.gradle`; Maven metadata |
 | A6 | Is the callback signature construction as designed? | **Implemented and unit-verified** as `HMAC-SHA256(key_secret, "order_id\|payment_id")` hex, both match and non-match. Whether Razorpay *produces* it needs a real payment (B7) | `scripts/verify-signature.mjs` |
 | A7 | Does the `<queries>` config plugin work if needed? | **Yes.** A local `expo prebuild` shows it merging into Expo's existing `<queries>` rather than replacing it, emitting the `upi://pay` intent plus six PSP packages | generated `AndroidManifest.xml` |
+| A8 | Does `react-native-razorpay` actually **compile** against RN 0.86 / New Arch? | **Yes.** Its full AAR pipeline ran green on EAS — `compileReleaseJavaWithJavac`, `createFullJarRelease`, `bundleReleaseLocalLintAar`. A1 was a claim from metadata; this is the compiler agreeing | EAS build `811e73ef` gradle log |
+| A9 | Does `com.facebook.react:react-native:+` break the build? (A5's risk) | **No.** Zero `Could not find/resolve com.facebook.react` in the log, and the build reached `:app:checkReleaseAarMetadata` — well past dependency resolution. RN's Gradle plugin substitutes the coordinate as expected. **A5 is a documented oddity, not a live problem** | same log |
+
+### The first build failure, and what it ruled out
+
+Build `811e73ef` failed after 13 minutes at `:app:checkReleaseAarMetadata`:
+
+```
+Dependency 'androidx.core:core:1.18.0' requires libraries and applications that
+depend on it to compile against version 36 or later of the Android APIs.
+:app is currently compiled against android-35.
+```
+
+**Self-inflicted.** The spike's `app.json` pinned `compileSdkVersion: 35` via
+`expo-build-properties`, below what Expo SDK 57's own dependency set requires. Fixed by
+removing the `expo-build-properties` block entirely — Expo 57's defaults (compileSdk 36,
+targetSdk 36, minSdk 24) are correct, and targetSdk 36 is comfortably above the 30 at which
+Android enforces the package-visibility rules this spike is about. A spike should have fewer
+variables, not more; pinning them was the error.
+
+**But a failure that late is informative.** `checkReleaseAarMetadata` runs *after* dependency
+resolution and after every library has compiled, so getting there proved A8 and A9 — the
+Razorpay module builds clean against RN 0.86 under the New Architecture, and the stale
+`react-native:+` coordinate resolves without complaint. Those were the two risks most likely to
+sink `[PAY-01]`, and neither did.
 
 **A3 and A4 together are the finding that changes plans.** `E06-29` was scoped as "add the
 `<queries>` block". It is more likely to become "**assert the merged manifest still contains a
@@ -34,7 +59,7 @@ third-party dependency, which is a different and slightly worse problem.
 
 | # | Question | Answer | Why it matters |
 |---|---|---|---|
-| B1 | Does the EAS release build succeed? | *(pending)* | A5 is the most likely failure |
+| B1 | Does the EAS release build succeed? | **First attempt failed — my config, not the SDK** (see below). Fixed and rebuilt | A5 turned out not to be the cause |
 | B2 | Does a **UPI app chooser** list installed PSP apps? | *(pending)* | The entire spike. No chooser = silent degradation to collect/QR (§3.3) |
 | B3 | If not, does enabling `withUpiQueries` fix it? | *(pending)* | Decides whether `E06-29` is a fix or a regression test |
 | B4 | Does the app return cleanly after the PSP app-switch? | *(pending)* | §3.5. If not, the whole return path needs rework |
