@@ -66,6 +66,9 @@
 --   * `anon` gets nothing, at all. 0002 revoked it and this migration does not undo
 --     that, does not grant to it, and does not set default privileges for it. The
 --     suite asserts anon holds no table privilege in public ([AZ-03]).
+--   * `service_role` gets the baseline but NO revokes — see step 1b. It is the only
+--     writer of the class-3 tables, and on the append-only tables it is the trigger,
+--     not a missing privilege, that must stop it (§9 item 14).
 --   * Schema `migration` is untouched. Every statement here is scoped to `public`.
 --   * No FORCE ROW LEVEL SECURITY — §10 explains why, and this does not revisit it.
 --   * No function EXECUTE grants. 0002 owns those boundaries.
@@ -106,6 +109,42 @@ begin
       grant select, insert, update, delete on tables to authenticated;
     alter default privileges in schema public
       grant usage, select on sequences to authenticated;
+  end if;
+end;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- 1b. The same baseline for `service_role`, which the platform default also grants.
+--
+-- service_role is the trusted backend identity: Edge Functions run as it, it holds
+-- BYPASSRLS, and it is the ONLY writer of every class-3 table. Restoring the
+-- baseline for `authenticated` alone left it with no privilege at all in CI, and
+-- the symptom was precise — §9 item 14 asserts the six append-only tables reject
+-- UPDATE and DELETE *even for service_role* with 23001 from the trigger, and instead
+-- got 42501 permission denied. The trigger never ran, because the statement was
+-- refused a layer earlier. An assertion about append-only enforcement was passing
+-- on the strength of the wrong error.
+--
+-- NOTE WHAT IS DELIBERATELY ABSENT BELOW: service_role gets NO revokes. Not the
+-- class-3 revoke, because it is the role those tables exist to be written by; and
+-- not the append-only revoke, because §9 item 14 requires the trigger — not a
+-- missing privilege — to be what stops it. History has to be immutable for the
+-- trusted role too, and a trigger says that in one place for every caller, whereas
+-- a revoke would silently exempt anyone holding the privilege by another route.
+-- -----------------------------------------------------------------------------
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant usage on schema public to service_role;
+
+    grant select, insert, update, delete
+      on all tables in schema public to service_role;
+    grant usage, select on all sequences in schema public to service_role;
+
+    alter default privileges in schema public
+      grant select, insert, update, delete on tables to service_role;
+    alter default privileges in schema public
+      grant usage, select on sequences to service_role;
   end if;
 end;
 $$;

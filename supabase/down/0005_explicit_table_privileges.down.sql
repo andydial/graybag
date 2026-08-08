@@ -47,3 +47,21 @@ begin
   end if;
 end;
 $$;
+
+-- And the same for service_role. Read the warning above twice before running this
+-- part anywhere real: service_role is what every Edge Function authenticates as, so
+-- on a hosted project this does not restore a previous state, it stops the backend.
+do $$
+begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    alter default privileges in schema public
+      revoke select, insert, update, delete on tables from service_role;
+    alter default privileges in schema public
+      revoke usage, select on sequences from service_role;
+
+    revoke usage, select on all sequences in schema public from service_role;
+    revoke select, insert, update, delete
+      on all tables in schema public from service_role;
+  end if;
+end;
+$$;
