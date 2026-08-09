@@ -23,7 +23,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Product](decisions/product.md) | `P1`–`P11` | Attendance, delivery, reports, offline, device tier |
 | [Navigation and the app shell](decisions/navigation.md) | `NV1`–`NV4` | One graph, one gate reached by intent, four tabs, the AR7 assertion |
 | [Money](decisions/money.md) | `M1`–`M8` | Seller of record, GST split, invoice numbering, revenue share, refunds |
-| [Design system and motion](decisions/design-system.md) | `S1`–`S34` | Closed motion catalogue, duration/easing tokens, the 500 rule, contrast bar, lint gates |
+| [Design system and motion](decisions/design-system.md) | `S1`–`S38` | Closed motion catalogue, duration/easing tokens, the 500 rule, contrast bar, lint gates |
 | [Order lifecycle](decisions/order-lifecycle.md) | `L1`–`L8` | The state machine, cutoff snapshotting, `paid` means captured |
 | [Payments integration](decisions/payments.md) | `PY1`–`PY9` | Razorpay secrets, webhook contract, refund arithmetic, reconciliation |
 | [Menu import and the cache token](decisions/menu-import.md) | `MI1`–`MI13`, `MC1`–`MC5` | Blank allergens mean unknown, plan-then-apply, and what bumps `school_menu_version` |

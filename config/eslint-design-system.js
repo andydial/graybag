@@ -30,6 +30,21 @@ export const TOKEN_DIR = 'packages/shared/src/design/**';
 export const MOTION_MODULE = 'packages/shared/src/design/motion.ts';
 
 /**
+ * The **native** easing module — the one file in the app allowed to call `Easing.bezier`.
+ *
+ * `motion.ts` owns the curves as data and cannot own this conversion: turning four numbers
+ * into a Reanimated `EasingFunction` needs `react-native-reanimated`, and `motion.ts` is
+ * imported by the web build too (`S8`). So the curves need a second home on the native side,
+ * and naming it here is what stops there being a third.
+ *
+ * Added by `E13-03`, which is when the gap showed: the original rule assumed components would
+ * consume `ease.*` directly, and Reanimated does not accept an array. Same shape as the
+ * `E13-19` finding — the gate was right about the rule and wrong about how many files needed
+ * to be inside it.
+ */
+export const NATIVE_EASING_MODULE = 'apps/mobile/src/motion/easing.ts';
+
+/**
  * The one place `withSpring` is allowed (`S4`).
  *
  * A spring is a fourth *kind* of motion — no fixed duration, it overshoots, and it
@@ -210,6 +225,7 @@ const ALL = [
 export function designSystemConfigs({
   tokenDir = TOKEN_DIR,
   motionModule = MOTION_MODULE,
+  nativeEasingModule = NATIVE_EASING_MODULE,
   cartBadge = CART_BADGE_MODULE,
   heightModules = HEIGHT_ANIMATION_MODULES,
   /**
@@ -278,6 +294,15 @@ export function designSystemConfigs({
     {
       files: [tokenDir],
       rules: { 'no-restricted-syntax': ['error', ...exceptComposed(tokenLiteralRules)] },
+    },
+
+    // The native easing module. Curves only — it may call `Easing.bezier`, and it may not
+    // write a colour, a size or a duration.
+    {
+      files: [nativeEasingModule],
+      rules: {
+        'no-restricted-syntax': ['error', ...exceptComposed(motionRules.outsideMotionModule)],
+      },
     },
 
     // `motion.ts` is inside the token directory, so it inherits the literal exemption and

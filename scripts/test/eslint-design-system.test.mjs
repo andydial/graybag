@@ -8,6 +8,7 @@ import {
   CART_BADGE_MODULE,
   HEIGHT_ANIMATION_MODULES,
   MOTION_MODULE,
+  NATIVE_EASING_MODULE,
 } from '../../config/eslint-design-system.js';
 
 /**
@@ -205,4 +206,38 @@ test('the rule set has no duplicate selectors', async () => {
   // selector, would drop both — and the second one silently.
   const selectors = ALL_RULES.map((r) => r.selector);
   assert.equal(new Set(selectors).size, selectors.length);
+});
+
+// ---------------------------------------------------------------------------
+// The native easing module (added by E13-03)
+// ---------------------------------------------------------------------------
+
+test('Easing.bezier fails in an ordinary component', async () => {
+  const messages = await lint(
+    `import { Easing } from 'react-native-reanimated';\nexport const e = Easing.bezier(0.2, 0, 0, 1);\n`,
+    'apps/mobile/src/components/Thing.tsx',
+  );
+  assert.ok(complainsAbout(messages, 'Easing curve outside'), messages.join('\n'));
+});
+
+test('the native easing module may call Easing.bezier — it is the one that may', async () => {
+  // `motion.ts` owns the curves as data and cannot own this conversion: turning four
+  // numbers into a Reanimated EasingFunction needs react-native-reanimated, and motion.ts
+  // is imported by the web build too (S8). So the curves need a second home on the native
+  // side, and naming it is what stops there being a third. `S35`.
+  const messages = await lint(
+    `import { Easing } from 'react-native-reanimated';\nexport const e = Easing.bezier(0.2, 0, 0, 1);\n`,
+    NATIVE_EASING_MODULE,
+  );
+  assert.equal(complainsAbout(messages, 'Easing curve outside'), false, messages.join('\n'));
+});
+
+test('the native easing module is still bound by every other rule', async () => {
+  // The exemption is one rule, not a general licence. An easing module writing a hex would
+  // be exactly the leak S32 describes — an exempt path quietly becoming a second token file.
+  const messages = await lint(
+    `export const a = { color: '#00af52' };\n`,
+    NATIVE_EASING_MODULE,
+  );
+  assert.ok(complainsAbout(messages, 'Colour literal'), messages.join('\n'));
 });

@@ -18,7 +18,7 @@ The motion system is a **closed catalogue**. New screens implement from it; it i
 
 - [x] `E13-01` (mvp) Design tokens: colour, type scale, spacing, radius, elevation — shared between mobile and web. **Done 2026-08-09** — `packages/shared/src/design/` (`color`, `semantic`, `type`, `space`, `radius`, `elevation`, `index`), exported from `@graybag/shared` as `design`, with 129 assertions. Contrast is deliberately **not** here; it arrives with `E13-13`, which has a bar to assert. Motion is `E13-12`. `S22`–`S24`
 - [ ] `E13-02` (mvp) Apply the font decision from `E19-03` / `E00-16` (licence check happens in phase 0/1, not here). **`E13-15` changed which three weights are bundled** — Regular 400, Medium 500, SemiBold 600, because the brand hierarchy uses Semi Bold for headings and Medium for subheadings and never uses Bold. Still three weights, so `E19-03`'s question is the same size; only the filenames differ
-- [ ] `E13-03` (mvp) Component library: buttons, inputs, cards, sheets, tabs, list rows, empty states, error states
+- [x] `E13-03` (mvp) Component library: buttons, inputs, cards, sheets, tabs, list rows, empty states, error states
 - [x] `E13-04` (risk:medium) (mvp) **Motion spec** — duration scale (120/200/320ms), three easing curves, nothing over 350ms
 - [x] `E13-05` (mvp) Motion catalogue: staggered list entry, shared-element dish card -> detail, cart badge spring, skeleton shimmer, cross-fade state change, physics pull-to-refresh and swipe
 - [x] `E13-06` (mvp) Rules of restraint documented: motion communicates, never decorates; never blocks input; honours OS reduce-motion
