@@ -42,3 +42,8 @@ apps/mobile/.expo-bundle-check/
 # which is the failure `scripts/verify-apk-upi-queries.mjs` exists to catch.
 apps/*/android/
 apps/*/ios/
+
+# `eas-cli` writes an empty {"expo":{}} app.json into whatever directory it is run from.
+# It has been committed twice by accident; the app's real config is apps/mobile/app.json.
+/app.json
+/eas.json
