@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { MenuScreen as MenuScreenImpl } from '../menu/MenuScreen';
 import { SchoolPicker } from '../menu/SchoolPicker';
+import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 /**
@@ -89,10 +90,15 @@ export const OrderDetailScreen = () => (
   />
 );
 
-export const SignInScreen = () => (
-  <PlaceholderScreen
-    testID="screen-sign-in"
-    title="Sign in"
-    note="Google, Apple, email OTP. No passwords (U1). Reached by intent, never on open."
-  />
-);
+/**
+ * Real as of `E03-14`. Email OTP only for now — Google (`E03-12`) and Apple (`E03-13`) need
+ * OAuth client ids and an Apple team configuration, both of which are Andy's to create.
+ *
+ * Dismisses itself on success, because it is presented modally over whatever the user was
+ * doing (checkout) and the point of signing in was to carry on with that, not to arrive
+ * somewhere new.
+ */
+export const SignInScreen = () => {
+  const navigation = useNavigation();
+  return <SignInScreenImpl onSignedIn={() => navigation.goBack()} />;
+};

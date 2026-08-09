@@ -1159,13 +1159,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/19</span>
+          <span class="meter-num">0/21</span>
         </div>
       </header>
       <p class="summary">Google / Apple / email-OTP sign-in for app users (phone OTP deferred to a fast-follow), email for back-office. No password migration is possible from Bubble. See decision U1 (revised).</p>
       <p class="deps">Depends on <code>E01</code> <code>E02</code> <code>E00</code></p>
       <details>
-        <summary>Context &amp; 19 tasks</summary>
+        <summary>Context &amp; 21 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Per decision <strong>U1</strong> (revised), v1 auth is Google Sign-In (primary), Sign in with Apple (iOS, required once Google is offered), and email OTP via Supabase <code>signInWithOtp</code> — no phone OTP and no passwords. Phone OTP + DLT SMS (see E00) become a fast-follow *addition*; DLT registration leaves the launch critical path but continues for future order-update SMS. Bubble does not export password hashes, so every existing user re-authenticates once regardless; migration now matches on <strong>email</strong> (<code>E03-16</code>), not the lossy legacy phone <code>number</code> field.</p></div>
         <ul class="tasks">
@@ -1320,6 +1320,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Produce the two-account list for <code>E03-18</code> as a support artefact and build the merge-on-request path (user confirms, then histories combine) rather than a bulk merge at cutover <strong>Post-cutover (<code>SC3</code>)</strong> — follows <code>E03-18</code></span>
+      </li>
+      <li class="task" data-id="E03-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-20"></button>
+        <code class="tid">E03-20</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Session persistence across app restarts.</strong> <code>E03-14</code> shipped sign-in, but the Supabase client is constructed with no storage adapter, so a session lives in memory and is gone when the app is killed — every cold start is a fresh OTP. Needs a native key/value store (<code>@react-native-async-storage/async-storage</code>, or <code>expo-secure-store</code> if the refresh token should sit in the keychain, which is the stronger option and the one to prefer). Deliberately not added on 2026-08-09: it is a native dependency and adding one unattended, hours after the last verified build, risked leaving Andy with no installable APK at all. <code>packages/shared/src/menu/cache.ts</code> already defines the storage interface this should satisfy. <strong>Closes <code>E03-09</code> with it</strong></span>
+      </li>
+      <li class="task" data-id="E03-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-21"></button>
+        <code class="tid">E03-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Decide whether Supabase identity linking on verified email is actually on</strong> for the staging and production projects, and assert it. <code>api/auth.ts</code>&#39;s <code>linkingPolicy</code> documents the requirement <code>E03-15</code> depends on: one <code>auth.users</code> row per verified address across Google, Apple and OTP. <strong>No client code can detect it being off</strong> — from the app, two accounts look exactly like one person signing in twice. The failure is two carts, two children lists and two order histories for one parent, discovered by them rather than by us. It is a project setting plus a test that signs in both ways and compares ids, which needs a real project and rides with <code>E03-12</code></span>
       </li></ul>
       </details>
     </article>
