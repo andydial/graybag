@@ -107,13 +107,24 @@ did not add unattended hours after the last verified build.
 
 ### BUILDS
 
-- **Android (installable now):**
+- **Android — install this one:**
+  https://expo.dev/artifacts/eas/5qUgVJwgdjqoMxS6DaXGWjLwQvwwxhuQT73PiVVzuhU.apk
+  Build `64660df4`. Everything from the night: UPI `<queries>`, the SDK pin, the `api/`
+  module, the school picker and the sign-in screen. **Verified with `E06-32`'s own checker
+  against the downloaded artefact — `upi` scheme present, 6/6 PSP packages.**
+  Install with `adb install -r`.
+
+  **What you will see:** the Menu tab now offers a school picker instead of an empty state.
+  Picking one will fail to load a menu, because staging has neither migration — that is the
+  `E01-20` blocker above, and it is one command away once the credentials exist.
+- **Android (earlier, without the picker):**
   https://expo.dev/artifacts/eas/CGyy9kEd0-GKgDvZeyR9Q1O_vqtOXNwW_zihUuTo52A.apk
-  Contains the UPI `<queries>` block and the SDK pin. **Verified with `E06-32`'s own checker:
-  6/6 PSP packages and the `upi` scheme present.** It predates the school picker.
-- **Android (everything, including the picker):** build `64660df4` was still running at
-  hand-over — `npx eas-cli build:list --platform android --limit 1` from `apps/mobile`.
 - **iOS: none.** Blocked on `E17-26`.
+
+### Merged
+
+PR #23 merged to `main` after all three checks passed, including the migrations-and-
+authorization job. `main` is up to date and everything is pushed.
 
 ---
 
