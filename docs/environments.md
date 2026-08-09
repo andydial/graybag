@@ -80,3 +80,50 @@ Local needs no real secrets. The Supabase CLI prints a fixed anon key and servic
 its local stack, and Razorpay is stubbed offline (`docs/testing-strategy.md` §5.1) — so `local`
 runs without a Razorpay account at all. The `rzp_test_` prefix rule still applies to anything
 that *is* set, so a stray live key on a laptop fails the same way it would in CI.
+
+## Seeding staging
+
+```bash
+npm run db:seed:staging
+```
+
+Applies `supabase/seeds/staging-menu.sql` to the **linked** remote project. First done
+2026-08-10, which is when a staging build first showed food.
+
+**Two seed files, and the difference is people.**
+
+| File | Applied to | Contains |
+|---|---|---|
+| `supabase/seed.sql` | local and CI only, by `db reset` | Everything, including six users and six children — the pgTAP authorization suite needs real subjects to impersonate |
+| `supabase/seeds/staging-menu.sql` | staging, by the script above | The menu side only. No `auth.users`, no `app_user`, no `recipient`, no `guardian_link` |
+
+`seed.sql`'s own header says *never into staging or production*, and that rule stands. The
+staging file is not an exception to it — it is a different file with a different contents
+rule. Synthetic children are not regulated data, but the cheapest way never to leak a
+fixture child is to keep one out of a hosted database (non-negotiable #4).
+
+The script exists because `supabase db push --include-seed` has **no flag for which seed
+file to use** — it reads `sql_paths` from `supabase/config.toml`, the same list
+`db reset` uses locally. Swapping that by hand and forgetting to swap it back means the
+next `db reset` quietly drops the suite's fixtures. The script restores the file in a
+`finally`, and on SIGINT.
+
+**The data is fixtures, not the real menu.** Real menus arrive with `E04-13`, blocked on
+`[MI-01]` — the source workbook is not in the repository.
+
+### The CLI version matters
+
+`supabase@2.112.0` **cannot link at all**: it fails parsing the API's api-keys response
+with a `SchemaError` on a timestamp, so every `link`, `migration list --linked` and
+`db push --linked` dies. `2.113.0` fixes it. The dependency is pinned at `^2.113.0`; if a
+deploy ever fails with `LegacyLinkApiKeysNetworkError`, that is this.
+
+Two other things that bit on the way through, both worth recognising on sight:
+
+- **`Cannot find project ref`** even though `supabase link` succeeded — the CLI writes
+  `supabase/.temp/linked-project.json` but some commands still look for the older
+  `supabase/.temp/project-ref`. Writing the bare ref into that file fixes it.
+- **`IPv6 is not supported on your current network`** — the direct `db.<ref>.supabase.co`
+  host is IPv6-only. A successful `link` records the IPv4 pooler and the error goes away,
+  which is why the fix is to link rather than to fight the resolver.
+
