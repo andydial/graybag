@@ -36,6 +36,11 @@ export * as net from './net/index.js';
 // allergens. No fetching and no Date: see menu/dates.ts for why the second one matters.
 export * as menu from './menu/index.js';
 
+// Ordering (E05). The calendar endpoint's decisions, and the rules between a cart and an
+// order. The cutoff arithmetic itself is NOT here — it is §9.1's, it lives in SQL, and the
+// client compares the instant this returns rather than recomputing it.
+export * as ordering from './ordering/index.js';
+
 // The one place paise become a string (design/type.ts's rule). Indian grouping, always two
 // decimals, and a refusal to render a float — a component that formats money itself is the
 // bug this module exists to make unnecessary.
