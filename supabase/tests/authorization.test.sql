@@ -524,6 +524,32 @@ end;
 $$;
 grant execute on function tests_tmp.tests_visible_counts(text) to public;
 
+-- Sorted key set of a jsonb object, so a payload shape can be asserted as one value.
+-- Sorted because jsonb key order is an implementation detail and an unsorted compare
+-- would be a flake waiting for a rebuild.
+create function tests_tmp.jsonb_object_keys_sorted(j jsonb)
+returns text[]
+language sql immutable as $$
+  select array(select k from jsonb_object_keys(j) as k order by k);
+$$;
+grant execute on function tests_tmp.jsonb_object_keys_sorted(jsonb) to public;
+
+-- A school that genuinely has a live, active menu today, chosen from the seed rather
+-- than hardcoded. [AUTH-01]'s behavioural assertions run against this one; if the seed
+-- ever stops providing such a school the "non-empty menu" assertion fails loudly
+-- rather than letting the key-shape assertions pass against an empty result.
+create table tests_tmp.tests_public_menu_school as
+select ma.school_id
+  from menu_assignment ma
+  join menu m on m.id = ma.menu_id
+ where ma.revoked_at is null
+   and ma.valid_from <= current_date
+   and (ma.valid_to is null or ma.valid_to > current_date)
+   and m.status = 'active'
+ order by ma.school_id
+ limit 1;
+grant select on tests_tmp.tests_public_menu_school to public;
+
 -- Attempts a bare INSERT and reports the SQLSTATE instead of aborting. Used for the
 -- class-3 write wall, where the correct answer is always 42501 —
 -- insufficient_privilege from §10's revoke, or from RLS having no policy to permit
@@ -1570,6 +1596,131 @@ select is_empty(
       where schemaname = 'storage'
         and ('anon' = any(roles) or roles = '{public}') $$,
   '§11 / [AZ-03]: no policy in the storage schema names anon or PUBLIC either');
+
+-- =============================================================================
+-- PART 6 — [AUTH-01]: the one thing anon CAN reach, pinned exactly
+--
+-- Andy's ruling 2026-08-09 gives `anon` read access to menu data. 0010 delivers it as
+-- EXECUTE on two SECURITY DEFINER functions rather than as grants on tables, so every
+-- assertion above this line still holds UNCHANGED — anon holds no table privilege,
+-- selects zero rows from every table, is named by no policy, and no new view exists to
+-- trip the security_invoker rule.
+--
+-- What that leaves unguarded is the NEW surface: an executable function. Nothing in
+-- the suite before today would have noticed a function handing `recipient` rows to
+-- anon. These assertions close that, and they are deliberately an EXACT pin rather
+-- than a maximum.
+--
+-- [AZ-03]'s objection to relaxing anon was that "a boolean invariant becomes a list of
+-- approved exceptions, and lists grow". That objection is correct and is not answered
+-- by good intentions. It is answered by making the list itself the assertion: a third
+-- anon-executable function fails this suite, and so does a change to what the two
+-- return.
+-- =============================================================================
+
+-- 1. The set of functions anon may execute in `public` is EXACTLY these two.
+select set_eq(
+  $$ select p.proname::text
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.prorettype <> 'trigger'::regtype
+        and not exists (select 1 from pg_depend d
+                         where d.objid = p.oid and d.deptype = 'e')
+        and has_function_privilege('anon', p.oid, 'EXECUTE') $$,
+  $$ values ('get_school_menu'), ('get_school_menu_version') $$,
+  '[AUTH-01]: anon may execute exactly two functions in public, both of them menu reads. A third is a decision, not an accident');
+
+-- 2. Both are SECURITY DEFINER with a pinned search_path.
+--    §12 already asserts the pin across every definer function; this asserts these two
+--    ARE definer, which is what makes them work at all. A later edit that quietly drops
+--    `security definer` would leave a function that returns nothing to a signed-out
+--    caller — an empty Menu tab with no error, which is the hardest kind to diagnose.
+select is_empty(
+  $$ select p.proname::text
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.proname in ('get_school_menu','get_school_menu_version')
+        and (not p.prosecdef
+          or coalesce(array_to_string(p.proconfig, ','), '') not like '%search_path%') $$,
+  '[AUTH-01]: both public menu functions are SECURITY DEFINER and pin search_path');
+
+-- 3. Neither may read a table that holds a person.
+--
+--    Walks pg_depend rather than the function text, so it cannot be fooled by a join
+--    added in a later migration. Note this catches only what the planner recorded a
+--    dependency on, which for a non-dynamic SQL function is everything it touches —
+--    and these two are deliberately plain SQL with no EXECUTE, precisely so that this
+--    assertion can see all of it.
+select is_empty(
+  $$ select p.proname || ' reads ' || t.relname
+       from pg_proc p
+       join pg_namespace n  on n.oid = p.pronamespace
+       join pg_depend   d   on d.objid = p.oid and d.classid = 'pg_proc'::regclass
+       join pg_class    t   on t.oid = d.refobjid
+       join pg_namespace tn on tn.oid = t.relnamespace
+      where n.nspname = 'public' and tn.nspname = 'public'
+        and has_function_privilege('anon', p.oid, 'EXECUTE')
+        and t.relkind in ('r','p','v')
+        and t.relname in ('recipient','recipient_allergen','guardian_link','app_user',
+                          'order','order_line','order_group','order_event','payment',
+                          'invoice','invoice_line','consent_record','data_subject_request',
+                          'user_policy_acceptance','permission_grant','wallet_balance',
+                          'device_token','notification_delivery','school_report') $$,
+  '[AUTH-01] / non-negotiable #4: no anon-executable function reads any table holding a person, an order or money');
+
+-- 4. What the menu function actually returns, checked by calling it AS ANON.
+--
+--    (1)-(3) are structural. This one is behavioural, and it is the one that would
+--    catch a `select *` or a helpfully-added column: the key set is pinned, so a
+--    dish payload that grew `kitchenId` fails here.
+--
+--    Run against the seeded school, so it exercises real rows rather than an empty
+--    result that would pass vacuously.
+set local role anon;
+
+select is(
+  (select jsonb_object_keys_sorted(public.get_school_menu(
+     (select school_id from tests_tmp.tests_public_menu_school))))::text,
+  '{categories,dishes}',
+  '[AUTH-01]: get_school_menu returns exactly {categories, dishes} — the CachedMenuPayload shape');
+
+select is(
+  (select jsonb_object_keys_sorted(d)
+     from jsonb_array_elements(
+            public.get_school_menu((select school_id from tests_tmp.tests_public_menu_school))
+            -> 'dishes') as d
+    limit 1)::text,
+  '{allergens,allergensDeclaredNone,categoryId,description,id,imageUri,ingredientsText,name,pricePaise}',
+  '[AUTH-01]: a dish carries exactly the menu keys — no kitchenId, no legacyBubbleId, no timestamps');
+
+select ok(
+  (select jsonb_array_length(public.get_school_menu(
+     (select school_id from tests_tmp.tests_public_menu_school)) -> 'dishes')) > 0,
+  '[AUTH-01]: the seeded school returns a non-empty menu to anon — the assertions above are not passing vacuously');
+
+select ok(
+  public.get_school_menu_version((select school_id from tests_tmp.tests_public_menu_school)) is not null,
+  '[AUTH-01]: anon can read the menu version for the seeded school');
+
+reset role;
+
+-- 5. A draft or retired menu is unpublished work and must not reach a signed-out
+--    reader. Asserted by flipping the seeded school's menu to `retired` and checking
+--    the function goes empty. Inside the suite's transaction, so it rolls back.
+update menu set status = 'retired'
+ where id in (select menu_id from menu_assignment
+               where school_id = (select school_id from tests_tmp.tests_public_menu_school)
+                 and revoked_at is null);
+
+set local role anon;
+select is(
+  (select jsonb_array_length(public.get_school_menu(
+     (select school_id from tests_tmp.tests_public_menu_school)) -> 'dishes')),
+  0,
+  '[AUTH-01]: retiring the menu empties the public read — drafts and retired menus are not public');
+reset role;
 
 
 select * from finish();

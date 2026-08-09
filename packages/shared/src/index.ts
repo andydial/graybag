@@ -2,7 +2,7 @@
 //
 // Non-negotiable #1: every backend call from the mobile app goes through the `api/`
 // module in this package. Reads may use the Supabase client; writes always go through
-// Edge Functions. That module lands in Block 5 (E14-08); this file is its entry point.
+// Edge Functions.
 
 export const PACKAGE_NAME = '@graybag/shared';
 
@@ -55,3 +55,9 @@ export * as cart from './cart/index.js';
 // these objects directly and `apps/web` generates CSS custom properties from the same
 // modules at build time. Components import the semantic roles, never the ramps (S7).
 export * as design from './design/index.js';
+
+// The api/ module (A4, non-negotiable #1). The one place that knows Supabase exists, and
+// the only directory permitted to import it — config/eslint-api-module.js fails the build
+// anywhere else. Menu reads today; E03, E05 and E06 join this surface rather than growing
+// a second one.
+export * as api from './api/index.js';
