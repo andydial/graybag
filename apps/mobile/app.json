@@ -35,7 +35,8 @@
           "imageWidth": 220,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "./plugins/withUpiQueries"
     ],
     "owner": "anuragdial",
     "extra": {
