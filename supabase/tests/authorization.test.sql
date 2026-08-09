@@ -623,10 +623,18 @@ select is_empty($$ select schemaname || '.' || tablename from pg_tables
                                          and d.deptype = 'e') $$,
                 '§9.3 / §12: RLS is enabled on every table in public and migration — if 0002 is ever missing or half-applied, the failure mode is "nobody can read anything" (D17)');
 
+-- **`anon` was removed from this assertion by decision, 2026-08-10 ([AUTH-01], `0012`).**
+-- Policies naming `anon` now exist, on twelve menu tables, deliberately. The replacement is
+-- not weaker: PART 6.1 pins that list EXACTLY, and PART 6.3 asserts behaviourally that anon
+-- reads nothing from order, recipient, app_user, guardian_link or any ledger table.
+--
+-- `PUBLIC` stays in, and it is the half that was always the real trap: a policy with no
+-- `TO` clause defaults to `PUBLIC`, which reaches `anon` under another name and would not
+-- appear in PART 6.1's list of anon-granted tables at all.
 select is_empty($$ select schemaname || '.' || tablename || '.' || policyname from pg_policies
                     where schemaname = 'public'
-                      and ('anon' = any(roles) or roles = '{public}' or roles is null) $$,
-                '§9.4 / [AZ-03]: no policy in public grants anon or PUBLIC — the missing-TO-clause trap');
+                      and (roles = '{public}' or roles is null) $$,
+                '§9.4 / [AZ-03]: no policy in public grants PUBLIC — the missing-TO-clause trap');
 
 select is_empty($$ select schemaname || '.' || policyname from pg_policies
                     where schemaname = 'migration' $$,
@@ -710,15 +718,23 @@ select is_empty($$ select t.tbl || ':' || pv.priv from tests_tmp.tests_class3 t
 -- It "passed" on staging only because the plan happened to differ there.
 --
 -- c.oid needs no name resolution, so there is nothing left to reorder.
+-- **Narrowed by decision, 2026-08-10 ([AUTH-01], `0012`)**: anon now holds SELECT on the
+-- twelve menu tables. It still holds NOTHING on anything else, and no write anywhere —
+-- which is the half of this assertion that was protecting something. PART 6.1 pins the
+-- twelve exactly; this asserts there is no thirteenth carrying any privilege at all.
 select is_empty($$ select c.relname
                      from pg_class c
                      join pg_namespace n on n.oid = c.relnamespace
                     where n.nspname = 'public' and c.relkind in ('r','p')
+                      and c.relname not in ('school','city','school_menu_version',
+                                            'menu_assignment','menu','menu_item',
+                                            'menu_item_price_override','dish',
+                                            'dish_allergen','dish_category','allergen','asset')
                       and (has_table_privilege('anon', c.oid, 'SELECT')
                         or has_table_privilege('anon', c.oid, 'INSERT')
                         or has_table_privilege('anon', c.oid, 'UPDATE')
                         or has_table_privilege('anon', c.oid, 'DELETE')) $$,
-                '§10: anon holds no table privilege at all in public — the second layer under RLS');
+                '§10: anon holds no table privilege in public outside the twelve menu tables — the second layer under RLS');
 
 
 -- =============================================================================
@@ -876,9 +892,25 @@ select set_eq(
     ('notification_delivery.notification_delivery_read_self'),
     ('notification_delivery.notification_delivery_read_admin'),
     ('school_report.school_report_read_backoffice'),
-    ('audit_log.audit_log_read_admin')
+    ('audit_log.audit_log_read_admin'),
+    -- [AUTH-01] / 0012. Twelve read policies for `anon`, one per menu table. They are
+    -- listed here rather than exempted from the inventory: the whole point of this
+    -- assertion is that a policy appearing without a decision fails, and these are the
+    -- decision. PART 6 asserts what they actually let through.
+    ('school.anon_school_onboarded'),
+    ('city.anon_city_of_visible_school'),
+    ('school_menu_version.anon_school_menu_version'),
+    ('menu_assignment.anon_menu_assignment_live'),
+    ('menu.anon_menu_active'),
+    ('menu_item.anon_menu_item_on_live_menu'),
+    ('menu_item_price_override.anon_price_override_live'),
+    ('dish.anon_dish_on_live_menu'),
+    ('dish_allergen.anon_dish_allergen_of_visible_dish'),
+    ('dish_category.anon_dish_category_active'),
+    ('allergen.anon_allergen_active'),
+    ('asset.anon_asset_of_visible_dish')
   $$,
-  '§12 item 5: the set of permissive policies in public is EXACTLY the 140 in §7 of the authorization model');
+  '§12 item 5: the set of permissive policies in public is EXACTLY the 152 in §7 of the authorization model plus [AUTH-01]''s twelve');
 
 -- §5 Rule 5. Restrictive, so it ANDs with everything else and cannot be defeated by
 -- adding a permissive policy later. This is what makes "account deletion stops
@@ -906,8 +938,8 @@ select is_empty($$ select tablename || '.' || policyname from pg_policies
                       and policyname <> 'deny_dead_accounts' $$,
                 '§5 Rule 5: deny_dead_accounts is the only restrictive policy in the schema');
 
-select is((select count(*)::int from pg_policies where schemaname = 'public'), 179,
-          '§12 item 5: 179 policies in public — 140 permissive + 39 restrictive');
+select is((select count(*)::int from pg_policies where schemaname = 'public'), 191,
+          '§12 item 5: 191 policies in public — 152 permissive (140 from §7 + [AUTH-01]''s 12) + 39 restrictive');
 
 -- Catches a table added to the schema without being classified in §8 at all.
 select set_eq(
@@ -936,13 +968,19 @@ select set_eq(
 -- =============================================================================
 -- PART 3 — anon (§8's most important column, and §9 items 1-2)
 --
--- Every cell in the anonymous column of §8 is a dash, with no exceptions. That is
--- the single most important property in the model, and it is asserted mechanically
--- here rather than by reading.
+-- **Amended by decision, 2026-08-10 ([AUTH-01], `0012`).** The anonymous column of §8
+-- used to be a dash with no exceptions. It now has exactly twelve non-dashes: the menu
+-- tables a signed-out parent must be able to read for the app to be browsable at all
+-- (`AR7`), and `public_menu`, the security_invoker view over them.
 --
--- The counts are captured as anon and asserted afterwards as the session role,
--- because §10 revokes anon's privileges on everything in public — including,
--- potentially, the pgTAP functions themselves.
+-- Everything else is still a dash, and that is asserted here as a **set equality rather
+-- than an emptiness** — so a thirteenth table becoming readable fails, and so does one of
+-- the twelve becoming unreadable. The second direction matters as much as the first: an
+-- empty menu is how this feature breaks, and "anon can read nothing" would pass happily
+-- through it.
+--
+-- The counts are captured as anon and asserted afterwards as the session role, because
+-- anon holds no privilege on the pgTAP functions themselves.
 -- =============================================================================
 
 do $$ begin perform set_config('request.jwt.claims', '', true); end $$;
@@ -951,8 +989,23 @@ insert into tests_seen select 'anon', tbl from tests_visible_counts('public')   
 insert into tests_seen select 'anon', tbl from tests_visible_counts('migration') where n > 0;
 reset role;
 
-select is_empty($$ select tbl from tests_seen where persona = 'anon' $$,
-                '§9 items 1-2: anon selects ZERO rows from every table in public and migration — including "order", recipient, recipient_allergen, app_user, payment and invoice');
+select set_eq(
+  $$ select tbl from tests_seen where persona = 'anon' $$,
+  $$ values ('school'),('city'),('school_menu_version'),('menu_assignment'),('menu'),
+            ('menu_item'),('menu_item_price_override'),('dish'),('dish_allergen'),
+            ('dish_category'),('allergen'),('asset') $$,
+  '§9 items 1-2 / [AUTH-01]: anon selects rows from the menu tables and NOTHING else — not "order", recipient, recipient_allergen, app_user, payment or invoice');
+
+-- Stated separately and in the other direction, because the set above is the one that
+-- would be quietly widened. These are the names that must never appear in it.
+select is_empty(
+  $$ select tbl from tests_seen
+      where persona = 'anon'
+        and tbl in ('order','order_line','order_group','order_event','recipient',
+                    'recipient_allergen','app_user','guardian_link','payment','refund',
+                    'invoice','invoice_line','ledger_account','ledger_transaction',
+                    'ledger_entry','wallet_balance','consent_record','permission_grant') $$,
+  '§9 items 1-2 / [AUTH-01]: anon reads no order, no child, no user, no guardian link and no ledger row');
 
 
 -- =============================================================================
@@ -1598,142 +1651,186 @@ select is_empty(
   '§11 / [AZ-03]: no policy in the storage schema names anon or PUBLIC either');
 
 -- =============================================================================
--- PART 6 — [AUTH-01]: the one thing anon CAN reach, pinned exactly
+-- PART 6 — [AUTH-01]: exactly what a signed-out visitor can and cannot read
 --
--- Andy's ruling 2026-08-09 gives `anon` read access to menu data. 0010 delivers it as
--- EXECUTE on two SECURITY DEFINER functions rather than as grants on tables, so every
--- assertion above this line still holds UNCHANGED — anon holds no table privilege,
--- selects zero rows from every table, is named by no policy, and no new view exists to
--- trip the security_invoker rule.
+-- Andy's ruling 2026-08-10: literal table grants (`0012`), replacing the SECURITY
+-- DEFINER functions `0010` shipped. The argument was that `E02-26` — a definer function
+-- about a child, reachable by anon — had just demonstrated the cost of that pattern, so
+-- the menu read should not adopt it.
 --
--- What that leaves unguarded is the NEW surface: an executable function. Nothing in
--- the suite before today would have noticed a function handing `recipient` rows to
--- anon. These assertions close that, and they are deliberately an EXACT pin rather
--- than a maximum.
+-- That means these assertions REPLACE, rather than route around, four that used to hold:
 --
--- [AZ-03]'s objection to relaxing anon was that "a boolean invariant becomes a list of
--- approved exceptions, and lists grow". That objection is correct and is not answered
--- by good intentions. It is answered by making the list itself the assertion: a third
--- anon-executable function fails this suite, and so does a change to what the two
--- return.
+--   was: "anon holds no table privilege at all in public"
+--   was: "anon selects ZERO rows from every table in public and migration"
+--   was: "no policy in public grants anon or PUBLIC"
+--   was: "every view in public is security_invoker"   (this one still holds, untouched —
+--         `public_menu` is security_invoker and therefore carries no authority of its own)
+--
+-- **They are replaced by stronger ones, not weaker.** The old three asserted STRUCTURE:
+-- that a privilege did not exist. Structure is easy to satisfy and easy to get wrong in a
+-- way that still passes — a grant with no policy passes "selects zero rows" for the wrong
+-- reason, and would keep passing on the day someone adds a policy.
+--
+-- These assert BEHAVIOUR, as the role, against seeded rows: anon reads a published dish
+-- and gets it; anon reads a child and gets nothing. Both directions are checked, because
+-- an assertion that only proves denial passes just as well on a database where the whole
+-- feature is broken.
 -- =============================================================================
 
--- 1. The set of functions anon may execute in `public` is EXACTLY these two.
+-- -----------------------------------------------------------------------------
+-- 6.1 The reachable surface is exactly the menu, enumerated.
+-- -----------------------------------------------------------------------------
+
 select set_eq(
-  $$ select p.proname::text
-       from pg_proc p
-       join pg_namespace n on n.oid = p.pronamespace
+  $$ select c.relname::text
+       from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public'
-        and p.prorettype <> 'trigger'::regtype
-        and not exists (select 1 from pg_depend d
-                         where d.objid = p.oid and d.deptype = 'e')
-        and has_function_privilege('anon', p.oid, 'EXECUTE') $$,
-  $$ values ('get_school_menu'), ('get_school_menu_version'), ('get_schools') $$,
-  '[AUTH-01]: anon may execute exactly three functions in public — two menu reads and the school picker. A fourth is a decision, not an accident');
+        and c.relkind in ('r','p','v','m','f')
+        and has_table_privilege('anon', c.oid, 'SELECT') $$,
+  $$ values ('school'),('city'),('school_menu_version'),('menu_assignment'),('menu'),
+            ('menu_item'),('menu_item_price_override'),('dish'),('dish_allergen'),
+            ('dish_category'),('allergen'),('asset'),('public_menu') $$,
+  '[AUTH-01]: anon may SELECT exactly the twelve menu tables and the one menu view. A thirteenth table is a decision, not an accident');
 
--- 2. Both are SECURITY DEFINER with a pinned search_path.
---    §12 already asserts the pin across every definer function; this asserts these two
---    ARE definer, which is what makes them work at all. A later edit that quietly drops
---    `security definer` would leave a function that returns nothing to a signed-out
---    caller — an empty Menu tab with no error, which is the hardest kind to diagnose.
 select is_empty(
-  $$ select p.proname::text
-       from pg_proc p
-       join pg_namespace n on n.oid = p.pronamespace
+  $$ select c.relname || ':' || pv.priv
+       from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+       cross join (values ('INSERT'),('UPDATE'),('DELETE')) as pv(priv)
       where n.nspname = 'public'
-        and p.proname in ('get_school_menu','get_school_menu_version','get_schools')
-        and (not p.prosecdef
-          or coalesce(array_to_string(p.proconfig, ','), '') not like '%search_path%') $$,
-  '[AUTH-01]: both public menu functions are SECURITY DEFINER and pin search_path');
+        and c.relkind in ('r','p','v','m','f')
+        and has_table_privilege('anon', c.oid, pv.priv) $$,
+  '[AUTH-01]: anon holds SELECT and nothing else — no INSERT, UPDATE or DELETE anywhere in public, views included');
 
--- 3. Neither may read a table that holds a person.
---
---    Walks pg_depend rather than the function text, so it cannot be fooled by a join
---    added in a later migration. Note this catches only what the planner recorded a
---    dependency on, which for a non-dynamic SQL function is everything it touches —
---    and these two are deliberately plain SQL with no EXECUTE, precisely so that this
---    assertion can see all of it.
+-- Every policy naming anon is on a menu table. `[AZ-03]`'s "no policy names anon" is gone
+-- by decision; this is what replaces it, and it is an exact list rather than a maximum.
 select is_empty(
-  $$ select p.proname || ' reads ' || t.relname
-       from pg_proc p
-       join pg_namespace n  on n.oid = p.pronamespace
-       join pg_depend   d   on d.objid = p.oid and d.classid = 'pg_proc'::regclass
-       join pg_class    t   on t.oid = d.refobjid
-       join pg_namespace tn on tn.oid = t.relnamespace
-      where n.nspname = 'public' and tn.nspname = 'public'
-        and has_function_privilege('anon', p.oid, 'EXECUTE')
-        and t.relkind in ('r','p','v')
-        and t.relname in ('recipient','recipient_allergen','guardian_link','app_user',
-                          'order','order_line','order_group','order_event','payment',
-                          'invoice','invoice_line','consent_record','data_subject_request',
-                          'user_policy_acceptance','permission_grant','wallet_balance',
-                          'device_token','notification_delivery','school_report') $$,
-  '[AUTH-01] / non-negotiable #4: no anon-executable function reads any table holding a person, an order or money');
+  $$ select tablename || '.' || policyname from pg_policies
+      where schemaname = 'public' and 'anon' = any(roles)
+        and tablename not in ('school','city','school_menu_version','menu_assignment',
+                              'menu','menu_item','menu_item_price_override','dish',
+                              'dish_allergen','dish_category','allergen','asset') $$,
+  '[AUTH-01]: every policy that names anon is on a menu table');
 
--- 4. What the menu function actually returns, checked by calling it AS ANON.
+-- PUBLIC is still never named. A policy with `roles = {public}` reaches anon by another
+-- name, and that is the missing-TO-clause trap `[AZ-03]` was really about.
+select is_empty(
+  $$ select tablename || '.' || policyname from pg_policies
+      where schemaname = 'public' and (roles = '{public}' or roles is null) $$,
+  '[AUTH-01] / [AZ-03]: no policy in public grants PUBLIC — the missing-TO-clause trap is unchanged');
+
+-- -----------------------------------------------------------------------------
+-- 6.2 What anon CAN read. Positive assertions, as the role, against seeded rows.
 --
---    (1)-(3) are structural. This one is behavioural, and it is the one that would
---    catch a `select *` or a helpfully-added column: the key set is pinned, so a
---    dish payload that grew `kitchenId` fails here.
---
---    Run against the seeded school, so it exercises real rows rather than an empty
---    result that would pass vacuously.
+-- Without these, every denial below would pass on a database where the menu is simply
+-- broken — which is the failure mode that ships silently.
+-- -----------------------------------------------------------------------------
+
 set local role anon;
 
-select is(
-  (select jsonb_object_keys_sorted(public.get_school_menu(
-     (select school_id from tests_tmp.tests_public_menu_school))))::text,
-  '{categories,dishes}',
-  '[AUTH-01]: get_school_menu returns exactly {categories, dishes} — the CachedMenuPayload shape');
+select ok((select count(*) from public_menu) > 0,
+          '[AUTH-01]: anon reads a published dish on an active menu at an active school');
 
-select is(
-  (select jsonb_object_keys_sorted(d)
-     from jsonb_array_elements(
-            public.get_school_menu((select school_id from tests_tmp.tests_public_menu_school))
-            -> 'dishes') as d
-    limit 1)::text,
-  '{allergens,allergensDeclaredNone,categoryId,description,id,imageUri,ingredientsText,name,pricePaise}',
-  '[AUTH-01]: a dish carries exactly the menu keys — no kitchenId, no legacyBubbleId, no timestamps');
+select ok((select count(*) from dish) > 0,
+          '[AUTH-01]: anon reads dish rows directly, not only through the view');
+
+select ok((select count(*) from school) > 0,
+          '[AUTH-01]: anon reads the school list the picker needs');
+
+select ok((select count(*) from school_menu_version) > 0,
+          '[AUTH-01]: anon reads the menu version the cache checks on every app open');
 
 select ok(
-  (select jsonb_array_length(public.get_school_menu(
-     (select school_id from tests_tmp.tests_public_menu_school)) -> 'dishes')) > 0,
-  '[AUTH-01]: the seeded school returns a non-empty menu to anon — the assertions above are not passing vacuously');
+  (select count(*) from public_menu where price_paise > 0) > 0,
+  '[AUTH-01]: prices are readable — the commercial consequence of this decision, asserted so it is never a surprise');
 
-select ok(
-  public.get_school_menu_version((select school_id from tests_tmp.tests_public_menu_school)) is not null,
-  '[AUTH-01]: anon can read the menu version for the seeded school');
+-- -----------------------------------------------------------------------------
+-- 6.3 What anon CANNOT read. One row per thing Andy named.
+--
+-- `tests_visible_counts` runs as the current role and reports a table anon has no
+-- privilege on as zero rather than aborting, which is what lets privilege denial and
+-- policy denial be asserted the same way.
+-- -----------------------------------------------------------------------------
 
--- The school picker must not publish a member of staff. `school` carries contact_name,
--- contact_email and contact_phone; a later `select s.*` would hand all three to anyone
--- holding the anon key, and nothing else in the suite would notice.
-select is(
-  (select tests_tmp.jsonb_object_keys_sorted(s)
-     from jsonb_array_elements(public.get_schools()) as s limit 1)::text,
-  '{city,id,name}',
-  '[AUTH-01]: get_schools returns exactly {id, name, city} — no contact_name, contact_email, contact_phone, address or kitchen_id');
-
-select ok(
-  jsonb_array_length(public.get_schools()) > 0,
-  '[AUTH-01]: the seeded data yields at least one onboarded school — the key-shape assertion above is not passing vacuously');
+create temporary table tests_anon_forbidden as
+select tbl from tests_tmp.tests_visible_counts('public') where n > 0
+   and tbl in ('order','order_line','order_group','order_event','recipient',
+               'recipient_allergen','app_user','guardian_link','payment','refund',
+               'invoice','invoice_line','ledger_account','ledger_transaction',
+               'ledger_entry','wallet_balance','consent_record','permission_grant',
+               'data_subject_request','school_report','device_token');
 
 reset role;
 
--- 5. A draft or retired menu is unpublished work and must not reach a signed-out
---    reader. Asserted by flipping the seeded school's menu to `retired` and checking
---    the function goes empty. Inside the suite's transaction, so it rolls back.
+select is_empty(
+  $$ select tbl from tests_anon_forbidden $$,
+  '[AUTH-01]: anon reads NOTHING from order, order_line, recipient, app_user, guardian_link, payment, invoice or any ledger table');
+
+-- -----------------------------------------------------------------------------
+-- 6.4 A draft or retired menu is not public.
+--
+-- Asserted by changing the world and re-reading, rather than by inspecting a predicate:
+-- a policy that says `status = 'active'` and a policy that behaves that way are different
+-- claims, and only the second one matters.
+-- -----------------------------------------------------------------------------
+
+-- Baseline: there is something to lose.
+set local role anon;
+select ok((select count(*) from public_menu) > 0,
+          '[AUTH-01] (setup): the seeded school has a public menu before it is retired');
+reset role;
+
 update menu set status = 'retired'
- where id in (select menu_id from menu_assignment
-               where school_id = (select school_id from tests_tmp.tests_public_menu_school)
-                 and revoked_at is null);
+ where id in (select menu_id from menu_assignment where revoked_at is null);
 
 set local role anon;
-select is(
-  (select jsonb_array_length(public.get_school_menu(
-     (select school_id from tests_tmp.tests_public_menu_school)) -> 'dishes')),
-  0,
-  '[AUTH-01]: retiring the menu empties the public read — drafts and retired menus are not public');
+select is((select count(*) from public_menu), 0::bigint,
+          '[AUTH-01]: retiring every live menu empties the public read — a retired menu is not public');
+select is((select count(*) from menu), 0::bigint,
+          '[AUTH-01]: a retired menu row is itself unreadable, not merely filtered out of the view');
+select is((select count(*) from menu_assignment), 0::bigint,
+          '[AUTH-01]: the assignment pointing at a retired menu is invisible too — no leaking that an unpublished menu exists');
 reset role;
+
+update menu set status = 'draft'
+ where id in (select menu_id from menu_assignment where revoked_at is null);
+
+set local role anon;
+select is((select count(*) from public_menu), 0::bigint,
+          '[AUTH-01]: a draft menu is not public either — unpublished work is not a soft state');
+reset role;
+
+-- Put it back, so anything after this part sees the seeded world.
+update menu set status = 'active'
+ where id in (select menu_id from menu_assignment where revoked_at is null);
+
+-- -----------------------------------------------------------------------------
+-- 6.5 An offboarded school disappears from the picker.
+-- -----------------------------------------------------------------------------
+
+update school set offboarded_at = now() where offboarded_at is null;
+
+set local role anon;
+select is((select count(*) from school), 0::bigint,
+          '[AUTH-01]: an offboarded school is not in the public list — P1, and a parent must not be able to pick a school that cannot deliver');
+reset role;
+
+update school set offboarded_at = null;
+
+-- -----------------------------------------------------------------------------
+-- 6.6 The view carries no authority of its own.
+--
+-- `public_menu` exists to save four round trips, not to widen access. If it were ever
+-- created without `security_invoker`, it would run as its owner and return rows the
+-- policies above deny — silently, and only through the view.
+-- -----------------------------------------------------------------------------
+
+select ok(
+  (select coalesce(array_to_string(c.reloptions, ','), '') like '%security_invoker=true%'
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relname = 'public_menu'),
+  '[AUTH-01]: public_menu is security_invoker — it is a shape, not a privilege');
 
 
 select * from finish();

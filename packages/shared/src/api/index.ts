@@ -15,6 +15,8 @@ export {
   configureApi,
   setApiTransport,
   type ApiTransport,
+  type SelectBuilder,
+  type TableRef,
 } from './client.js';
 
 export {
@@ -27,6 +29,7 @@ export {
 } from './menu.js';
 
 export {
+  SCHOOL_COLUMNS,
   SchoolPayloadError,
   fetchSchools,
   type ApiSchool,
