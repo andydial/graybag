@@ -102,6 +102,19 @@ export default tseslint.config(
   },
 
   {
+    // Metro's config must be CommonJS for the same reason the Expo plugins above must be:
+    // Metro `require()`s it from its own loader before any transform is in play. Same
+    // constraint of the platform, same exemption.
+    files: ['apps/*/metro.config.js'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'commonjs',
+      globals: globals.node,
+    },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+
+  {
     files: ['**/*.test.ts', '**/*.test.mjs'],
     languageOptions: { globals: { ...globals.node } },
   },
