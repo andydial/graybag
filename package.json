@@ -24,6 +24,7 @@
     "db:reset": "npx supabase db reset",
     "db:status": "npx supabase status",
     "bundle:check": "npm --prefix apps/mobile run bundle:check",
+    "verify:apk": "node scripts/verify-apk-upi-queries.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "check:fixtures": "node scripts/check-test-fixtures.mjs",
     "secrets:set": "tsx scripts/set-secrets.mts",
