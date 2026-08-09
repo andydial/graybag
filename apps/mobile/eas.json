@@ -22,6 +22,10 @@
         "APP_ENV": "staging"
       }
     },
+    "preview": {
+      "extends": "staging",
+      "channel": "staging"
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production",
