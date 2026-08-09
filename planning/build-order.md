@@ -82,6 +82,27 @@ virtualisation.
 **Done when:** the app opens, loads a cached menu offline-fast, and refetches only on a
 version change.
 
+**"Done when" met, 2026-08-09.** The Menu tab opens with no session (`AR7`), serves the cached
+menu, and refetches only when `school_menu_version` moves. Delivered: `E14-01/02/03/05/06/09`,
+`E04-02/03/04/05/08/09/10/12`, `E13-03`, `E13-08`. Two migrations came out of it — `0006` (the
+column `MI1` needed and never had) and `0007` (the `dish_allergen` trigger gap, where a
+corrected allergen would never have reached a cached device).
+
+**What is still open in `E04`/`E14`, and why none of it is a slip:**
+
+| Task | Blocked on |
+|---|---|
+| `E04-01` Dish CRUD | The model and `0006` are done; the **write path** is an Edge Function that does not exist yet, and the admin UI is `E10` |
+| `E04-06` Bulk image upload | Importer-side and genuinely doable — the honest answer is that it was not reached |
+| `E04-13` Migrate the 3 menus | **`[MI-01]`** — the source workbook is not in the repository. Not buildable, not a slip |
+| `E14-07` Cold-start budget | **Parked.** Andy's ruling: the numbers must come from `E19-02`, measured on a real handset |
+| `E14-08` Optimistic cart UI | There is no cart. `E05`, Block 6 |
+| `E14-11` OTA via EAS Update | Needs Expo account credentials — Andy |
+| `E14-14` Screens rebuilt | A catch-all across twelve screens; Cart/Checkout are `E05`/`E06`, Login/Signup/Dependents are `E03`. It can only close as those blocks land |
+| `E13-10` Automated a11y in CI | **Half done.** The app half runs on every push (`src/a11y/audit.ts`). The web half needs axe and Lighthouse against something rendered, and `E12` does not exist. Untagged — fast-follow |
+
+`E19-01` and `E19-02` remain parked with `E14-07`.
+
 ## Block 6 — Ordering  (E05)
 
 Dependents, cart, cutoff enforcement (server-side), break times, order creation with
