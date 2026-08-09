@@ -40,7 +40,11 @@ $$;
 
 set local search_path = public, extensions, pg_catalog;
 
-select plan(14);
+-- 15, and the number is checked rather than eyeballed:
+--   grep -cE '^select (ok|isnt|is)\(' supabase/tests/menu_version.test.sql
+-- pgTAP treats a wrong plan as a FAILURE even when every assertion passes, which is the
+-- point of declaring one — it catches an assertion silently dropped by an early return.
+select plan(15);
 
 -- -----------------------------------------------------------------------------
 -- Fixtures: one kitchen, two schools. Only school A is assigned the menu, so every
