@@ -21,9 +21,18 @@ Newest handover at the top. Assume the reader has forgotten everything.
 
 Smoke is green at **496 tests**. pgTAP is **29/29** after a full `db reset` replaying all nine migrations.
 
-### The Android build
+### The Android build — **done, installable**
+
+**APK: https://expo.dev/artifacts/eas/uJbrNfblIujNIe_FPvRyUq_aMl2UTVBsMY7lUbMKZyw.apk**
 
 `eas build --profile preview --platform android` — version **2.0.0**, build **1**, project `@anuragdial/graybag`.
+
+It took seven attempts and two genuine bugs, both now fixed and both of which had been latent for the whole project:
+
+1. **The app had never bundled.** `packages/shared` is `"type": "module"` and imports with TypeScript's ESM `./env.js`-for-`env.ts` convention. Metro does not do that; Jest, `tsc` and Vitest all do. So 496 tests passed against a bundle that could not be produced. Fixed in `apps/mobile/metro.config.js`; `npm run bundle:check` now runs in CI so it cannot come back.
+2. **`.easignore` excluded `config/`**, which every workspace `tsconfig.json` `extends`. Expo's Metro TypeScript resolver follows that chain at startup, and its absence killed the build with a message that named no file. **This class of failure is invisible locally** — the local machine has the whole repo, only the upload was short.
+
+Uploads also failed repeatedly with `408` on an 85 KB/s uplink; `.easignore` cutting the tarball from 3.4 MB to 2.2 MB is what made them complete.
 
 **It launches and is worth holding, but the Menu tab is empty and the cart cannot be filled**, because `E01-21` below is outstanding — there are no client env values anywhere, so there is no backend to reach. Nothing crashes: `loadClientEnv` is not called at startup, and a missing school renders an empty menu rather than an error. What it *does* show honestly: navigation, the design system, splash, icon, tab bar, and every empty state.
 
@@ -44,7 +53,7 @@ Version is `2.0.0` in `app.json`, with a test pinning the major at ≥ 2 — an 
 
 ### Where Block 6 stands
 
-Done: `E05-04`, `E05-07`. Half done: `E05-08` (server yes, calendar UI no).
+Done: `E05-04`, `E05-07`. Half done: `E05-08` (server yes, calendar UI no) and `E05-06` (resolver yes, picker no — it has no home until the checkout screen exists).
 
 **Not started, and this is the next thing to build:** the checkout transaction, `docs/order-lifecycle.md` §8.2 — `E05-09` (order creation with snapshots), `E05-12` (idempotency), `E05-13` (preflight), then `E05-11` (cancellation). Everything it needs is already decided and in place:
 
