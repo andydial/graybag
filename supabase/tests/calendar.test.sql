@@ -57,9 +57,20 @@ values
   ('50000000-7e57-0000-0000-000000000512', 'cal_window', 'Calendar Window School',
    'c1000000-7e57-0000-0000-000000000508', 'cc000000-7e57-0000-0000-000000000509', 'school', '4 Road', '160055');
 
--- A narrow horizon and a two-day lead, so the window edges are testable at all.
+-- A narrow horizon and a FOUR-day lead, so the window edges are testable at all.
+--
+-- The lead was 2, and that made this file fail depending on the clock (`E05-15`, found in
+-- CI 2026-08-09). With a two-day lead the only `too_soon` days are today and tomorrow, and
+-- tomorrow's cutoff is 23:00 *today* — so from 23:00 onwards the day is both too soon and
+-- past its cutoff, and `orderable_calendar` deliberately reports `cutoff_passed` first
+-- because "you have missed it" is more actionable than "wait".
+--
+-- **The precedence is right and is not being changed.** The fixture was wrong: it left no
+-- day that is unambiguously too soon. A four-day lead gives `current_date + 3` a cutoff of
+-- 23:00 on `current_date + 2`, which is in the future at every hour of every day, so the
+-- assertion tests the window rule and nothing else.
 insert into school_config (school_id, max_advance_order_days, min_advance_order_days)
-values ('50000000-7e57-0000-0000-000000000512', 5, 2);
+values ('50000000-7e57-0000-0000-000000000512', 5, 4);
 
 -- -----------------------------------------------------------------------------
 -- Shape
@@ -136,9 +147,9 @@ select is(
 -- -----------------------------------------------------------------------------
 select is(
   (select reason from orderable_calendar(
-     '50000000-7e57-0000-0000-000000000512', current_date + 1, current_date + 1)),
+     '50000000-7e57-0000-0000-000000000512', current_date + 3, current_date + 3)),
   'too_soon',
-  'inside min_advance_order_days the day is refused as too_soon');
+  'inside min_advance_order_days the day is refused as too_soon — on a day whose cutoff is still in the future, so this tests the window rule and not the cutoff rule');
 
 select is(
   (select reason from orderable_calendar(
