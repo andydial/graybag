@@ -329,13 +329,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/20</span>
+          <span class="meter-num">0/22</span>
         </div>
       </header>
       <p class="summary">Repo, two real environments, secrets management, and the test harness that every later task depends on.</p>
       <p class="deps">Depends on <code>E00</code></p>
       <details>
-        <summary>Context &amp; 20 tasks</summary>
+        <summary>Context &amp; 22 tasks</summary>
         <div class="context"><h4>Why early</h4>
 <p>Everything after this inherits the quality bar set here. Getting tests and environments right on day one is what stops &quot;manually swapping Razorpay keys&quot; happening again.</p></div>
         <ul class="tasks">
@@ -490,6 +490,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">CI check that no <code>service_role</code> key or Razorpay secret ever appears in the mobile bundle or the web client build output</span>
+      </li>
+      <li class="task" data-id="E01-20" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-20"></button>
+        <code class="tid">E01-20</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:high) <strong>Put the staging Supabase credentials into GitHub Actions secrets</strong> — <code>SUPABASE_ACCESS_TOKEN</code>, <code>SUPABASE_DB_PASSWORD</code> and the staging project ref. <code>E01-04</code> created the project, but the values were never supplied, so <strong><code>Deploy to staging</code> has failed on every run since 2026-08-08</strong> (<code>supabase link --project-ref &quot;&quot;</code>). CI&#39;s required checks are unaffected and green; nothing has ever actually deployed</span>
+      </li>
+      <li class="task" data-id="E01-21" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-21"></button>
+        <code class="tid">E01-21</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Supply the staging client env values</strong> — the staging Supabase URL and anon key, plus the Razorpay <strong>test</strong> key id (<code>rzp_test_…</code>), either into <code>apps/mobile/.env.staging</code> (from <code>.env.staging.example</code>) or as EAS environment variables. Without them a staging build compiles but opens to an app that cannot reach any backend, so there is nothing to look at on a handset. EAS builds from a git archive, so a gitignored <code>.env.staging</code> is <strong>not</strong> uploaded — for a real device build these must be EAS env vars, not a local file</span>
       </li>
       <li class="task" data-id="E01-19" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-19"></button>
@@ -1327,7 +1343,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Apply the font decision from <code>E19-03</code> / <code>E00-16</code> (licence check happens in phase 0/1, not here). <strong><code>E13-15</code> changed which three weights are bundled</strong> — Regular 400, Medium 500, SemiBold 600, because the brand hierarchy uses Semi Bold for headings and Medium for subheadings and never uses Bold. Still three weights, so <code>E19-03</code>&#39;s question is the same size; only the filenames differ</span>
       </li>
-      <li class="task" data-id="E13-03" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E13-03" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-03"></button>
         <code class="tid">E13-03</code>
         
@@ -1367,7 +1383,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Skeleton screens for every loading state — no spinners (feels faster on slow networks)</span>
       </li>
-      <li class="task" data-id="E13-08" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E13-08" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-08"></button>
         <code class="tid">E13-08</code>
         
@@ -1646,7 +1662,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Dish CRUD with structured <strong>allergen tags</strong> parsed from the Allergens column (not free text)</span>
       </li>
-      <li class="task" data-id="E04-02" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E04-02" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-02"></button>
         <code class="tid">E04-02</code>
         
@@ -1654,7 +1670,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Menu + MenuItem model with per-menu pricing and <code>available_days</code></span>
       </li>
-      <li class="task" data-id="E04-03" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E04-03" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-03"></button>
         <code class="tid">E04-03</code>
         
@@ -1662,7 +1678,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">MenuAssignment: school &lt;-&gt; menu with validity dates; supports shared and per-school menus</span>
       </li>
-      <li class="task" data-id="E04-04" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E04-04" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-04"></button>
         <code class="tid">E04-04</code>
         <span class="badge r-high">high</span>
@@ -1670,7 +1686,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Excel importer</strong>: validate, preview a diff, then apply. Never silently overwrite</span>
       </li>
-      <li class="task" data-id="E04-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E04-05" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-05"></button>
         <code class="tid">E04-05</code>
         
@@ -1678,7 +1694,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Importer supports optional columns <code>image_filename</code>, <code>available_days</code>, per-school price override; drops <code>Category - ORIG</code>; keeps <code>Category</code></span>
       </li>
-      <li class="task" data-id="E04-06" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E04-06" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-06"></button>
         <code class="tid">E04-06</code>
         
@@ -1694,7 +1710,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Image pipeline: resize to 3 sizes, AVIF/WebP, served from CDN with long cache headers</span>
       </li>
-      <li class="task" data-id="E04-08" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E04-08" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-08"></button>
         <code class="tid">E04-08</code>
         <span class="badge r-high">high</span>
@@ -1702,7 +1718,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><code>menu_version</code> incremented on any change to an assigned menu</span>
       </li>
-      <li class="task" data-id="E04-09" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E04-09" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-09"></button>
         <code class="tid">E04-09</code>
         
@@ -1710,7 +1726,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Tiny <code>GET /menu/version?school=X</code> endpoint (a few bytes) the app calls on open</span>
       </li>
-      <li class="task" data-id="E04-10" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E04-10" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-10"></button>
         <code class="tid">E04-10</code>
         <span class="badge r-high">high</span>
@@ -1726,7 +1742,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Read-only offline: cached menu and past orders browsable with no network</span>
       </li>
-      <li class="task" data-id="E04-12" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E04-12" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-12"></button>
         <code class="tid">E04-12</code>
         
@@ -1810,7 +1826,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Break / drop time selection per school; supports different times for different class groups later</span>
       </li>
-      <li class="task" data-id="E05-07" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E05-07" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-07"></button>
         <code class="tid">E05-07</code>
         <span class="badge r-critical">critical</span>
@@ -1899,7 +1915,7 @@
 <li>Bundle IDs are fixed and must match exactly: iOS <code>com.gracord.graybag</code>, Android <code>com.Gracord.Graybag</code> (note the capitals).</li>
 </ul></div>
         <ul class="tasks">
-      <li class="task" data-id="E14-01" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E14-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-01"></button>
         <code class="tid">E14-01</code>
         
@@ -1907,7 +1923,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Expo project scaffolded with the existing bundle IDs, app icon and splash from the brand package</span>
       </li>
-      <li class="task" data-id="E14-02" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E14-02" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-02"></button>
         <code class="tid">E14-02</code>
         <span class="badge r-critical">critical</span>
@@ -1915,7 +1931,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Enforce the <code>api/</code> module rule</strong> — lint rule that fails the build if a screen imports the Supabase client directly, or if any privileged key reaches the bundle (<code>E01-18</code>)</span>
       </li>
-      <li class="task" data-id="E14-03" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E14-03" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-03"></button>
         <code class="tid">E14-03</code>
         
@@ -1923,7 +1939,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Navigation structure: Home / Menu, Cart, Orders, Profile</span>
       </li>
-      <li class="task" data-id="E14-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E14-05" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-05"></button>
         <code class="tid">E14-05</code>
         
@@ -1931,7 +1947,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">List virtualisation for the menu; no jank at 50+ items with images</span>
       </li>
-      <li class="task" data-id="E14-06" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E14-06" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-06"></button>
         <code class="tid">E14-06</code>
         
@@ -1955,7 +1971,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Optimistic UI on cart actions; sync in the background</span>
       </li>
-      <li class="task" data-id="E14-09" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E14-09" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-09"></button>
         <code class="tid">E14-09</code>
         
@@ -1971,7 +1987,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Read-only offline mode wired to the menu cache and cached order history</span>
       </li>
-      <li class="task" data-id="E14-11" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E14-11" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-11"></button>
         <code class="tid">E14-11</code>
         
@@ -3517,13 +3533,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/25</span>
+          <span class="meter-num">0/27</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 25 tasks</summary>
+        <summary>Context &amp; 27 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -3722,6 +3738,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Correct the cutover-runbook clock: <code>T+32h</code> was mislabelled Monday 06:00 (that is <code>T+56h</code>); soak is Sat 12:00 → Mon 06:00 = 42h, not 18h. All labels (§2 rows H/I, §6 Phase H &amp; I, §8.2, §10 G5) now consistent, anchored on the fixed business constraint that ordering reopens before the first weekday cutoff. Feeds precondition P3. Done in the review-fix pass (review finding #12)</span>
+      </li>
+      <li class="task" data-id="E17-26" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-26"></button>
+        <code class="tid">E17-26</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Register an iOS device UDID for internal-distribution builds</strong> — <code>eas device:create</code>. The <code>staging</code> profile is <code>distribution: internal</code>, which on iOS is ad-hoc: it needs an Apple Developer login (interactive, with 2FA) and at least one registered device, neither of which can be done unattended. Android needs nothing here — EAS generates the keystore itself</span>
+      </li>
+      <li class="task" data-id="E17-27" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-27"></button>
+        <code class="tid">E17-27</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>App Store Connect app id (<code>ascAppId</code>)</strong> for <code>eas submit</code>. Deliberately absent from <code>eas.json</code> (see <code>docs/decisions/environments.md</code>) — a guessed value submits to somebody else&#39;s listing. Not needed until the first submit</span>
       </li>
       <li class="task" data-id="E17-25" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-25"></button>

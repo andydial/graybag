@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 38 open of 41.
+Your tasks only — 42 open of 45.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -36,6 +36,8 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E00-18` Check whether any legacy prepaid card / wallet balances exist off-system for early users; if so they must be migrated as opening ledger credits (see E16-15)
 - [ ] `E00-19` _(fast-follow)_ Decide the customer self-cancellation window ([PP-01]) and the post-delivery refund stance ([PP-02]) for the refund policy. These are the final customer-facing values docs/refund-policy.md is blocked on; drafts ship with tokens until set
 - [x] `E01-00` One-off: authorise the GitHub (gh auth login) and Supabase CLIs on your machine — after this the build side creates and manages both
+- [ ] `E01-20` _(fast-follow)_ (risk:high) Put the staging Supabase credentials into GitHub Actions secrets — SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD and the staging project ref. E01-04 created the project, but the values were never supplied, so Deploy to staging has failed on every run since 2026-08-08 (supabase link --project-ref ""). CI's required checks are unaffected and green; nothing has ever actually deployed
+- [ ] `E01-21` _(fast-follow)_ Supply the staging client env values — the staging Supabase URL and anon key, plus the Razorpay test key id (rzp_test_…), either into apps/mobile/.env.staging (from .env.staging.example) or as EAS environment variables. Without them a staging build compiles but opens to an app that cannot reach any backend, so there is nothing to look at on a handset. EAS builds from a git archive, so a gitignored .env.staging is not uploaded — for a real device build these must be EAS env vars, not a local file
 - [ ] `E20-21` _(fast-follow)_ Decide and supply the named grievance officer: name, designation, email and published address. E20-07 cannot publish a placeholder, and the four «…-PENDING-E20-21» tokens in docs/dpdp-compliance.md §7.2 block launch
 
 ## Decisions to make (no rush, but they gate later work)
@@ -63,6 +65,8 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E17-04` Submit the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from E20; you sign them off in the consoles
 - [ ] `E17-06` TestFlight build + Play internal testing track, ~15 beta users invited
 - [ ] `E17-12` Support plan for the first two weeks (who answers, how fast, what the common issues will be)
+- [ ] `E17-26` _(fast-follow)_ Register an iOS device UDID for internal-distribution builds — eas device:create. The staging profile is distribution: internal, which on iOS is ad-hoc: it needs an Apple Developer login (interactive, with 2FA) and at least one registered device, neither of which can be done unattended. Android needs nothing here — EAS generates the keystore itself
+- [ ] `E17-27` _(fast-follow)_ App Store Connect app id (ascAppId) for eas submit. Deliberately absent from eas.json (see docs/decisions/environments.md) — a guessed value submits to somebody else's listing. Not needed until the first submit
 
 ---
 
