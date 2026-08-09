@@ -26,6 +26,11 @@ export {
   type EffectiveConfig,
 } from './config-cache.js';
 
+// Network resilience (E14-09): retry with backoff and full jitter, a per-attempt timeout so
+// no spinner can be infinite, and a deliberate refusal to retry anything that says the
+// request itself was wrong.
+export * as net from './net/index.js';
+
 // The menu domain (E04-01/02/03). Pure rules — which menu a school sees today, whether an
 // item is orderable on a weekday, what it costs there, and what we may say about its
 // allergens. No fetching and no Date: see menu/dates.ts for why the second one matters.

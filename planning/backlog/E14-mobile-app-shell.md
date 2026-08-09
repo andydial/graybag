@@ -23,7 +23,7 @@ summary: React Native + Expo shell, navigation, the api/ module discipline, and 
 - [x] `E14-06` (mvp) Image loading: progressive, cached to disk, correct size for the device, never re-downloaded
 - [ ] `E14-07` (mvp) Cold start budget set to the **numbers produced by `E19-02`** and enforced in CI as a failing gate
 - [ ] `E14-08` (mvp) Optimistic UI on cart actions; sync in the background
-- [ ] `E14-09` (mvp) Network resilience: retries with backoff, clear offline state, no infinite spinners
+- [x] `E14-09` (mvp) Network resilience: retries with backoff, clear offline state, no infinite spinners
 - [ ] `E14-10` Read-only offline mode wired to the menu cache and cached order history
 - [ ] `E14-11` (mvp) OTA updates via EAS Update, with a rollback path
 - [ ] `E14-12` Force-upgrade mechanism for breaking changes (replaces the legacy `update_app` view)
