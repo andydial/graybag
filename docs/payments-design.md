@@ -170,6 +170,17 @@ a bare *managed* Expo app cannot host this SDK. The spike must be run on a devel
 or it will prove the wrong thing. Recorded as `[PAY-01]` because the decision also decides §3.4
 and part of `E14`.
 
+> **`[PAY-01]` RESOLVED — (a), the official RN SDK. 2026-08-09, `E19-01`.**
+>
+> Not "recommended" any more; demonstrated. The SDK compiles against RN 0.86 under the New
+> Architecture, an EAS release build ships it, and **a real test-mode UPI payment on a real
+> Android handset captured and its callback signature verified** (`docs/spike-results.md`
+> B6, B7). The two risks that would have forced a flip to (b) — a legacy-only bridge module,
+> and the stale `com.facebook.react:react-native:+` coordinate — were both ruled out by the
+> compiler rather than by reading metadata (A8, A9).
+>
+> Options (b) and (c) are closed. Nothing below in §3.3–§3.5 is contingent any more.
+
 ### 3.3 How native UPI intent actually works
 
 Worth writing down, because "UPI" is three different flows with very different failure
@@ -196,25 +207,40 @@ either the `<queries><intent><action android:name="android.intent.action.VIEW"/>
 android:scheme="upi"/></intent></queries>` form or the explicit package list the Razorpay SDK
 documents. `E06-29`.
 
-> **Partial answer, 2026-08-08 (`E19-01` setup, static analysis — not yet device-confirmed).**
-> The assumption above is right about the RN wrapper and wrong about the SDK beneath it.
-> `react-native-razorpay@3.0.0`'s manifest declares only `CheckoutActivity` and no `<queries>`
-> — but it depends on `com.razorpay:checkout`, which depends transitively on
-> `com.razorpay:standard-core`, **whose AAR manifest does declare a `<queries>` block**
-> containing `scheme="upi" host="pay"`. Manifest merging should pull that into the app, so the
-> chooser may already work with nothing added.
+> **RESOLVED 2026-08-09 — and the resolution is all three of those things, not one.**
 >
-> **This makes it worse, not better.** `checkout` declares that dependency at version `LATEST`,
-> so the block we would be relying on is unpinned and can change between builds with no change
-> on our side. `E06-29` should therefore become an **assertion on the merged manifest**
-> (`E06-30`) plus a **version pin** (`E19-08`), not just a config plugin. The plugin is written
-> and verified regardless, at `tools/spike-mobile/plugins/withUpiQueries.js`, and the spike ships
-> with it **off** so the device can tell us which of the two situations we are in.
-> See `docs/spike-runbook.md` §1.2–1.3.
+> The paragraph above is right about the RN wrapper and wrong about the SDK beneath it.
+> `react-native-razorpay@3.0.0`'s manifest declares only `CheckoutActivity` and no `<queries>`
+> — but `com.razorpay:standard-core`, pulled in transitively, **does** declare a `<queries>`
+> block containing `scheme="upi" host="pay"`, and Android's manifest merger pulls it into the
+> app. That is now confirmed from a **built artefact's merged manifest**, not from the AAR:
+> `scripts/verify-apk-upi-queries.mjs` decodes it out of the `E19-01` spike APK.
+>
+> **The device could not adjudicate it, and will not.** The handset had a single UPI app
+> installed, so Android went straight into it instead of showing a list — consistent with a
+> working chooser and with a broken one alike. Since that build's manifest *did* carry the
+> scheme query, there was in fact no defect for the plugin to repair, and the experiment could
+> never have returned a usable answer.
+>
+> So `E06-29` was resolved by construction rather than by measurement, and it is now three
+> things rather than a choice between them:
+>
+> 1. **`E06-29`** — `apps/mobile/plugins/withUpiQueries.js`, **permanently enabled**. We
+>    declare the visibility ourselves and stop depending on anyone else for it.
+> 2. **`E06-32`** — assert the `<queries>` block in the **built APK**, because a config plugin
+>    that silently stops applying is indistinguishable from one that works.
+> 3. **`E19-08`** — pin `com.razorpay:standard-core` (to `1.7.18`), so the upstream half of
+>    the block cannot change under us between builds.
+>
+> The residual risk was never "is the block there" but "who put it there, and can they take it
+> away". See `docs/spike-runbook.md` §1.2–1.3 and `docs/spike-results.md` §C.
 
 On iOS, intent is app-switch by URL scheme, which needs the PSP schemes in
 `LSApplicationQueriesSchemes`. iOS UPI usage in this audience is a small fraction of Android's;
-the flow must work, but it is not where the effort goes. **[verify in E19-01]**.
+the flow must work, but it is not where the effort goes. **Still unverified** — `E19-01` ran on
+Android only, and no iOS build has put a payment through. It lands with `E06-02`, which is when
+the SDK is added to `apps/mobile` and the iOS half of `E06-29` can be written and tested
+together.
 
 ### 3.4 What the client is given, and what it must persist
 
@@ -1120,15 +1146,15 @@ breaks if the answer is different. `E19-06` writes up the answers; `E19-07` is t
 
 | # | Statement | If it is wrong |
 |---|---|---|
-| 1 | The official RN SDK gives native UPI intent, and needs an EAS dev build (not Expo Go) | `[PAY-01]` flips to WebView, and §3.3's intent flow degrades. Re-plan `E06-02` and `E14` |
-| 2 | Android 11+ `<queries>` is required for the UPI app chooser, and the SDK does not supply it | Silent degradation to collect/QR in production. `E06-29` is the fix; not knowing is the risk |
-| 3 | iOS UPI app-switch works, and which `LSApplicationQueriesSchemes` are needed | iOS UPI falls back to collect. Tolerable, but it must be a known state |
-| 4 | Auto-capture works identically for UPI intent (`[OL-01]`) | If UPI intent only ever authorizes, `authorized` becomes a live state and `L5` (never cook against an authorization) starts costing real orders |
+| 1 | ~~The official RN SDK gives native UPI intent, and needs an EAS dev build (not Expo Go)~~ **ANSWERED 2026-08-09: yes, both halves.** A real UPI payment completed on an EAS release build | ~~`[PAY-01]` flips to WebView~~ Closed |
+| 2 | ~~Android 11+ `<queries>` is required for the UPI app chooser, and the SDK does not supply it~~ **ANSWERED 2026-08-09: the requirement is real; the second half is wrong.** `com.razorpay:standard-core` does supply it — confirmed from a built artefact's merged manifest. We now supply it ourselves anyway (`E06-29`), assert it in the APK (`E06-32`) and pin the upstream source (`E19-08`) | ~~Silent degradation to collect/QR~~ Closed, and no longer dependent on an unpinned third party |
+| 3 | iOS UPI app-switch works, and which `LSApplicationQueriesSchemes` are needed | **Still open.** No iOS build has run a payment. iOS UPI falls back to collect. Tolerable, but it must be a known state |
+| 4 | ~~Auto-capture works identically for UPI intent (`[OL-01]`)~~ **ANSWERED 2026-08-09: yes — the dashboard shows `captured`, not `authorized`** | ~~If UPI intent only ever authorizes, `authorized` becomes a live state and `L5` starts costing real orders~~ Closed. `authorized` is a transient out-of-order-delivery state, not one an order sits in. `L5` stays as a guard against a case that should not arise |
 | 5 | The webhook event set is exactly §6.4's list, with those names | Missing events break settlement paths; unknown ones are ignored, so the risk is one-directional |
 | 6 | `order.paid` fires for every capture | Only affects redundancy; `payment.captured` is the primary |
 | 7 | Webhooks carry `X-Razorpay-Event-Id` | Layer 4 of §7.1 needs the deterministic fallback in §6.2, which is weaker |
 | 8 | Webhook signature = HMAC-SHA256(webhook secret, raw body), hex, in `X-Razorpay-Signature` | **Every** webhook fails verification. §5.6's failure mode, live |
-| 9 | Callback signature = HMAC-SHA256(key secret, `order_id\|payment_id`), hex | `/verify` rejects every legitimate callback |
+| 9 | ~~Callback signature = HMAC-SHA256(key secret, `order_id\|payment_id`), hex~~ **ANSWERED 2026-08-09: confirmed against a real payment.** `MATCH` from `scripts/verify-signature.mjs` | ~~`/verify` rejects every legitimate callback~~ Closed. §5.3 can be built as written |
 | 10 | Webhook retry policy and window (assumed ~24h) | Sets the `_PREVIOUS` window in §2.4 and the "we own retry" boundary in §6.6 |
 | 11 | Webhook response timeout | If it is tight, §6.2's inline processing must move fully to the retry job |
 | 12 | How long a **UPI collect** can stay pending, and whether Razorpay expires it | Sets the floor for `[OL-03]`'s TTL. Too short and §10.5 (late capture after sweep) becomes routine |
@@ -1208,7 +1234,7 @@ Seven, all recorded in `docs/open-questions.md` under "Raised by the payments de
 
 | Q | One line | Blocks |
 |---|---|---|
-| `[PAY-01]` | Native RN SDK, WebView checkout, or a bespoke S2S flow | `E19-01`, `E06-02`, `E14` |
+| ~~`[PAY-01]`~~ | ~~Native RN SDK, WebView checkout, or a bespoke S2S flow~~ **RESOLVED 2026-08-09 — (a), the native RN SDK, demonstrated end to end on a handset** | ~~`E19-01`, `E06-02`, `E14`~~ |
 | `[PAY-02]` | How a refund splits across a wallet-funded and a source-funded portion | `E06-08`, `E06-09` |
 | `[PAY-03]` | Refund speed `normal` or `optimum`, and who pays for instant | `E06-08` |
 | `[PAY-04]` | `M5`'s MDR deduction has no school share to come out of on a pre-delivery refund | `E06-12`, `E07-11` |
