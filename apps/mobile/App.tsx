@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { SelectedSchoolProvider } from './src/session/SelectedSchoolContext';
 import { SessionProvider } from './src/session/SessionContext';
 
 /**
@@ -26,7 +27,9 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <SessionProvider>
-        <RootNavigator />
+        <SelectedSchoolProvider>
+          <RootNavigator />
+        </SelectedSchoolProvider>
       </SessionProvider>
     </SafeAreaProvider>
   );

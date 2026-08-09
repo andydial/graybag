@@ -55,6 +55,14 @@ export {
 } from './version-endpoint.js';
 
 export {
+  ALL_CATEGORIES,
+  filterMenu,
+  matchesQuery,
+  normalise,
+  type SearchableDish,
+} from './search.js';
+
+export {
   allergenDisclosure,
   allergenWarning,
   mayStateNoAllergens,

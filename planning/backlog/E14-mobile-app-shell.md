@@ -19,8 +19,8 @@ summary: React Native + Expo shell, navigation, the api/ module discipline, and 
 - [x] `E14-01` (mvp) Expo project scaffolded with the existing bundle IDs, app icon and splash from the brand package
 - [x] `E14-02` (risk:critical) (mvp) **Enforce the `api/` module rule** — lint rule that fails the build if a screen imports the Supabase client directly, or if any privileged key reaches the bundle (`E01-18`)
 - [x] `E14-03` (mvp) Navigation structure: Home / Menu, Cart, Orders, Profile
-- [ ] `E14-05` (mvp) List virtualisation for the menu; no jank at 50+ items with images
-- [ ] `E14-06` (mvp) Image loading: progressive, cached to disk, correct size for the device, never re-downloaded
+- [x] `E14-05` (mvp) List virtualisation for the menu; no jank at 50+ items with images
+- [x] `E14-06` (mvp) Image loading: progressive, cached to disk, correct size for the device, never re-downloaded
 - [ ] `E14-07` (mvp) Cold start budget set to the **numbers produced by `E19-02`** and enforced in CI as a failing gate
 - [ ] `E14-08` (mvp) Optimistic UI on cart actions; sync in the background
 - [ ] `E14-09` (mvp) Network resilience: retries with backoff, clear offline state, no infinite spinners
