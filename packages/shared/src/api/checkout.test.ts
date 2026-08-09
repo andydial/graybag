@@ -46,7 +46,7 @@ describe('createCheckout', () => {
       lines: [{ recipientId: 'r1', serviceDate: '2026-08-13', menuItemId: 'm1', quantity: 2 }],
     });
 
-    const body = invoke.mock.calls[0][1].body;
+    const body = invoke.mock.calls[0]?.[1].body as Record<string, unknown>;
     expect(body.idempotency_key).toBe('k1');
     expect(body.expected_total_paise).toBe(16800);
     expect(body.lines).toEqual([
@@ -60,7 +60,7 @@ describe('createCheckout', () => {
     const invoke = stub({ data: OK });
     await createCheckout({ idempotencyKey: 'k1', expectedTotalPaise: null, lines: [] });
 
-    expect(JSON.stringify(invoke.mock.calls[0][1].body)).not.toMatch(/customer|user_id/i);
+    expect(JSON.stringify(invoke.mock.calls[0]?.[1].body)).not.toMatch(/customer|user_id/i);
   });
 
   it('returns the orders in camelCase', async () => {
