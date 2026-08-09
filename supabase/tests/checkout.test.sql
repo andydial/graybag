@@ -158,7 +158,7 @@ select throws_ok(
 
 select throws_ok(
   format($$ select create_checkout(%L::uuid, 'k-auth', 'h', null, t_line()) $$,
-         '00000000-0000-0000-0000-0000000000ff'),
+         '00000000-7e57-0000-0000-0000000000ff'),
   'P0001',
   null,
   '§8.2 step 5: a caller with no guardian_link cannot order for the recipient. This function runs as service_role, so RLS is NOT a second line of defence here — it is the only line');
@@ -199,7 +199,7 @@ select throws_ok(
 select throws_ok(
   format($$ select create_checkout((select customer_id from t_ctx), 'k-bad-item', 'h', null,
                                    t_line(3, 1, %L::uuid)) $$,
-         '00000000-0000-0000-0000-0000000000aa'),
+         '00000000-7e57-0000-0000-0000000000aa'),
   'P0001',
   null,
   '§8.2 step 4: a menu item that is not on that school''s live menu is refused — the client''s cart is revalidated against live data, never trusted');
