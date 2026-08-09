@@ -28,7 +28,12 @@
     "backlog": "node scripts/build-backlog.mjs",
     "backlog:serve": "node scripts/serve-backlog.mjs",
     "backlog:sync": "node scripts/sync-state.mjs",
-    "overnight": "bash scripts/overnight.sh"
+    "overnight": "bash scripts/overnight.sh",
+    "dev:mobile": "npm run dev:mobile:staging",
+    "dev:mobile:staging": "cp apps/mobile/.env.staging apps/mobile/.env && npm --prefix apps/mobile run start",
+    "dev:mobile:prod": "cp apps/mobile/.env.production apps/mobile/.env && npm --prefix apps/mobile run start",
+    "ota:staging": "npm run smoke && npm --prefix apps/mobile exec -- eas update --branch staging",
+    "ota:production": "npm run smoke && npm --prefix apps/mobile exec -- eas update --branch production"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

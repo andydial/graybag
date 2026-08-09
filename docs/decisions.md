@@ -35,7 +35,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Store submission](decisions/store-submission.md) | `SUB1`–`SUB3` | Declarations derived from the policy, no tracking, no ad ID |
 | [Secret rotation and testing](decisions/secrets-and-testing.md) | `SR1`–`SR3` | Where secrets live, what gates merge, what CI cannot prove |
 | [Migrations](decisions/migrations.md) | `MG1`–`MG6` | Rollback location, reversibility, version numbering, immutability |
-| [Environments and secrets](decisions/environments.md) | `EN1`–`EN5` | Test/live key isolation, load-time assertions, `secrets:set` |
+| [Environments and secrets](decisions/environments.md) | `EN1`–`EN11` | Test/live key isolation, load-time assertions, `secrets:set`, the client `.env` pattern, OTA |
 | [CI](decisions/ci.md) | `CI1`–`CI4` | Smoke test only on PR, integration on `supabase/**` |
 | [Seed data](decisions/seed-data.md) | `SD1`–`SD5` | Fixed UUIDs, no orders/money, fixtures chosen for untestable states |
 | [Deployment](decisions/deployment.md) | `DP1`–`DP5` | Environment approval gate, branch policies, the repo is public |
