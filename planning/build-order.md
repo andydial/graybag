@@ -103,41 +103,128 @@ corrected allergen would never have reached a cached device).
 
 `E19-01` and `E19-02` remain parked with `E14-07`.
 
-## Block 6 — Ordering  (E05)
+## Re-planned 2026-08-09 — Amity launches with **zero migration**
+
+Andy's ruling. Amity's old email domains are dead; those ~150 users re-register from scratch on
+`ais.amity.edu.in`, and **the loss of their order history is accepted**. Andy cleans the export
+himself and hands over a final import batch of valid users only. The other ~250 users at the
+smaller schools migrate **after** cutover.
+
+Three consequences, and they reorder everything below:
+
+1. **`E16` leaves the critical path entirely** and becomes post-cutover work. That is 10 open
+   MVP tasks off the launch, and it removes the single riskiest calendar dependency in the plan
+   — two full dress rehearsals that had to finish before a cutover weekend.
+2. **Onboarding became revenue-critical.** 150 parents will register in a compressed window and
+   re-enter their children by hand, on whichever app is live. `E03` had **no block at all** in
+   this document before today — it was referenced once, in passing, as something `E14-14` waits
+   for. It is now a block of its own.
+3. **`E06` is the long pole**, and is to be pushed to the point where the only thing missing is
+   the handset test.
+
+**`E03-16`** ("migrate the ~400 existing users by email match") is no longer a launch task: 150
+of those users are re-registering and the rest migrate later. It moves to the post-cutover block
+with `E16`, along with `E03-18`/`E03-19` (the two-account support path), which only matter to
+migrated accounts.
+
+## Block 6 — Ordering  (E05)  ← in progress
 
 Dependents, cart, cutoff enforcement (server-side), break times, order creation with
 snapshots, history, cancellation, idempotency.
 
-## Block 7 — Payments  (E06)  ← the riskiest block
+Done: `E05-04` (cart), `E05-07` (cutoff). Half: `E05-08` (server), `E05-06` (resolver).
+
+**Finish with the checkout transaction** — `docs/order-lifecycle.md` §8.2 steps 1–9 (`E05-09`,
+`E05-12`, `E05-13`), then `E05-11`. Steps 1–9 are pure database and need no Razorpay, no auth
+and no handset, so this is the last large piece that is unblocked by anything or anyone.
+
+**`assert_cutoff_open` still has no caller.** `E05-07` shipped the mechanism and its proof;
+enforcement only becomes real when step 6 calls it. Nothing else in this block matters more.
+
+## Block 7 — Identity & onboarding  (E03)  ← promoted, was unscheduled
+
+Google Sign-In, Sign in with Apple, email OTP, account linking, session across restarts,
+account deletion, optional email and mobile on the profile.
+
+**Done when:** a new parent goes from a cold app open to a child added and a cart ready to pay,
+with no password, no email-verification step, and no step that could have been deferred —
+and the number of taps is written down.
+
+Promoted above payments deliberately. It is smaller (11 open MVP tasks against 15), and it is
+the difference between a flow that ends **done** and one that ends **blocked**: `E06` finishes
+waiting on a handset whatever order it is built in, whereas `E03` can be finished outright.
+Until it exists, nothing downstream can be exercised as a real user, because there are no real
+users.
+
+`AR7` governs every task here and is now a revenue constraint rather than a principle: any task
+adding a step between opening the app and paying needs an explicit justification recorded with
+it.
+
+## Block 8 — Payments  (E06)  ← the long pole
 
 In-app checkout with native UPI, webhook signature verification, idempotent handling, the
 order state machine, ledger, refunds including per-line, daily reconciliation.
 
 **Done when:** a real test-mode payment completes end to end and reconciliation is clean.
 
-## Block 8 — Invoicing & email  (E07, E08)
+**Target state before the handset exists:** everything except the device test. Signature
+verification, the `L3` capture-rank monotonic state machine, webhook idempotency, the ledger,
+refunds and reconciliation are all server-side and testable against `E01-19`'s provider stub
+with no real UPI and no phone. Build all of it. Stop at anything that needs a real UPI
+transaction and say so — never mock around it.
+
+`E19-01` (Razorpay + UPI on a real Android) remains parked on the handset and is the gate.
+
+## Block 9 — Invoicing & email  (E07, E08)  ← externally blocked, start the unblocked half
 
 Gapless invoice numbering, the GST PDF, sender domain (SPF/DKIM/DMARC), confirmation and
 cancellation emails.
 
-## Block 9 — Back office  (E09, E10)
+**This is a second long pole, and it is not ours.** `E07` is blocked on `E00-10`/`E00-11` for
+the GSTIN and SAC code, and `G3` makes the invoice issuer **refuse to allocate a number while
+either is a placeholder**. So no compliant invoice can be issued in production without the
+accountant. Real money cannot complete a clean transaction until that arrives.
+
+The numbering machinery, the gapless-series triggers (`G8`) and the email domain (`E08`) do not
+need the GSTIN and should be built while waiting.
+
+## Block 10 — Back office  (E09, E10)
 
 Kitchen order list, mark delivered, reject with refund, permission split; admin school and
 kitchen onboarding, menu management, Excel upload, config UI, order dashboard.
 
-## Block 10 — Website & compliance  (E12, E20)
+Launch needs the kitchen half (`E09`, 5 open MVP tasks) — an order nobody can see is an order
+nobody cooks. The admin half can follow.
+
+## Block 11 — Website & compliance  (E12, E20)
 
 Homepage, enquiry form, published privacy/terms/refund, grievance officer contact,
 back-office login entry, Netlify deploy. Consent capture at child creation, policy
 acceptance gate, no PII in logs or Sentry.
 
-## Block 11 — Migration  (E16)
-
-Migration script, role mapping, data quality report, validation suite, **two full dress
-rehearsals**, rollback plan.
+Both stores require the published policies to exist at a reachable URL before submission, so
+this cannot be the last thing done.
 
 ## Block 12 — Release  (E17)
 
 EAS build and submit, store listings, App Privacy and Data Safety forms, TestFlight and
 Play internal testing, ~2 week beta with real money, cutover weekend, phased store
 rollout, decommission Bubble after 30 days.
+
+**The third long pole, and it is calendar time rather than work.** App Store review is days and
+can reject; the beta is ~2 weeks by design. Three of its open MVP tasks are `owner:andy`. It
+cannot be compressed by building faster, which is the argument for starting the store-facing
+paperwork (`E17-04`'s privacy answers, the listings) during Block 9 rather than after Block 11.
+
+Cutover is now much cheaper than it was: with Amity migrating nothing, the weekend is a store
+release rather than a data migration with two dress rehearsals behind it.
+
+## Block 13 — Migration, after cutover  (E16, `E03-16`, `E03-18`, `E03-19`)
+
+The ~250 users at the smaller schools, from Andy's cleaned export. Migration script, role
+mapping, data quality report, validation suite, dress rehearsals, rollback plan.
+
+Moved here from Block 11 by the 2026-08-09 ruling. It is no longer a gate on launch, which is
+what takes it off the critical path — but the dress rehearsals and the validation suite are not
+cancelled, only deferred. Migrating real people's order history into a live system with money in
+it is not less dangerous for happening later.

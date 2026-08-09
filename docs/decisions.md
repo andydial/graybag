@@ -40,7 +40,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Seed data](decisions/seed-data.md) | `SD1`–`SD5` | Fixed UUIDs, no orders/money, fixtures chosen for untestable states |
 | [Deployment](decisions/deployment.md) | `DP1`–`DP5` | Environment approval gate, branch policies, the repo is public |
 | [Branch protection](decisions/branch-protection.md) | `BP1`–`BP4` | No bypass actors, PR required, strict status checks |
-| [Scope confirmations](decisions/scope-confirmations.md) | `SC1`–`SC2` | Mohali only; menu prices GST-exclusive |
+| [Scope confirmations](decisions/scope-confirmations.md) | `SC1`–`SC3` | Mohali only; menu prices GST-exclusive; Amity launches with zero migration |
 | [Authorization fixes](decisions/authorization-fixes.md) | `AZ8`–`AZ10` | Fulfilment scope binding found by running the suite |
 | [Legacy assets outside git](decisions/legacy-assets.md) | `RH1`–`RH4` | Why the 46 MB design package and the fonts are not in history |
 | [The privilege baseline](decisions/privilege-baseline.md) | `PB1`–`PB5` | GRANT written down, not inherited from the platform |
