@@ -4,6 +4,80 @@ Newest handover at the top. Assume the reader has forgotten everything.
 
 ---
 
+## 2026-08-10 (afternoon) — the order path exists and works; nobody can run it yet
+
+### SHIPPED
+
+| Task | One line |
+|---|---|
+| — | **`Deploy to staging` is green for the first time.** The project ref was a secret, and an unset secret is an empty string |
+| `E05-09`/`E05-12`/`E05-13` | `create_checkout()` — §8.2 steps 1-9 in one transaction. **`assert_cutoff_open` finally has a caller** |
+| `E05-09` (client) | The `checkout` Edge Function and `api.createCheckout()` — the first write in the system |
+| `E09-11a` | `npm run kitchen -- --date YYYY-MM-DD`, plus `--csv production\|per-school\|packing` |
+| `E05-15` follow-up | Fixture ids now carry the `7e57` marker, caught by `check:fixtures` |
+
+Smoke **490 unit tests**; pgTAP **317 assertions** across eight suites. PRs #27 and #28
+merged; `main` is current and nothing is unpushed.
+
+### FINDINGS
+
+**1. The order path is complete and has nobody to run it for.** `create_checkout` refuses
+every request from the app with `not_authorized`, correctly — there is no `guardian_link`,
+because **nothing in the product creates a child**. `E05-01`/`E05-02` are unbuilt, and the
+reason they are not simply next is that adding a child is where consent is captured
+(`E20-01`, `[DM-12]`), which is blocked on the DPDP legal question. Filed as `E05-16`.
+Staging carrying no children is deliberate, not a seeding gap.
+
+**2. `Deploy to staging` was never a credentials problem.** With the token and password
+set it still failed at `supabase link --project-ref ""`. `SUPABASE_PROJECT_REF` was never
+set and should never have been a secret — it is the subdomain of the Supabase URL that
+ships inside every APK. An unset secret renders as an empty string, so the CLI's error
+read like a credentials failure and was not one. Now a plain value with a guard that names
+which of the three inputs is missing.
+
+**3. `node --experimental-strip-types` cannot resolve the `.js`-for-`.ts` convention**
+`packages/shared` uses. Same class as the Metro bundling bug: fine for `tsc`, Vitest and
+Jest, not for every runtime. The kitchen script runs under `tsx`.
+
+**4. I committed a red typecheck once**, fixed in the following commit. Lint and the unit
+tests were green and I read those instead of the full smoke output — which is exactly what
+`npm run smoke` exists to stop me doing.
+
+### BLOCKED
+
+- **Placing an order from the phone** — `E05-16` above. Not blocked on anything in the
+  order path; blocked on there being no child to order for.
+- **`E09`'s screens** — they belong in `apps/web`, which is one `index.ts`. A web app is
+  not something to start and half-finish in a three-hour run, so the terminal path shipped
+  instead and the screens are still open (`E09-04`, `E09-05`).
+- **No iOS build** — `E17-26`.
+
+### NEEDS ANDY
+
+1. **The four decisions**, drafted in chat this run: `[OL-02]`, `[OL-03]`, `[PAY-02]`,
+   `E09-14`. `E06` is blocked on the first three; the fourth is a data-protection
+   commitment.
+2. **`E05-16` / `[DM-12]`** — does v1 capture consent at child creation, or defer it?
+   Building the add-a-child flow twice is the expensive outcome, and it is the last thing
+   between the order path and a real order.
+3. **`E19-03`** — the VAG Rounded Next licence.
+4. **`E17-26`, `E17-27`** — iOS device registration and the App Store Connect app id.
+
+### NEXT
+
+`E05-01`/`E05-02` the moment `[DM-12]` returns — that is the whole remaining distance to a
+real order on a phone. Then `E09-04`/`E09-05` need `apps/web` to exist at all, which is a
+scaffold job worth doing deliberately rather than as a side effect.
+
+### BUILDS
+
+See the previous entry's link unless the build started at the end of this run finished —
+check `npx eas-cli build:list --platform android --limit 1` from `apps/mobile`. Nothing in
+this run changes what the app displays: the checkout client landed, the screen that would
+call it did not.
+
+---
+
 ## 2026-08-10 (morning) — staging serves a real menu, and AUTH-01 is what you decided
 
 ### SHIPPED
