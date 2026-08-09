@@ -21,6 +21,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 import type { ClientEnv } from '../env.js';
+import { chunkedStore, memoryStore, type SessionStore } from './session-storage.js';
 
 /**
  * The subset of the Supabase client this module actually uses.
@@ -90,8 +91,23 @@ export class ApiError extends Error {
  * alone here because `E03` owns session storage and will configure them deliberately rather
  * than inheriting a decision made in passing during `E14`.
  */
-export function configureApi(env: ClientEnv): void {
-  transport = createClient(env.supabaseUrl, env.supabaseAnonKey) as unknown as ApiTransport;
+export function configureApi(env: ClientEnv, options: { sessionStore?: SessionStore } = {}): void {
+  // `E03-20`. Without a store the session lives in memory and every cold start is a fresh
+  // OTP — which, for ~150 parents re-registering by hand under `SC3`, is the difference
+  // between signing in once and signing in every morning.
+  //
+  // `persistSession` and `autoRefreshToken` are both on: the refresh token is long-lived
+  // by decision `U3` (90-180 days), and the whole point of that decision is that a
+  // returning parent does not see an OTP. `detectSessionInUrl` is off because there is no
+  // URL — it is a browser concern and leaving it on makes the client look for one.
+  transport = createClient(env.supabaseUrl, env.supabaseAnonKey, {
+    auth: {
+      storage: chunkedStore(options.sessionStore ?? memoryStore()),
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+    },
+  }) as unknown as ApiTransport;
 }
 
 /** Install a stub. Tests only. */
