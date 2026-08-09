@@ -9,6 +9,7 @@ import { Card, EmptyState, ErrorState, ListRow, Skeleton } from '../components/S
 import { Sheet, Tabs } from '../components/Tabs';
 import { CartBadge } from '../components/cart/CartBadge';
 import { SwipeRow } from '../components/motion/SwipeRow';
+import { CartProvider } from '../cart/CartContext';
 import { RootNavigator } from '../navigation/RootNavigator';
 import { SessionProvider } from '../session/SessionContext';
 
@@ -161,7 +162,10 @@ describe('every screen in the navigator passes the audit', () => {
     expectClean(
       await auditing(
         <SessionProvider>
-          <RootNavigator />
+          {/* The Cart tab's badge reads the cart during render (`E05-04`). */}
+          <CartProvider>
+            <RootNavigator />
+          </CartProvider>
         </SessionProvider>,
       ),
     );

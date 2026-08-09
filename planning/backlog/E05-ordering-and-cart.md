@@ -13,7 +13,7 @@ summary: Recipients, cart, cutoff enforcement, break/drop time selection, and or
 - [ ] `E05-01` (risk:high) (mvp) Recipient management: add/edit a dependent (name, class, section, allergies), self-declared school from the onboarded list. Includes **parental consent capture** (`E20-02`)
 - [ ] `E05-02` (mvp) Change school on a dependent or on self, from onboarded schools only
 - [ ] `E05-03` Support a customer with dependents at **multiple schools**
-- [ ] `E05-04` (mvp) Cart: add/remove/quantity, per-line special comments, optimistic UI
+- [x] `E05-04` (mvp) Cart: add/remove/quantity, per-line special comments, optimistic UI
 - [ ] `E05-05` (risk:high) **Allergen warning** when adding a dish that conflicts with the recipient's declared allergies
 - [ ] `E05-06` (mvp) Break / drop time selection per school; supports different times for different class groups later
 - [x] `E05-07` (risk:critical) (mvp) **Cutoff enforcement** — midnight by default, resolved via the config chain, enforced server-side not just in the UI

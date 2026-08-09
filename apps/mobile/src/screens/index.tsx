@@ -39,13 +39,11 @@ export const MenuScreen = () => {
   );
 };
 
-export const CartScreen = () => (
-  <PlaceholderScreen
-    testID="screen-cart"
-    title="Cart"
-    note="Fillable signed out. The sign-in gate is at checkout, not here."
-  />
-);
+/**
+ * Real as of `E05-04`. Fillable signed out — the sign-in gate is at checkout, not here
+ * (`AR7`), which `CartScreen.test.tsx` asserts rather than leaving to this comment.
+ */
+export { CartScreen } from '../cart/CartScreen';
 
 export const AccountScreen = () => (
   <PlaceholderScreen

@@ -2,6 +2,7 @@ import { render, screen, userEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { PUBLIC_ROUTES, RootNavigator } from './RootNavigator';
+import { CartProvider } from '../cart/CartContext';
 import { SessionProvider, requiresSignIn } from '../session/SessionContext';
 
 // `render` is async on RNTL v14 — see docs/learnings.md 2026-08-09.
@@ -30,7 +31,15 @@ function renderSignedOut() {
       }}
     >
       <SessionProvider>
-        <RootNavigator />
+        {/*
+          The cart provider is not optional scaffolding: the Cart tab's badge reads the cart
+          during the navigator's own render (`E05-04`), so a navigator without one throws.
+          That is deliberate — `useCart` refuses rather than returning an empty cart, because
+          a silently-empty cart reads as "the add button is broken".
+        */}
+        <CartProvider>
+          <RootNavigator />
+        </CartProvider>
       </SessionProvider>
     </SafeAreaProvider>,
   );
