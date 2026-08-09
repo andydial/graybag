@@ -40,7 +40,19 @@ matchers are built in and self-register). Most tutorials still import it. The fa
 `Cannot find module` **from the setup file**, so every suite fails to run and none of them are
 the one at fault.
 
-**3. `render` is async on RNTL v14 — it returns a Promise.** React 19's concurrent root commits
+**3. Reanimated 4 must NOT be mocked in jest, and the tutorial setup throws.** Every guide
+shows `jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))`.
+On Reanimated 4 that mock imports the real index, which pulls in `react-native-worklets`,
+which reaches for a native module jest does not have —
+`TypeError: Cannot read properties of undefined (reading 'loadUnpackers')`, thrown from deep
+inside `node_modules` with your setup file as the only frame you recognise. **The fix is a
+resolver, not a mock:** `"resolver": "react-native-worklets/jest/resolver.js"` in the jest
+config. It strips `.native` extensions for that one package so jest resolves the non-native
+implementation. Animations then genuinely run under test, which is what `S27` requires —
+`resolveDuration` returns `duration.instant` rather than skipping, so completion callbacks
+still fire and a component whose state advance hangs off one still works.
+
+**4. `render` is async on RNTL v14 — it returns a Promise.** React 19's concurrent root commits
 outside the synchronous call, so the v13 pattern `const { getByTestId } = render(<C />)`
 destructures a Promise and yields `undefined`. The two symptoms are
 `TypeError: getByTestId is not a function` and, via the `screen` singleton,
