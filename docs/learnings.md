@@ -19,6 +19,71 @@ Format — newest first:
 
 ---
 
+## 2026-08-09 — A binary parser with a wrong base offset does not throw, it lies
+
+**Context:** `E06-32`, writing a reader for the binary `AndroidManifest.xml` inside an APK so
+the UPI `<queries>` block could be asserted against the built artefact rather than against the
+config that is supposed to produce it.
+
+**What happened:** the first run against the real `E19-01` spike APK reported
+`android:scheme="upi"  MISSING`. Taken at face value that would have been a significant
+finding — it would have meant `com.razorpay:standard-core` does *not* supply the block after
+all, contradicting spike finding A3 and changing what `E06-29` had to do.
+
+**Cause:** an off-by-16 in my own parser. In AOSP's `ResXMLTree_attrExt`, `attributeStart` is
+an offset **from the start of that struct** — which begins after the 8-byte chunk header and
+the 8 bytes of `lineNumber` + `comment` — not from the start of the chunk. Using the chunk
+start as the base shifted every attribute by 16 bytes.
+
+**The part worth remembering:** it still parsed. Every length was plausible, every string index
+resolved to a real string, and the output looked like a manifest — attributes named `label` and
+`icon`, namespaces that were actually element names. A length-prefixed binary format read at
+the wrong offset does not usually fail; it produces confident nonsense. The structure (element
+names, nesting, counts) was *correct*, which made it more convincing still.
+
+**Fix / rule:** never report a finding from a freshly written binary parser without first
+asserting a **known-good** value through it. Here that was `versionCode`, `package` and the
+namespace URI on the root element — all independently knowable. Once those decoded correctly
+the `upi` scheme appeared exactly where A3 said it would. The tests now build their own AXML
+fixtures with an encoder rather than trusting a checked-in APK, because writing the encoder is
+what forces the struct layout to be stated explicitly instead of assumed.
+
+Corollary for any spike result: a negative result from new tooling is a claim about the
+tooling until the tooling has been shown to produce a known positive.
+
+---
+
+## 2026-08-09 — An experiment that cannot distinguish its two outcomes is not a pending result
+
+**Context:** `E19-01`'s central question — does Razorpay's checkout show a UPI **app chooser**
+listing installed PSP apps, or does it silently degrade to collect/QR?
+
+**What happened:** the handset session could not answer it. The test device had a single UPI
+app installed, so Android went straight into that app rather than presenting a list. That
+observation is equally consistent with "the chooser works and had one entry" and "the chooser
+is empty and something else handled the intent".
+
+**Cause:** the experiment's design assumed at least two PSP apps — the runbook says so in §2.0
+— and the one variable that made it decisive was the one nobody could guarantee about someone
+else's phone.
+
+**Fix / rule, and this is the transferable part:** the result was **closed by construction
+rather than by re-running the experiment**. The plugin under test costs nothing to enable
+permanently (`<queries>` entries are declarations, not permissions — no runtime cost, no
+prompt, nothing to disclose in a store listing), so turning it on unconditionally makes the
+distinction irrelevant. A day of chasing a second handset would have bought an answer to a
+question that no longer needed answering.
+
+Ask, when a spike returns ambiguous: *is the answer worth more than making the question moot?*
+It usually is not, when the "fix" is free and already written. Where the answer genuinely was
+worth having — is the block present in a shipped artefact at all — the check moved to
+`scripts/verify-apk-upi-queries.mjs`, which answers it on every build instead of once.
+
+A footnote that mattered: once the artefact check existed, running it against the spike APK
+showed that build's manifest *did* carry the scheme query. So the chooser had visibility, the
+single installed app was the whole explanation, and the follow-up experiment (B3, "does
+enabling the plugin fix it") could never have returned anything.
+
 ## 2026-08-09 — Three traps in the Expo 57 test harness, all of which look like broken components
 
 **Context:** `E14-01`, standing up `apps/mobile` with a component test runner so `E13-03` can
