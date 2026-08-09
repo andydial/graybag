@@ -32,6 +32,13 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # NOT a secret, and storing it as one is what broke this workflow for three days.
+      # The staging project ref is the subdomain of EXPO_PUBLIC_SUPABASE_URL, which ships
+      # inside every APK — it is public by construction. As a secret it was simply unset,
+      # and GitHub renders an unset secret as an empty string, so the job ran
+      # `supabase link --project-ref ""` and failed with "required flag(s) not set" —
+      # which reads like a credentials problem and is not one.
+      SUPABASE_PROJECT_REF: jcagqjsibcpjyskvebeq
 
     steps:
       - uses: actions/checkout@v4
@@ -49,8 +56,23 @@ jobs:
       - name: Migration rules
         run: npm run check:migrations
 
+      # Fail with a sentence somebody can act on, rather than on the CLI's flag validation
+      # three lines later. Every one of these three is a different person's problem.
+      - name: Check the deploy credentials are present
+        run: |
+          missing=""
+          [ -n "$SUPABASE_ACCESS_TOKEN" ] || missing="$missing SUPABASE_ACCESS_TOKEN"
+          [ -n "$SUPABASE_DB_PASSWORD" ]  || missing="$missing SUPABASE_DB_PASSWORD"
+          [ -n "$SUPABASE_PROJECT_REF" ]  || missing="$missing SUPABASE_PROJECT_REF"
+          if [ -n "$missing" ]; then
+            echo "::error::Cannot deploy — missing:$missing"
+            echo "The first two are repository secrets (Settings -> Secrets -> Actions)."
+            echo "The third is set in this file and is not a secret; if it is empty, it was edited."
+            exit 1
+          fi
+
       - name: Link the staging project
-        run: npx supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+        run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
       # Shows what `db push` is about to do, in the log, before it does it. When a
       # deploy goes wrong this is the line that says which migration was new.
@@ -63,7 +85,7 @@ jobs:
       - name: Deploy Edge Functions
         run: |
           if [ -d supabase/functions ] && [ -n "$(ls -A supabase/functions 2>/dev/null)" ]; then
-            npx supabase functions deploy --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+            npx supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF"
           else
             echo "No Edge Functions yet — skipping. They arrive with E06."
           fi
