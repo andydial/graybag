@@ -8,7 +8,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "bundle:check": "expo export --platform android --output-dir .expo-bundle-check"
   },
   "dependencies": {
     "@graybag/shared": "*",

@@ -50,6 +50,19 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # Does the app actually bundle?
+      #
+      # Added after the first `eas build` failed in the "Bundle JavaScript" phase against a
+      # tree where 496 tests passed and typecheck was clean. Nothing above this line uses
+      # Metro: jest-expo resolves with Jest's resolver, `tsc` with TypeScript's, `vitest` with
+      # Vite's — and all three accept `packages/shared`'s TypeScript-ESM `./env.js` imports
+      # that Metro does not. So the whole suite was green against a bundle that could not be
+      # produced, and the only thing that would ever have noticed was a build.
+      #
+      # ~30s, and it is the difference between "the tests pass" and "the app can be built".
+      - name: App bundles
+        run: npm run bundle:check
+
       # The backlog is generated from planning/backlog/*.md and the build fails on a
       # malformed epic file (a missing "## Tasks" heading). Cheap, and it catches a
       # broken epic before the dashboard silently loses a whole section.

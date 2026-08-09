@@ -31,3 +31,7 @@ planning/.backlog-history/
 supabase/.temp/
 # Written by `supabase start`; local stack state, not source.
 supabase/.branches/
+
+# Output of `npm run bundle:check` — proof the app bundles, not source.
+.expo-bundle-check/
+apps/mobile/.expo-bundle-check/

@@ -1395,3 +1395,33 @@ docker exec -i supabase_db_graybag psql -U postgres -d postgres -t -A < supabase
 CI is unaffected — the GitHub runner has the repo under `$HOME` and `integration.yml` runs the
 suite normally. The trap is local-only, and it is the `NOTESTS` result that matters: **a
 mount that resolves to an empty directory looks exactly like a suite with nothing to do.**
+
+## 2026-08-09 — 496 green tests against a bundle that could not be produced
+
+**Context:** the first `eas build` ever attempted for this app. It failed in the "Bundle
+JavaScript" phase with `UNKNOWN_ERROR`, on a tree where typecheck was clean and 496 tests
+passed.
+**What happened:** `packages/shared` is `"type": "module"` and its sources import each other
+with an explicit extension — `import { … } from './env.js'` inside `index.ts`, referring to
+`env.ts`. That is exactly what TypeScript's ESM resolution requires, and it is correct. Metro
+does not do it: it looks for a literal `env.js`, finds nothing, and fails.
+**Why nothing caught it:** *none of the three things CI runs uses Metro.* `jest-expo` resolves
+with Jest's resolver, `tsc` with TypeScript's, `vitest` with Vite's — and all three accept the
+`.js`-for-`.ts` specifier. The app had never been bundled by anybody, so the failure had no way
+to surface until somebody asked for an installable build.
+**Fix:** `apps/mobile/metro.config.js` — a `resolveRequest` that retries a *relative* `.js`
+specifier without its extension before giving up, plus the `watchFolders` /
+`nodeModulesPaths` pair every npm-workspaces monorepo needs and Metro does not infer. Scoped to
+relative specifiers on purpose: a bare `some-package/thing.js` is a real path into a real
+package, and retrying it as `.ts` would mask a genuinely missing dependency.
+**And the actual lesson, which is not about Metro.** A test suite proves the code does what it
+says; it does not prove the code can be *built*. Those are different claims, and this
+repository was making the first one loudly while the second was false. `npm run bundle:check`
+now runs in CI (~30s) so "the app bundles" is asserted rather than assumed — the same class of
+gap as the 2026-08-08 entry above, where a suite reporting `Tests: 0` also reported success.
+
+**Second, smaller trap in the same hour.** `npm --prefix apps/mobile exec -- expo export` and
+`npm --prefix apps/mobile run bundle:check` are not equivalent: `exec` left the working
+directory at the repository root, so Expo picked `node_modules/expo/AppEntry.js` as the entry
+point instead of `apps/mobile/index.ts` and failed on an import two levels up. Use
+`--prefix … run`, which is what the repo's other mobile scripts already do.
