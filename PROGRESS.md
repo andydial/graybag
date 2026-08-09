@@ -4,6 +4,101 @@ Newest handover at the top. Assume the reader has forgotten everything.
 
 ---
 
+## 2026-08-10 (morning) — staging serves a real menu, and AUTH-01 is what you decided
+
+### SHIPPED
+
+| Task | One line |
+|---|---|
+| — | **`supabase@2.112.0` cannot link at all.** Pinned to `^2.113.0`. This was the "credential blocker" |
+| `E01-20` (in effect) | **Staging is seven migrations up to date and seeded.** `0005`–`0013` applied |
+| `[AUTH-01]` / `U5` | **Literal table grants** (`0012`), replacing `0010`'s definer functions. Four security assertions rewritten, stronger |
+| `E06-22` | Ledger reason codes seeded — the first posting no longer fails on a foreign key |
+| `E06-31` / `M9` | Sign convention resolved **structurally**: a constraint, one balance function, a structural nightly check |
+| `E03-20` | Session survives a restart — `expo-secure-store`, chunked under the keychain size limit |
+| `E09-01/02/03`, `E09-11a` | The three kitchen lists and their CSV, as pure tested functions |
+| `E05-15` | A time-dependent calendar test, found by CI. Not a regression — it failed on `main` too |
+
+Smoke **865 green**. pgTAP **293 assertions** across seven suites, from a clean replay of
+all thirteen migrations. PR #25 merged; `main` is current and nothing is unpushed.
+
+### FINDINGS
+
+**1. The Supabase CLI, not the credentials, was the blocker.** `2.112.0` fails parsing the
+API's api-keys response with a `SchemaError` on a timestamp, so `link`, `migration list
+--linked` and `db push --linked` all die. Two further traps on the way through, both in
+`docs/environments.md` now: `Cannot find project ref` after a *successful* link (the CLI
+writes `linked-project.json` but some commands still read the older `.temp/project-ref`),
+and `IPv6 is not supported on your current network` (the direct `db.<ref>` host is
+IPv6-only; a successful link records the IPv4 pooler).
+
+**2. Staging was running a different authorization model from the repository.** It was
+missing `0005`, the privilege baseline, along with six others. Not "two migrations behind".
+
+**3. `E06-22`'s own wording was slightly wrong.** `0001` did seed one ledger reason code —
+`migration_opening_balance`. It covers none of the payment path's movements, so the blocker
+was real, but the test now records the correction.
+
+**4. The zero-sum ledger constraint already existed.** Last night's Finding 4 said it did
+not. `0001` has a deferred constraint trigger enforcing debits − credits = 0 and at least
+two entries. What was genuinely missing was the *sign convention* — nothing tied an
+account's type to which way its balance runs — and that is what `0013` fixes.
+
+**5. The calendar suite was time-dependent, and the precedence was not the bug.**
+`orderable_calendar` reports `cutoff_passed` before `too_soon` deliberately. The fixture
+left no day that was unambiguously too soon: with a two-day lead, tomorrow's cutoff is
+23:00 *today*, so after 23:00 the day is both. The suite had been green only because it
+rarely ran that late. CI runs at 02:52 IST.
+
+### BLOCKED
+
+- **No iOS build.** `E17-26` — `eas device:create`, an Apple login with 2FA, a registered
+  UDID. Nothing about it is automatable from here.
+- **`Deploy to staging` still fails.** The GitHub Actions secrets are not set
+  (`gh secret list` is empty), so the workflow cannot link. Migrations are applied by hand
+  from this machine in the meantime, which works but is not a pipeline.
+- **`E06` is plan-only by instruction.** Its step 5 is a genuine stop: seven `E19-07` rows
+  need a public webhook endpoint.
+
+### NEEDS ANDY
+
+1. **`SUPABASE_ACCESS_TOKEN` + `SUPABASE_DB_PASSWORD` as GitHub Actions secrets.** Staging
+   is current, but only because it was pushed from this laptop. Until the secrets exist,
+   every deploy is manual and the pipeline is decorative.
+2. **iOS: `E17-26` and `E17-27`** — device registration and the App Store Connect app id.
+3. **`E19-03`** — the VAG Rounded Next licence. Still blocking `E13-02`.
+4. **Two kitchen-operations questions before `E06` starts:** `[OL-02]` (how long can the
+   kitchen still add a sandwich to the run?) and `[OL-03]` (how long to hold a pending
+   checkout). Neither is an engineering call.
+5. **`[PAY-02]`** — how a refund splits across wallet- and source-funded portions.
+6. **`E09-14`** — how long a downloaded packing CSV may be kept, and how it is destroyed.
+   It names children by design; the file warns its reader in the first row, and the rest is
+   policy.
+
+### NEXT
+
+`E05-09`, the checkout transaction — `docs/order-lifecycle.md` §8.2 steps 1–9. It is pure
+database, needs no Razorpay and no handset, and it is what turns `E09`'s list functions
+from tested code into a screen with real orders on it. `assert_cutoff_open` still has no
+caller; enforcement becomes real when step 6 calls it.
+
+### BUILDS
+
+- **Android — install this:**
+  https://expo.dev/artifacts/eas/7DW57LqLsGGCECizs7bFooHbejJ-Qgue6tsHr-ypSr4.apk
+  Build `e7d4b1bb`, from commit `1a97286`. Everything except the calendar test fix, which
+  is test-only. **Verified with `E06-32`'s own checker against the downloaded artefact:**
+  `upi` scheme present, 6/6 PSP packages.
+
+  **This should now show real food.** Menu tab → pick a school → four dishes with prices,
+  read straight from staging under the new `anon` policies.
+
+  **Delete any earlier APK.** Builds before `e7d4b1bb` call the `SECURITY DEFINER`
+  functions that `0012` dropped, so they will show an empty school list against staging.
+- **iOS: none.** Blocked on `E17-26`.
+
+---
+
 ## 2026-08-10 (overnight) — the spikes are closed, `anon` can read a menu, and there is a sign-in screen
 
 ### SHIPPED
