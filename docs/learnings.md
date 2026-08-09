@@ -1425,3 +1425,41 @@ gap as the 2026-08-08 entry above, where a suite reporting `Tests: 0` also repor
 directory at the repository root, so Expo picked `node_modules/expo/AppEntry.js` as the entry
 point instead of `apps/mobile/index.ts` and failed on an import two levels up. Use
 `--prefix … run`, which is what the repo's other mobile scripts already do.
+
+## 2026-08-09 — "Unknown error. See logs of the Bundle JavaScript build phase"
+
+**Context:** four failed `eas build` runs for the first Android APK, all reporting exactly that
+message and nothing else.
+**What happened:** `.easignore` excluded `config/` on the reasoning that it holds lint
+configuration no app build runs. But `apps/mobile/tsconfig.json` — like `packages/shared`'s and
+`apps/web`'s — begins `"extends": "../../config/tsconfig.base.json"`, and **Expo's Metro
+TypeScript resolver follows that `extends` chain at startup** to read `compilerOptions.paths`.
+With the file missing it throws inside `_loadTsConfigWithExtends`, the `EAGER_BUNDLE` phase
+dies, and the CLI surfaces a generic message with no path in it. The directory is 28 KB;
+excluding it saved nothing.
+**Why it took four builds:** the failure is invisible locally. `expo export` and
+`expo export:embed` both succeed on a developer machine, because the machine has the whole
+repository — only the *uploaded subset* is missing the file. Any `.easignore` exclusion is
+therefore a change that cannot be tested by running anything locally.
+**Fix / rule:** **an `.easignore` entry is a guess until a build proves it.** Exclude large,
+obviously-inert things (`docs/`, `planning/`) and leave small ones alone — the upload saving is
+measured in kilobytes and the failure costs a fifteen-minute round trip with a message that
+does not name the file. Anything a `tsconfig.json` in a built workspace `extends` is load-bearing
+by definition.
+
+**Getting at the real error, which is the other half of the lesson.** `eas build:view` exposes
+no log text and the CLI prints only the generic line. The logs are reachable, and worth knowing
+how to reach:
+
+```bash
+# 1. signed URL, via the GraphQL API and the CLI's own session
+#    ~/.expo/state.json -> auth.sessionSecret, sent as the `expo-session` header
+#    query: builds { byId(buildId: $id) { logFiles } }
+# 2. the file is BROTLI, and is served with an encoding curl does not understand:
+curl -H 'Accept-Encoding: identity' -o build.log "<signed url>"
+node -e "console.log(require('zlib').brotliDecompressSync(require('fs').readFileSync('build.log')).toString())"
+```
+
+It is NDJSON, one object per line with `phase` and `msg`. The phase list alone
+(`EAGER_BUNDLE`, `PREBUILD`, `INSTALL_DEPENDENCIES`, …) localises a failure in seconds. Four
+builds were spent guessing before fetching it; fetch it first.
