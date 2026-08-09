@@ -14,3 +14,8 @@ export {
 } from './calendar-endpoint.js';
 
 export type { CalendarRequest, CalendarResponse, CalendarRow } from './calendar-endpoint.js';
+
+// Break / drop time selection (E05-06). The class-group rule is the schema's, not this
+// module's: no `break_time_class` rows means the break applies to every class.
+export { defaultBreakTime, selectableBreakTimes } from './break-times.js';
+export type { BreakTime } from './break-times.js';
