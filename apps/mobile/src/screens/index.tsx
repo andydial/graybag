@@ -2,6 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { MenuScreen as MenuScreenImpl } from '../menu/MenuScreen';
+import { SchoolPicker } from '../menu/SchoolPicker';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 /**
@@ -24,13 +25,24 @@ export const HomeScreen = () => (
 /**
  * The one placeholder that is now real (`E04-12`).
  *
- * The school comes from `SelectedSchoolContext`, which is `null` until a school is chosen —
- * and `null` is a legitimate state that renders an empty menu, not an error. `AR7`: nothing
- * here asks who you are.
+ * **When no school has been chosen, this shows the picker rather than an empty menu.**
+ * `null` used to render an empty state — correct while nothing could supply a school list,
+ * and useless now that something can: an empty Menu tab with no way to fill it is a dead
+ * end, and the audience arriving in the next few weeks is ~150 parents who have never
+ * opened this app before (`SC3`).
+ *
+ * Choosing a school is one tap and it is not a gate — the tab bar stays live throughout, so
+ * anyone who would rather look at their cart or their account first still can. `AR7`:
+ * nothing here asks who you are.
  */
 export const MenuScreen = () => {
   const navigation = useNavigation();
-  const { schoolId } = useSelectedSchool();
+  const { schoolId, setSchool } = useSelectedSchool();
+
+  if (schoolId === null) {
+    return <SchoolPicker onSelect={(next) => setSchool(next)} />;
+  }
+
   return (
     <MenuScreenImpl
       schoolId={schoolId}

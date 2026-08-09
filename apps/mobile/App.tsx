@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { CartProvider } from './src/cart/CartContext';
+import { configureApiFromEnvironment } from './src/env/configure';
 import { guardFromEnvironment } from './src/env/guard';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { SelectedSchoolProvider } from './src/session/SelectedSchoolContext';
@@ -28,6 +29,15 @@ import { SessionProvider } from './src/session/SessionContext';
 // must fail here rather than three screens later, mid-checkout, having created a real order
 // for a real child. A store build is production by definition and is unaffected.
 guardFromEnvironment();
+
+// Then configure the backend client, also before first render — the Menu tab fetches on
+// mount, and a screen that renders before the client exists would show its error state for
+// one frame and then correct itself, which reads as a flicker nobody can reproduce.
+//
+// Deliberately not fatal: an app with no environment still opens, shows its empty states,
+// and names the problem at the call site rather than dying with a stack trace in front of
+// a parent (`AR7` — nothing should be a wall in front of browsing).
+configureApiFromEnvironment();
 
 export default function App() {
   return (

@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PUBLIC_ROUTES, RootNavigator } from './RootNavigator';
 import { CartProvider } from '../cart/CartContext';
 import { SessionProvider, requiresSignIn } from '../session/SessionContext';
+import { SelectedSchoolProvider } from '../session/SelectedSchoolContext';
 
 // `render` is async on RNTL v14 — see docs/learnings.md 2026-08-09.
 
@@ -71,6 +72,28 @@ describe('RootNavigator', () => {
    * app's funnel did. Asserting it per route means adding a gate to any of these is a
    * failing test with `AR7` in the message, which is a conversation rather than a merge.
    */
+  /**
+   * What each public route renders when opened with no session and no state.
+   *
+   * `Menu` is the only one with an answer other than `screen-<route>`, and it is **not** a
+   * weakening of `AR7`. With no school chosen the Menu tab shows the school picker, which is
+   * the first step of browsing rather than a gate: the tab bar stays live, every other tab
+   * is still one tap away, and nothing asks who you are. A parent who would rather look at
+   * their cart first still can. Once a school is chosen the same tab shows the menu, which
+   * `renders the menu once a school is chosen` below asserts separately.
+   *
+   * The pattern rather than an exact id because the picker announces its state — `-loading`,
+   * `-error`, `-empty` — and which one it lands on depends on whether a backend is
+   * configured, which is not what this file is about. What it is about is the second
+   * assertion in each case: the sign-in gate did not fire.
+   */
+  const OPENS_AS: Record<string, RegExp> = {
+    Home: /^screen-home$/,
+    Menu: /^school-picker/,
+    Cart: /^screen-cart$/,
+    Account: /^screen-account$/,
+  };
+
   it.each(PUBLIC_ROUTES.filter((r) => r !== 'DishDetail'))(
     'browsing %s does not require a session',
     async (route) => {
@@ -78,12 +101,39 @@ describe('RootNavigator', () => {
       const user = userEvent.setup();
       await user.press(tab(route));
 
-      const testId = `screen-${route.toLowerCase()}`;
-      expect(screen.getByTestId(testId)).toBeOnTheScreen();
+      expect(screen.getByTestId(OPENS_AS[route] ?? new RegExp(`^screen-${route.toLowerCase()}$`)))
+        .toBeOnTheScreen();
       // The gate must not have fired as a side effect of navigating.
       expect(screen.queryByTestId('screen-sign-in')).toBeNull();
     },
   );
+
+  it('renders the menu once a school is chosen, still with no session', async () => {
+    // The other half of AR7 for this tab: choosing a school is one tap and it leads
+    // straight to food, not to a sign-in screen.
+    await render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 47, left: 0, right: 0, bottom: 34 },
+        }}
+      >
+        <SessionProvider>
+          <SelectedSchoolProvider initial={{ schoolId: 'school-1', schoolName: 'Alpha' }}>
+            <CartProvider>
+              <RootNavigator />
+            </CartProvider>
+          </SelectedSchoolProvider>
+        </SessionProvider>
+      </SafeAreaProvider>,
+    );
+
+    const user = userEvent.setup();
+    await user.press(tab('Menu'));
+
+    expect(screen.getByTestId('screen-menu')).toBeOnTheScreen();
+    expect(screen.queryByTestId('screen-sign-in')).toBeNull();
+  });
 
   it('never lands on the sign-in screen on open', async () => {
     await renderSignedOut();
