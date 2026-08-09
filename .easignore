@@ -32,6 +32,11 @@ planning/.backlog-history/
 .claude/
 supabase/.temp/
 supabase/.branches/
+# Output of `npm run bundle:check`. Adding this to .gitignore alone was not enough and the
+# next upload jumped straight back to 3.4 MB — which is this file's opening warning happening
+# in practice, about half an hour after it was written.
+.expo-bundle-check/
+apps/mobile/.expo-bundle-check/
 
 # ---------------------------------------------------------------------------
 # Not needed to build the app. This is the part that makes the upload finish.
