@@ -18,7 +18,23 @@
 //    `resolveDuration` returns `duration.instant` rather than skipping, so completion
 //    callbacks still fire and a component whose state advance hangs off one still works.
 //
-// The file is otherwise empty on purpose. A setup file that mocks things "just in case" is
-// how a suite stops testing the thing it names.
+// Nothing else is mocked. A setup file that mocks things "just in case" is how a suite
+// stops testing the thing it names.
 
-export {};
+/**
+ * `expo-image` IS mocked, and the contrast with Reanimated above is the point.
+ *
+ * Reanimated is not mocked because its *behaviour* is under test — completion callbacks have
+ * to fire (`S27`). expo-image has no behaviour worth simulating here: there is no decoding,
+ * no disk cache and no network in jest, and its real module throws on import anyway
+ * (`observe.getIntegrations is not a function`) because the native side is absent.
+ *
+ * The mock renders a `View` and **passes every prop through**, so the things that actually
+ * matter — `recyclingKey` set from the dish id, `cachePolicy: 'memory-disk'`, the requested
+ * size — are assertable. A mock that swallowed props would make `DishImage`'s tests
+ * tautological, which is worse than not testing it.
+ */
+jest.mock('expo-image', () => {
+  const { View } = jest.requireActual('react-native');
+  return { __esModule: true, Image: View };
+});

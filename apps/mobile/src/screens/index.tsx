@@ -1,4 +1,8 @@
+import { useNavigation } from '@react-navigation/native';
+
 import { PlaceholderScreen } from './PlaceholderScreen';
+import { MenuScreen as MenuScreenImpl } from '../menu/MenuScreen';
+import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 /**
  * The screens, as placeholders. Content lands in `E14-14` and `E04-12`; what is fixed here
@@ -17,13 +21,23 @@ export const HomeScreen = () => (
   />
 );
 
-export const MenuScreen = () => (
-  <PlaceholderScreen
-    testID="screen-menu"
-    title="Menu"
-    note="Category tabs and search (E04-12). Browsable signed out — this is the screen AR7 is about."
-  />
-);
+/**
+ * The one placeholder that is now real (`E04-12`).
+ *
+ * The school comes from `SelectedSchoolContext`, which is `null` until a school is chosen —
+ * and `null` is a legitimate state that renders an empty menu, not an error. `AR7`: nothing
+ * here asks who you are.
+ */
+export const MenuScreen = () => {
+  const navigation = useNavigation();
+  const { schoolId } = useSelectedSchool();
+  return (
+    <MenuScreenImpl
+      schoolId={schoolId}
+      onSelectDish={(dishId) => navigation.navigate('DishDetail', { dishId })}
+    />
+  );
+};
 
 export const CartScreen = () => (
   <PlaceholderScreen
