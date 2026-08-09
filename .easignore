@@ -62,8 +62,17 @@ scripts/
 # CI workflow definitions.
 .github/
 
-# Shared lint config used by the repo root, not by the app build.
-config/
+# `config/` IS NEEDED AND MUST NOT BE EXCLUDED.
+#
+# It was excluded here at first, on the reasoning that it holds lint configuration the app
+# build never runs. That was wrong and cost three builds. `apps/mobile/tsconfig.json` — like
+# `packages/shared`'s and `apps/web`'s — begins `"extends": "../../config/tsconfig.base.json"`,
+# and Expo's Metro TypeScript resolver follows that chain on startup to read `compilerOptions.
+# paths`. With the file absent it throws inside `_loadTsConfigWithExtends`, and the build dies
+# in the EAGER_BUNDLE phase with nothing in the CLI output but "Unknown error. See logs of the
+# Bundle JavaScript build phase."
+#
+# It is 28 KB. Excluding it saved nothing and hid the cause behind a generic message.
 
 # The bundle of the pre-rewrite repository, if it is ever copied in here.
 *.bundle
