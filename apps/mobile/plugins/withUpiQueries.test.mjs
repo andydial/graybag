@@ -81,6 +81,19 @@ test('is idempotent — prebuild may run the mod more than once', () => {
   assert.equal(schemesIn(manifest).filter((s) => s === 'upi').length, 1)
 })
 
+test('the plugin covers every package the artefact check requires', async () => {
+  // scripts/verify-apk-upi-queries.mjs holds its own copy of this list on purpose, so that
+  // deleting an entry here cannot delete the assertion along with it. This is the test that
+  // stops the two drifting apart.
+  const { REQUIRED_PSP_PACKAGES } = await import('../../../scripts/verify-apk-upi-queries.mjs')
+  for (const pkg of REQUIRED_PSP_PACKAGES) {
+    assert.ok(
+      PSP_PACKAGES.includes(pkg),
+      `${pkg} is asserted by scripts/verify-apk-upi-queries.mjs but no longer declared by the plugin`,
+    )
+  }
+})
+
 test('is registered in app.json', () => {
   // A plugin that is written, correct and unlisted produces a green suite and a build with
   // no UPI visibility in it. Nothing else in the repo would notice.
