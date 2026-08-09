@@ -1,0 +1,64 @@
+# What is NOT uploaded to EAS Build.
+#
+# WHY THIS FILE EXISTS. Uploads from this machine run at roughly 85 KB/s against a 6.5 MB/s
+# download — a badly asymmetric line — and the 5 MB working tree compressed to a 3.4 MB
+# tarball that EAS refused three times with `408 Request Timeout`, twice at 100% uploaded.
+# The fix is to send less: an Expo build needs `apps/mobile`, `packages/` and the workspace
+# manifests, and nothing else here is compiled into an APK or an IPA.
+#
+# ⚠️  `.easignore` REPLACES `.gitignore` for upload purposes — when this file exists, EAS
+# stops consulting `.gitignore` entirely. So everything `.gitignore` excluded has to be
+# repeated here, `node_modules/` above all: omitting it would turn a 3.4 MB upload into a
+# multi-hundred-megabyte one on the slowest link in the system.
+
+# ---------------------------------------------------------------------------
+# Everything .gitignore excludes. Keep in step with it.
+# ---------------------------------------------------------------------------
+node_modules/
+*.bubble
+Legacy-Application/
+.env
+.env.*
+!.env.example
+!.env.*.example
+.secrets.*.env
+.DS_Store
+dist/
+build/
+.expo/
+*.log
+logs/
+planning/.backlog-history/
+.claude/
+supabase/.temp/
+supabase/.branches/
+
+# ---------------------------------------------------------------------------
+# Not needed to build the app. This is the part that makes the upload finish.
+# ---------------------------------------------------------------------------
+
+# The decision log, specs and learnings: ~1.25 MB of prose the bundler never reads.
+docs/
+
+# The menu importer and the image mirror. Node tools that run on a laptop and in CI; they
+# are not dependencies of the mobile app.
+tools/
+
+# Migrations, pgTAP suites, seed data and Edge Functions. All server-side — Edge Functions
+# deploy through `supabase functions deploy`, never through an app build.
+supabase/
+
+# Backlog markdown, the generated dashboard and the overnight queue.
+planning/
+
+# Repo tooling: backlog sync, migration checks, secret pushing.
+scripts/
+
+# CI workflow definitions.
+.github/
+
+# Shared lint config used by the repo root, not by the app build.
+config/
+
+# The bundle of the pre-rewrite repository, if it is ever copied in here.
+*.bundle
