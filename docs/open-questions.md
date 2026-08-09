@@ -4,7 +4,15 @@ Grouped by who unblocks them. Items here block specific backlog tasks.
 
 ## Blocked on an architecture decision — raised 2026-08-09
 
-### `[AUTH-01]` How does a signed-out user read the menu?
+### ~~`[AUTH-01]` How does a signed-out user read the menu?~~ — **RESOLVED 2026-08-09**
+
+> **Andy's ruling: open a read path for `anon` (option (c)) rather than build a `service_role`
+> Edge Function.** Shipped in migration `0010` as EXECUTE on two `SECURITY DEFINER` functions
+> rather than as grants on tables — see decision `U5` for why, and for the four security
+> assertions that stayed intact as a result. The text below is kept for the reasoning only.
+>
+> **One thing needs Andy's eye:** the implementation is not the literal wording of option (c).
+> Literal table grants remain available and are a small migration if he wants them.
 
 **Blocks:** the `api/` module, `E04-10`'s menu fetch, `E14-08`, and any device build that shows
 a dish. **Found by** pointing the staging EAS environment at the real project and getting

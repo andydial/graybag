@@ -537,21 +537,21 @@
 <p>Each of these can invalidate a large amount of downstream work if the answer is bad.</p>
 <p>Doing them in phase 1 costs days; discovering them in phase 4 costs weeks.</p></div>
         <ul class="tasks">
-      <li class="task" data-id="E19-01" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E19-01" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-01"></button>
         <code class="tid">E19-01</code>
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Razorpay + UPI spike</strong> — Standard Checkout in test mode, on a real Android 11+ handset. Prove native UPI intent works and returns cleanly. Blocks the whole E06 design. <strong>PARKED 2026-08-08 awaiting Andy&#39;s handset (expected 2026-08-09 morning): all setup is done and merged</strong> — harness at <code>tools/spike-mobile/</code>, release APK <strong>built and green</strong> on EAS (<code>28127b5b</code>), <code>adb</code> installed, order-creation and signature-verification scripts tested. Static analysis already answered five checklist rows (<code>docs/spike-results.md</code> §A). The remaining work is §2 of <code>docs/spike-runbook.md</code>, ~30–40 min with the phone in hand</span>
+        <span class="ttext"><strong>Razorpay + UPI spike</strong> — Standard Checkout in test mode, on a real Android 11+ handset. Prove native UPI intent works and returns cleanly. Blocks the whole E06 design. <strong>PARKED 2026-08-08 awaiting Andy&#39;s handset (expected 2026-08-09 morning): all setup is done and merged</strong> — harness at <code>tools/spike-mobile/</code>, release APK <strong>built and green</strong> on EAS (<code>28127b5b</code>), <code>adb</code> installed, order-creation and signature-verification scripts tested. Static analysis already answered five checklist rows (<code>docs/spike-results.md</code> §A). <strong>CLOSED 2026-08-09.</strong> A real test-mode UPI payment on a real handset <strong>captured</strong> (not merely authorized) and its callback signature <strong>verified</strong>. <code>[PAY-01]</code> resolved to the native RN SDK; checklist items 1, 2, 4 and 9 answered. The UPI-chooser question (B2) could not be settled on a single-UPI-app device and was closed by construction instead — <code>E06-29</code> enabled permanently, <code>E06-32</code> asserting it in the built APK, <code>E19-08</code> pinning the upstream source. Results in <code>docs/spike-results.md</code></span>
       </li>
-      <li class="task" data-id="E19-02" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E19-02" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-02"></button>
         <code class="tid">E19-02</code>
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Low-end Android performance spike</strong> — Expo + Reanimated + Skia on a <strong>mid-range Android</strong> typical of private-school families (not the cheapest tier). Measure cold start, 50-item list scroll with images, and a shared-element transition. Sets the thresholds used in <code>E14-07</code> and validates the framework choice before <code>E13-05</code> is finalised. <strong>PARKED 2026-08-08 with <code>E19-01</code></strong> — same APK, same session; the measurements are <code>adb</code> commands listed in <code>docs/spike-runbook.md</code> §2.5. Note <code>E13-05</code> proceeds without it: the framework choice is already made and this validates rather than decides it</span>
+        <span class="ttext"><strong>Low-end Android performance spike</strong> — Expo + Reanimated + Skia on a <strong>mid-range Android</strong> typical of private-school families (not the cheapest tier). Measure cold start, 50-item list scroll with images, and a shared-element transition. Sets the thresholds used in <code>E14-07</code> and validates the framework choice before <code>E13-05</code> is finalised. <strong>CLOSED 2026-08-09 on a subjective verdict — &quot;performance acceptable&quot; — with no recorded figures.</strong> That is enough to validate <code>E13-05</code>&#39;s framework choice and to keep <code>M05</code>, which is what this spike was for. It is <strong>not</strong> enough for <code>E14-07</code>, whose thresholds Andy ruled must come from measured numbers: see <code>docs/spike-results.md</code> §D. <code>E14-07</code> stays blocked on one <code>adb</code> session, not on a decision</span>
       </li>
       <li class="task" data-id="E19-03" data-seed="0" data-risk="high" data-owner="andy" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-03"></button>
@@ -593,7 +593,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Answer the 20-item verification checklist in <code>docs/payments-design.md</code> §12</strong> as part of <code>E19-01</code> — signature algorithms and header names, the webhook event set and event-id header, retry policy and response timeout, auto-capture under UPI intent, UPI collect pending window, refund idempotency and listing, whether MDR is in the capture payload, the settlement recon endpoint, and the payments-list windowing. Each row names what breaks if the answer differs. <strong>Note two corrections to <code>E19-01</code> as written</strong>: the official Razorpay RN SDK is a native module, so the spike needs an <strong>EAS development build, not a bare managed Expo app</strong> (<code>[PAY-01]</code>), and it must run on a <strong>real Android 11+ handset</strong> or the <code>&lt;queries&gt;</code> failure in <code>E06-29</code> will not reproduce</span>
       </li>
-      <li class="task" data-id="E19-08" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E19-08" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-08"></button>
         <code class="tid">E19-08</code>
         <span class="badge r-high">high</span>
@@ -913,13 +913,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/25</span>
+          <span class="meter-num">0/27</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 25 tasks</summary>
+        <summary>Context &amp; 27 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -1131,6 +1131,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>CI and production do not have the same privilege baseline, so the authorization suite proves different things in each.</strong> <code>docs/authorization-model.md</code> §10 opens by stating the model&#39;s foundation — *&quot;Supabase&#39;s default privileges give <code>anon</code> and <code>authenticated</code> SELECT/INSERT/UPDATE/DELETE on new tables in <code>public</code>; RLS is what actually stops them.&quot;* On a real Supabase project that is true, which is why the suite went 172/172 against staging in <code>E02-18</code>. On the local CLI stack it is <strong>not</strong>: with <code>E02-24</code> fixed, the suite reaches its own Part 0 harness assertion at <code>authorization.test.sql:583</code> and dies on <code>ERROR: permission denied for table order</code> — <code>authenticated</code> has no privilege on the table at all, because migrations there are applied by a role whose default privileges differ. Neither environment is wrong on its own; what is wrong is that <strong>the suite cannot mean the same thing in both</strong>, and the one it runs in nightly is not the one that serves customers. Decide the baseline explicitly rather than inheriting it: implement §10&#39;s grants and revokes as a migration so privileges are stated in version control instead of assumed from the platform, which also closes <code>E02-21</code>. Until then a green suite locally is not evidence about production, and a red one is not necessarily a bug in the policies</span>
+      </li>
+      <li class="task" data-id="E02-26" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-26"></button>
+        <code class="tid">E02-26</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Every function in <code>public</code> was executable by <code>anon</code>, because Postgres grants EXECUTE to PUBLIC by default and nothing had ever revoked it.</strong> Found 2026-08-09 while writing <code>[AUTH-01]</code>&#39;s &quot;anon may execute exactly two functions&quot; assertion, which failed with eleven. Ten are <code>SECURITY INVOKER</code> and die on the first table they touch, but <strong><code>auth_recipient_has_fulfilment_order(uuid)</code> is <code>SECURITY DEFINER</code></strong> and therefore bypasses RLS: an unauthenticated caller holding a recipient id learns whether that <strong>child</strong> has a fulfilment order. Verified against the local stack — as <code>anon</code> it returns <code>false</code> rather than refusing. Not a bulk leak (recipient ids are v4 UUIDs, not enumerable), but an authorization primitive answering questions about a child to callers who have not identified themselves. Closed in migration <code>0010</code> by revoking the PUBLIC default across every non-trigger function in <code>public</code> and re-granting to <code>authenticated</code> and <code>service_role</code>. The permanent guard is the new suite assertion, which fails on the build that introduces a third anon-executable function</span>
+      </li>
+      <li class="task" data-id="E02-27" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-27"></button>
+        <code class="tid">E02-27</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Make the PUBLIC-execute default impossible to reinherit.</strong> <code>E02-26</code> revoked what existed; a function added tomorrow still arrives executable by PUBLIC and is caught only by the authorization suite. <code>alter default privileges in schema public revoke execute on functions from public</code> would stop it at the source. Left out of <code>0010</code> deliberately — default privileges apply per creating role, so getting it right needs a check of which role the CLI, CI and the hosted project each run migrations as, and that is a separate piece of work from <code>[AUTH-01]</code></span>
       </li></ul>
       </details>
     </article>
@@ -2267,7 +2283,7 @@
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Expo config plugin for UPI app visibility</strong> (§3.3) — Android 11+ <code>&lt;queries&gt;</code> for the UPI intent app chooser, plus iOS <code>LSApplicationQueriesSchemes</code>. Without it the app list is silently empty and checkout degrades to UPI collect/QR, which is the flow <code>E06-02</code> exists to replace</span>
+        <span class="ttext"><strong>Expo config plugin for UPI app visibility</strong> (§3.3) — Android 11+ <code>&lt;queries&gt;</code> for the UPI intent app chooser, plus iOS <code>LSApplicationQueriesSchemes</code>. Without it the app list is silently empty and checkout degrades to UPI collect/QR, which is the flow <code>E06-02</code> exists to replace. <strong>Android half shipped 2026-08-09</strong> — <code>apps/mobile/plugins/withUpiQueries.js</code>, permanently enabled, asserted in the built artefact by <code>E06-32</code>. <strong>Left open for the iOS half</strong>, which cannot be written or tested until the SDK is added to <code>apps/mobile</code> by <code>E06-02</code></span>
       </li>
       <li class="task" data-id="E06-30" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-30"></button>
@@ -2285,13 +2301,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Define and assert the ledger sign convention.</strong> <code>ledger_entry</code> carries a <code>ledger_direction</code> enum, and no document says which direction is positive for which <code>ledger_account_type</code>. Two nightly assertions run in opposite directions: the wallet is a liability (posting #1 <strong>debits</strong> it when the customer spends, so its balance is credits − debits, invariant <code>I8</code>) and <code>provider:razorpay:clearing</code> is an asset (posting #2 <strong>debits</strong> it on capture, so its balance is debits − credits, <code>docs/payments-design.md</code> §8.3). A single-signed <code>balance()</code> helper is wrong for half the accounts. Write it into <code>docs/data-model.md</code> §8.4 as a per-account-type normal-balance table and unit-test both directions</span>
       </li>
-      <li class="task" data-id="E06-30" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-30"></button>
-        <code class="tid">E06-30</code>
+      <li class="task" data-id="E06-32" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-32"></button>
+        <code class="tid">E06-32</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Assert the merged <code>AndroidManifest.xml</code> contains the UPI <code>&lt;queries&gt;</code> block at build time</strong>, rather than assuming our config plugin is what puts it there. Static analysis during <code>E19-01</code> setup found the block is supplied by <code>com.razorpay:standard-core</code>, which <code>com.razorpay:checkout</code> pulls in at version <code>LATEST</code> — so the thing <code>E06-29</code> depends on is a floating third-party dependency we do not control. A build-time assertion turns a silent degradation to UPI collect/QR into a failed build. Pairs with <code>E19-08</code> (pin the version)</span>
+        <span class="ttext"><strong>Assert the UPI <code>&lt;queries&gt;</code> block in the built artefact</strong>, rather than assuming our config plugin is what puts it there. Static analysis during <code>E19-01</code> setup found the block is also supplied by <code>com.razorpay:standard-core</code>, which <code>com.razorpay:checkout</code> pulls in at version <code>LATEST</code> — so the thing <code>E06-29</code> depends on is partly a floating third-party dependency we do not control. <code>scripts/verify-apk-upi-queries.mjs</code> decodes the binary <code>AndroidManifest.xml</code> out of an APK and asserts both the <code>upi</code> scheme query and the six explicit PSP packages, turning a silent degradation to UPI collect/QR into a failed check. Pairs with <code>E19-08</code> (pin the version). <strong>Was filed as a second <code>E06-30</code></strong> — a duplicate id, since <code>E06-30</code> was already taken by the <code>payment_failed</code> task above. Renumbered to the next free id rather than left colliding; nothing referenced it yet</span>
       </li></ul>
       </details>
     </article>
