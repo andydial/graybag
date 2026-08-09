@@ -13,6 +13,8 @@ import {
   OrdersScreen,
   SignInScreen,
 } from '../screens';
+import { CartBadge } from '../components';
+import { useCart } from '../cart/CartContext';
 import type { RootStackParamList, TabParamList } from './types';
 
 const { bg, border, nav, scale, borderWidth } = design;
@@ -32,6 +34,18 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * The tab bar is deliberately static — `S9` keeps the product's chrome near-motionless
  * where motion would be a tax rather than a cue, and a tab bar is chrome.
  */
+/**
+ * Reads the cart so the tab bar does not have to. Separated because a `tabBarIcon` is called
+ * during the navigator's render, and a hook cannot be called there directly.
+ *
+ * `CartBadge` returns `null` at zero, so an empty cart shows no badge at all rather than a
+ * "0" nobody needs to read.
+ */
+function CartTabBadge() {
+  const { itemCount } = useCart();
+  return <CartBadge count={itemCount} />;
+}
+
 function Tabs() {
   return (
     <Tab.Navigator
@@ -52,7 +66,16 @@ function Tabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Menu" component={MenuScreen} />
-      <Tab.Screen name="Cart" component={CartScreen} />
+      <Tab.Screen
+        name="Cart"
+        component={CartScreen}
+        // `M06`'s badge, on the tab bar rather than in the cart screen — the whole reason it
+        // is the one spring in the product (`S4`) is that adding to cart confirms itself
+        // somewhere other than where the user is looking. `animate` stays false here: this
+        // renders on every cart change including hydration, and a badge that pops when a
+        // screen re-renders is the failure mode `CartBadge` documents.
+        options={{ tabBarIcon: () => <CartTabBadge /> }}
+      />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
   );

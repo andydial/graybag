@@ -36,6 +36,16 @@ export * as net from './net/index.js';
 // allergens. No fetching and no Date: see menu/dates.ts for why the second one matters.
 export * as menu from './menu/index.js';
 
+// The one place paise become a string (design/type.ts's rule). Indian grouping, always two
+// decimals, and a refusal to render a float — a component that formats money itself is the
+// bug this module exists to make unnecessary.
+export * as money from './money/index.js';
+
+// The cart domain (E05-04). Pure, immutable operations — the cart has no table, because a
+// cart is a draft of an intention and the order is the record. Carries the price the app
+// displayed, which is the evidence L7's abort-on-mismatch check needs.
+export * as cart from './cart/index.js';
+
 // Design tokens (E13-01). One source, two outputs, no third (S8): `apps/mobile` imports
 // these objects directly and `apps/web` generates CSS custom properties from the same
 // modules at build time. Components import the semantic roles, never the ramps (S7).

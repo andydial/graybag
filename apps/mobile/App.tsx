@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { CartProvider } from './src/cart/CartContext';
 import { guardFromEnvironment } from './src/env/guard';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { SelectedSchoolProvider } from './src/session/SelectedSchoolContext';
@@ -34,7 +35,18 @@ export default function App() {
       <StatusBar style="dark" />
       <SessionProvider>
         <SelectedSchoolProvider>
-          <RootNavigator />
+          {/*
+            The cart sits *inside* the school provider and *above* the navigator. Inside,
+            because a line is priced for a school and changing school is a cart-level event;
+            above, because the badge on the tab bar and the cart screen itself must read the
+            same cart, and a provider mounted per-screen would give them two.
+
+            It is deliberately not inside any session gate: `AR7` — the cart fills signed
+            out, and the only gate in the app is at checkout.
+          */}
+          <CartProvider>
+            <RootNavigator />
+          </CartProvider>
         </SelectedSchoolProvider>
       </SessionProvider>
     </SafeAreaProvider>
