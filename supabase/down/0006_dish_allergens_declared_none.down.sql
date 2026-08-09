@@ -1,0 +1,22 @@
+-- =============================================================================
+-- 0006_dish_allergens_declared_none.down.sql — reverses 0006
+-- =============================================================================
+--
+-- WHAT THIS ROLLBACK LOSES, AND IT IS NOT NOTHING.
+--
+-- Dropping the column discards which dishes were explicitly declared allergen-free.
+-- That information cannot be recovered from the remaining data — after the drop,
+-- "declared none" and "nobody said" are again the same empty tag list, which is the
+-- conflation `MI1` exists to prevent. Re-applying 0006 restores the column with every
+-- row defaulted to `false`, i.e. every dish back to "unknown", and the only way to
+-- recover the true values is to re-run the importer against the source workbook.
+--
+-- That is the correct failure direction: `false`/unknown is the safe reading, and a
+-- rollback that silently restored dishes to "declared allergen-free" would be a
+-- rollback that manufactures reassurance about children's food. Losing the data and
+-- failing safe beats keeping it and failing open.
+--
+-- MG4 is satisfied: this widens no access. It narrows what the application can claim.
+-- =============================================================================
+
+alter table dish drop column allergens_declared_none;

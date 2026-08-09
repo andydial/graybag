@@ -17,8 +17,8 @@ Source Excel columns: `Item No. | Menu Item | Description | Ingredients | Calori
 ## Tasks
 
 - [ ] `E04-01` (mvp) Dish CRUD with structured **allergen tags** parsed from the Allergens column (not free text)
-- [ ] `E04-02` (mvp) Menu + MenuItem model with per-menu pricing and `available_days`
-- [ ] `E04-03` (mvp) MenuAssignment: school <-> menu with validity dates; supports shared and per-school menus
+- [x] `E04-02` (mvp) Menu + MenuItem model with per-menu pricing and `available_days`
+- [x] `E04-03` (mvp) MenuAssignment: school <-> menu with validity dates; supports shared and per-school menus
 - [ ] `E04-04` (risk:high) (mvp) **Excel importer**: validate, preview a diff, then apply. Never silently overwrite
 - [ ] `E04-05` (mvp) Importer supports optional columns `image_filename`, `available_days`, per-school price override; drops `Category - ORIG`; keeps `Category`
 - [ ] `E04-06` (mvp) Bulk image upload from a folder alongside the import file, matched by filename
