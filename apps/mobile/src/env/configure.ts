@@ -1,5 +1,7 @@
 import { api, loadClientEnv, type ClientEnv } from '@graybag/shared';
 
+import { secureSessionStore } from '../session/secureSessionStore';
+
 /**
  * Turn Expo's injected `EXPO_PUBLIC_*` variables into the shape `loadClientEnv` validates,
  * and hand the result to the `api/` module.
@@ -44,7 +46,9 @@ export function readExpoClientEnv(): ClientEnv {
  */
 export function configureApiFromEnvironment(): boolean {
   try {
-    api.configureApi(readExpoClientEnv());
+    // E03-20: the session goes in the keychain, so a returning parent is not asked for a
+    // new code every time the app is killed.
+    api.configureApi(readExpoClientEnv(), { sessionStore: secureSessionStore });
     return true;
   } catch (error) {
     // No PII can appear in this message — it names environment variables, never a user

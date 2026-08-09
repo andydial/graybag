@@ -37,7 +37,8 @@
         }
       ],
       "./plugins/withUpiQueries",
-      "./plugins/withRazorpaySdkPin"
+      "./plugins/withRazorpaySdkPin",
+      "expo-secure-store"
     ],
     "owner": "anuragdial",
     "extra": {

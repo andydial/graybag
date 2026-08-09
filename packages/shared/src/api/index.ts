@@ -50,3 +50,12 @@ export {
   type AuthUser,
 } from './auth.js';
 
+// Session persistence (E03-20). The store is injected because packages/shared is imported
+// by apps/web too, and expo-secure-store is a native module that does not exist there.
+export {
+  CHUNK_SIZE,
+  chunkedStore,
+  memoryStore,
+  type SessionStore,
+} from './session-storage.js';
+
