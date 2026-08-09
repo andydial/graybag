@@ -52,6 +52,20 @@ jobs:
       - name: Smoke test
         run: npm run smoke
 
+      # Production keeps its ref in a secret because the project does not exist yet and
+      # nobody has decided what it is called. The guard below is what stops the empty-string
+      # failure mode that cost staging three days — see deploy-staging.yml for the story.
+      - name: Check the deploy credentials are present
+        run: |
+          missing=""
+          [ -n "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ] || missing="$missing SUPABASE_ACCESS_TOKEN"
+          [ -n "${{ secrets.SUPABASE_DB_PASSWORD }}" ]  || missing="$missing SUPABASE_DB_PASSWORD"
+          [ -n "${{ secrets.SUPABASE_PROJECT_REF }}" ]  || missing="$missing SUPABASE_PROJECT_REF"
+          if [ -n "$missing" ]; then
+            echo "::error::Cannot deploy to PRODUCTION — missing:$missing"
+            exit 1
+          fi
+
       - name: Link the production project
         run: npx supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
 
