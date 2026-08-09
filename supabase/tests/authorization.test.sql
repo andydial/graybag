@@ -1628,8 +1628,8 @@ select set_eq(
         and not exists (select 1 from pg_depend d
                          where d.objid = p.oid and d.deptype = 'e')
         and has_function_privilege('anon', p.oid, 'EXECUTE') $$,
-  $$ values ('get_school_menu'), ('get_school_menu_version') $$,
-  '[AUTH-01]: anon may execute exactly two functions in public, both of them menu reads. A third is a decision, not an accident');
+  $$ values ('get_school_menu'), ('get_school_menu_version'), ('get_schools') $$,
+  '[AUTH-01]: anon may execute exactly three functions in public — two menu reads and the school picker. A fourth is a decision, not an accident');
 
 -- 2. Both are SECURITY DEFINER with a pinned search_path.
 --    §12 already asserts the pin across every definer function; this asserts these two
@@ -1641,7 +1641,7 @@ select is_empty(
        from pg_proc p
        join pg_namespace n on n.oid = p.pronamespace
       where n.nspname = 'public'
-        and p.proname in ('get_school_menu','get_school_menu_version')
+        and p.proname in ('get_school_menu','get_school_menu_version','get_schools')
         and (not p.prosecdef
           or coalesce(array_to_string(p.proconfig, ','), '') not like '%search_path%') $$,
   '[AUTH-01]: both public menu functions are SECURITY DEFINER and pin search_path');
@@ -1703,6 +1703,19 @@ select ok(
 select ok(
   public.get_school_menu_version((select school_id from tests_tmp.tests_public_menu_school)) is not null,
   '[AUTH-01]: anon can read the menu version for the seeded school');
+
+-- The school picker must not publish a member of staff. `school` carries contact_name,
+-- contact_email and contact_phone; a later `select s.*` would hand all three to anyone
+-- holding the anon key, and nothing else in the suite would notice.
+select is(
+  (select tests_tmp.jsonb_object_keys_sorted(s)
+     from jsonb_array_elements(public.get_schools()) as s limit 1)::text,
+  '{city,id,name}',
+  '[AUTH-01]: get_schools returns exactly {id, name, city} — no contact_name, contact_email, contact_phone, address or kitchen_id');
+
+select ok(
+  jsonb_array_length(public.get_schools()) > 0,
+  '[AUTH-01]: the seeded data yields at least one onboarded school — the key-shape assertion above is not passing vacuously');
 
 reset role;
 

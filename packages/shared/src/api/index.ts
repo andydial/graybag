@@ -25,3 +25,9 @@ export {
   type ApiDishAllergen,
   type ApiMenuPayload,
 } from './menu.js';
+
+export {
+  SchoolPayloadError,
+  fetchSchools,
+  type ApiSchool,
+} from './schools.js';
