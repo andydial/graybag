@@ -61,3 +61,8 @@ export * as design from './design/index.js';
 // anywhere else. Menu reads today; E03, E05 and E06 join this surface rather than growing
 // a second one.
 export * as api from './api/index.js';
+
+// Kitchen operations (E09-01/02/03, E09-11a). The three lists the kitchen works from at
+// 7am, and their CSV form for the morning the network is down. Pure — no order table.
+export * as kitchen from './kitchen/index.js';
+

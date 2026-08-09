@@ -1239,7 +1239,7 @@
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Session handling across app restarts and token expiry, tested on a cold device</span>
+        <span class="ttext">Session handling across app restarts and token expiry, tested on a cold device. <strong>Storage landed 2026-08-10 with <code>E03-20</code></strong> — expo-secure-store, chunked to stay under the ~2 KB keychain warning threshold. Left open for the half that needs a device: token expiry and a genuine cold start</span>
       </li>
       <li class="task" data-id="E03-10" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-10"></button>
@@ -1321,7 +1321,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Produce the two-account list for <code>E03-18</code> as a support artefact and build the merge-on-request path (user confirms, then histories combine) rather than a bulk merge at cutover <strong>Post-cutover (<code>SC3</code>)</strong> — follows <code>E03-18</code></span>
       </li>
-      <li class="task" data-id="E03-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E03-20" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-20"></button>
         <code class="tid">E03-20</code>
         <span class="badge r-high">high</span>
@@ -2670,13 +2670,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/13</span>
+          <span class="meter-num">0/14</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 13 tasks</summary>
+        <summary>Context &amp; 14 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -2686,7 +2686,7 @@
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Aggregate production list</strong> per kitchen: &quot;make 120 sandwiches&quot; across all schools for a service date</span>
+        <span class="ttext"><strong>Aggregate production list</strong> per kitchen: &quot;make 120 sandwiches&quot; across all schools for a service date <strong>Domain done 2026-08-10</strong> — <code>packages/shared/src/kitchen/lists.ts</code>, <code>productionTotals</code>. Open for the screen that renders it and the query that feeds it (<code>E05-09</code>)</span>
       </li>
       <li class="task" data-id="E09-02" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-02"></button>
@@ -2694,7 +2694,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Per-school aggregate view</strong> for the same date</span>
+        <span class="ttext"><strong>Per-school aggregate view</strong> for the same date <strong>Domain done 2026-08-10</strong> — <code>perSchoolTotals</code>. Open for the screen</span>
       </li>
       <li class="task" data-id="E09-03" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-03"></button>
@@ -2702,7 +2702,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Packing/delivery list</strong> grouped school -&gt; break -&gt; class -&gt; section</span>
+        <span class="ttext"><strong>Packing/delivery list</strong> grouped school -&gt; break -&gt; class -&gt; section <strong>Domain done 2026-08-10</strong> — <code>packingList</code>, grouped in exactly that order because it is the order the food physically moves. Open for the screen</span>
       </li>
       <li class="task" data-id="E09-04" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-04"></button>
@@ -2783,6 +2783,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><code>E09-07</code>&#39;s <strong>last-4-phone fallback search is an Edge Function, never a table read.</strong> <code>docs/data-model.md</code> §13.3 rule 4 says the kitchen needs <strong>no</strong> tier A beyond those four digits, and <code>docs/authorization-model.md</code> §14 names the mechanism; <code>E09-07</code> as written says nothing about it, and a table read would hand a kitchen operator the whole <code>phone_e164</code>. Rate-limited, logs the lookup to <code>audit_log</code>, returns the order and nothing else</span>
+      </li>
+      <li class="task" data-id="E09-14" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-14"></button>
+        <code class="tid">E09-14</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The packing list is tier P and needs a retention rule.</strong> <code>packingCsv</code> names children by design — staff hand food to a named child and there is no version of that job that does not. That makes a downloaded packing CSV regulated data sitting on a kitchen laptop indefinitely. Decide how long it may be kept and how it is destroyed, and put it in <code>docs/dpdp-compliance.md</code>. The file warns the reader in its first row, which is the most a file can do for itself; the rest is policy. Raised with <code>E09-11a</code></span>
       </li></ul>
       </details>
     </article>
