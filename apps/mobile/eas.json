@@ -1,0 +1,43 @@
+{
+  "cli": {
+    "version": ">= 13.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "env": {
+        "APP_ENV": "local"
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "channel": "staging",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_ENV": "staging"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "channel": "production",
+      "env": {
+        "APP_ENV": "production"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleTeamId": "F247T8Y2NT"
+      },
+      "android": {
+        "track": "internal"
+      }
+    }
+  }
+}

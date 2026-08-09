@@ -33,6 +33,19 @@
           "resizeMode": "contain"
         }
       ]
-    ]
+    ],
+    "owner": "anuragdial",
+    "extra": {
+      "eas": {
+        "projectId": "c2f325fa-47ad-474b-b863-e70a9b109728"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c2f325fa-47ad-474b-b863-e70a9b109728",
+      "fallbackToCacheTimeout": 10000
+    }
   }
 }

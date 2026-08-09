@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { guardFromEnvironment } from './src/env/guard';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { SelectedSchoolProvider } from './src/session/SelectedSchoolContext';
 import { SessionProvider } from './src/session/SessionContext';
@@ -22,6 +23,11 @@ import { SessionProvider } from './src/session/SessionContext';
  * and every screen behind the bar is `bg.canvas`. The one screen that is not — the green
  * splash — is drawn by the OS from `app.json`, before this component mounts.
  */
+// Runs at module load, before anything renders (`E14-11`). A dev build pointed at production
+// must fail here rather than three screens later, mid-checkout, having created a real order
+// for a real child. A store build is production by definition and is unaffected.
+guardFromEnvironment();
+
 export default function App() {
   return (
     <SafeAreaProvider>
