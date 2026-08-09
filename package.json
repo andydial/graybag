@@ -23,6 +23,7 @@
     "dev:db:stop": "npx supabase stop",
     "db:reset": "npx supabase db reset",
     "db:seed:staging": "node scripts/seed-staging.mjs",
+    "kitchen": "tsx scripts/kitchen-list.mjs",
     "db:status": "npx supabase status",
     "bundle:check": "npm --prefix apps/mobile run bundle:check",
     "verify:apk": "node scripts/verify-apk-upi-queries.mjs",

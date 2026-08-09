@@ -25,7 +25,7 @@ Kitchen staff today log in via "Admin Login" on the website and see all orders. 
 - [ ] `E09-09` (risk:high) (mvp) Permission split enforced: `orders.mark_delivered` separate from `orders.refund` and `orders.view_financials`
 - [ ] `E09-10` Kitchen users scoped to their kitchen(s) — currently all-access is acceptable, but the scoping must exist
 - [ ] `E09-11` (mvp) Works well on a tablet/phone in a kitchen — large tap targets, readable at arm's length
-- [ ] `E09-11a` (risk:high) **Printable / CSV production and packing lists** — the kitchen must be able to work at 7am even if the app or their network is down **CSV done 2026-08-10** — `productionCsv`, `perSchoolCsv`, `packingCsv`. CRLF for Excel, formula-injection neutralised, and the packing file carries a first-row warning that it names children. Open for the print stylesheet and the download route
+- [ ] `E09-11a` (risk:high) **Printable / CSV production and packing lists** — the kitchen must be able to work at 7am even if the app or their network is down **CSV done 2026-08-10** — `productionCsv`, `perSchoolCsv`, `packingCsv`. CRLF for Excel, formula-injection neutralised, and the packing file carries a first-row warning that it names children. Open for the print stylesheet and the download route **Terminal path shipped 2026-08-10** — `npm run kitchen -- --date YYYY-MM-DD`, with `--csv production|per-school|packing`. Reads paid orders and prints all three lists. This is the 'works at 7am when the app is down' half; the print stylesheet and a download route are still open
 - [ ] `E09-12` (owner:andy) **Decision parked**: default delivery mode (classroom bulk vs counter pickup) until real usage data exists. Both are supported
 
 Added by Q15 (`docs/overnight-review.md` §2.11).
