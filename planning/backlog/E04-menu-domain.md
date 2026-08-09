@@ -23,9 +23,9 @@ Source Excel columns: `Item No. | Menu Item | Description | Ingredients | Calori
 - [x] `E04-05` (mvp) Importer supports optional columns `image_filename`, `available_days`, per-school price override; drops `Category - ORIG`; keeps `Category`
 - [ ] `E04-06` (mvp) Bulk image upload from a folder alongside the import file, matched by filename
 - [ ] `E04-07` (mvp) Image pipeline: resize to 3 sizes, AVIF/WebP, served from CDN with long cache headers
-- [ ] `E04-08` (risk:high) (mvp) `menu_version` incremented on any change to an assigned menu
-- [ ] `E04-09` (mvp) Tiny `GET /menu/version?school=X` endpoint (a few bytes) the app calls on open
-- [ ] `E04-10` (risk:high) (mvp) App-side menu cache: store menu JSON + version locally, refetch only on version change
+- [x] `E04-08` (risk:high) (mvp) `menu_version` incremented on any change to an assigned menu
+- [x] `E04-09` (mvp) Tiny `GET /menu/version?school=X` endpoint (a few bytes) the app calls on open
+- [x] `E04-10` (risk:high) (mvp) App-side menu cache: store menu JSON + version locally, refetch only on version change
 - [ ] `E04-11` Read-only offline: cached menu and past orders browsable with no network
 - [ ] `E04-12` (mvp) Category browse tabs **plus** search — needed at 50 items ("cold coffee" must be findable)
 - [ ] `E04-13` (mvp) Migrate the 3 existing menus and re-source or re-upload all dish images

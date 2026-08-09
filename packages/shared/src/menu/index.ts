@@ -38,6 +38,23 @@ export {
 } from './resolve.js';
 
 export {
+  MenuUnavailableError,
+  createMenuCache,
+  type CachedMenu,
+  type MenuCache,
+  type MenuCacheOptions,
+  type MenuResult,
+  type MenuStorage,
+} from './cache.js';
+
+export {
+  VERSION_MAX_AGE_SECONDS,
+  menuVersionResponse,
+  parseSchoolId,
+  type VersionResponse,
+} from './version-endpoint.js';
+
+export {
   allergenDisclosure,
   allergenWarning,
   mayStateNoAllergens,
