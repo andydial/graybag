@@ -2,6 +2,44 @@
 
 Grouped by who unblocks them. Items here block specific backlog tasks.
 
+## Blocked on an architecture decision — raised 2026-08-09
+
+### `[AUTH-01]` How does a signed-out user read the menu?
+
+**Blocks:** the `api/` module, `E04-10`'s menu fetch, `E14-08`, and any device build that shows
+a dish. **Found by** pointing the staging EAS environment at the real project and getting
+`42501 permission denied for table dish` back.
+
+Two rules that are each correct on their own now contradict each other:
+
+* **`AR7`** makes signup-to-first-order a primary v1 goal and says in as many words that the app
+  must be browsable before anyone identifies themselves. The navigator has no authenticated
+  graph; `RootNavigator.test.tsx` asserts every tab mounts with no session.
+* **The privilege baseline** (`0002`, `0005`, `PB1`, `[AZ-03]`) gives `anon` **nothing at all**
+  in `public`, deliberately, and the authorization suite fails if that is ever relaxed.
+
+So there is currently **no path by which a signed-out user can read a dish.** The `menu-version`
+Edge Function does not solve it either: it uses the anon key plus the caller's `authorization`
+header, so for a signed-out caller it hits the same wall.
+
+This is not a bug in either rule. It is a decision nobody has made yet, and it must be made
+before the `api/` module is written, because the answer determines what that module *is*.
+
+| Option | What it means | Cost |
+|---|---|---|
+| **(a) A public read Edge Function using `service_role`**, scoped to menu data only | The function is the boundary: it takes a school id, returns the menu, and holds the only elevated key. `anon` keeps nothing | One more function to review carefully. A bug in it is a data leak, so it must never accept a table name or a filter from the caller |
+| **(b) Supabase anonymous sign-in** — every app open creates a real (anonymous) session | `authenticated` already has the grants, so nothing about the baseline changes | Creates an `auth.users` row per install. Interacts with `E03`'s account linking and with DPDP data minimisation — an anonymous row is still a row |
+| **(c) Grant `anon` SELECT on the menu tables only** | Simplest to write | Reverses `[AZ-03]` and weakens the one assertion that has never been allowed to weaken. The legacy Bubble app exposed every order and child record publicly, and that suite exists so it cannot recur |
+
+**Recommendation: (a).** It keeps `anon` at zero privileges, which is the property the
+authorization suite is protecting and the one the legacy app got catastrophically wrong. It also
+matches the shape already in the codebase — non-negotiable #1 routes every backend call through
+`api/`, reads may use the Supabase client, and writes go through Edge Functions; a menu read for
+an unidentified user is simply a read the client is not entitled to make directly. It needs no
+new decisions about identity, which (b) does.
+
+**Not guessed and not built.** Andy decides.
+
 ## Blocked on legal / regulatory advice
 
 | Q | Blocks | Notes |
