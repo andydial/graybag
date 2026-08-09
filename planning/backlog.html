@@ -1801,13 +1801,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/14</span>
+          <span class="meter-num">0/15</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 14 tasks</summary>
+        <summary>Context &amp; 15 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -1921,6 +1921,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Abandoned-checkout sweeper</strong> — every 5 minutes, close <code>order_group</code>s left at <code>pending_payment</code> past the TTL. Must reconcile each non-terminal attempt against Razorpay *before* cancelling, reverse the wallet hold and release any capacity decrement. TTL is <code>[OL-03]</code></span>
+      </li>
+      <li class="task" data-id="E05-15" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-15"></button>
+        <code class="tid">E05-15</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>calendar.test.sql</code> test 11 fails on a Sunday.</strong> &quot;inside <code>min_advance_order_days</code> the day is refused as <code>too_soon</code>&quot; gets <code>cutoff_passed</code> instead. Found 2026-08-10 and <strong>it is not a regression</strong> — it fails identically on <code>main</code> at <code>543415a</code>, before migrations <code>0012</code>/<code>0013</code>, so it has been failing since whenever the date last rolled onto a weekend. Two things are wrong and only one of them is the test: the fixture assumes a weekday, and <code>orderable_calendar</code> reports only the *first* reason a day is unorderable, so a day that is both too soon and past its cutoff reports whichever branch is checked first. Decide whether the precedence is deliberate (<code>cutoff_passed</code> is arguably the more useful answer to show a parent) and then either fix the fixture to pin a weekday or fix the precedence — but the suite must not be date-dependent either way. <strong>The nightly run has been green only because it does not run on Sundays.</strong></span>
       </li></ul>
       </details>
     </article>
@@ -2237,7 +2245,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Correct the over-refund guard (§7.3) — it must sum refunds at <code>pending</code>, <code>processing</code> <strong>and</strong> <code>completed</code>, and take the <code>order_group</code> row lock, so two admins refunding the same order concurrently cannot both pass. <code>docs/data-model.md</code> §8.3 states it wrongly in both directions</span>
       </li>
-      <li class="task" data-id="E06-22" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E06-22" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-22"></button>
         <code class="tid">E06-22</code>
         <span class="badge r-critical">critical</span>
@@ -2309,13 +2317,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>order_group_status = &#39;payment_failed&#39;</code> is currently unreachable.</strong> <code>docs/order-lifecycle.md</code> §5 rule G3 requires every member cancelled with <code>cancel_reason_code = &#39;payment_failed&#39;</code>, but §10.4 step 3 makes the sweeper write <code>checkout_expired</code> for <strong>both</strong> &quot;every attempt terminally failed&quot; and &quot;never started&quot;. Every failed checkout therefore falls through to G4 (<code>cancelled</code>) and G3 never fires — while §12.1 scenario 5 asserts the group reaches <code>payment_failed</code>. Split the reason code on whether any attempt reached <code>failed</code>, and fix §10.4 in the same PR</span>
       </li>
-      <li class="task" data-id="E06-31" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E06-31" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-31"></button>
         <code class="tid">E06-31</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Define and assert the ledger sign convention.</strong> <code>ledger_entry</code> carries a <code>ledger_direction</code> enum, and no document says which direction is positive for which <code>ledger_account_type</code>. Two nightly assertions run in opposite directions: the wallet is a liability (posting #1 <strong>debits</strong> it when the customer spends, so its balance is credits − debits, invariant <code>I8</code>) and <code>provider:razorpay:clearing</code> is an asset (posting #2 <strong>debits</strong> it on capture, so its balance is debits − credits, <code>docs/payments-design.md</code> §8.3). A single-signed <code>balance()</code> helper is wrong for half the accounts. Write it into <code>docs/data-model.md</code> §8.4 as a per-account-type normal-balance table and unit-test both directions</span>
+        <span class="ttext"><strong>Define and assert the ledger sign convention.</strong> <code>ledger_entry</code> carries a <code>ledger_direction</code> enum, and no document says which direction is positive for which <code>ledger_account_type</code>. Two nightly assertions run in opposite directions: the wallet is a liability (posting #1 <strong>debits</strong> it when the customer spends, so its balance is credits − debits, invariant <code>I8</code>) and <code>provider:razorpay:clearing</code> is an asset (posting #2 <strong>debits</strong> it on capture, so its balance is debits − credits, <code>docs/payments-design.md</code> §8.3). A single-signed <code>balance()</code> helper is wrong for half the accounts. <strong>Done 2026-08-10, migration <code>0013</code>, decision <code>M9</code> — and resolved structurally rather than by picking a convention:</strong> a CHECK constraint pins <code>normal_balance</code> per <code>account_type</code>, <code>ledger_balance()</code> is the only reader and consults the account, and <code>assert_ledger_integrity()</code> checks structural invariants instead of recomputing a derived balance. <code>supabase/tests/ledger.test.sql</code>, 14 assertions</span>
       </li>
       <li class="task" data-id="E06-32" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-32"></button>
