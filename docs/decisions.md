@@ -19,7 +19,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Architecture](decisions/architecture.md) | `A1`–`A8` | Stack, hosting, the `api/` module rule, observability |
 | [The `api/` module rule](decisions/api-module.md) | `AP1`–`AP4` | How `A4` is enforced: the lint gate, the shared `no-restricted-syntax` slot, the write ban |
 | [Data model](decisions/data-model.md) | `D1`–`D18` | Roles, recipients, config chain, ledger, money types, RLS default-deny |
-| [Auth](decisions/auth.md) | `U1`–`U4` | Google / Apple / email-OTP, no passwords, sender identity |
+| [Auth](decisions/auth.md) | `U1`–`U5` | Google / Apple / email-OTP, no passwords, sender identity, and how a signed-out user reads the menu |
 | [Product](decisions/product.md) | `P1`–`P11` | Attendance, delivery, reports, offline, device tier |
 | [Navigation and the app shell](decisions/navigation.md) | `NV1`–`NV9` | One graph, one gate reached by intent, four tabs, the AR7 assertion, the menu screen |
 | [Network resilience](decisions/network.md) | `NR1`–`NR4` | Per-attempt timeouts, full jitter, what is never retried, and why a write is not |
