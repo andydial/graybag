@@ -36,7 +36,8 @@
           "resizeMode": "contain"
         }
       ],
-      "./plugins/withUpiQueries"
+      "./plugins/withUpiQueries",
+      "./plugins/withRazorpaySdkPin"
     ],
     "owner": "anuragdial",
     "extra": {
