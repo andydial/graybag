@@ -26,7 +26,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Design system and motion](decisions/design-system.md) | `S1`–`S34` | Closed motion catalogue, duration/easing tokens, the 500 rule, contrast bar, lint gates |
 | [Order lifecycle](decisions/order-lifecycle.md) | `L1`–`L8` | The state machine, cutoff snapshotting, `paid` means captured |
 | [Payments integration](decisions/payments.md) | `PY1`–`PY9` | Razorpay secrets, webhook contract, refund arithmetic, reconciliation |
-| [Menu import](decisions/menu-import.md) | `MI1`–`MI6` | Blank allergens mean unknown, fail-vs-warn rule, zero dependencies |
+| [Menu import](decisions/menu-import.md) | `MI1`–`MI7` | Blank allergens mean unknown (and where that is stored), fail-vs-warn rule, zero dependencies |
 | [GST and invoicing](decisions/gst-invoicing.md) | `G1`–`G10` | Per-line rounding, CGST/SGST computed independently, gapless series |
 | [Consent, retention and DPDP](decisions/dpdp.md) | `C1`–`C9` | Consent atomicity, purpose immutability, retention as data, breach clock |
 | [Release](decisions/release.md) | `R1`–`R8` | Closed beta, cutover freeze window, rollback-by-default gates |

@@ -26,6 +26,11 @@ export {
   type EffectiveConfig,
 } from './config-cache.js';
 
+// The menu domain (E04-01/02/03). Pure rules — which menu a school sees today, whether an
+// item is orderable on a weekday, what it costs there, and what we may say about its
+// allergens. No fetching and no Date: see menu/dates.ts for why the second one matters.
+export * as menu from './menu/index.js';
+
 // Design tokens (E13-01). One source, two outputs, no third (S8): `apps/mobile` imports
 // these objects directly and `apps/web` generates CSS custom properties from the same
 // modules at build time. Components import the semantic roles, never the ramps (S7).
