@@ -21,7 +21,7 @@ Source Excel columns: `Item No. | Menu Item | Description | Ingredients | Calori
 - [x] `E04-03` (mvp) MenuAssignment: school <-> menu with validity dates; supports shared and per-school menus
 - [x] `E04-04` (risk:high) (mvp) **Excel importer**: validate, preview a diff, then apply. Never silently overwrite
 - [x] `E04-05` (mvp) Importer supports optional columns `image_filename`, `available_days`, per-school price override; drops `Category - ORIG`; keeps `Category`
-- [ ] `E04-06` (mvp) Bulk image upload from a folder alongside the import file, matched by filename
+- [x] `E04-06` (mvp) Bulk image upload from a folder alongside the import file, matched by filename
 - [ ] `E04-07` (mvp) Image pipeline: resize to 3 sizes, AVIF/WebP, served from CDN with long cache headers
 - [x] `E04-08` (risk:high) (mvp) `menu_version` incremented on any change to an assigned menu
 - [x] `E04-09` (mvp) Tiny `GET /menu/version?school=X` endpoint (a few bytes) the app calls on open

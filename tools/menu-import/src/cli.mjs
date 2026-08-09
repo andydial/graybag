@@ -11,6 +11,8 @@
 // Diffing against what is already stored (E04-04):
 //   --against <snapshot.json> current dishes for this kitchen; produces a PLAN, not a write
 //   --plan <path>             write the plan (with the workbook's fingerprint) for review
+//   --images <folder>         match dishes to a folder of photos by filename (E04-06);
+//                             reports matched / missing / unused and uploads nothing
 //   --deactivate-missing      treat a dish absent from the sheet as retired. OFF by default:
 //                             a partial sheet is the ordinary case, and treating absence as
 //                             deletion turns that into an emptied menu
@@ -29,17 +31,18 @@ import { renderReport } from './report.mjs'
 import { buildPlan, planBlockers } from './diff.mjs'
 import { fingerprint } from './apply.mjs'
 import { renderPlan } from './plan-report.mjs'
+import { imageBlockers, matchImages, readImageFolder, renderImageReport } from './images.mjs'
 
 const USAGE = `usage: node tools/menu-import/src/cli.mjs <file.xlsx> [--sheet NAME] [--json PATH]
                                             [--stdout-json] [--allow-new-categories] [--quiet]
                                             [--against SNAPSHOT.json] [--plan PATH]
-                                            [--deactivate-missing]`
+                                            [--deactivate-missing] [--images FOLDER]`
 
 function parseArgs(argv) {
   const options = {
     file: null, sheet: undefined, json: null, stdoutJson: false,
     allowNewCategories: false, quiet: false,
-    against: null, plan: null, deactivateMissing: false,
+    against: null, plan: null, deactivateMissing: false, images: null,
   }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -52,6 +55,7 @@ function parseArgs(argv) {
       case '--against': options.against = argv[++i]; break
       case '--plan': options.plan = argv[++i]; break
       case '--deactivate-missing': options.deactivateMissing = true; break
+      case '--images': options.images = argv[++i]; break
       case '-h':
       case '--help': options.help = true; break
       default:
@@ -119,9 +123,34 @@ function main(argv) {
     process.stdout.write(`${renderReport(result)}\n`)
   }
 
+  // E04-06. Independent of --against: an operator often wants to check the photo folder
+  // before they have a snapshot to diff against, and the two questions do not depend on
+  // each other.
+  let imageExit = 0
+  if (options.images !== null) {
+    try {
+      const dir = resolve(options.images)
+      const folder = readImageFolder(dir)
+      const match = matchImages(result.dishes, folder)
+      const blockers = imageBlockers(match)
+
+      if (!options.quiet && !options.stdoutJson) {
+        process.stdout.write(`${renderImageReport(match, dir)}\n`)
+        for (const ignored of folder.ignored) {
+          process.stderr.write(`  ignored ${ignored.name}: ${ignored.reason}\n`)
+        }
+        for (const b of blockers) process.stderr.write(`  [${b.code}] ${b.message}\n`)
+      }
+      if (blockers.length > 0) imageExit = 1
+    } catch (error) {
+      process.stderr.write(`error: could not read --images ${options.images}: ${error.message}\n`)
+      return 2
+    }
+  }
+
   // No --against means "validate this file", which is the Q08 behaviour and still useful
   // on its own. With it, we can say what would actually change.
-  if (options.against === null) return result.rejected.length > 0 ? 1 : 0
+  if (options.against === null) return result.rejected.length > 0 || imageExit ? 1 : 0
 
   // A plan built from a file that failed validation would be a plan to write bad rows.
   if (result.rejected.length > 0) {
@@ -154,7 +183,7 @@ function main(argv) {
   }
   if (!options.quiet && !options.stdoutJson) process.stdout.write(`${renderPlan(plan)}\n`)
 
-  return blockers.length > 0 ? 1 : 0
+  return blockers.length > 0 || imageExit ? 1 : 0
 }
 
 process.exitCode = main(process.argv.slice(2))

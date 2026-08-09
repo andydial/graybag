@@ -231,3 +231,39 @@ A JSON array of the kitchen's dishes. Only the compared fields matter:
 
 Dishes are matched on `lower(name)`, which is `uq_dish_kitchen_name` in the schema — not on
 `Item No.`, which is a spreadsheet ordinal that renumbers whenever somebody sorts the sheet.
+
+## Matching a folder of photos (`E04-06`)
+
+```sh
+node tools/menu-import/src/cli.mjs menu.xlsx --images ./photos
+```
+
+Works with or without `--against` — an operator usually wants to check the photo folder before
+they have a snapshot to diff against.
+
+Every dish and every file lands in exactly one bucket (the `MI3` accounting rule applied to
+images): **matched**, **named but not found**, **in the folder and referenced by nothing**, or
+**no image named**. Nothing is uploaded — like the menu diff, this is a plan.
+
+### It matches on what the sheet says, never on the dish name
+
+A dish called "Veg Sandwich" and a file called `veg-sandwich.jpg` look like a pair. Matching
+them would mean a sheet with **no** `image_filename` column silently acquires photos by
+coincidence — including wrong ones, on a menu where the picture sits beside allergen
+information. The `image_filename` column names the file, or there is no match.
+
+### What the normalisation does and does not forgive
+
+| Same photo | Different photo |
+|---|---|
+| `Veg Sandwich.JPG` = `veg-sandwich.jpg` = `veg_sandwich.jpeg` | `veg-sandwich (1).jpg` ≠ `veg-sandwich.jpg` |
+| `Jalapeño.jpg` = `jalapeno.jpg` | |
+
+A `(1)` suffix is usually a duplicate download, and treating it as the original is how the
+wrong photo ships. Two files that normalise to **one** key are reported as ambiguous and block
+the run — `veg-sandwich.jpg` and `Veg Sandwich.png` are two different photos and only you know
+which is current.
+
+Dotfiles are skipped, including macOS resource forks (`._Veg Sandwich.jpg` has an image
+extension and would otherwise match a real dish). Folders are not searched — a `.thumbnails/`
+directory holds the right names and the wrong contents.
