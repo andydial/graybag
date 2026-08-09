@@ -16,7 +16,7 @@ summary: Recipients, cart, cutoff enforcement, break/drop time selection, and or
 - [ ] `E05-04` (mvp) Cart: add/remove/quantity, per-line special comments, optimistic UI
 - [ ] `E05-05` (risk:high) **Allergen warning** when adding a dish that conflicts with the recipient's declared allergies
 - [ ] `E05-06` (mvp) Break / drop time selection per school; supports different times for different class groups later
-- [ ] `E05-07` (risk:critical) (mvp) **Cutoff enforcement** — midnight by default, resolved via the config chain, enforced server-side not just in the UI
+- [x] `E05-07` (risk:critical) (mvp) **Cutoff enforcement** — midnight by default, resolved via the config chain, enforced server-side not just in the UI
 - [ ] `E05-08` (mvp) Order for a future date; calendar shows which days are orderable
 - [ ] `E05-09` (mvp) Order creation snapshots dish name, price, allergens, cutoff and break time
 - [ ] `E05-10` (mvp) Order history with reorder

@@ -29,3 +29,5 @@ planning/.backlog-history/
 
 # Supabase CLI local link state — contains the linked project ref, not committed
 supabase/.temp/
+# Written by `supabase start`; local stack state, not source.
+supabase/.branches/
