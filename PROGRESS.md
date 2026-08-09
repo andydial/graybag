@@ -4,6 +4,119 @@ Newest handover at the top. Assume the reader has forgotten everything.
 
 ---
 
+## 2026-08-10 (overnight) — the spikes are closed, `anon` can read a menu, and there is a sign-in screen
+
+### SHIPPED
+
+| Task | One line |
+|---|---|
+| `E06-29` (Android half) | UPI `<queries>` permanently enabled in `apps/mobile` — the chooser question resolved by construction rather than by a second handset |
+| `E19-08` | `com.razorpay:standard-core` pinned to `1.7.18` via a Gradle `resolutionStrategy`; it was floating on `LATEST` |
+| `E06-32` | `scripts/verify-apk-upi-queries.mjs` — decodes the binary manifest out of a **built APK** and asserts the UPI block. Renumbered from a duplicate `E06-30` |
+| `E19-01`, `E19-02` | Both spikes closed. `docs/spike-results.md` rewritten; `payments-design.md`, `open-questions.md` and the backlogs reconciled |
+| `[AUTH-01]` + `E14-02` | A signed-out user can read a dish. Migration `0010`, decision `U5`, and the **`api/` module now exists** at `packages/shared/src/api/` |
+| `E02-26` | A `SECURITY DEFINER` function about **children** was callable by unauthenticated users. Closed |
+| `E03`/`E14-14` | School picker + migration `0011`, so the Menu tab has something to show |
+| `E03-14` | Sign in with an emailed code. No password field, no "are you new?" step, no verification screen |
+| `E06` | `docs/e06-build-plan.md` — plan only, no payment code |
+
+Smoke: **832 tests green.** pgTAP: **271 assertions across six suites**, from a clean reset
+replaying all eleven migrations.
+
+### FINDINGS
+
+**1. A `SECURITY DEFINER` function about children was reachable by `anon`.** Found by writing
+the assertion "anon may execute exactly two functions" — it failed with eleven. Postgres grants
+`EXECUTE` to `PUBLIC` on every new function by default and nothing had ever revoked it. Ten are
+`SECURITY INVOKER` and die on their first table; the eleventh,
+`auth_recipient_has_fulfilment_order(uuid)`, bypasses RLS by design because it is an
+authorization helper. **Verified against the local stack: as `anon`, with a seeded recipient
+id, it returns `false` rather than refusing** — an unauthenticated caller holding a recipient
+id learns whether that child has an order. Not a bulk leak (v4 UUIDs are not enumerable), but
+an authorization primitive answering questions about a child to strangers. Closed in `0010`;
+`E02-27` filed for the default-privileges fix, which needs a check of which role runs
+migrations in each environment.
+
+**2. The `E19-01` spike APK's merged manifest already carried the `upi` scheme query.** So
+package visibility was never the limiting factor in your handset session — the single installed
+UPI app is the whole explanation, and the follow-up experiment could never have returned
+anything. It also confirms finding A3 from a real artefact rather than from an AAR.
+
+**3. The ledger cannot record anything today.** `ledger_transaction.reason_code` is
+`not null references reason_code(code)` and **none of the eight seeded codes names a money
+movement**. Not a thin vocabulary — the first insert fails on a foreign key. It blocks `E06-07`
+outright and is step 1 of the E06 plan.
+
+**4. The ledger sign convention is undefined, and this is the E06 failure I would bet on.** The
+wallet is a liability, `provider:razorpay:clearing` is an asset, their balances run in opposite
+directions, and no document says which way is positive for which. A single-signed `balance()`
+helper gives plausible numbers for both and is wrong for one — and the nightly assertion meant
+to catch the drift is the thing computing it wrongly. Nothing about it looks like a bug.
+
+**5. `E19-02` returned no numbers.** "Performance acceptable" validates `E13-05`'s framework
+choice and keeps `M05`, which is what the spike was for. It does **not** set `E14-07`'s
+thresholds, which you ruled must come from measured figures. `E14-07` now needs one `adb`
+session, not a decision — the commands are in the runbook and need no rebuild.
+
+**6. A binary parser with a wrong base offset lies rather than failing.** My first APK read
+reported the `upi` scheme MISSING, which would have been a significant finding. It was an
+off-by-16 in my own parser (`attributeStart` counts from `ResXMLTree_attrExt`, not the chunk
+header) — and it still parsed, producing confident nonsense. Caught by asserting known-good
+values through it first. Written up in `docs/learnings.md`.
+
+### BLOCKED
+
+- **Staging has none of this.** Migrations `0010` and `0011` are not applied to
+  `graybag-staging`, so the APK below shows the school picker and then an empty menu. Blocked
+  on `SUPABASE_DB_PASSWORD` (`E01-20`) — it is not on disk, and the CLI's access token sits in
+  the macOS keychain behind an interactive prompt I cannot answer unattended.
+- **No iOS build exists.** `E17-26` — needs `eas device:create`, an Apple login with 2FA and a
+  registered device UDID. Nothing about it is automatable from here.
+- **`E06` is plan-only by instruction**, and step 5 of that plan is a genuine stop: seven
+  `E19-07` rows still need a public webhook endpoint.
+
+### NEEDS ANDY
+
+1. **`SUPABASE_DB_PASSWORD` + `SUPABASE_ACCESS_TOKEN` as GitHub Actions secrets (`E01-20`).**
+   This is the one that unblocks the most: it applies `0010`/`0011` to staging, which is what
+   puts real dishes on your phone, and it fixes `Deploy to staging`, which has failed on every
+   run since 2026-08-08.
+2. **Read the `[AUTH-01]` implementation note.** You chose option (c), "grant `anon` SELECT on
+   the menu tables". **What shipped is two `SECURITY DEFINER` functions instead**, because table
+   grants would have meant rewriting four security assertions unsupervised overnight — including
+   one ("every view in public is `security_invoker`") that I only found by a view-shaped first
+   attempt failing against it. Same product outcome, all four assertions still passing.
+   Literal table grants remain a small migration if that is what you want. Decision `U5`.
+3. **`E19-03`** — the VAG Rounded Next licence. Still open, still blocking `E13-02`.
+4. **iOS device registration (`E17-26`) and the App Store Connect app id (`E17-27`).**
+5. **Two kitchen-operations questions before `E06` starts:** `[OL-02]` (how long can the kitchen
+   still add a sandwich to the run?) and `[OL-03]` (how long to hold a pending checkout).
+   Neither is an engineering call.
+6. **`[PAY-02]`** — how a refund splits across wallet-funded and source-funded portions. Cannot
+   be guessed; getting it wrong refunds real money to the wrong place.
+
+### NEXT
+
+Apply `0010` and `0011` to staging the moment the credentials exist, then rebuild — that is
+one command and it turns the current build from "picker then empty menu" into a working menu.
+
+After that, `E03-20`: session persistence across restarts. Sign-in works but the session lives
+in memory, so every cold start is a fresh OTP. It needs a native storage dependency
+(`expo-secure-store` preferred, so the refresh token sits in the keychain), which I deliberately
+did not add unattended hours after the last verified build.
+
+### BUILDS
+
+- **Android (installable now):**
+  https://expo.dev/artifacts/eas/CGyy9kEd0-GKgDvZeyR9Q1O_vqtOXNwW_zihUuTo52A.apk
+  Contains the UPI `<queries>` block and the SDK pin. **Verified with `E06-32`'s own checker:
+  6/6 PSP packages and the `upi` scheme present.** It predates the school picker.
+- **Android (everything, including the picker):** build `64660df4` was still running at
+  hand-over — `npx eas-cli build:list --platform android --limit 1` from `apps/mobile`.
+- **iOS: none.** Blocked on `E17-26`.
+
+---
+
 ## 2026-08-09 — Block 6 in progress; an Android build exists; four things need Andy
 
 ### What shipped
