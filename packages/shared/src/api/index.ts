@@ -31,3 +31,19 @@ export {
   fetchSchools,
   type ApiSchool,
 } from './schools.js';
+
+// Sign-in (E03, U1). Email OTP today; Google and Apple join this surface rather than
+// growing a second one. No passwords, and no path that could carry one.
+export {
+  AuthError,
+  currentUser,
+  linkingPolicy,
+  looksLikeEmail,
+  normaliseEmail,
+  sendEmailOtp,
+  signOut,
+  verifyEmailOtp,
+  type AuthTransport,
+  type AuthUser,
+} from './auth.js';
+
