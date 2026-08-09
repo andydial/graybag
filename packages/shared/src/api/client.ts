@@ -55,8 +55,17 @@ export interface TableRef {
   select(columns: string): SelectBuilder;
 }
 
+/** Edge Function invocation. The ONLY way this module writes anything (`A4`). */
+export interface FunctionsRef {
+  invoke(
+    name: string,
+    options: { body?: unknown; headers?: Record<string, string> },
+  ): PromiseLike<{ data: unknown; error: (Error & { context?: Response }) | null }>;
+}
+
 export interface ApiTransport {
   from(table: string): TableRef;
+  functions?: FunctionsRef;
 }
 
 let transport: ApiTransport | null = null;
@@ -137,6 +146,40 @@ export async function runQuery<T>(build: (t: ApiTransport) => SelectBuilder): Pr
   if (data === null || data === undefined) return [];
   if (!Array.isArray(data)) throw new ApiError('Expected a list of rows from the backend.');
   return data as T[];
+}
+
+/**
+ * Call an Edge Function. Writes never touch a table from here — `A4`, non-negotiable #1.
+ *
+ * `functions.invoke` reports a non-2xx as an `error` whose `context` is the raw `Response`,
+ * so the server's own refusal body is behind one more `await`. Reading it matters: the
+ * checkout's 409 carries a `code` the app maps to a sentence a parent can act on, and
+ * without this the whole class collapses into "something went wrong".
+ */
+export async function invokeFunction<T>(name: string, body: unknown): Promise<T> {
+  const functions = getTransport().functions;
+  if (!functions) {
+    throw new ApiError(
+      'The configured transport cannot invoke Edge Functions. configureApi() installs a ' +
+        'real client; a test stub must provide `functions` to exercise a write.',
+    );
+  }
+
+  const { data, error } = await functions.invoke(name, { body });
+  if (!error) return data as T;
+
+  const response = error.context;
+  if (response) {
+    try {
+      const payload = (await response.json()) as { code?: string; message?: string; error?: string };
+      throw new ApiError(payload.message ?? payload.error ?? error.message, payload.code);
+    } catch (parsed) {
+      if (parsed instanceof ApiError) throw parsed;
+      // The body was not JSON. Fall through to the transport's own message rather than
+      // losing the failure entirely.
+    }
+  }
+  throw new ApiError(error.message);
 }
 
 export type { SupabaseClient };
