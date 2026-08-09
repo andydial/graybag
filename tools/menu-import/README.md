@@ -177,3 +177,57 @@ this format is a date; if one is ever added, that is the thing to fix first.
 | `src/report.mjs` | the plain-text report |
 | `test/sample-menu.mjs` | **synthetic** sample data, one of every failure mode |
 | `test/make-workbook.mjs` | writes a real `.xlsx` in memory, so tests exercise the ZIP path |
+
+## Diffing against what is already stored (`E04-04`)
+
+Validation on its own answers "is this sheet importable". It does not answer the question that
+matters before a write: **what would change.**
+
+```sh
+# 1. Validate. Unchanged from Q08.
+node tools/menu-import/src/cli.mjs menu.xlsx
+
+# 2. Plan. Needs a snapshot of the dishes currently stored for the kitchen,
+#    as a JSON array. Produces a diff and writes it for review.
+node tools/menu-import/src/cli.mjs menu.xlsx \
+  --against snapshot.json --plan out/plan.json
+
+# 3. Same, treating dishes absent from the sheet as retired. OFF by default.
+node tools/menu-import/src/cli.mjs menu.xlsx \
+  --against snapshot.json --deactivate-missing
+```
+
+Exit codes: `0` clean, `1` rows failed validation **or** the plan has blockers, `2` the file
+could not be read.
+
+**The CLI never writes to the database.** It produces a plan a human reads. Applying it is a
+separate act (`src/apply.mjs`), and apply re-checks a SHA-256 of the workbook — if the file has
+changed since the plan was reviewed it refuses, because the change you approved is not the
+change the file would now make (`MI8`).
+
+### What the plan protects you from
+
+| Guard | Why |
+|---|---|
+| Absence does **not** retire a dish unless asked | A kitchen sending the ten dishes that changed is the ordinary case; treating that as "delete the rest" empties the menu (`MI9`) |
+| Deactivating >25% of a live menu blocks | Almost always a partial export. `--force` if it is genuinely a retirement (`MI10`) |
+| A plan that changes nothing blocks | "No changes" and "I read the wrong tab" look identical from outside (`MI10`) |
+| Allergen changes print first, in full | `MI2`'s question — could being wrong hurt someone — decides what an operator must not scroll past (`MI13`) |
+| Deactivations run last | A crash mid-apply then leaves too many dishes, not too few. Nobody notices an absence until the orders do not arrive (`MI11`) |
+| One failed row does not stop the rest | The receipt becomes a to-do list instead of a mystery (`MI11`) |
+
+### The snapshot format
+
+A JSON array of the kitchen's dishes. Only the compared fields matter:
+
+```json
+[
+  { "id": "uuid", "name": "Veg Sandwich", "price_paise": 6000,
+    "category_code": "sandwich", "allergens": [{ "code": "milk" }],
+    "allergens_declared_none": false, "available_days": [1,2,3,4,5],
+    "is_active": true }
+]
+```
+
+Dishes are matched on `lower(name)`, which is `uq_dish_kitchen_name` in the schema — not on
+`Item No.`, which is a spreadsheet ordinal that renumbers whenever somebody sorts the sheet.

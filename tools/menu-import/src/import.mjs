@@ -334,10 +334,13 @@ function validateRow(raw, { rowNumber, allowNewCategories, allergenStats }) {
       category_code: category.ok ? category.category : category.proposedCode,
       // [DM-17] — not in this file format, and not inferable from a dish name.
       food_type: null,
-      // [DM-20] — whether this includes GST is undecided, so the importer records the
-      // number and refuses to imply either reading.
+      // GST-EXCLUSIVE, and no longer a per-dish question. `SC2` (confirmed 2026-08-07)
+      // closed [DM-20]: the stored price IS the taxable value and 5% is added at
+      // checkout. `0003_price_is_tax_exclusive.sql` set
+      // `platform_config.price_is_tax_inclusive = false` platform-wide, so the field is
+      // config, not a property of a dish — emitting a per-dish null said the question
+      // was still open when it had been answered five migrations ago.
       price_paise: price.paise,
-      price_is_tax_inclusive: null,
       allergens: allergens.tags,
       allergens_declared_none: allergens.declaredNone,
       allergens_raw: raw.allergens == null ? null : String(raw.allergens).trim(),

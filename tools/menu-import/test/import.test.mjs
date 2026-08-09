@@ -54,7 +54,6 @@ test('a valid row becomes a dish in the target schema shape', () => {
     category_code: 'sandwich',
     food_type: null,
     price_paise: 6000,
-    price_is_tax_inclusive: null,
     allergens: [{ code: 'milk', presence: 'contains' }, { code: 'gluten', presence: 'contains' }],
     allergens_declared_none: false,
     allergens_raw: 'Gluten, Milk',
@@ -75,8 +74,13 @@ test('food_type is null on every dish and the file says why ([DM-17])', () => {
   assert.ok(result.file_issues.some((i) => i.code === 'food_type_absent'))
 })
 
-test('tax inclusivity is left unset rather than assumed ([DM-20])', () => {
-  for (const dish of sample().dishes) assert.equal(dish.price_is_tax_inclusive, null)
+test('the settled tax question is not re-opened per dish (SC2 closed [DM-20])', () => {
+  // SC2 closed [DM-20] on 2026-08-07: prices are GST-EXCLUSIVE and that is platform
+  // config (0003), not a per-dish field. The importer must not re-open a settled
+  // question by emitting a null that reads as "undecided".
+  for (const dish of sample().dishes) {
+    assert.ok(!('price_is_tax_inclusive' in dish), 'per-dish tax-inclusive flag is stale — SC2/0003')
+  }
 })
 
 test('reports every kind of row failure, and reports them per row', () => {
