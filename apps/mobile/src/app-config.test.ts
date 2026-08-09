@@ -87,7 +87,15 @@ describe('eas.json profiles', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const eas = require('../eas.json') as {
     cli: { appVersionSource: string };
-    build: Record<string, { channel?: string; env?: { APP_ENV?: string } }>;
+    build: Record<
+      string,
+      {
+        channel?: string;
+        env?: { APP_ENV?: string };
+        extends?: string;
+        android?: { buildType?: string };
+      }
+    >;
     submit: Record<string, { ios?: { appleTeamId?: string } }>;
   };
 
@@ -113,5 +121,44 @@ describe('eas.json profiles', () => {
 
   it('carries the Apple team id for submission', () => {
     expect(eas.submit.production?.ios?.appleTeamId).toBe('F247T8Y2NT');
+  });
+
+  // `preview` is the name Andy uses for "a build to hand round". It extends `staging` rather
+  // than restating it, so there is one description of an internal APK and not two that drift.
+  it('has a preview profile that is the staging build under the name people ask for', () => {
+    expect(eas.build.preview?.extends).toBe('staging');
+    expect(eas.build.preview?.channel).toBe('staging');
+  });
+
+  it('still resolves preview onto the staging environment, not production', () => {
+    // `extends` is what makes this true, so it is asserted rather than assumed: a preview
+    // build that inherited production would put live Razorpay keys on a handset being passed
+    // around an office.
+    const base = eas.build[eas.build.preview?.extends ?? ''];
+    expect(base?.env?.APP_ENV).toBe('staging');
+    expect(base?.android?.buildType).toBe('apk');
+  });
+});
+
+describe('the store version floor', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const app = require('../app.json') as { expo: { version: string } };
+
+  /**
+   * GrayBag is **already live on both stores** as the Bubble build. An upload whose version is
+   * not higher than the live one is rejected — after the build has been paid for and waited
+   * on, which is the expensive place to discover it.
+   *
+   * The rebuild therefore starts at 2.x. The build *number* is separate and comes from EAS
+   * (`appVersionSource: remote` with `autoIncrement`); this is the marketing version, and it
+   * is the one the stores compare.
+   */
+  it('starts above the live Bubble build', () => {
+    const [major] = app.expo.version.split('.').map(Number);
+    expect(major).toBeGreaterThanOrEqual(2);
+  });
+
+  it('is a three-part version, which is what both stores expect', () => {
+    expect(app.expo.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });
