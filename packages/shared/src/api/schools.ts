@@ -5,10 +5,17 @@
  * the menu be browsable signed out, and a menu read is keyed on a school. This is the one
  * call that has to work before any other read is even meaningful.
  *
- * Backed by `get_schools()` in migration `0011`, which returns onboarded, active schools
- * only (`P1`) and deliberately withholds the school's staff contact details.
+ * Reads `school` directly under the anon policy in migration `0012`, which admits only
+ * active, onboarded, not-offboarded schools (`P1`).
+ *
+ * **The column list is the redaction.** `school` also carries `contact_name`,
+ * `contact_email` and `contact_phone` — a named member of staff — plus the address and the
+ * kitchen id. A policy filters rows, never columns, so nothing in the database stops
+ * `select('*')` here from publishing a staff member's mobile number to anyone holding the
+ * anon key. The named list below is the only thing that does, which is why it is spelled
+ * out rather than globbed, and why `schools.test.ts` asserts it.
  */
-import { callRpc } from './client.js';
+import { runQuery } from './client.js';
 
 export interface ApiSchool {
   id: string;
@@ -29,25 +36,25 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /**
- * Every school a parent may pick, ordered by city then name — the order the database
- * applies, preserved here rather than re-sorted, so the list reads the same everywhere.
+ * Every school a parent may pick, ordered by name.
  *
  * An empty list is a legitimate answer (no school onboarded yet) and renders as an empty
  * state, not an error.
  */
-export async function fetchSchools(): Promise<ApiSchool[]> {
-  const data = await callRpc<unknown>('get_schools', {});
-  if (data === null || data === undefined) return [];
-  if (!Array.isArray(data)) throw new SchoolPayloadError('the response is not an array');
+/** Exactly what may leave the `school` table. Exported so the test can assert it. */
+export const SCHOOL_COLUMNS = 'id,name,city:city_id(name)';
 
-  return data.map((row, i) => {
+export async function fetchSchools(): Promise<ApiSchool[]> {
+  const rows = await runQuery<unknown>((t) =>
+    t.from('school').select(SCHOOL_COLUMNS).order('name'),
+  );
+
+  return rows.map((row, i) => {
     if (!isRecord(row) || typeof row.id !== 'string' || typeof row.name !== 'string') {
       throw new SchoolPayloadError(`school ${i} has no id or name`);
     }
-    return {
-      id: row.id,
-      name: row.name,
-      city: typeof row.city === 'string' ? row.city : '',
-    };
+    // PostgREST returns an embedded to-one relation as a nested object.
+    const city = isRecord(row.city) && typeof row.city.name === 'string' ? row.city.name : '';
+    return { id: row.id, name: row.name, city };
   });
 }

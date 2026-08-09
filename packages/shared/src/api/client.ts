@@ -28,11 +28,34 @@ import type { ClientEnv } from '../env.js';
  * Narrow on purpose: a test double implements three methods rather than the whole surface,
  * and widening it is a visible diff rather than a quiet new dependency.
  */
+export interface ProviderError {
+  message: string;
+  code?: string;
+}
+
+export interface QueryResult {
+  data: unknown;
+  error: ProviderError | null;
+}
+
+/**
+ * The fluent subset of PostgREST's query builder this module uses.
+ *
+ * Structural rather than imported from `@supabase/supabase-js` so a test double is an
+ * object literal instead of a mocked client — and so that widening what we depend on is a
+ * visible change to this interface rather than a new method call somewhere in a query.
+ */
+export interface SelectBuilder extends PromiseLike<QueryResult> {
+  eq(column: string, value: unknown): SelectBuilder;
+  order(column: string, options?: { ascending?: boolean }): SelectBuilder;
+}
+
+export interface TableRef {
+  select(columns: string): SelectBuilder;
+}
+
 export interface ApiTransport {
-  rpc(
-    fn: string,
-    args?: Record<string, unknown>,
-  ): PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }>;
+  from(table: string): TableRef;
 }
 
 let transport: ApiTransport | null = null;
@@ -83,17 +106,21 @@ export function getTransport(): ApiTransport {
 }
 
 /**
- * Call a Postgres function and unwrap Supabase's `{ data, error }` envelope.
+ * Run a read and unwrap PostgREST's `{ data, error }` envelope.
  *
  * Centralised because every read in this module goes through it, and because the envelope
- * is the one place a backend failure can be silently treated as an empty result: `data`
- * is `null` both when the call failed and when the function legitimately returned nothing.
- * Collapsing that distinction is how an empty Menu tab ends up with no error anywhere.
+ * is the one place a backend failure can be silently treated as an empty result: `data` is
+ * `null` both when the request failed and when the query legitimately matched nothing.
+ * Collapsing that distinction is how an empty Menu tab ends up with no error anywhere —
+ * and under `[AUTH-01]` it is doubly important, because a policy that stops matching rows
+ * looks exactly like a school with no menu.
  */
-export async function callRpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await getTransport().rpc(fn, args);
+export async function runQuery<T>(build: (t: ApiTransport) => SelectBuilder): Promise<T[]> {
+  const { data, error } = await build(getTransport());
   if (error) throw new ApiError(error.message, error.code);
-  return data as T;
+  if (data === null || data === undefined) return [];
+  if (!Array.isArray(data)) throw new ApiError('Expected a list of rows from the backend.');
+  return data as T[];
 }
 
 export type { SupabaseClient };

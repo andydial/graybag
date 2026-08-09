@@ -11,20 +11,36 @@ import { SchoolPicker } from './SchoolPicker';
  * because the ones that are not tested are the ones a parent hits at 7am on a school day.
  */
 
+// Shaped as PostgREST returns them: the city is an embedded to-one relation.
 const SCHOOLS = [
-  { id: 's1', name: 'Alpha Public School', city: 'SAS Nagar (Mohali)' },
-  { id: 's2', name: 'Bravo International School', city: 'SAS Nagar (Mohali)' },
+  { id: 's1', name: 'Alpha Public School', city: { name: 'SAS Nagar (Mohali)' } },
+  { id: 's2', name: 'Bravo International School', city: { name: 'SAS Nagar (Mohali)' } },
 ];
 
-/** Point the api module at a stub transport. Nothing here touches a network. */
+/**
+ * Point the api module at a stub transport. Nothing here touches a network.
+ *
+ * The builder is fluent and thenable because that is the shape `fetchSchools` uses after
+ * [AUTH-01] moved the read from an RPC onto the `school` table (migration 0012).
+ */
 function withSchools(result: Promise<unknown>) {
-  api.setApiTransport({
-    rpc: () =>
-      result.then(
-        (data) => ({ data, error: null }),
-        (error: Error) => ({ data: null, error: { message: error.message } }),
+  const settle = () =>
+    result.then(
+      (data) => ({ data, error: null }),
+      (error: Error) => ({ data: null, error: { message: error.message } }),
+    );
+
+  const builder = {
+    eq: () => builder,
+    order: () => builder,
+    then: (onfulfilled: unknown, onrejected: unknown) =>
+      settle().then(
+        onfulfilled as (v: unknown) => unknown,
+        onrejected as (e: unknown) => unknown,
       ),
-  });
+  };
+
+  api.setApiTransport({ from: () => ({ select: () => builder }) } as never);
 }
 
 afterEach(() => api.setApiTransport(null));
@@ -82,16 +98,19 @@ describe('SchoolPicker', () => {
 
   it('recovers when a retry succeeds', async () => {
     let attempt = 0;
-    api.setApiTransport({
-      rpc: () => {
+    const builder = {
+      eq: () => builder,
+      order: () => builder,
+      then: (onfulfilled: unknown) => {
         attempt += 1;
-        return Promise.resolve(
+        const answer =
           attempt === 1
             ? { data: null, error: { message: 'offline' } }
-            : { data: SCHOOLS, error: null },
-        );
+            : { data: SCHOOLS, error: null };
+        return Promise.resolve(answer).then(onfulfilled as (v: unknown) => unknown);
       },
-    });
+    };
+    api.setApiTransport({ from: () => ({ select: () => builder }) } as never);
 
     await render(<SchoolPicker onSelect={() => {}} />);
     fireEvent.press(await screen.findByText('Try again'));

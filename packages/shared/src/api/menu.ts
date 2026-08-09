@@ -2,23 +2,30 @@
  * Menu reads — the two calls `E04-10`'s cache needs, and the first real users of the
  * `api/` module.
  *
- * Both go through the `[AUTH-01]` functions added in migration `0010`, which is what makes
- * the Menu tab work for a signed-out user. See that migration's header for why the read is
- * a `SECURITY DEFINER` function rather than a table grant, and what Andy decided.
+ * Both read tables directly under the anon policies added in migration `0012` — Andy's
+ * `[AUTH-01]` ruling. The read carries the caller's authority, not a function's, so the
+ * database is the boundary rather than a function body.
  *
- * ## Why these return the cache's shape and not the database's
+ * ## One request, not four
  *
- * `get_school_menu` already returns `{ categories, dishes }` in exactly the shape
- * `CachedMenuPayload` declares, so this module validates rather than transforms. That is
- * deliberate: a transform here would be a second place where the payload shape is written
- * down, and `MC2`'s rule — store the version that arrived *with* the body — depends on the
- * body being exactly what was fetched.
+ * Drawing the menu from base tables needs the live assignment, the items, the price
+ * overrides and the allergens. Four dependent round trips on a cold open, against an
+ * audience CLAUDE.md describes as mid-range Androids on unreliable connections, is the
+ * difference between a menu that appears and one that is still arriving. `public_menu` is
+ * a `security_invoker` view over exactly those joins: it carries no authority of its own —
+ * every row has already passed the same policies — and collapses the four into one.
+ *
+ * ## Why this transforms and the old version did not
+ *
+ * The view returns one row per dish. `CachedMenuPayload` wants `{ categories, dishes }`,
+ * so the grouping happens here. It is the price of the read being a table read: a database
+ * function could shape the payload, a policy cannot.
  *
  * The validation is not decoration. A cached menu is written to device storage and read
  * back for days; a malformed payload accepted once becomes a crash on a later cold start,
  * a long way from the fetch that caused it.
  */
-import { callRpc } from './client.js';
+import { runQuery } from './client.js';
 
 /** One allergen marking on a dish. Mirrors `dish_allergen`. */
 export interface ApiDishAllergen {
@@ -96,47 +103,84 @@ function assertDish(value: unknown, index: number): ApiDish {
   };
 }
 
-function assertPayload(value: unknown): ApiMenuPayload {
-  if (!isRecord(value)) throw new MenuPayloadError('the response is not an object');
-
-  const rawCategories = Array.isArray(value.categories) ? value.categories : [];
-  const categories = rawCategories.map((c, i) => {
-    if (!isRecord(c) || typeof c.id !== 'string' || typeof c.label !== 'string') {
-      throw new MenuPayloadError(`category ${i} has no id or label`);
-    }
-    return { id: c.id, label: c.label };
-  });
-
-  const rawDishes = Array.isArray(value.dishes) ? value.dishes : [];
-  return { categories, dishes: rawDishes.map(assertDish) };
-}
 
 /**
  * The school's current menu version, or `null` when the school has no menu yet.
  *
  * `null` is a real answer, not an error: a school that has never been given a menu shows an
  * empty Menu tab, and `AR7` is explicit that a missing school must not be a wall in front of
- * browsing. Called on every app open, so it is one primary-key lookup by design.
+ * browsing. One primary-key lookup by design — it runs on every app open.
  */
 export async function fetchMenuVersion(schoolId: string): Promise<number | null> {
-  const version = await callRpc<number | string | null>('get_school_menu_version', {
-    p_school_id: schoolId,
-  });
-  if (version === null || version === undefined) return null;
+  const rows = await runQuery<{ version: number | string }>((t) =>
+    t.from('school_menu_version').select('version').eq('school_id', schoolId),
+  );
+  const first = rows[0];
+  if (first === undefined || first.version === null) return null;
 
   // Postgres `bigint` arrives as a string over PostgREST once it exceeds 2^53. The version
   // is monotonic and will not get there, but parsing rather than casting means the day it
-  // does is not the day comparisons start silently succeeding.
-  const asNumber = typeof version === 'string' ? Number.parseInt(version, 10) : version;
+  // does is not the day cache invalidation starts silently succeeding.
+  const asNumber =
+    typeof first.version === 'string' ? Number.parseInt(first.version, 10) : first.version;
   if (!Number.isFinite(asNumber)) {
-    throw new MenuPayloadError(`menu version ${String(version)} is not a number`);
+    throw new MenuPayloadError(`menu version ${String(first.version)} is not a number`);
   }
   return asNumber;
 }
 
-/** The school's live menu, validated. Empty rather than absent when there is no menu. */
+/** One row of `public_menu`. */
+interface MenuRow {
+  dish_id: unknown;
+  name: unknown;
+  description: unknown;
+  ingredients_text: unknown;
+  allergens_declared_none: unknown;
+  category_id: unknown;
+  category_label: unknown;
+  price_paise: unknown;
+  image_path: unknown;
+  allergens: unknown;
+}
+
+/**
+ * The school's live menu, validated and grouped.
+ *
+ * Empty rather than absent when there is no menu — and note that an empty result is also
+ * what a *policy* denial looks like, which is why `runQuery` refuses to collapse an error
+ * into an empty list.
+ */
 export async function fetchMenu(schoolId: string): Promise<ApiMenuPayload> {
-  const payload = await callRpc<unknown>('get_school_menu', { p_school_id: schoolId });
-  if (payload === null || payload === undefined) return { categories: [], dishes: [] };
-  return assertPayload(payload);
+  const rows = await runQuery<MenuRow>((t) =>
+    t.from('public_menu').select('*').eq('school_id', schoolId).order('sort_order'),
+  );
+
+  const categories = new Map<string, string>();
+  const dishes = rows.map((row, i) => {
+    const dish = assertDish(
+      {
+        id: row.dish_id,
+        name: row.name,
+        description: row.description,
+        categoryId: row.category_id,
+        ingredientsText: row.ingredients_text,
+        pricePaise: row.price_paise,
+        imageUri: row.image_path,
+        allergensDeclaredNone: row.allergens_declared_none,
+        allergens: row.allergens,
+      },
+      i,
+    );
+    // First label wins. The view derives it from one join, so two rows disagreeing about a
+    // category's name would mean the database disagrees with itself.
+    if (typeof row.category_label === 'string' && !categories.has(dish.categoryId)) {
+      categories.set(dish.categoryId, row.category_label);
+    }
+    return dish;
+  });
+
+  return {
+    categories: [...categories].map(([id, label]) => ({ id, label })),
+    dishes,
+  };
 }
