@@ -1801,13 +1801,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/15</span>
+          <span class="meter-num">0/16</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 15 tasks</summary>
+        <summary>Context &amp; 16 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -1874,7 +1874,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Order for a future date; calendar shows which days are orderable</span>
       </li>
-      <li class="task" data-id="E05-09" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E05-09" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-09"></button>
         <code class="tid">E05-09</code>
         
@@ -1898,7 +1898,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Order cancellation by the customer (before cutoff) moves the order to <code>cancelled</code>. The <strong>refund path itself lands with <code>E06-09</code></strong>, not here</span>
       </li>
-      <li class="task" data-id="E05-12" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E05-12" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-12"></button>
         <code class="tid">E05-12</code>
         <span class="badge r-high">high</span>
@@ -1906,7 +1906,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Concurrency: two devices submitting the same cart must not create duplicate orders (idempotency key)</span>
       </li>
-      <li class="task" data-id="E05-13" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E05-13" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-13"></button>
         <code class="tid">E05-13</code>
         
@@ -1922,13 +1922,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Abandoned-checkout sweeper</strong> — every 5 minutes, close <code>order_group</code>s left at <code>pending_payment</code> past the TTL. Must reconcile each non-terminal attempt against Razorpay *before* cancelling, reverse the wallet hold and release any capacity decrement. TTL is <code>[OL-03]</code></span>
       </li>
-      <li class="task" data-id="E05-15" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E05-15" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-15"></button>
         <code class="tid">E05-15</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong><code>calendar.test.sql</code> test 11 fails on a Sunday.</strong> &quot;inside <code>min_advance_order_days</code> the day is refused as <code>too_soon</code>&quot; gets <code>cutoff_passed</code> instead. Found 2026-08-10 and <strong>it is not a regression</strong> — it fails identically on <code>main</code> at <code>543415a</code>, before migrations <code>0012</code>/<code>0013</code>, so it has been failing since whenever the date last rolled onto a weekend. Two things are wrong and only one of them is the test: the fixture assumes a weekday, and <code>orderable_calendar</code> reports only the *first* reason a day is unorderable, so a day that is both too soon and past its cutoff reports whichever branch is checked first. Decide whether the precedence is deliberate (<code>cutoff_passed</code> is arguably the more useful answer to show a parent) and then either fix the fixture to pin a weekday or fix the precedence — but the suite must not be date-dependent either way. <strong>The nightly run has been green only because it does not run on Sundays.</strong></span>
+        <span class="ttext"><strong><code>calendar.test.sql</code> test 11 fails depending on the clock.</strong> &quot;inside <code>min_advance_order_days</code> the day is refused as <code>too_soon</code>&quot; gets <code>cutoff_passed</code> instead. Found 2026-08-10 and <strong>it is not a regression</strong> — it fails identically on <code>main</code> at <code>543415a</code>, before migrations <code>0012</code>/<code>0013</code>, so it has been failing since whenever the date last rolled onto a weekend. Two things are wrong and only one of them is the test: the fixture assumes a weekday, and <code>orderable_calendar</code> reports only the *first* reason a day is unorderable, so a day that is both too soon and past its cutoff reports whichever branch is checked first. <strong>Fixed 2026-08-10, and the precedence was not the problem.</strong> <code>orderable_calendar</code> reports <code>cutoff_passed</code> before <code>too_soon</code> deliberately — &quot;you have missed it&quot; is more actionable than &quot;wait&quot; — and that is correct and unchanged. The <strong>fixture</strong> was wrong: with a two-day lead the only <code>too_soon</code> days are today and tomorrow, and tomorrow&#39;s cutoff is 23:00 *today*, so from 23:00 onwards the day is both too soon and past its cutoff. The lead is now four days and the assertion uses <code>current_date + 3</code>, whose cutoff is in the future at every hour of every day. Precedence is still asserted, by the test that was already there. <strong>The suite had been green only because it rarely ran late enough in the day.</strong></span>
+      </li>
+      <li class="task" data-id="E05-16" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-16"></button>
+        <code class="tid">E05-16</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Nothing creates a <code>recipient</code> or a <code>guardian_link</code>, so no order can be placed by a real user.</strong> <code>create_checkout</code> correctly refuses every request from the app with <code>not_authorized</code> — there is no link. Found 2026-08-10 when the order path was finished and had nobody to run it for. <code>E05-01</code>/<code>E05-02</code> are the tasks, and the reason they are not simply &quot;next&quot; is that adding a child is where consent is captured (<code>E20-01</code>, <code>[DM-12]</code>), which is blocked on the DPDP legal question. <strong>Decide whether v1 captures consent at child creation or defers it</strong> — building the flow twice is the expensive outcome. Staging deliberately carries no children (<code>seeds/staging-menu.sql</code>), so this is not a seeding gap</span>
       </li></ul>
       </details>
     </article>
