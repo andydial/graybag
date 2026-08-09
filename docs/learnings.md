@@ -1344,3 +1344,54 @@ a role with different default privileges. So **the environment CI runs in does n
 privilege baseline the model is written against.** That is worse than either a pass or a fail:
 it means a green suite locally is not evidence about production. §10's grants and revokes need
 to exist as a migration so the baseline is stated rather than inherited.
+
+## 2026-08-09 — A sparse override table turns `update … where` into a test that asserts nothing
+
+**Context:** `E05-07`, the cutoff functions. The pgTAP suite was written and looked complete —
+sixteen assertions, every edge case in `docs/order-lifecycle.md` §9.3 named. Run against a real
+Postgres for the first time, four of them failed.
+**What happened:** the fixture set its overrides with
+`update kitchen_config set order_cutoff_time = '09:00' where kitchen_id = …`. Creating a kitchen
+does **not** create its `kitchen_config` row — the override tables are sparse, and a missing row
+is precisely how `D5` spells "inherit". So the `UPDATE` matched **zero rows and reported
+success**, and all four override assertions were quietly measuring the platform default.
+**The second bug, which the first one hid:** with the `UPDATE` corrected to an `INSERT`, four
+*different* tests broke. All three fixture schools hung off one kitchen, so giving that kitchen
+a 09:00 cutoff moved the "platform defaults" school to 09:00 as well — correct behaviour under
+`D5`, and it made the defaults untestable. The fixture now uses two kitchens, one overriding
+nothing.
+**Fix / rule:** **build config-chain fixtures with `INSERT`, never `UPDATE`** — matching
+`config_resolution.test.sql`, which had it right. And **a fixture for an inheritance chain needs
+one subject per level that is genuinely unaffected by the others**; sharing a parent across the
+"default" case and the "override" case means the default case stops being a default.
+
+The general shape is the one already recorded above on 2026-08-08: a test can fail by asserting
+the wrong thing, or by never really asserting. `UPDATE`-affects-zero-rows is the second kind, it
+is invisible to exit status, and no plan count or assertion floor would have caught it — only
+running it against a database with the fixture actually in place.
+
+## 2026-08-09 — The local Supabase stack cannot see this repo, because it is not under `$HOME`
+
+**Context:** verifying the `E05-07` suite before pushing, on Andy's Mac with colima rather than
+Docker Desktop.
+**What happened:** `supabase start` brought the database up and applied all eight migrations,
+then died on `supabase_edge_runtime: worker boot error: failed to determine entrypoint` and tore
+the whole stack down. With the edge runtime excluded the stack came up, and `supabase test db`
+then reported `Files=0, Tests=0, Result: NOTESTS` — a green exit code for a suite that never ran.
+**Cause:** the repository lives at `/Volumes/Data/AD/Projects/…`. colima mounts `$HOME` and
+nothing else, so every container that **bind-mounts a path from the repo** sees an empty
+directory: the edge runtime cannot find `supabase/functions/menu-version/index.ts`, and the
+`pg_prove` container cannot find `supabase/tests/*.sql`. The database itself is unaffected,
+because the CLI reads migrations on the host and applies them over a connection.
+**Fix / rule:** to run pgTAP locally on this machine, **pipe the file in over stdin from the
+host** rather than relying on a mount:
+
+```bash
+export DOCKER_HOST="unix:///Users/andy/.colima/default/docker.sock"
+npx supabase start -x edge-runtime
+docker exec -i supabase_db_graybag psql -U postgres -d postgres -t -A < supabase/tests/cutoff.test.sql
+```
+
+CI is unaffected — the GitHub runner has the repo under `$HOME` and `integration.yml` runs the
+suite normally. The trap is local-only, and it is the `NOTESTS` result that matters: **a
+mount that resolves to an empty directory looks exactly like a suite with nothing to do.**
