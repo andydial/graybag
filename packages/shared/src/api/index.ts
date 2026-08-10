@@ -64,3 +64,15 @@ export {
 // The first write (E05-09). Writes always go through an Edge Function (A4).
 export { createCheckout, type CheckoutLine, type CheckoutResult } from './checkout.js';
 
+// Adding a child and moving one (E05-01, E05-02, E20-02). Consent is a field on the create
+// call rather than a call of its own — the server writes the child, the guardian link and
+// the consent record in one transaction, so there is no shape here that could separate them.
+export {
+  changeRecipientSchool,
+  createRecipient,
+  type CreatedRecipient,
+  type NewRecipient,
+  type SchoolChange,
+  type SchoolChangeResult,
+} from './recipients.js';
+

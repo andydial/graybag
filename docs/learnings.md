@@ -1560,3 +1560,19 @@ navigator. There is one tab button (`getAllByRole('button')` returns exactly fou
 copies of each icon: React Navigation renders a second for the iOS large-content viewer. Assert
 with `getAllBy…` and a length floor. Not a rendering bug — the old default triangle came
 through the same path and still drew once on screen.
+
+## An `ApiError`'s `code` can only be read once — 2026-08-10
+
+`invokeFunction` recovers the server's refusal code by calling `.json()` on the `Response`
+hanging off `functions.invoke`'s error (`error.context`). A `Response` body is a stream and
+**can only be consumed once**, so a test that awaits the same rejection twice against one
+stubbed `Response` gets the code on the first assertion and `code: undefined` on the second:
+
+```ts
+await expect(call()).rejects.toBeInstanceOf(ApiError);      // passes
+await expect(call()).rejects.toMatchObject({ code: 'x' });  // code is undefined
+```
+
+It reads exactly like the module losing the code. Catch the rejection once and assert against
+the caught value. Not a product bug — every real failure arrives with its own `Response` — but
+it is invisible until a second assertion is added months later.
