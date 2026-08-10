@@ -77,9 +77,17 @@ export { createCheckout, type CheckoutLine, type CheckoutResult } from './checko
 // Adding a child and moving one (E05-01, E05-02, E20-02). Consent is a field on the create
 // call rather than a call of its own — the server writes the child, the guardian link and
 // the consent record in one transaction, so there is no shape here that could separate them.
+//
+// `fetchRecipients` is the read half, and it goes through `guardian_link` — `D10`, the only
+// path from a user to a child. `recipient.created_by_user_id` decides nothing, here or in
+// any policy.
 export {
+  RECIPIENT_COLUMNS,
+  RecipientPayloadError,
   changeRecipientSchool,
   createRecipient,
+  fetchRecipients,
+  type ApiRecipient,
   type CreatedRecipient,
   type NewRecipient,
   type SchoolChange,

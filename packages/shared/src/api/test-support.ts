@@ -16,6 +16,8 @@ export interface RecordedQuery {
   table: string;
   columns: string;
   filters: { column: string; value: unknown }[];
+  /** `IS NULL` / `IS NOT NULL` filters, recorded separately because they are a different SQL operator. */
+  isFilters: { column: string; value: null | boolean }[];
   orders: { column: string; ascending: boolean }[];
 }
 
@@ -41,12 +43,22 @@ export function fakeTransport(
     from(table: string): TableRef {
       return {
         select(columns: string): SelectBuilder {
-          const record: RecordedQuery = { table, columns, filters: [], orders: [] };
+          const record: RecordedQuery = {
+            table,
+            columns,
+            filters: [],
+            isFilters: [],
+            orders: [],
+          };
           queries.push(record);
 
           const builder: SelectBuilder = {
             eq(column, value) {
               record.filters.push({ column, value });
+              return builder;
+            },
+            is(column, value) {
+              record.isFilters.push({ column, value });
               return builder;
             },
             order(column, options) {
