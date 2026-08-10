@@ -39,6 +39,8 @@ export {
 
 export {
   MenuUnavailableError,
+  MenuUnreadableError,
+  MENU_CACHE_EPOCH,
   createMenuCache,
   type CachedMenu,
   type MenuCache,

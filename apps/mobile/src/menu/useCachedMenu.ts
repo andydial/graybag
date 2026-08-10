@@ -67,8 +67,26 @@ export function useCachedMenu(schoolId: string | null): {
   useEffect(() => {
     // No school chosen yet is not an error and not a load — it is an empty menu. Treating it
     // as an error would put a retry button in front of someone who has nothing to retry.
-    if (schoolId === null || cache === null) {
+    if (schoolId === null) {
       setState('ready');
+      setPayload(null);
+      setStale(false);
+      return;
+    }
+
+    /**
+     * No cache installed is a **bug**, and it must not look like an empty menu.
+     *
+     * It used to share the branch above, and that is precisely how the Menu tab came to say
+     * "this school's menu has not been published" in every build ever shipped: nothing called
+     * `setMenuCache`, so `cache` was always `null`, and a missing wire rendered as a statement
+     * about the school's data (`docs/ux-spec.md` §5.21 — N2 must never render as N1).
+     *
+     * `installMenuCache()` runs before first render, so reaching this in the app is impossible.
+     * Reporting it as an error means that if it ever becomes possible again, it says so.
+     */
+    if (cache === null) {
+      setState('error');
       setPayload(null);
       setStale(false);
       return;

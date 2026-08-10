@@ -4,6 +4,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { CartProvider } from './src/cart/CartContext';
 import { configureApiFromEnvironment } from './src/env/configure';
 import { guardFromEnvironment } from './src/env/guard';
+import { installMenuCache } from './src/menu/installMenuCache';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { SelectedSchoolProvider } from './src/session/SelectedSchoolContext';
 import { SessionProvider } from './src/session/SessionContext';
@@ -38,6 +39,12 @@ guardFromEnvironment();
 // and names the problem at the call site rather than dying with a stack trace in front of
 // a parent (`AR7` — nothing should be a wall in front of browsing).
 configureApiFromEnvironment();
+
+// And install the menu cache, which nothing did until now — `setMenuCache` existed and was
+// exported and was called only from tests, so every real build ran with `cache === null` and
+// the Menu tab said "this school's menu has not been published" on every school, always.
+// See `installMenuCache` for why the unit suites could not see it.
+installMenuCache();
 
 export default function App() {
   return (

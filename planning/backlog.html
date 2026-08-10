@@ -913,13 +913,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/27</span>
+          <span class="meter-num">0/29</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 27 tasks</summary>
+        <summary>Context &amp; 29 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -1147,6 +1147,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Make the PUBLIC-execute default impossible to reinherit.</strong> <code>E02-26</code> revoked what existed; a function added tomorrow still arrives executable by PUBLIC and is caught only by the authorization suite. <code>alter default privileges in schema public revoke execute on functions from public</code> would stop it at the source. Left out of <code>0010</code> deliberately — default privileges apply per creating role, so getting it right needs a check of which role the CLI, CI and the hosted project each run migrations as, and that is a separate piece of work from <code>[AUTH-01]</code></span>
+      </li>
+      <li class="task" data-id="E02-30" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-30"></button>
+        <code class="tid">E02-30</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>anon</code> can read <code>school.contact_name</code>, <code>contact_email</code> and <code>contact_phone</code> on staging</strong> — a named staff member&#39;s contact details, readable with the publishable key that ships in every APK. Verified 2026-08-10 by direct REST. Migration <code>0011</code> states these are withheld and creates <code>get_schools()</code> to enforce it server-side, but the client reads the <code>school</code> table directly and redacts in <code>SCHOOL_COLUMNS</code> — client-side redaction is not redaction (non-negotiable #2). Restrict the grant/policy to the columns a picker needs, and add an authorization-suite assertion pinning the readable column set</span>
+      </li>
+      <li class="task" data-id="E02-31" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-31"></button>
+        <code class="tid">E02-31</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><code>public.get_schools()</code> exists in migration <code>0011</code> but is not reachable over REST (<code>PGRST202</code> on staging) — it was never granted to <code>anon</code> or never exposed. Decide: grant and move <code>fetchSchools</code> onto it, or drop it and enforce the projection with a view. An unreachable function that a migration&#39;s security rationale depends on is worse than neither</span>
       </li></ul>
       </details>
     </article>
@@ -1723,13 +1739,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/13</span>
+          <span class="meter-num">0/15</span>
         </div>
       </header>
       <p class="summary">Dishes, menus, per-school assignment, Excel import with allergens, and the version-based cache that makes the app feel fast.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 13 tasks</summary>
+        <summary>Context &amp; 15 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Today: 1 kitchen, 3 menus, 3 schools; largest menu is 50 items. Menu changes are rare, which is exactly what makes version-based caching effective.</p>
 <p>Source Excel columns: <code>Item No. | Menu Item | Description | Ingredients | Calories | Portion/Weight | Allergens | Category | Category - ORIG | Price</code>.</p></div>
@@ -1837,6 +1853,22 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Migrate the 3 existing menus and re-source or re-upload all dish images</span>
+      </li>
+      <li class="task" data-id="E04-15" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-15"></button>
+        <code class="tid">E04-15</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Swap the menu cache&#39;s in-memory store for AsyncStorage so it survives a restart. Needs the native dependency and therefore a new dev-client build, which is why <code>installMenuCache</code> ships with an in-memory store first</span>
+      </li>
+      <li class="task" data-id="E04-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-16"></button>
+        <code class="tid">E04-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Move <code>fetchMenuVersion</code> onto the <code>menu-version</code> Edge Function instead of reading <code>school_menu_version</code> directly. The function runs with <code>service_role</code>, so its answer cannot itself be filtered away by a grants problem — which is what the empty-menu-vs-refused-read distinction depends on</span>
       </li></ul>
       </details>
     </article>

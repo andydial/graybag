@@ -29,3 +29,7 @@ Source Excel columns: `Item No. | Menu Item | Description | Ingredients | Calori
 - [ ] `E04-11` Read-only offline: cached menu and past orders browsable with no network
 - [x] `E04-12` (mvp) Category browse tabs **plus** search — needed at 50 items ("cold coffee" must be findable)
 - [ ] `E04-13` (mvp) Migrate the 3 existing menus and re-source or re-upload all dish images
+
+- [ ] `E04-15` Swap the menu cache's in-memory store for AsyncStorage so it survives a restart. Needs the native dependency and therefore a new dev-client build, which is why `installMenuCache` ships with an in-memory store first
+- [ ] `E04-16` Move `fetchMenuVersion` onto the `menu-version` Edge Function instead of reading `school_menu_version` directly. The function runs with `service_role`, so its answer cannot itself be filtered away by a grants problem — which is what the empty-menu-vs-refused-read distinction depends on
+
