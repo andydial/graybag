@@ -301,6 +301,116 @@ describe('DishDetailScreen', () => {
     });
   });
 
+  /**
+   * `D7` / `E05-05`. The warning is at add-to-cart because that is where the decision is
+   * made — at checkout it would arrive after it.
+   */
+  describe('the allergen warning at add-to-cart', () => {
+    it('blocks the add when the dish declares an allergen the child has', async () => {
+      setMenuCache(fakeCache());
+      // d1 contains milk; TARGET's child has a milk allergy.
+      await renderDish('d1', { target: TARGET });
+      await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
+
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('screen-dish-detail-add-warning-body')).toBeOnTheScreen(),
+      );
+      // Nothing was added. The add happens on the second, deliberate press or not at all.
+      expect(seenCart.lines).toHaveLength(0);
+    });
+
+    it('names the dish and the allergen, and never the child', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d1', { target: TARGET });
+      await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
+
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
+
+      const body = await screen.findByTestId('screen-dish-detail-add-warning-body');
+      expect(body).toHaveTextContent(/Cold Coffee/);
+      expect(body).toHaveTextContent(/milk/);
+      // The recipient id is regulated data and has no business on the screen or in the tree.
+      expect(screen.queryByText(/r1/)).toBeNull();
+    });
+
+    it('adds only after the warning is acknowledged', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d1', { target: TARGET });
+      await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
+
+      const user = userEvent.setup();
+      await user.press(screen.getByTestId('screen-dish-detail-add-button'));
+      await screen.findByTestId('screen-dish-detail-add-warning-confirm');
+      expect(seenCart.lines).toHaveLength(0);
+
+      await user.press(screen.getByTestId('screen-dish-detail-add-warning-confirm'));
+      await waitFor(() => expect(seenCart.lines).toHaveLength(1));
+      expect(seenCart.lines[0]).toMatchObject({ menuItemId: 'mi-d1', unitPricePaise: 7_550 });
+    });
+
+    it('backing out of the warning adds nothing', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d1', { target: TARGET });
+      await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
+
+      const user = userEvent.setup();
+      await user.press(screen.getByTestId('screen-dish-detail-add-button'));
+      await user.press(await screen.findByTestId('screen-dish-detail-add-warning-cancel'));
+
+      await waitFor(() =>
+        expect(screen.queryByTestId('screen-dish-detail-add-warning-body')).toBeNull(),
+      );
+      expect(seenCart.lines).toHaveLength(0);
+    });
+
+    it('does not warn about an allergen the child does not have', async () => {
+      setMenuCache(fakeCache());
+      // d1 declares milk; this child has no declared allergies.
+      await renderDish('d1', { target: NO_ALLERGIES });
+      await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
+
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
+
+      await waitFor(() => expect(seenCart.lines).toHaveLength(1));
+      expect(screen.queryByTestId('screen-dish-detail-add-warning-body')).toBeNull();
+    });
+
+    /**
+     * `MI7`: an undescribed dish warns for every child, allergies or not. It stays **inline**
+     * rather than becoming a sheet, because a sheet on every undescribed dish trains parents
+     * to dismiss it unread — and the one that mattered would be dismissed with it.
+     */
+    it('does not block an undescribed dish, and says so on the screen instead', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d2', { target: TARGET });
+      await waitFor(() => expect(screen.getByText('Allergens not stated')).toBeOnTheScreen());
+
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
+
+      await waitFor(() => expect(seenCart.lines).toHaveLength(1));
+      expect(screen.queryByTestId('screen-dish-detail-add-warning-body')).toBeNull();
+      // Still on screen after the add — the notice is a property of the dish, not a step.
+      expect(screen.getByTestId('screen-dish-detail-allergens-unknown')).toBeOnTheScreen();
+    });
+
+    it('is the domain rule, not this screen re-deciding it', () => {
+      // The same function the checkout preflight uses. A second copy of this rule in a
+      // component is how the sale gets stopped in one place and allowed in the other.
+      const milk = { allergens: [{ allergenId: 'milk', presence: 'contains' as const }], allergensDeclaredNone: false };
+      expect(menuDomain.allergenWarning(milk, ['milk'])).toEqual({
+        warn: true,
+        reason: 'match',
+        allergenIds: ['milk'],
+      });
+      expect(menuDomain.allergenWarning(milk, ['peanut'])).toEqual({ warn: false });
+      expect(menuDomain.allergenWarning({ allergens: [], allergensDeclaredNone: false }, [])).toEqual(
+        { warn: true, reason: 'unknown' },
+      );
+    });
+  });
+
   it('shows a skeleton, never a spinner, while loading (S5)', async () => {
     // A cache that never resolves is the only honest way to assert a loading state.
     setMenuCache({ get: () => new Promise(() => {}), invalidate: jest.fn() } as never);

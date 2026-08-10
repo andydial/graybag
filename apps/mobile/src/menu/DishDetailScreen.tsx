@@ -5,6 +5,7 @@ import { design, menu as menuDomain, money } from '@graybag/shared';
 import { Button } from '../components/Button';
 import { DishImage, IMAGE_SIZES } from '../components/DishImage';
 import { EmptyState, ErrorState, Skeleton } from '../components/Surfaces';
+import { Sheet } from '../components/Tabs';
 import { useCart } from '../cart/CartContext';
 import type { OrderTarget } from '../session/OrderTargetContext';
 import { useCachedMenu, type CachedDish } from './useCachedMenu';
@@ -149,6 +150,7 @@ function AddToCart({
 }) {
   const { add } = useCart();
   const [added, setAdded] = useState(false);
+  const [conflict, setConflict] = useState<string[] | null>(null);
 
   const commit = useCallback(() => {
     if (target === null) return;
@@ -165,7 +167,36 @@ function AddToCart({
       comment: null,
     });
     setAdded(true);
+    setConflict(null);
   }, [add, dish, target]);
+
+  /**
+   * `D7` / `E05-05`, and the reason this screen exists in the shape it does.
+   *
+   * `allergenWarning` is the domain's answer, not this component's — it is tested without a
+   * renderer and it is the same function the checkout preflight uses, so the sale cannot be
+   * stopped in one place and allowed in the other.
+   *
+   * **A declared conflict blocks.** The add does not happen on this tap; it happens on a
+   * second, deliberate one inside the sheet, after the parent has been told which allergen
+   * and for which dish. That is the whole point of putting the warning at add-to-cart rather
+   * than at checkout, where it would arrive after the decision was made.
+   *
+   * **`unknown` does not block, and is not silent either.** A dish nobody has described
+   * warns for every child, allergies or not (`MI7`), and blocking every undescribed dish for
+   * every parent would train the sheet to be dismissed unread — which would then also
+   * dismiss the one that mattered. So it stays where it is: an inline notice above, on the
+   * screen, all the time, saying "not stated" rather than nothing.
+   */
+  const attempt = useCallback(() => {
+    if (target === null) return;
+    const warning = menuDomain.allergenWarning(dish, target.allergenIds);
+    if (warning.warn && warning.reason === 'match') {
+      setConflict(warning.allergenIds);
+      return;
+    }
+    commit();
+  }, [commit, dish, target]);
 
   if (target === null) {
     return (
@@ -187,7 +218,7 @@ function AddToCart({
 
   return (
     <View style={styles.footer} testID={testID}>
-      <Button label="Add to cart" onPress={commit} testID={`${testID}-button`} />
+      <Button label="Add to cart" onPress={attempt} testID={`${testID}-button`} />
       {added ? (
         // A live region rather than a toast: the confirmation has to reach someone who is
         // not watching the button, and it stays on screen rather than expiring unseen.
@@ -195,8 +226,78 @@ function AddToCart({
           Added to your cart.
         </Text>
       ) : null}
+
+      <AllergenWarningSheet
+        dishName={dish.name}
+        allergenIds={conflict}
+        onCancel={() => setConflict(null)}
+        onConfirm={commit}
+        testID={`${testID}-warning`}
+      />
     </View>
   );
+}
+
+/**
+ * The blocking allergen warning (`D7`, `E05-05`).
+ *
+ * **It names the dish and the allergen, and never the child.** The parent knows who they are
+ * ordering for; repeating a child's name and their allergy back at them on a screen that may
+ * be held up in a school corridor adds nothing and puts regulated data (non-negotiable #4)
+ * somewhere it does not need to be. Nothing here is logged for the same reason.
+ *
+ * **Both ways out are explicit and neither is the default.** "Not this one" is listed first
+ * and dismissing the sheet is the same as choosing it, so the accident-shaped outcome — a
+ * stray tap on the scrim, a back gesture — is the safe one. Adding anyway needs a deliberate
+ * press on a destructive control, and it stays available: a parent may know perfectly well
+ * that their child's mild lactose intolerance is fine with this, and an app that refuses
+ * outright gets worked around by not recording the allergy at all.
+ */
+export function AllergenWarningSheet({
+  dishName,
+  allergenIds,
+  onCancel,
+  onConfirm,
+  testID,
+}: {
+  dishName: string;
+  /** The intersection from `allergenWarning`. `null` means there is nothing to warn about. */
+  allergenIds: string[] | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+  testID: string;
+}) {
+  const names = (allergenIds ?? []).map((id) => allergenLabel({ allergenId: id, presence: 'contains' }));
+
+  return (
+    <Sheet
+      visible={allergenIds !== null}
+      onDismiss={onCancel}
+      title="Check this one before you add it"
+      testID={testID}
+    >
+      <Text style={styles.sheetBody} testID={`${testID}-body`}>
+        {`${dishName} contains ${joinNames(names)}, which you have told us to watch for.`}
+      </Text>
+      <Text style={styles.sheetBody}>
+        Adding it is your choice. We will still show this warning at checkout.
+      </Text>
+      <Button label="Not this one" onPress={onCancel} testID={`${testID}-cancel`} />
+      <Button
+        label="Add anyway"
+        variant="destructive"
+        onPress={onConfirm}
+        testID={`${testID}-confirm`}
+      />
+    </Sheet>
+  );
+}
+
+/** "milk", "milk and eggs", "milk, eggs and peanuts" — a sentence, not a comma-joined list. */
+function joinNames(names: string[]): string {
+  const lower = names.map((n) => n.toLowerCase());
+  if (lower.length <= 1) return lower[0] ?? 'an allergen you told us about';
+  return `${lower.slice(0, -1).join(', ')} and ${lower[lower.length - 1]}`;
 }
 
 /**
@@ -344,6 +445,11 @@ const styles = StyleSheet.create({
   },
   section: { gap: space[1] },
   footer: { gap: space[2], marginTop: space[2] },
+  sheetBody: {
+    color: text.primary,
+    fontSize: scale.body.size,
+    lineHeight: scale.body.lineHeight,
+  },
   footerNote: {
     color: text.secondary,
     fontSize: scale.bodySm.size,
