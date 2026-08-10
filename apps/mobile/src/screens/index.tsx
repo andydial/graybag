@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import Constants from 'expo-constants';
 
+import { View } from 'react-native';
+
+import { BuildLabel } from '../components/BuildLabel';
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { AddChildScreen as AddChildScreenImpl } from '../recipients/AddChildScreen';
 import { DishDetailScreen as DishDetailScreenImpl } from '../menu/DishDetailScreen';
@@ -91,13 +94,20 @@ export { CartScreen } from '../cart/CartScreen';
 export const AccountScreen = () => {
   const navigation = useNavigation();
   return (
-    <PlaceholderScreen
-      testID="screen-account"
-      title="Your account"
-      body="Sign in to add your children, see your orders and manage payment. You can browse the menu and fill your cart without signing in."
-      actionLabel="Your children"
-      onAction={() => navigation.navigate('Children')}
-    />
+    <View style={{ flex: 1 }}>
+      <PlaceholderScreen
+        testID="screen-account"
+        title="Your account"
+        body="Sign in to add your children, see your orders and manage payment. You can browse the menu and fill your cart without signing in."
+        actionLabel="Your children"
+        onAction={() => navigation.navigate('Children')}
+      />
+      {/*
+        Which build this is, so a screenshot from Andy identifies itself. Two bug reports have
+        already been chased against the wrong binary because nothing on screen said.
+      */}
+      <BuildLabel />
+    </View>
   );
 };
 

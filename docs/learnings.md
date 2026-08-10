@@ -1721,3 +1721,48 @@ fails with `api.<newFunction> is not a function` — the two toolchains disagree
 copy of the package they are looking at. If a worktree needs to skip an install, make
 `node_modules` a real directory, symlink the individual entries, and point `@graybag/*` at the
 worktree's own `packages/` and `apps/`.
+
+## Two units tested in isolation prove nothing about the wire between them — 2026-08-10
+
+**This is a class, not an incident.** It has now produced three separate defects in one week,
+and it is the entire argument for `E14-24` and for the change to the definition of done.
+
+### The shape
+
+Take a seam — a function one side exports and the other side is supposed to call. Test each
+side thoroughly. Both suites go green. **Nothing tests that the call happens**, because each
+suite substitutes the other side: the consumer's tests inject a fake, and the producer's tests
+never construct a consumer. The seam is the one thing neither can see, and it is invisible in
+review precisely because both files look complete and well-tested.
+
+### What it produced here
+
+| Seam | The defect | What each side's tests proved |
+|---|---|---|
+| `createMenuCache` ↔ `setMenuCache` | **`setMenuCache` was never called from any build.** The Menu tab told every user "this school's menu has not been published", on every school, since the tab existed | `cache.test.ts` proved the cache. `MenuScreen.test.tsx` injected a fake cache and proved the screen. Neither constructed the real one |
+| `.maestro/cart.yaml` ↔ the app's testIDs | The flow tapped `tab-menu` and `tab-cart`, which did not exist — the tab bar had no testIDs at all | The flow was valid YAML. The app rendered correctly. Nothing compared the two |
+| `README.md` ↔ the prototype's routes | `#dish` was documented and silently fell back to the splash screen | The README was accurate prose. The prototype worked. Nothing resolved one against the other |
+
+The menu one is the worst of the three. It shipped in every build ever made, and the symptom —
+an empty menu — was indistinguishable from the honest answer, so it read as a data problem for
+a week. See also *"Emptiness is four different things"* (`docs/ux-spec.md` §5.21).
+
+### Why "more unit tests" is the wrong response
+
+Every one of these had thorough unit tests on both sides. Adding a fourth suite to either side
+would not have caught any of them. The missing test is always the one that **refuses to
+substitute** — that runs the real producer against the real consumer.
+
+### What to actually do
+
+1. **One test per seam that uses neither fake.** For the app that is the Maestro flow, which
+   drives a real build against a real backend. For a repository-internal seam it can be far
+   cheaper: `check-maestro-ids.mjs` resolves the flows against the source in about a second,
+   and the prototype's build fails on a README link that does not resolve.
+2. **Make "is it wired up?" a checkable property.** A registration that can be forgotten is one
+   that will be. Prefer a construction the compiler or a check can see over a `setX()` that
+   something is trusted to call at start-up.
+3. **Treat "both suites green, behaviour wrong" as a signal about the suites**, not as a
+   mystery. Ask which side's test is substituting the other, and go and look at that gap.
+4. **Verify on a device before calling a thing done.** All three defects were visible in ten
+   seconds of using the app, and invisible in a green CI run.

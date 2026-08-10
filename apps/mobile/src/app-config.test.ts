@@ -149,14 +149,19 @@ describe('eas.json profiles', () => {
  */
 describe('app.config.js identity split', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { applyIdentity, STAGING_NAME, STAGING_SCHEME } = require('../app.config.js') as {
-    applyIdentity: (config: unknown, appEnv: string | undefined) => {
+  const { applyIdentity, STAGING_SCHEME } = require('../app.config.js') as {
+    applyIdentity: (
+      config: unknown,
+      appEnv: string | undefined,
+      /** The commit stamped into `extra.gitSha` for the on-screen build label. */
+      sha?: string,
+    ) => {
       name: string;
       scheme: string;
       ios: { bundleIdentifier: string };
       android: { package: string };
+      extra: { appEnv: string; gitSha: string };
     };
-    STAGING_NAME: string;
     STAGING_SCHEME: string;
   };
 
@@ -172,13 +177,60 @@ describe('app.config.js identity split', () => {
     expect(out.scheme).toBe('graybag');
   });
 
-  it.each(['staging', 'local', undefined])(
-    'installs beside the live app when APP_ENV is %s',
+  /**
+   * Three identities, not two.
+   *
+   * This used to assert that `staging`, `local` and `undefined` all produced the SAME
+   * `.staging` identity, which is exactly the ambiguity that cost Andy a day: a development
+   * build and a staging build installed as the same app with the same name, so the second
+   * silently replaced the first and a bug reported from one was reproduced against the other.
+   * The behaviour changed deliberately, and this case changed with it.
+   */
+  it.each([
+    ['production', 'com.gracord.graybag', 'com.Gracord.Graybag', 'GrayBag', 'graybag'],
+    ['staging', 'com.gracord.graybag.staging', 'com.Gracord.Graybag.staging', 'GrayBag Staging', 'graybag-staging'],
+    ['local', 'com.gracord.graybag.dev', 'com.Gracord.Graybag.dev', 'GrayBag Dev', 'graybag-dev'],
+  ])('gives %s its own id, name and scheme', (appEnv, iosId, androidId, name, scheme) => {
+    const out = applyIdentity(base, appEnv);
+    expect(out.ios.bundleIdentifier).toBe(iosId);
+    expect(out.android.package).toBe(androidId);
+    expect(out.name).toBe(name);
+    expect(out.scheme).toBe(scheme);
+  });
+
+  it('makes all three installable side by side', () => {
+    // The property that matters, stated once rather than inferred from the rows above: no two
+    // environments may share a bundle id, a display name or a scheme.
+    const all = ['production', 'staging', 'local'].map((env) => applyIdentity(base, env));
+    for (const field of [
+      (c: ReturnType<typeof applyIdentity>) => c.ios.bundleIdentifier,
+      (c: ReturnType<typeof applyIdentity>) => c.android.package,
+      (c: ReturnType<typeof applyIdentity>) => c.name,
+      (c: ReturnType<typeof applyIdentity>) => c.scheme,
+    ]) {
+      expect(new Set(all.map(field)).size).toBe(3);
+    }
+  });
+
+  it('stamps the environment and commit into extra, for the on-screen build label', () => {
+    // Two bug reports have been chased against the wrong binary. `BuildLabel` reads these.
+    const out = applyIdentity(base, 'staging', 'abc1234');
+    expect(out.extra.appEnv).toBe('staging');
+    expect(out.extra.gitSha).toBe('abc1234');
+  });
+
+  it('labels an unrecognised APP_ENV as local rather than inventing an environment', () => {
+    const out = applyIdentity(base, 'wat', 'abc1234');
+    expect(out.extra.appEnv).toBe('local');
+    expect(out.name).toBe('GrayBag Dev');
+  });
+
+  it.each(['local', undefined])(
+    'still installs beside the live app when APP_ENV is %s',
     (appEnv) => {
       const out = applyIdentity(base, appEnv);
-      expect(out.ios.bundleIdentifier).toBe('com.gracord.graybag.staging');
-      expect(out.android.package).toBe('com.Gracord.Graybag.staging');
-      expect(out.name).toBe(STAGING_NAME);
+      expect(out.ios.bundleIdentifier).not.toBe('com.gracord.graybag');
+      expect(out.name).not.toBe('GrayBag');
     },
   );
 
