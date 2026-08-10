@@ -64,10 +64,16 @@
 -- what was on the screen when it was given, and stays true afterwards.
 --
 -- What that does NOT cover is the gap in between: if this reaches production before `E20-01`
--- returns, real parents consent to unreviewed wording. Production has no users, so the
--- answer for now is (b) in `[DP-10]` — nothing to do. If production opens to users first,
--- set `published_at` to null there and `create_recipient` refuses with `no_notice_published`
--- until approved wording lands. That refusal path is tested.
+-- returns, real parents consent to unreviewed wording.
+--
+-- `[DP-10]` RESOLVED 2026-08-10 (Andy): nothing gates this out of production, because
+-- production has no users and **will not open before `E20-01` returns**. That premise is a
+-- commitment rather than an observation — if it changes, we are told. Decision `C14`.
+--
+-- The lever, if it ever does change: set `published_at` to null on version `1` in production
+-- and `create_recipient` refuses with `no_notice_published` until approved wording lands.
+-- One `update`, and that refusal path is tested (`consent.test.sql`). Written down rather
+-- than built, which is the point.
 -- -----------------------------------------------------------------------------
 insert into policy_document (code, display_name, applies_to) values
   ('child_data_notice', 'How we use your child''s details', 'both')
