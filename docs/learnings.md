@@ -1766,3 +1766,18 @@ substitute** — that runs the real producer against the real consumer.
    mystery. Ask which side's test is substituting the other, and go and look at that gap.
 4. **Verify on a device before calling a thing done.** All three defects were visible in ten
    seconds of using the app, and invisible in a green CI run.
+
+## Two `render()` calls in one RNTL test detach the renderer for the whole file — 2026-08-10
+
+Calling `render()` twice inside a single test leaves the file's renderer detached. **Every
+subsequent test in that file** then fails at its first query with a one-second timeout, so the
+symptom appears in tests that are correct and nowhere near the cause. It cost an hour during
+`E21-09`.
+
+To remount inside a test, keep one `render()` and drive it: change the component's `key` and
+call the `rerender` the first render returned. Reach for a second `render()` only in a fresh
+test.
+
+The reason it is worth writing down is the shape rather than the API detail: **the failure is
+reported somewhere other than where it was caused**, which is the class of bug that eats an
+afternoon regardless of how good the person is.

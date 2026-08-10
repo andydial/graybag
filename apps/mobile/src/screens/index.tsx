@@ -115,7 +115,15 @@ export const MenuScreen = () => {
   const { schoolId, setSchool } = useSelectedSchool();
 
   if (schoolId === null) {
-    return <SchoolPicker onSelect={(next) => setSchool(next)} />;
+    // The picker carries the welcome now (§6.1.1 cut 1), so this is the first screen a cold
+    // visitor sees — and the "Sign in" link on it is the door for a returning parent on a new
+    // device, who has no cart to place and would otherwise have to build one to reach the gate.
+    return (
+      <SchoolPicker
+        onSelect={(next) => setSchool(next)}
+        onSignIn={() => navigation.navigate('SignIn')}
+      />
+    );
   }
 
   return (

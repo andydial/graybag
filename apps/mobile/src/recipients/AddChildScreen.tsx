@@ -431,7 +431,10 @@ export function AddChildScreen({
         title="Which school?"
         testID={`${testID}-school-sheet`}
       >
-        <SchoolPicker testID={`${testID}-school-picker`} onSelect={chooseSchool} />
+        <SchoolPicker
+          // Embedded in a sheet that already has its own title — the welcome panel belongs
+          // only on the standalone screen (§6.1.1 cut 1).
+          welcome={false} testID={`${testID}-school-picker`} onSelect={chooseSchool} />
       </Sheet>
     </ScrollView>
   );
