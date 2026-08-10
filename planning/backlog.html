@@ -1156,13 +1156,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>anon</code> can read <code>school.contact_name</code>, <code>contact_email</code> and <code>contact_phone</code> on staging</strong> — a named staff member&#39;s contact details, readable with the publishable key that ships in every APK. Verified 2026-08-10 by direct REST. Migration <code>0011</code> states these are withheld and creates <code>get_schools()</code> to enforce it server-side, but the client reads the <code>school</code> table directly and redacts in <code>SCHOOL_COLUMNS</code> — client-side redaction is not redaction (non-negotiable #2). Restrict the grant/policy to the columns a picker needs, and add an authorization-suite assertion pinning the readable column set</span>
       </li>
-      <li class="task" data-id="E02-31" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E02-31" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-31"></button>
         <code class="tid">E02-31</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><code>public.get_schools()</code> exists in migration <code>0011</code> but is not reachable over REST (<code>PGRST202</code> on staging) — it was never granted to <code>anon</code> or never exposed. Decide: grant and move <code>fetchSchools</code> onto it, or drop it and enforce the projection with a view. An unreachable function that a migration&#39;s security rationale depends on is worse than neither</span>
+        <span class="ttext"><code>public.get_schools()</code> — <strong>already dropped by <code>0012</code> (verified: it does not exist).</strong> No migration needed. <code>0011</code>&#39;s header still reads as though the function is the authority, which is what sent people looking for it; the authorization suite now pins all three dropped SECURITY DEFINER readers as absent, because recreating one would be a bypass path no policy constrains</span>
       </li></ul>
       </details>
     </article>
@@ -1881,13 +1881,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/31</span>
+          <span class="meter-num">0/33</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 31 tasks</summary>
+        <summary>Context &amp; 33 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2137,6 +2137,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">A child-allergens read so the cart and menu can warn. <code>fetchRecipients</code> deliberately withholds them (tier S), so allergen warnings are absent everywhere today — and absent must never be rendered as &quot;safe&quot;</span>
+      </li>
+      <li class="task" data-id="E05-32" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-32"></button>
+        <code class="tid">E05-32</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Adding to cart requires a child, which breaks <code>R1</code>/<code>AR7</code>.</strong> <code>DishDetailScreen</code> renders &quot;Add a child&quot; instead of &quot;Add to cart&quot; when no recipient is selected — confirmed on <code>ux-spec-and-prototype</code>, not a stale-build artefact. The child belongs at checkout (§5.6). Requires moving <code>recipientId</code> and <code>serviceDate</code> off <code>CartLineInput</code> and onto the cart, which is the shape the one-recipient-one-date decision already implies</span>
+      </li>
+      <li class="task" data-id="E05-33" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-33"></button>
+        <code class="tid">E05-33</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">A test that fails if <strong>any</strong> pre-checkout action requires a session or a recipient — a structural guard over the menu, dish detail and cart, not a fix to one screen. Andy: &quot;I want it structurally impossible rather than fixed once&quot;</span>
       </li></ul>
       </details>
     </article>

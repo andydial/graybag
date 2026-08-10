@@ -1706,6 +1706,25 @@ select set_eq(
   '[AUTH-01]: anon may SELECT exactly the twelve menu tables and the one menu view. A thirteenth table is a decision, not an accident');
 
 -- -----------------------------------------------------------------------------
+-- `E02-31` — the dropped SECURITY DEFINER readers stay dropped.
+--
+-- `0011` created `get_schools()` to enforce a column projection server-side. `0012` dropped
+-- it and replaced it with grants and policies — "one way in" — which was right, but the
+-- header of `0011` still reads as though the function is the authority, and that is what sent
+-- somebody looking for `public_school` / `get_schools` as a REST resource. Neither exists.
+--
+-- The risk if one were ever recreated is not confusion, it is bypass: a SECURITY DEFINER
+-- reader over these tables is a second path to the same data that no policy constrains, so a
+-- policy tightened later would not actually tighten anything.
+-- -----------------------------------------------------------------------------
+select is_empty(
+  $$ select p.proname::text from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.proname in ('get_schools', 'get_school_menu', 'get_school_menu_version') $$,
+  'E02-31: the SECURITY DEFINER menu readers dropped by 0012 stay dropped — one way in');
+
+-- -----------------------------------------------------------------------------
 -- 6.1a `E02-30` — WHICH COLUMNS, not just which tables.
 --
 -- The hole this closes: `0011` documented that `school.contact_name`, `contact_email` and

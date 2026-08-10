@@ -570,3 +570,19 @@ weekend (`E17-09`) rather than the build.
 | **Is anyone relying on legacy allergy data?** | `Child.allergies` is empty on all 1,115 rows, so nothing migrates and every record starts blank. The kitchen may believe otherwise. `E16-39`. Owner: Andy |
 | **Does anything need doing about email verification?** | **No — closed 2026-08-08 (`AR4`).** Google verifies the address; an email OTP cannot succeed on an unreadable one. Verification is a property of the two chosen mechanisms, not a step to add |
 | **When exactly does Amity's email domain change land, and are the old addresses deleted or aliased?** | Determines how tight the re-export-to-cutover window must be, and whether `E16-41`'s reconciliation is a rename or a re-identification. Aliased is recoverable; deleted is not. Owner: Andy, from the school |
+
+## Ordering for yourself — v1 or fast-follow? — raised 2026-08-10
+
+School staff and university students order their own lunch. The business includes them, the
+legacy data has 13 `recipient_type = Staff` orders and a `CollegeStudent` role, and
+`docs/ux-spec.md` is written end to end as a parent ordering for a child — so they cannot use
+the app at all. **Excluded by omission, not by decision.**
+
+Fully costed in **`docs/self-ordering-costing.md`**. The short version: the data model already
+supports it (`recipient.is_self`, `is_minor`, and a `guardian_relationship` of `'self'`, all
+from `0001`), the consent path gets *simpler* rather than harder, and the only genuine unknown
+is a question for the kitchen — **where does a staff lunch physically go?** A child's goes to a
+classroom at a break; a teacher's and a university student's do not.
+
+Two decisions needed from Andy: v1 or fast-follow, and the kitchen question.
+
