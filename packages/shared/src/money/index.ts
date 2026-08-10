@@ -6,3 +6,12 @@
  */
 
 export { RUPEE, formatPaise } from './format.js';
+export {
+  CGST_RATE_BPS,
+  SGST_RATE_BPS,
+  GstInputError,
+  gstBreakdown,
+  halfUp,
+  type GstBreakdown,
+  type TaxableLine,
+} from './gst.js';

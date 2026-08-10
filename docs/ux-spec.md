@@ -299,13 +299,31 @@ So the field exists, and it is designed rather than inherited:
 - **Never used to compute a warning**, and never treated as allergen data.
 - **Tier P, so it is never logged** (R6).
 
-> **The field is only honest if the kitchen sees it.** A note the packing list drops is a lie
-> told to a parent at the moment they are trying to be careful. **Decision required and recorded
-> before this ships:** either the kitchen packing list and the per-class delivery sheet render
-> the note against its line — in which case build it — **or the field is not built at all**.
-> There is no acceptable middle. Raised as its own task against `E09`, and until it is answered
-> the field stays out of the React Native build. *(The prototype includes it so the interaction
-> can be judged.)*
+> **RESOLVED 2026-08-10 (Andy) — `P12`, settling `E09-11`. The packing list surfaces the note,
+> so the field is built.** The packing list is the only *per-child* artefact we produce; the
+> production list is aggregated, so a note about one portion has nowhere to live on it. If the
+> note does not reach the packing list it reaches nobody.
+>
+> **Why it is built rather than cut:** 127 of roughly 282 non-draft legacy orders used
+> `special-comments` — close to half. Dropping it is a visible regression from Bubble on a
+> feature parents actually use.
+
+Three conditions, all of them load-bearing:
+
+1. **140 characters, hard.** A parent writing an essay is a parent whose request will not be read
+   in a busy kitchen at 7am. The counter appears from 120 and the field stops accepting input at
+   140 — it does not silently truncate on save.
+2. **The copy promises only what a kitchen can deliver at volume.** "We'll pass this to the
+   kitchen. It's a request, not a guarantee — and not the place for allergies." No "we will",
+   no "the kitchen will ensure".
+3. **It carries the packing list's retention rule** (`E09-14`, option c): generated fresh per
+   service date, destroyed at end of day, **nothing retained server-side**. The moment a parent
+   types something about their child into it, it is regulated data (R6).
+
+**Sequencing.** The allergy-language diversion routes to Edit child (5.10.1), so **the note ships
+after Edit child exists** — a diversion to a screen that does not exist is worse than no
+diversion. Build order: cart → menu/dish *without* the note → add child + edit child → the note
+lands in the dish sheet. *(The prototype carries it now so the interaction can be judged.)*
 
 ### 5.7 Cart
 

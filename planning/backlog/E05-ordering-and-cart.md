@@ -39,5 +39,5 @@ summary: Recipients, cart, cutoff enforcement, break/drop time selection, and or
 
 - [ ] `E05-25` (risk:critical) Audit every allergen surface against a null child — dish card flag, dish detail, cart line. A warning naming a child must be impossible to render when no child is selected (ux-spec §5.6)
 - [ ] `E05-26` (risk:high) The allergen second-confirm is its own surface naming the child and the allergen, not an "Add anyway" button label (ux-spec §5.6)
-- [ ] `E05-27` Per-line kitchen note with its stated contract and the allergy-language diversion to Edit child (ux-spec §5.6.1) — **blocked on `E09-11`**
+- [ ] `E05-27` Per-line kitchen note — 140-char cap, best-effort copy, allergy-language diversion to Edit child (ux-spec §5.6.1, `P12`). **Sequenced after `E13-27` Edit child**, not blocked on it
 - [ ] `E05-28` Remove every co-guardian and read-only-child surface per `AR8`; `can_order` stays in the schema defaulted true

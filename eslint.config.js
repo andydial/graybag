@@ -53,8 +53,8 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
 
   {
-    // Repo tooling and the menu importer: plain ESM JavaScript on Node.
-    files: ['scripts/**/*.mjs', 'tools/**/*.mjs'],
+    // Repo tooling, the menu importer and the prototype build: plain ESM JavaScript on Node.
+    files: ['scripts/**/*.mjs', 'tools/**/*.mjs', 'docs/prototype/*.mjs'],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'module',
@@ -85,7 +85,7 @@ export default tseslint.config(
 
   {
     // Scripts talk to the operator; that is their entire job.
-    files: ['scripts/**', 'tools/**'],
+    files: ['scripts/**', 'tools/**', 'docs/prototype/*.mjs'],
     rules: { 'no-console': 'off' },
   },
 
