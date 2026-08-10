@@ -20,6 +20,11 @@ Branch **`ux-spec-and-prototype`**. Smoke green throughout. Reload Metro and wal
 | **Can't connect + Policy gate** | `E21-17`, `E21-16`. An unconfigured build now says so instead of looking like an empty menu |
 | **`DishImage`** | Draws rectangles; three hand-rolled copies folded back |
 | **`food_type`** | End to end, live on staging — veg/egg marks render |
+| **Cart** | Rebuilt to the prototype — photo, veg mark, allergen line, stepper pill, eleven states |
+| **Order detail** | Timeline, pickup code, five distinct cancel-refusal reasons |
+| **Payment + Order placed** | `R8` made structural: a premature confirmation now needs a cast |
+| **Support** | Grievance officer, or an honest "coming" |
+| **`PlaceholderScreen` deleted** | No caller left. Every screen in the app is a real screen |
 
 ### FINDINGS
 
@@ -85,6 +90,23 @@ every case the app says so rather than inventing it:
 3. `E05-30` cutoff read — unblocks F2 and the cart's cutoff line.
 4. Cart discard prompt on switching recipient.
 5. Splash (`E21-18`) is the one screen from the list I did not reach.
+
+### Final state
+
+**30 suites, 602 tests, smoke green.** `PlaceholderScreen` is deleted — there was no caller
+left, which is the clearest single measure of the night: every screen in the app is now a real
+screen rather than a note to ourselves.
+
+Two things the agents pushed back on and were right about, both recorded in the commits: the
+cutoff prop cannot be a three-valued enum without inventing a time (§5.21), and there must be no
+retry button while a payment is `pending`, because a retry during an unsettled capture is an
+invitation to §10.6 duplicate payment.
+
+One judgement call I want checked in the morning: the cart's signed-out footer now carries the
+prototype's "we'll ask you to sign in — your order is kept" caption. `AR7`'s code note says the
+words appear nowhere on this screen; the caption sits under the button, gated behind
+`signedOut`, and reads as reassurance rather than a gate. The existing assertion still passes
+because it defaults off. **If you disagree, it is one line.**
 
 ---
 
