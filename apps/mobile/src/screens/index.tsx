@@ -9,7 +9,7 @@ import { OrdersScreen as OrdersScreenImpl } from '../orders/OrdersScreen';
 import { HomeScreen as HomeScreenImpl, type HomeDish } from '../home/HomeScreen';
 import { useAllergenWatchlist } from '../menu/useAllergenWatchlist';
 import { useCachedMenu } from '../menu/useCachedMenu';
-import { requiresSignIn, useSession } from '../session/SessionContext';
+
 
 import { AddChildScreen as AddChildScreenImpl } from '../recipients/AddChildScreen';
 import { DishDetailScreen as DishDetailScreenImpl } from '../menu/DishDetailScreen';
@@ -19,7 +19,7 @@ import type { RootStackParamList } from '../navigation/types';
 import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
 import { useConnectivity } from '../net/ConnectivityContext';
-import { useOrderTarget } from '../session/OrderTargetContext';
+import { useAccess, useOrderingTarget, useRefreshRecipients } from '../session/audience';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 /**
@@ -56,13 +56,13 @@ import { useSelectedSchool } from '../session/SelectedSchoolContext';
  */
 export const HomeScreen = () => {
   const navigation = useNavigation();
-  const session = useSession();
+  const access = useAccess();
   const { schoolId } = useSelectedSchool();
   const { state, payload, stale } = useCachedMenu(schoolId);
   const { offline } = useConnectivity();
   // Real now: `OrderTargetProvider` reads the account's recipients and picks one. Before
   // today nothing wrote the target, so this card could never say who it was ordering for.
-  const { target } = useOrderTarget();
+  const target = useOrderingTarget();
 
   const dishes = payload?.dishes ?? [];
   const toHomeDish = (dish: (typeof dishes)[number]): HomeDish => ({
@@ -76,7 +76,7 @@ export const HomeScreen = () => {
   return (
     <HomeScreenImpl
       state={state === 'loading' ? 'loading' : state === 'error' ? 'error' : 'ready'}
-      signedOut={requiresSignIn(session)}
+      access={access}
       stale={stale || offline}
       // A school with a published menu and nothing in it is `menuUnpublished`; no school
       // chosen is not, because the card's job in that case is to offer the picker.
@@ -169,12 +169,11 @@ export { CartScreen } from '../cart/CartScreen';
  */
 export const AccountScreen = () => {
   const navigation = useNavigation();
-  const session = useSession();
-  const signedOut = requiresSignIn(session);
+  const access = useAccess();
 
   return (
     <AccountScreenImpl
-      signedOut={signedOut}
+      access={access}
       onSignIn={() => navigation.navigate('SignIn')}
       onRecipients={() => navigation.navigate('Children')}
       onOrders={() => navigation.navigate('Orders')}
@@ -196,11 +195,11 @@ export const AccountScreen = () => {
  */
 export const OrdersScreen = () => {
   const navigation = useNavigation();
-  const session = useSession();
+  const access = useAccess();
 
   return (
     <OrdersScreenImpl
-      signedOut={requiresSignIn(session)}
+      access={access}
       onSignIn={() => navigation.navigate('SignIn')}
       // `Tabs` takes no params in RootStackParamList, so the nested-navigate form is not
       // typed here. Going back to the tabs lands on the last tab, which for anyone who
@@ -224,7 +223,9 @@ export const DishDetailScreen = () => {
   // people to AddChild before they could add to the cart, which was the wall (`E05-32`).
   const { params } = useRoute<RouteProp<RootStackParamList, 'DishDetail'>>();
   const { schoolId } = useSelectedSchool();
-  const { target } = useOrderTarget();
+  // Through the audience, so the target is `null` for anyone without a session — a dish sheet
+  // must not name a child on an unauthenticated phone any more than the cart may.
+  const target = useOrderingTarget();
 
   return (
     <DishDetailScreenImpl
@@ -260,7 +261,7 @@ export const OrderDetailScreen = () => {
  */
 export const SignInScreen = () => {
   const navigation = useNavigation();
-  const { refresh } = useOrderTarget();
+  const refresh = useRefreshRecipients();
 
   return (
     <SignInScreenImpl
@@ -307,7 +308,7 @@ export const SignInScreen = () => {
 export const AddChildScreen = () => {
   const navigation = useNavigation();
   const { schoolId, schoolName } = useSelectedSchool();
-  const { refresh } = useOrderTarget();
+  const refresh = useRefreshRecipients();
   const { offline } = useConnectivity();
 
   return (
@@ -343,7 +344,7 @@ export const ChildrenScreen = () => {
   const isFocused = useIsFocused();
   const [visit, setVisit] = useState(0);
 
-  const { refresh } = useOrderTarget();
+  const refresh = useRefreshRecipients();
 
   useEffect(() => {
     if (isFocused) setVisit((n) => n + 1);

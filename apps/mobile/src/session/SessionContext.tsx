@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { api } from '@graybag/shared';
 
 /**
  * Who is using the app, as far as navigation needs to know.
@@ -15,7 +16,18 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
  * for an authenticated user, and nothing would notice until a real first-run.
  */
 export interface Session {
-  status: 'signedOut' | 'signedIn';
+  /**
+   * `unknown` until the stored session has been read back.
+   *
+   * **It is a third state because the alternative caused a data-protection defect.** Defaulting
+   * to `signedOut` while the Supabase client still held a valid persisted session meant the app
+   * had two answers to "am I signed in": this context said no, and every read said yes. Account
+   * offered a Sign in button while the cart rendered a child's first name — children's data on
+   * screen for whoever was holding the phone.
+   *
+   * A screen must render neither state until this resolves. It takes one keychain read.
+   */
+  status: 'unknown' | 'signedOut' | 'signedIn';
   userId: string | null;
 }
 
@@ -25,20 +37,64 @@ interface SessionValue extends Session {
 }
 
 const SIGNED_OUT: Session = { status: 'signedOut', userId: null };
+const UNKNOWN: Session = { status: 'unknown', userId: null };
 
+/**
+ * **No provider means `unknown`, not signed out.**
+ *
+ * The difference decides what a component does when it is mounted outside the tree — and the
+ * safe behaviour is to withhold, not to assert. `signedOut` is a claim ("there is nobody here"),
+ * and a default should never make a claim it has not checked.
+ */
 const SessionContext = createContext<SessionValue>({
-  ...SIGNED_OUT,
+  ...UNKNOWN,
   setSession: () => {},
 });
 
 export function SessionProvider({
   children,
-  initial = SIGNED_OUT,
+  initial = UNKNOWN,
 }: {
   children: ReactNode;
   initial?: Session;
 }) {
   const [session, setSession] = useState<Session>(initial);
+
+  /**
+   * Restore the session from where it actually lives.
+   *
+   * **This context was never the source of truth and behaved as though it were.** It started
+   * `signedOut` and only `SignInScreen` ever wrote it — while the Supabase client persisted its
+   * own session to the keychain (`persistSession: true`, `secureSessionStore`) and happily
+   * answered reads after a restart.
+   *
+   * So the app held two answers to one question, and they disagreed on every cold start: this
+   * one said signed out, the network said signed in. Account rendered a Sign in button, the
+   * cart rendered a child's first name, and Home said there was nobody to order for — three
+   * screens, three states, one user.
+   *
+   * The client's stored session is the authority, because it is the thing the server will
+   * actually accept. This reads it back and mirrors it. Anything that wants "am I signed in"
+   * asks here, and here asks the one place that knows.
+   */
+  useEffect(() => {
+    let live = true;
+    api
+      .currentUser()
+      .then((user) => {
+        if (!live) return;
+        setSession(user === null ? SIGNED_OUT : { status: 'signedIn', userId: user.userId });
+      })
+      .catch(() => {
+        // A failed read is not a signed-in user. Falling back to signed-out is the safe
+        // direction: it withholds, where the opposite would show a child's name on a guess.
+        if (live) setSession(SIGNED_OUT);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+
   const value = useMemo(() => ({ ...session, setSession }), [session]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
@@ -57,4 +113,18 @@ export function useSession(): SessionValue {
  */
 export function requiresSignIn(session: Session): boolean {
   return session.status !== 'signedIn';
+}
+
+/**
+ * Is it safe to render anything about a recipient?
+ *
+ * **Only when we positively know there is a session.** `unknown` is not a maybe to be resolved
+ * optimistically — it is the window in which the old code showed a child's first name to
+ * whoever was holding an unauthenticated phone.
+ *
+ * Every surface that draws a name, a class, a school or an allergy asks this first (§13.3,
+ * non-negotiable #4).
+ */
+export function mayShowRecipientData(session: Session): boolean {
+  return session.status === 'signedIn';
 }

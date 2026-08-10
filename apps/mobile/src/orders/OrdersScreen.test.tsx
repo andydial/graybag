@@ -1,15 +1,27 @@
+import { type ComponentProps } from 'react';
 import { render, screen, userEvent } from '@testing-library/react-native';
 import type { ReactElement } from 'react';
 
 import { auditA11y, formatViolations } from '../a11y/audit';
 import { CartProvider } from '../cart/CartContext';
 import {
-  OrdersScreen,
+  OrdersScreen as OrdersScreenImpl,
   formatOrderDate,
   splitOrders,
   todayInIndia,
   type OrderSummary,
 } from './OrdersScreen';
+
+/**
+ * These are presentation tests, and the ordinary case they describe is a settled, signed-in
+ * session. The component's own default is `pending` — it claims nothing until told — so the
+ * default is supplied here rather than by the component, and the cases that are *about*
+ * `access` still pass it explicitly and override this.
+ */
+const OrdersScreen = (props: ComponentProps<typeof OrdersScreenImpl>) => (
+  <OrdersScreenImpl access="signedIn" {...props} />
+);
+
 
 /**
  * `docs/ux-spec.md` §5.14, against `docs/prototype/graybag-prototype.html#orders,signedin`.
@@ -43,7 +55,7 @@ describe('OrdersScreen', () => {
     ['empty', <OrdersScreen key="empty" />],
     ['loading', <OrdersScreen key="loading" state="loading" />],
     ['error', <OrdersScreen key="error" state="error" />],
-    ['signed out', <OrdersScreen key="out" signedOut />],
+    ['signed out', <OrdersScreen key="out" access="signedOut" />],
     ['loaded', <OrdersScreen key="loaded" orders={[order()]} today={TODAY} />],
   ])('is the Orders route when it is %s', async (_name, ui) => {
     await renderScreen(ui);
@@ -72,7 +84,7 @@ describe('OrdersScreen', () => {
   // not a wall: the words explain what signing in gets you.
   it('prompts a signed-out visitor instead of showing an empty history or an error', async () => {
     const onSignIn = jest.fn();
-    await renderScreen(<OrdersScreen signedOut onSignIn={onSignIn} />);
+    await renderScreen(<OrdersScreen access="signedOut" onSignIn={onSignIn} />);
 
     expect(screen.getByTestId('orders-signed-out')).toBeTruthy();
     expect(screen.queryByTestId('orders-empty')).toBeNull();
@@ -84,7 +96,7 @@ describe('OrdersScreen', () => {
 
   // A signed-out read was never attempted, so it cannot have failed.
   it('prefers the sign-in prompt over an error when both are true', async () => {
-    await renderScreen(<OrdersScreen signedOut state="error" />);
+    await renderScreen(<OrdersScreen access="signedOut" state="error" />);
 
     expect(screen.getByTestId('orders-signed-out')).toBeTruthy();
     expect(screen.queryByTestId('orders-error')).toBeNull();

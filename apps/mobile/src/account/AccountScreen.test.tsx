@@ -1,9 +1,21 @@
+import { type ComponentProps } from 'react';
 import { render, screen, userEvent } from '@testing-library/react-native';
 import type { ReactNode } from 'react';
 
-import { AccountScreen } from './AccountScreen';
+import { AccountScreen as AccountScreenImpl } from './AccountScreen';
 import { CartProvider } from '../cart/CartContext';
 import { auditA11y, formatViolations } from '../a11y/audit';
+
+/**
+ * These are presentation tests, and the ordinary case they describe is a settled, signed-in
+ * session. The component's own default is `pending` — it claims nothing until told — so the
+ * default is supplied here rather than by the component, and the cases that are *about*
+ * `access` still pass it explicitly and override this.
+ */
+const AccountScreen = (props: ComponentProps<typeof AccountScreenImpl>) => (
+  <AccountScreenImpl access="signedIn" {...props} />
+);
+
 
 /**
  * Account (`docs/ux-spec.md` §5.17).
@@ -134,7 +146,7 @@ describe('AccountScreen, signed in', () => {
 });
 
 describe('AccountScreen, signed out', () => {
-  const signedOut: Props = { signedOut: true };
+  const signedOut: Props = { access: 'signedOut' as const };
 
   it('is still the account screen', async () => {
     await mount(signedOut);
@@ -188,7 +200,7 @@ describe('AccountScreen, signed out', () => {
 
   it('never shows an email for a session that does not exist', async () => {
     // A stale email left in a prop must not survive signing out.
-    await mount({ signedOut: true, email: 'parent@example.com' });
+    await mount({ access: 'signedOut' as const, email: 'parent@example.com' });
     expect(renderedText()).not.toMatch(/parent@example\.com/);
   });
 });
@@ -204,7 +216,7 @@ describe('AccountScreen, signed out', () => {
 describe('the build label', () => {
   it.each([
     ['signed in', { email: 'parent@example.com' } as Props],
-    ['signed out', { signedOut: true } as Props],
+    ['signed out', { access: 'signedOut' as const } as Props],
   ])('is on screen when %s', async (_name, props) => {
     await mount(props);
     expect(screen.getByTestId('build-label')).toBeOnTheScreen();
@@ -214,7 +226,7 @@ describe('the build label', () => {
 describe('accessibility', () => {
   it.each([
     ['signed in', { email: 'parent@example.com' } as Props],
-    ['signed out', { signedOut: true } as Props],
+    ['signed out', { access: 'signedOut' as const } as Props],
   ])('every control is named and hittable when %s', async (_name, props) => {
     await mount(props);
 

@@ -11,6 +11,9 @@ import {
   type RecipientRow,
 } from './ChildrenScreen';
 import { OrderTargetProvider } from '../session/OrderTargetContext';
+// The tick names a child, so it renders only with a session behind it — see
+// `session/no-recipient-without-session.test.tsx`.
+import { SessionProvider } from '../session/SessionContext';
 
 // `render` is async on RNTL v14 — see docs/learnings.md 2026-08-09.
 
@@ -388,11 +391,13 @@ describe('ChildrenScreen', () => {
   it('ticks the recipient the app is currently ordering for', async () => {
     await render(
       <SafeAreaProvider initialMetrics={METRICS}>
+        <SessionProvider initial={{ status: 'signedIn', userId: 'u-1' }}>
         <OrderTargetProvider
           initial={{ recipientId: 'r1', allergenIds: [], serviceDate: '2026-08-11' }}
         >
           <ChildrenScreen onAddChild={jest.fn()} />
         </OrderTargetProvider>
+        </SessionProvider>
       </SafeAreaProvider>,
     );
 

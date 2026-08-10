@@ -50,7 +50,7 @@ const { bg, text, border, space, layout, scale, borderWidth, touchTarget } = des
  */
 export function AccountScreen({
   testID = 'screen-account',
-  signedOut = false,
+  access = 'pending',
   email = null,
   onSignIn,
   onRecipients,
@@ -61,7 +61,14 @@ export function AccountScreen({
   onSignOut,
 }: {
   testID?: string;
-  signedOut?: boolean;
+  /**
+   * `pending` until the stored session has been read back — see `session/audience.ts`.
+   *
+   * It used to be `signedOut?: boolean` defaulting to `true`, and that default is the bug Andy
+   * saw: this screen offered a Sign in button to somebody who was already signed in, while the
+   * cart showed their child. A default must not make a claim.
+   */
+  access?: import('../session/audience').Access;
   /** Display only. Never logged, never sent anywhere. */
   email?: string | null;
   onSignIn?: () => void;
@@ -94,11 +101,11 @@ export function AccountScreen({
             answers "which account am I in" without being a field anybody can act on.
           */}
           <Text style={styles.eyebrow} numberOfLines={1} testID={`${testID}-identity`}>
-            {signedOut || email === null || email === '' ? 'Not signed in' : email}
+            {access !== 'signedIn' || email === null || email === '' ? (access === 'pending' ? ' ' : 'Not signed in') : email}
           </Text>
         </View>
 
-        {signedOut ? (
+        {access === 'pending' ? null : access === 'signedOut' ? (
           <View style={styles.signInBlock}>
             <Button
               label="Sign in"
@@ -113,7 +120,7 @@ export function AccountScreen({
         ) : null}
 
         <View style={styles.rows}>
-          {signedOut ? null : (
+          {access !== 'signedIn' ? null : (
             <>
               <Row
                 title="Who you order for"
@@ -133,7 +140,7 @@ export function AccountScreen({
           <Row title="Refund policy" onPress={policy('refund')} testID={`${testID}-refund`} />
           <Row title="Grievance officer" onPress={onSupport} testID={`${testID}-support`} />
 
-          {signedOut ? null : (
+          {access !== 'signedIn' ? null : (
             <>
               <DangerRow
                 title="Delete my account"

@@ -9,6 +9,8 @@ import {
 } from 'react';
 import { api, type menu as menuDomain } from '@graybag/shared';
 
+import { useSession } from './SessionContext';
+
 /**
  * Who a lunch is being ordered for, and for which day.
  *
@@ -86,6 +88,17 @@ interface OrderTargetValue {
    * app was restarted — and the flow ended on Home with nothing selected.
    */
   refresh: (selectRecipientId?: string) => Promise<void>;
+  /**
+   * Has the account's recipient list been established yet?
+   *
+   * **Distinct from `loading`, and the distinction is a flash of the wrong screen.** `loading`
+   * is false before the first read starts as well as after it finishes, so a signed-in parent
+   * with three children on the account rendered `target === null` for a frame and Home offered
+   * "Add someone" — a form they did not need, for children they already have.
+   *
+   * False until the first read resolves, or until the target is cleared for a signed-out user.
+   */
+  hydrated: boolean;
 }
 
 const OrderTargetContext = createContext<OrderTargetValue>({
@@ -94,6 +107,7 @@ const OrderTargetContext = createContext<OrderTargetValue>({
   choices: [],
   loading: false,
   refresh: async () => {},
+  hydrated: false,
 });
 
 /**
@@ -116,9 +130,11 @@ export function OrderTargetProvider({
   children: ReactNode;
   initial?: OrderTarget | null;
 }) {
+  const { status, userId } = useSession();
   const [target, setTarget] = useState<OrderTarget | null>(initial);
   const [choices, setChoices] = useState<OrderTarget[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   /**
    * Read who this account can order for, and pick one.
@@ -129,8 +145,14 @@ export function OrderTargetProvider({
    * was never installed: both sides written, the wire between them missing, and every test
    * green because each side substitutes the other.
    *
-   * Signed out this does nothing, which is correct rather than a special case: `AR7` says
-   * browsing needs no session, and a signed-out visitor has no recipients to read.
+   * **Callers must not invoke this without a session.** The old comment here claimed "signed
+   * out this does nothing, which is correct rather than a special case" — and that was the
+   * defect. It does nothing only when the read *fails*. The Supabase client persists its own
+   * session to the keychain, so after a restart this read succeeded and returned a real child
+   * while the app believed nobody was signed in. A first name rendered on a phone the app
+   * itself considered unauthenticated.
+   *
+   * The mount effect below now gates on the session, and clears rather than keeps.
    */
   const refresh = useCallback(async (selectRecipientId?: string) => {
     setLoading(true);
@@ -207,16 +229,42 @@ export function OrderTargetProvider({
       setChoices([]);
     } finally {
       setLoading(false);
+      setHydrated(true);
     }
   }, []);
 
+  /**
+   * The target is **derived from the session**, never independent of it.
+   *
+   * Three states, and the middle one is the one that was missing:
+   *
+   * - `unknown` — the stored session has not been read back yet. Hold everything. Reading
+   *   recipients here is what produced a child's name with no session; showing "add someone"
+   *   is what made Home disagree with the cart. Neither answer is available yet, so give
+   *   neither.
+   * - `signedOut` — **clear**, do not merely stop fetching. A target left in state from before
+   *   a sign-out is a persisted reference to a minor, and it will render (R6, non-negotiable
+   *   #4). Sign-out must empty it in the same tick.
+   * - `signedIn` — read, for this user.
+   *
+   * Keyed on `userId` so signing in as somebody else re-reads rather than inheriting the
+   * previous account's children.
+   */
   useEffect(() => {
+    if (status === 'unknown') return;
+    if (status === 'signedOut') {
+      setTarget(null);
+      setChoices([]);
+      setLoading(false);
+      setHydrated(true);
+      return;
+    }
     void refresh();
-  }, [refresh]);
+  }, [status, userId, refresh]);
 
   const value = useMemo(
-    () => ({ target, setTarget, choices, loading, refresh }),
-    [target, choices, loading, refresh],
+    () => ({ target, setTarget, choices, loading, refresh, hydrated }),
+    [target, choices, loading, refresh, hydrated],
   );
   return <OrderTargetContext.Provider value={value}>{children}</OrderTargetContext.Provider>;
 }

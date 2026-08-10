@@ -1,10 +1,22 @@
+import { type ComponentProps } from 'react';
 import { render, screen, userEvent } from '@testing-library/react-native';
 import { design, money } from '@graybag/shared';
 import type { ReactElement } from 'react';
 
 import { auditA11y, formatViolations } from '../a11y/audit';
 import { CartProvider } from '../cart/CartContext';
-import { HomeScreen, type HomeDish, type HomeScreenProps } from './HomeScreen';
+import { HomeScreen as HomeScreenImpl, type HomeDish, type HomeScreenProps } from './HomeScreen';
+
+/**
+ * These are presentation tests, and the ordinary case they describe is a settled, signed-in
+ * session. The component's own default is `pending` — it claims nothing until told — so the
+ * default is supplied here rather than by the component, and the cases that are *about*
+ * `access` still pass it explicitly and override this.
+ */
+const HomeScreen = (props: ComponentProps<typeof HomeScreenImpl>) => (
+  <HomeScreenImpl access="signedIn" {...props} />
+);
+
 
 /**
  * `render` is async on RNTL v14 — see docs/learnings.md 2026-08-09. Every caller awaits.
@@ -136,7 +148,7 @@ describe('HomeScreen — the delivering-to card', () => {
 
 describe('HomeScreen — signed out', () => {
   it('reads as browsing a school, not as an error or a sign-in wall', async () => {
-    await renderHome(<HomeScreen signedOut schoolName="Alpha Public School" featured={PANEER} />);
+    await renderHome(<HomeScreen access="signedOut" schoolName="Alpha Public School" featured={PANEER} />);
 
     expect(screen.getByText('Browsing')).toBeOnTheScreen();
     expect(screen.getByTestId('screen-home-deliver-who')).toHaveTextContent('Alpha Public School');
@@ -156,7 +168,7 @@ describe('HomeScreen — signed out', () => {
     const onChooseSchool = jest.fn();
     const onAddRecipient = jest.fn();
     await renderHome(
-      <HomeScreen signedOut schoolName="Alpha Public School" onChooseSchool={onChooseSchool} onAddRecipient={onAddRecipient} />,
+      <HomeScreen access="signedOut" schoolName="Alpha Public School" onChooseSchool={onChooseSchool} onAddRecipient={onAddRecipient} />,
     );
 
     const user = userEvent.setup();
@@ -380,7 +392,7 @@ describe('HomeScreen — states', () => {
 describe('HomeScreen — accessibility', () => {
   it.each([
     ['signed in', <HomeScreen key="a" {...SIGNED_IN} />],
-    ['signed out', <HomeScreen key="b" signedOut schoolName="Alpha Public School" featured={PANEER} />],
+    ['signed out', <HomeScreen key="b" access="signedOut" schoolName="Alpha Public School" featured={PANEER} />],
     ['no recipient', <HomeScreen key="c" schoolName="Alpha Public School" featured={PANEER} />],
     ['unpublished', <HomeScreen key="d" {...SIGNED_IN} menuUnpublished />],
     ['loading', <HomeScreen key="e" state="loading" />],

@@ -5,7 +5,7 @@ import { api, design } from '@graybag/shared';
 
 import { Button, EmptyState, ErrorState, Sheet, Skeleton } from '../components';
 import { SchoolPicker } from '../menu/SchoolPicker';
-import { useOrderTarget } from '../session/OrderTargetContext';
+import { useOrderingTarget } from '../session/audience';
 
 const {
   bg, text, border, action, space, radius, borderWidth, scale, layout, touchTarget, icon,
@@ -125,9 +125,9 @@ export function ChildrenScreen({
   const [editFailure, setEditFailure] = useState<string | null>(null);
 
   // Display only. The tick says which recipient the app is currently ordering for; nothing
-  // here writes it, for the reason on `onSelectRecipient`. The context's default value is a
-  // null target, so this screen renders without a provider.
-  const { target } = useOrderTarget();
+  // here writes it, for the reason on `onSelectRecipient`. Via the audience, so there is no
+  // tick — and no list — without a session.
+  const target = useOrderingTarget();
   const selectedId = target === null ? null : target.recipientId;
 
   useEffect(() => {

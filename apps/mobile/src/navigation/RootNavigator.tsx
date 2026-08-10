@@ -32,8 +32,8 @@ import {
 import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
-import { useOrderTarget } from '../session/OrderTargetContext';
-import { requiresSignIn, useSession } from '../session/SessionContext';
+import { useAudience } from '../session/audience';
+
 import type { RootStackParamList, TabParamList } from './types';
 
 const { bg, border, nav, scale, borderWidth } = design;
@@ -148,8 +148,7 @@ const MenuTab = withScreenFrame(MenuScreen, TAB_SCREEN_EDGES);
  */
 function CartTabScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const session = useSession();
-  const { target, loading } = useOrderTarget();
+  const audience = useAudience();
 
   /**
    * The gate, in the order `docs/ux-spec.md` §6.1 puts it.
@@ -164,12 +163,21 @@ function CartTabScreen() {
    * look finished.
    */
   const placeOrder = () => {
-    if (requiresSignIn(session)) {
-      navigation.navigate('SignIn');
-      return;
-    }
-    if (!loading && target === null) {
-      navigation.navigate('AddChild');
+    switch (audience.kind) {
+      case 'unknown':
+        // One keychain read away from knowing. Routing now would guess, and guessing wrong
+        // sends a signed-in parent back through sign-in.
+        return;
+      case 'visitor':
+        navigation.navigate('SignIn');
+        return;
+      case 'needsRecipient':
+        navigation.navigate('AddChild');
+        return;
+      case 'ordering':
+        // Nowhere to go yet: checkout is `E06`. Inert beats routing somewhere that would look
+        // finished.
+        return;
     }
   };
 

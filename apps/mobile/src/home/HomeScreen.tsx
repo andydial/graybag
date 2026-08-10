@@ -104,7 +104,15 @@ export interface HomeScreenProps {
   popular?: HomeDish[];
 
   state?: 'loading' | 'ready' | 'error';
-  signedOut?: boolean;
+  /**
+   * `pending` until the stored session has been read back — see `session/audience.ts`.
+   *
+   * Three values rather than a boolean because the card makes a *claim* about who lunch is
+   * going to. Claiming "Browsing · Add someone to place an order" at a signed-in parent, one
+   * frame before their child's name arrives, is the disagreement Andy saw between this screen
+   * and the cart.
+   */
+  access?: import('../session/audience').Access;
   /** N1, not N2 (§5.21). The kitchen has not published — nothing is wrong with the app. */
   menuUnpublished?: boolean;
   /** N4 (§5.21). Cached content, said out loud rather than passed off as live. */
@@ -137,7 +145,7 @@ export function HomeScreen({
   featured = null,
   popular = [],
   state = 'ready',
-  signedOut = false,
+  access = 'pending',
   menuUnpublished = false,
   stale = false,
 }: HomeScreenProps) {
@@ -185,7 +193,7 @@ export function HomeScreen({
           <>
             <DeliverCard
               testID={testID}
-              signedOut={signedOut}
+              access={access}
               recipientName={recipientName}
               recipientClass={recipientClass}
               schoolName={schoolName}
@@ -308,7 +316,7 @@ function SearchDoorway({ testID, onPress }: { testID: string; onPress?: (() => v
  */
 function DeliverCard({
   testID,
-  signedOut,
+  access,
   recipientName,
   recipientClass,
   schoolName,
@@ -319,7 +327,7 @@ function DeliverCard({
   onSwitchRecipient,
 }: {
   testID: string;
-  signedOut: boolean;
+  access: import('../session/audience').Access;
   recipientName: string | null;
   recipientClass: string | null;
   schoolName: string | null;
@@ -330,7 +338,7 @@ function DeliverCard({
   onSwitchRecipient?: (() => void) | undefined;
 }) {
   const content = describeDelivery({
-    signedOut,
+    access,
     recipientName,
     recipientClass,
     schoolName,
@@ -338,7 +346,7 @@ function DeliverCard({
     serviceDate,
   });
 
-  const onCardPress = signedOut
+  const onCardPress = access === 'signedOut'
     ? onChooseSchool
     : recipientName === null
       ? onAddRecipient
@@ -346,7 +354,8 @@ function DeliverCard({
 
   // Only signed out do the halves lead somewhere different. Everywhere else a second target
   // inside the first would be two ways to do one thing, and a second stop for a screen reader.
-  const bandPress = signedOut ? onAddRecipient : undefined;
+  // Not offered while `pending`: we do not yet know whether it should open sign-in or the form.
+  const bandPress = access === 'signedOut' ? onAddRecipient : undefined;
 
   const band = (
     <View style={styles.band}>
@@ -408,23 +417,39 @@ function DeliverCard({
  *   value — the same rule `OrderForBlock` states at length, for the same reason: a parent who
  *   reads a break time believes the lunch is going to that break.
  * - **Signed out is not an error.** Browsing with no session is the designed path (`R1`).
+ * - **Unknown is not signed out.** `pending` renders a card that claims nothing at all.
  */
 function describeDelivery({
-  signedOut,
+  access,
   recipientName,
   recipientClass,
   schoolName,
   breakLabel,
   serviceDate,
 }: {
-  signedOut: boolean;
+  access: import('../session/audience').Access;
   recipientName: string | null;
   recipientClass: string | null;
   schoolName: string | null;
   breakLabel: string | null;
   serviceDate: string | null;
 }): { eyebrow: string; who: string; where: string; band: string; a11yLabel: string } {
-  if (signedOut) {
+  /**
+   * **Neither answer yet.** One keychain read away from knowing, and both alternatives are
+   * wrong to show: "Browsing" tells a signed-in parent they are not, and the delivery line
+   * would have to name somebody we have not established the right to name.
+   */
+  if (access === 'pending') {
+    return {
+      eyebrow: 'Delivering to',
+      who: schoolName ?? '\u2026',
+      where: 'Mohali',
+      band: '\u2026',
+      a11yLabel: 'Checking who you are ordering for.',
+    };
+  }
+
+  if (access === 'signedOut') {
     const who = schoolName ?? 'Choose a school';
     return {
       eyebrow: 'Browsing',

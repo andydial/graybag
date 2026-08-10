@@ -39,7 +39,7 @@ const {
 export function OrdersScreen({
   orders = [],
   state = 'ready',
-  signedOut = false,
+  access = 'pending',
   stale = false,
   today = todayInIndia(),
   onSelectOrder,
@@ -51,7 +51,8 @@ export function OrdersScreen({
   /** What the server said. Absent until `E06` gives `api/` something to ask. */
   orders?: OrderSummary[];
   state?: 'loading' | 'ready' | 'error';
-  signedOut?: boolean;
+  /** See `session/audience.ts`. `pending` shows neither the prompt nor the list. */
+  access?: import('../session/audience').Access;
   /** These orders came from cache and no live read succeeded — N4 in §5.21. */
   stale?: boolean;
   /** `YYYY-MM-DD` in IST. Injectable so the upcoming/past split is testable. */
@@ -68,7 +69,8 @@ export function OrdersScreen({
    * `AR7` is why it is not a wall either: the tab opens, and signing in is an invitation with
    * a reason attached.
    */
-  if (signedOut) {
+  if (access === 'pending') return null;
+  if (access === 'signedOut') {
     return (
       <Frame testID={testID}>
         <Prompt
