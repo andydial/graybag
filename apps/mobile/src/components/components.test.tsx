@@ -1,3 +1,4 @@
+import { Text } from 'react-native';
 import { render, screen, userEvent } from '@testing-library/react-native';
 import { design } from '@graybag/shared';
 
@@ -192,5 +193,54 @@ describe('Tabs', () => {
 describe('the catalogue constants the components implement', () => {
   it('arms the swipe at 40% of the row, as M14 specifies', () => {
     expect(ARM_THRESHOLD).toBe(0.4);
+  });
+});
+
+/**
+ * `E14-27`. Three screens hand-rolled `ListRow`'s geometry rather than use it — Orders because
+ * the composed label dropped its status word, Children because there was no leading slot,
+ * Account because there was no danger tone. A component that is easier to copy than to use is
+ * not a component.
+ */
+describe('ListRow — the three things that made screens copy it instead', () => {
+  it('draws a leading slot before the text', async () => {
+    await render(
+      <ListRow
+        title="Aarav"
+        leading={<Text testID="avatar">A</Text>}
+        onPress={() => {}}
+        testID="row"
+      />,
+    );
+    expect(screen.getByTestId('avatar')).toBeTruthy();
+  });
+
+  /**
+   * The one that matters. Without an override the row announces title and subtitle only, so a
+   * status word — the only part of an Orders row carrying colour, and therefore the part that
+   * MUST survive as text — was silently unreadable.
+   */
+  it('lets a caller say what the composed label cannot', async () => {
+    await render(
+      <ListRow
+        title="Tue 12 Aug"
+        subtitle="2 items"
+        trailing={<Text>Refunded</Text>}
+        accessibilityLabel="Tue 12 Aug, 2 items, refunded"
+        onPress={() => {}}
+        testID="row"
+      />,
+    );
+    expect(screen.getByLabelText('Tue 12 Aug, 2 items, refunded')).toBeTruthy();
+  });
+
+  it('still composes a label when the caller has nothing extra to say', async () => {
+    await render(<ListRow title="Your orders" subtitle="3 upcoming" onPress={() => {}} testID="row" />);
+    expect(screen.getByLabelText('Your orders, 3 upcoming')).toBeTruthy();
+  });
+
+  it('has a danger tone, so a destructive row does not need its own copy of this file', async () => {
+    await render(<ListRow title="Delete my account" tone="danger" onPress={() => {}} testID="row" />);
+    expect(screen.getByTestId('row')).toBeTruthy();
   });
 });
