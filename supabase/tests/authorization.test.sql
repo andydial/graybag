@@ -1687,17 +1687,85 @@ select is_empty(
 -- 6.1 The reachable surface is exactly the menu, enumerated.
 -- -----------------------------------------------------------------------------
 
+-- `has_column_privilege`, NOT `has_table_privilege`. Since `0020` narrowed `school` to a
+-- column-level grant, `has_table_privilege('anon', 'school', 'SELECT')` is FALSE while anon
+-- can still read three of its columns — so the table-level form would have quietly dropped
+-- `school` out of this set and reported the surface as smaller than it is. A privilege check
+-- that under-reports is the worst kind in a file like this.
 select set_eq(
-  $$ select c.relname::text
+  $$ select distinct c.relname::text
        from pg_class c
        join pg_namespace n on n.oid = c.relnamespace
+       join pg_attribute a on a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
       where n.nspname = 'public'
         and c.relkind in ('r','p','v','m','f')
-        and has_table_privilege('anon', c.oid, 'SELECT') $$,
+        and has_column_privilege('anon', c.oid, a.attnum, 'SELECT') $$,
   $$ values ('school'),('city'),('school_menu_version'),('menu_assignment'),('menu'),
             ('menu_item'),('menu_item_price_override'),('dish'),('dish_allergen'),
             ('dish_category'),('allergen'),('asset'),('public_menu') $$,
   '[AUTH-01]: anon may SELECT exactly the twelve menu tables and the one menu view. A thirteenth table is a decision, not an accident');
+
+-- -----------------------------------------------------------------------------
+-- 6.1a `E02-30` — WHICH COLUMNS, not just which tables.
+--
+-- The hole this closes: `0011` documented that `school.contact_name`, `contact_email` and
+-- `contact_phone` are withheld and built `get_schools()` to withhold them. `0012` dropped
+-- that function and granted the whole table, and **nothing here noticed**, because every
+-- assertion in this file reasoned about tables. RLS filters rows; GRANTs filter columns;
+-- only the row half was being tested. A named staff member's contact details were readable
+-- on staging with the publishable key that ships in every APK.
+--
+-- Pinned exactly, so adding a column to `school` does not expose it and removing one from
+-- this list is a deliberate act with a review attached.
+-- -----------------------------------------------------------------------------
+select set_eq(
+  $$ select a.attname::text
+       from pg_attribute a
+       join pg_class c on c.oid = a.attrelid
+       join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname = 'school'
+        and a.attnum > 0 and not a.attisdropped
+        and has_column_privilege('anon', c.oid, a.attnum, 'SELECT') $$,
+  $$ values ('id'),('name'),('city_id') $$,
+  'E02-30: anon reads exactly id, name and city_id from school — never a staff member''s contact details');
+
+-- A `select *` as anon must be a permission error, not a payload. This is the behavioural
+-- half: the grant above could be correct while some future view or default re-widened it.
+select is_empty(
+  $$ select a.attname::text
+       from pg_attribute a
+       join pg_class c on c.oid = a.attrelid
+       join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname = 'school'
+        and a.attnum > 0 and not a.attisdropped
+        and a.attname in ('contact_name','contact_email','contact_phone',
+                          'address_line1','address_line2','postcode','legacy_bubble_id')
+        and has_column_privilege('anon', c.oid, a.attnum, 'SELECT') $$,
+  'E02-30: the withheld columns of school are named individually, so the assertion says what it protects');
+
+-- -----------------------------------------------------------------------------
+-- 6.1b The same class, everywhere anon can read.
+--
+-- `school` was found by hand. This is what finds the next one: any anon-readable column
+-- whose name says it carries a person's contact details or a legacy identifier, across the
+-- whole reachable surface rather than the one table somebody thought to check.
+--
+-- Name-based, and therefore not a proof — a column called `notes` holding an email address
+-- passes. It is a tripwire for the obvious case, which is the case that keeps happening.
+-- -----------------------------------------------------------------------------
+select is_empty(
+  $$ select c.relname || '.' || a.attname
+       from pg_attribute a
+       join pg_class c on c.oid = a.attrelid
+       join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'
+        and c.relkind in ('r','p','v','m','f')
+        and a.attnum > 0 and not a.attisdropped
+        and (a.attname like 'contact%' or a.attname like '%email%'
+          or a.attname like '%phone%'   or a.attname like 'address%'
+          or a.attname like 'legacy_%')
+        and has_column_privilege('anon', c.oid, a.attnum, 'SELECT') $$,
+  'E02-30: no anon-readable column anywhere in public looks like a person''s contact details');
 
 select is_empty(
   $$ select c.relname || ':' || pv.priv
