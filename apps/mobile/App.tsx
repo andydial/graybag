@@ -6,6 +6,8 @@ import { configureApiFromEnvironment } from './src/env/configure';
 import { guardFromEnvironment } from './src/env/guard';
 import { installMenuCache } from './src/menu/installMenuCache';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { OrderTargetProvider } from './src/session/OrderTargetContext';
+import { SchoolFollowsRecipient } from './src/session/SchoolFollowsRecipient';
 import { SelectedSchoolProvider } from './src/session/SelectedSchoolContext';
 import { SessionProvider } from './src/session/SessionContext';
 
@@ -61,9 +63,24 @@ export default function App() {
             It is deliberately not inside any session gate: `AR7` — the cart fills signed
             out, and the only gate in the app is at checkout.
           */}
-          <CartProvider>
-            <RootNavigator />
-          </CartProvider>
+          {/*
+            `OrderTargetProvider` was written, exported, and **mounted nowhere** — so every
+            screen read the context's DEFAULT value, `target` was permanently null, and no
+            amount of fixing `setTarget` could have helped. The fifth instance this week of
+            "both sides written, the wire missing, every test green"; the orphan guard
+            (`src/architecture/orphans.test.ts`) exists to make the sixth impossible.
+
+            Inside the school provider, because `SchoolFollowsRecipient` below reads both and
+            makes the school follow whoever the order is for — one answer to "which school",
+            instead of two that drift.
+          */}
+          <OrderTargetProvider>
+            <SchoolFollowsRecipient>
+              <CartProvider>
+                <RootNavigator />
+              </CartProvider>
+            </SchoolFollowsRecipient>
+          </OrderTargetProvider>
         </SelectedSchoolProvider>
       </SessionProvider>
     </SafeAreaProvider>

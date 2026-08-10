@@ -154,6 +154,41 @@ describe('every screen has a door', () => {
   });
 
   /**
+   * Every stack route has a way back.
+   *
+   * `headerShown: false` is set globally so each screen can draw its own title in the brand's
+   * voice. That quietly removed the only back affordance in the product — Dish detail and Add
+   * someone both shipped with no visible exit, and the hardware gesture is not an answer for a
+   * parent halfway through adding their child.
+   *
+   * Asserted at the registration site rather than per screen, because that is where it cannot
+   * be forgotten for the NEXT screen.
+   */
+  it('gives every stack route a back affordance, and no tab one', () => {
+    const navigator = sources.find((s) => s.path.endsWith('RootNavigator.tsx'))!.text;
+
+    const stackFrames = [...navigator.matchAll(/withScreenFrame\(\s*(\w+),\s*STACK_SCREEN_EDGES([^)]*)\)/g)];
+    expect(stackFrames.length).toBeGreaterThanOrEqual(5);
+    for (const [, name, rest] of stackFrames) {
+      if (!/back:\s*true/.test(rest ?? '')) {
+        throw new Error(
+          `Stack route "${name}" is registered without \`{ back: true }\`, so it has no visible ` +
+            `way out — every route runs headerShown: false. Add it at the registration site; ` +
+            `adding a chevron inside the screen fixes that screen and leaves the next one.`,
+        );
+      }
+    }
+
+    // A tab is not somewhere you came from, so it must NOT carry one.
+    const tabFrames = [...navigator.matchAll(/withScreenFrame\(\s*(\w+),\s*TAB_SCREEN_EDGES([^)]*)\)/g)];
+    for (const [, name, rest] of tabFrames) {
+      if (/back:\s*true/.test(rest ?? '')) {
+        throw new Error(`Tab "${name}" has a back bar. A tab is not somewhere you came from.`);
+      }
+    }
+  });
+
+  /**
    * `R1`: browsing and filling the cart never require a session. A tab that navigates to SignIn
    * on mount would be a wall in front of the menu, which is the failure `AR7` names explicitly.
    */

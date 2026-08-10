@@ -29,6 +29,7 @@ import {
   TAB_SCREEN_EDGES,
   type ScreenEdge,
 } from '../components/Screen';
+import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
 import type { RootStackParamList, TabParamList } from './types';
@@ -111,10 +112,21 @@ export function cartTabLabel(itemCount: number): string {
 function withScreenFrame<P extends object>(
   Component: ComponentType<P>,
   edges: readonly ScreenEdge[],
+  /**
+   * Draw a back chevron above the screen. **True for every stack route**, false for tabs — a
+   * tab is not somewhere you came from.
+   *
+   * It is applied here, at registration, for exactly the reason the safe-area inset is: a
+   * route cannot then be added without a way back. Dish detail and Add someone both shipped
+   * with no visible exit because `headerShown: false` removed the only one and nothing put it
+   * back, and fixing those two screens would have left the next one waiting.
+   */
+  { back = false }: { back?: boolean } = {},
 ): ComponentType<P> {
   function Framed(props: P) {
     return (
       <Screen edges={edges}>
+        {back ? <BackBar /> : null}
         <Component {...props} />
       </Screen>
     );
@@ -140,17 +152,17 @@ function CartTabScreen() {
 const CartTab = withScreenFrame(CartTabScreen, TAB_SCREEN_EDGES);
 const AccountTab = withScreenFrame(AccountScreen, TAB_SCREEN_EDGES);
 
-const DishDetailStackScreen = withScreenFrame(DishDetailScreen, STACK_SCREEN_EDGES);
-const OrdersStackScreen = withScreenFrame(OrdersScreen, STACK_SCREEN_EDGES);
-const OrderDetailStackScreen = withScreenFrame(OrderDetailScreen, STACK_SCREEN_EDGES);
-const AddChildStackScreen = withScreenFrame(AddChildScreen, STACK_SCREEN_EDGES);
-const ChildrenStackScreen = withScreenFrame(ChildrenScreen, STACK_SCREEN_EDGES);
+const DishDetailStackScreen = withScreenFrame(DishDetailScreen, STACK_SCREEN_EDGES, { back: true });
+const OrdersStackScreen = withScreenFrame(OrdersScreen, STACK_SCREEN_EDGES, { back: true });
+const OrderDetailStackScreen = withScreenFrame(OrderDetailScreen, STACK_SCREEN_EDGES, { back: true });
+const AddChildStackScreen = withScreenFrame(AddChildScreen, STACK_SCREEN_EDGES, { back: true });
+const ChildrenStackScreen = withScreenFrame(ChildrenScreen, STACK_SCREEN_EDGES, { back: true });
 // The modal takes the full set too. On iOS it is presented as a page sheet whose top already
 // clears the status bar, so the top inset buys a little unnecessary whitespace there; on
 // Android `presentation: 'modal'` is a full-screen route where the same inset is the
 // difference between a heading and a heading under the clock. Erring toward the whitespace
 // is the cheap mistake — this is the screen a parent reaches mid-checkout.
-const SignInStackScreen = withScreenFrame(SignInScreen, STACK_SCREEN_EDGES);
+const SignInStackScreen = withScreenFrame(SignInScreen, STACK_SCREEN_EDGES, { back: true });
 
 function Tabs() {
   // The navigator itself reads the cart, which it did not before. The badge alone cannot

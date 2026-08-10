@@ -261,15 +261,39 @@ export const SignInScreen = () => {
  * `app_version` goes onto the consent record as evidence of *which build* showed the wording.
  * It comes from `expo-constants` rather than a literal, so it cannot drift from the binary.
  */
+/**
+ * Add someone (`E21-04`), wired.
+ *
+ * ## The flow defect this closes
+ *
+ * Choose a school → add a child → save → back on Home with **no school selected** and nobody
+ * to order for. Three separate causes, all of them "the same fact is held in two places":
+ *
+ * 1. `OrderTargetProvider` read the recipients **once, at mount**. Someone added at 9am was
+ *    invisible until the app restarted.
+ * 2. Nothing selected the person who had just been added — the whole point of adding them.
+ * 3. `SelectedSchoolContext` and the order target were independent answers to "which school",
+ *    so picking one and then adding a child at it left the two disagreeing.
+ *
+ * So on save: re-read, select the new recipient, and let the school follow from them
+ * (`useSchoolFollowsRecipient` below). The school is now **derived**, which is why it cannot
+ * drift again.
+ */
 export const AddChildScreen = () => {
   const navigation = useNavigation();
   const { schoolId, schoolName } = useSelectedSchool();
+  const { refresh } = useOrderTarget();
 
   return (
     <AddChildScreenImpl
       initialSchool={{ schoolId, schoolName }}
       appVersion={Constants.expoConfig?.version ?? 'unknown'}
-      onAdded={() => navigation.goBack()}
+      onAdded={(recipient) => {
+        // Await nothing: the screen returns immediately and the list catches up. Blocking the
+        // back navigation on a network read would make a successful save feel like a hang.
+        void refresh(recipient.recipientId);
+        navigation.goBack();
+      }}
       onCancel={() => navigation.goBack()}
     />
   );

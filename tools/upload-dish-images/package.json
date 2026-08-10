@@ -1,0 +1,13 @@
+{
+  "name": "@graybag/upload-dish-images",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Uploads the mirrored legacy dish photos into Supabase Storage and repoints the dish records (E16-43)",
+  "main": "upload.mjs",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "verify": "node upload.mjs --verify-only"
+  },
+  "engines": { "node": ">=20" }
+}

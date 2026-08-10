@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { api, type menu as menuDomain } from '@graybag/shared';
 
 /**
@@ -49,6 +57,16 @@ export interface OrderTarget {
   /** "5-A". Tier P. */
   classLabel?: string | null;
   schoolName?: string | null;
+  /**
+   * The school this recipient attends.
+   *
+   * **This is what makes the selected school derived rather than independent.** Before it
+   * existed, `SelectedSchoolContext` and the order target were two separate answers to
+   * "which school are we ordering from", and they drifted: a visitor could pick a school,
+   * add a child at that school, and land back on Home with no school selected — the same
+   * fact asked twice and neither answer kept.
+   */
+  schoolId?: string | null;
   /** "Morning break · 10:40". Absent until `E05-29` puts the break on the line. */
   breakLabel?: string | null;
 }
@@ -60,6 +78,14 @@ interface OrderTargetValue {
   choices: OrderTarget[];
   /** True while the first read is in flight, so a screen can skeleton rather than say "none". */
   loading: boolean;
+  /**
+   * Re-read the account's recipients, optionally selecting one afterwards.
+   *
+   * Adding someone has to be able to say "and now order for them". Without this the provider
+   * read once at mount and never again, so a recipient added at 9am was invisible until the
+   * app was restarted — and the flow ended on Home with nothing selected.
+   */
+  refresh: (selectRecipientId?: string) => Promise<void>;
 }
 
 const OrderTargetContext = createContext<OrderTargetValue>({
@@ -67,6 +93,7 @@ const OrderTargetContext = createContext<OrderTargetValue>({
   setTarget: () => {},
   choices: [],
   loading: false,
+  refresh: async () => {},
 });
 
 /**
@@ -105,49 +132,53 @@ export function OrderTargetProvider({
    * Signed out this does nothing, which is correct rather than a special case: `AR7` says
    * browsing needs no session, and a signed-out visitor has no recipients to read.
    */
-  useEffect(() => {
-    let live = true;
+  const refresh = useCallback(async (selectRecipientId?: string) => {
     setLoading(true);
+    try {
+      const rows = await api.fetchRecipients();
+      const mapped: OrderTarget[] = rows
+        .filter((row) => row.canOrder)
+        .map((row) => ({
+          recipientId: row.id,
+          // NOT `[]`. We have not read their allergies — `fetchRecipients` does not return
+          // them — and saying "none" would be a safety claim we cannot support (`E05-31`).
+          allergenIds: null,
+          serviceDate: defaultServiceDate(),
+          displayName: row.firstName,
+          classLabel: [row.classLabel, row.sectionLabel].filter(Boolean).join('-') || null,
+          schoolName: row.schoolName || null,
+          schoolId: row.schoolId || null,
+          breakLabel: null,
+        }));
 
-    api
-      .fetchRecipients()
-      .then((rows) => {
-        if (!live) return;
-        const mapped: OrderTarget[] = rows
-          .filter((row) => row.canOrder)
-          .map((row) => ({
-            recipientId: row.id,
-            // NOT `[]`. We have not read their allergies — `fetchRecipients` does not return
-            // them — and saying "none" would be a safety claim we cannot support (`E05-31`).
-            allergenIds: null,
-            serviceDate: defaultServiceDate(),
-            displayName: row.firstName,
-            classLabel: [row.classLabel, row.sectionLabel].filter(Boolean).join('-') || null,
-            schoolName: row.schoolName || null,
-            breakLabel: null,
-          }));
-
-        setChoices(mapped);
-        // Only auto-select when nothing has been chosen, so a later read cannot silently move
-        // an order onto a different person mid-cart.
-        setTarget((current) => current ?? mapped[0] ?? null);
-        setLoading(false);
-      })
-      .catch(() => {
-        // Signed out, offline, or a failed read. All three mean "we cannot say", and none of
-        // them is an error a browsing visitor should see. Nothing is logged: a failure here
-        // would carry recipient ids, and ids about children stay out of logs (R6).
-        if (!live) return;
-        setChoices([]);
-        setLoading(false);
+      setChoices(mapped);
+      setTarget((current) => {
+        // An explicit request wins — that is "I just added this person, order for them".
+        if (selectRecipientId !== undefined) {
+          return mapped.find((m) => m.recipientId === selectRecipientId) ?? current;
+        }
+        // Otherwise only auto-select when nothing is chosen, so a later read cannot silently
+        // move an order onto a different person mid-cart.
+        return current ?? mapped[0] ?? null;
       });
-
-    return () => {
-      live = false;
-    };
+    } catch {
+      // Signed out, offline, or a failed read. All three mean "we cannot say", and none is an
+      // error a browsing visitor should see. Nothing is logged: a failure here would carry
+      // recipient ids, and ids about children stay out of logs (R6).
+      setChoices([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const value = useMemo(() => ({ target, setTarget, choices, loading }), [target, choices, loading]);
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const value = useMemo(
+    () => ({ target, setTarget, choices, loading, refresh }),
+    [target, choices, loading, refresh],
+  );
   return <OrderTargetContext.Provider value={value}>{children}</OrderTargetContext.Provider>;
 }
 
