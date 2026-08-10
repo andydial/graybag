@@ -540,9 +540,22 @@ export function allergyLine(recipient: RecipientRow): AllergyLine {
   const allergens = recipient.allergens ?? [];
   if (allergens.length > 0) return { tone: 'alert', text: `Allergies: ${allergens.join(', ')}` };
   if (recipient.allergenConsent === true) return null;
+
+  /**
+   * **This says what WE have not done, not what the parent failed to do.**
+   *
+   * It used to read "No allergy details shared", which is a statement about the parent — and
+   * it was on every single row, because `fetchRecipients` deliberately does not return allergy
+   * data at all (`E05-31`). So the app was telling every parent they had withheld something
+   * they may well have entered, on the strength of a read it never performed.
+   *
+   * `allergenConsent === false` is the only case where "they chose not to" is true, and we
+   * cannot currently tell that case from "we did not look" — so the copy covers the honest
+   * union of the two and puts the uncertainty on us, where it belongs.
+   */
   return {
     tone: 'muted',
-    text: 'No allergy details shared — we can’t warn you about ingredients',
+    text: 'Allergy details aren’t loaded here yet — we can’t warn you about ingredients',
   };
 }
 

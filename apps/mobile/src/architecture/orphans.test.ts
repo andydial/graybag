@@ -158,6 +158,25 @@ function relative(path: string): string {
   return path.slice(APP_ROOT.length + 1);
 }
 
+/**
+ * `it.each([])` is zero tests and a green run, and `describe.each([])` fails with jest's own
+ * *"called with an empty Array of table data"* — which is a failure, but one that says nothing
+ * about what it means. Every table below goes through here so that a scan finding nothing
+ * explains itself instead of reading as a broken test file.
+ */
+function nonEmpty<T>(table: T[], what: string): T[] {
+  if (table.length === 0) {
+    throw new Error(
+      `The orphan scan found no ${what} under ${SRC}. Every assertion in this file is a table ` +
+        `over a scan result, so an empty scan means the guard tests nothing at all while ` +
+        `reporting success — the "Tests: 0" failure E02-24 already shipped once. Either the ` +
+        `directory moved, the naming convention changed, or the regexes need updating. Fix ` +
+        `the scan; do not delete the assertion.`,
+    );
+  }
+  return table;
+}
+
 interface ContextModule {
   source: Source;
   /** `Cart` from `const CartContext = createContext(…)`. */
@@ -237,6 +256,18 @@ function exportsOf(code: string): string[] {
  */
 const KNOWN_ORPHANS: Record<string, string> = {};
 
+/**
+ * The tables, built once so an empty scan fails at load with an explanation rather than at
+ * `describe.each` with jest's own wording — or, for `it.each`, not at all.
+ */
+const CONTEXT_TABLE = nonEmpty(contexts, 'React contexts').map((c) => [c.base, c] as const);
+const SEAM_TABLE = nonEmpty(seams, 'injection seams (exported set…/install…/configure…)').map(
+  (s) => [s.name, s] as const,
+);
+const STORE_TABLE = nonEmpty(stores, 'module-level stores (a top-level `let`)').map(
+  (s) => [relative(s.path), s] as const,
+);
+
 describe('nothing is half-wired', () => {
   it('found the modules, so a rename or a moved directory cannot pass this file vacuously', () => {
     // `E02-24` shipped a suite that silently tested nothing. Every assertion below is
@@ -275,7 +306,7 @@ describe('nothing is half-wired', () => {
     }
   });
 
-  describe.each(contexts.map((c) => [c.base, c] as const))('%s', (base, ctx) => {
+  describe.each(CONTEXT_TABLE)('%s', (base, ctx) => {
     const where = relative(ctx.source.path);
 
     it('is read somewhere outside its own file', () => {
@@ -350,7 +381,7 @@ describe('nothing is half-wired', () => {
    * Menu tab told every user "this school's menu has not been published". Both suites green
    * throughout, because each test called the setter itself.
    */
-  it.each(seams.map((s) => [s.name, s] as const))(
+  it.each(SEAM_TABLE)(
     '%s is called from production code, not only from tests',
     (name, seam) => {
       if (KNOWN_ORPHANS[`seam:${name}`] !== undefined) {
@@ -373,7 +404,7 @@ describe('nothing is half-wired', () => {
     },
   );
 
-  it.each(stores.map((s) => [relative(s.path), s] as const))(
+  it.each(STORE_TABLE)(
     '%s holds module state that something outside the file uses',
     (where, store) => {
       if (KNOWN_ORPHANS[`store:${store.name}`] !== undefined) {

@@ -248,7 +248,20 @@ export const OrderDetailScreen = () => (
  */
 export const SignInScreen = () => {
   const navigation = useNavigation();
-  return <SignInScreenImpl onSignedIn={() => navigation.goBack()} />;
+  const { refresh } = useOrderTarget();
+
+  return (
+    <SignInScreenImpl
+      onSignedIn={() => {
+        // A signed-out visitor could not read their recipients, so the provider's first pass
+        // found none. Without this the app knows who you are and still cannot say who you
+        // order for, which reads as the sign-in not having worked.
+        void refresh();
+        // F1: back to whatever sent us here — the cart, keeping its contents. Never to Home.
+        navigation.goBack();
+      }}
+    />
+  );
 };
 
 /**

@@ -235,7 +235,7 @@ async function loadAndVerify(images, dir) {
  * aspect ratio before the image has arrived, and the audience is on connections where
  * "before the image has arrived" is most of the time.
  */
-function readDimensions(buf) {
+export function readDimensions(buf) {
   // PNG: 8-byte signature, then an IHDR chunk whose first two fields are the dimensions.
   if (buf.length > 24 && buf.readUInt32BE(0) === 0x89504e47) {
     return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
@@ -426,17 +426,22 @@ async function main() {
 
   for (const { dish, image, how } of matched) {
     const assetId = assetIdByKey.get(image.key) ?? existingAssets.get(image.key)?.id;
+    if (args.dryRun) {
+      // In a dry run the asset row this would point at usually does not exist yet, so
+      // "no asset id" is the expected state rather than a failure.
+      if (assetId && dish.image_asset_id === assetId) alreadyLinked += 1;
+      else {
+        console.log(`  would link    ${dish.name}  ->  ${image.key}   [${how}]`);
+        linked += 1;
+      }
+      continue;
+    }
     if (!assetId) {
       linkFailed.push({ dish, why: `no asset row for ${image.key}` });
       continue;
     }
     if (dish.image_asset_id === assetId) {
       alreadyLinked += 1;
-      continue;
-    }
-    if (args.dryRun) {
-      console.log(`  would link    ${dish.name}  ->  ${image.key}   [${how}]`);
-      linked += 1;
       continue;
     }
     try {

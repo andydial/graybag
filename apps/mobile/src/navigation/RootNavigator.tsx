@@ -32,6 +32,8 @@ import {
 import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
+import { useOrderTarget } from '../session/OrderTargetContext';
+import { requiresSignIn, useSession } from '../session/SessionContext';
 import type { RootStackParamList, TabParamList } from './types';
 
 const { bg, border, nav, scale, borderWidth } = design;
@@ -146,7 +148,32 @@ const MenuTab = withScreenFrame(MenuScreen, TAB_SCREEN_EDGES);
  */
 function CartTabScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  return <CartScreen onPlaceOrder={() => navigation.navigate('SignIn')} />;
+  const session = useSession();
+  const { target, loading } = useOrderTarget();
+
+  /**
+   * The gate, in the order `docs/ux-spec.md` §6.1 puts it.
+   *
+   * This used to be `navigate('SignIn')` unconditionally, which meant a parent who had
+   * *already* signed in was sent back to sign in again every time they tapped Place order —
+   * the gate firing on someone who had passed it.
+   *
+   * Signed in with nobody to order for goes to Add someone (`R2`), because the next thing
+   * needed is a recipient, not a payment. Signed in with a recipient has nowhere to go yet:
+   * checkout is `E06`, so the button stays inert rather than routing somewhere that would
+   * look finished.
+   */
+  const placeOrder = () => {
+    if (requiresSignIn(session)) {
+      navigation.navigate('SignIn');
+      return;
+    }
+    if (!loading && target === null) {
+      navigation.navigate('AddChild');
+    }
+  };
+
+  return <CartScreen onPlaceOrder={placeOrder} />;
 }
 
 const CartTab = withScreenFrame(CartTabScreen, TAB_SCREEN_EDGES);

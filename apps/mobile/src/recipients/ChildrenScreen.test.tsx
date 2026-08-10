@@ -168,7 +168,7 @@ describe('ChildrenScreen', () => {
     // `fetchRecipients` does not read allergy data at all, so today every row says this.
     await setup();
     expect(await screen.findByTestId('screen-children-r1-allergies')).toHaveTextContent(
-      /No allergy details shared/,
+      /Allergy details aren’t loaded here yet/,
     );
   });
 
