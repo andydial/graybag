@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Image } from 'expo-image';
 import { FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { design, money, type menu as menuDomain } from '@graybag/shared';
@@ -76,7 +76,12 @@ interface MenuMetrics {
  */
 function useMenuMetrics(): MenuMetrics {
   const { width, fontScale } = useWindowDimensions();
+  // Memoised on the two things it depends on. `renderItem` closes over this object, so a fresh
+  // one every render would re-render every card on every keystroke in the search field.
+  return useMemo(() => menuMetrics(width, fontScale), [width, fontScale]);
+}
 
+function menuMetrics(width: number, fontScale: number): MenuMetrics {
   const singleColumn = fontScale >= AX_SINGLE_COLUMN_FONT_SCALE;
   const contentWidth = Math.max(width - layout.gutter * 2, IMAGE_SIZES.thumb);
   const cardWidth = singleColumn ? contentWidth : (contentWidth - layout.gridGutter) / 2;
@@ -229,7 +234,10 @@ function DishCard({
           : { width: cardWidth, height: (rowHeight ?? 0) - layout.gridGutter },
       ]}
     >
-      <View style={[styles.photo, { width: photoWidth, height: photoHeight }]}>
+      <View
+        style={[styles.photo, { width: photoWidth, height: photoHeight }]}
+        testID={`menu-row-${item.id}-photo`}
+      >
         {item.imageUri === null ? (
           // Never a grey box. Most of the catalogue has no photograph yet, so this is the
           // ordinary case rather than the edge one.
@@ -304,11 +312,11 @@ export function MenuListSkeleton({ testID }: { testID?: string }) {
   const { singleColumn, cardWidth, photoWidth, photoHeight, nameHeight } = useMenuMetrics();
 
   return (
-    <View testID={testID} style={[styles.content, styles.skeletonGrid]}>
+    <View testID={testID} style={styles.skeletonGrid}>
       {Array.from({ length: SKELETON_CARDS }, (_, i) => (
         <View
           key={i}
-          style={[styles.card, singleColumn ? styles.cardRow : null, { width: cardWidth }]}
+          style={[styles.card, singleColumn ? styles.skeletonRow : null, { width: cardWidth }]}
         >
           <Skeleton width={photoWidth} height={photoHeight} />
           <View style={singleColumn ? styles.textColumn : styles.textBlock}>
@@ -335,9 +343,20 @@ function cardLabel(item: MenuListItem): string {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: layout.gutter, paddingBottom: layout.sectionGap },
+  /**
+   * **No horizontal gutter here.** `contentContainerStyle` wraps the list *header* as well as
+   * the rows, and the header holds the category strip — which scrolls edge to edge and carries
+   * a full-width rule under it. Padding this container insets that rule and double-pads the
+   * title. So the gutter belongs to the rows: on the column wrapper in the grid, on the card
+   * itself in the single-column layout that has no wrapper.
+   */
+  content: { paddingBottom: layout.sectionGap },
   loading: { flex: 1 },
-  columnWrapper: { gap: layout.gridGutter, marginBottom: layout.gridGutter },
+  columnWrapper: {
+    gap: layout.gridGutter,
+    marginBottom: layout.gridGutter,
+    paddingHorizontal: layout.gutter,
+  },
 
   card: { backgroundColor: bg.surface },
   cardRow: {
@@ -345,6 +364,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: layout.blockGap,
     marginBottom: layout.gridGutter,
+    marginHorizontal: layout.gutter,
   },
 
   photo: {
@@ -375,5 +395,12 @@ const styles = StyleSheet.create({
     fontWeight: scale.bodyStrong.weight,
   },
 
-  skeletonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: layout.gridGutter },
+  skeletonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: layout.gridGutter,
+    paddingHorizontal: layout.gutter,
+    paddingBottom: layout.sectionGap,
+  },
+  skeletonRow: { flexDirection: 'row', alignItems: 'center', gap: layout.blockGap },
 });

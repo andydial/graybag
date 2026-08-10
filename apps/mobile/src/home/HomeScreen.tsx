@@ -592,7 +592,7 @@ function PopularCard({
       ]}
     >
       <View style={styles.railThumb}>
-        <DishPhoto dish={dish} testID={`${testID}-image`} />
+        <DishPhoto dish={dish} size={IMAGE_SIZES.card} testID={`${testID}-image`} />
         <View style={styles.markOnPhoto}>
           <FoodTypeMark foodType={dish.foodType} testID={`${testID}-food-type`} />
         </View>
@@ -615,15 +615,21 @@ function PopularCard({
  * photo" is most of the menu today rather than a rare edge — a branded tile says "photo
  * coming" where a grey rectangle says "broken".
  *
- * `DishImage` draws the square case and is used for the rail. The promoted dish is 16:9, and
+ * `DishImage` draws the square case and the rail uses it. The promoted dish is 16:9, and
  * `DishImage`'s API is a single `size` that sets width and height together, so the wide case is
  * drawn here with the same four settings that component documents — disk cache so a menu
  * survives a restart, `recyclingKey` so a recycled view never shows the previous dish's photo,
  * `duration.fast` for the cross-fade. **A rectangular variant of `DishImage` would delete this
  * branch**; it is noted in the report rather than done here, because that file is not mine.
  */
-function DishPhoto({ dish, testID }: { dish: HomeDish; testID: string }) {
+function DishPhoto({ dish, size, testID }: { dish: HomeDish; size?: number; testID: string }) {
   if (dish.imageUri === null) return <PatternTile testID={testID} />;
+
+  if (size !== undefined) {
+    return (
+      <DishImage uri={dish.imageUri} recyclingKey={dish.id} size={size} testID={testID} />
+    );
+  }
 
   return (
     <Image
@@ -791,7 +797,9 @@ const styles = StyleSheet.create({
   railThumb: {
     width: IMAGE_SIZES.card,
     height: IMAGE_SIZES.card,
-    borderRadius: radius.lg,
+    // `md`, matching `DishImage`'s own corner, so the clip and the image round together
+    // rather than leaving a sliver of the box showing at each corner.
+    borderRadius: radius.md,
     overflow: 'hidden',
     backgroundColor: bg.surfaceMuted,
   },

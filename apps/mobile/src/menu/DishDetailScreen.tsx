@@ -148,8 +148,9 @@ export function DishDetailScreen({
         <EmptyState
           title="This dish is not on the menu"
           body="It may have been taken off since you last loaded the menu."
-          actionLabel={onBackToMenu === undefined ? undefined : 'Back to the menu'}
-          onAction={onBackToMenu}
+          {...(onBackToMenu === undefined
+            ? {}
+            : { actionLabel: 'Back to the menu', onAction: onBackToMenu })}
         />
       </View>
     );
@@ -204,7 +205,11 @@ export function DishDetailScreen({
 
           <AllergenBlock dish={dish} target={target} testID={`${testID}-allergens`} />
 
-          <ForBlock target={target} onChange={onChangeTarget} testID={`${testID}-for`} />
+          <ForBlock
+            target={target}
+            {...(onChangeTarget === undefined ? {} : { onChange: onChangeTarget })}
+            testID={`${testID}-for`}
+          />
 
           {closed ? (
             <View style={styles.neutralNotice} testID={`${testID}-cutoff`}>
@@ -533,9 +538,7 @@ export function AllergenBlock({
           Contains {names}
         </Text>
         <Text style={styles.accentBody} testID={`${testID}-declared`}>
-          {voice.name === undefined
-            ? 'Declared by the kitchen. None of these is one they told us to watch for.'
-            : `Declared by the kitchen. None of these is one of ${voice.possessive}.`}
+          {`Declared by the kitchen. None of these is one of ${voice.possessivePronoun}.`}
         </Text>
       </View>
     );
@@ -592,7 +595,7 @@ export function ForBlock({
       : [target.breakLabel, formatServiceDate(target.serviceDate)].filter(isText);
 
   return (
-    <Card testID={testID}>
+    <Card {...(testID === undefined ? {} : { testID })}>
       <View style={styles.forRow}>
         <View style={styles.forText}>
           <Text style={styles.forTitle} accessibilityRole="header">
@@ -639,8 +642,10 @@ export interface RecipientVoice {
   /** Sentence subject: "Aarav", "You", "The person you've chosen". */
   subject: string;
   verb: 'is' | 'are';
-  /** "Aarav's", "yours", "theirs". */
+  /** Before a noun: "Aarav's allergies", "your allergies", "their allergies". */
   possessive: string;
+  /** Standing alone: "one of Aarav's", "one of yours", "one of theirs". */
+  possessivePronoun: string;
   /** The heading on the For block: "For Aarav", "For you", "Nobody chosen yet". */
   forLabel: string;
   /** The confirming control: "Yes, add it for Aarav". */
@@ -653,7 +658,8 @@ export function recipientVoice(target: DishDetailTarget | null): RecipientVoice 
       name: undefined,
       subject: 'Nobody',
       verb: 'is',
-      possessive: 'theirs',
+      possessive: 'their',
+      possessivePronoun: 'theirs',
       forLabel: 'Nobody chosen yet',
       confirmLabel: 'Yes, add it',
     };
@@ -664,7 +670,8 @@ export function recipientVoice(target: DishDetailTarget | null): RecipientVoice 
       name: null,
       subject: 'You',
       verb: 'are',
-      possessive: 'yours',
+      possessive: 'your',
+      possessivePronoun: 'yours',
       forLabel: 'For you',
       confirmLabel: 'Yes, add it',
     };
@@ -674,7 +681,8 @@ export function recipientVoice(target: DishDetailTarget | null): RecipientVoice 
       name: undefined,
       subject: "The person you've chosen",
       verb: 'is',
-      possessive: 'theirs',
+      possessive: 'their',
+      possessivePronoun: 'theirs',
       forLabel: "For the person you've chosen",
       confirmLabel: 'Yes, add it',
     };
@@ -684,6 +692,7 @@ export function recipientVoice(target: DishDetailTarget | null): RecipientVoice 
     subject: name,
     verb: 'is',
     possessive: `${name}'s`,
+    possessivePronoun: `${name}'s`,
     forLabel: `For ${name}`,
     confirmLabel: `Yes, add it for ${name}`,
   };
@@ -763,7 +772,9 @@ function DishHero({ dish, testID }: { dish: CachedDish; testID: string }) {
   return (
     <View style={styles.hero}>
       {dish.imageUri === null ? (
-        <PatternTile testID={testID} />
+        // `alignSelf` because the frame centres its child to crop the photo, and a centred
+        // child takes its intrinsic cross-axis size — which for a `flex: 1` tile is nothing.
+        <PatternTile style={styles.heroTile} testID={testID} />
       ) : (
         <DishImage
           uri={dish.imageUri}
@@ -795,10 +806,13 @@ export function allergenLabel(allergen: CachedDish['allergens'][number]): string
 
 /** `S5`: the shape of what is coming, never a spinner. */
 export function DishDetailSkeleton({ testID }: { testID?: string }) {
+  const { width } = useWindowDimensions();
+  // The same 16:10 band the photo lands in, so nothing moves when it arrives.
+  const heroHeight = Math.round(((width - layout.gutter * 2) * 10) / 16);
   return (
     <View style={styles.screen} testID={testID}>
-      <View style={styles.hero}>
-        <Skeleton width="100%" height="100%" />
+      <View style={styles.heroSkeleton}>
+        <Skeleton width="100%" height={heroHeight} />
       </View>
       <View style={styles.body}>
         <Skeleton width="60%" height={scale.h2.lineHeight} />
@@ -827,6 +841,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: bg.surfaceMuted,
   },
+  heroTile: { alignSelf: 'stretch' },
+  heroSkeleton: { marginHorizontal: layout.gutter, marginTop: layout.gutter },
   stale: {
     color: text.secondary,
     backgroundColor: bg.surfaceMuted,

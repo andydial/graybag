@@ -229,7 +229,7 @@ export function ChildrenScreen({
         <View style={styles.screen} testID={`${testID}-empty`}>
           <EmptyState
             title="Nobody added yet"
-            body="Add whoever the lunch is for — your child, or yourself. A name, a class and a school is all we need."
+            body="Add whoever the lunch is for — your child, or yourself. A name and a school is all we need to start."
             actionLabel="Add someone"
             onAction={onAddChild}
           />
@@ -276,7 +276,7 @@ export function ChildrenScreen({
           </View>
 
           <Button
-            label="Add another"
+            label="Add someone else"
             variant="secondary"
             onPress={onAddChild}
             testID={`${testID}-add`}
@@ -378,14 +378,14 @@ export function RecipientListRow({
         {/* Omitted rather than guessed when it is unknown — the same rule `OrderForBlock`
             follows. A plausible break a parent believes is worse than no break at all. */}
         {recipient.breakLabel === undefined || recipient.breakLabel === null ? null : (
-          <Text style={styles.rowMeta} testID={testID === undefined ? undefined : `${testID}-break`}>
+          <Text style={styles.rowMeta} testID={`${testID}-break`}>
             {recipient.breakLabel}
           </Text>
         )}
         {allergy === null ? null : (
           <Text
             style={allergy.tone === 'alert' ? styles.allergyAlert : styles.allergyMuted}
-            testID={testID === undefined ? undefined : `${testID}-allergies`}
+            testID={`${testID}-allergies`}
           >
             {allergy.text}
           </Text>
@@ -394,7 +394,7 @@ export function RecipientListRow({
 
       <Pressable
         onPress={onEdit}
-        testID={testID === undefined ? undefined : `${testID}-edit`}
+        testID={`${testID}-edit`}
         accessibilityRole="button"
         accessibilityLabel={`Edit ${who}`}
         hitSlop={space[2]}
@@ -403,26 +403,20 @@ export function RecipientListRow({
         <Text style={selected ? styles.editLabelOnSelected : styles.editLabel}>Edit</Text>
       </Pressable>
 
-      {selected ? (
-        <Check
-          size={icon.size.md}
-          color={text.onTonal}
-          strokeWidth={icon.stroke.large}
-          // The state is on the row already (`accessibilityState.selected`); an icon that
-          // announced it too would say it twice. But it must not be colour alone — the tick
-          // is the shape that carries it visually (§2.10).
-          accessibilityElementsHidden
-          importantForAccessibility="no"
-        />
-      ) : (
-        <ChevronRight
-          size={icon.size.md}
-          color={text.tertiary}
-          strokeWidth={icon.stroke.default}
-          accessibilityElementsHidden
-          importantForAccessibility="no"
-        />
-      )}
+      {/* The state is on the row already (`accessibilityState.selected`); an icon that
+          announced it too would say it twice. But it must not be colour alone — the tick is
+          the shape that carries it visually (§2.10). */}
+      <View
+        testID={`${testID}-${selected ? 'selected' : 'chevron'}`}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        {selected ? (
+          <Check size={icon.size.md} color={text.onTonal} strokeWidth={icon.stroke.large} />
+        ) : (
+          <ChevronRight size={icon.size.md} color={text.tertiary} strokeWidth={icon.stroke.default} />
+        )}
+      </View>
     </Pressable>
   );
 }

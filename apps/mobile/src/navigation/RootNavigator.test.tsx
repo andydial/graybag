@@ -47,6 +47,19 @@ function renderSignedOut() {
   );
 }
 
+/**
+ * The tab bar's own buttons, in order.
+ *
+ * Every tab announces "<Name>, tab, n of m" on iOS, which is what distinguishes them from any
+ * other button a screen happens to render. Screens are real now, so "all the buttons" and "the
+ * tabs" stopped being the same set.
+ */
+const tabBarLabels = (): string[] =>
+  screen
+    .getAllByRole('button')
+    .map((node) => String(node.props.accessibilityLabel ?? ''))
+    .filter((label) => /,\s*tab,\s*\d+ of \d+/.test(label));
+
 describe('RootNavigator', () => {
   it('opens on Home with no session', async () => {
     await renderSignedOut();
@@ -61,7 +74,11 @@ describe('RootNavigator', () => {
     // Orders is deliberately not a tab — the mock has four and a fifth is a design change
     // nobody asked for. It is a stack route reached from Account and Home.
     expect(screen.queryByLabelText(/^Orders, tab,/)).toBeNull();
-    expect(screen.queryAllByRole('button')).toHaveLength(4);
+    // Count the TAB BAR's buttons, not every button on screen. This used to be
+    // `queryAllByRole('button')` and passed only because Home was a placeholder with no
+    // controls; the moment Home became a real screen (`E21-08`) it counted Home's search
+    // field and delivery card too. The assertion is about how many tabs exist.
+    expect(tabBarLabels()).toHaveLength(TAB_ORDER.length);
   });
 
   /**
@@ -192,9 +209,7 @@ describe('tab bar icons', () => {
     // and the JSX below it from drifting apart — a fifth tab added to one and not the other
     // would make the cart announce the wrong position to a screen-reader user, silently.
     await renderSignedOut();
-    const labels = screen
-      .getAllByRole('button')
-      .map((node) => String(node.props.accessibilityLabel ?? ''));
+    const labels = tabBarLabels();
 
     expect(labels).toHaveLength(TAB_ORDER.length);
     TAB_ORDER.forEach((name, index) => {

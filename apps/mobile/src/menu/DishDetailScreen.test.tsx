@@ -3,8 +3,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { cart as cartDomain, menu as menuDomain } from '@graybag/shared';
 
 import { CartProvider, useCart } from '../cart/CartContext';
-import type { OrderTarget } from '../session/OrderTargetContext';
-import { DishDetailScreen, allergenLabel } from './DishDetailScreen';
+import {
+  DishDetailScreen,
+  allergenLabel,
+  dishAllergenView,
+  recipientVoice,
+  type DishDetailTarget,
+} from './DishDetailScreen';
 import { setMenuCache, type CachedMenuPayload } from './useCachedMenu';
 
 // `render` is async on RNTL v14 — see docs/learnings.md 2026-08-09.
@@ -72,19 +77,46 @@ function fakeCache(result: Partial<{ stale: boolean; reject: boolean }> = {}) {
  *
  * The allergen ids are regulated health data (DPDP, non-negotiable #4). They are asserted on
  * only through what the screen *does* with them — nothing in this file expects them to be
- * rendered, and nothing may log them.
+ * rendered, and nothing may log them. The **name** is a different matter: §5.6 requires the
+ * confirmation to say whose allergy it is, so the name is expected on screen and the id is
+ * expected never to be.
  */
 /** Asserted to be a real service date rather than trusted as a literal. */
 const SERVICE_DATE = '2026-09-01';
 if (!menuDomain.isServiceDate(SERVICE_DATE)) throw new Error('fixture is not a service date');
 
-const TARGET: OrderTarget = {
+const TARGET: DishDetailTarget = {
   recipientId: 'r1',
+  recipientName: 'Aarav',
+  className: 'Class 5-A',
+  schoolName: 'Alpha Public School',
+  breakLabel: 'Morning break · 10:40',
   allergenIds: ['milk'],
   serviceDate: SERVICE_DATE,
 };
 
-const NO_ALLERGIES: OrderTarget = { ...TARGET, recipientId: 'r2', allergenIds: [] };
+const NO_ALLERGIES: DishDetailTarget = {
+  ...TARGET,
+  recipientId: 'r2',
+  recipientName: 'Meera',
+  allergenIds: [],
+};
+
+/** The same allergy, with the health-data purpose declined. We may not check. */
+const NO_CONSENT: DishDetailTarget = { ...TARGET, allergenConsent: false };
+
+/** The account holder ordering for themselves. "For you", never "your child". */
+const MYSELF: DishDetailTarget = { ...TARGET, recipientName: null, allergenIds: [] };
+
+/**
+ * An id and no display name — the state the app is in today, because `OrderTargetContext`
+ * does not carry one yet. The copy has to stay neutral rather than guess a relationship.
+ */
+const UNNAMED: DishDetailTarget = {
+  recipientId: 'r4',
+  allergenIds: [],
+  serviceDate: SERVICE_DATE,
+};
 
 /** Reads the live cart out of the provider, so adds are asserted against the domain object. */
 let seenCart: cartDomain.Cart = cartDomain.emptyCart();
@@ -98,7 +130,16 @@ async function renderDish(
   {
     schoolId = SCHOOL,
     target = null,
-  }: { schoolId?: string | null; target?: OrderTarget | null } = {},
+    ordering,
+    onBackToMenu,
+    onChangeTarget,
+  }: {
+    schoolId?: string | null;
+    target?: DishDetailTarget | null;
+    ordering?: { closed: boolean; nextOpenDate?: string | null };
+    onBackToMenu?: () => void;
+    onChangeTarget?: () => void;
+  } = {},
 ) {
   await render(
     <SafeAreaProvider initialMetrics={METRICS}>
@@ -108,6 +149,9 @@ async function renderDish(
           dishId={dishId}
           schoolId={schoolId}
           target={target}
+          {...(ordering === undefined ? {} : { ordering })}
+          {...(onBackToMenu === undefined ? {} : { onBackToMenu })}
+          {...(onChangeTarget === undefined ? {} : { onChangeTarget })}
         />
       </CartProvider>
     </SafeAreaProvider>,
@@ -153,6 +197,25 @@ describe('DishDetailScreen', () => {
     ));
   });
 
+  it('puts the price on the button too, so the decision and the number are together', async () => {
+    setMenuCache(fakeCache());
+    await renderDish('d1');
+    await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
+    expect(screen.getByTestId('screen-dish-detail-add-button')).toHaveTextContent(
+      'Add to cart · ₹75.50',
+    );
+  });
+
+  it('says the price excludes GST, because the button is not what will be charged', async () => {
+    setMenuCache(fakeCache());
+    await renderDish('d1');
+    await waitFor(() =>
+      expect(screen.getByTestId('screen-dish-detail-tax-note')).toHaveTextContent(
+        'Price excludes GST. 5% is added at checkout.',
+      ),
+    );
+  });
+
   it('omits the description and ingredients rather than printing empty headings', async () => {
     setMenuCache(fakeCache());
     await renderDish('d2');
@@ -161,37 +224,158 @@ describe('DishDetailScreen', () => {
     expect(screen.queryByTestId('screen-dish-detail-ingredients')).toBeNull();
   });
 
-  describe('the allergen disclosure (D7, MI1, MI7)', () => {
-    it('lists the declared allergens', async () => {
+  it('shows the category under the name', async () => {
+    setMenuCache(fakeCache());
+    await renderDish('d1');
+    await waitFor(() =>
+      expect(screen.getByTestId('screen-dish-detail-food-type')).toHaveTextContent('Drinks'),
+    );
+  });
+
+  /**
+   * `E21`. Every dish in staging has no image until the mirrored catalogue is uploaded, so
+   * this is most of the menu rather than an edge case — and a grey box on most of the menu
+   * reads as broken.
+   */
+  it('draws a pattern tile for a dish with no photo, never a grey box', async () => {
+    setMenuCache(fakeCache());
+    await renderDish('d3');
+    await waitFor(() => expect(screen.getByText('Fruit Bowl')).toBeOnTheScreen());
+    expect(
+      screen.getByTestId('screen-dish-detail-image', { includeHiddenElements: true }),
+    ).toBeOnTheScreen();
+  });
+
+  /**
+   * `docs/ux-spec.md` §5.6 — four renderings, and the difference between them is the safety
+   * property rather than the wording.
+   */
+  describe('the allergen block (D7, MI1, MI7)', () => {
+    it('lists the kitchen declaration when we can check and nothing clashes', async () => {
       setMenuCache(fakeCache());
-      await renderDish('d1');
-      await waitFor(() => expect(screen.getByText('Contains allergens')).toBeOnTheScreen());
-      expect(screen.getByTestId('screen-dish-detail-allergens-milk')).toHaveTextContent('Milk');
+      await renderDish('d1', { target: NO_ALLERGIES });
+      await waitFor(() => expect(screen.getByText('Contains Milk')).toBeOnTheScreen());
+      expect(screen.getByTestId('screen-dish-detail-allergens-declared')).toHaveTextContent(
+        /None of these is one of Meera's/,
+      );
     });
 
     /**
-     * The state the whole file exists for. An empty tag list and an unanswered question are
-     * opposite facts wearing the same shape, and the wrong version of this screen is one
-     * line long: rendering nothing.
+     * The state the whole block exists for. An empty tag list and an unanswered question are
+     * opposite facts wearing the same shape, and the wrong version of this screen is one line
+     * long: rendering nothing.
      */
-    it('says "not stated" for a dish nobody has described, and never calls it safe', async () => {
+    it('says "not provided" for a dish nobody has described, and never calls it safe', async () => {
       setMenuCache(fakeCache());
-      await renderDish('d2');
+      await renderDish('d2', { target: NO_ALLERGIES });
 
-      await waitFor(() => expect(screen.getByText('Allergens not stated')).toBeOnTheScreen());
-      expect(screen.getByTestId('screen-dish-detail-allergens-unknown')).toBeOnTheScreen();
+      await waitFor(() =>
+        expect(screen.getByText('Allergen information not provided')).toBeOnTheScreen(),
+      );
+      expect(screen.getByTestId('screen-dish-detail-allergens-not-provided')).toHaveTextContent(
+        /not the same as/,
+      );
       // No reassurance is available for this dish, and there must be none on screen.
       expect(screen.queryByTestId('screen-dish-detail-allergens-none')).toBeNull();
-      expect(screen.queryByText(/contains none/)).toBeNull();
+      expect(screen.queryByText('No allergens')).toBeNull();
     });
 
     it('reassures only when the kitchen explicitly declared none', async () => {
       setMenuCache(fakeCache());
-      await renderDish('d3');
+      await renderDish('d3', { target: NO_ALLERGIES });
       await waitFor(() =>
         expect(screen.getByTestId('screen-dish-detail-allergens-none')).toBeOnTheScreen(),
       );
-      expect(screen.queryByText('Allergens not stated')).toBeNull();
+      expect(screen.queryByText('Allergen information not provided')).toBeNull();
+    });
+
+    it('names the recipient and the allergen when it clashes', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d1', { target: TARGET });
+      await waitFor(() =>
+        expect(screen.getByTestId('screen-dish-detail-allergens-clash')).toBeOnTheScreen(),
+      );
+      const block = screen.getByTestId('screen-dish-detail-allergens-clash');
+      expect(block).toHaveTextContent(/Aarav is allergic to Milk/);
+      // Still orderable — the block informs, it does not forbid. §5.6.
+      expect(block).toHaveTextContent(/You can still order it/);
+      expect(screen.getByTestId('screen-dish-detail-add-button')).toHaveTextContent(
+        'Add to cart · ₹75.50',
+      );
+    });
+
+    /**
+     * **The signed-out case is a safety defect if got wrong, and it was.** The prototype once
+     * rendered a warning naming a child while signed out, where no child and no allergen data
+     * exist. A warning is a claim about data we hold.
+     */
+    it('with no recipient, says we cannot check and names nobody', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d1');
+
+      await waitFor(() =>
+        expect(screen.getByTestId('screen-dish-detail-allergens-cannot-check')).toBeOnTheScreen(),
+      );
+      expect(screen.getByText("We can't check this for anyone yet")).toBeOnTheScreen();
+      // The kitchen's own declaration still stands — it is a fact about the dish.
+      expect(screen.getByTestId('screen-dish-detail-allergens-declaration')).toHaveTextContent(
+        /The kitchen declares this dish contains Milk\./,
+      );
+      // No person, no clash, no reassurance.
+      expect(screen.queryByText(/Aarav/)).toBeNull();
+      expect(screen.queryByTestId('screen-dish-detail-allergens-clash')).toBeNull();
+      expect(screen.queryByTestId('screen-dish-detail-allergens-none')).toBeNull();
+    });
+
+    /**
+     * Consent withheld is not the same as "no allergies". Without the separate health-data
+     * purpose we hold nothing to check against, so the silence that would otherwise read as
+     * safety has to be replaced by saying so.
+     */
+    it('with allergen consent withheld, says we cannot check rather than clearing the dish', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d1', { target: NO_CONSENT });
+
+      await waitFor(() =>
+        expect(screen.getByTestId('screen-dish-detail-allergens-cannot-check')).toBeOnTheScreen(),
+      );
+      expect(screen.getByText("We can't check this against Aarav's allergies")).toBeOnTheScreen();
+      expect(screen.getByTestId('screen-dish-detail-allergens-declaration')).toHaveTextContent(/contains Milk/);
+      expect(screen.queryByTestId('screen-dish-detail-allergens-clash')).toBeNull();
+    });
+
+    it('says the kitchen has said nothing, rather than saying nothing, when we cannot check', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d2');
+      await waitFor(() =>
+        expect(screen.getByTestId('screen-dish-detail-allergens-declaration')).toHaveTextContent(
+          /The kitchen has not told us what is in this dish either way\./,
+        ),
+      );
+    });
+
+    it('is the domain rule, not this screen re-deciding it', () => {
+      const milk = {
+        allergens: [{ allergenId: 'milk', presence: 'contains' as const }],
+        allergensDeclaredNone: false,
+      };
+      // Clash only via `allergenWarning`, and only with a recipient we may check.
+      expect(dishAllergenView(milk, TARGET)).toEqual({ kind: 'clash', allergenIds: ['milk'] });
+      expect(dishAllergenView(milk, NO_ALLERGIES)).toEqual({
+        kind: 'declared',
+        allergenIds: ['milk'],
+      });
+      expect(dishAllergenView(milk, null).kind).toBe('cannotCheck');
+      expect(dishAllergenView(milk, NO_CONSENT).kind).toBe('cannotCheck');
+      // `unknown` is a warning in the domain and is NOT a clash on screen (MI7).
+      expect(
+        dishAllergenView({ allergens: [], allergensDeclaredNone: false }, TARGET),
+      ).toEqual({ kind: 'notProvided' });
+      expect(menuDomain.allergenWarning(milk, ['milk'])).toEqual({
+        warn: true,
+        reason: 'match',
+        allergenIds: ['milk'],
+      });
     });
 
     it('spells out "may contain" rather than folding it into "contains"', () => {
@@ -202,6 +386,58 @@ describe('DishDetailScreen', () => {
     });
   });
 
+  /**
+   * §5.6: "a parent must never be one tap from paying without seeing whose lunch this is and
+   * when it is handed over".
+   */
+  describe('the For block', () => {
+    it('names the recipient, the class, the school and the day', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d3', { target: TARGET });
+
+      await waitFor(() => expect(screen.getByText('For Aarav')).toBeOnTheScreen());
+      expect(screen.getByTestId('screen-dish-detail-for')).toHaveTextContent(/Class 5-A/);
+      expect(screen.getByTestId('screen-dish-detail-for')).toHaveTextContent(
+        /Alpha Public School/,
+      );
+      // R7: the full month, never "01/09".
+      expect(screen.getByTestId('screen-dish-detail-for-when')).toHaveTextContent(/September/);
+    });
+
+    it('says "For you" when the recipient is the account holder, never "your child"', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d3', { target: MYSELF });
+      await waitFor(() => expect(screen.getByText('For you')).toBeOnTheScreen());
+      expect(screen.queryByText(/your child/i)).toBeNull();
+    });
+
+    it('signed out, says nobody is chosen and that adding still works', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d3');
+      await waitFor(() => expect(screen.getByText('Nobody chosen yet')).toBeOnTheScreen());
+      expect(screen.getByTestId('screen-dish-detail-for-none')).toHaveTextContent(
+        /Adding to your cart works without this/,
+      );
+    });
+
+    it('offers the switcher only when there is somewhere to switch', async () => {
+      setMenuCache(fakeCache());
+      const onChangeTarget = jest.fn();
+      await renderDish('d3', { target: TARGET, onChangeTarget });
+      await waitFor(() => expect(screen.getByText('For Aarav')).toBeOnTheScreen());
+
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-for-change'));
+      expect(onChangeTarget).toHaveBeenCalledTimes(1);
+    });
+
+    it('has no switcher when the screen was given nowhere to send anyone', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d3', { target: TARGET });
+      await waitFor(() => expect(screen.getByText('For Aarav')).toBeOnTheScreen());
+      expect(screen.queryByTestId('screen-dish-detail-for-change')).toBeNull();
+    });
+  });
+
   it('says the dish has gone rather than showing an error', async () => {
     setMenuCache(fakeCache());
     await renderDish('does-not-exist');
@@ -209,14 +445,35 @@ describe('DishDetailScreen', () => {
       expect(screen.getByText('This dish is not on the menu')).toBeOnTheScreen(),
     );
     expect(screen.queryByTestId('error-state')).toBeNull();
+    // Nothing to add, so there is no add button to disable.
+    expect(screen.queryByTestId('screen-dish-detail-add-button')).toBeNull();
+  });
+
+  it('offers the way back when the dish has gone and there is one', async () => {
+    setMenuCache(fakeCache());
+    const onBackToMenu = jest.fn();
+    await renderDish('does-not-exist', { onBackToMenu });
+    await waitFor(() =>
+      expect(screen.getByText('This dish is not on the menu')).toBeOnTheScreen(),
+    );
+
+    await userEvent.setup().press(screen.getByLabelText('Back to the menu'));
+    expect(onBackToMenu).toHaveBeenCalledTimes(1);
   });
 
   it('shows a stale menu with a quiet notice, not an error (P8, MC3)', async () => {
     setMenuCache(fakeCache({ stale: true }));
     await renderDish('d1');
     await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
-    expect(screen.getByText(/Offline — showing the menu you last loaded/)).toBeOnTheScreen();
+    expect(screen.getByTestId('screen-dish-detail-stale')).toHaveTextContent(
+      /Offline — showing the menu you last loaded/,
+    );
+    // Offline the cart still fills — it is local. The price is what gets reconfirmed (L7).
+    expect(screen.getByTestId('screen-dish-detail-stale')).toHaveTextContent(
+      /reconfirm the price/,
+    );
     expect(screen.queryByTestId('error-state')).toBeNull();
+    expect(screen.getByTestId('screen-dish-detail-add-button')).toBeOnTheScreen();
   });
 
   it('errors only when there is nothing cached and the fetch failed', async () => {
@@ -327,15 +584,33 @@ describe('DishDetailScreen', () => {
       await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
 
       expect(seenCart.lines).toHaveLength(1);
+      expect(screen.queryByTestId('screen-dish-detail-add-warning-body')).toBeNull();
+    });
+
+    it('cannot be added once the day has closed, and says which day to try instead', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d3', {
+        target: TARGET,
+        ordering: { closed: true, nextOpenDate: SERVICE_DATE },
+      });
+      await waitFor(() => expect(screen.getByText('Fruit Bowl')).toBeOnTheScreen());
+
+      expect(screen.getByTestId('screen-dish-detail-cutoff')).toHaveTextContent(/September/);
+      const button = screen.getByTestId('screen-dish-detail-add-button');
+      expect(button).toHaveTextContent('Ordering has closed');
+      expect(button).toBeDisabled();
+
+      await userEvent.setup().press(button);
+      expect(seenCart.lines).toHaveLength(0);
     });
   });
 
   /**
-   * `D7` / `E05-05`. The warning is at add-to-cart because that is where the decision is
+   * `D7` / `E05-05`. The confirmation is at add-to-cart because that is where the decision is
    * made — at checkout it would arrive after it.
    */
-  describe('the allergen warning at add-to-cart', () => {
-    it('blocks the add when the dish declares an allergen the child has', async () => {
+  describe('the second, deliberate tap', () => {
+    it('blocks the add when the dish declares an allergen the recipient has', async () => {
       setMenuCache(fakeCache());
       // d1 contains milk; TARGET's child has a milk allergy.
       await renderDish('d1', { target: TARGET });
@@ -350,7 +625,17 @@ describe('DishDetailScreen', () => {
       expect(seenCart.lines).toHaveLength(0);
     });
 
-    it('names the dish and the allergen, and never the child', async () => {
+    /**
+     * CHANGED with the §5.6 rewrite, deliberately and in the safer direction.
+     *
+     * The old assertion said the confirmation names the dish and the allergen and **never the
+     * recipient**. The spec now requires all three — "Mix Veg Poha contains Peanuts. Aarav is
+     * allergic to Peanuts. Add it anyway?" — because a confirmation that will not say whose
+     * allergy it is about is asking for a decision without supplying the fact it turns on.
+     * The regulated part is the **id and the allergy list**, and those are still asserted
+     * absent.
+     */
+    it('names the dish, the allergen and the recipient — and never their id', async () => {
       setMenuCache(fakeCache());
       await renderDish('d1', { target: TARGET });
       await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
@@ -358,13 +643,38 @@ describe('DishDetailScreen', () => {
       await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
 
       const body = await screen.findByTestId('screen-dish-detail-add-warning-body');
-      expect(body).toHaveTextContent(/Cold Coffee/);
-      expect(body).toHaveTextContent(/milk/);
+      expect(body).toHaveTextContent(/Cold Coffee contains Milk/);
+      expect(body).toHaveTextContent(/Aarav is allergic to Milk/);
       // The recipient id is regulated data and has no business on the screen or in the tree.
       expect(screen.queryByText(/r1/)).toBeNull();
     });
 
-    it('adds only after the warning is acknowledged', async () => {
+    /**
+     * §5.6, and it is a rule rather than a preference: "Add anyway" is one tap doing a
+     * confirmation's job, and "anyway" is a reprimand for a decision a parent may have every
+     * right to make.
+     */
+    it('keeps the main button neutral and puts the choice in its own surface', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d1', { target: TARGET });
+      await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
+
+      expect(screen.getByTestId('screen-dish-detail-add-button')).toHaveTextContent(
+        'Add to cart · ₹75.50',
+      );
+      expect(screen.queryByText(/Add anyway/)).toBeNull();
+
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
+
+      expect(
+        await screen.findByTestId('screen-dish-detail-add-warning-confirm'),
+      ).toHaveTextContent('Yes, add it for Aarav');
+      expect(screen.getByTestId('screen-dish-detail-add-warning-cancel')).toHaveTextContent(
+        "Don't add it",
+      );
+    });
+
+    it('adds only after the confirmation is taken', async () => {
       setMenuCache(fakeCache());
       await renderDish('d1', { target: TARGET });
       await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
@@ -379,7 +689,7 @@ describe('DishDetailScreen', () => {
       expect(seenCart.lines[0]).toMatchObject({ menuItemId: 'mi-d1', unitPricePaise: 7_550 });
     });
 
-    it('backing out of the warning adds nothing', async () => {
+    it('backing out adds nothing', async () => {
       setMenuCache(fakeCache());
       await renderDish('d1', { target: TARGET });
       await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
@@ -394,9 +704,9 @@ describe('DishDetailScreen', () => {
       expect(seenCart.lines).toHaveLength(0);
     });
 
-    it('does not warn about an allergen the child does not have', async () => {
+    it('does not ask about an allergen the recipient does not have', async () => {
       setMenuCache(fakeCache());
-      // d1 declares milk; this child has no declared allergies.
+      // d1 declares milk; this recipient has no declared allergies.
       await renderDish('d1', { target: NO_ALLERGIES });
       await waitFor(() => expect(screen.getByText('Cold Coffee')).toBeOnTheScreen());
 
@@ -407,36 +717,38 @@ describe('DishDetailScreen', () => {
     });
 
     /**
-     * `MI7`: an undescribed dish warns for every child, allergies or not. It stays **inline**
-     * rather than becoming a sheet, because a sheet on every undescribed dish trains parents
-     * to dismiss it unread — and the one that mattered would be dismissed with it.
+     * `MI7`: an undescribed dish warns for every recipient, allergies or not. It stays
+     * **inline** rather than becoming a sheet, because a sheet on every undescribed dish
+     * trains parents to dismiss it unread — and the one that mattered would go with it.
      */
     it('does not block an undescribed dish, and says so on the screen instead', async () => {
       setMenuCache(fakeCache());
       await renderDish('d2', { target: TARGET });
-      await waitFor(() => expect(screen.getByText('Allergens not stated')).toBeOnTheScreen());
+      await waitFor(() =>
+        expect(screen.getByText('Allergen information not provided')).toBeOnTheScreen(),
+      );
 
       await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
 
       await waitFor(() => expect(seenCart.lines).toHaveLength(1));
       expect(screen.queryByTestId('screen-dish-detail-add-warning-body')).toBeNull();
-      // Still on screen after the add — the notice is a property of the dish, not a step.
-      expect(screen.getByTestId('screen-dish-detail-allergens-unknown')).toBeOnTheScreen();
+      // Still on screen after the add — the block is a property of the dish, not a step.
+      expect(screen.getByTestId('screen-dish-detail-allergens-not-provided')).toBeOnTheScreen();
     });
 
-    it('is the domain rule, not this screen re-deciding it', () => {
-      // The same function the checkout preflight uses. A second copy of this rule in a
-      // component is how the sale gets stopped in one place and allowed in the other.
-      const milk = { allergens: [{ allergenId: 'milk', presence: 'contains' as const }], allergensDeclaredNone: false };
-      expect(menuDomain.allergenWarning(milk, ['milk'])).toEqual({
-        warn: true,
-        reason: 'match',
-        allergenIds: ['milk'],
+    it('does not confirm against a person it cannot name', () => {
+      // No recipient: nothing to confirm, and the confirming control cannot invent a name.
+      expect(recipientVoice(null).confirmLabel).toBe('Yes, add it');
+      expect(recipientVoice(MYSELF)).toMatchObject({ subject: 'You', verb: 'are' });
+      expect(recipientVoice(TARGET)).toMatchObject({
+        subject: 'Aarav',
+        verb: 'is',
+        confirmLabel: 'Yes, add it for Aarav',
+        forLabel: 'For Aarav',
       });
-      expect(menuDomain.allergenWarning(milk, ['peanut'])).toEqual({ warn: false });
-      expect(menuDomain.allergenWarning({ allergens: [], allergensDeclaredNone: false }, [])).toEqual(
-        { warn: true, reason: 'unknown' },
-      );
+      // An id with no name yet: neutral, and never "your child".
+      expect(recipientVoice(UNNAMED).forLabel).toBe("For the person you've chosen");
+      expect(recipientVoice(UNNAMED).confirmLabel).toBe('Yes, add it');
     });
   });
 

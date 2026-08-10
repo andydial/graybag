@@ -5,6 +5,8 @@ import Constants from 'expo-constants';
 
 import { AccountScreen as AccountScreenImpl } from '../account/AccountScreen';
 import { OrdersScreen as OrdersScreenImpl } from '../orders/OrdersScreen';
+import { HomeScreen as HomeScreenImpl, type HomeDish } from '../home/HomeScreen';
+import { useCachedMenu } from '../menu/useCachedMenu';
 import { requiresSignIn, useSession } from '../session/SessionContext';
 
 import { PlaceholderScreen } from './PlaceholderScreen';
@@ -39,13 +41,51 @@ import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 // `AR7`: Home opens with no session and always will. Today's specials are the hook, and a
 // hook behind a sign-in wall is not a hook.
-export const HomeScreen = () => (
-  <PlaceholderScreen
-    testID="screen-home"
-    title="Welcome to GrayBag"
-    body="Today's specials and the week ahead will show up here. For now, tap Menu to see the food and start an order."
-  />
-);
+/**
+ * Home (`E21-08`), wired.
+ *
+ * The promoted dish and the rail come from the **cached menu** rather than a new request: the
+ * menu is already held by the time this renders, and a second round trip on this audience's
+ * connection would be the slowest thing on the screen (`E04-10`).
+ *
+ * The recipient's name, class, school and break time are **not wired yet** — `OrderTarget`
+ * carries only an id, an allergen list and a date. The card degrades honestly rather than
+ * inventing them, and `E05-29`/`E05-35` fill them in.
+ */
+export const HomeScreen = () => {
+  const navigation = useNavigation();
+  const session = useSession();
+  const { schoolId } = useSelectedSchool();
+  const { state, payload, stale } = useCachedMenu(schoolId);
+
+  const dishes = payload?.dishes ?? [];
+  const toHomeDish = (dish: (typeof dishes)[number]): HomeDish => ({
+    id: dish.id,
+    name: dish.name,
+    pricePaise: dish.pricePaise,
+    imageUri: dish.imageUri,
+    foodType: null,
+  });
+
+  return (
+    <HomeScreenImpl
+      state={state === 'loading' ? 'loading' : state === 'error' ? 'error' : 'ready'}
+      signedOut={requiresSignIn(session)}
+      stale={stale}
+      // A school with a published menu and nothing in it is `menuUnpublished`; no school
+      // chosen is not, because the card's job in that case is to offer the picker.
+      menuUnpublished={schoolId !== null && state === 'ready' && dishes.length === 0}
+      featured={dishes[0] ? toHomeDish(dishes[0]) : null}
+      popular={dishes.slice(1, 6).map(toHomeDish)}
+      onBrowseMenu={() => navigation.navigate('Tabs')}
+      onChooseSchool={() => navigation.navigate('Tabs')}
+      onAddRecipient={() => navigation.navigate('AddChild')}
+      onSelectDish={(dishId) => navigation.navigate('DishDetail', { dishId })}
+      onSwitchRecipient={() => navigation.navigate('Children')}
+      onRetry={() => navigation.navigate('Tabs')}
+    />
+  );
+};
 
 /**
  * The one placeholder that is now real (`E04-12`).

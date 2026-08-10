@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 
+import { CartProvider } from '../cart/CartContext';
+
 import { AccountScreen, HomeScreen, OrderDetailScreen, OrdersScreen } from './index';
 
 // `render` is async on RNTL v14 — see docs/learnings.md 2026-08-09.
@@ -55,11 +57,20 @@ const SCREENS: [string, () => React.JSX.Element, string][] = [
  * `useNavigation` and throws outside a container. Rendering these bare used to work and
  * quietly stopped being the right shape the moment a placeholder could do something.
  */
+/**
+ * `CartProvider` joined this wrapper with `E21`: these screens now draw the real `BrandHeader`,
+ * which reads the cart to put a count on the badge. `useCart` throws without a provider rather
+ * than returning an empty cart — deliberately, so a screen mounted outside one fails loudly
+ * instead of showing a badge stuck at zero — and mounting the real app always has one
+ * (`App.tsx` wraps the navigator).
+ */
 const mount = (Screen: () => React.JSX.Element) =>
   render(
-    <NavigationContainer>
-      <Screen />
-    </NavigationContainer>,
+    <CartProvider>
+      <NavigationContainer>
+        <Screen />
+      </NavigationContainer>
+    </CartProvider>,
   );
 
 /** Every string the screen puts on the display, heading included. */
