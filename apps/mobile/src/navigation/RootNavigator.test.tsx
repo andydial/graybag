@@ -1,7 +1,7 @@
 import { render, screen, userEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { PUBLIC_ROUTES, RootNavigator } from './RootNavigator';
+import { PUBLIC_ROUTES, RootNavigator, TAB_ORDER, cartTabLabel } from './RootNavigator';
 import { SCREEN_TEST_ID } from '../components/Screen';
 import { CartProvider } from '../cart/CartContext';
 import { SessionProvider, requiresSignIn } from '../session/SessionContext';
@@ -158,6 +158,63 @@ describe('RootNavigator', () => {
     await user.press(tab('Account'));
     expect(screen.getByTestId('screen-account')).toBeOnTheScreen();
     expect(screen.queryByTestId('screen-sign-in')).toBeNull();
+  });
+});
+
+/**
+ * The tab bar's icons (`E14-16`).
+ *
+ * On the first iOS build all four tabs drew React Navigation's default placeholder — a filled
+ * triangle — because only the Cart tab set `tabBarIcon` and that one returned the badge,
+ * which is `null` at zero. Nothing in the project supplied an icon at all.
+ *
+ * These assert the presence of a real icon per tab rather than what it looks like. What it
+ * looks like is `docs/design-tokens.md` §7's business and `TabIcon`'s; what this file is
+ * responsible for is that every tab has one, which is the part that was missing.
+ */
+describe('tab bar icons', () => {
+  it.each([
+    ['Home', 'tab-icon-home'],
+    ['Menu', 'tab-icon-menu'],
+    ['Cart', 'tab-icon-cart'],
+    ['Account', 'tab-icon-account'],
+  ])('%s draws its own icon rather than the default placeholder', async (_name, testID) => {
+    await renderSignedOut();
+    // `getAllBy`, not `getBy`: React Navigation renders each tab's icon twice in the tree —
+    // once visible and once for the large-content viewer it offers on iOS. The old default
+    // triangle was rendered by the same path, which is why one tab still showed one glyph.
+    expect(screen.getAllByTestId(testID).length).toBeGreaterThan(0);
+  });
+
+  it('announces its tabs in the declared order', async () => {
+    // `cartTabLabel` reproduces React Navigation's "Cart, tab, 3 of 4" so it can add the
+    // count to it, and it takes the position from `TAB_ORDER`. This is what stops that list
+    // and the JSX below it from drifting apart — a fifth tab added to one and not the other
+    // would make the cart announce the wrong position to a screen-reader user, silently.
+    await renderSignedOut();
+    const labels = screen
+      .getAllByRole('button')
+      .map((node) => String(node.props.accessibilityLabel ?? ''));
+
+    expect(labels).toHaveLength(TAB_ORDER.length);
+    TAB_ORDER.forEach((name, index) => {
+      expect(labels[index]).toMatch(new RegExp(`^${name}\\b`));
+      expect(labels[index]).toContain(`${index + 1} of ${TAB_ORDER.length}`);
+    });
+  });
+});
+
+describe('cartTabLabel', () => {
+  // §7: state lives in the label, not the colour. The badge is the sighted half of the
+  // signal; React Navigation's tab button is a single accessible element, so iOS never
+  // announces the badge inside it and this is the only route the count has.
+  it('says nothing about a count when the cart is empty', () => {
+    expect(cartTabLabel(0)).toBe('Cart, tab, 3 of 4');
+  });
+
+  it('carries the count, singular and plural', () => {
+    expect(cartTabLabel(1)).toBe('Cart, 1 item, tab, 3 of 4');
+    expect(cartTabLabel(2)).toBe('Cart, 2 items, tab, 3 of 4');
   });
 });
 

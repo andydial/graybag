@@ -30,5 +30,5 @@ summary: React Native + Expo shell, navigation, the api/ module discipline, and 
 - [ ] `E14-13` E2E test suite on a real device profile in CI
 - [ ] `E14-14` (mvp) Screens rebuilt to the new design system — Home, Menu, Dish detail, Cart, Checkout, Orders, Order detail, Profile, Dependents, Login, Signup, T&Cs
 - [x] `E14-15` **Safe-area frame at the shell**, applied where routes are registered rather than screen by screen — the first iOS build drew every screen from y=0, under the status bar
-- [ ] `E14-16` **Real tab bar icons.** All four tabs fall through to React Navigation's default placeholder triangle; there is no icon set in the project at all
+- [x] `E14-16` **Real tab bar icons.** All four tabs fall through to React Navigation's default placeholder triangle; there is no icon set in the project at all
 - [ ] `E14-17` Placeholder screens say something a parent can read. They currently ship developer notes to the device ("Browsable signed out", "Never a wall — the tab still opens")

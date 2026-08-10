@@ -1528,3 +1528,35 @@ node -e "console.log(require('zlib').brotliDecompressSync(require('fs').readFile
 It is NDJSON, one object per line with `phase` and `msg`. The phase list alone
 (`EAGER_BUNDLE`, `PREBUILD`, `INSTALL_DEPENDENCIES`, …) localises a failure in seconds. Four
 builds were spent guessing before fetching it; fetch it first.
+
+## Jest cannot load `lucide-react-native`'s ESM build — 2026-08-10
+
+Adding Lucide for the tab bar (`E14-16`) failed every mobile suite at import with
+`SyntaxError: Unexpected token 'export'` from `dist/esm/lucide-react-native.mjs`.
+
+The cause is not `transformIgnorePatterns`, which is where everyone looks first. `jest-expo`'s
+transform key is `\.[jt]sx?$` — **`.mjs` does not match it**, so adding `lucide-react-native`
+to the ignore-pattern exception list changes nothing: Jest was already willing to transform the
+file and simply never routed it to a transformer. The package resolves to `.mjs` because
+`jest-expo` sets the `react-native` export condition, and Lucide maps that condition to its ESM
+build.
+
+Overriding `transform` in `package.json` would work and is wrong — it *replaces* the preset's
+transform wholesale, silently dropping the three asset transformers `jest-expo` installs.
+
+The fix is one `moduleNameMapper` entry pointing at the CJS build, which Jest parses natively:
+
+```json
+"^lucide-react-native$": "<rootDir>/../../node_modules/lucide-react-native/dist/cjs/lucide-react-native.js"
+```
+
+Metro is unaffected — it honours the same `react-native` condition and takes the ESM build, so
+the app bundles from the sources it ships. Verified with `expo export` on both platforms.
+
+## React Navigation renders each tab icon twice — 2026-08-10
+
+`getByTestId('tab-icon-home')` fails with "found multiple elements" against a bottom-tab
+navigator. There is one tab button (`getAllByRole('button')` returns exactly four) but two
+copies of each icon: React Navigation renders a second for the iOS large-content viewer. Assert
+with `getAllBy…` and a length floor. Not a rendering bug — the old default triangle came
+through the same path and still drew once on screen.

@@ -29,6 +29,7 @@ export {
 export { TextField } from './TextField';
 export { Card, EmptyState, ErrorState, ListRow, Skeleton } from './Surfaces';
 export { Sheet, Tabs, type TabItem } from './Tabs';
+export { TabIcon } from './TabIcon';
 
 export { CartBadge, CART_BADGE_MIN_SIZE, useCountCrossFade } from './cart/CartBadge';
 export { CollapsibleContainer } from './motion/CollapsibleContainer';
