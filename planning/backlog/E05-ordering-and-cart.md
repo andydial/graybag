@@ -50,3 +50,5 @@ summary: Recipients, cart, cutoff enforcement, break/drop time selection, and or
 - [x] `E05-33` (risk:critical) A test that fails if **any** pre-checkout action requires a session or a recipient — a structural guard over the menu, dish detail and cart, not a fix to one screen. Andy: "I want it structurally impossible rather than fixed once"
 
 - [ ] `E05-34` Move `recipientId` and `serviceDate` off `CartLineInput` and onto the cart itself. `E05-32` made them nullable per line, which unblocks the wall and is honest, but one-recipient-one-date (`AR8`) means they are cart properties — two lines cannot legitimately disagree about who the order is for
+
+- [ ] `E05-35` Put the break time on the recipient or the cart line so Home's "Delivering to" card and the cart can name it. Both say it is confirmed with the kitchen rather than inventing one — honest, but it is the one fact a parent checks to be sure the lunch reaches the right classroom

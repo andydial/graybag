@@ -1199,13 +1199,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/21</span>
+          <span class="meter-num">0/23</span>
         </div>
       </header>
       <p class="summary">Google / Apple / email-OTP sign-in for app users (phone OTP deferred to a fast-follow), email for back-office. No password migration is possible from Bubble. See decision U1 (revised).</p>
       <p class="deps">Depends on <code>E01</code> <code>E02</code> <code>E00</code></p>
       <details>
-        <summary>Context &amp; 21 tasks</summary>
+        <summary>Context &amp; 23 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Per decision <strong>U1</strong> (revised), v1 auth is Google Sign-In (primary), Sign in with Apple (iOS, required once Google is offered), and email OTP via Supabase <code>signInWithOtp</code> — no phone OTP and no passwords. Phone OTP + DLT SMS (see E00) become a fast-follow *addition*; DLT registration leaves the launch critical path but continues for future order-update SMS. Bubble does not export password hashes, so every existing user re-authenticates once regardless; migration now matches on <strong>email</strong> (<code>E03-16</code>), not the lossy legacy phone <code>number</code> field.</p></div>
         <ul class="tasks">
@@ -1376,6 +1376,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Decide whether Supabase identity linking on verified email is actually on</strong> for the staging and production projects, and assert it. <code>api/auth.ts</code>&#39;s <code>linkingPolicy</code> documents the requirement <code>E03-15</code> depends on: one <code>auth.users</code> row per verified address across Google, Apple and OTP. <strong>No client code can detect it being off</strong> — from the app, two accounts look exactly like one person signing in twice. The failure is two carts, two children lists and two order histories for one parent, discovered by them rather than by us. It is a project setting plus a test that signs in both ways and compares ids, which needs a real project and rides with <code>E03-12</code></span>
+      </li>
+      <li class="task" data-id="E03-24" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-24"></button>
+        <code class="tid">E03-24</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Wire clipboard auto-fill on the OTP screen. The behaviour is built and tested behind an optional <code>readClipboard</code> prop (<code>E21-07</code>); it needs <code>expo-clipboard</code> as a dependency and one line in <code>screens/index.tsx</code>. A native module, so it needs a new dev-client build</span>
+      </li>
+      <li class="task" data-id="E03-25" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-25"></button>
+        <code class="tid">E03-25</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Decide whether a pending OTP draft survives <strong>process death</strong>. It survives backgrounding and unmount today via an in-memory draft; persisting a live code to disk is a security call that should be made deliberately rather than by whoever touches the file next</span>
       </li></ul>
       </details>
     </article>
@@ -1913,13 +1929,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/34</span>
+          <span class="meter-num">0/35</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 34 tasks</summary>
+        <summary>Context &amp; 35 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2193,6 +2209,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Move <code>recipientId</code> and <code>serviceDate</code> off <code>CartLineInput</code> and onto the cart itself. <code>E05-32</code> made them nullable per line, which unblocks the wall and is honest, but one-recipient-one-date (<code>AR8</code>) means they are cart properties — two lines cannot legitimately disagree about who the order is for</span>
+      </li>
+      <li class="task" data-id="E05-35" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-35"></button>
+        <code class="tid">E05-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Put the break time on the recipient or the cart line so Home&#39;s &quot;Delivering to&quot; card and the cart can name it. Both say it is confirmed with the kitchen rather than inventing one — honest, but it is the one fact a parent checks to be sure the lunch reaches the right classroom</span>
       </li></ul>
       </details>
     </article>
@@ -2205,13 +2229,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/24</span>
+          <span class="meter-num">0/26</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 24 tasks</summary>
+        <summary>Context &amp; 26 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -2410,6 +2434,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Run the §6.1 Maestro flow a second time at the largest accessibility text size</span>
+      </li>
+      <li class="task" data-id="E14-26" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-26"></button>
+        <code class="tid">E14-26</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">A connectivity source (NetInfo or equivalent). Six screens now take a <code>stale</code>/<code>offline</code> prop that <strong>nothing supplies</strong>, so every offline state is unreachable in the real app — they can only infer it from a request that already failed, which is too late to pre-disable a button</span>
+      </li>
+      <li class="task" data-id="E14-27" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-27"></button>
+        <code class="tid">E14-27</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><code>ListRow</code> needs a <code>leading</code> slot, a <code>tone</code>, and an <code>accessibilityLabel</code> override. Three screens have now hand-rolled its geometry rather than use it: Orders (its merged label drops the status word), Children (no leading slot), Account (no danger tone)</span>
       </li></ul>
       </details>
     </article>
@@ -4422,13 +4462,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/20</span>
+          <span class="meter-num">0/10</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 20 tasks</summary>
+        <summary>Context &amp; 10 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -4448,7 +4488,14 @@
 <p>   <code>docs/self-ordering-costing.md</code>). No screen says &quot;your child&quot; where an adult may be reading.</p>
 <p>6. Dynamic type checked at <code>AX5</code>, per ux-spec §3.5.</p>
 <p><strong>Not done</strong> means: built, but not compared against its states, or not seen on a device. Say so</p>
-<p>rather than ticking it.</p></div>
+<p>rather than ticking it.</p>
+<h4>Progress, 2026-08-10</h4>
+<p><code>[~]</code> means **built to the prototype and on a device, but not yet compared against every state</p>
+<p>in its list.** That is deliberately not <code>[x]</code>: the definition of done above says every state,</p>
+<p>and calling them finished because the happy path looks right is the exact mistake <code>E13</code> made.</p>
+<p>Built this session: Menu, Dish detail, Add child, Sign in, Email OTP, Home, Choose school,</p>
+<p>Orders, Children, Account. Not started: Order detail, Checkout/payment, Order confirmed, Policy</p>
+<p>gate, Can&#39;t connect, Splash, Support.</p></div>
         <ul class="tasks">
       <li class="task" data-id="E21-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-01"></button>
@@ -4458,30 +4505,6 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Cart</strong> — ux-spec §5.7. States: empty · loaded · signed-out · no</span>
       </li>
-      <li class="task" data-id="E21-02" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-02"></button>
-        <code class="tid">E21-02</code>
-        <span class="badge r-high">high</span>
-        
-        <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Menu</strong> — §5.5. States: loading (six skeleton cards) · loaded ·</span>
-      </li>
-      <li class="task" data-id="E21-03" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-03"></button>
-        <code class="tid">E21-03</code>
-        <span class="badge r-high">high</span>
-        
-        <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Dish detail</strong> — §5.6. States: loading · loaded · no photo (pattern</span>
-      </li>
-      <li class="task" data-id="E21-04" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-04"></button>
-        <code class="tid">E21-04</code>
-        <span class="badge r-high">high</span>
-        
-        <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Add child / Add someone</strong> — §5.10. States: empty form · invalid ·</span>
-      </li>
       <li class="task" data-id="E21-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-05"></button>
         <code class="tid">E21-05</code>
@@ -4490,46 +4513,6 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Edit child</strong> — §5.10.1. States: loading · loaded · invalid · saving · saved ·</span>
       </li>
-      <li class="task" data-id="E21-06" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-06"></button>
-        <code class="tid">E21-06</code>
-        
-        
-        <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Sign in</strong> — §5.8. States: default · email sent · cancelled · error · offline.</span>
-      </li>
-      <li class="task" data-id="E21-07" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-07"></button>
-        <code class="tid">E21-07</code>
-        
-        
-        <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Email OTP</strong> — §5.9 and §5.9.1. States: awaiting · verifying · wrong code ·</span>
-      </li>
-      <li class="task" data-id="E21-08" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-08"></button>
-        <code class="tid">E21-08</code>
-        
-        
-        <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Home</strong> — §5.4. States: signed out · signed in no recipient · one recipient ·</span>
-      </li>
-      <li class="task" data-id="E21-09" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-09"></button>
-        <code class="tid">E21-09</code>
-        
-        
-        <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Choose school</strong> — §5.3. States: loading · loaded · empty search · empty list ·</span>
-      </li>
-      <li class="task" data-id="E21-10" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-10"></button>
-        <code class="tid">E21-10</code>
-        
-        
-        <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Orders list</strong> — §5.14. States: loading · loaded · empty · signed out · offline ·</span>
-      </li>
       <li class="task" data-id="E21-11" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-11"></button>
         <code class="tid">E21-11</code>
@@ -4537,22 +4520,6 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Order detail</strong> — §5.15. States: loading · loaded · cancellable · not cancellable</span>
-      </li>
-      <li class="task" data-id="E21-12" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-12"></button>
-        <code class="tid">E21-12</code>
-        
-        
-        <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Your children / Who you order for</strong> — §5.16. States: loading · loaded · empty ·</span>
-      </li>
-      <li class="task" data-id="E21-13" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-13"></button>
-        <code class="tid">E21-13</code>
-        
-        
-        <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Account</strong> — §5.17. States: signed out · signed in. Keeps the build label</span>
       </li>
       <li class="task" data-id="E21-14" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-14"></button>

@@ -41,3 +41,6 @@ summary: React Native + Expo shell, navigation, the api/ module discipline, and 
 - [ ] `E14-23` (risk:high) Make the email-OTP screen survive backgrounding and process death — digits, timestamp-anchored resend timer, pending address, and the interrupted checkout intent; clipboard auto-fill that never auto-submits (ux-spec §5.9.1)
 - [ ] `E14-24` (risk:critical) Maestro: the ux-spec §6.1 flow against a real build and real staging, in CI — launch, pick a school, see dishes, open one, add to cart, sign in, add a child, place an order. Asserts the screen count so a re-added step fails CI
 - [ ] `E14-25` Run the §6.1 Maestro flow a second time at the largest accessibility text size
+
+- [ ] `E14-26` A connectivity source (NetInfo or equivalent). Six screens now take a `stale`/`offline` prop that **nothing supplies**, so every offline state is unreachable in the real app — they can only infer it from a request that already failed, which is too late to pre-disable a button
+- [ ] `E14-27` `ListRow` needs a `leading` slot, a `tone`, and an `accessibilityLabel` override. Three screens have now hand-rolled its geometry rather than use it: Orders (its merged label drops the status word), Children (no leading slot), Account (no danger tone)

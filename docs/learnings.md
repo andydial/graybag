@@ -1781,3 +1781,25 @@ test.
 The reason it is worth writing down is the shape rather than the API detail: **the failure is
 reported somewhere other than where it was caused**, which is the class of bug that eats an
 afternoon regardless of how good the person is.
+
+## `StyleSheet.absoluteFillObject` is not typed on RN 0.86, and spreading it fails silently — 2026-08-10
+
+`{...StyleSheet.absoluteFillObject}` contributes **nothing** — no error at runtime, no warning,
+just an element that is not positioned. Found in `E21-07` when an overlay `TextInput` sat
+wherever layout put it instead of over the boxes it was meant to cover; typecheck caught it only
+because `exactOptionalPropertyTypes` made the missing property visible.
+
+Write `position: 'absolute'`, `top`, `left`, `right`, `bottom` longhand.
+
+The general shape, which is the reusable part: **a spread of an undefined object is a silent
+no-op.** Any `{...Something.maybeMissing}` is a line that can stop working without failing.
+
+## RNTL v14: `unmount()` is async, and not awaiting it breaks a *later* test — 2026-08-10
+
+`render()` became async in RNTL v14 and is awaited everywhere. `unmount()` did too, and is easy
+to miss. Not awaiting it overlaps two `act` scopes, and React then renders the **next** tree as
+nothing — so the failure surfaces in a different, correct test as an empty tree.
+
+Same family as the two-`render()` trap above, and the same reason both are worth writing down:
+**the symptom appears somewhere other than the cause**, which is what makes them expensive
+rather than merely annoying.
