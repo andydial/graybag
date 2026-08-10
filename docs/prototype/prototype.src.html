@@ -46,7 +46,14 @@ body{margin:0;background:#0e1512;font-family:var(--font);color:var(--ink);
 .statusbar{height:52px;flex:0 0 52px;display:flex;align-items:flex-end;justify-content:space-between;
   padding:0 26px 7px;font-size:14px;font-weight:600;letter-spacing:.2px}
 .statusbar.on-green{color:#fff}
-.body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+/* `min-height:0` is load-bearing. A `flex:1` item in a column container defaults to
+   `min-height:auto`, which refuses to shrink below its content — so `overflow-y:auto` never
+   scrolls and the tail of the content is simply clipped by the parent's fixed height. That is
+   why the cart's GST footnote and Add Child's button label were both sliced: one container
+   defect, two symptoms. */
+.body{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.body.has-sticky{padding-bottom:16px}
+.sheet .inner{min-height:0}
 .homebar{height:26px;flex:0 0 26px;display:flex;align-items:center;justify-content:center}
 .homebar i{display:block;width:140px;height:5px;border-radius:3px;background:#12211a;opacity:.85}
 .homebar.on-green i{background:#fff;opacity:.9}
@@ -179,7 +186,9 @@ h2.title{font-size:23px;font-weight:800;margin:2px 0 3px;letter-spacing:-.5px}
 .forblock .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.11em;color:var(--muted)}
 .forblock .who{font-size:16px;font-weight:800;margin:4px 0 2px}
 .forblock .meta{font-size:12.5px;color:var(--muted);line-height:1.5}
-.forblock .change{color:var(--green);font-weight:800;font-size:13px;background:none;border:0;padding:0;cursor:pointer}
+/* Not scoped to .forblock — it is used inline on the OTP and children screens too, and being
+   scoped meant those rendered an unstyled default button. */
+.change{color:var(--green);font-weight:800;font-size:13px;background:none;border:0;padding:0;cursor:pointer;font-family:inherit}
 
 .totals{padding:6px 20px 4px}
 .totals .t{display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;color:#42544b}
@@ -215,6 +224,10 @@ h2.title{font-size:23px;font-weight:800;margin:2px 0 3px;letter-spacing:-.5px}
 .otp div{flex:1;aspect-ratio:1/1.18;background:var(--field);border-radius:14px;display:grid;
   place-items:center;font-size:23px;font-weight:800}
 .otp div.filled{background:#e7f5ec;color:var(--green)}
+.otp div.next{box-shadow:inset 0 0 0 2px var(--green);background:#fff}
+.otp div.next::after{content:'';width:2px;height:26px;background:var(--green);border-radius:2px;
+  animation:blink 1.1s steps(2,start) infinite}
+@keyframes blink{to{visibility:hidden}}
 
 .check{display:flex;gap:12px;align-items:flex-start;padding:14px 0;cursor:pointer}
 .check .box{width:23px;height:23px;border-radius:7px;border:2px solid #cbd5cf;flex:0 0 23px;
@@ -273,8 +286,11 @@ h2.title{font-size:23px;font-weight:800;margin:2px 0 3px;letter-spacing:-.5px}
 .big .crow .card{flex:1 1 auto;width:100%;display:flex;gap:14px;align-items:center}
 .big .crow .thumb{width:96px;flex:0 0 96px;aspect-ratio:1/1}
 .big .tabstrip{flex-wrap:wrap;gap:14px 18px}
-.big .tabbar span{display:none}          /* labels go before the icons shrink */
-.big .tabbar svg{width:27px;height:27px}
+/* Never drop the labels: removing text is the opposite of what a larger-text setting asked
+   for. The bar grows and the icon stacks over the label instead. */
+.big .tabbar button{padding:10px 2px 8px;gap:5px;font-size:13px;line-height:1.15}
+.big .tabbar span{display:block;text-align:center}
+.big .tabbar svg{width:26px;height:26px}
 .big .totals .t{font-size:16px}
 .big .totals .t.grand{font-size:20px}
 .big .cutoff,.big .notice,.big .banner{font-size:15px}
@@ -356,10 +372,12 @@ const MENU = [
   {s:'hot-choco-milk',              n:'Hot Chocolate',                c:'Drinks', p:7000, v:'veg', a:['Milk']},
 ];
 
+/* One parent per child in v1 — co-guardians are CUT (decision `AR8`). No read-only child, no
+   permission surface, no invite flow. `can_order` stays in the schema defaulted to true. */
 const CHILDREN = [
-  {id:'c1', name:'Aarav',  school:'Alpha Public School',   cls:'5', sec:'A', brk:'Morning break · 10:40',  allergens:['Peanuts'], allergenConsent:true,  canOrder:true},
-  {id:'c2', name:'Diya',   school:'Bravo International',   cls:'4', sec:'B', brk:'Mid-morning · 10:00',    allergens:[],          allergenConsent:false, canOrder:true},
-  {id:'c3', name:'Kabir',  school:'Alpha Public School',   cls:'7', sec:'A', brk:'Morning break · 10:40',  allergens:[],          allergenConsent:true,  canOrder:false},
+  {id:'c1', name:'Aarav',  school:'Alpha Public School',   cls:'5', sec:'A', brk:'Morning break · 10:40', allergens:['Peanuts'], allergenConsent:true},
+  {id:'c2', name:'Diya',   school:'Bravo International',   cls:'4', sec:'B', brk:'Mid-morning · 10:00',   allergens:[],          allergenConsent:false},
+  {id:'c3', name:'Kabir',  school:'Alpha Public School',   cls:'7', sec:'A', brk:'Morning break · 10:40', allergens:[],          allergenConsent:true},
 ];
 
 const SCHOOLS = [
@@ -372,13 +390,22 @@ const SCHOOLS = [
    State. `flags` is what the control rail toggles — every state in the spec
    is reachable deliberately, which is the point of the prototype.
    ========================================================================= */
+/* Flags live in one literal so a deep link can RESET to it. Without the reset, loading
+   #home,cantconnect and then #menu,bigtext leaves cantconnect set and the second link renders
+   the wrong screen — which breaks the exact review workflow deep links exist for. */
+const DEFAULT_FLAGS = {
+  loading:false, empty:false, error:false, offline:false, signedout:true,
+  nochild:false, unpublished:false, cutoff:'open', pricechanged:false,
+  pending:false, noallergenconsent:false, cantconnect:false, policy:false,
+  bigtext:false,
+};
+
 const S = {
   screen:'splash', tab:'home', cat:'All', q:'', dish:null, sheet:false,
-  child:0, cart:[], otp:'', consent:false, allergenConsent:false, confirmStep:0,
-  flags:{ loading:false, empty:false, error:false, offline:false, signedout:true,
-          nochild:false, unpublished:false, cutoff:'open', pricechanged:false,
-          pending:false, noallergenconsent:false, cantconnect:false, policy:false,
-          bigtext:false }
+  child:0, cart:[], otp:'', consent:false, allergenConsent:false,
+  confirmAllergen:null,        // the pending "this contains X" confirmation, if any
+  note:'', noteWarn:false,     // per-line kitchen note (ux-spec §5.6.1)
+  flags:{ ...DEFAULT_FLAGS },
 };
 
 const rupees = p => '₹' + (p/100).toFixed(2).replace(/\.00$/,'');
@@ -387,12 +414,33 @@ const child = () => CHILDREN[S.child];
 const cartCount = () => S.cart.reduce((n,l)=>n+l.q,0);
 const subtotal = () => S.cart.reduce((n,l)=>n + l.d.p*l.q, 0);
 
-/* Allergen collision for the *selected* child — ux-spec F5/F6. */
+/* Is there actually a child whose allergen data we hold? Everything about allergen warnings
+   hangs off this, and getting it wrong in either direction is a safety defect:
+   claiming a warning we cannot compute, or staying silent about one we can. */
+const haveChild = () => !S.flags.signedout && !S.flags.nochild;
+
+/**
+ * Allergen collision for the *selected* child — ux-spec F5/F6.
+ *
+ * Returns `null` when there is **no child selected** (signed out, or signed in with none
+ * added). That is not a formality. A warning naming Aarav rendered in the signed-out state is
+ * a safety claim manufactured from data that is not there — the same defect class as swallowing
+ * a failed allergen fetch into an empty list. Callers that need to explain the *absence* of
+ * warnings use `allergenAvailability()` rather than reading a null as "safe".
+ */
 function clash(d){
+  if(!haveChild()) return null;
   const c = child();
   if(!c || !c.allergenConsent || S.flags.noallergenconsent) return null;
   const hit = (d.a||[]).filter(x => c.allergens.includes(x));
   return hit.length ? hit : null;
+}
+
+/** Why warnings are or aren't available. Distinguishes "safe" from "we cannot know". */
+function allergenAvailability(){
+  if(!haveChild()) return {ok:false, why:'no-child'};
+  if(!child().allergenConsent || S.flags.noallergenconsent) return {ok:false, why:'no-consent'};
+  return {ok:true};
 }
 
 /* ---------- small view helpers ---------- */
@@ -423,7 +471,9 @@ const ICON = {
   home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>',
   menu:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
   user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4S17.8 16.4 19 20"/></svg>',
-  back:'<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M15 5l-7 7 7 7"/></svg>'
+  back:'<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M15 5l-7 7 7 7"/></svg>',
+  google:'<svg viewBox="0 0 24 24" width="20" height="20" style="flex:0 0 20px"><path fill="#4285F4" d="M23 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.2a5.3 5.3 0 0 1-2.3 3.5v2.9h3.7c2.2-2 3.4-5 3.4-8.6z"/><path fill="#34A853" d="M12 24c3.1 0 5.7-1 7.6-2.8l-3.7-2.9c-1 .7-2.3 1.1-3.9 1.1-3 0-5.5-2-6.4-4.7H1.8v3A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.6 14.7a7.2 7.2 0 0 1 0-4.6v-3H1.8a12 12 0 0 0 0 10.7l3.8-3z"/><path fill="#EA4335" d="M12 4.8c1.7 0 3.2.6 4.4 1.7l3.2-3.2A11.6 11.6 0 0 0 12 0 12 12 0 0 0 1.8 6.1l3.8 3c.9-2.7 3.4-4.3 6.4-4.3z"/></svg>',
+  apple:'<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="flex:0 0 20px"><path d="M16.4 12.7c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.9-3.5.9s-1.8-.8-3-.8c-1.5 0-2.9.9-3.7 2.3-1.6 2.7-.4 6.8 1.1 9 .8 1.1 1.7 2.3 2.9 2.2 1.2 0 1.6-.7 3-.7s1.8.7 3 .7c1.3 0 2.1-1.1 2.8-2.2.9-1.2 1.3-2.5 1.3-2.5s-2.5-1-2.5-3.6zM14.2 5.3c.6-.8 1-1.9.9-3-.9 0-2.1.6-2.7 1.4-.6.7-1.1 1.8-1 2.9 1 0 2.1-.5 2.8-1.3z"/></svg>'
 };
 
 /* =========================================================================
@@ -539,7 +589,7 @@ V.home = () => {
           <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:10px">
             <div><div class="cname" style="font-size:16px">${featured.n}</div>
                  <div class="cprice" style="font-size:15px">${rupees(featured.p)}</div></div>
-            <span class="btn small" style="width:auto;padding:10px 22px">Order</span>
+            <span class="btn small" style="width:auto;padding:10px 22px">See dish</span>
           </div>
         </button>
       </div>
@@ -613,9 +663,9 @@ V.cart = () => {
     ${S.cart.map((l,i)=>cartRow(l,i)).join('')}
 
     <div class="cutoff ${closed?'closed':f.cutoff==='soon'?'soon':''}">
-      ${closed ? 'Ordering for Tue 12 Aug closed at 00:00 IST.'
-        : f.cutoff==='soon' ? '⏱ Ordering for Tue 12 Aug closes in 42 minutes (00:00 IST).'
-        : 'Ordering for Tue 12 Aug closes at 00:00 IST, Tuesday.'}
+      ${closed ? 'Ordering closed on Monday 11 Aug, 11:59 PM.'
+        : f.cutoff==='soon' ? '⏱ Ordering closes on Monday 11 Aug, 11:59 PM — 42 minutes left.'
+        : 'Ordering closes on Monday 11 Aug, 11:59 PM.'}
     </div>
 
     <div class="totals">
@@ -639,8 +689,8 @@ V.signin = () => shell(`
   <div class="pad">
     <h2 class="title h-green" style="font-size:27px">welcome 👋</h2>
     <p class="eyebrow" style="margin-bottom:26px">We need an account to place your order. It takes a moment, and your order is kept.</p>
-    <button class="authbtn" onclick="go('otp')"><span style="font-size:19px">🇬</span> Continue with Google</button>
-    <button class="authbtn" onclick="go('otp')"><span style="font-size:19px"></span> Continue with Apple</button>
+    <button class="authbtn" onclick="go('otp')">${ICON.google}<span>Continue with Google</span></button>
+    <button class="authbtn" onclick="go('otp')">${ICON.apple}<span>Continue with Apple</span></button>
     <div class="divider">or</div>
     <div class="field">
       <label>Email</label>
@@ -660,10 +710,15 @@ V.otp = () => {
     <div class="pad">
       <h2 class="title">Check your email</h2>
       <p class="eyebrow" style="margin-bottom:22px">We sent a six-digit code to <b style="color:var(--ink)">andy@graybag.in</b> · <button class="change" onclick="go('signin')">Change</button></p>
-      <div class="otp">${Array.from({length:6},(_,i)=>`<div class="${i<filled?'filled':''}">${S.otp[i]||''}</div>`).join('')}</div>
+      <!-- Empty boxes show a caret on the next position and nothing elsewhere. They previously
+           showed 1–6, which reads as a pre-filled code. -->
+      <div class="otp">${Array.from({length:6},(_,i)=>
+        `<div class="${i<filled?'filled':i===filled?'next':''}">${S.otp[i]||''}</div>`).join('')}</div>
       ${S.flags.error?`<div class="err" style="margin-top:10px">That code isn't right. 2 attempts left.</div>`:''}
-      <div style="height:18px"></div>
-      <div class="chips">${'123456'.split('').map(n=>`<button class="chip" onclick="typeOtp('${n}')">${n}</button>`).join('')}
+      <div style="height:20px"></div>
+      <p style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;
+                letter-spacing:.1em;margin:0 0 8px">Prototype keypad</p>
+      <div class="chips">${'0123456789'.split('').map(n=>`<button class="chip" onclick="typeOtp('${n}')">${n}</button>`).join('')}
         <button class="chip" onclick="typeOtp('')">⌫</button></div>
       <div style="height:10px"></div>
       <button class="btn" ${filled<6?'disabled':''} onclick="verifyOtp()">${filled<6?'Enter the code':'Verify'}</button>
@@ -710,6 +765,60 @@ V.addchild = () => shell(`
     </button>
     <div style="height:26px"></div>
   </div>`, false);
+
+/**
+ * Edit child — ux-spec 5.10.1. Children move up a class every year and are routinely put in the
+ * wrong section at signup, so this is a screen the average parent uses more than Add child.
+ *
+ * Two things it is not allowed to do: silently re-consent (the consent already given stands, and
+ * its version is shown rather than re-asked), and move a child to another school while they have
+ * undelivered orders (`future_orders_exist`, `D19`).
+ */
+V.editchild = () => {
+  const c = child(), f = S.flags;
+  return shell(`
+    ${bar('Edit ' + c.name, ()=>'go("children")')}
+    <div class="pad">
+      <div class="field"><label>First name</label><input value="${esc(c.name)}"></div>
+      <div class="field"><label>Last name <span style="color:var(--muted);font-weight:600">(optional)</span></label><input value="Sharma"></div>
+      <div class="field"><label>School</label><input value="${esc(c.school)}" ${f.error?'':'readonly style="color:var(--muted)"'}>
+        ${f.error
+          ? `<div class="err">${esc(c.name)} has 2 orders that haven't been delivered yet. Cancel those days before moving them to another school — they were bought against this kitchen's menu.</div>`
+          : `<div class="hint">Moving school? We'll check for orders that haven't been delivered yet.</div>`}</div>
+      <div style="display:flex;gap:12px">
+        <div class="field" style="flex:1"><label>Class</label><input value="${esc(c.cls)}"></div>
+        <div class="field" style="flex:1"><label>Section</label><input value="${esc(c.sec)}"></div>
+      </div>
+
+      <div style="border-top:1.5px solid var(--line);margin:8px 0 16px"></div>
+      <div class="notice info" style="margin:0 0 16px"><b>Consent already given</b>
+        You agreed to us holding ${esc(c.name)}'s name, class and section on 12 July 2026 (policy v2).
+        Editing these details doesn't change that.</div>
+
+      <div class="check ${c.allergenConsent?'on':''}" onclick="toggle('allergenConsent')">
+        <div class="box">${c.allergenConsent?'✓':''}</div>
+        <div class="txt"><b>Hold ${esc(c.name)}'s allergy details <span style="color:var(--muted);font-weight:600">— optional</span></b>
+          ${c.allergenConsent
+            ? 'Turning this off deletes the allergy details we hold and stops all allergen warnings for ' + esc(c.name) + '.'
+            : 'Health information about a minor, so we ask separately. Without it we can’t warn you about ingredients.'}</div>
+      </div>
+
+      ${c.allergenConsent?`
+        <div class="field" style="margin-top:14px"><label>Allergies</label>
+          <div class="chips">${['Peanuts','Milk','Egg','Wheat','Soy','Tree nuts'].map(a=>
+            `<button class="chip ${c.allergens.includes(a)?'on':''}">${a}</button>`).join('')}</div>
+        </div>`:''}
+
+      <div style="height:6px"></div>
+      <button class="btn" ${f.offline?'disabled':''} onclick="go('children')">
+        ${f.offline?'You’re offline':'Save changes'}</button>
+      <div style="height:12px"></div>
+      <button class="btn ghost" style="color:var(--danger);border-color:#f0d4d1" onclick="go('children')">
+        Remove ${esc(c.name)}</button>
+      <p class="tiny" style="padding:14px 0 26px;text-align:center">Removing stops ordering for
+        ${esc(c.name)}. Past orders and invoices are kept — we're required to.</p>
+    </div>`, false);
+};
 
 V.checkout = () => {
   const sub = subtotal(), cgst=Math.round(sub*0.025), sgst=Math.round(sub*0.025), c=child();
@@ -824,10 +933,10 @@ V.children = () => shell(`
       <div style="flex:1">
         <div class="rname">${c.name} · Class ${c.cls}-${c.sec}</div>
         <div class="rmeta">${c.school}<br>${c.brk}</div>
-        ${!c.canOrder?`<div style="font-size:11.5px;color:#8f6a00;font-weight:700;margin-top:5px">View only — ${c.name}'s other guardian manages ordering</div>`:''}
         ${c.allergens.length?`<div style="font-size:11.5px;color:#8f2018;font-weight:700;margin-top:5px">Allergies: ${c.allergens.join(', ')}</div>`:''}
         ${!c.allergenConsent?`<div style="font-size:11.5px;color:var(--muted);margin-top:5px">No allergy details shared — we can't warn you about ingredients</div>`:''}
       </div>
+      <span class="change" style="padding:8px 10px" onclick="event.stopPropagation();go('editchild')">Edit</span>
       ${i===S.child?`<div style="color:var(--green);font-weight:800">✓</div>`:'<div style="color:var(--muted)">›</div>'}
     </button>`).join('')}
   <div class="pad" style="margin-top:20px"><button class="btn ghost" onclick="go('addchild')">Add another child</button></div>
@@ -884,7 +993,7 @@ V.cantconnect = () => `
    Fragments
    ========================================================================= */
 function shell(inner, showTabs = true, sticky = ''){
-  return `<div class="body">${inner}</div>${sticky}${showTabs?tabbar():''}`;
+  return `<div class="body${sticky?' has-sticky':''}">${inner}</div>${sticky}${showTabs?tabbar():''}`;
 }
 
 function appbar(){
@@ -952,6 +1061,7 @@ function cartRow(l,i){
       <div class="rname">${l.d.n}</div>
       <div class="rmeta">${rupees(l.d.p)} each · excl. GST</div>
       ${cl?`<div style="font-size:11.5px;color:#8f6a00;font-weight:700;margin-top:4px">⚠ Contains ${cl.join(', ')} — ${child().name} is allergic</div>`:''}
+      ${l.note?`<div style="font-size:11.5px;color:var(--muted);margin-top:4px">Note: ${esc(l.note)}</div>`:''}
     </div>
     <div class="stepper">
       <button onclick="qty(${i},-1)">−</button><span>${l.q}</span><button class="plus" onclick="qty(${i},1)">+</button>
@@ -986,14 +1096,25 @@ function sheet(){
   const d = MENU.find(x=>x.s===S.dish); if(!d) return '';
   const cl = clash(d), src = img(d.s), c = child();
   const closed = S.flags.cutoff==='closed';
+  const avail = allergenAvailability();
 
+  /* Four cases, and the difference between them is the safety property:
+     "this clashes with YOUR child" / "the kitchen declared none" / "the kitchen declared
+     these" / "we cannot check for you". The last must never be dressed as the second. */
   const allergenBlock = cl
     ? `<div class="notice warn" style="margin:16px 0 0"><b>⚠ Contains ${cl.join(', ')}</b>
-         ${c.name} is allergic to ${cl.join(' and ')}. You can still order this — we'll ask you to confirm.</div>`
+         ${c.name} is allergic to ${cl.join(' and ')}. You can still order it — we'll ask you to confirm first.</div>`
+    : !avail.ok
+    ? `<div class="notice" style="margin:16px 0 0;background:#f4f6f5;color:#5d6b64;border:1.5px solid var(--line)">
+         <b>We can't check this against your child</b>${
+           avail.why==='no-child'
+             ? 'Choose a child before you order and we\'ll warn you about anything they\'re allergic to.'
+             : 'You haven\'t shared allergy details, so we can\'t warn you about ingredients.'
+         }${(d.a && d.a.length) ? ` The kitchen declares this dish contains ${d.a.join(', ')}.` : ''}</div>`
     : d.none
     ? `<div class="notice info" style="margin:16px 0 0"><b>No allergens</b>The kitchen has declared this dish free of the allergens we track.</div>`
     : (d.a && d.a.length)
-    ? `<div class="notice info" style="margin:16px 0 0"><b>Contains ${d.a.join(', ')}</b>Declared by the kitchen.</div>`
+    ? `<div class="notice info" style="margin:16px 0 0"><b>Contains ${d.a.join(', ')}</b>Declared by the kitchen. None of these is one of ${c.name}'s.</div>`
     : `<div class="notice" style="margin:16px 0 0;background:#f4f6f5;color:#5d6b64;border:1.5px solid var(--line)">
          <b>Allergen information not provided</b>The kitchen hasn't told us about this dish either way. That is not the same as "no allergens".</div>`;
 
@@ -1016,20 +1137,70 @@ function sheet(){
         </div>
         ${allergenBlock}
         <div class="forblock" style="margin:16px 0 0">
-          <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div><div class="lbl">For</div>
-              <div style="font-size:14px;font-weight:700;margin-top:3px">
-                ${S.flags.signedout?'Chosen at checkout':c.name+' · Tue 12 Aug'}</div></div>
-            ${S.flags.signedout?'':'<button class="change">Change</button>'}
+              <div style="font-size:15px;font-weight:800;margin-top:3px">
+                ${haveChild()?`${c.name} · Class ${c.cls}-${c.sec}`:'No child chosen yet'}</div>
+              <div class="meta">${haveChild()
+                ? `${c.school}<br>${c.brk} · Tuesday 12 August`
+                : 'You\'ll choose the child and the day when you place the order.'}</div></div>
+            ${haveChild()?`<button class="change" onclick="go('children')">Change</button>`:''}
           </div>
         </div>
-        ${closed?`<div class="cutoff closed" style="margin:14px 0 0">Ordering for Tue 12 Aug has closed. Pick another day to add this.</div>`:''}
+
+        <!-- ux-spec §5.6.1: a note is a request to the kitchen, never allergy information. -->
+        <div class="field" style="margin:16px 0 0">
+          <label>Note for the kitchen <span style="color:var(--muted);font-weight:600">(optional)</span></label>
+          <input placeholder="e.g. less spicy, cut into halves" value="${esc(S.note)}"
+                 oninput="noteChanged(this.value)">
+          <div class="hint">Requests only — the kitchen reads these. <b>Do not put allergies here.</b>
+            Allergies go on your child's profile so we can warn you before you order.</div>
+          ${S.noteWarn?`<div class="notice warn" style="margin:10px 0 0"><b>That looks like allergy information</b>
+            Notes are requests, not a safety record — nobody checks them against the menu. Add it to
+            ${haveChild()?esc(c.name)+'’s':'your child’s'} allergy details instead and we'll warn you automatically.
+            <div style="margin-top:10px"><button class="btn small" style="width:auto;padding:9px 18px"
+              onclick="go('editchild')">Add to allergy details</button></div></div>`:''}
+        </div>
+
+        ${closed?`<div class="cutoff closed" style="margin:14px 0 0">Ordering for Tuesday 12 August has closed. Pick another day to add this.</div>`:''}
         <p class="tiny" style="padding:14px 0 0">Price excludes GST. 5% is added at checkout.</p>
       </div>
       <div class="sticky">
-        <button class="btn" ${closed?'disabled':''} onclick="addToCart('${d.s}')">
-          ${closed?'Ordering has closed':cl?`Add anyway · ${rupees(d.p)}`:`Add to order · ${rupees(d.p)}`}
+        <button class="btn" ${closed?'disabled':''} onclick="requestAdd('${d.s}')">
+          ${closed?'Ordering has closed':`Add to cart · ${rupees(d.p)}`}
         </button>
+      </div>
+    </div>
+    ${allergenConfirm()}`;
+}
+
+/**
+ * The second, deliberate tap — ux-spec §5.6.
+ *
+ * A confirmation's job cannot be done by a word in a button label. "Add anyway" is one tap, and
+ * it is also a reprimand: a parent may have an entirely good reason (a mild intolerance, a dish
+ * the kitchen makes differently for them). So the button stays neutral and the decision gets its
+ * own surface, naming the child and the allergen.
+ */
+function allergenConfirm(){
+  const s = S.confirmAllergen;
+  if(!s) return '';
+  const d = MENU.find(x=>x.s===s.dish); if(!d) return '';
+  return `<div class="scrim" style="z-index:7" onclick="S.confirmAllergen=null;render()"></div>
+    <div class="sheet" style="z-index:8;border-radius:26px;left:18px;right:18px;bottom:auto;top:50%;
+         transform:translateY(-50%);max-height:none;animation:none">
+      <div class="inner" style="padding:24px 22px 6px">
+        <div style="width:46px;height:46px;border-radius:15px;background:#fff6e3;display:grid;
+             place-items:center;font-size:23px;margin-bottom:14px">⚠</div>
+        <div style="font-size:19px;font-weight:800;letter-spacing:-.3px;line-height:1.3">
+          ${esc(d.n)} contains ${s.allergens.join(' and ')}</div>
+        <p style="font-size:14px;color:#42544b;line-height:1.55;margin:10px 0 0">
+          ${esc(s.childName)} is allergic to ${s.allergens.join(' and ')}. Add it to this order anyway?</p>
+      </div>
+      <div class="sticky" style="border-top:0">
+        <button class="btn amber" onclick="confirmAdd()">Yes, add it for ${esc(s.childName)}</button>
+        <div style="height:10px"></div>
+        <button class="btn ghost" onclick="S.confirmAllergen=null;render()">Don't add it</button>
       </div>
     </div>`;
 }
@@ -1059,7 +1230,7 @@ function renderRail(){
   const screens = [
     ['splash','Splash'],['school','Choose school'],['home','Home'],
     ['menu','Menu'],['cart','Cart · review'],['signin','Sign in'],['otp','Email code'],
-    ['addchild','Add child'],['paying','Confirming payment'],
+    ['addchild','Add child'],['editchild','Edit child'],['paying','Confirming payment'],
     ['confirmed','Order placed'],['orders','Orders'],['orderdetail','Order detail'],
     ['children','Your children'],['account','Account'],['policy','Policy gate']
   ];
@@ -1111,11 +1282,39 @@ function pickChild(i){ S.child=i; go('home'); }
 function openDish(s){ S.dish=s; S.sheet=true; render(); }
 function closeDish(){ S.sheet=false; render(); }
 
+/* Words a parent reaches for when they mean an allergy. Deliberately broad: a false positive
+   costs one dismissible prompt, a false negative is allergy information sitting in a free-text
+   field nobody has committed to reading. */
+const ALLERGY_WORDS = /\b(allerg|anaphyla|intoleran|coeliac|celiac|lactose|gluten|peanut|nut|dairy|milk|egg|soy|sesame|epipen)/i;
+function noteChanged(v){
+  S.note = v;
+  S.noteWarn = ALLERGY_WORDS.test(v);
+  render();
+}
+
+/** Adding is one tap, unless it collides with the child's allergens — then it is two. */
+function requestAdd(s){
+  const d = MENU.find(x=>x.s===s);
+  const cl = clash(d);
+  if(cl){
+    S.confirmAllergen = { dish:s, allergens:cl, childName:child().name };
+    render();
+    return;
+  }
+  addToCart(s);
+}
+function confirmAdd(){
+  const s = S.confirmAllergen?.dish;
+  S.confirmAllergen = null;
+  if(s) addToCart(s);
+}
 function addToCart(s){
   const d = MENU.find(x=>x.s===s);
-  const line = S.cart.find(l=>l.d.s===s);
-  if(line) line.q++; else S.cart.push({d,q:1});
-  S.sheet=false; render();
+  const note = S.note.trim();
+  // One line per dish+note: "less spicy" on one wrap and not the other are two lines.
+  const line = S.cart.find(l=>l.d.s===s && (l.note||'')===note);
+  if(line) line.q++; else S.cart.push({d,q:1,note});
+  S.sheet=false; S.note=''; S.noteWarn=false; render();
 }
 function qty(i,delta){
   S.cart[i].q += delta;
@@ -1147,10 +1346,23 @@ function confirmed(){ go('confirmed'); }
    `#menu`, or `#menu,loading,bigtext` to land on a screen with states already forced. So a
    review comment can point at the exact thing it is about instead of describing how to get
    there. The rail keeps the hash current as you click. */
+/** Hash tokens that are not screen names. build.mjs verifies the README against these. */
+const HASH_TOKENS = new Set([...Object.keys(DEFAULT_FLAGS), 'signedin', 'cart']);
+/** `dish` is a sheet over the menu rather than a screen, so it is valid but not in `V`. */
+const HASH_SCREENS = new Set([...Object.keys(V), 'dish']);
+
 function applyHash(){
   const raw = decodeURIComponent(location.hash.replace(/^#/,'')).trim();
   if(!raw) return false;
   const [screen, ...flags] = raw.split(',').map(x=>x.trim()).filter(Boolean);
+
+  // RESET first. A deep link describes a whole state, not a diff against whatever the last one
+  // left behind — otherwise the second link a reviewer clicks shows the wrong thing.
+  S.flags = { ...DEFAULT_FLAGS };
+  S.cart = []; S.sheet = false; S.dish = null; S.q = ''; S.cat = 'All';
+  S.otp = ''; S.consent = false; S.allergenConsent = false;
+  S.confirmAllergen = null; S.note = ''; S.noteWarn = false;
+
   if(screen && V[screen]) S.screen = screen;
   if(['home','menu','cart','account','orders'].includes(screen)) S.tab = screen;
   flags.forEach(f=>{
@@ -1159,6 +1371,8 @@ function applyHash(){
     else if(f in S.flags) S.flags[f] = true;
   });
   if(flags.includes('signedin')) S.flags.signedout = false;
+  // `#dish` is a sheet over the menu, not a screen of its own.
+  if(screen === 'dish'){ S.screen = 'menu'; S.tab = 'menu'; S.dish = S.dish || 'mix-veg-poha'; S.sheet = true; }
   return true;
 }
 function syncHash(){

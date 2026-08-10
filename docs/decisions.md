@@ -45,7 +45,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Legacy assets outside git](decisions/legacy-assets.md) | `RH1`–`RH4` | Why the 46 MB design package and the fonts are not in history |
 | [The privilege baseline](decisions/privilege-baseline.md) | `PB1`–`PB5` | GRANT written down, not inherited from the platform |
 | [Bubble export constraints](decisions/bubble-export.md) | `BR1`, `BR3`–`BR5`, `BR7` | Migration key, draft orders, label mapping, regulated free text |
-| [Andy's rulings on the recon findings](decisions/recon-rulings.md) | `AR1`–`AR7` | Parent↔child from orders, binary roles, the moving email domain |
+| [Andy's rulings on the recon findings](decisions/recon-rulings.md) | `AR1`–`AR8` | Parent↔child from orders, binary roles, the moving email domain |
 | [Documentation](decisions/documentation.md) | `DOC1` | Why the decision log is one index plus per-area files |
 
 ## Finding a decision by ID

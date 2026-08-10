@@ -32,15 +32,28 @@ the states that are never designed are the ones you can only reach by breaking s
 thing it is about:
 
 ```
-#menu                          the menu
-#menu,signedin,bigtext         the menu at the largest accessibility text size
-#cart,signedin,cart            a filled cart
-#cart,signedin,cart,cutoff:closed   …after the cutoff passed
-#menu,unpublished              a school with no published menu
-#home,cantconnect              the backend is unreachable  ← not the same screen as the one above
+#menu                              the menu
+#menu,signedin,bigtext             the menu at the largest accessibility text size
+#dish,signedin                     a dish that clashes with the selected child's allergens
+#dish                              …the same dish signed out, where no warning can exist
+#cart,signedin,cart                a filled cart
+#cart,signedin,cart,cutoff:closed  …after the cutoff passed
+#editchild,signedin                edit child
+#editchild,signedin,error          …blocked by undelivered orders
+#menu,unpublished                  a school with no published menu
+#home,cantconnect                  the backend is unreachable  ← not the same as the line above
 ```
 
-The last two are the distinction that cost us three hours, so it is worth tapping both.
+The last two are the distinction that cost us three hours, so it is worth tapping both. So is the
+pair of `#dish` links: signed in it names the child and the allergen; signed out it says plainly
+that it cannot check, because there is no child to check against.
+
+**Every link here is verified at build time.** `build.mjs` parses this file, resolves each screen
+and flag token against the prototype, and fails if one does not exist — `#dish` was documented
+before it worked, and silently fell back to the splash screen.
+
+State does not leak between links: each one resets to defaults before applying, so the second
+link you click shows what it says.
 
 ## Where it deliberately differs from the reference PNGs
 

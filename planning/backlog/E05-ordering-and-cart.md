@@ -36,3 +36,8 @@ summary: Recipients, cart, cutoff enforcement, break/drop time selection, and or
 - [ ] `E05-22` (risk:high) Collapse `order_group` per `docs/order-lifecycle.md` §14 — one child, one service date per checkout is decided (ux-spec §8.5). Retire the multi-date checkout paths rather than leaving them unreachable
 - [ ] `E05-23` (risk:high) Implement the cutoff grace window `L9` — `cutoff_at + grace`, per-kitchen config, default 15 minutes; settlement after it is refused and auto-refunded. Test both sides of the boundary
 - [ ] `E05-24` Merge the checkout review into the cart and drop the Welcome screen (ux-spec §6.1.1) — 11 screens to 8 on the first-order path
+
+- [ ] `E05-25` (risk:critical) Audit every allergen surface against a null child — dish card flag, dish detail, cart line. A warning naming a child must be impossible to render when no child is selected (ux-spec §5.6)
+- [ ] `E05-26` (risk:high) The allergen second-confirm is its own surface naming the child and the allergen, not an "Add anyway" button label (ux-spec §5.6)
+- [ ] `E05-27` Per-line kitchen note with its stated contract and the allergy-language diversion to Edit child (ux-spec §5.6.1) — **blocked on `E09-11`**
+- [ ] `E05-28` Remove every co-guardian and read-only-child surface per `AR8`; `can_order` stays in the schema defaulted true
