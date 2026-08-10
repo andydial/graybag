@@ -59,6 +59,17 @@ E17-02 E17-03 E17-04 E17-06 E17-07 E17-08 E17-09 E17-10 E17-11 E17-12 E17-13
 E19-01 E19-02 E19-03 E19-04
 
 E20-02 E20-03 E20-04 E20-06 E20-07 E20-10
+
+// E21 — screen design. ADDED TO v1 BY ANDY, 2026-08-10.
+//
+// Not scope creep: a screen built without its design was never done, we simply had no way to
+// say so until docs/ux-spec.md and the prototype existed. The 173-task list was fixed before
+// either, so this work had no id and therefore no way to be counted, which is exactly how E13
+// shipped tokens, we both ticked "design done", and the app stayed a wireframe for weeks.
+//
+// Baseline moves from 174 to 194.
+E21-01 E21-02 E21-03 E21-04 E21-05 E21-06 E21-07 E21-08 E21-09 E21-10
+E21-11 E21-12 E21-13 E21-14 E21-15 E21-16 E21-17 E21-18 E21-19 E21-20
 `.trim().split(/\s+/));
 
 const LINE = /^(\s*-\s*\[[ xX]\]\s*`([A-Z0-9-]+)`\s*)((?:\(risk:\w+\)\s*)?(?:\(owner:\w+\)\s*)?)((?:\(mvp\)\s*)?)(.*)$/;

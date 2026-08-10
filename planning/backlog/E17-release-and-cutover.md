@@ -57,3 +57,5 @@ Note: Android supports halt-and-revert; **iOS has no true rollback**, so a fix m
 - [ ] `E17-27` (owner:andy) **App Store Connect app id (`ascAppId`)** for `eas submit`. Deliberately absent from `eas.json` (see `docs/decisions/environments.md`) — a guessed value submits to somebody else's listing. Not needed until the first submit
 - [ ] `E17-25` **Decouple Gate G3 (point of no return) from the overnight run.** Reach the reversible Gate G2 overnight, then a mandatory operator rest gate, then sign G3 fresh (Sat afternoon or Sun morning) — the weekend freeze has slack (42h soak, no Sat/Sun service). Implements the option chosen in `[CO-08]` (review finding #23)
 - [x] `E17-28` **Split the non-production app identity** — `com.gracord.graybag.staging` / `com.Gracord.Graybag.staging`, display name "GrayBag Staging", its own URL scheme. An internal build must install *beside* the live store app, never over it
+
+- [ ] `E17-29` Keep `docs/andy-prep/` matching reality — when Andy submits a form or gets an answer, fold it back into the repo so the drafts do not drift into fiction

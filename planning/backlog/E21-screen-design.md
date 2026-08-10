@@ -27,54 +27,54 @@ rather than ticking it.
 
 ## Tasks
 
-- [ ] `E21-01` (risk:high) **Cart** — ux-spec §5.7. States: empty · loaded · signed-out · no
+- [ ] `E21-01` (risk:high) (mvp) **Cart** — ux-spec §5.7. States: empty · loaded · signed-out · no
       recipient · repricing · price-changed · cutoff-passed · item-unavailable · offline ·
       restored-after-kill · error. *Partly built (`b34e957`); not yet compared against every state
       on a device, and the cutoff, break time and allergen lines are absent pending E05-29/30/31*
-- [ ] `E21-02` (risk:high) **Menu** — §5.5. States: loading (six skeleton cards) · loaded ·
+- [ ] `E21-02` (risk:high) (mvp) **Menu** — §5.5. States: loading (six skeleton cards) · loaded ·
       empty-unpublished · empty-search · empty-category · error · offline/stale · partial
       (allergens failed → flags suppressed and said so) · AX5 single column
-- [ ] `E21-03` (risk:high) **Dish detail** — §5.6. States: loading · loaded · no photo (pattern
+- [ ] `E21-03` (risk:high) (mvp) **Dish detail** — §5.6. States: loading · loaded · no photo (pattern
       tile) · signed-out · no recipient · allergen clash unconfirmed · allergen clash confirmed ·
       cannot-check · kitchen-declared-none · nothing-declared · unavailable · cutoff passed ·
       offline. **Includes `E05-32`: adding to cart must not require a recipient**
-- [ ] `E21-04` (risk:high) **Add child / Add someone** — §5.10. States: empty form · invalid ·
+- [ ] `E21-04` (risk:high) (mvp) **Add child / Add someone** — §5.10. States: empty form · invalid ·
       saving · saved · school-not-served · consent missing · allergy details without consent ·
       offline · error
-- [ ] `E21-05` **Edit child** — §5.10.1. States: loading · loaded · invalid · saving · saved ·
+- [ ] `E21-05` (mvp) **Edit child** — §5.10.1. States: loading · loaded · invalid · saving · saved ·
       school change blocked by undelivered orders · allergen consent being withdrawn · removing ·
       offline · unreachable · error
-- [ ] `E21-06` **Sign in** — §5.8. States: default · email sent · cancelled · error · offline.
+- [ ] `E21-06` (mvp) **Sign in** — §5.8. States: default · email sent · cancelled · error · offline.
       Must keep the "New here?" line — a screen offering no visible way to create an account
       reads as broken
-- [ ] `E21-07` **Email OTP** — §5.9 and §5.9.1. States: awaiting · verifying · wrong code ·
+- [ ] `E21-07` (mvp) **Email OTP** — §5.9 and §5.9.1. States: awaiting · verifying · wrong code ·
       expired · resend cooling down · resent · too many attempts · offline · **returned from
       background** (digits, timer and pending address survive)
-- [ ] `E21-08` **Home** — §5.4. States: signed out · signed in no recipient · one recipient ·
+- [ ] `E21-08` (mvp) **Home** — §5.4. States: signed out · signed in no recipient · one recipient ·
       several · loading · menu unpublished · offline · error
-- [ ] `E21-09` **Choose school** — §5.3. States: loading · loaded · empty search · empty list ·
+- [ ] `E21-09` (mvp) **Choose school** — §5.3. States: loading · loaded · empty search · empty list ·
       error · offline. Carries the merged welcome header (§6.1.1 cut 1)
-- [ ] `E21-10` **Orders list** — §5.14. States: loading · loaded · empty · signed out · offline ·
+- [ ] `E21-10` (mvp) **Orders list** — §5.14. States: loading · loaded · empty · signed out · offline ·
       error
-- [ ] `E21-11` **Order detail** — §5.15. States: loading · loaded · cancellable · not cancellable
+- [ ] `E21-11` (mvp) **Order detail** — §5.15. States: loading · loaded · cancellable · not cancellable
       (with the reason) · cancelling · cancelled · refund pending · refunded · refund failed ·
       offline · error
-- [ ] `E21-12` **Your children / Who you order for** — §5.16. States: loading · loaded · empty ·
+- [ ] `E21-12` (mvp) **Your children / Who you order for** — §5.16. States: loading · loaded · empty ·
       unreachable · error
-- [ ] `E21-13` **Account** — §5.17. States: signed out · signed in. Keeps the build label
+- [ ] `E21-13` (mvp) **Account** — §5.17. States: signed out · signed in. Keeps the build label
       (environment + commit)
-- [ ] `E21-14` **Checkout and payment** — §5.11, §5.12. States: preflight running · ready ·
+- [ ] `E21-14` (mvp) **Checkout and payment** — §5.11, §5.12. States: preflight running · ready ·
       each refusal code in §7 · submitting · handing off · sheet dismissed · failed · succeeded ·
       **payment_pending (waiting, never a tick)** · app killed mid-payment
-- [ ] `E21-15` **Order confirmed** — §5.13. Single state, unreachable until settlement confirms
-- [ ] `E21-16` **Policy acceptance gate** — §5.19. States: not required · required · accepting ·
+- [ ] `E21-15` (mvp) **Order confirmed** — §5.13. Single state, unreachable until settlement confirms
+- [ ] `E21-16` (mvp) **Policy acceptance gate** — §5.19. States: not required · required · accepting ·
       error. Blocks writes, never browsing
-- [ ] `E21-17` (risk:high) **Can't connect** — §5.20. The screen that separates "we cannot reach
+- [ ] `E21-17` (risk:high) (mvp) **Can't connect** — §5.20. The screen that separates "we cannot reach
       GrayBag" from "this school has no menu". States: unreachable · unconfigured (names the
       missing variables, non-production only)
-- [ ] `E21-18` **Splash** — §5.1. States: default · slow start · unconfigured → 5.20 · update
+- [ ] `E21-18` (mvp) **Splash** — §5.1. States: default · slow start · unconfigured → 5.20 · update
       required → 5.19
-- [ ] `E21-19` **Support** — §5.18. Grievance officer contact (compliance). States: loaded · error
-- [ ] `E21-20` A count in `planning/backlog.html` of screens designed versus stubbed, so "how
+- [ ] `E21-19` (mvp) **Support** — §5.18. Grievance officer contact (compliance). States: loaded · error
+- [ ] `E21-20` (mvp) A count in `planning/backlog.html` of screens designed versus stubbed, so "how
       much of the app looks like the product" is answerable at a glance rather than by reading
       this file

@@ -8,7 +8,9 @@ Filter the dashboard to **MVP (v1) only** + **Open only** to see just this work.
 
 ## Where we actually are — refreshed 2026-08-10
 
-**58 of 174 MVP tasks done. 33%. 116 remaining.** Counted from `planning/backlog-state.json`
+**58 of 194 MVP tasks done. 30%. 136 remaining.** Re-baselined 2026-08-10 when Andy put
+E21's 20 screen-design tasks into v1 — not scope creep, scope that was always implied and
+never written down. Counted from `planning/backlog-state.json`
 against the ids in `scripts/tag-mvp.mjs`, not estimated.
 
 | Epic | MVP done | Remaining | Note |
@@ -33,15 +35,16 @@ against the ids in `scripts/tag-mvp.mjs`, not estimated.
 | E19 spikes | 3/4 | 1 | |
 | E20 compliance | 1/6 | 5 | |
 | **E11 school reporting** | **0/0** | — | **Not in the MVP list at all.** Fast-follow by omission — see below |
-| **E21 screen design** | 0/20 | 20 | **New.** Not in the 174; see below |
+| **E21 screen design** | 0/20 | 20 | **In v1 as of 2026-08-10.** A screen without its design was never done |
 
 ### Two counting facts worth stating plainly
 
-1. **`E21` is not in the 174.** The MVP list was fixed before the ux-spec existed, so the work
-   of making each screen look like the product was never a task. It is now 20 tasks. Whether
-   they join the MVP count is Andy's call (`docs/mvp-scope.md`: never add an id yourself).
-2. **`E11` school reporting has zero MVP tasks.** It became fast-follow by omission, not by
-   decision. If a school expects a monthly report at launch, that is a gap nobody has agreed to.
+1. **`E21` is now in the count** (Andy, 2026-08-10). The list was fixed before the ux-spec
+   existed, so making each screen look like the product had no id and could not be counted —
+   which is how E13 shipped tokens and the app stayed a wireframe. Baseline 174 → 194.
+2. **`E11` school reporting is fast-follow BY DECISION** (`P15`), not by omission. Andy is
+   confirming with the schools whether a monthly report is expected at launch. If one is, we
+   have chosen the gap rather than discovered it.
 
 ---
 
@@ -55,14 +58,14 @@ In order. Everything else waits on these.
 | 2 | **E03 + E21-04/06/07** — sign-in, OTP, add child | The one gate. Email OTP works; the screens need building to the prototype |
 | 3 | **E06 payments** (15 tasks, none started) | **The longest single stretch left.** Nothing takes money without it, and `E07` invoicing sits behind it |
 | 4 | **E21-14/15** — checkout, payment waiting, confirmation | The `payment_pending` state is a correctness requirement (`R8`), not decoration |
-| 5 | **E09 kitchen ops** | The kitchen cannot see an order except through a terminal command today. The business stops without it |
-| 6 | **E07 invoicing + E08 email** | A paid order with no invoice is a compliance problem |
-| 7 | **E20 compliance** (5 left) | Six named tasks; the store will not accept the app without the policy pages and account deletion |
-| 8 | **E17 cutover** | Store submission, which has its own external latency |
+| 5 | **E15 observability** (6 tasks) | **Moved here from the end, 2026-08-10 (Andy).** Launching without it means the first production failure is reported by a parent whose child got no lunch, by phone. It goes in *before* the kitchen and the invoices because it is what tells us those are broken |
+| 6 | **E09 kitchen ops** | The kitchen cannot see an order except through a terminal command today. The business stops without it |
+| 7 | **E07 invoicing + E08 email** | A paid order with no invoice is a compliance problem |
+| 8 | **E20 compliance** (5 left) | Six named tasks; the store will not accept the app without the policy pages and account deletion |
+| 9 | **E17 cutover** | Store submission, which has its own external latency |
 
-**Off the critical path but not optional:** `E15` observability (six tasks — without it a
-production failure is invisible), `E12` marketing site, `E16` migration (`E16-43` image upload
-is the exception; it blocks the app looking real).
+**Off the critical path but not optional:** `E12` marketing site, `E16` migration (`E16-43` image
+upload is the exception; it blocks the app looking real).
 
 ---
 
@@ -71,9 +74,9 @@ is the exception; it blocks the app looking real).
 | Epic | Still MVP? | Honest read |
 |---|---|---|
 | **E10 admin** | Yes, 8 tasks | At risk. Nothing depends on it day to day, so it will keep losing to whatever is on fire |
-| **E11 school reporting** | **No — 0 MVP tasks** | Already fast-follow, by omission rather than decision. **Needs an explicit call** |
+| **E11 school reporting** | **No — fast-follow by decision (`P15`)** | Chosen, not discovered. Andy is confirming with the schools whether a monthly report is expected at launch |
 | **E12 marketing** | Yes, 6 tasks | At risk, and it is the thing a school looks at before signing |
-| **E15 observability** | Yes, 6 tasks | **The most dangerous omission.** Launching without it means the first production failure is reported by a parent |
+| **E15 observability** | Yes, 6 tasks | ~~The most dangerous omission~~ — **pulled onto the critical path immediately after payments, 2026-08-10.** No longer at risk of being forgotten |
 | **E16 migration** | Yes, 10 tasks | Partly at risk. `E16-43` (dish images into Storage) has moved onto the near-term path |
 | **E17 cutover** | Yes, 11 tasks | Has external latency — store review takes days that cannot be compressed |
 
