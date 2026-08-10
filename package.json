@@ -39,7 +39,8 @@
     "dev:mobile:prod": "cp apps/mobile/.env.production apps/mobile/.env && npm --prefix apps/mobile run start",
     "ota:staging": "npm run smoke && npm --prefix apps/mobile exec -- eas update --branch staging",
     "ota:production": "npm run smoke && npm --prefix apps/mobile exec -- eas update --branch production",
-    "check:maestro": "node scripts/check-maestro-ids.mjs"
+    "check:maestro": "node scripts/check-maestro-ids.mjs",
+    "check:config": "node scripts/check-supabase-config.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 37 open of 41.
+Your tasks only — 39 open of 43.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -30,6 +30,8 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E00-15` Export a full Bubble data dump (users, children, orders, dish_in_order, schools, kitchens, menus) — hand it over; the build side inspects and reports on it in E19-04
 - [ ] `E00-18` Check whether any legacy prepaid card / wallet balances exist off-system for early users; if so they must be migrated as opening ledger credits (see E16-15)
 - [ ] `E00-19` _(fast-follow)_ Decide the customer self-cancellation window ([PP-01]) and the post-delivery refund stance ([PP-02]) for the refund policy. These are the final customer-facing values docs/refund-policy.md is blocked on; drafts ship with tokens until set
+- [ ] `E00-20` _(fast-follow)_ (risk:critical) (mvp) Fix the four failing Supabase auth settings on staging — npm run check:config names them: OTP length 8 → 6, Site URL still localhost:3000, empty redirect allow-list, and an email rate limit of 2 per hour (project-wide, so the third parent signing in at the school gate gets nothing). Dashboard only; no PR can fix these
+- [ ] `E00-21` _(fast-follow)_ (risk:high) (mvp) A real SMTP sender before production — Supabase's built-in email is a handful of messages an hour with no delivery guarantee, and for an OTP-only product that means nobody can sign in. Resend/SES/Postmark with SPF and DKIM
 - [x] `E01-00` One-off: authorise the GitHub (gh auth login) and Supabase CLIs on your machine — after this the build side creates and manages both
 - [ ] `E01-20` _(fast-follow)_ (risk:high) Put the staging Supabase credentials into GitHub Actions secrets — SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD and the staging project ref. E01-04 created the project, but the values were never supplied, so Deploy to staging has failed on every run since 2026-08-08 (supabase link --project-ref ""). CI's required checks are unaffected and green; nothing has ever actually deployed
 - [ ] `E01-21` _(fast-follow)_ Supply the staging client env values — the staging Supabase URL and anon key, plus the Razorpay test key id (rzp_test_…), either into apps/mobile/.env.staging (from .env.staging.example) or as EAS environment variables. Without them a staging build compiles but opens to an app that cannot reach any backend, so there is nothing to look at on a handset. EAS builds from a git archive, so a gitignored .env.staging is not uploaded — for a real device build these must be EAS env vars, not a local file

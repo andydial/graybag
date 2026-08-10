@@ -127,3 +127,47 @@ Two other things that bit on the way through, both worth recognising on sight:
   host is IPv6-only. A successful `link` records the IPv4 pooler and the error goes away,
   which is why the fix is to link rather than to fight the resolver.
 
+
+---
+
+## 6. Project configuration the repo does not own
+
+**`supabase/config.toml` configures the local stack and nothing else.** Every hosted-project
+setting below lives in the Supabase dashboard: it is not in a migration, not in a test, and
+invisible to CI. That is the whole problem — **it looks configured because nothing says
+otherwise.**
+
+It cost a day on 2026-08-10. The magic-link email template still used `{{ .ConfirmationURL }}`,
+so Supabase emailed a *link* while the app sat waiting for a six-digit code, and the link opened
+a blank page because Site URL was never set. Nothing in this repository could have caught it,
+and nothing would have caught it again the day we point at production — with real parents on the
+other end.
+
+### The checklist, per environment
+
+Run `npm run check:config` (staging) rather than reading this by eye. The list is here so a
+human can see *what* is being asserted and *why*; the script is what actually asserts it.
+
+| # | Setting | Required value | Symptom when wrong |
+|---|---|---|---|
+| 1 | **Auth → Email templates → Magic Link** | Contains `{{ .Token }}`, **not** `{{ .ConfirmationURL }}` | A parent gets a link instead of a code; the app waits for a code that never arrives |
+| 2 | **Auth → Email OTP length** | **6** | The screen says "six-digit code" and the email carries eight |
+| 3 | **Auth → Email OTP expiry** | ≥ 600s. 3600s is fine | Too short and a parent who switches to Mail and back is already too late |
+| 4 | **Auth → URL Configuration → Site URL** | The real host. **Never `localhost`** | Every generated link opens a blank page on the recipient's phone |
+| 5 | **Auth → URL Configuration → Redirect allow-list** | Includes the app scheme for that environment — `graybag-dev://`, `graybag-staging://`, `graybag://` | Deep links and any future OAuth callback cannot return to the app |
+| 6 | **Auth → Rate limits → Emails sent** | ≥ 10/hour for staging; sized to the school roll for production | **Project-wide, not per user.** At 2/hour the third parent signing in at the school gate gets nothing and reports the app as broken |
+| 7 | **Auth → SMTP** | A real sender (Resend/SES/Postmark) with SPF and DKIM | Supabase's built-in sender is a handful of messages an hour with no delivery guarantee. For an OTP-only product that means **nobody can sign in**. Blocks production |
+| 8 | **Auth → Signup enabled** | On | First sign-in *is* registration (`AR4`); off, no parent can ever create an account |
+| 9 | **Auth → Email autoconfirm** | **Off** | On, an address is trusted without the code — anyone can sign in as any email they can spell |
+| 10 | **Auth → Providers** | Email only in v1. Google/Apple **off** until their client ids exist | A provider button that cannot work is a dead end on the one gated screen |
+
+### Current state — staging, 2026-08-10
+
+Items 1, 8 and 9 pass. **2, 4, 5 and 6 fail**, and 7 warns (fine for staging, blocks production).
+`npm run check:config` prints the live answer; do not trust this paragraph, which is a snapshot.
+
+### Why this is not in the smoke test
+
+Every failure here is fixed in a dashboard by Andy, not in a pull request. A red smoke test that
+no code change can turn green trains people to ignore the smoke test. It runs in
+`integration.yml`, and it is a gated step in the cutover runbook.

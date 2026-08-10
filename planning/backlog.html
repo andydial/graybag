@@ -152,13 +152,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/19</span>
+          <span class="meter-num">0/21</span>
         </div>
       </header>
       <p class="summary">Things with real-world lead time or live security exposure. Nothing else is blocked by these, but they block launch if started late.</p>
       
       <details>
-        <summary>Context &amp; 19 tasks</summary>
+        <summary>Context &amp; 21 tasks</summary>
         <div class="context"><h4>Why first</h4>
 <p>Every item here is either a live security exposure or has a multi-week external dependency (government, accountant, telco). None of them require any code.</p></div>
         <ul class="tasks">
@@ -313,6 +313,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Implement the <strong>rotation logbook + a scheduled reminder</strong> (calendar or Better Stack heartbeat) driving the <code>docs/secret-rotation-policy.md</code> §1 cadences, so 180/90/365-day rotations are prompted, not remembered. The reminder mechanism only — the credentialed rotation itself stays Andy&#39;s</span>
+      </li>
+      <li class="task" data-id="E00-20" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-20"></button>
+        <code class="tid">E00-20</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:critical) (mvp) <strong>Fix the four failing Supabase auth settings on staging</strong> — <code>npm run check:config</code> names them: OTP length 8 → 6, Site URL still <code>localhost:3000</code>, empty redirect allow-list, and an email rate limit of <strong>2 per hour</strong> (project-wide, so the third parent signing in at the school gate gets nothing). Dashboard only; no PR can fix these</span>
+      </li>
+      <li class="task" data-id="E00-21" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-21"></button>
+        <code class="tid">E00-21</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:high) (mvp) <strong>A real SMTP sender before production</strong> — Supabase&#39;s built-in email is a handful of messages an hour with no delivery guarantee, and for an OTP-only product that means nobody can sign in. Resend/SES/Postmark with SPF and DKIM</span>
       </li></ul>
       </details>
     </article>
@@ -1618,13 +1634,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/13</span>
+          <span class="meter-num">0/14</span>
         </div>
       </header>
       <p class="summary">Because Andy is not a developer, the system has to be able to explain its own failures in plain English.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 13 tasks</summary>
+        <summary>Context &amp; 14 tasks</summary>
         <div class="context"><h4>Approach</h4>
 <p>Sentry for errors across app/web/backend, Supabase dashboard for query performance, Better Stack for uptime. The multiplier is that <strong>Sentry and Supabase both have MCP servers</strong> — wired into Claude Code, a plain-English question like &quot;orders from St. Xavier&#39;s stopped going through around 9pm yesterday, find out why&quot; can be answered by querying errors, logs and the database directly.</p></div>
         <ul class="tasks">
@@ -1731,6 +1747,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Job-liveness monitor.</strong> A silently-stopped cron produces silence, not a failed uptime probe (<code>E15-03</code> is uptime, not liveness). Emit a heartbeat per scheduled job — the webhook-retry sweep, the abandoned-checkout sweeper, the in-flight payment &amp; refund reconcilers, the daily reconciliation, the idempotency-key purge (<code>docs/order-lifecycle.md</code> §11) — and page when a heartbeat is overdue for its cadence. Distinct from <code>E15-03</code> uptime and from per-job error alerts. Named in <code>docs/payments-design.md</code> §6.6 / <code>PY2</code> (review finding #22)</span>
+      </li>
+      <li class="task" data-id="E15-07" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-07"></button>
+        <code class="tid">E15-07</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Run <code>check:config</code> against production on a schedule once that project exists, not only at cutover — a dashboard setting changed by hand at 2am to unblock something else is exactly the failure a one-time gate misses</span>
       </li></ul>
       </details>
     </article>
