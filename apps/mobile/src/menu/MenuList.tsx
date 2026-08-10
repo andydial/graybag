@@ -1,12 +1,11 @@
 import { useCallback, useMemo } from 'react';
-import { Image } from 'expo-image';
 import { FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { design, money, type menu as menuDomain } from '@graybag/shared';
 
 import { AllergenFlag, FoodTypeMark, PatternTile, Skeleton } from '../components';
-import { IMAGE_SIZES } from '../components/DishImage';
+import { DishImage, IMAGE_SIZES } from '../components/DishImage';
 
-const { bg, text, scale, space, radius, layout, duration } = design;
+const { bg, text, scale, space, radius, layout } = design;
 
 export interface MenuListItem {
   id: string;
@@ -243,25 +242,15 @@ function DishCard({
           // ordinary case rather than the edge one.
           <PatternTile testID={`menu-row-${item.id}-image`} />
         ) : (
-          /*
-           * `expo-image` directly rather than `DishImage`, and only because `DishImage` draws a
-           * square (`size` sets both axes) while a menu card's photo is 16:10. Every property
-           * that makes `DishImage` worth having is repeated here deliberately —
-           * `recyclingKey` so a recycled card never shows the previous dish's photo against
-           * this dish's name, a disk cache so a menu survives a restart on a connection that
-           * may not come back, and `duration.fast` from the token. A `height`/`aspectRatio`
-           * prop on `DishImage` would let this go back to one implementation.
-           */
-          <Image
+          // `fill`, because the card already sizes this box. Back to one implementation of
+          // the recycling key, the disk cache and the cross-fade, which is the whole reason
+          // `DishImage` exists.
+          <DishImage
             testID={`menu-row-${item.id}-image`}
-            source={{ uri: item.imageUri }}
+            uri={item.imageUri}
+            size={0}
+            fill
             recyclingKey={item.id}
-            style={styles.photoFill}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            transition={duration.fast}
-            accessibilityElementsHidden
-            importantForAccessibility="no"
           />
         )}
 

@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import {
   Pressable,
   ScrollView,
@@ -30,8 +29,7 @@ const {
   scale,
   layout,
   touchTarget,
-  duration,
-  opacity,
+    opacity,
 } = design;
 
 /**
@@ -615,12 +613,11 @@ function PopularCard({
  * photo" is most of the menu today rather than a rare edge — a branded tile says "photo
  * coming" where a grey rectangle says "broken".
  *
- * `DishImage` draws the square case and the rail uses it. The promoted dish is 16:9, and
- * `DishImage`'s API is a single `size` that sets width and height together, so the wide case is
- * drawn here with the same four settings that component documents — disk cache so a menu
- * survives a restart, `recyclingKey` so a recycled view never shows the previous dish's photo,
- * `duration.fast` for the cross-fade. **A rectangular variant of `DishImage` would delete this
- * branch**; it is noted in the report rather than done here, because that file is not mine.
+ * Both cases are `DishImage` now: the rail asks for a square, the promoted dish asks for
+ * 16:10 with `aspectRatio`, and `fill` covers a box the parent has already sized. This used to
+ * hand-roll `expo-image` for the wide case because `DishImage` only drew squares — three
+ * screens had made the same copy, which is three places for a performance decision to drift on
+ * the one component whose reason for existing is that it is decided once.
  */
 function DishPhoto({ dish, size, testID }: { dish: HomeDish; size?: number; testID: string }) {
   if (dish.imageUri === null) return <PatternTile testID={testID} />;
@@ -631,20 +628,8 @@ function DishPhoto({ dish, size, testID }: { dish: HomeDish; size?: number; test
     );
   }
 
-  return (
-    <Image
-      testID={testID}
-      source={{ uri: dish.imageUri }}
-      recyclingKey={dish.id}
-      style={styles.photo}
-      contentFit="cover"
-      cachePolicy="memory-disk"
-      transition={duration.fast}
-      // Decorative: the dish's own name is right underneath it.
-      accessibilityElementsHidden
-      importantForAccessibility="no"
-    />
-  );
+  // The promoted dish: the card sizes the box, so fill it at the card's own ratio.
+  return <DishImage uri={dish.imageUri} recyclingKey={dish.id} size={0} fill testID={testID} />;
 }
 
 /**
