@@ -34,17 +34,34 @@ const { bg, layout } = design;
 export function PlaceholderScreen({
   title,
   body,
+  actionLabel,
+  onAction,
   testID,
 }: {
   /** A heading a parent would recognise, not a route name. */
   title: string;
   /** What will be on this screen, in the second person and in the future tense. */
   body: string;
+  /**
+   * One thing that genuinely works from here, if there is one.
+   *
+   * Added for `E05-01`: Account is still unbuilt, but "add a child" is real now, and a
+   * screen that can do something should say so rather than waiting for the screen around it
+   * to be finished.
+   */
+  actionLabel?: string;
+  onAction?: () => void;
   testID: string;
 }) {
   return (
     <View style={styles.root} testID={testID}>
-      <EmptyState title={title} body={body} />
+      <EmptyState
+        title={title}
+        body={body}
+        {...(actionLabel !== undefined && onAction !== undefined
+          ? { actionLabel, onAction }
+          : {})}
+      />
     </View>
   );
 }

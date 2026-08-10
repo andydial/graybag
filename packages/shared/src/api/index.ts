@@ -37,6 +37,16 @@ export {
   type ApiSchool,
 } from './schools.js';
 
+// The allergens a parent ticks when adding a child (E05-01). Ids, not names, because
+// `recipient_allergen` and `dish_allergen` share this vocabulary — that shared row id is the
+// whole mechanism behind an allergen warning, and a free-text note cannot do it.
+export {
+  ALLERGEN_COLUMNS,
+  AllergenPayloadError,
+  fetchAllergens,
+  type ApiAllergen,
+} from './allergens.js';
+
 // Sign-in (E03, U1). Email OTP today; Google and Apple join this surface rather than
 // growing a second one. No passwords, and no path that could carry one.
 export {
@@ -63,4 +73,24 @@ export {
 
 // The first write (E05-09). Writes always go through an Edge Function (A4).
 export { createCheckout, type CheckoutLine, type CheckoutResult } from './checkout.js';
+
+// Adding a child and moving one (E05-01, E05-02, E20-02). Consent is a field on the create
+// call rather than a call of its own — the server writes the child, the guardian link and
+// the consent record in one transaction, so there is no shape here that could separate them.
+//
+// `fetchRecipients` is the read half, and it goes through `guardian_link` — `D10`, the only
+// path from a user to a child. `recipient.created_by_user_id` decides nothing, here or in
+// any policy.
+export {
+  RECIPIENT_COLUMNS,
+  RecipientPayloadError,
+  changeRecipientSchool,
+  createRecipient,
+  fetchRecipients,
+  type ApiRecipient,
+  type CreatedRecipient,
+  type NewRecipient,
+  type SchoolChange,
+  type SchoolChangeResult,
+} from './recipients.js';
 

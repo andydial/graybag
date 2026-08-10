@@ -24,29 +24,51 @@ const { ease } = design;
  * **This module adds no curve and cannot.** `easingFor` takes a key of `ease`, so a caller
  * cannot pass four numbers even by accident; the type is the gate and the lint rule is the
  * backstop.
+ *
+ * ## Why it is a worklet, and why the cache became a table (`S41`)
+ *
+ * This is called from inside `useAnimatedStyle`, which runs on the **UI runtime**. A plain
+ * function captured by a worklet is serialized as a *remote function*, and calling one
+ * synchronously on the UI runtime throws. In a debug build that is caught and reported to
+ * LogBox; in a release build the try/catch is compiled out and the process aborts. It killed
+ * the first iOS build on the first screen that mounted a `TextField`.
+ *
+ * The old shape was a lazily-filled `Map`. That cannot survive workletization: a worklet
+ * captures its closure **by serialization**, a `Map` is not serializable, and even if it
+ * were, writes made on the UI runtime would not be visible on the JS runtime — so the cache
+ * would silently do nothing while looking like it worked.
+ *
+ * The table is therefore built **eagerly, once, on the JS runtime at module load**. Four
+ * `Easing.bezier` calls is four sampling tables, built once at startup rather than per frame,
+ * which is what the memoisation was for in the first place. `easingFor` is then a lookup,
+ * and the object it captures is plain data holding four `{ factory }` records — each
+ * `factory` is itself a worklet, which is what makes the whole thing serializable.
  */
 export type EaseName = keyof typeof ease;
 
-// `Easing.bezier` returns a *factory*, not a bare `(t: number) => number`. Naming the
-// real type here rather than casting is what keeps the memoisation honest.
-const cache = new Map<EaseName, EasingFunctionFactory>();
+/**
+ * Every curve, built once at module load on the JS runtime.
+ *
+ * `Easing.bezier` is **not** called inside the worklet. It could be — Reanimated's easing is
+ * worklet-safe — but building a sampling table on the UI thread every frame is exactly the
+ * cost `P11` says to care about, and doing it here means the UI runtime only ever reads.
+ */
+const CURVES: Readonly<Record<EaseName, EasingFunctionFactory>> = Object.freeze({
+  standard: Easing.bezier(...ease.standard),
+  enter: Easing.bezier(...ease.enter),
+  exit: Easing.bezier(...ease.exit),
+  linear: Easing.bezier(...ease.linear),
+});
 
 /**
  * The Reanimated easing function for a named curve.
  *
- * Memoised because `Easing.bezier` builds a sampling table, and a `useAnimatedStyle` callback
- * runs on every frame — constructing the curve inside it would allocate on the UI thread at
- * 60fps, which is the frame budget `P11` says is the thing we actually care about on a
- * mid-range Android.
+ * Safe to call from a worklet **and** from ordinary render code — the directive makes the
+ * babel plugin emit both forms.
  */
 export function easingFor(name: EaseName): EasingFunctionFactory {
-  const existing = cache.get(name);
-  if (existing) return existing;
-
-  const curve = ease[name];
-  const built = Easing.bezier(curve[0], curve[1], curve[2], curve[3]);
-  cache.set(name, built);
-  return built;
+  'worklet';
+  return CURVES[name];
 }
 
 /** `ease.standard` — on screen before and after. The default. */

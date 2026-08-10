@@ -15,6 +15,12 @@ import type { menu as menuDomain } from '@graybag/shared';
 
 export interface CachedDish {
   id: string;
+  /**
+   * The `menu_item` row, which is what a checkout line is identified by — never the dish id.
+   * Cached with the dish because the cart is built from the cache, and a cached menu that
+   * could be browsed but not ordered from is the shape of `E05-16`.
+   */
+  menuItemId: string;
   name: string;
   description: string | null;
   categoryId: string;

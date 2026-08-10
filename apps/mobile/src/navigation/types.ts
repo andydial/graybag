@@ -27,6 +27,20 @@ export type RootStackParamList = {
   Orders: undefined;
   OrderDetail: { orderGroupId: string };
   /**
+   * Adding a child (`E05-01`). A stack screen reached **by intent** from Account, never a
+   * step the app pushes you into — `AR7` says in as many words that adding a child must not
+   * be a wall in front of browsing the menu.
+   */
+  AddChild: undefined;
+  /**
+   * The children a parent has added (`E05-01`). Reached from Account, like `AddChild` and
+   * for the same reason — the mock has four tabs, and this is not one of them.
+   *
+   * It mounts signed out and shows its empty state, which is `AR7` again: a list that
+   * demanded a session before it would tell you it was empty is a wall.
+   */
+  Children: undefined;
+  /**
    * The auth gate. Nothing navigates here on open — only a checkout attempt does
    * (`AR7`). `intent` is what the user was trying to do, so the flow can resume it
    * rather than dumping them on Home having forgotten why they signed in.

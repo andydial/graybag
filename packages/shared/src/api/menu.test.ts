@@ -20,6 +20,10 @@ function stub(result: { data: unknown; error: { message: string; code?: string }
 /** One row of `public_menu`, in the shape PostgREST returns. */
 const row = (over: Record<string, unknown> = {}) => ({
   dish_id: 'd1',
+  // Not the dish id. `create_checkout` identifies a line by the `menu_item`, and
+  // `public_menu` did not carry it until migration `0017` — which is why the app could
+  // browse a menu it had no way to order from (`E05-16`).
+  menu_item_id: 'mi1',
   name: 'Veg Sandwich',
   description: 'Grilled',
   category_id: 'c1',
@@ -101,7 +105,7 @@ describe('fetchMenu', () => {
 
   it('collapses duplicate categories across rows', async () => {
     stub({
-      data: [row(), row({ dish_id: 'd2', name: 'Paneer Wrap' })],
+      data: [row(), row({ dish_id: 'd2', menu_item_id: 'mi2', name: 'Paneer Wrap' })],
       error: null,
     });
 
@@ -131,6 +135,14 @@ describe('fetchMenu', () => {
 
     it('refuses a dish with no id', async () => {
       await rejects([row({ dish_id: 42 })], /has no id/);
+    });
+
+    it('refuses a dish with no menuItemId, because it could not be ordered', async () => {
+      // The failure this prevents is not a crash — it is a menu that renders perfectly and
+      // whose every add-to-cart produces a checkout the server rejects. `E05-16`, one layer
+      // on: `public_menu` joined `menu_item` and never selected its id, so no sequence of
+      // calls the app could make produced a valid order line.
+      await rejects([row({ menu_item_id: undefined })], /has no menuItemId/);
     });
 
     it('refuses a row with no category', async () => {

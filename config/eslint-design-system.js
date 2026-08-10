@@ -145,6 +145,43 @@ export const motionRules = {
         'It animates properties nobody chose, including ones that force layout. Name the property.',
       ),
     },
+    {
+      /**
+       * `E14-18` — **a non-worklet function called from inside a worklet.**
+       *
+       * This is the rule that would have stopped the first iOS build aborting on the first
+       * screen that mounted a `TextField`. `useAnimatedStyle` runs on the **UI runtime**, a
+       * second JavaScript runtime; a plain function captured by a worklet is serialized as a
+       * *remote function*, and calling one there throws
+       *
+       *   [Worklets] Tried to synchronously call a Remote Function.
+       *
+       * In a **debug** build `WorkletRuntime::callGuarded` catches that and reports it to
+       * LogBox. **That try/catch is compiled out under `NDEBUG`**, so in every release build
+       * the error propagates out of the frame callback as a C++ exception, nothing catches
+       * it, and the process aborts. So the failure is invisible in development and fatal in
+       * the build you hand to somebody.
+       *
+       * A unit test cannot catch it: under jest there is one runtime, and the worklet is an
+       * ordinary function call that works. `motion/worklet-safety.test.ts` covers the other
+       * half — that the allowlisted names really are compiled as worklets.
+       *
+       * **The allowlist is the point.** Adding a name to it is a claim that the function
+       * carries `'worklet'`, and that claim is what the test checks. A helper that is not on
+       * the list is not callable from a worklet, which is true.
+       *
+       * **Known limit, stated rather than implied:** this catches a bare identifier —
+       * `resolveDuration(...)` — which is the shape the codebase produces, because tokens are
+       * destructured at the top of every module. It does not catch `design.resolveDuration(...)`
+       * through a member expression. The test is what covers that residue.
+       */
+      selector:
+        'CallExpression[callee.name=/^(useAnimatedStyle|useDerivedValue|useAnimatedReaction|useAnimatedScrollHandler|useAnimatedProps)$/] CallExpression[callee.type="Identifier"]:not([callee.name=/^(withTiming|withSpring|withSequence|withDelay|withRepeat|withDecay|withClamp|interpolate|interpolateColor|clamp|easingFor|resolveDuration|Number|String|Boolean|Array|parseInt|parseFloat|isNaN|isFinite)$/])',
+      message: say(
+        'Non-worklet function called inside a worklet.',
+        'It runs on the UI runtime, where a captured plain function is a remote function and calling it throws — caught and logged in debug, FATAL in release (E14-18). Give the helper a `\'worklet\'` directive and add it to this allowlist, or hoist the call out of the callback.',
+      ),
+    },
   ],
 
   /** Everywhere except `motion.ts`. */

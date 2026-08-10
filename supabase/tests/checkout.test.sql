@@ -247,5 +247,38 @@ select is(
   0,
   '§8.2 step 1/11: every refusal rolls back the whole transaction — no half-written group, no orphan order, no stranded idempotency row');
 
+-- =============================================================================
+-- 10. The join nobody was asserting — `E05-16`, migration `0017`.
+--
+-- Every layer of the order path was tested and every layer passed, and the app still could
+-- not place an order: `create_checkout` identifies a line by `menu_item_id`, the only menu
+-- the app can read is `public_menu`, and that view joined `menu_item` and never selected
+-- its id. Two correct halves and an untested join between them — the same shape as `E05-16`
+-- itself.
+--
+-- These assert the *contract between the two*, which is the thing that was missing rather
+-- than any one side of it. They belong here, in the checkout's own suite, because it is the
+-- checkout's requirement that makes the column load-bearing.
+-- =============================================================================
+
+select has_column('public', 'public_menu', 'menu_item_id',
+  'E05-16: the menu the app reads carries the id the checkout requires. Without it there is '
+  'no sequence of calls a client can make that produces a valid order line, and the failure '
+  'is a menu that renders perfectly and refuses every add to cart');
+
+select is_empty(
+  $$ select pm.dish_id::text
+       from public_menu pm
+       left join menu_item mi on mi.id = pm.menu_item_id and mi.is_active
+      where mi.id is null $$,
+  'and every one of them resolves to a live menu_item — an id that does not join is worse '
+  'than a missing column, because it fails at checkout instead of at the boundary');
+
+select is_empty(
+  $$ select pm.dish_id::text from public_menu pm where pm.menu_item_id = pm.dish_id $$,
+  'menu_item_id is NOT the dish id. A dish is the food; a menu_item is that dish on a '
+  'particular menu at a price, and ordering by dish id would mean the server choosing which '
+  'price the customer had been shown');
+
 select * from finish();
 rollback;

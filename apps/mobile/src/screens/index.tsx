@@ -1,9 +1,16 @@
-import { useNavigation } from '@react-navigation/native';
+import { useEffect, useState } from 'react';
+import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import Constants from 'expo-constants';
 
 import { PlaceholderScreen } from './PlaceholderScreen';
+import { AddChildScreen as AddChildScreenImpl } from '../recipients/AddChildScreen';
+import { DishDetailScreen as DishDetailScreenImpl } from '../menu/DishDetailScreen';
+import { ChildrenScreen as ChildrenScreenImpl } from '../recipients/ChildrenScreen';
 import { MenuScreen as MenuScreenImpl } from '../menu/MenuScreen';
+import type { RootStackParamList } from '../navigation/types';
 import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
+import { useOrderTarget } from '../session/OrderTargetContext';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 /**
@@ -73,13 +80,26 @@ export { CartScreen } from '../cart/CartScreen';
 // `AR7`, and the reason the old note said "never a wall": this tab **opens** signed out
 // rather than redirecting to sign-in. The invitation is the content, not a gate — which is
 // why the copy leads with what signing in gets you and then says what works without it.
-export const AccountScreen = () => (
-  <PlaceholderScreen
-    testID="screen-account"
-    title="Your account"
-    body="Sign in to add your children, see your orders and manage payment. You can browse the menu and fill your cart without signing in."
-  />
-);
+//
+// The one action is real (`E05-01`). It is reached **by intent** from here and is never
+// pushed at anybody: `AR7` says adding a child must not be a wall in front of browsing.
+//
+// It goes to the **list** rather than straight to the form. Until there was a list, adding a
+// child was a one-way door: the child disappeared on save and there was nothing that could
+// show a parent what they had entered or let them correct it. "Add a child" is still one tap
+// away — it is what the empty list offers, and the only thing on it when there is nobody yet.
+export const AccountScreen = () => {
+  const navigation = useNavigation();
+  return (
+    <PlaceholderScreen
+      testID="screen-account"
+      title="Your account"
+      body="Sign in to add your children, see your orders and manage payment. You can browse the menu and fill your cart without signing in."
+      actionLabel="Your children"
+      onAction={() => navigation.navigate('Children')}
+    />
+  );
+};
 
 // Reached from Account and Home rather than being a fifth tab — the mock has four.
 export const OrdersScreen = () => (
@@ -90,15 +110,31 @@ export const OrdersScreen = () => (
   />
 );
 
-// `D7`: the allergen warning belongs at add-to-cart, on this screen. That is a constraint on
-// what gets built here, not something to say to a parent in advance of it existing.
-export const DishDetailScreen = () => (
-  <PlaceholderScreen
-    testID="screen-dish-detail"
-    title="Dish details"
-    body="The full description, what is in it and any allergen information will appear here."
-  />
-);
+/**
+ * Real as of `E04-12` / `E14-14`. `D7`: the allergen warning belongs at add-to-cart, on this
+ * screen.
+ *
+ * The dish comes out of the cached menu by id rather than being fetched — the menu is already
+ * held by the time a row can be tapped, and a per-dish round trip on this audience's
+ * connection would be the slowest thing on the screen (`E04-10`, `MC3`).
+ */
+export const DishDetailScreen = () => {
+  const navigation = useNavigation();
+  const { params } = useRoute<RouteProp<RootStackParamList, 'DishDetail'>>();
+  const { schoolId } = useSelectedSchool();
+  const { target } = useOrderTarget();
+
+  return (
+    <DishDetailScreenImpl
+      dishId={params.dishId}
+      schoolId={schoolId}
+      target={target}
+      // `null` is the ordinary state today: nothing can name a child yet (`E05-16`), so the
+      // one honest thing to offer is the screen that creates one.
+      onNeedsTarget={() => navigation.navigate('AddChild')}
+    />
+  );
+};
 
 export const OrderDetailScreen = () => (
   <PlaceholderScreen
@@ -119,4 +155,57 @@ export const OrderDetailScreen = () => (
 export const SignInScreen = () => {
   const navigation = useNavigation();
   return <SignInScreenImpl onSignedIn={() => navigation.goBack()} />;
+};
+
+/**
+ * Adding a child (`E05-01`, `E20-02`).
+ *
+ * The school defaults to the one already being browsed. A parent arriving here has almost
+ * always answered "which school" once already, and `AR7` makes every avoidable step a cost
+ * we can measure in registrations.
+ *
+ * `app_version` goes onto the consent record as evidence of *which build* showed the wording.
+ * It comes from `expo-constants` rather than a literal, so it cannot drift from the binary.
+ */
+export const AddChildScreen = () => {
+  const navigation = useNavigation();
+  const { schoolId, schoolName } = useSelectedSchool();
+
+  return (
+    <AddChildScreenImpl
+      initialSchool={{ schoolId, schoolName }}
+      appVersion={Constants.expoConfig?.version ?? 'unknown'}
+      onAdded={() => navigation.goBack()}
+      onCancel={() => navigation.goBack()}
+    />
+  );
+};
+
+/**
+ * The children a parent has added (`E05-01`), and where a school change starts (`E05-02`).
+ *
+ * `goBack` is not what "add a child" does from here — it **pushes** the form, so returning
+ * from it lands back on this list with the new child on it. That is the loop the flow was
+ * missing: before this screen existed, saving a child returned to Account and there was
+ * nothing anywhere that showed it had worked.
+ *
+ * The refetch on focus is what closes that loop. A stack screen stays mounted while the form
+ * is pushed over it, so without this the parent comes back to the list they were looking at
+ * before they added anyone — which reads exactly like the add having failed.
+ */
+export const ChildrenScreen = () => {
+  const navigation = useNavigation();
+  const isFocused = useIsFocused();
+  const [visit, setVisit] = useState(0);
+
+  useEffect(() => {
+    if (isFocused) setVisit((n) => n + 1);
+  }, [isFocused]);
+
+  return (
+    <ChildrenScreenImpl
+      reloadToken={visit}
+      onAddChild={() => navigation.navigate('AddChild')}
+    />
+  );
 };

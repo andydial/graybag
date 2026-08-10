@@ -48,6 +48,14 @@ export interface QueryResult {
  */
 export interface SelectBuilder extends PromiseLike<QueryResult> {
   eq(column: string, value: unknown): SelectBuilder;
+  /**
+   * `IS NULL` / `IS NOT NULL`. Added for `fetchRecipients`, and widening this interface is
+   * deliberately a visible diff rather than a method appearing at a call site.
+   *
+   * `eq(column, null)` is not the same query — PostgREST renders it as `= null`, which is
+   * never true — so a revoked `guardian_link` would have been filtered by nothing at all.
+   */
+  is(column: string, value: null | boolean): SelectBuilder;
   order(column: string, options?: { ascending?: boolean }): SelectBuilder;
 }
 
@@ -55,11 +63,19 @@ export interface TableRef {
   select(columns: string): SelectBuilder;
 }
 
-/** Edge Function invocation. The ONLY way this module writes anything (`A4`). */
+/**
+ * Edge Function invocation. The ONLY way this module writes anything (`A4`).
+ *
+ * `method` was added for `E05-02`, and widening this interface is deliberately a visible
+ * diff rather than a new option appearing at a call site — that is what the module comment
+ * above asks for. `recipients` is the first endpoint with two verbs: a POST that adds a
+ * child and a PATCH that moves an existing one, where the id is part of the path so a
+ * client cannot send one id in the URL and another in the body.
+ */
 export interface FunctionsRef {
   invoke(
     name: string,
-    options: { body?: unknown; headers?: Record<string, string> },
+    options: { body?: unknown; headers?: Record<string, string>; method?: string },
   ): PromiseLike<{ data: unknown; error: (Error & { context?: Response }) | null }>;
 }
 
@@ -156,7 +172,12 @@ export async function runQuery<T>(build: (t: ApiTransport) => SelectBuilder): Pr
  * checkout's 409 carries a `code` the app maps to a sentence a parent can act on, and
  * without this the whole class collapses into "something went wrong".
  */
-export async function invokeFunction<T>(name: string, body: unknown): Promise<T> {
+export async function invokeFunction<T>(
+  name: string,
+  body: unknown,
+  /** Defaults to POST, which is what every write was until `E05-02` added a PATCH. */
+  method?: string,
+): Promise<T> {
   const functions = getTransport().functions;
   if (!functions) {
     throw new ApiError(
@@ -165,7 +186,10 @@ export async function invokeFunction<T>(name: string, body: unknown): Promise<T>
     );
   }
 
-  const { data, error } = await functions.invoke(name, { body });
+  const { data, error } = await functions.invoke(name, {
+    body,
+    ...(method === undefined ? {} : { method }),
+  });
   if (!error) return data as T;
 
   const response = error.context;
