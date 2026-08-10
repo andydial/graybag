@@ -89,6 +89,7 @@ export {
   changeRecipientSchool,
   createRecipient,
   fetchRecipients,
+  fetchRecipientAllergens,
   type ApiRecipient,
   type CreatedRecipient,
   type NewRecipient,

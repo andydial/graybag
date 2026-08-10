@@ -152,6 +152,28 @@ export function OrderTargetProvider({
         }));
 
       setChoices(mapped);
+
+      /**
+       * Load the selected recipient's allergens — `E05-31`, and the reason F5 was divergent.
+       *
+       * **Only for the one being ordered for**, and only after they are chosen. Tier S health
+       * data about a minor is read when there is a reason to read it, never speculatively for
+       * everyone on the account.
+       *
+       * A failure leaves `allergenIds` as `null`, which is "we cannot check" rather than "no
+       * allergies" — the distinction the whole three-state design exists for. It is not
+       * logged: the error would carry a recipient id.
+       */
+      const withAllergens = async (next: OrderTarget | null): Promise<OrderTarget | null> => {
+        if (next === null) return null;
+        try {
+          const allergenIds = await api.fetchRecipientAllergens(next.recipientId);
+          return { ...next, allergenIds };
+        } catch {
+          return next;
+        }
+      };
+
       setTarget((current) => {
         // An explicit request wins — that is "I just added this person, order for them".
         if (selectRecipientId !== undefined) {
@@ -161,6 +183,23 @@ export function OrderTargetProvider({
         // move an order onto a different person mid-cart.
         return current ?? mapped[0] ?? null;
       });
+
+      // Resolve allergens for whoever ended up selected. Done after `setTarget` so the name
+      // and school appear immediately and the health read does not hold up the screen.
+      const selected =
+        selectRecipientId !== undefined
+          ? mapped.find((m) => m.recipientId === selectRecipientId)
+          : mapped[0];
+      if (selected !== undefined) {
+        const resolved = await withAllergens(selected);
+        if (resolved !== null) {
+          // Only if the same person is still selected — a switch mid-flight must not have
+          // someone else's allergen list land on them.
+          setTarget((current) =>
+            current?.recipientId === resolved.recipientId ? resolved : current,
+          );
+        }
+      }
     } catch {
       // Signed out, offline, or a failed read. All three mean "we cannot say", and none is an
       // error a browsing visitor should see. Nothing is logged: a failure here would carry

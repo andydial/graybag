@@ -7,6 +7,7 @@ import { AccountScreen as AccountScreenImpl } from '../account/AccountScreen';
 import { OrderDetailScreen as OrderDetailScreenImpl } from '../orders/OrderDetailScreen';
 import { OrdersScreen as OrdersScreenImpl } from '../orders/OrdersScreen';
 import { HomeScreen as HomeScreenImpl, type HomeDish } from '../home/HomeScreen';
+import { useAllergenWatchlist } from '../menu/useAllergenWatchlist';
 import { useCachedMenu } from '../menu/useCachedMenu';
 import { requiresSignIn, useSession } from '../session/SessionContext';
 
@@ -115,6 +116,9 @@ export const HomeScreen = () => {
 export const MenuScreen = () => {
   const navigation = useNavigation();
   const { schoolId, setSchool } = useSelectedSchool();
+  // `E05-31`. Before this the menu drew no allergen flags at all, because nothing could tell it
+  // what to warn about — F5 was the only §6 divergence with a safety consequence.
+  const watchlist = useAllergenWatchlist();
 
   if (schoolId === null) {
     // The picker carries the welcome now (§6.1.1 cut 1), so this is the first screen a cold
@@ -130,6 +134,7 @@ export const MenuScreen = () => {
 
   return (
     <MenuScreenImpl
+      allergens={watchlist}
       schoolId={schoolId}
       onSelectDish={(dishId) => navigation.navigate('DishDetail', { dishId })}
     />
@@ -338,7 +343,7 @@ export const ChildrenScreen = () => {
   const isFocused = useIsFocused();
   const [visit, setVisit] = useState(0);
 
-  const { choices, setTarget } = useOrderTarget();
+  const { refresh } = useOrderTarget();
 
   useEffect(() => {
     if (isFocused) setVisit((n) => n + 1);
@@ -354,10 +359,14 @@ export const ChildrenScreen = () => {
        * `[]` would silently claim "no allergies" for that person — which F5/F6 forbid. The
        * provider owns that decision and sets `allergenIds: null`, meaning "not read".
        */
-      onSelectRecipient={(recipientId) => {
-        const next = choices.find((choice) => choice.recipientId === recipientId);
-        if (next) setTarget(next);
-      }}
+      /*
+       * `refresh(id)` rather than `setTarget(next)`: the choices list carries
+       * `allergenIds: null`, and selecting from it directly would leave the app unable to warn
+       * about the person just chosen. `refresh` re-reads and resolves their allergens
+       * (`E05-31`). One round trip per switch, which is the right price for a warning that
+       * works.
+       */
+      onSelectRecipient={(recipientId) => void refresh(recipientId)}
     />
   );
 };

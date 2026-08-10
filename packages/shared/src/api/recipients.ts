@@ -269,3 +269,53 @@ export async function changeRecipientSchool(input: SchoolChange): Promise<School
     fromSchoolId: String(data.from_school_id ?? ''),
   };
 }
+
+/**
+ * The declared allergens of one recipient — `E05-31`.
+ *
+ * ## Why this is its own call, and narrow
+ *
+ * `recipient_allergen` is **tier S: special-category health data about a minor** (§13.3), and
+ * it is the most sensitive table in the system. `fetchRecipients` deliberately does not return
+ * it — the column list there is the redaction, and pulling every child's health record on app
+ * start to warn about a dish nobody has opened would be exactly the over-collection the
+ * classification exists to prevent.
+ *
+ * So it is read **one recipient at a time, when there is a reason to** — the reason being that
+ * this is the person the order is for, and the app is about to check dishes against them.
+ *
+ * ## Why it had to exist at all
+ *
+ * Without it `OrderTarget.allergenIds` was permanently `null`, which meant **no allergen
+ * warning could fire anywhere in the app**. Menu drew no flags, and Dish detail said "we can't
+ * check this against their allergies" for every dish and every child — honest, and useless.
+ * `docs/ux-spec.md` F5 is the only §6 divergence with a safety consequence, which is why this
+ * came before the rest.
+ *
+ * ## What it returns, and what it must never do
+ *
+ * Allergen **ids** only. Not `severity`, not `note` — `allergy_note` is free text a parent
+ * typed about their child and nothing on the ordering path needs it; the kitchen reads it
+ * through the fulfilment policy, not through here.
+ *
+ * **Nothing here logs.** An error carries the recipient id, and an id about a child stays out
+ * of logs, Sentry and analytics (non-negotiable #4). The caller gets an empty result and the
+ * screens say they cannot check — which is the honest answer and the one they already draw.
+ */
+export async function fetchRecipientAllergens(recipientId: string): Promise<string[]> {
+  const user = await currentUser();
+  // Signed out there is no policy that admits this read, and asking anyway would be a request
+  // we know will return nothing.
+  if (user === null) return [];
+
+  const rows = await runQuery<unknown>((t) =>
+    t.from('recipient_allergen').select('allergen_id').eq('recipient_id', recipientId),
+  );
+
+  const ids: string[] = [];
+  rows.forEach((row) => {
+    if (!isRecord(row)) return;
+    if (typeof row.allergen_id === 'string') ids.push(row.allergen_id);
+  });
+  return ids;
+}
