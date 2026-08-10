@@ -1,5 +1,5 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import type { menu as menuDomain } from '@graybag/shared';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { api, type menu as menuDomain } from '@graybag/shared';
 
 /**
  * Who a lunch is being ordered for, and for which day.
@@ -25,20 +25,62 @@ import type { menu as menuDomain } from '@graybag/shared';
  */
 export interface OrderTarget {
   recipientId: string;
-  /** The recipient's declared allergen ids. Regulated: see above. */
-  allergenIds: readonly string[];
+  /**
+   * The recipient's declared allergen ids — **or `null`, meaning we have not read them.**
+   *
+   * Regulated (see above). The nullable is the important part and it is not defensive
+   * typing: `fetchRecipients` deliberately does not return allergy data, so the ordinary
+   * state today is "we hold a recipient and we do not know their allergies".
+   *
+   * An empty array and `null` are different claims. `[]` says *we asked and there are none*,
+   * which is a safety statement. `null` says *we cannot tell you*, which is the honest one
+   * until `E05-31` lands. Collapsing the two would turn "we did not look" into "you are
+   * safe" — the §5.21 failure in the place it costs most.
+   */
+  allergenIds: readonly string[] | null;
   serviceDate: menuDomain.ServiceDate;
+  /**
+   * What to call them on screen. `null` for an adult ordering for themselves, which renders
+   * as "You" rather than as a name (`P13`).
+   *
+   * Tier P (§13.3): displayed, never logged.
+   */
+  displayName?: string | null;
+  /** "5-A". Tier P. */
+  classLabel?: string | null;
+  schoolName?: string | null;
+  /** "Morning break · 10:40". Absent until `E05-29` puts the break on the line. */
+  breakLabel?: string | null;
 }
 
 interface OrderTargetValue {
   target: OrderTarget | null;
   setTarget: (next: OrderTarget | null) => void;
+  /** Recipients this account can order for, for the switcher. Empty until one is added. */
+  choices: OrderTarget[];
+  /** True while the first read is in flight, so a screen can skeleton rather than say "none". */
+  loading: boolean;
 }
 
 const OrderTargetContext = createContext<OrderTargetValue>({
   target: null,
   setTarget: () => {},
+  choices: [],
+  loading: false,
 });
+
+/**
+ * The service date a cart line defaults to.
+ *
+ * **Tomorrow, not today.** The cutoff for a given day is 00:00 that morning (`D5`, `C5`), so
+ * today is never orderable under the default configuration — offering it would put every
+ * first-time visitor in front of a refusal. `E05-30`'s calendar read replaces this with the
+ * real next orderable day, including school holidays and per-kitchen cutoffs.
+ */
+function defaultServiceDate(): menuDomain.ServiceDate {
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  return tomorrow.toISOString().slice(0, 10) as menuDomain.ServiceDate;
+}
 
 export function OrderTargetProvider({
   children,
@@ -48,7 +90,64 @@ export function OrderTargetProvider({
   initial?: OrderTarget | null;
 }) {
   const [target, setTarget] = useState<OrderTarget | null>(initial);
-  const value = useMemo(() => ({ target, setTarget }), [target]);
+  const [choices, setChoices] = useState<OrderTarget[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  /**
+   * Read who this account can order for, and pick one.
+   *
+   * **Nothing called `setTarget` before this.** The type existed, the provider existed, every
+   * screen read it — and no code path ever wrote it, so `target` was `null` in every build and
+   * Home's card could not say who it was ordering for. The same shape as the menu cache that
+   * was never installed: both sides written, the wire between them missing, and every test
+   * green because each side substitutes the other.
+   *
+   * Signed out this does nothing, which is correct rather than a special case: `AR7` says
+   * browsing needs no session, and a signed-out visitor has no recipients to read.
+   */
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+
+    api
+      .fetchRecipients()
+      .then((rows) => {
+        if (!live) return;
+        const mapped: OrderTarget[] = rows
+          .filter((row) => row.canOrder)
+          .map((row) => ({
+            recipientId: row.id,
+            // NOT `[]`. We have not read their allergies — `fetchRecipients` does not return
+            // them — and saying "none" would be a safety claim we cannot support (`E05-31`).
+            allergenIds: null,
+            serviceDate: defaultServiceDate(),
+            displayName: row.firstName,
+            classLabel: [row.classLabel, row.sectionLabel].filter(Boolean).join('-') || null,
+            schoolName: row.schoolName || null,
+            breakLabel: null,
+          }));
+
+        setChoices(mapped);
+        // Only auto-select when nothing has been chosen, so a later read cannot silently move
+        // an order onto a different person mid-cart.
+        setTarget((current) => current ?? mapped[0] ?? null);
+        setLoading(false);
+      })
+      .catch(() => {
+        // Signed out, offline, or a failed read. All three mean "we cannot say", and none of
+        // them is an error a browsing visitor should see. Nothing is logged: a failure here
+        // would carry recipient ids, and ids about children stay out of logs (R6).
+        if (!live) return;
+        setChoices([]);
+        setLoading(false);
+      });
+
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const value = useMemo(() => ({ target, setTarget, choices, loading }), [target, choices, loading]);
   return <OrderTargetContext.Provider value={value}>{children}</OrderTargetContext.Provider>;
 }
 

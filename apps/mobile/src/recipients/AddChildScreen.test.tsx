@@ -83,6 +83,18 @@ const ALLERGEN_ROWS = [
 /** The body of the one write this screen makes. */
 const sentBody = () => invoke.mock.calls[0]?.[1].body as Record<string, unknown>;
 
+/**
+ * A refusal as `functions.invoke` reports one: an error whose `context` is the raw Response,
+ * which is how a non-2xx arrives. `invokeFunction` reads the code and message out of it.
+ */
+function refuse(code: string, message: string) {
+  const error = new Error('Edge Function returned a non-2xx status code') as Error & {
+    context?: Response;
+  };
+  error.context = new Response(JSON.stringify({ code, message }), { status: 409 });
+  invoke.mockResolvedValue({ data: null, error });
+}
+
 beforeEach(() => {
   allergenRows = ALLERGEN_ROWS;
   stubTransport();
@@ -92,7 +104,7 @@ afterEach(() => api.setApiTransport(null));
 
 describe('AddChildScreen', () => {
   it('cannot be submitted without the required consent', async () => {
-    // `C10`: the child and the consent are one transaction, so there is no "add now, agree
+    // `C10`: the person and the consent are one transaction, so there is no "add now, agree
     // later". The button being inert is that rule made visible rather than a validation nicety.
     await setup();
     const user = userEvent.setup();
@@ -102,8 +114,24 @@ describe('AddChildScreen', () => {
     expect(invoke).not.toHaveBeenCalled();
   });
 
+  it('says why the button is inert rather than leaving it grey', async () => {
+    // §5.10 *Consent missing*: disabled **and the reason stated**. A dead button with no
+    // explanation is the commonest way a form loses someone who was willing to agree.
+    await setup();
+    expect(screen.getByTestId('screen-add-child-consent-required')).toBeOnTheScreen();
+    expect(screen.getByTestId('screen-add-child-submit')).toHaveTextContent(
+      'Agree above to continue',
+    );
+
+    const user = userEvent.setup();
+    await user.press(screen.getByTestId('screen-add-child-consent'));
+
+    expect(screen.queryByTestId('screen-add-child-consent-required')).toBeNull();
+    expect(screen.getByTestId('screen-add-child-submit')).toHaveTextContent('Save');
+  });
+
   it('cannot be submitted without a first name', async () => {
-    // The packing list is read aloud by a member of staff. A child with no name on it
+    // The packing list is read aloud by a member of staff. Someone with no name on it
     // cannot be handed their lunch.
     await setup();
     const user = userEvent.setup();
@@ -111,6 +139,22 @@ describe('AddChildScreen', () => {
 
     await user.press(screen.getByTestId('screen-add-child-submit'));
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('answers a missing first name on the field, and clears it when it is fixed', async () => {
+    // §5.10 *Invalid*: inline, per field. The message is on the thing that is wrong, not in a
+    // banner at the top that names a field you then have to go and find.
+    await setup();
+    const user = userEvent.setup();
+    await user.press(screen.getByTestId('screen-add-child-consent'));
+    await user.press(screen.getByTestId('screen-add-child-submit'));
+
+    expect(
+      await screen.findByText(/We need a first name/),
+    ).toBeOnTheScreen();
+
+    await user.type(screen.getByLabelText('First name'), 'Ishaan');
+    expect(screen.queryByText(/We need a first name/)).toBeNull();
   });
 
   it('submits the child with the consent on the same call', async () => {
@@ -173,6 +217,34 @@ describe('AddChildScreen', () => {
     });
   });
 
+  it('says the allergy details were removed rather than dropping them quietly', async () => {
+    // The refusal §5.10 asks for, on the client half. Someone who typed "peanut" and had it
+    // silently discarded would believe the kitchen knows — which is the harm, not the loss
+    // of the text.
+    await setup();
+    const user = userEvent.setup();
+    await user.press(screen.getByTestId('screen-add-child-allergen-consent'));
+    await screen.findByTestId('screen-add-child-allergen-a1');
+    await user.press(screen.getByTestId('screen-add-child-allergen-a1'));
+
+    await user.press(screen.getByTestId('screen-add-child-allergen-consent'));
+    expect(screen.getByTestId('screen-add-child-allergy-withdrawn')).toBeOnTheScreen();
+
+    // And it goes away when the permission is given back, rather than nagging.
+    await user.press(screen.getByTestId('screen-add-child-allergen-consent'));
+    expect(screen.queryByTestId('screen-add-child-allergy-withdrawn')).toBeNull();
+  });
+
+  it('says nothing about removal when there was nothing to remove', async () => {
+    await setup();
+    const user = userEvent.setup();
+    await user.press(screen.getByTestId('screen-add-child-allergen-consent'));
+    await screen.findByTestId('screen-add-child-allergen-a1');
+    await user.press(screen.getByTestId('screen-add-child-allergen-consent'));
+
+    expect(screen.queryByTestId('screen-add-child-allergy-withdrawn')).toBeNull();
+  });
+
   it('keeps the allergy details when the consent stands', async () => {
     await setup();
     const user = userEvent.setup();
@@ -187,13 +259,17 @@ describe('AddChildScreen', () => {
     expect(sentBody()).toMatchObject({ allergen_consent: true, allergen_ids: ['a1'] });
   });
 
-  it('defaults to the school already being browsed', async () => {
-    // `AR7`: a parent here has almost always answered "which school" once already, and every
-    // avoidable step costs registrations.
+  it('defaults to the school already being browsed, and says where it came from', async () => {
+    // `AR7`: someone here has almost always answered "which school" once already, and every
+    // avoidable step costs registrations. A prefilled field with no provenance reads as a
+    // guess, so the hint is part of the prefill rather than decoration on it.
     await setup();
     expect(screen.getByTestId('screen-add-child-school')).toHaveTextContent(
       'Alpha Public School',
     );
+    expect(
+      screen.getByText('Taken from the menu you were browsing. Tap to change.'),
+    ).toBeOnTheScreen();
   });
 
   it('asks for a school when none has been chosen', async () => {
@@ -211,24 +287,13 @@ describe('AddChildScreen', () => {
     await user.press(screen.getByTestId('screen-add-child-submit'));
 
     expect(invoke).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Choose the school/)).toBeOnTheScreen();
   });
 
   it('shows the server refusal rather than a generic failure', async () => {
     // The refusal codes exist so a parent gets a sentence they can act on. Collapsing them
     // into "something went wrong" throws away the whole reason the Edge Function maps them.
-    // A refusal arrives as an error whose `context` is the raw Response, which is how
-    // `functions.invoke` reports a non-2xx.
-    const error = new Error('Edge Function returned a non-2xx status code') as Error & {
-      context?: Response;
-    };
-    error.context = new Response(
-      JSON.stringify({
-        code: 'school_unavailable',
-        message: 'GrayBag is not serving that school yet.',
-      }),
-      { status: 409 },
-    );
-    invoke.mockResolvedValue({ data: null, error });
+    refuse('school_unavailable', 'GrayBag is not serving that school yet.');
 
     await setup();
     const user = userEvent.setup();
@@ -239,9 +304,56 @@ describe('AddChildScreen', () => {
     expect(
       await screen.findByText('GrayBag is not serving that school yet.'),
     ).toBeOnTheScreen();
+    // And what happens next, which the server has no business deciding.
+    expect(screen.getByText(/adding schools across Mohali/)).toBeOnTheScreen();
   });
 
-  it('hands the created child back', async () => {
+  it('explains a server-side allergen refusal instead of swallowing it', async () => {
+    // The server refuses the inconsistent combination too (`allergen_consent_required`), and
+    // the screen must not paper over it — the same rule the client half enforces.
+    refuse(
+      'allergen_consent_required',
+      'To store allergy details we need your permission on the allergies question.',
+    );
+
+    await setup();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('First name'), 'Ishaan');
+    await user.press(screen.getByTestId('screen-add-child-consent'));
+    await user.press(screen.getByTestId('screen-add-child-submit'));
+
+    expect(await screen.findByTestId('screen-add-child-error')).toBeOnTheScreen();
+    expect(screen.getByText(/Tick the allergies box/)).toBeOnTheScreen();
+  });
+
+  it('offers a way forward when the failure has no code', async () => {
+    invoke.mockRejectedValue(new Error('Network request failed'));
+
+    await setup();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('First name'), 'Ishaan');
+    await user.press(screen.getByTestId('screen-add-child-consent'));
+    await user.press(screen.getByTestId('screen-add-child-submit'));
+
+    expect(await screen.findByTestId('screen-add-child-error')).toBeOnTheScreen();
+    expect(screen.getByText(/tap Save again/)).toBeOnTheScreen();
+  });
+
+  it('will not save offline, and says why', async () => {
+    // A consent is evidence of who agreed, to which wording, from which build. There is no
+    // honest offline queue for that, so the screen refuses rather than promising.
+    await setup({ offline: true });
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('First name'), 'Ishaan');
+    await user.press(screen.getByTestId('screen-add-child-consent'));
+    await user.press(screen.getByTestId('screen-add-child-submit'));
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(screen.getByTestId('screen-add-child-offline')).toBeOnTheScreen();
+    expect(screen.getByTestId('screen-add-child-submit')).toHaveTextContent(/offline/);
+  });
+
+  it('hands the created child back, and says it worked', async () => {
     const { onAdded } = await setup();
     const user = userEvent.setup();
     await user.type(screen.getByLabelText('First name'), 'Ishaan');
@@ -251,5 +363,33 @@ describe('AddChildScreen', () => {
     await waitFor(() =>
       expect(onAdded).toHaveBeenCalledWith({ recipientId: 'r1', firstName: 'Ishaan' }),
     );
+    // The screen does not depend on the caller navigating away to look like it succeeded —
+    // §5.10 *Saved* is a state here, not a side effect of somebody else's router.
+    expect(await screen.findByTestId('screen-add-child-saved')).toBeOnTheScreen();
+  });
+
+  it('does not send the same person twice', async () => {
+    await setup();
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('First name'), 'Ishaan');
+    await user.press(screen.getByTestId('screen-add-child-consent'));
+    await user.press(screen.getByTestId('screen-add-child-submit'));
+
+    await screen.findByTestId('screen-add-child-saved');
+    await user.press(screen.getByTestId('screen-add-child-submit'));
+
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('is written for whoever is being added, not for a parent', async () => {
+    // `P13`: an adult may add themselves. Nothing on this screen may assume a parent, and the
+    // consent block is where that assumption would do the most damage — a member of staff
+    // asked to agree to us holding "your child's" details is being asked the wrong question.
+    await setup();
+    expect(screen.getByText('Add someone')).toBeOnTheScreen();
+    expect(
+      screen.getByText('So the right food reaches the right person.'),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText(/your child/i)).toBeNull();
   });
 });

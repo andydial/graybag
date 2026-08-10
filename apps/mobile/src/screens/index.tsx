@@ -57,6 +57,9 @@ export const HomeScreen = () => {
   const session = useSession();
   const { schoolId } = useSelectedSchool();
   const { state, payload, stale } = useCachedMenu(schoolId);
+  // Real now: `OrderTargetProvider` reads the account's recipients and picks one. Before
+  // today nothing wrote the target, so this card could never say who it was ordering for.
+  const { target } = useOrderTarget();
 
   const dishes = payload?.dishes ?? [];
   const toHomeDish = (dish: (typeof dishes)[number]): HomeDish => ({
@@ -75,6 +78,13 @@ export const HomeScreen = () => {
       // A school with a published menu and nothing in it is `menuUnpublished`; no school
       // chosen is not, because the card's job in that case is to offer the picker.
       menuUnpublished={schoolId !== null && state === 'ready' && dishes.length === 0}
+      recipientName={target?.displayName ?? null}
+      recipientClass={target?.classLabel ?? null}
+      schoolName={target?.schoolName ?? null}
+      // Still absent, and still said rather than invented: the break is not on the recipient
+      // and not in `fetchRecipients` (`E05-29`).
+      breakLabel={target?.breakLabel ?? null}
+      serviceDate={target?.serviceDate ?? null}
       featured={dishes[0] ? toHomeDish(dishes[0]) : null}
       popular={dishes.slice(1, 6).map(toHomeDish)}
       onBrowseMenu={() => navigation.navigate('Tabs')}
@@ -274,6 +284,8 @@ export const ChildrenScreen = () => {
   const isFocused = useIsFocused();
   const [visit, setVisit] = useState(0);
 
+  const { choices, setTarget } = useOrderTarget();
+
   useEffect(() => {
     if (isFocused) setVisit((n) => n + 1);
   }, [isFocused]);
@@ -282,6 +294,16 @@ export const ChildrenScreen = () => {
     <ChildrenScreenImpl
       reloadToken={visit}
       onAddChild={() => navigation.navigate('AddChild')}
+      /*
+       * Selecting a row now actually switches who the order is for. The screen deliberately
+       * refused to write the target itself: `OrderTarget` needs the allergen list, and passing
+       * `[]` would silently claim "no allergies" for that person — which F5/F6 forbid. The
+       * provider owns that decision and sets `allergenIds: null`, meaning "not read".
+       */
+      onSelectRecipient={(recipientId) => {
+        const next = choices.find((choice) => choice.recipientId === recipientId);
+        if (next) setTarget(next);
+      }}
     />
   );
 };

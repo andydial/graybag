@@ -107,7 +107,10 @@ describe('RootNavigator', () => {
    */
   const OPENS_AS: Record<string, RegExp> = {
     Home: /^screen-home$/,
-    Menu: /^school-picker/,
+    // Exact, not a prefix. `/^school-picker/` matched the screen AND every element inside it
+    // the moment the picker gained its own testIDs (`E21-09`), and "found multiple" reads as a
+    // broken test rather than as a screen that grew.
+    Menu: /^school-picker$/,
     Cart: /^screen-cart$/,
     Account: /^screen-account$/,
   };

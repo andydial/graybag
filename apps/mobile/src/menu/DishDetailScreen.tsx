@@ -433,7 +433,17 @@ export function AllergenConfirmation({
  */
 export type DishAllergenView =
   | { kind: 'clash'; allergenIds: string[] }
-  | { kind: 'cannotCheck'; why: 'no-recipient' | 'no-consent'; disclosure: menuDomain.AllergenDisclosure }
+  | {
+      kind: 'cannotCheck';
+      /**
+       * Three different reasons, and they are not interchangeable. `no-recipient`: nobody has
+       * been chosen. `no-consent`: they chose not to share allergy details. `not-read`: we hold
+       * the recipient but have not read their allergies, which is today's ordinary state
+       * because `fetchRecipients` does not return them (`E05-31`).
+       */
+      why: 'no-recipient' | 'no-consent' | 'not-read';
+      disclosure: menuDomain.AllergenDisclosure;
+    }
   | { kind: 'declaredNone' }
   | { kind: 'declared'; allergenIds: string[] }
   | { kind: 'notProvided' };
@@ -450,6 +460,13 @@ export function dishAllergenView(
   if (target === null) return { kind: 'cannotCheck', why: 'no-recipient', disclosure };
   if (target.allergenConsent === false) {
     return { kind: 'cannotCheck', why: 'no-consent', disclosure };
+  }
+  // `null` means we hold this recipient but have NOT read their allergies — `fetchRecipients`
+  // does not return them (`E05-31`). That is a third case, not an empty list: an empty list
+  // says "we asked and there are none", which is a safety claim. Falling through to
+  // `allergenWarning([])` here would turn "we did not look" into "you are safe".
+  if (target.allergenIds === null) {
+    return { kind: 'cannotCheck', why: 'not-read', disclosure };
   }
 
   const warning = menuDomain.allergenWarning(dish, target.allergenIds);
@@ -497,12 +514,16 @@ export function AllergenBlock({
         <Text style={styles.noticeTitle} accessibilityRole="header">
           {view.why === 'no-recipient'
             ? "We can't check this for anyone yet"
-            : `We can't check this against ${voice.possessive} allergies`}
+            : view.why === 'not-read'
+              ? "We can't check this against their allergies yet"
+              : `We can't check this against ${voice.possessive} allergies`}
         </Text>
         <Text style={styles.noticeBody} testID={`${testID}-cannot-check`}>
           {view.why === 'no-recipient'
             ? "Choose who this is for and we'll warn you about anything they're allergic to."
-            : "You haven't shared allergy details, so we can't warn you about ingredients."}
+            : view.why === 'not-read'
+              ? "We haven't loaded their allergy details on this device, so we can't warn you about ingredients yet."
+              : "You haven't shared allergy details, so we can't warn you about ingredients."}
         </Text>
         {/* The kitchen's own declaration, if there is one. It is a fact about the dish and it
             does not depend on knowing anything about the person eating it. */}
