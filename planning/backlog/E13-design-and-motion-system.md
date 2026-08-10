@@ -44,3 +44,8 @@ Found while building Block 4 (2026-08-09). Untagged — fast-follow until Andy s
 
 - [ ] `E13-21` **Wire the generated stylesheet into the web build.** `packages/shared/src/design/css.ts` emits `cssVariableSheet()`; nothing writes it to disk yet, because `apps/web` is still a bare workspace. When the web app is scaffolded, the build must regenerate the sheet rather than commit it, and CI must fail if a committed copy has drifted — a generated file that can be edited by hand is a second source, which is the exact thing `S8` exists to prevent
 - [ ] `E13-22` **The `transform`/`opacity` lint gate is an approximation and should be tightened once real components exist.** It catches a `useAnimatedStyle` callback returning a disallowed key; it does not catch a style assembled elsewhere and returned by reference (`S34`, `docs/design-tokens.md` §9.2). Worth revisiting with actual call sites to see whether the gap is reachable in practice before spending a custom ESLint rule on it
+
+- [ ] `E13-23` (risk:high) Build the screens in `docs/ux-spec.md` for real in React Native, one at a time, each verified on a device before the next is started
+- [ ] `E13-24` Single `typography.family` token plus a lint rule failing any `fontFamily` literal outside it, so swapping in VAG Rounded Next is one line if the licence allows it (ux-spec §3.2)
+- [ ] `E13-25` (risk:high) Dynamic-type behaviour to ux-spec §3.5: single-column fallback past `fontScale >= 1.35`, tab-bar labels dropped before icons shrink, and price / allergen warning / primary action never truncated
+- [ ] `E13-26` Re-shoot the three dish photos that are a permanent 403 at the legacy CDN (Aloo Channa Chaat, Tomato-Cucumber cheese sandwich, mushroom-pesto pasta) — see `E16-29`

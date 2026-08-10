@@ -572,7 +572,7 @@ Resolved through the config chain platform → kitchen → school (`D5`). Writte
 | **E1** | The app's calendar (`E05-08`) greys out closed days | **No** | A client clock is not evidence. Purely UX |
 | **E2** | `POST /checkout/preflight` | No | Advisory; §8.1 |
 | **E3** | Inside the checkout transaction, §8.2 step 6 | **Yes** — for order creation | `now() < cutoff_at`, strict |
-| **E4** | At settlement, §8.4 | **`[OL-02]` — undecided** | The cutoff can pass while the payment is in flight. This is the sharpest edge case in the document |
+| **E4** | At settlement, §8.4 | **Yes, with a grace window** — `L9` | The cutoff can pass while the payment is in flight. **`[OL-02]` is settled (2026-08-10):** settlement inside `cutoff_at + grace` is honoured; after it, the order is refused and auto-refunded. Grace is per-kitchen config, default **15 minutes**. Never shown to the customer — it is a server tolerance, not a deadline they can act on |
 | **E5** | Customer cancellation (T10) | **Yes** | `now() < cutoff_at − customer_cancellation_cutoff_minutes` |
 
 Kitchen and admin actions (T7, T8, T9, T11, T12) are **never** cutoff-bound. The cutoff protects
@@ -814,7 +814,7 @@ Each row is one fixture, driven end to end against Razorpay test mode.
 | 14 | Duplicate capture (§10.6b) | **Blocked on `[OL-05]`** |
 | 15 | Cutoff passes between preflight and checkout | `cutoff_passed`, nothing written |
 | 16 | Price changed between preflight and checkout | `price_changed`, nothing written |
-| 17 | Cutoff passes while payment in flight | **Blocked on `[OL-02]`** |
+| 17 | Cutoff passes while payment in flight | **Settled — `L9`.** Test both sides of the window: settlement at `cutoff_at + grace − 1s` is honoured; at `cutoff_at + grace` (strict, as C1) it is refused and auto-refunded |
 | 18 | Customer cancels before the cancellation cutoff | Order `cancelled` → `refunded`, wallet credited |
 | 19 | Customer cancels after it | `cancellation_closed`, nothing written |
 | 20 | Kitchen per-line refund | Line `refunded`, order `paid`, group `partially_refunded`, credit note |
@@ -895,7 +895,7 @@ block `E06-06` outright.
 | Q | One line | Blocks |
 |---|---|---|
 | `[OL-01]` | Auto-capture or manual capture at Razorpay | `E06-02`, `E06-03` |
-| `[OL-02]` | The cutoff passes while the payment is in flight — honour it, or auto-cancel and refund | `E05-07`, `E06-06` |
+| ~~`[OL-02]`~~ | ~~The cutoff passes while the payment is in flight~~ — **CLOSED 2026-08-10.** Grace window, per-kitchen config, default 15 min. See `L9` and §9.2 E4 | `E05-07`, `E06-06` |
 | `[OL-03]` | How long a `pending_payment` checkout is held before it is swept | `E05-14`, `E06-06` |
 | `[OL-04]` | Does a partial or post-delivery refund change `order.status` | `E06-08`, `E06-05` |
 | `[OL-05]` | A genuine duplicate capture cannot be recorded — the schema forbids it | `E06-06` |

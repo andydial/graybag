@@ -33,3 +33,11 @@ summary: React Native + Expo shell, navigation, the api/ module discipline, and 
 - [x] `E14-16` **Real tab bar icons.** All four tabs fall through to React Navigation's default placeholder triangle; there is no icon set in the project at all
 - [x] `E14-17` Placeholder screens say something a parent can read. They currently ship developer notes to the device ("Browsable signed out", "Never a wall — the tab still opens")
 - [x] `E14-18` (risk:critical) **A non-worklet function called from inside a worklet aborts every release build.** Two gates: a lint rule with an allowlist, and a test asserting the allowlisted names carry `__workletHash`. Found by the first iOS build crashing on any screen with a `TextField`
+
+- [ ] `E14-19` (risk:critical) One `ListState` type — `loading | data | empty | unreachable | forbidden | stale` — that every list screen must exhaust, so a screen cannot render "nothing here" for a backend it could not reach (ux-spec §5.21)
+- [ ] `E14-20` (risk:high) Build the Can't-connect screen (ux-spec §5.20) and route an unconfigured or unreachable client to it, instead of letting every screen fail in its own way
+- [ ] `E14-21` (risk:high) Separate the collapsed empty/error/forbidden/stale states listed in the ux-spec §5.21 audit table — menu, menu allergens, children, orders, school picker
+- [ ] `E14-22` (risk:critical) Persist the cart to disk on every mutation and restore it before first render; ids, quantities, child and service date only — never prices, never a child's name (ux-spec §5.7.1)
+- [ ] `E14-23` (risk:high) Make the email-OTP screen survive backgrounding and process death — digits, timestamp-anchored resend timer, pending address, and the interrupted checkout intent; clipboard auto-fill that never auto-submits (ux-spec §5.9.1)
+- [ ] `E14-24` (risk:critical) Maestro: the ux-spec §6.1 flow against a real build and real staging, in CI — launch, pick a school, see dishes, open one, add to cart, sign in, add a child, place an order. Asserts the screen count so a re-added step fails CI
+- [ ] `E14-25` Run the §6.1 Maestro flow a second time at the largest accessibility text size
