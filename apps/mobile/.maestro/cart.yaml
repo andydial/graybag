@@ -27,6 +27,15 @@ appId: com.gracord.graybag.staging
 # --- browse, signed out. AR7: no gate before checkout. ---
 - tapOn:
     id: 'tab-menu'
+
+# A cold launch has no school, so the Menu tab opens the picker — which since §6.1.1 also
+# carries the welcome. The flow used to assume the menu appeared straight away, which on a
+# `clearState: true` launch it never does.
+- assertVisible:
+    id: 'school-picker'
+- tapOn:
+    id: 'school-picker-.*'
+    index: 0
 - assertVisible:
     id: 'screen-menu'
 
@@ -38,8 +47,12 @@ appId: com.gracord.graybag.staging
     index: 0
 - assertVisible:
     id: 'screen-dish-detail'
+# `screen-dish-detail-add-button`, NOT `screen-dish-detail-button`. The button lives inside an
+# `AddToCart` sub-component whose own testID is `…-add`, so the id has both segments. The
+# earlier form existed nowhere and would have hung until Maestro timed out —
+# `check-maestro-ids.mjs` could not catch it because both halves are real in that one file.
 - tapOn:
-    id: 'screen-dish-detail-button'
+    id: 'screen-dish-detail-add-button'
 
 # --- the cart ---
 - tapOn:

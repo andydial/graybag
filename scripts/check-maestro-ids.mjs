@@ -20,10 +20,23 @@
  * ## What counts as existing
  *
  * A literal `testID="foo"` / `testID={'foo'}`, or a template that could produce it — a row
- * rendered as `testID={`menu-row-${item.id}`}` satisfies the flow's `menu-row-.*`. The check is
- * deliberately generous about templates and strict about literals: proving a template's runtime
- * output is the e2e suite's job, and duplicating it here would just be a second thing to be
- * wrong. Catching the id that exists nowhere at all is the whole win.
+ * rendered as `testID={`menu-row-${item.id}`}` satisfies the flow's `menu-row-.*`.
+ *
+ * ## What it CANNOT catch, stated plainly
+ *
+ * **A composition that is individually real but never occurs.** `DishDetailScreen` defines
+ * `screen-dish-detail` and, in the same file, renders a Button as `${testID}-button` — but that
+ * Button's `testID` is the sub-component's `screen-dish-detail-add`, so the real handle is
+ * `screen-dish-detail-add-button`. Both halves of `screen-dish-detail-button` are genuinely
+ * present in that file, so this check accepts it, and it exists nowhere at runtime.
+ *
+ * That is not a bug to be fixed by a cleverer regex — deciding it needs to know which testID
+ * prop reaches which component, which is the program's runtime behaviour. **Only Maestro
+ * running against a real build can tell you.** This check is the cheap half: it catches the id
+ * that exists nowhere at all, in a second, in the smoke test. It is not a substitute for the
+ * e2e run, and a green result here is not evidence that a flow will pass.
+ *
+ * The flow shipped with exactly that wrong id for a day while this check reported success.
  */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -45,10 +58,10 @@ function walk(dir, match, out = []) {
   return out;
 }
 
-const source = walk(SRC_DIR, /\.tsx?$/)
+const sourceFiles = walk(SRC_DIR, /\.tsx?$/)
   .filter((path) => !/\.test\.tsx?$/.test(path))
-  .map((path) => readFileSync(path, 'utf8'))
-  .join('\n');
+  .map((path) => ({ path, text: readFileSync(path, 'utf8') }));
+const source = sourceFiles.map((f) => f.text).join('\n');
 
 /**
  * Every literal string that reaches a `testID`, plus the static prefix of every template one.
@@ -56,7 +69,8 @@ const source = walk(SRC_DIR, /\.tsx?$/)
  * asking for `menu-row-.*`.
  */
 const known = new Set();
-const suffixes = new Set();
+/** Base+suffix combinations that genuinely occur together in one file. */
+const composed = new Set();
 
 /**
  * An empty capture is worse than useless here: `testID={`${testID}-list`}` yields `''` as its
@@ -73,11 +87,55 @@ for (const [, value] of source.matchAll(/testID\s*=\s*\{\s*['"]([^'"]+)['"]\s*\}
 for (const [, value] of source.matchAll(/testID\s*=\s*\{`([^`$]*)\$\{/g)) add(known, value);
 // `testID = 'screen-cart'` as a prop default, and `${testID}-button` suffixes built from it.
 for (const [, value] of source.matchAll(/testID\s*=\s*['"]([^'"]+)['"]\s*,/g)) add(known, value);
-for (const [, value] of source.matchAll(/\$\{testID\}(-[a-z0-9-]+)/gi)) add(suffixes, value);
+/**
+ * `${testID}-button` style suffixes, paired with the base ids declared in the SAME file.
+ *
+ * Pairing matters. Composing every known base with every known suffix accepted
+ * `screen-dish-detail-button`, which exists nowhere — the real id is
+ * `screen-dish-detail-add-button`, because the button lives inside a sub-component whose own
+ * testID is `screen-dish-detail-add`. Both halves were real; the combination was not, and the
+ * flow would have hung on it until Maestro timed out.
+ *
+ * Per-file pairing is still not proof — a base and a suffix can be real in one file and never
+ * meet at runtime — but it removes the whole class of cross-file coincidences.
+ */
+for (const { text } of sourceFiles) {
+  const bases = [
+    ...[...text.matchAll(/testID\s*=\s*['"]([^'"]+)['"]\s*,/g)].map((m) => m[1]),
+    ...[...text.matchAll(/testID\s*=\s*\{`([^`$]*)\$\{/g)].map((m) => m[1]),
+  ].filter((v) => typeof v === 'string' && v.length >= 3);
+  const suffixes = [...text.matchAll(/\$\{testID\}(-[a-z0-9-]+)/gi)].map((m) => m[1]);
+
+  /**
+   * Compose to TWO levels, because ids nest. `screen-dish-detail` passes `${testID}-add` to a
+   * sub-component, which passes `${testID}-button` to a Button — so the real id is
+   * `screen-dish-detail-add-button`, three segments from two suffixes.
+   *
+   * One level accepted `screen-dish-detail-button` (which exists nowhere) and rejected
+   * `screen-dish-detail-add-button` (which is the actual handle) — the worst of both, and it
+   * got the wrong id into the committed flow.
+   *
+   * Two levels is deliberate rather than unbounded: it matches the nesting the codebase
+   * actually has, and each extra level widens what the check will accept.
+   */
+  let level = [...bases];
+  for (let depth = 0; depth < 2; depth += 1) {
+    const next = [];
+    for (const base of level) {
+      for (const suffix of suffixes) {
+        const id = `${base}${suffix}`;
+        add(composed, id);
+        next.push(id);
+      }
+    }
+    level = next;
+  }
+}
 for (const [, value] of source.matchAll(/tabBarButtonTestID:\s*['"]([^'"]+)['"]/g)) add(known, value);
 
 /** Does any known id satisfy this flow reference? */
 function satisfied(reference) {
+  if (composed.has(reference)) return true;
   const isPattern = reference.endsWith('.*');
   const literal = reference.replace(/\.\*$/, '');
   if (literal.length < 3) return false;
@@ -88,11 +146,7 @@ function satisfied(reference) {
     // its literal part. Only patterns get prefix treatment — an exact reference must exist
     // exactly, or `tab-does-not-exist` passes because `tab-home` shares three characters.
     if (isPattern && id.startsWith(literal)) return true;
-    // `screen-dish-detail-button` is the screen's own `testID` plus a `${testID}-button` suffix
-    // rendered inside it.
-    for (const suffix of suffixes) {
-      if (`${id}${suffix}` === reference) return true;
-    }
+
   }
   return false;
 }
