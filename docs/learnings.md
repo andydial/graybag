@@ -1815,3 +1815,50 @@ so a correct test fails with an empty tree and the actual cause is in the test a
 Three separate people have now lost time to this family in two days, always the same way: the
 symptom is reported somewhere other than the cause. If a test that was passing starts returning
 an empty tree, look at the test *before* it, not at itself.
+
+## 2026-08-11 — `supabase db push --include-seed` does not re-apply a changed seed
+
+**Symptom.** `supabase/seeds/catalogue.sql` was applied to staging, then edited to set
+`school.onboarded_at`, then pushed again. The CLI printed `Updating seed hash to
+supabase/seeds/catalogue.sql...` and `Finished supabase db push`, exit 0, seed listed in the JSON
+result — and **the file was never executed**. Editing it again and re-pushing did the same.
+
+**Why it matters.** The first application had left `onboarded_at` null, and
+`anon_school_onboarded` is `is_active and onboarded_at is not null and offboarded_at is null`, so
+three real schools with 119 priced menu rows behind them were invisible to every signed-out
+visitor. The school picker returned `[]` and the app rendered as though the database were empty —
+`docs/ux-spec.md` §5.21 N2 wearing N1's clothes. And the fix appeared to deploy successfully each
+time.
+
+**The tell.** A run that actually executes prints `Seeding data from <file>...`. A run that only
+records the hash prints `Updating seed hash to <file>...`. If you do not see *Seeding data from*,
+nothing ran.
+
+**What to do instead.** A correction to already-seeded data belongs in a migration, which always
+applies — `supabase/migrations/0024_onboard_real_schools.sql` is the worked example: named ids,
+`and onboarded_at is null` so it is idempotent, and a no-op in an environment where the catalogue
+was never seeded. Seeds are for first application; migrations are for correction.
+
+## 2026-08-11 — three things the real Bubble catalogue does that fixtures never did
+
+Found while importing the real 85-dish catalogue (`E16-44`). All three were invisible against the
+four-dish fixture set, and each stopped the seed dead:
+
+1. **Six dishes exist twice** under the same name, violating `uq_dish_kitchen_name`
+   `(kitchen_id, lower(name))`. They are the same dish entered years apart and they are *not*
+   identical — one has marketing copy and no ingredients, the other a plain sentence and a full
+   list — and four pairs **disagree on calories** ("160" vs "250–350" for one Cold Coffee). The
+   merge keeps the row the live menu prices, fills blanks from the twin, and preserves the
+   conflicting figure in `nutrition` rather than picking a winner.
+2. **One dish is listed twice on one menu** (`menu_item_menu_dish_unique`), at the same price both
+   times — parents see it duplicated today. Collapsed, but the generator throws rather than
+   choosing if the two prices ever disagree.
+3. **The export is double-encoded**: UTF-8 bytes decoded as cp1252 and re-encoded, so every
+   en-dash arrives as `â€“`. `.encode('cp1252').decode('utf-8')` restores it — **not** latin-1,
+   which cannot represent `0x80` and silently drops the character with `errors='ignore'`.
+
+**And a fourth, in our own code:** the seed emitted `asset` rows for dish photos while
+`tools/upload-dish-images` also writes them, under a `dishes/` key prefix that only the uploader
+knows. Every seed-written path 404'd. Two writers for one relationship — the same shape as the two
+sources of truth for the session (`E03-26`). The uploader owns it; the seed no longer writes
+assets at all.

@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 41 open of 45.
+Your tasks only — 42 open of 46.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -61,6 +61,7 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E16-34` _(fast-follow)_ Decide the treatment of the 1 Cancelled order that carries a payment id — money was taken and the order cancelled, and legacy had no refunded status to express what happened next. Confirm whether a refund was issued outside the system; if not, it is an opening ledger credit under E16-16
 - [ ] `E16-37` _(fast-follow)_ Decide what to do with the 746 roster children who have no recoverable parent — bulk-imported by the school on 2025-09-21, each with a unique school-code, none linked to an account. Migrate them as unlinked records for parents to claim in-app, or leave them behind and re-import from a fresh school roster
 - [ ] `E16-39` _(fast-follow)_ Tell the kitchen that no allergy data is migrating — Child.allergies is empty on all 1,115 legacy rows, so every allergy record in the new system starts blank. They may believe they hold this data
+- [ ] `E16-45` _(fast-follow)_ Settle four calorie conflicts. The legacy catalogue holds two rows for each of Blueberry Muffin (400-430 vs 240–340), Lemon Ice Tea (90-120 vs 80–140), Peach Ice Tea (100-130 vs 100–160) and Cold Coffee (160 vs 250–350). The import preserves both figures in dish.nutrition and leaves calories_kcal null rather than choosing — publishing a calorie count nobody measured is the same failure as guessing food_type. A validation: somebody has to say which is right, and only the kitchen knows
 - [ ] `E17-01` _(fast-follow)_ Confirm Play App Signing / upload key status (low risk — mandatory since Aug 2021, so almost certainly enabled)
 - [ ] `E17-04` (risk:critical) BLOCKED ON E20-26/E20-10 — do not submit while an unscrubbed Sentry is wired up. Answering "not collected" then is a false statement to two app stores. Submit the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from E20; you sign them off in the consoles
 - [ ] `E17-06` TestFlight build + Play internal testing track, ~15 beta users invited
