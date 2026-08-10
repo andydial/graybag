@@ -1,13 +1,7 @@
 import { render, screen } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 
-import {
-  AccountScreen,
-  DishDetailScreen,
-  HomeScreen,
-  OrderDetailScreen,
-  OrdersScreen,
-} from './index';
+import { AccountScreen, HomeScreen, OrderDetailScreen, OrdersScreen } from './index';
 
 // `render` is async on RNTL v14 — see docs/learnings.md 2026-08-09.
 
@@ -46,7 +40,11 @@ const SCREENS: [string, () => React.JSX.Element, string][] = [
   ['Home', HomeScreen, 'screen-home'],
   ['Account', AccountScreen, 'screen-account'],
   ['Orders', OrdersScreen, 'screen-orders'],
-  ['Dish detail', DishDetailScreen, 'screen-dish-detail'],
+  // Dish detail has left this list because it is no longer a placeholder — it renders a real
+  // dish from the cached menu, and it is covered by `menu/DishDetailScreen.test.tsx`, which
+  // asserts the same things about a real screen: what it says, and that it has a heading.
+  // Leaving this table is what *finishing* a screen looks like; a row removed while the
+  // screen still says "will appear here" would be the regression.
   ['Order detail', OrderDetailScreen, 'screen-order-detail'],
 ];
 

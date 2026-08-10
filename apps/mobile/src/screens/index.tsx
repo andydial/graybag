@@ -1,11 +1,14 @@
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import Constants from 'expo-constants';
 
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { AddChildScreen as AddChildScreenImpl } from '../recipients/AddChildScreen';
+import { DishDetailScreen as DishDetailScreenImpl } from '../menu/DishDetailScreen';
 import { MenuScreen as MenuScreenImpl } from '../menu/MenuScreen';
+import type { RootStackParamList } from '../navigation/types';
 import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
+import { useOrderTarget } from '../session/OrderTargetContext';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 /**
@@ -100,15 +103,31 @@ export const OrdersScreen = () => (
   />
 );
 
-// `D7`: the allergen warning belongs at add-to-cart, on this screen. That is a constraint on
-// what gets built here, not something to say to a parent in advance of it existing.
-export const DishDetailScreen = () => (
-  <PlaceholderScreen
-    testID="screen-dish-detail"
-    title="Dish details"
-    body="The full description, what is in it and any allergen information will appear here."
-  />
-);
+/**
+ * Real as of `E04-12` / `E14-14`. `D7`: the allergen warning belongs at add-to-cart, on this
+ * screen.
+ *
+ * The dish comes out of the cached menu by id rather than being fetched — the menu is already
+ * held by the time a row can be tapped, and a per-dish round trip on this audience's
+ * connection would be the slowest thing on the screen (`E04-10`, `MC3`).
+ */
+export const DishDetailScreen = () => {
+  const navigation = useNavigation();
+  const { params } = useRoute<RouteProp<RootStackParamList, 'DishDetail'>>();
+  const { schoolId } = useSelectedSchool();
+  const { target } = useOrderTarget();
+
+  return (
+    <DishDetailScreenImpl
+      dishId={params.dishId}
+      schoolId={schoolId}
+      target={target}
+      // `null` is the ordinary state today: nothing can name a child yet (`E05-16`), so the
+      // one honest thing to offer is the screen that creates one.
+      onNeedsTarget={() => navigation.navigate('AddChild')}
+    />
+  );
+};
 
 export const OrderDetailScreen = () => (
   <PlaceholderScreen
