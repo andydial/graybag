@@ -19,6 +19,46 @@ Format — newest first:
 
 ---
 
+## 2026-08-10 — A git worktree with a symlinked `node_modules` silently tests the wrong workspace
+
+**Context:** building the recipients UI (`E05-17`, `E05-18`) in a `git worktree`, with
+`node_modules` symlinked to the main checkout's rather than reinstalled — the usual trick for
+not paying an npm install per worktree.
+
+**What happened:** a new export from `packages/shared` typechecked, and the shared package's
+own vitest suite passed, but every mobile jest test using it failed with
+`api.fetchRecipients is not a function`.
+
+**Cause:** npm workspaces link `node_modules/@graybag/shared` to `../../packages/shared`, and
+that link is **relative to the symlink's own directory** — which is the main checkout. So
+`worktree/node_modules` → `main/node_modules` → `main/packages/shared`. The mobile tests were
+importing the shared package from `main`, not from the worktree, and would have kept doing so
+however many times the worktree's copy was edited. TypeScript did not notice because
+`tsconfig` resolves the workspace by a *relative path*, which does stay inside the worktree —
+so typecheck saw the new code and jest did not.
+
+**Fix / rule:** do not symlink `node_modules` wholesale in a worktree. Make it a real
+directory and symlink the entries *individually*, then point `@graybag/*` at the worktree's
+own `packages/` and `apps/`:
+
+```bash
+mkdir -p node_modules/@graybag
+for e in "$MAIN"/node_modules/*; do ln -s "$e" "node_modules/$(basename "$e")"; done  # skip @graybag
+ln -s "$PWD/packages/shared" node_modules/@graybag/shared
+```
+
+**The part worth remembering:** the failure mode is not "it does not work", it is "half the
+toolchain sees your change and half does not". A green typecheck over a stale runtime is
+worse than a broken install, because it looks like the code is wrong rather than the
+resolution.
+
+**Also found:** `.gitignore` has `node_modules/` with a trailing slash, which matches a
+directory and **not a symlink of the same name**. The first commit of this branch therefore
+staged two `node_modules` symlinks without a murmur. Worth fixing to `node_modules` if
+worktrees stay part of the workflow.
+
+---
+
 ## 2026-08-09 — A binary parser with a wrong base offset does not throw, it lies
 
 **Context:** `E06-32`, writing a reader for the binary `AndroidManifest.xml` inside an APK so
