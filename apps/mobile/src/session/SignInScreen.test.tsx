@@ -146,3 +146,28 @@ describe('SignInScreen', () => {
     expect(auth.signInWithOtp).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * `AR4`: first sign-in IS registration. There is no separate register step and there never
+ * will be — but the screen has to say so, because a screen headed "Sign in" with no visible
+ * way to create an account reads as broken. Andy concluded he was blocked on OAuth client ids
+ * that do not exist, and 150 Amity parents will meet this screen cold.
+ */
+describe('SignInScreen — a new user can tell this is for them', () => {
+  it('tells a new user that entering an email is all it takes', async () => {
+    await render(<SignInScreen />);
+    expect(await screen.findByTestId('screen-sign-in-new-here')).toBeTruthy();
+    expect(screen.getByText(/New here\?/)).toBeTruthy();
+  });
+
+  // R3 / non-negotiable #7: no passwords, and no OAuth in v1. If a Google or Apple button
+  // ever appears without the client ids existing, this screen becomes a dead end again.
+  it('offers no sign-in method that needs credentials we do not have', async () => {
+    await render(<SignInScreen />);
+    expect(screen.queryByText(/Google/i)).toBeNull();
+    expect(screen.queryByText(/Apple/i)).toBeNull();
+    // Not the WORD "password" — the screen says "No password to remember", which is the
+    // point. What must not exist is a password FIELD.
+    expect(screen.queryByLabelText(/password/i)).toBeNull();
+  });
+});

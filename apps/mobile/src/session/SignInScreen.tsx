@@ -84,6 +84,17 @@ export function SignInScreen({
           <Text style={styles.body}>
             We will email you a six-digit code. No password to remember.
           </Text>
+          {/*
+            `AR4` makes first sign-in the whole of registration — there is no separate register
+            step, by design. But the screen never said so, and a screen headed "Sign in" with no
+            visible way to create an account reads as broken even when it is working perfectly.
+            Andy hit exactly that and concluded he was blocked on OAuth client ids that do not
+            exist. 150 Amity parents will meet this screen cold; one sentence is cheap insurance.
+          */}
+          <Text style={styles.body} testID={`${testID}-new-here`}>
+            New here? Enter your email and we&rsquo;ll send a code — that is all it takes to
+            create your account.
+          </Text>
           <TextField
             label="Email address"
             value={email}

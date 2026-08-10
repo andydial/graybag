@@ -4365,6 +4365,205 @@
       </li></ul>
       </details>
     </article>
+    <article class="epic" data-phase="9" data-risk="low" data-id="E21">
+      <header class="epic-head">
+        <div class="epic-title">
+          <code class="eid">E21</code>
+          <h3>E21-screen-design.md</h3>
+          <span class="badge r-low">low</span>
+        </div>
+        <div class="meter-wrap">
+          <div class="meter"><span style="width:0%"></span></div>
+          <span class="meter-num">0/20</span>
+        </div>
+      </header>
+      <p class="summary"></p>
+      
+      <details>
+        <summary>Context &amp; 20 tasks</summary>
+        <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
+<p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
+<p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
+<p>exactly how <code>E13</code> shipped tokens, we both ticked &quot;design done&quot;, and the app stayed a wireframe</p>
+<p>for weeks. This epic makes it countable.</p>
+<p><strong>One task per screen in the <code>docs/ux-spec.md</code> §5 catalogue.</strong> Each names the states it must be</p>
+<p>compared against, because the happy path is the one that always gets built and the empty, error</p>
+<p>and unreachable states are the ones that quietly do not.</p>
+<h4>Definition of done — the same for every task here</h4>
+<p>A screen is done when <strong>all</strong> of these are true:</p>
+<p>1. It is built to <code>docs/prototype/graybag-prototype.html</code> — the prototype <strong>is</strong> the acceptance</p>
+<p>   criteria, not a mood board. Deep-link each state and compare.</p>
+<p>2. <strong>Every state named in the task</strong> has been rendered and compared, not just the happy path.</p>
+<p>3. It has been seen <strong>on a device</strong>, over Metro or a build. Not a simulator screenshot alone.</p>
+<p>4. Its Maestro coverage ships in the <strong>same PR</strong> (<code>E14-24</code>), not afterwards.</p>
+<p>5. Recipient-neutral copy from one code path — &quot;For you&quot; / &quot;For Aarav&quot; (<code>0022</code>,</p>
+<p>   <code>docs/self-ordering-costing.md</code>). No screen says &quot;your child&quot; where an adult may be reading.</p>
+<p>6. Dynamic type checked at <code>AX5</code>, per ux-spec §3.5.</p>
+<p><strong>Not done</strong> means: built, but not compared against its states, or not seen on a device. Say so</p>
+<p>rather than ticking it.</p></div>
+        <ul class="tasks">
+      <li class="task" data-id="E21-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-01"></button>
+        <code class="tid">E21-01</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Cart</strong> — ux-spec §5.7. States: empty · loaded · signed-out · no</span>
+      </li>
+      <li class="task" data-id="E21-02" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-02"></button>
+        <code class="tid">E21-02</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Menu</strong> — §5.5. States: loading (six skeleton cards) · loaded ·</span>
+      </li>
+      <li class="task" data-id="E21-03" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-03"></button>
+        <code class="tid">E21-03</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Dish detail</strong> — §5.6. States: loading · loaded · no photo (pattern</span>
+      </li>
+      <li class="task" data-id="E21-04" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-04"></button>
+        <code class="tid">E21-04</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Add child / Add someone</strong> — §5.10. States: empty form · invalid ·</span>
+      </li>
+      <li class="task" data-id="E21-05" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-05"></button>
+        <code class="tid">E21-05</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Edit child</strong> — §5.10.1. States: loading · loaded · invalid · saving · saved ·</span>
+      </li>
+      <li class="task" data-id="E21-06" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-06"></button>
+        <code class="tid">E21-06</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Sign in</strong> — §5.8. States: default · email sent · cancelled · error · offline.</span>
+      </li>
+      <li class="task" data-id="E21-07" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-07"></button>
+        <code class="tid">E21-07</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Email OTP</strong> — §5.9 and §5.9.1. States: awaiting · verifying · wrong code ·</span>
+      </li>
+      <li class="task" data-id="E21-08" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-08"></button>
+        <code class="tid">E21-08</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Home</strong> — §5.4. States: signed out · signed in no recipient · one recipient ·</span>
+      </li>
+      <li class="task" data-id="E21-09" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-09"></button>
+        <code class="tid">E21-09</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Choose school</strong> — §5.3. States: loading · loaded · empty search · empty list ·</span>
+      </li>
+      <li class="task" data-id="E21-10" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-10"></button>
+        <code class="tid">E21-10</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Orders list</strong> — §5.14. States: loading · loaded · empty · signed out · offline ·</span>
+      </li>
+      <li class="task" data-id="E21-11" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-11"></button>
+        <code class="tid">E21-11</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Order detail</strong> — §5.15. States: loading · loaded · cancellable · not cancellable</span>
+      </li>
+      <li class="task" data-id="E21-12" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-12"></button>
+        <code class="tid">E21-12</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Your children / Who you order for</strong> — §5.16. States: loading · loaded · empty ·</span>
+      </li>
+      <li class="task" data-id="E21-13" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-13"></button>
+        <code class="tid">E21-13</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Account</strong> — §5.17. States: signed out · signed in. Keeps the build label</span>
+      </li>
+      <li class="task" data-id="E21-14" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-14"></button>
+        <code class="tid">E21-14</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Checkout and payment</strong> — §5.11, §5.12. States: preflight running · ready ·</span>
+      </li>
+      <li class="task" data-id="E21-15" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-15"></button>
+        <code class="tid">E21-15</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Order confirmed</strong> — §5.13. Single state, unreachable until settlement confirms</span>
+      </li>
+      <li class="task" data-id="E21-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-16"></button>
+        <code class="tid">E21-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Policy acceptance gate</strong> — §5.19. States: not required · required · accepting ·</span>
+      </li>
+      <li class="task" data-id="E21-17" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-17"></button>
+        <code class="tid">E21-17</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Can&#39;t connect</strong> — §5.20. The screen that separates &quot;we cannot reach</span>
+      </li>
+      <li class="task" data-id="E21-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-18"></button>
+        <code class="tid">E21-18</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Splash</strong> — §5.1. States: default · slow start · unconfigured → 5.20 · update</span>
+      </li>
+      <li class="task" data-id="E21-19" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-19"></button>
+        <code class="tid">E21-19</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Support</strong> — §5.18. Grievance officer contact (compliance). States: loaded · error</span>
+      </li>
+      <li class="task" data-id="E21-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-20"></button>
+        <code class="tid">E21-20</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">A count in <code>planning/backlog.html</code> of screens designed versus stubbed, so &quot;how</span>
+      </li></ul>
+      </details>
+    </article>
   </section>
 
   <footer>

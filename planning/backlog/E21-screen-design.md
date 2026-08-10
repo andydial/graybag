@@ -1,0 +1,80 @@
+# E21 — Screen design: every screen built to the prototype
+
+**Why this epic exists.** "Every screen gets the prototype treatment" lived only in a
+conversation. Nothing counted it and nothing failed if it silently did not happen — which is
+exactly how `E13` shipped tokens, we both ticked "design done", and the app stayed a wireframe
+for weeks. This epic makes it countable.
+
+**One task per screen in the `docs/ux-spec.md` §5 catalogue.** Each names the states it must be
+compared against, because the happy path is the one that always gets built and the empty, error
+and unreachable states are the ones that quietly do not.
+
+## Definition of done — the same for every task here
+
+A screen is done when **all** of these are true:
+
+1. It is built to `docs/prototype/graybag-prototype.html` — the prototype **is** the acceptance
+   criteria, not a mood board. Deep-link each state and compare.
+2. **Every state named in the task** has been rendered and compared, not just the happy path.
+3. It has been seen **on a device**, over Metro or a build. Not a simulator screenshot alone.
+4. Its Maestro coverage ships in the **same PR** (`E14-24`), not afterwards.
+5. Recipient-neutral copy from one code path — "For you" / "For Aarav" (`0022`,
+   `docs/self-ordering-costing.md`). No screen says "your child" where an adult may be reading.
+6. Dynamic type checked at `AX5`, per ux-spec §3.5.
+
+**Not done** means: built, but not compared against its states, or not seen on a device. Say so
+rather than ticking it.
+
+## Tasks
+
+- [ ] `E21-01` (risk:high) **Cart** — ux-spec §5.7. States: empty · loaded · signed-out · no
+      recipient · repricing · price-changed · cutoff-passed · item-unavailable · offline ·
+      restored-after-kill · error. *Partly built (`b34e957`); not yet compared against every state
+      on a device, and the cutoff, break time and allergen lines are absent pending E05-29/30/31*
+- [ ] `E21-02` (risk:high) **Menu** — §5.5. States: loading (six skeleton cards) · loaded ·
+      empty-unpublished · empty-search · empty-category · error · offline/stale · partial
+      (allergens failed → flags suppressed and said so) · AX5 single column
+- [ ] `E21-03` (risk:high) **Dish detail** — §5.6. States: loading · loaded · no photo (pattern
+      tile) · signed-out · no recipient · allergen clash unconfirmed · allergen clash confirmed ·
+      cannot-check · kitchen-declared-none · nothing-declared · unavailable · cutoff passed ·
+      offline. **Includes `E05-32`: adding to cart must not require a recipient**
+- [ ] `E21-04` (risk:high) **Add child / Add someone** — §5.10. States: empty form · invalid ·
+      saving · saved · school-not-served · consent missing · allergy details without consent ·
+      offline · error
+- [ ] `E21-05` **Edit child** — §5.10.1. States: loading · loaded · invalid · saving · saved ·
+      school change blocked by undelivered orders · allergen consent being withdrawn · removing ·
+      offline · unreachable · error
+- [ ] `E21-06` **Sign in** — §5.8. States: default · email sent · cancelled · error · offline.
+      Must keep the "New here?" line — a screen offering no visible way to create an account
+      reads as broken
+- [ ] `E21-07` **Email OTP** — §5.9 and §5.9.1. States: awaiting · verifying · wrong code ·
+      expired · resend cooling down · resent · too many attempts · offline · **returned from
+      background** (digits, timer and pending address survive)
+- [ ] `E21-08` **Home** — §5.4. States: signed out · signed in no recipient · one recipient ·
+      several · loading · menu unpublished · offline · error
+- [ ] `E21-09` **Choose school** — §5.3. States: loading · loaded · empty search · empty list ·
+      error · offline. Carries the merged welcome header (§6.1.1 cut 1)
+- [ ] `E21-10` **Orders list** — §5.14. States: loading · loaded · empty · signed out · offline ·
+      error
+- [ ] `E21-11` **Order detail** — §5.15. States: loading · loaded · cancellable · not cancellable
+      (with the reason) · cancelling · cancelled · refund pending · refunded · refund failed ·
+      offline · error
+- [ ] `E21-12` **Your children / Who you order for** — §5.16. States: loading · loaded · empty ·
+      unreachable · error
+- [ ] `E21-13` **Account** — §5.17. States: signed out · signed in. Keeps the build label
+      (environment + commit)
+- [ ] `E21-14` **Checkout and payment** — §5.11, §5.12. States: preflight running · ready ·
+      each refusal code in §7 · submitting · handing off · sheet dismissed · failed · succeeded ·
+      **payment_pending (waiting, never a tick)** · app killed mid-payment
+- [ ] `E21-15` **Order confirmed** — §5.13. Single state, unreachable until settlement confirms
+- [ ] `E21-16` **Policy acceptance gate** — §5.19. States: not required · required · accepting ·
+      error. Blocks writes, never browsing
+- [ ] `E21-17` (risk:high) **Can't connect** — §5.20. The screen that separates "we cannot reach
+      GrayBag" from "this school has no menu". States: unreachable · unconfigured (names the
+      missing variables, non-production only)
+- [ ] `E21-18` **Splash** — §5.1. States: default · slow start · unconfigured → 5.20 · update
+      required → 5.19
+- [ ] `E21-19` **Support** — §5.18. Grievance officer contact (compliance). States: loaded · error
+- [ ] `E21-20` A count in `planning/backlog.html` of screens designed versus stubbed, so "how
+      much of the app looks like the product" is answerable at a glance rather than by reading
+      this file
