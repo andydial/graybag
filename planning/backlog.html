@@ -634,7 +634,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Confirm DPDP obligations that apply to GrayBag with a lawyer or the accountant — children&#39;s data, verifiable parental consent, grievance officer, breach reporting timelines</span>
       </li>
-      <li class="task" data-id="E20-02" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E20-02" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-02"></button>
         <code class="tid">E20-02</code>
         <span class="badge r-critical">critical</span>
@@ -1949,13 +1949,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/16</span>
+          <span class="meter-num">0/17</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 16 tasks</summary>
+        <summary>Context &amp; 17 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -2083,13 +2083,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Real tab bar icons.</strong> All four tabs fall through to React Navigation&#39;s default placeholder triangle; there is no icon set in the project at all</span>
       </li>
-      <li class="task" data-id="E14-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E14-17" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-17"></button>
         <code class="tid">E14-17</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext">Placeholder screens say something a parent can read. They currently ship developer notes to the device (&quot;Browsable signed out&quot;, &quot;Never a wall — the tab still opens&quot;)</span>
+      </li>
+      <li class="task" data-id="E14-18" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-18"></button>
+        <code class="tid">E14-18</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A non-worklet function called from inside a worklet aborts every release build.</strong> Two gates: a lint rule with an allowlist, and a test asserting the allowlisted names carry <code>__workletHash</code>. Found by the first iOS build crashing on any screen with a <code>TextField</code></span>
       </li></ul>
       </details>
     </article>

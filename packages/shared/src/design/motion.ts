@@ -156,6 +156,31 @@ export const reduceMotion: Record<MotionPattern, { readonly reduced: string | nu
  * one of the ways reduce motion silently breaks a flow.
  */
 export function resolveDuration(token: keyof typeof duration, reduceMotionOn: boolean): number {
+  // -------------------------------------------------------------------------
+  // `'worklet'` — and it is load-bearing, not decoration.
+  //
+  // This is called from inside `useAnimatedStyle` callbacks, which run on the **UI
+  // runtime**, a second JavaScript runtime with its own global scope. A plain function
+  // captured by a worklet is serialized as a *remote function*: calling it synchronously
+  // there throws
+  //
+  //   [Worklets] Tried to synchronously call a Remote Function.
+  //   Called "resolveDuration" on the UI Runtime.
+  //
+  // In a **debug** build `WorkletRuntime::callGuarded` catches that and reports it to
+  // LogBox. That try/catch is compiled out under `NDEBUG`, so in **every release build** the
+  // `jsi::JSError` propagates out of the frame callback as a C++ exception, nothing catches
+  // it, and the process aborts. That is the first iOS build: `SIGABRT` on tapping a school,
+  // with `throwPendingError → __cxa_throw → std::terminate → abort` in the report.
+  //
+  // The directive makes the babel plugin compile this function into the worklet's own
+  // runtime, so there is no remote call to make. `duration` is captured by value — a frozen
+  // object of numbers, which serializes.
+  //
+  // On the web build and under Vitest the directive is an ignored string literal in the
+  // function's directive prologue. It costs nothing there.
+  // -------------------------------------------------------------------------
+  'worklet';
   return reduceMotionOn ? duration.instant : duration[token];
 }
 

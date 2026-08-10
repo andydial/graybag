@@ -1576,3 +1576,41 @@ await expect(call()).rejects.toMatchObject({ code: 'x' });  // code is undefined
 It reads exactly like the module losing the code. Catch the rejection once and assert against
 the caught value. Not a product bug — every real failure arrives with its own `Response` — but
 it is invisible until a second assertion is added months later.
+
+## A worklet calling a plain function is fatal in release and harmless in debug — 2026-08-10
+
+The first iOS build aborted with `SIGABRT` and **no message in the crash report** on the first
+screen that mounted a `TextField`. The report's faulting thread was `com.apple.main-thread`
+inside a QuartzCore display-link dispatch, calling into `hermesvm`, ending
+`throwPendingError → __cxa_throw → std::terminate → abort`.
+
+`TextField` renders `InlineError`, whose `useAnimatedStyle` called `resolveDuration` and
+`easingFor` — both ordinary functions. `useAnimatedStyle` runs on the **UI runtime**; a plain
+function captured by a worklet is serialized as a *remote function* and calling one throws
+`[Worklets] Tried to synchronously call a Remote Function`.
+
+**The reason it never showed up in development** is in
+`react-native-worklets/Common/cpp/worklets/WorkletRuntime/WorkletRuntime.h`:
+
+```cpp
+#ifndef NDEBUG
+  jsi::Value callGuarded(...) const {
+    try { return function.call(rt, args...); }
+    catch (jsi::JSError &e) { JSLogger::handleJSError(...); return undefined; }
+  }
+#endif
+```
+
+`runSync` uses `callGuarded` in debug and calls `function.call` **bare** under `NDEBUG`. So the
+identical bug is a red box in a dev build and an abort in a release build. It is *not* an
+iOS/Android difference — the throw itself is plain JavaScript with no platform branch
+(`remoteFunctionUnpacker.native.ts`), and both platforms compile the guard out of release.
+
+Two consequences worth keeping:
+
+1. **A unit test cannot catch this.** Under jest there is one runtime; the worklet is a normal
+   closure and the call succeeds. What a test *can* assert is that the function carries
+   `__workletHash`, which is the marker the babel plugin stamps on a `'worklet'` directive.
+2. **A worklet captures its closure by serialization.** A `Map` does not survive it, and a
+   mutation made on the UI runtime is not visible on the JS one — so a lazy cache inside a
+   workletized function silently does nothing.
