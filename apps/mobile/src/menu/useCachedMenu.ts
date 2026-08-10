@@ -24,6 +24,14 @@ export interface CachedDish {
   name: string;
   description: string | null;
   categoryId: string;
+  /**
+   * Vegetarian / contains egg / non-vegetarian — `0023`, `E21-02`.
+   *
+   * Cached with the dish because the mark is drawn on every card in the grid, and a menu that
+   * could be browsed but not judged is no use to the large share of this audience for whom
+   * this is the first and sometimes only question.
+   */
+  foodType: 'veg' | 'non_veg' | 'egg' | null;
   ingredientsText: string | null;
   pricePaise: number;
   imageUri: string | null;

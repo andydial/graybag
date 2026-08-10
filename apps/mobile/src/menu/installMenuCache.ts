@@ -77,6 +77,7 @@ async function fetchMenuWithVersion(
         name: dish.name,
         description: dish.description,
         categoryId: dish.categoryId,
+        foodType: dish.foodType,
         ingredientsText: dish.ingredientsText,
         pricePaise: dish.pricePaise,
         imageUri: dish.imageUri,

@@ -64,7 +64,7 @@ export const HomeScreen = () => {
     name: dish.name,
     pricePaise: dish.pricePaise,
     imageUri: dish.imageUri,
-    foodType: null,
+    foodType: dish.foodType,
   });
 
   return (

@@ -30,6 +30,7 @@ const PAYLOAD: CachedMenuPayload = {
       name: 'Cold Coffee',
       description: 'Chilled, with milk',
       categoryId: 'drinks',
+      foodType: 'veg',
       ingredientsText: 'milk, coffee, sugar',
       pricePaise: 7_550,
       imageUri: 'https://example.test/cold-coffee.jpg',
@@ -43,6 +44,7 @@ const PAYLOAD: CachedMenuPayload = {
       name: 'Veg Sandwich',
       description: null,
       categoryId: 'drinks',
+      foodType: 'non_veg',
       ingredientsText: null,
       pricePaise: 6_000,
       imageUri: null,
@@ -55,6 +57,7 @@ const PAYLOAD: CachedMenuPayload = {
       name: 'Fruit Bowl',
       description: null,
       categoryId: 'drinks',
+      foodType: 'veg',
       ingredientsText: 'seasonal fruit',
       pricePaise: 5_500,
       imageUri: null,
@@ -224,11 +227,16 @@ describe('DishDetailScreen', () => {
     expect(screen.queryByTestId('screen-dish-detail-ingredients')).toBeNull();
   });
 
-  it('shows the category under the name', async () => {
+  // The line carries BOTH now (`0023`): the veg/egg/non-veg word and the category. Asserting
+  // the whole string rather than just the category is strictly more than it checked before —
+  // and it is the half an Indian parent reads first.
+  it('shows whether it is vegetarian, and the category, under the name', async () => {
     setMenuCache(fakeCache());
     await renderDish('d1');
     await waitFor(() =>
-      expect(screen.getByTestId('screen-dish-detail-food-type')).toHaveTextContent('Drinks'),
+      expect(screen.getByTestId('screen-dish-detail-food-type')).toHaveTextContent(
+        'Pure vegetarian · Drinks',
+      ),
     );
   });
 

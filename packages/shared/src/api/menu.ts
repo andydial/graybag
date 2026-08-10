@@ -51,6 +51,16 @@ export interface ApiDish {
   name: string;
   description: string | null;
   categoryId: string;
+  /**
+   * Vegetarian, contains egg, or non-vegetarian — `0023`.
+   *
+   * **In India this is the first thing most people look at**, and for a large share of the
+   * audience it decides whether the dish is orderable at all. `dish.food_type` is NOT NULL, so
+   * a null here means the *projection* failed rather than that the kitchen did not say — which
+   * is why it is typed nullable and rendered as "no mark" rather than defaulted to `veg`.
+   * Guessing vegetarian would be the worst possible default to get wrong.
+   */
+  foodType: 'veg' | 'non_veg' | 'egg' | null;
   ingredientsText: string | null;
   pricePaise: number;
   imageUri: string | null;
@@ -115,6 +125,10 @@ function assertDish(value: unknown, index: number): ApiDish {
     name,
     description: typeof value.description === 'string' ? value.description : null,
     categoryId,
+    foodType:
+      value.foodType === 'veg' || value.foodType === 'non_veg' || value.foodType === 'egg'
+        ? value.foodType
+        : null,
     ingredientsText: typeof value.ingredientsText === 'string' ? value.ingredientsText : null,
     pricePaise,
     imageUri: typeof value.imageUri === 'string' ? value.imageUri : null,
@@ -153,6 +167,7 @@ export async function fetchMenuVersion(schoolId: string): Promise<number | null>
 interface MenuRow {
   dish_id: unknown;
   menu_item_id: unknown;
+  food_type: unknown;
   name: unknown;
   description: unknown;
   ingredients_text: unknown;
@@ -182,6 +197,7 @@ export async function fetchMenu(schoolId: string): Promise<ApiMenuPayload> {
       {
         id: row.dish_id,
         menuItemId: row.menu_item_id,
+        foodType: row.food_type,
         name: row.name,
         description: row.description,
         categoryId: row.category_id,
