@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -14,6 +15,8 @@ import {
   OrdersScreen,
   SignInScreen,
 } from '../screens';
+import { House, ShoppingCart, User, UtensilsCrossed } from 'lucide-react-native';
+
 import { CartBadge } from '../components';
 import {
   Screen,
@@ -21,6 +24,7 @@ import {
   TAB_SCREEN_EDGES,
   type ScreenEdge,
 } from '../components/Screen';
+import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -51,6 +55,37 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 function CartTabBadge() {
   const { itemCount } = useCart();
   return <CartBadge count={itemCount} />;
+}
+
+/**
+ * The tab order, as one list.
+ *
+ * It exists because `cartTabLabel` has to reproduce React Navigation's own announcement —
+ * "Cart, tab, 3 of 4" — in order to add the cart count to it, and the position in that
+ * sentence has to come from somewhere that cannot drift. Hard-coding "3 of 4" would be a
+ * silent lie the first time a fifth tab is added. `announces its tabs in the declared order`
+ * in the test file holds this list and the JSX below to each other.
+ */
+export const TAB_ORDER = ['Home', 'Menu', 'Cart', 'Account'] as const;
+
+/**
+ * What a screen-reader user hears on the Cart tab.
+ *
+ * §7: an icon that conveys state carries the state in its **label**, never in its colour —
+ * "Cart, 2 items". The badge is the sighted half of that signal and cannot be the only half,
+ * because React Navigation's tab button is a single accessible element and iOS does not
+ * announce an accessible element's children.
+ *
+ * The `, tab, n of m` suffix is iOS-only because React Navigation composes it only on iOS,
+ * where `role: 'tab'` does not work (its own comment says so) — adding it on Android, where
+ * the role is real, would announce the word "tab" twice.
+ */
+export function cartTabLabel(itemCount: number): string {
+  const base =
+    itemCount > 0 ? `Cart, ${itemCount} ${itemCount === 1 ? 'item' : 'items'}` : 'Cart';
+  if (Platform.OS !== 'ios') return base;
+  const index = TAB_ORDER.indexOf('Cart');
+  return `${base}, tab, ${index + 1} of ${TAB_ORDER.length}`;
 }
 
 /**
@@ -99,6 +134,11 @@ const OrderDetailStackScreen = withScreenFrame(OrderDetailScreen, STACK_SCREEN_E
 const SignInStackScreen = withScreenFrame(SignInScreen, STACK_SCREEN_EDGES);
 
 function Tabs() {
+  // The navigator itself reads the cart, which it did not before. The badge alone cannot
+  // carry the count to a screen reader (see `cartTabLabel`), and `options` is evaluated
+  // during this component's render — so this is the only place the count can reach it.
+  const { itemCount } = useCart();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -116,19 +156,65 @@ function Tabs() {
         },
       }}
     >
-      <Tab.Screen name="Home" component={HomeTab} />
-      <Tab.Screen name="Menu" component={MenuTab} />
+      <Tab.Screen
+        name="Home"
+        component={HomeTab}
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon glyph={House} focused={focused} color={color} testID="tab-icon-home" />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Menu"
+        component={MenuTab}
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon
+              glyph={UtensilsCrossed}
+              focused={focused}
+              color={color}
+              testID="tab-icon-menu"
+            />
+          ),
+        }}
+      />
       <Tab.Screen
         name="Cart"
         component={CartTab}
-        // `M06`'s badge, on the tab bar rather than in the cart screen — the whole reason it
-        // is the one spring in the product (`S4`) is that adding to cart confirms itself
-        // somewhere other than where the user is looking. `animate` stays false here: this
-        // renders on every cart change including hydration, and a badge that pops when a
-        // screen re-renders is the failure mode `CartBadge` documents.
-        options={{ tabBarIcon: () => <CartTabBadge /> }}
+        options={{
+          // `M06`'s badge, on the tab bar rather than in the cart screen — the whole reason
+          // it is the one spring in the product (`S4`) is that adding to cart confirms itself
+          // somewhere other than where the user is looking. `animate` stays false here: this
+          // renders on every cart change including hydration, and a badge that pops when a
+          // screen re-renders is the failure mode `CartBadge` documents.
+          //
+          // Until `E14-16` the badge *was* the icon, which is why an empty cart drew React
+          // Navigation's default triangle: `CartBadge` returns `null` at zero.
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon
+              glyph={ShoppingCart}
+              focused={focused}
+              color={color}
+              trailing={<CartTabBadge />}
+              testID="tab-icon-cart"
+            />
+          ),
+          // §7: an icon that conveys state carries the state in its label, not its colour.
+          // React Navigation's tab button is one accessible element, so the badge's own label
+          // is not announced separately on iOS — the count has to be here.
+          tabBarAccessibilityLabel: cartTabLabel(itemCount),
+        }}
       />
-      <Tab.Screen name="Account" component={AccountTab} />
+      <Tab.Screen
+        name="Account"
+        component={AccountTab}
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon glyph={User} focused={focused} color={color} testID="tab-icon-account" />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 }
