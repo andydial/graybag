@@ -2,6 +2,7 @@ import { render, screen, userEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { PUBLIC_ROUTES, RootNavigator } from './RootNavigator';
+import { SCREEN_TEST_ID } from '../components/Screen';
 import { CartProvider } from '../cart/CartContext';
 import { SessionProvider, requiresSignIn } from '../session/SessionContext';
 import { SelectedSchoolProvider } from '../session/SelectedSchoolContext';
@@ -157,6 +158,53 @@ describe('RootNavigator', () => {
     await user.press(tab('Account'));
     expect(screen.getByTestId('screen-account')).toBeOnTheScreen();
     expect(screen.queryByTestId('screen-sign-in')).toBeNull();
+  });
+});
+
+/**
+ * The test that would have caught the first iOS build.
+ *
+ * On a real iPhone every screen drew from y=0: the school picker's first row sat on top of
+ * the clock and the cart's empty-state heading ran through the status icons. 865 tests were
+ * green, because every one of them rendered a screen **in isolation** — and in isolation
+ * nobody is responsible for the status bar, so nobody was failing to be.
+ *
+ * This asks the question at the level the answer lives at: mount the app the way `App.tsx`
+ * does, with the insets of the device it broke on, and require that whatever is on screen is
+ * below them. It fails on the pre-fix tree at the first assertion, because there is no frame
+ * in the tree at all.
+ */
+describe('safe area', () => {
+  // The insets `renderSignedOut` gives the provider. Both non-zero, so an edge that is
+  // supposed to add nothing cannot pass by the device having nothing to add.
+  const TOP_INSET = 47;
+
+  it.each(PUBLIC_ROUTES.filter((r) => r !== 'DishDetail'))(
+    '%s renders below the status bar, not underneath it',
+    async (route) => {
+      await renderSignedOut();
+      const user = userEvent.setup();
+      await user.press(tab(route));
+
+      const frames = screen.getAllByTestId(SCREEN_TEST_ID);
+      expect(frames.length).toBeGreaterThan(0);
+      for (const frame of frames) {
+        expect(frame).toHaveStyle({ paddingTop: TOP_INSET });
+      }
+    },
+  );
+
+  it('does not double the bottom inset the tab bar already pays', async () => {
+    // The opposite failure, and the reason `TAB_SCREEN_EDGES` omits `bottom`: React
+    // Navigation's tab bar sits above the home indicator by itself. A screen that added the
+    // inset too would leave a 34pt band of empty canvas above the tab bar.
+    await renderSignedOut();
+
+    const frames = screen.getAllByTestId(SCREEN_TEST_ID);
+    expect(frames.length).toBeGreaterThan(0);
+    for (const frame of frames) {
+      expect(frame).toHaveStyle({ paddingBottom: 0 });
+    }
   });
 });
 
