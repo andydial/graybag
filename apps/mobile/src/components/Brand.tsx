@@ -5,6 +5,12 @@ import { design } from '@graybag/shared';
 import { CartBadge } from './cart/CartBadge';
 import { useCart } from '../cart/CartContext';
 
+import ICON_GREEN from '../../assets/brand/icon-green.png';
+import LOGO_GREEN from '../../assets/brand/logo-green.png';
+import LOGO_WHITE from '../../assets/brand/logo-white.png';
+import PATTERN_DARK from '../../assets/brand/pattern-dark.png';
+import PATTERN_GREEN from '../../assets/brand/pattern-green.png';
+
 const { bg, text, border, foodType, space, radius, borderWidth, scale } = design;
 
 /**
@@ -20,11 +26,6 @@ const { bg, text, border, foodType, space, radius, borderWidth, scale } = design
  * `config/eslint-design-system.js` enforces it, and this file is the one most tempted to cheat.
  */
 
-const LOGO_GREEN = require('../../assets/brand/logo-green.png');
-const LOGO_WHITE = require('../../assets/brand/logo-white.png');
-const ICON_GREEN = require('../../assets/brand/icon-green.png');
-const PATTERN_DARK = require('../../assets/brand/pattern-dark.png');
-const PATTERN_GREEN = require('../../assets/brand/pattern-green.png');
 
 /**
  * The full lockup — mark and wordmark together, as supplied.
