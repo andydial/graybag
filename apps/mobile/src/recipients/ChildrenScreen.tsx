@@ -4,6 +4,8 @@ import { api, design } from '@graybag/shared';
 
 import { Button } from '../components/Button';
 import { EmptyState, ErrorState, ListRow, Skeleton } from '../components/Surfaces';
+import { Sheet } from '../components/Tabs';
+import { SchoolPicker } from '../menu/SchoolPicker';
 
 const { bg, text, scale, space, layout } = design;
 
@@ -32,6 +34,17 @@ const { bg, text, scale, space, layout } = design;
  * "you have not added anyone yet" with the invitation to do it. `AR7` says adding a child
  * must not be a wall in front of the app, and a sign-in screen thrown up on arrival here
  * would be exactly that.
+ *
+ * ## Changing school, and the one refusal that is not a failure
+ *
+ * A row opens the same `Sheet` + `SchoolPicker` the add-a-child form uses, so "which school"
+ * is answered the same way everywhere and the onboarded-only list is enforced in one place.
+ *
+ * `changeRecipientSchool` can refuse with `future_orders_exist`, and that refusal is shown as
+ * itself rather than as "something went wrong" (`D19`). Those lunches were bought against the
+ * old school's kitchen, its menu and its prices; there is nothing this screen can do about
+ * them, and the only way forward is for the parent to go and cancel those days first. A
+ * generic failure would leave them tapping the same school again.
  */
 export function ChildrenScreen({
   onAddChild,
@@ -54,6 +67,11 @@ export function ChildrenScreen({
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [children, setChildren] = useState<api.ApiRecipient[]>([]);
   const [attempt, setAttempt] = useState(0);
+
+  // The child whose school is being changed, held as a whole row rather than an id: the sheet
+  // has to name them, and looking the id back up would go stale the moment the list reloads.
+  const [moving, setMoving] = useState<api.ApiRecipient | null>(null);
+  const [movingFailure, setMovingFailure] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -80,6 +98,26 @@ export function ChildrenScreen({
   }, [attempt, reloadToken]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
+
+  const moveTo = useCallback(
+    async (school: { schoolId: string; schoolName: string }) => {
+      if (moving === null) return;
+      const child = moving;
+      setMoving(null);
+      setMovingFailure(null);
+
+      try {
+        await api.changeRecipientSchool({ recipientId: child.id, schoolId: school.schoolId });
+        // Re-read rather than patching the row in place. The server may have cleared the
+        // class as part of the move — a class at the old school does not mean anything at the
+        // new one — so the list this screen holds is no longer what the database says.
+        setAttempt((n) => n + 1);
+      } catch (error) {
+        setMovingFailure(refusalMessage(error));
+      }
+    },
+    [moving],
+  );
 
   if (state === 'error') {
     return (
@@ -125,6 +163,20 @@ export function ChildrenScreen({
         Your children
       </Text>
 
+      {/* `EmptyState`, not `ErrorState`, and that is the difference between the two
+          components rather than a stylistic choice: `ErrorState` requires a retry, and the
+          refusal that matters most here — `future_orders_exist` — is precisely the one that
+          retrying cannot fix. Offering "Try again" against it would be a lie in a button. */}
+      {movingFailure !== null ? (
+        <EmptyState
+          title="We could not move them"
+          body={movingFailure}
+          actionLabel="Close"
+          onAction={() => setMovingFailure(null)}
+          testID={`${testID}-move-error`}
+        />
+      ) : null}
+
       <View style={styles.list}>
         {children.map((child) => {
           // Spread rather than passed as `undefined`: `exactOptionalPropertyTypes` treats an
@@ -136,6 +188,10 @@ export function ChildrenScreen({
               key={child.id}
               title={fullName(child)}
               {...(subtitle === '' ? {} : { subtitle })}
+              // A co-guardian who may see but not edit gets a row that does nothing rather
+              // than a button that fails at the server. `canManage` comes off the
+              // `guardian_link`, which is where the answer lives ([AZ-05], `D10`).
+              {...(child.canManage ? { onPress: () => setMoving(child) } : {})}
               testID={`${testID}-${child.id}`}
             />
           );
@@ -148,8 +204,50 @@ export function ChildrenScreen({
         onPress={onAddChild}
         testID={`${testID}-add`}
       />
+
+      <Sheet
+        visible={moving !== null}
+        onDismiss={() => setMoving(null)}
+        // The child's first name only. A sheet title is the most quotable string on the
+        // screen and this one names a minor (§13.3) — the surname buys nothing here, because
+        // the parent has just tapped the row.
+        title={moving === null ? 'Which school?' : `Move ${moving.firstName} to which school?`}
+        testID={`${testID}-school-sheet`}
+      >
+        <SchoolPicker testID={`${testID}-school-picker`} onSelect={moveTo} />
+      </Sheet>
     </ScrollView>
   );
+}
+
+/**
+ * What to put in front of a parent when a move is refused.
+ *
+ * **`future_orders_exist` is the one that must survive** (`D19`). Those lunches were bought
+ * against the old school's kitchen, its menu and its prices, and nothing this screen can do
+ * will move them — the parent has to go and cancel those days first. Collapsed into
+ * "something went wrong", they would tap the same school again and get the same nothing.
+ *
+ * The rule for the rest is narrower than it looks: a message is only shown when the failure
+ * carried a `code`. The Edge Function maps a known guard to a curated, parent-facing sentence
+ * and turns everything else into a generic 500 — so a `code` is the marker of a string that
+ * was written to be read, and its absence is the marker of one that may quote whatever the
+ * database was refusing. That row is a child (non-negotiable #4).
+ */
+export function refusalMessage(error: unknown): string {
+  const code = error instanceof api.ApiError ? error.code : undefined;
+  const message = error instanceof Error ? error.message : '';
+
+  if (code === 'future_orders_exist') {
+    // The server's own sentence already says what to do — "Cancel those days first, then
+    // change the school" — so it is shown rather than paraphrased. The fallback exists
+    // because a refusal with no body would otherwise lose the only actionable part of it.
+    return message !== ''
+      ? message
+      : 'There are orders for this child that have not been delivered yet. Cancel those days first, then change the school.';
+  }
+  if (code !== undefined && message !== '') return message;
+  return 'We could not change their school just now. Please try again.';
 }
 
 /** Both names when there are two, because two children in a class can share a first name. */

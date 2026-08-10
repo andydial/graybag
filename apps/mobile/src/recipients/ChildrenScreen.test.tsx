@@ -25,9 +25,29 @@ let userId: string | null;
 let selected: string[];
 /** Holds the read open, so the first frame — the skeleton — can be asserted. */
 let blocked: boolean;
+/** The one write this screen makes: `changeRecipientSchool`. */
+let invoke: jest.Mock;
+
+/** The two schools the picker offers, as PostgREST returns them. */
+const SCHOOLS = [
+  { id: 's1', name: 'Alpha Public School', city: { name: 'SAS Nagar (Mohali)' } },
+  { id: 's2', name: 'Beta International', city: { name: 'SAS Nagar (Mohali)' } },
+];
 
 function stubTransport() {
   selected = [];
+  invoke = jest.fn().mockResolvedValue({
+    data: { recipient_id: 'r1', school_id: 's2', changed_school: true, from_school_id: 's1' },
+    error: null,
+  });
+
+  const schoolBuilder = {
+    eq: () => schoolBuilder,
+    is: () => schoolBuilder,
+    order: () => schoolBuilder,
+    then: (onfulfilled: (r: { data: unknown; error: unknown }) => unknown) =>
+      Promise.resolve({ data: SCHOOLS, error: null }).then(onfulfilled),
+  };
   const builder = {
     eq: () => builder,
     is: () => builder,
@@ -37,12 +57,15 @@ function stubTransport() {
   };
 
   api.setApiTransport({
-    from: () => ({
+    from: (table: string) => ({
       select: (columns: string) => {
+        // The school picker reads `school`; everything else on this screen reads
+        // `guardian_link`. One builder answers both, so the rows are keyed by table.
         selected.push(columns);
-        return builder;
+        return table === 'school' ? schoolBuilder : builder;
       },
     }),
+    functions: { invoke },
     auth: {
       getSession: () =>
         blocked
@@ -167,6 +190,113 @@ describe('ChildrenScreen', () => {
     rows = [LINK({ class_label: null, section_label: null })];
     await setup();
     expect(await screen.findByText('Alpha Public School')).toBeOnTheScreen();
+  });
+
+  it('opens the school picker from a child’s row', async () => {
+    await setup();
+    const user = userEvent.setup();
+    await user.press(await screen.findByTestId('screen-children-r1'));
+
+    expect(await screen.findByTestId('screen-children-school-picker-s2')).toBeOnTheScreen();
+  });
+
+  it('moves the child to the school that was picked', async () => {
+    await setup();
+    const user = userEvent.setup();
+    await user.press(await screen.findByTestId('screen-children-r1'));
+    await user.press(await screen.findByTestId('screen-children-school-picker-s2'));
+
+    await waitFor(() => expect(invoke).toHaveBeenCalled());
+    // The id is in the path, never the body — one id per request (`E05-02`).
+    expect(invoke.mock.calls[0]?.[0]).toBe('recipients/r1');
+    expect(invoke.mock.calls[0]?.[1].method).toBe('PATCH');
+    expect(invoke.mock.calls[0]?.[1].body).toMatchObject({ school_id: 's2' });
+  });
+
+  it('re-reads the list after a move rather than patching the row', async () => {
+    // The server may clear the class as part of the move — a class at the old school does
+    // not mean anything at the new one — so the rows this screen holds are stale.
+    await setup();
+    const user = userEvent.setup();
+    await user.press(await screen.findByTestId('screen-children-r1'));
+
+    rows = [LINK({ class_label: null, section_label: null, school: SCHOOLS[1] })];
+    await user.press(await screen.findByTestId('screen-children-school-picker-s2'));
+
+    expect(await screen.findByText('Beta International')).toBeOnTheScreen();
+  });
+
+  it('says the child has undelivered orders instead of "something went wrong"', async () => {
+    // `D19`. Those lunches were bought against the old school's kitchen and menu, and
+    // nothing this screen can do will move them — the parent has to cancel those days
+    // first. A generic failure would leave them tapping the same school again.
+    const error = new Error('Edge Function returned a non-2xx status code') as Error & {
+      context?: Response;
+    };
+    error.context = new Response(
+      JSON.stringify({
+        code: 'future_orders_exist',
+        message:
+          'There are orders for this child that have not been delivered yet. Cancel those days first, then change the school.',
+      }),
+      { status: 409 },
+    );
+    invoke.mockResolvedValue({ data: null, error });
+
+    await setup();
+    const user = userEvent.setup();
+    await user.press(await screen.findByTestId('screen-children-r1'));
+    await user.press(await screen.findByTestId('screen-children-school-picker-s2'));
+
+    expect(await screen.findByText(/Cancel those days first/)).toBeOnTheScreen();
+  });
+
+  it('offers no retry against a refusal retrying cannot fix', async () => {
+    // `ErrorState` requires a "Try again"; this uses `EmptyState` for exactly that reason.
+    const error = new Error('non-2xx') as Error & { context?: Response };
+    error.context = new Response(
+      JSON.stringify({ code: 'future_orders_exist', message: 'Cancel those days first.' }),
+      { status: 409 },
+    );
+    invoke.mockResolvedValue({ data: null, error });
+
+    await setup();
+    const user = userEvent.setup();
+    await user.press(await screen.findByTestId('screen-children-r1'));
+    await user.press(await screen.findByTestId('screen-children-school-picker-s2'));
+
+    await screen.findByTestId('screen-children-move-error');
+    expect(screen.queryByText('Try again')).toBeNull();
+  });
+
+  it('falls back to a plain sentence when the failure carried no code', async () => {
+    // An unmapped failure becomes a generic 500 whose body may quote whatever the database
+    // was refusing — and that row is a child (§13.3). A `code` is the marker of a string
+    // that was written to be read.
+    const error = new Error('recipient 0d1f… first_name Ishaan violates something') as Error & {
+      context?: Response;
+    };
+    invoke.mockResolvedValue({ data: null, error });
+
+    await setup();
+    const user = userEvent.setup();
+    await user.press(await screen.findByTestId('screen-children-r1'));
+    await user.press(await screen.findByTestId('screen-children-school-picker-s2'));
+
+    expect(await screen.findByTestId('screen-children-move-error')).toBeOnTheScreen();
+    expect(screen.queryByText(/violates something/)).toBeNull();
+  });
+
+  it('gives a co-guardian who may not manage no way to move the child', async () => {
+    // [AZ-05] / `D10`: the answer lives on the `guardian_link`, and a row that fails at the
+    // server is worse than a row that does nothing.
+    rows = [{ ...LINK(), can_manage: false }];
+    await setup();
+    const user = userEvent.setup();
+    await user.press(await screen.findByTestId('screen-children-r1'));
+
+    expect(screen.queryByTestId('screen-children-school-picker-s2')).toBeNull();
+    expect(invoke).not.toHaveBeenCalled();
   });
 
   it('refetches when the reload token changes', async () => {
