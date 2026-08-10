@@ -29,15 +29,17 @@ export function DishDetailScreen({
   dishId,
   schoolId,
   target = null,
-  onNeedsTarget,
   testID = 'screen-dish-detail',
 }: {
   dishId: string;
   schoolId: string | null;
   /** Who this lunch is for and when. `null` until something can name a child (`E05-16`). */
   target?: OrderTarget | null;
-  /** Where a parent goes when there is nobody to order for yet. */
-  onNeedsTarget?: (() => void) | undefined;
+  /**
+   * REMOVED with `E05-32`. There is no longer anywhere for this screen to send someone before
+   * they can add: adding always works, and who the order is for is chosen at the gate. The prop
+   * existed to support "Add a child", which was the wall.
+   */
   testID?: string;
 }) {
   const { state, payload, stale, retry } = useCachedMenu(schoolId);
@@ -113,12 +115,10 @@ export function DishDetailScreen({
 
         <AllergenDisclosure dish={dish} testID={`${testID}-allergens`} />
 
-        <AddToCart
-          dish={dish}
-          target={target}
-          onNeedsTarget={onNeedsTarget}
-          testID={`${testID}-add`}
-        />
+        {/* `onNeedsTarget` is no longer passed: adding never routes away (`E05-32`). The prop
+            stays on this screen for the navigator that supplies it, and for `AddChild` reached
+            from elsewhere. */}
+        <AddToCart dish={dish} target={target} testID={`${testID}-add`} />
       </View>
     </ScrollView>
   );
@@ -140,12 +140,10 @@ export function DishDetailScreen({
 function AddToCart({
   dish,
   target,
-  onNeedsTarget,
   testID,
 }: {
   dish: CachedDish;
   target: OrderTarget | null;
-  onNeedsTarget?: (() => void) | undefined;
   testID: string;
 }) {
   const { add } = useCart();
@@ -153,10 +151,12 @@ function AddToCart({
   const [conflict, setConflict] = useState<string[] | null>(null);
 
   const commit = useCallback(() => {
-    if (target === null) return;
+    // No target is not a refusal any more (`E05-32`). `R1`/`AR7`: the cart fills signed out and
+    // the recipient is chosen at the gate, so a line with no recipient is an honest line —
+    // not a reason to stop someone browsing from ordering.
     add({
-      recipientId: target.recipientId,
-      serviceDate: target.serviceDate,
+      recipientId: target?.recipientId ?? null,
+      serviceDate: target?.serviceDate ?? null,
       menuItemId: dish.menuItemId,
       dishId: dish.id,
       dishName: dish.name,
@@ -189,7 +189,13 @@ function AddToCart({
    * screen, all the time, saying "not stated" rather than nothing.
    */
   const attempt = useCallback(() => {
-    if (target === null) return;
+    // With no recipient there is nobody to check against, so there is no warning to raise —
+    // and manufacturing one would be the §5.21 defect in its most dangerous form. The dish's
+    // own declared allergens are still shown above, by the inline notice.
+    if (target === null) {
+      commit();
+      return;
+    }
     const warning = menuDomain.allergenWarning(dish, target.allergenIds);
     if (warning.warn && warning.reason === 'match') {
       setConflict(warning.allergenIds);
@@ -198,27 +204,24 @@ function AddToCart({
     commit();
   }, [commit, dish, target]);
 
-  if (target === null) {
-    return (
-      <View style={styles.footer} testID={testID}>
-        {/* Not a wall in front of the menu (`AR7`) — the dish is fully readable above this,
-            and this is the last thing on the screen rather than the first. */}
-        <Text style={styles.footerNote}>
-          Lunch is delivered to a child at school, so we need to know who this one is for.
-        </Text>
-        <Button
-          label="Add a child"
-          variant="secondary"
-          onPress={() => onNeedsTarget?.()}
-          testID={`${testID}-needs-target`}
-        />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.footer} testID={testID}>
+      {/*
+        `E05-32`. This screen used to render "Add a child" INSTEAD OF "Add to cart" whenever
+        there was no recipient — which is the wall `R1` and `AR7` exist to prevent, and it had a
+        second effect nobody noticed: the only `navigate('SignIn')` in the app is the cart's
+        Place order button, so a visitor who could not fill a cart could not reach sign-in at
+        all. A screen with one door, behind a wall.
+
+        Adding always works. Who it is for is chosen at the gate, which is where the spec has
+        always put it (§5.6).
+      */}
       <Button label="Add to cart" onPress={attempt} testID={`${testID}-button`} />
+      {target === null ? (
+        <Text style={styles.footerNote} testID={`${testID}-no-target`}>
+          You&rsquo;ll choose who this is for when you place the order.
+        </Text>
+      ) : null}
       {added ? (
         // A live region rather than a toast: the confirmation has to reach someone who is
         // not watching the button, and it stays on screen rather than expiring unseen.

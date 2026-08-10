@@ -5,6 +5,12 @@ import Constants from 'expo-constants';
 import { View } from 'react-native';
 
 import { BuildLabel } from '../components/BuildLabel';
+import { design } from '@graybag/shared';
+
+import { Button } from '../components/Button';
+import { requiresSignIn, useSession } from '../session/SessionContext';
+
+const { space } = design;
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { AddChildScreen as AddChildScreenImpl } from '../recipients/AddChildScreen';
 import { DishDetailScreen as DishDetailScreenImpl } from '../menu/DishDetailScreen';
@@ -93,25 +99,58 @@ export { CartScreen } from '../cart/CartScreen';
 // away — it is what the empty list offers, and the only thing on it when there is nobody yet.
 export const AccountScreen = () => {
   const navigation = useNavigation();
+  const session = useSession();
+  const signedOut = requiresSignIn(session);
+
+  /**
+   * `E05-32`, the second half.
+   *
+   * The app had **exactly one** `navigate('SignIn')` — the cart's Place order button — and Dish
+   * detail refused to add anything without a recipient, so a signed-out visitor could not fill a
+   * cart and therefore could not reach sign-in at all. One door, behind a wall.
+   *
+   * Account is where a person looks for it, and the prototype's Account screen leads with it. So
+   * signed out, the primary action here IS sign in; signed in, it is the children list. The body
+   * copy still says browsing needs no account, because `AR7` means this is an invitation and not
+   * a gate.
+   */
   return (
     <View style={{ flex: 1 }}>
       <PlaceholderScreen
         testID="screen-account"
         title="Your account"
-        body="Sign in to add your children, see your orders and manage payment. You can browse the menu and fill your cart without signing in."
-        actionLabel="Your children"
-        onAction={() => navigation.navigate('Children')}
+        body={
+          signedOut
+            ? "Sign in to add your children, see your orders and keep your order history. You can browse the menu and fill your cart without signing in — we only ask when you place an order."
+            : 'Your children, your orders and your details.'
+        }
+        actionLabel={signedOut ? 'Sign in' : 'Your children'}
+        onAction={() => navigation.navigate(signedOut ? 'SignIn' : 'Children')}
       />
       {/*
         Which build this is, so a screenshot from Andy identifies itself. Two bug reports have
         already been chased against the wrong binary because nothing on screen said.
       */}
+      {signedOut ? null : (
+        // `Orders` had NO door at all — nothing in the app navigated to it, while
+        // `navigation/types.ts` claimed "reachable from Account and from Home". Found by
+        // `reachability.test.ts` on its first run, which is the whole point of that file.
+        <View style={{ paddingHorizontal: space[4] }}>
+          <Button
+            label="Your orders"
+            variant="secondary"
+            onPress={() => navigation.navigate('Orders')}
+            testID="screen-account-orders"
+          />
+        </View>
+      )}
       <BuildLabel />
     </View>
   );
 };
 
-// Reached from Account and Home rather than being a fifth tab — the mock has four.
+// Reached from Account. `navigation/types.ts` used to say "and from Home" as well; Home has no
+// such link, and saying so was how nobody noticed this screen had no door at all.
 export const OrdersScreen = () => (
   <PlaceholderScreen
     testID="screen-orders"
@@ -129,7 +168,8 @@ export const OrdersScreen = () => (
  * connection would be the slowest thing on the screen (`E04-10`, `MC3`).
  */
 export const DishDetailScreen = () => {
-  const navigation = useNavigation();
+  // No `useNavigation` here any more: this screen never routes anywhere. It used to send
+  // people to AddChild before they could add to the cart, which was the wall (`E05-32`).
   const { params } = useRoute<RouteProp<RootStackParamList, 'DishDetail'>>();
   const { schoolId } = useSelectedSchool();
   const { target } = useOrderTarget();
@@ -141,7 +181,6 @@ export const DishDetailScreen = () => {
       target={target}
       // `null` is the ordinary state today: nothing can name a child yet (`E05-16`), so the
       // one honest thing to offer is the screen that creates one.
-      onNeedsTarget={() => navigation.navigate('AddChild')}
     />
   );
 };

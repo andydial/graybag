@@ -100,7 +100,6 @@ async function renderDish(
     target = null,
   }: { schoolId?: string | null; target?: OrderTarget | null } = {},
 ) {
-  const onNeedsTarget = jest.fn();
   await render(
     <SafeAreaProvider initialMetrics={METRICS}>
       <CartProvider>
@@ -109,12 +108,12 @@ async function renderDish(
           dishId={dishId}
           schoolId={schoolId}
           target={target}
-          onNeedsTarget={onNeedsTarget}
         />
       </CartProvider>
     </SafeAreaProvider>,
   );
-  return { onNeedsTarget };
+  // `onNeedsTarget` is gone with `E05-32` — there is nowhere to send anyone before adding.
+  return {};
 }
 
 afterEach(() => {
@@ -284,20 +283,50 @@ describe('DishDetailScreen', () => {
     });
 
     /**
-     * `AR7`: the dish is fully readable with nobody to order for. The screen offers the way
-     * forward instead of a disabled button with no explanation — and it is the last thing on
-     * the screen, not a wall in front of it.
+     * REPLACED, and the old assertion is worth recording because it encoded the defect.
+     *
+     * It used to assert that with nobody to order for, the add button is ABSENT and nothing is
+     * added — the screen offered "Add a child" instead. That reads like `AR7` care, and it was
+     * the opposite: `R1` says the cart fills signed out and the only gate is checkout, so
+     * refusing to add was a wall in front of the cart.
+     *
+     * It also had an effect nobody traced until Andy did: the app's ONLY `navigate('SignIn')`
+     * is the cart's Place order button, so a visitor who could not fill a cart could not reach
+     * sign-in at all. A green test was holding the front door shut (`E05-32`).
      */
-    it('offers to add a child when there is nobody to order for, and adds nothing', async () => {
+    it('adds to the cart with nobody to order for — the recipient is chosen at the gate', async () => {
       setMenuCache(fakeCache());
-      const { onNeedsTarget } = await renderDish('d3');
+      await renderDish('d3');
       await waitFor(() => expect(screen.getByText('Fruit Bowl')).toBeOnTheScreen());
 
-      expect(screen.queryByTestId('screen-dish-detail-add-button')).toBeNull();
-      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-needs-target'));
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
 
-      expect(onNeedsTarget).toHaveBeenCalled();
-      expect(seenCart.lines).toHaveLength(0);
+      expect(seenCart.lines).toHaveLength(1);
+      // Null rather than a stand-in: there genuinely is no recipient yet, and inventing one
+      // is how a line ends up attributed to the wrong child at checkout.
+      expect(seenCart.lines[0]?.recipientId).toBeNull();
+      expect(seenCart.lines[0]?.serviceDate).toBeNull();
+    });
+
+    it('says who it will be for, rather than leaving the absence unexplained', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d3');
+      await waitFor(() => expect(screen.getByText('Fruit Bowl')).toBeOnTheScreen());
+
+      expect(screen.getByTestId('screen-dish-detail-add-no-target')).toBeTruthy();
+    });
+
+    // With no recipient there is nobody to check against, so no warning can exist. Rendering
+    // one would be the §5.21 defect in its most dangerous form — a safety claim from data we
+    // do not hold.
+    it('raises no allergen warning when there is no recipient to check against', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d1');
+      await waitFor(() => expect(screen.getByTestId('screen-dish-detail-add-button')).toBeTruthy());
+
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
+
+      expect(seenCart.lines).toHaveLength(1);
     });
   });
 

@@ -18,8 +18,11 @@ export type TabParamList = {
  * Screens that sit above the tabs.
  *
  * `Orders` lives here rather than in the tab bar: the mock has four tabs and adding a
- * fifth is a design change nobody asked for. It is reachable from Account and from Home,
- * so it is one tap from either place a returning parent would look.
+ * fifth is a design change nobody asked for. It is reachable **from Account**.
+ *
+ * This comment used to say "from Account and from Home", and neither was true — nothing in the
+ * app navigated to `Orders` at all. A comment asserting reachability is not reachability;
+ * `reachability.test.ts` is, and it found this on its first run.
  */
 export type RootStackParamList = {
   Tabs: undefined;

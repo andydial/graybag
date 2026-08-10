@@ -132,7 +132,12 @@ export function cartItemCount(cart: Cart): number {
  * be `[0]` rather than another `Math.min` at each call site.
  */
 export function cartServiceDates(cart: Cart): ServiceDate[] {
-  return [...new Set(cart.lines.map((line) => line.serviceDate))].sort();
+  // A line with no date yet contributes nothing to the cutoff check — there is no date to
+  // check. Checkout is where every line acquires one, and where `C7` starts applying.
+  const dates = cart.lines
+    .map((line) => line.serviceDate)
+    .filter((date): date is ServiceDate => date !== null);
+  return [...new Set(dates)].sort();
 }
 
 export type { Cart, CartLine, CartLineInput };
