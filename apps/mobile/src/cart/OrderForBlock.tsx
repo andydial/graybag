@@ -88,8 +88,10 @@ const styles = StyleSheet.create({
     color: text.secondary,
     fontSize: scale.overline.size,
     fontWeight: scale.overline.weight,
-    // `tracking` is the token's own value; a literal here escapes the type scale (S12).
-    letterSpacing: scale.overline.tracking,
+    // `tracking` is expressed in **em** (see `design/css.ts`), and React Native's
+    // `letterSpacing` is in **points** — so passing it raw sets 0.08pt, which is no tracking at
+    // all on an uppercase label that needs it most. Multiply by the size.
+    letterSpacing: scale.overline.size * scale.overline.tracking,
     textTransform: 'uppercase',
   },
   who: { color: text.primary, fontSize: scale.h3.size, fontWeight: scale.h3.weight },

@@ -4,7 +4,7 @@ import Constants from 'expo-constants';
 
 import { View } from 'react-native';
 
-import { BuildLabel } from '../components/BuildLabel';
+import { AccountScreen as AccountScreenImpl } from '../account/AccountScreen';
 import { design } from '@graybag/shared';
 
 import { Button } from '../components/Button';
@@ -97,55 +97,27 @@ export { CartScreen } from '../cart/CartScreen';
 // child was a one-way door: the child disappeared on save and there was nothing that could
 // show a parent what they had entered or let them correct it. "Add a child" is still one tap
 // away — it is what the empty list offers, and the only thing on it when there is nobody yet.
+/**
+ * Account — the real screen (`E21-13`), wired to the navigator here.
+ *
+ * The screen itself is presentational and takes handlers: it knows what the rows are, this
+ * knows where they go. That split is why it can be tested in every state without a navigator.
+ *
+ * `exactOptionalPropertyTypes` is on, so an optional handler is spread conditionally rather
+ * than passed as possibly-undefined.
+ */
 export const AccountScreen = () => {
   const navigation = useNavigation();
   const session = useSession();
   const signedOut = requiresSignIn(session);
 
-  /**
-   * `E05-32`, the second half.
-   *
-   * The app had **exactly one** `navigate('SignIn')` — the cart's Place order button — and Dish
-   * detail refused to add anything without a recipient, so a signed-out visitor could not fill a
-   * cart and therefore could not reach sign-in at all. One door, behind a wall.
-   *
-   * Account is where a person looks for it, and the prototype's Account screen leads with it. So
-   * signed out, the primary action here IS sign in; signed in, it is the children list. The body
-   * copy still says browsing needs no account, because `AR7` means this is an invitation and not
-   * a gate.
-   */
   return (
-    <View style={{ flex: 1 }}>
-      <PlaceholderScreen
-        testID="screen-account"
-        title="Your account"
-        body={
-          signedOut
-            ? "Sign in to add your children, see your orders and keep your order history. You can browse the menu and fill your cart without signing in — we only ask when you place an order."
-            : 'Your children, your orders and your details.'
-        }
-        actionLabel={signedOut ? 'Sign in' : 'Your children'}
-        onAction={() => navigation.navigate(signedOut ? 'SignIn' : 'Children')}
-      />
-      {/*
-        Which build this is, so a screenshot from Andy identifies itself. Two bug reports have
-        already been chased against the wrong binary because nothing on screen said.
-      */}
-      {signedOut ? null : (
-        // `Orders` had NO door at all — nothing in the app navigated to it, while
-        // `navigation/types.ts` claimed "reachable from Account and from Home". Found by
-        // `reachability.test.ts` on its first run, which is the whole point of that file.
-        <View style={{ paddingHorizontal: space[4] }}>
-          <Button
-            label="Your orders"
-            variant="secondary"
-            onPress={() => navigation.navigate('Orders')}
-            testID="screen-account-orders"
-          />
-        </View>
-      )}
-      <BuildLabel />
-    </View>
+    <AccountScreenImpl
+      signedOut={signedOut}
+      onSignIn={() => navigation.navigate('SignIn')}
+      onRecipients={() => navigation.navigate('Children')}
+      onOrders={() => navigation.navigate('Orders')}
+    />
   );
 };
 
