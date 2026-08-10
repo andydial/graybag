@@ -2,10 +2,14 @@ import { describe, expect, it, afterEach, vi } from 'vitest';
 
 import {
   ApiError,
+  RECIPIENT_COLUMNS,
+  RecipientPayloadError,
   changeRecipientSchool,
   createRecipient,
+  fetchRecipients,
   setApiTransport,
 } from './index.js';
+import { fakeTransport } from './test-support.js';
 
 /** A transport whose only job is to record the invoke and answer it. */
 function stub(answer: { data?: unknown; error?: (Error & { context?: Response }) | null }) {
@@ -156,6 +160,169 @@ describe('createRecipient', () => {
       name: 'ApiError',
       code: 'allergen_consent_required',
     });
+  });
+});
+
+/**
+ * A read transport with a session on it.
+ *
+ * `fetchRecipients` takes the guardian id from the session rather than from a parameter, so
+ * there is no call shape that asks for somebody else's children. That means the fake needs an
+ * `auth` surface as well as a table — `fakeTransport` provides the second, this adds the
+ * first.
+ */
+function readStub(
+  rows: unknown,
+  options: { userId?: string | null; error?: { message: string; code?: string } | null } = {},
+) {
+  const fake = fakeTransport(rows, options.error ?? null);
+  const userId = options.userId === undefined ? 'u1' : options.userId;
+  setApiTransport({
+    ...fake.transport,
+    auth: {
+      getSession: () =>
+        Promise.resolve({ data: { session: userId === null ? null : { user: { id: userId } } } }),
+    },
+  } as never);
+  return fake;
+}
+
+/** One `guardian_link` row with its embedded child, as PostgREST returns it. */
+const LINK = (over: Record<string, unknown> = {}, child: Record<string, unknown> = {}) => ({
+  can_order: true,
+  can_manage: true,
+  recipient: {
+    id: 'r1',
+    first_name: 'Ishaan',
+    last_name: 'Mehta',
+    class_label: '5',
+    section_label: 'A',
+    is_active: true,
+    school: { id: 's1', name: 'Alpha Public School' },
+    ...child,
+  },
+  ...over,
+});
+
+describe('fetchRecipients', () => {
+  it('reads guardian_link, never recipient.created_by_user_id', async () => {
+    // `D10`. The legacy model had two parallel parent-to-child links and therefore two
+    // answers to "may this user see this child". `guardian_link` is the only path, and
+    // `created_by_user_id` is audit-only — its own column comment says it must never appear
+    // in a policy, and it must not appear in a query either.
+    const fake = readStub([LINK()]);
+    await fetchRecipients();
+
+    expect(fake.queries[0]?.table).toBe('guardian_link');
+    expect(fake.queries[0]?.columns).not.toContain('created_by_user_id');
+    expect(fake.queries[0]?.filters).toContainEqual({ column: 'user_id', value: 'u1' });
+  });
+
+  it('never selects * and never asks for allergy_note', async () => {
+    // The column list is the redaction, exactly as in `fetchSchools`. `allergy_note` is tier
+    // S — health data about a minor — and a screen drawing a name and a class has no reason
+    // to hold it. A policy filters rows, never columns, so nothing else stops this.
+    const fake = readStub([LINK()]);
+    await fetchRecipients();
+
+    const columns = fake.queries[0]?.columns ?? '';
+    expect(columns).toBe(RECIPIENT_COLUMNS);
+    expect(columns).not.toContain('*');
+    for (const forbidden of ['allergy_note', 'created_by_user_id', 'is_minor', 'legacy_bubble_id']) {
+      expect(columns).not.toContain(forbidden);
+    }
+  });
+
+  it('excludes revoked links in the query, not afterwards', async () => {
+    // Links are revoked, never deleted — the audit trail matters — so a parent whose access
+    // was removed still owns the row. Filtering it in JavaScript would mean the revoked
+    // child's details were sent to the device before being dropped.
+    const fake = readStub([LINK()]);
+    await fetchRecipients();
+    expect(fake.queries[0]?.isFilters).toContainEqual({ column: 'revoked_at', value: null });
+  });
+
+  it('flattens the child and its school', async () => {
+    readStub([LINK()]);
+    await expect(fetchRecipients()).resolves.toEqual([
+      {
+        id: 'r1',
+        firstName: 'Ishaan',
+        lastName: 'Mehta',
+        classLabel: '5',
+        sectionLabel: 'A',
+        schoolId: 's1',
+        schoolName: 'Alpha Public School',
+        canOrder: true,
+        canManage: true,
+      },
+    ]);
+  });
+
+  it('skips a link whose child came back unreadable', async () => {
+    // A revoked link that slipped through, or a soft-deleted child: the recipient policy
+    // answers `null` rather than failing, and an authorization outcome is not a bad payload.
+    readStub([{ can_order: true, can_manage: true, recipient: null }, LINK()]);
+    await expect(fetchRecipients()).resolves.toHaveLength(1);
+  });
+
+  it('leaves a deactivated child off the list', async () => {
+    readStub([LINK({}, { is_active: false })]);
+    await expect(fetchRecipients()).resolves.toEqual([]);
+  });
+
+  it('keeps a child whose school is unreadable rather than hiding them', async () => {
+    readStub([LINK({}, { school: null })]);
+    await expect(fetchRecipients()).resolves.toMatchObject([{ id: 'r1', schoolName: '' }]);
+  });
+
+  it('treats a missing can_manage as no', async () => {
+    // A co-guardian who may see but not edit must not get the change-school row. Absent
+    // means no, because the alternative is a permission granted by a missing field.
+    readStub([LINK({ can_manage: undefined, can_order: undefined })]);
+    await expect(fetchRecipients()).resolves.toMatchObject([
+      { canManage: false, canOrder: false },
+    ]);
+  });
+
+  it('orders by first name', async () => {
+    readStub([LINK({}, { id: 'r2', first_name: 'Zoya' }), LINK()]);
+    const children = await fetchRecipients();
+    expect(children.map((c) => c.firstName)).toEqual(['Ishaan', 'Zoya']);
+  });
+
+  it('is an empty list, not an error, for a signed-out parent', async () => {
+    // `AR7`: nothing in this app is a wall. A signed-out parent sees the empty state that
+    // invites them to add a child, not a failure.
+    const fake = readStub([LINK()], { userId: null });
+    await expect(fetchRecipients()).resolves.toEqual([]);
+    expect(fake.queries).toHaveLength(0);
+  });
+
+  it('has no children yet, which is not an error either', async () => {
+    readStub([]);
+    await expect(fetchRecipients()).resolves.toEqual([]);
+  });
+
+  it('refuses a child with no id rather than drawing a nameless row', async () => {
+    readStub([LINK({}, { id: undefined })]);
+    await expect(fetchRecipients()).rejects.toBeInstanceOf(RecipientPayloadError);
+  });
+
+  it('puts no child in the payload error', async () => {
+    // Non-negotiable #4 / §13.3. This message reaches a log and possibly Sentry; a child's
+    // name in it is exactly the leak the rule exists to prevent.
+    readStub([LINK({}, { first_name: undefined })]);
+    const thrown = await fetchRecipients().catch((e: unknown) => e);
+    expect(String(thrown)).not.toContain('Mehta');
+    expect(String(thrown)).not.toContain('Alpha Public School');
+  });
+
+  it('surfaces a backend error rather than an empty list', async () => {
+    // An RLS denial and "no children yet" both look like nothing. Only the error branch can
+    // tell them apart, and losing it means a parent is told they have no children.
+    readStub(null, { error: { message: 'permission denied', code: '42501' } });
+    await expect(fetchRecipients()).rejects.toMatchObject({ name: 'ApiError', code: '42501' });
   });
 });
 

@@ -48,6 +48,14 @@ export interface QueryResult {
  */
 export interface SelectBuilder extends PromiseLike<QueryResult> {
   eq(column: string, value: unknown): SelectBuilder;
+  /**
+   * `IS NULL` / `IS NOT NULL`. Added for `fetchRecipients`, and widening this interface is
+   * deliberately a visible diff rather than a method appearing at a call site.
+   *
+   * `eq(column, null)` is not the same query — PostgREST renders it as `= null`, which is
+   * never true — so a revoked `guardian_link` would have been filtered by nothing at all.
+   */
+  is(column: string, value: null | boolean): SelectBuilder;
   order(column: string, options?: { ascending?: boolean }): SelectBuilder;
 }
 
