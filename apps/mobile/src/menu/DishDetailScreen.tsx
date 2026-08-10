@@ -1,9 +1,12 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { design, menu as menuDomain, money } from '@graybag/shared';
 
+import { Button } from '../components/Button';
 import { DishImage, IMAGE_SIZES } from '../components/DishImage';
 import { EmptyState, ErrorState, Skeleton } from '../components/Surfaces';
+import { useCart } from '../cart/CartContext';
+import type { OrderTarget } from '../session/OrderTargetContext';
 import { useCachedMenu, type CachedDish } from './useCachedMenu';
 
 const { bg, text, scale, space, layout, radius } = design;
@@ -24,10 +27,16 @@ const { bg, text, scale, space, layout, radius } = design;
 export function DishDetailScreen({
   dishId,
   schoolId,
+  target = null,
+  onNeedsTarget,
   testID = 'screen-dish-detail',
 }: {
   dishId: string;
   schoolId: string | null;
+  /** Who this lunch is for and when. `null` until something can name a child (`E05-16`). */
+  target?: OrderTarget | null;
+  /** Where a parent goes when there is nobody to order for yet. */
+  onNeedsTarget?: (() => void) | undefined;
   testID?: string;
 }) {
   const { state, payload, stale, retry } = useCachedMenu(schoolId);
@@ -102,8 +111,91 @@ export function DishDetailScreen({
         ) : null}
 
         <AllergenDisclosure dish={dish} testID={`${testID}-allergens`} />
+
+        <AddToCart
+          dish={dish}
+          target={target}
+          onNeedsTarget={onNeedsTarget}
+          testID={`${testID}-add`}
+        />
       </View>
     </ScrollView>
+  );
+}
+
+/**
+ * Add to cart (`E05-04`, `E05-05`).
+ *
+ * **The line is identified by `menuItemId`, never `dishId`.** The dish is what the food is;
+ * the menu item is what is being offered, at a price, on a menu — and `lineKey` is built
+ * from the menu item because two menus can offer the same dish for different money. The dish
+ * id travels alongside it for display and for the order snapshot, and getting these the wrong
+ * way round is `E05-16` again.
+ *
+ * **The price snapshot is the price on screen.** `L7`: checkout compares this against the
+ * price the server resolves and aborts on a mismatch, so this field is evidence rather than
+ * convenience — it has to be the number the parent was looking at when they tapped.
+ */
+function AddToCart({
+  dish,
+  target,
+  onNeedsTarget,
+  testID,
+}: {
+  dish: CachedDish;
+  target: OrderTarget | null;
+  onNeedsTarget?: (() => void) | undefined;
+  testID: string;
+}) {
+  const { add } = useCart();
+  const [added, setAdded] = useState(false);
+
+  const commit = useCallback(() => {
+    if (target === null) return;
+    add({
+      recipientId: target.recipientId,
+      serviceDate: target.serviceDate,
+      menuItemId: dish.menuItemId,
+      dishId: dish.id,
+      dishName: dish.name,
+      unitPricePaise: dish.pricePaise,
+      // One. The stepper lives in the cart, where the quantity can be seen next to the total
+      // it produces — a counter here would be a second place to change the same number.
+      quantity: 1,
+      comment: null,
+    });
+    setAdded(true);
+  }, [add, dish, target]);
+
+  if (target === null) {
+    return (
+      <View style={styles.footer} testID={testID}>
+        {/* Not a wall in front of the menu (`AR7`) — the dish is fully readable above this,
+            and this is the last thing on the screen rather than the first. */}
+        <Text style={styles.footerNote}>
+          Lunch is delivered to a child at school, so we need to know who this one is for.
+        </Text>
+        <Button
+          label="Add a child"
+          variant="secondary"
+          onPress={() => onNeedsTarget?.()}
+          testID={`${testID}-needs-target`}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.footer} testID={testID}>
+      <Button label="Add to cart" onPress={commit} testID={`${testID}-button`} />
+      {added ? (
+        // A live region rather than a toast: the confirmation has to reach someone who is
+        // not watching the button, and it stays on screen rather than expiring unseen.
+        <Text style={styles.footerNote} accessibilityLiveRegion="polite" testID={`${testID}-added`}>
+          Added to your cart.
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -251,6 +343,12 @@ const styles = StyleSheet.create({
     lineHeight: scale.body.lineHeight,
   },
   section: { gap: space[1] },
+  footer: { gap: space[2], marginTop: space[2] },
+  footerNote: {
+    color: text.secondary,
+    fontSize: scale.bodySm.size,
+    lineHeight: scale.bodySm.lineHeight,
+  },
   sectionTitle: {
     color: text.primary,
     fontSize: scale.bodyStrong.size,

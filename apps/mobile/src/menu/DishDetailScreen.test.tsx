@@ -1,6 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { cart as cartDomain, menu as menuDomain } from '@graybag/shared';
 
+import { CartProvider, useCart } from '../cart/CartContext';
+import type { OrderTarget } from '../session/OrderTargetContext';
 import { DishDetailScreen, allergenLabel } from './DishDetailScreen';
 import { setMenuCache, type CachedMenuPayload } from './useCachedMenu';
 
@@ -64,15 +67,60 @@ function fakeCache(result: Partial<{ stale: boolean; reject: boolean }> = {}) {
   return { get, invalidate: jest.fn(async () => {}) } as never;
 }
 
-async function renderDish(dishId: string, schoolId: string | null = SCHOOL) {
-  await render(
-    <SafeAreaProvider initialMetrics={METRICS}>
-      <DishDetailScreen dishId={dishId} schoolId={schoolId} />
-    </SafeAreaProvider>,
-  );
+/**
+ * A child with a milk allergy.
+ *
+ * The allergen ids are regulated health data (DPDP, non-negotiable #4). They are asserted on
+ * only through what the screen *does* with them — nothing in this file expects them to be
+ * rendered, and nothing may log them.
+ */
+/** Asserted to be a real service date rather than trusted as a literal. */
+const SERVICE_DATE = '2026-09-01';
+if (!menuDomain.isServiceDate(SERVICE_DATE)) throw new Error('fixture is not a service date');
+
+const TARGET: OrderTarget = {
+  recipientId: 'r1',
+  allergenIds: ['milk'],
+  serviceDate: SERVICE_DATE,
+};
+
+const NO_ALLERGIES: OrderTarget = { ...TARGET, recipientId: 'r2', allergenIds: [] };
+
+/** Reads the live cart out of the provider, so adds are asserted against the domain object. */
+let seenCart: cartDomain.Cart = cartDomain.emptyCart();
+function CartProbe() {
+  seenCart = useCart().cart;
+  return null;
 }
 
-afterEach(() => setMenuCache(null));
+async function renderDish(
+  dishId: string,
+  {
+    schoolId = SCHOOL,
+    target = null,
+  }: { schoolId?: string | null; target?: OrderTarget | null } = {},
+) {
+  const onNeedsTarget = jest.fn();
+  await render(
+    <SafeAreaProvider initialMetrics={METRICS}>
+      <CartProvider>
+        <CartProbe />
+        <DishDetailScreen
+          dishId={dishId}
+          schoolId={schoolId}
+          target={target}
+          onNeedsTarget={onNeedsTarget}
+        />
+      </CartProvider>
+    </SafeAreaProvider>,
+  );
+  return { onNeedsTarget };
+}
+
+afterEach(() => {
+  setMenuCache(null);
+  seenCart = cartDomain.emptyCart();
+});
 
 describe('DishDetailScreen', () => {
   it('shows the dish from the cached menu with no session anywhere in sight', async () => {
@@ -177,6 +225,80 @@ describe('DishDetailScreen', () => {
     await renderDish('d1');
     await waitFor(() => expect(screen.getByTestId('error-state')).toBeOnTheScreen());
     expect(screen.getByLabelText('Try again')).toBeOnTheScreen();
+  });
+
+  describe('adding to the cart', () => {
+    /**
+     * The identity rule. A cart line is the **menu item** — what is being offered, on which
+     * menu, at what price — and not the dish, because two menus can offer the same food for
+     * different money. Getting these the wrong way round produces a cart that looks right and
+     * a checkout that cannot resolve a line.
+     */
+    it('adds a line identified by menuItemId, not dishId', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d3', { target: NO_ALLERGIES });
+      await waitFor(() => expect(screen.getByText('Fruit Bowl')).toBeOnTheScreen());
+
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
+
+      await waitFor(() => expect(seenCart.lines).toHaveLength(1));
+      expect(seenCart.lines[0]).toMatchObject({
+        menuItemId: 'mi-d3',
+        dishId: 'd3',
+        key: cartDomain.lineKey({
+          recipientId: 'r2',
+          serviceDate: TARGET.serviceDate,
+          menuItemId: 'mi-d3',
+          comment: null,
+        }),
+      });
+    });
+
+    it('snapshots the price the parent was looking at, in paise (L7)', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d3', { target: NO_ALLERGIES });
+      await waitFor(() => expect(screen.getByText('Fruit Bowl')).toBeOnTheScreen());
+
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
+
+      await waitFor(() => expect(seenCart.lines).toHaveLength(1));
+      // Integer paise, exactly as it came off the menu. Checkout compares against this.
+      expect(seenCart.lines[0]).toMatchObject({
+        unitPricePaise: 5_500,
+        quantity: 1,
+        recipientId: 'r2',
+        serviceDate: TARGET.serviceDate,
+      });
+    });
+
+    it('confirms the add without navigating away from the dish', async () => {
+      setMenuCache(fakeCache());
+      await renderDish('d3', { target: NO_ALLERGIES });
+      await waitFor(() => expect(screen.getByText('Fruit Bowl')).toBeOnTheScreen());
+
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
+      await waitFor(() =>
+        expect(screen.getByTestId('screen-dish-detail-add-added')).toBeOnTheScreen(),
+      );
+      expect(screen.getByText('Fruit Bowl')).toBeOnTheScreen();
+    });
+
+    /**
+     * `AR7`: the dish is fully readable with nobody to order for. The screen offers the way
+     * forward instead of a disabled button with no explanation — and it is the last thing on
+     * the screen, not a wall in front of it.
+     */
+    it('offers to add a child when there is nobody to order for, and adds nothing', async () => {
+      setMenuCache(fakeCache());
+      const { onNeedsTarget } = await renderDish('d3');
+      await waitFor(() => expect(screen.getByText('Fruit Bowl')).toBeOnTheScreen());
+
+      expect(screen.queryByTestId('screen-dish-detail-add-button')).toBeNull();
+      await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-needs-target'));
+
+      expect(onNeedsTarget).toHaveBeenCalled();
+      expect(seenCart.lines).toHaveLength(0);
+    });
   });
 
   it('shows a skeleton, never a spinner, while loading (S5)', async () => {

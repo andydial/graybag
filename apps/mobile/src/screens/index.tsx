@@ -8,6 +8,7 @@ import { MenuScreen as MenuScreenImpl } from '../menu/MenuScreen';
 import type { RootStackParamList } from '../navigation/types';
 import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
+import { useOrderTarget } from '../session/OrderTargetContext';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 /**
@@ -111,9 +112,21 @@ export const OrdersScreen = () => (
  * connection would be the slowest thing on the screen (`E04-10`, `MC3`).
  */
 export const DishDetailScreen = () => {
+  const navigation = useNavigation();
   const { params } = useRoute<RouteProp<RootStackParamList, 'DishDetail'>>();
   const { schoolId } = useSelectedSchool();
-  return <DishDetailScreenImpl dishId={params.dishId} schoolId={schoolId} />;
+  const { target } = useOrderTarget();
+
+  return (
+    <DishDetailScreenImpl
+      dishId={params.dishId}
+      schoolId={schoolId}
+      target={target}
+      // `null` is the ordinary state today: nothing can name a child yet (`E05-16`), so the
+      // one honest thing to offer is the screen that creates one.
+      onNeedsTarget={() => navigation.navigate('AddChild')}
+    />
+  );
 };
 
 export const OrderDetailScreen = () => (
