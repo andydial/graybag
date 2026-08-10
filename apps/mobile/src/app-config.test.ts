@@ -140,6 +140,71 @@ describe('eas.json profiles', () => {
   });
 });
 
+/**
+ * The non-production identity split (`E17-28`).
+ *
+ * A build that installs **over** the live App Store app looks exactly like one that installs
+ * beside it, right up until it is on the phone and the real app is gone. Andy has lost his
+ * live app twice this way, so the rule is asserted rather than described.
+ */
+describe('app.config.js identity split', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { applyIdentity, STAGING_NAME, STAGING_SCHEME } = require('../app.config.js') as {
+    applyIdentity: (config: unknown, appEnv: string | undefined) => {
+      name: string;
+      scheme: string;
+      ios: { bundleIdentifier: string };
+      android: { package: string };
+    };
+    STAGING_NAME: string;
+    STAGING_SCHEME: string;
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const base = (require('../app.json') as { expo: unknown }).expo;
+
+  it('leaves production exactly as app.json describes it', () => {
+    // `R4`: the live listings own these identifiers. Production is not ours to decorate.
+    const out = applyIdentity(base, 'production');
+    expect(out.ios.bundleIdentifier).toBe('com.gracord.graybag');
+    expect(out.android.package).toBe('com.Gracord.Graybag');
+    expect(out.name).toBe('GrayBag');
+    expect(out.scheme).toBe('graybag');
+  });
+
+  it.each(['staging', 'local', undefined])(
+    'installs beside the live app when APP_ENV is %s',
+    (appEnv) => {
+      const out = applyIdentity(base, appEnv);
+      expect(out.ios.bundleIdentifier).toBe('com.gracord.graybag.staging');
+      expect(out.android.package).toBe('com.Gracord.Graybag.staging');
+      expect(out.name).toBe(STAGING_NAME);
+    },
+  );
+
+  it('defaults to the harmless identity when APP_ENV is missing', () => {
+    // The dangerous identity is the one that can replace a customer's app, so it is the one
+    // that has to be asked for. A forgotten env var must not produce it.
+    expect(applyIdentity(base, undefined).ios.bundleIdentifier).not.toBe('com.gracord.graybag');
+  });
+
+  it('gives the two apps different URL schemes', () => {
+    // Both are installed at once now. Two apps claiming `graybag://` is a coin flip as to
+    // which one the OS hands a link to, and the loser is whichever one the user meant.
+    const staging = applyIdentity(base, 'staging');
+    const production = applyIdentity(base, 'production');
+    expect(staging.scheme).toBe(STAGING_SCHEME);
+    expect(staging.scheme).not.toBe(production.scheme);
+  });
+
+  it('keeps the two platforms suffixed identically', () => {
+    // They differ in case and always have (`R4`). What they must not do is differ in whether
+    // they were split at all — a half-applied split is how one platform quietly keeps the trap.
+    const out = applyIdentity(base, 'staging');
+    expect(out.ios.bundleIdentifier.toLowerCase()).toBe(out.android.package.toLowerCase());
+  });
+});
+
 describe('the store version floor', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const app = require('../app.json') as { expo: { version: string } };

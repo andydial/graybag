@@ -117,7 +117,11 @@ export default tseslint.config(
     // Metro's config must be CommonJS for the same reason the Expo plugins above must be:
     // Metro `require()`s it from its own loader before any transform is in play. Same
     // constraint of the platform, same exemption.
-    files: ['apps/*/metro.config.js'],
+    //
+    // `app.config.js` joins them for the identical reason: Expo's config loader `require()`s
+    // it before anything is transformed, and it reads `process.env.APP_ENV` to decide whether
+    // the build gets the production identity or the staging one (`E17-28`).
+    files: ['apps/*/metro.config.js', 'apps/*/app.config.js'],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'commonjs',
