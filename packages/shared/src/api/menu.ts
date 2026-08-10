@@ -35,6 +35,19 @@ export interface ApiDishAllergen {
 
 export interface ApiDish {
   id: string;
+  /**
+   * The `menu_item` row this dish is being offered as — **not** the dish id.
+   *
+   * `create_checkout` identifies a line by this and nothing else, because a dish is the
+   * food while a `menu_item` is that dish *on a particular menu at a price*: the same dish
+   * appears on several menus and `menu_item_price_override` is keyed on the item and the
+   * school. Ordering by dish id would mean the server picking an item on the client's
+   * behalf, and "which price did the customer actually see" would have no answer.
+   *
+   * `public_menu` did not expose it until migration `0017`, which meant there was no
+   * sequence of calls the app could make that produced a valid order line (`E05-16`).
+   */
+  menuItemId: string;
   name: string;
   description: string | null;
   categoryId: string;
@@ -64,8 +77,14 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 function assertDish(value: unknown, index: number): ApiDish {
   if (!isRecord(value)) throw new MenuPayloadError(`dish ${index} is not an object`);
 
-  const { id, name, categoryId, pricePaise } = value;
+  const { id, menuItemId, name, categoryId, pricePaise } = value;
   if (typeof id !== 'string') throw new MenuPayloadError(`dish ${index} has no id`);
+  // Refused rather than defaulted. A dish with no `menuItemId` cannot be ordered — the
+  // checkout identifies a line by it — so a payload missing it is a menu that looks
+  // browsable and is not, which is the failure `E05-16` was made of.
+  if (typeof menuItemId !== 'string') {
+    throw new MenuPayloadError(`dish ${id} has no menuItemId`);
+  }
   if (typeof name !== 'string') throw new MenuPayloadError(`dish ${id} has no name`);
   if (typeof categoryId !== 'string') throw new MenuPayloadError(`dish ${id} has no categoryId`);
 
@@ -92,6 +111,7 @@ function assertDish(value: unknown, index: number): ApiDish {
 
   return {
     id,
+    menuItemId,
     name,
     description: typeof value.description === 'string' ? value.description : null,
     categoryId,
@@ -132,6 +152,7 @@ export async function fetchMenuVersion(schoolId: string): Promise<number | null>
 /** One row of `public_menu`. */
 interface MenuRow {
   dish_id: unknown;
+  menu_item_id: unknown;
   name: unknown;
   description: unknown;
   ingredients_text: unknown;
@@ -160,6 +181,7 @@ export async function fetchMenu(schoolId: string): Promise<ApiMenuPayload> {
     const dish = assertDish(
       {
         id: row.dish_id,
+        menuItemId: row.menu_item_id,
         name: row.name,
         description: row.description,
         categoryId: row.category_id,

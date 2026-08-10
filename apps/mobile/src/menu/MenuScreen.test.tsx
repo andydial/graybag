@@ -23,6 +23,7 @@ const PAYLOAD: CachedMenuPayload = {
   dishes: [
     {
       id: 'd1',
+      menuItemId: 'mi-d1',
       name: 'Cold Coffee',
       description: 'Chilled, with milk',
       categoryId: 'drinks',
@@ -34,6 +35,7 @@ const PAYLOAD: CachedMenuPayload = {
     },
     {
       id: 'd2',
+      menuItemId: 'mi-d2',
       name: 'Veg Sandwich',
       description: null,
       categoryId: 'quick_bites',
@@ -46,6 +48,7 @@ const PAYLOAD: CachedMenuPayload = {
     },
     {
       id: 'd3',
+      menuItemId: 'mi-d3',
       name: 'Fruit Bowl',
       description: null,
       categoryId: 'quick_bites',
