@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { design } from '@graybag/shared';
 
-const { bg, text, border, space, radius, borderWidth, scale } = design;
+const { bg, text, border, space, radius, borderWidth, scale, touchTarget } = design;
 
 /**
  * "For \<child\> · \<school\> · \<break\> · \<date\>" — `docs/ux-spec.md` §5.7, and the rule
@@ -32,9 +32,18 @@ export interface OrderFor {
 
 export function OrderForBlock({
   orderFor,
+  onChange,
   testID = 'cart-order-for',
 }: {
   orderFor: OrderFor | null;
+  /**
+   * The "Change" affordance in the card's top-right (§5.7: the For block is *editable*).
+   *
+   * Absent when there is nothing to change — signed out, or no child yet. A button offering
+   * to change a child we could not name is a dead end, and the null block's own copy already
+   * says the choice happens at the gate.
+   */
+  onChange?: () => void;
   testID?: string;
 }) {
   if (orderFor === null) {
@@ -50,21 +59,41 @@ export function OrderForBlock({
   }
 
   const klass = [orderFor.classLabel, orderFor.sectionLabel].filter(Boolean).join('-');
+  const who = klass === '' ? orderFor.childName : `${orderFor.childName} · Class ${klass}`;
 
   return (
     <View style={styles.block} testID={testID}>
-      <Text style={styles.label}>For</Text>
-      <Text style={styles.who} testID={`${testID}-child`}>
-        {klass === '' ? orderFor.childName : `${orderFor.childName} · Class ${klass}`}
-      </Text>
-      <Text style={styles.meta} testID={`${testID}-where`}>
-        {orderFor.schoolName}
-      </Text>
-      <Text style={styles.meta} testID={`${testID}-when`}>
-        {orderFor.breakLabel
-          ? `${orderFor.breakLabel} · ${orderFor.serviceDate}`
-          : orderFor.serviceDate}
-      </Text>
+      <View style={styles.blockRow}>
+        <View style={styles.blockText}>
+          <Text style={styles.label}>For</Text>
+          <Text style={styles.who} testID={`${testID}-child`}>
+            {who}
+          </Text>
+          <Text style={styles.meta} testID={`${testID}-where`}>
+            {orderFor.schoolName}
+          </Text>
+          <Text style={styles.meta} testID={`${testID}-when`}>
+            {orderFor.breakLabel
+              ? `${orderFor.breakLabel} · ${orderFor.serviceDate}`
+              : orderFor.serviceDate}
+          </Text>
+        </View>
+
+        {onChange === undefined ? null : (
+          <Pressable
+            onPress={onChange}
+            testID={`${testID}-change`}
+            accessibilityRole="button"
+            // Named, not "Change". A screen-reader user arriving at a bare "Change" has no way
+            // to know what it changes — and this one changes whose lunch is being bought.
+            accessibilityLabel={`Change who this order is for. Currently ${who}`}
+            style={styles.change}
+          >
+            <Text style={styles.changeLabel}>Change</Text>
+          </Pressable>
+        )}
+      </View>
+
       {orderFor.breakLabel ? null : (
         // Explicitly unknown, never a guess. See the note above.
         <Text style={styles.pending} testID={`${testID}-break-unknown`}>
@@ -95,6 +124,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   who: { color: text.primary, fontSize: scale.h3.size, fontWeight: scale.h3.weight },
-  meta: { color: text.secondary, fontSize: scale.caption.size },
+  meta: { color: text.secondary, fontSize: scale.caption.size, lineHeight: scale.caption.lineHeight },
   pending: { color: text.secondary, fontSize: scale.caption.size, marginTop: space[1] },
+
+  blockRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space[3] },
+  blockText: { flex: 1, gap: space[1] },
+  // `minHeight` rather than a padded box: the label sits on the card's first line, and a 48pt
+  // target that pushed the card taller would move the child's name off the top edge.
+  change: { minHeight: touchTarget.min, justifyContent: 'center' },
+  changeLabel: { color: text.link, fontSize: scale.label.size, fontWeight: scale.label.weight },
 });

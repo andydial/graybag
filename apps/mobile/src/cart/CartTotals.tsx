@@ -1,7 +1,17 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { design, money } from '@graybag/shared';
 
+import { Skeleton } from '../components';
+
 const { text, border, space, borderWidth, scale } = design;
+
+/**
+ * The skeleton's row heights, taken from the type scale rather than invented, so the block
+ * occupies the same box loading as loaded and nothing shifts underneath the parent's thumb
+ * when the repriced total lands (`S5`).
+ */
+const ROW_HEIGHT = scale.body.lineHeight;
+const GRAND_HEIGHT = scale.h3.lineHeight;
 
 /**
  * Subtotal · CGST 2.5% · SGST 2.5% · Total — `docs/ux-spec.md` §5.7, `M2`, `SC2`.
@@ -16,11 +26,37 @@ const { text, border, space, borderWidth, scale } = design;
  */
 export function CartTotals({
   breakdown,
+  loading = false,
   testID = 'cart-totals',
 }: {
   breakdown: money.GstBreakdown;
+  /**
+   * Repricing (§5.7). **The skeleton is on this block and never on the whole screen** — the
+   * lines, the child and the date are all still true while the server re-checks prices, and
+   * blanking them would say we had lost the cart.
+   *
+   * The amounts are removed rather than dimmed. A stale total shown faintly is still a total,
+   * and §5.21 is explicit that an unknown must not render as a known.
+   */
+  loading?: boolean;
   testID?: string;
 }) {
+  if (loading) {
+    return (
+      <View style={styles.totals} testID={`${testID}-skeleton`}>
+        <SkeletonRow width="34%" height={ROW_HEIGHT} />
+        <SkeletonRow width="42%" height={ROW_HEIGHT} />
+        <SkeletonRow width="42%" height={ROW_HEIGHT} />
+        <View style={styles.grandRow}>
+          <SkeletonRow width="30%" height={GRAND_HEIGHT} />
+        </View>
+        <Text style={styles.note} accessibilityLiveRegion="polite">
+          Checking today&rsquo;s prices&hellip;
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.totals} testID={testID}>
       <Row label="Subtotal" value={breakdown.taxablePaise} testID="cart-subtotal" />
@@ -35,6 +71,15 @@ export function CartTotals({
       <Text style={styles.note} testID="cart-tax-note">
         Menu prices exclude GST. 5% is added here as CGST 2.5% + SGST 2.5%.
       </Text>
+    </View>
+  );
+}
+
+/** One skeleton line, laid out where its label would be so the block keeps its shape. */
+function SkeletonRow({ width, height }: { width: `${number}%`; height: number }) {
+  return (
+    <View style={styles.row}>
+      <Skeleton width={width} height={height} />
     </View>
   );
 }

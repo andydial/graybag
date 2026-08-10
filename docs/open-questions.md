@@ -586,3 +586,40 @@ classroom at a break; a teacher's and a university student's do not.
 
 Two decisions needed from Andy: v1 or fast-follow, and the kitchen question.
 
+
+## The legacy dish photographs are 120px thumbnails — raised 2026-08-11
+
+`E16-43` uploaded all 82 mirrored images to Storage and they render. But **72 of the 82 are
+exactly 120×120, and the largest is 213×120** — 1.7 MB for the entire catalogue. The upload
+agent probed the Bubble CDN with `?w=800` and with its `cdn-cgi/image` resizer; both return the
+same 180×120 pixels, so **there is no higher-resolution source**. What we mirrored is all there
+ever was.
+
+They are fine as list tiles. A full-bleed hero on Dish detail at 390pt wide is upscaling a
+120px image more than threefold, and it will look soft on any modern phone.
+
+This widens `E16-29` from "re-shoot the 3 that 403" to **"the catalogue needs real photography
+before launch"**, which is a cost and a scheduling item rather than a bug.
+
+**Recommendation:** ship with them. They are honest photographs of the real food, they are a
+large improvement on the pattern placeholder, and Dish detail can cap the hero's height so the
+softness is less obvious. Then shoot the catalogue properly as a fast-follow — one session, one
+day, and the images swap in without a code change because the path already resolves through
+`asset`.
+
+**[NEEDS ANDY]** Confirm ship-with-these, and decide when the shoot happens.
+
+## Staging has no real menu — raised 2026-08-11
+
+Staging carries the five fixtures from `supabase/seed.sql`, not the legacy catalogue, and
+**none of them has a `legacy_bubble_id`**. So `E16-43` could only match photographs to dishes by
+name: 4 of 5 matched, and **78 of the 82 uploaded images sit unused**.
+
+That is not a defect in the upload — it is the menu import (`E16`) not having run against
+staging. Once dishes carry their `legacy_bubble_id`, re-running the tool without its
+`--fixture-aliases` flag joins all 82 on the id exactly, and the alias table gets deleted
+rather than extended.
+
+**[NEEDS ANDY]** Nothing to decide, but worth knowing: **the app on staging is showing four real
+photographs against five fixture dishes.** It is not showing the real menu, and it will not
+until the import runs.

@@ -47,3 +47,5 @@ summary: React Native + Expo shell, navigation, the api/ module discipline, and 
 
 - [ ] `E14-28` Swap the connectivity probe for a real link-layer signal (NetInfo or `expo-network`) when a new dev-client build is due. `ConnectivityContext` measures whether our backend is reachable, which is the more useful question but a weaker one — it can only learn from a request or a probe. Native module, so it cannot ship to an installed dev client
 - [ ] `E14-29` Extend the orphan guard to catch defect 4: an exported module in `packages/shared` that nothing imports. The current guard covers contexts, providers, stores and injection seams in `apps/mobile/src` — E13's unconsumed design tokens were none of those, so it would not have caught them
+
+- [ ] `E14-30` (owner:andy) (risk:high) **Install Xcode or the Android SDK on the build machine so Maestro can run.** `E14-24`'s flow has still never executed: there is no simulator, no emulator and no Maestro binary on this machine, so the e2e net cannot be proven at all. Ten screens are now shipping behind a test suite that has never run once

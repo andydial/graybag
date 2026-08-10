@@ -2229,13 +2229,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/28</span>
+          <span class="meter-num">0/29</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 28 tasks</summary>
+        <summary>Context &amp; 29 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -2466,6 +2466,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Extend the orphan guard to catch defect 4: an exported module in <code>packages/shared</code> that nothing imports. The current guard covers contexts, providers, stores and injection seams in <code>apps/mobile/src</code> — E13&#39;s unconsumed design tokens were none of those, so it would not have caught them</span>
+      </li>
+      <li class="task" data-id="E14-30" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-30"></button>
+        <code class="tid">E14-30</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:high) <strong>Install Xcode or the Android SDK on the build machine so Maestro can run.</strong> <code>E14-24</code>&#39;s flow has still never executed: there is no simulator, no emulator and no Maestro binary on this machine, so the e2e net cannot be proven at all. Ten screens are now shipping behind a test suite that has never run once</span>
       </li></ul>
       </details>
     </article>
@@ -3545,13 +3553,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/43</span>
+          <span class="meter-num">0/44</span>
         </div>
       </header>
       <p class="summary">Move ~400 users, dependents and full order history off Bubble. Rehearsed at least twice before the real thing.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E04</code> <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 43 tasks</summary>
+        <summary>Context &amp; 44 tasks</summary>
         <div class="context"><h4>Known constraints</h4>
 <p>Verified against the real export on 2026-08-08 (<code>E19-04</code>). Full evidence in</p>
 <p><strong><code>docs/bubble-recon-findings.md</code></strong> — read it before writing <code>E16-01</code>. Several constraints below</p>
@@ -3989,6 +3997,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Upload the mirrored dish images into Supabase Storage and rewrite the dish records to point at them. The download half is done (<code>E16-28</code>), so this no longer depends on Bubble being alive and can run whenever the storage bucket exists</span>
+      </li>
+      <li class="task" data-id="E16-44" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-44"></button>
+        <code class="tid">E16-44</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Re-run <code>tools/upload-dish-images</code> WITHOUT <code>--fixture-aliases</code> once the menu import gives dishes their <code>legacy_bubble_id</code>, and delete the alias table rather than extending it. 78 of the 82 uploaded photographs are currently unused because staging has five seed fixtures rather than the real catalogue</span>
       </li></ul>
       </details>
     </article>

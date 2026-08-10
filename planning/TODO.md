@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 39 open of 43.
+Your tasks only — 40 open of 44.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -54,6 +54,7 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E12-10` Make the DNS change at the registrar when the cutover plan is ready
 - [ ] `E13-09` Review the motion spec with Andy once, before app UI work starts
 - [ ] `E13-14` _(fast-follow)_ DS-01 — approve the "500 rule": #00af52 stays the identity colour but functional green moves to primary-700 #007e3b for fills and text. White on #00af52 is 2.90:1 and fails every WCAG bar, so the mocks cannot ship as drawn. This changes what every button, price and field label looks like. Options and the recommendation are in docs/open-questions.md; the consequences are worked through in docs/design-tokens.md §2.1. E13-15 changed what is being asked, and Andy must be told this before he answers: the brand guidelines' Colour Usage Guide assigns #00AF52 to "Buttons & CTAs in UI" in as many words, so approving the 500 rule means deviating from the brand book on one line, not just from the mocks. The case for doing it is that the brand document contains no contrast analysis anywhere — it was written for packaging, presentations and social. The dark-ink-on-green alternative now also contradicts the brand's five approved logo-on-colour pairings, which put white on #00AF52
+- [ ] `E14-30` _(fast-follow)_ (risk:high) Install Xcode or the Android SDK on the build machine so Maestro can run. E14-24's flow has still never executed: there is no simulator, no emulator and no Maestro binary on this machine, so the e2e net cannot be proven at all. Ten screens are now shipping behind a test suite that has never run once
 - [x] `E16-21` _(fast-follow)_ ~~Re-extract Child.Parent from Bubble with real ids~~ — closed 2026-08-08 by AR1: Child.Parent was never used. Its emptiness is the accurate state, not export damage, so there is nothing to re-extract. Parent↔child is derived from Order instead (order-parent + child), and a child nobody has ordered for correctly has no parent. Andy confirmed this in conversation
 - [ ] `E16-29` _(fast-follow)_ Decide what happens to the 3 dish photos that return a permanent 403 and cannot be sourced from Bubble — Aloo Chana Chaat, Tomato/Cucumber Cheese Sandwich, Brown Wheat Pasta with Mushroom and Pesto. New photography, or ship them with a category placeholder
 - [ ] `E16-34` _(fast-follow)_ Decide the treatment of the 1 Cancelled order that carries a payment id — money was taken and the order cancelled, and legacy had no refunded status to express what happened next. Confirm whether a refund was issued outside the system; if not, it is an opening ledger credit under E16-16
