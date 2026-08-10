@@ -1803,3 +1803,15 @@ nothing — so the failure surfaces in a different, correct test as an empty tre
 Same family as the two-`render()` trap above, and the same reason both are worth writing down:
 **the symptom appears somewhere other than the cause**, which is what makes them expensive
 rather than merely annoying.
+
+## RNTL v14: `fireEvent.press` must be awaited too — 2026-08-11
+
+The third member of the same family, after `render()` and `unmount()`. An unawaited
+`fireEvent.press` overlaps `act` scopes and React renders the **next test's** tree as nothing,
+so a correct test fails with an empty tree and the actual cause is in the test above it.
+
+`render`, `unmount`, `fireEvent.*` and `userEvent.*` are all async in v14. **Await every one.**
+
+Three separate people have now lost time to this family in two days, always the same way: the
+symptom is reported somewhere other than the cause. If a test that was passing starts returning
+an empty tree, look at the test *before* it, not at itself.

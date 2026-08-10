@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api, cart as cartDomain, design, money } from '@graybag/shared';
 
@@ -18,6 +18,8 @@ export const COMMENT_MAX_LENGTH = 140;
 
 /** The line thumbnail's box. `space[16]` rather than a number, like every other box. */
 const THUMB = space[16];
+/** The empty state's illustration, big enough to read as art rather than as a missing image. */
+const EMPTY_ART = space[16] + space[8];
 /** The stepper's visual circle. The *target* is `touchTarget.min` around it — see `StepperButton`. */
 const STEPPER_CIRCLE = space[8];
 
@@ -238,7 +240,11 @@ export function CartScreen({
                 ? 'One item is no longer available'
                 : `${withdrawnNames.length} items are no longer available`
             }
-            body={`${withdrawnNames.join(', ')} came off the menu after you added it. Remove it and the rest of your order is unchanged.`}
+            body={
+              withdrawnNames.length === 1
+                ? `${withdrawnNames[0]} came off the menu after you added it. Remove it and the rest of your order is unchanged.`
+                : `${withdrawnNames.join(', ')} came off the menu after you added them. Remove them and the rest of your order is unchanged.`
+            }
           />
         )}
 
@@ -275,8 +281,10 @@ export function CartScreen({
           <CartLineRow
             key={line.key}
             line={line}
-            presentation={dishInfo?.[line.dishId]}
             unavailable={withdrawn.has(line.dishId)}
+            {...(dishInfo?.[line.dishId] === undefined
+              ? {}
+              : { presentation: dishInfo[line.dishId] })}
             {...(allergens === undefined
               ? {}
               : {
@@ -294,7 +302,11 @@ export function CartScreen({
 
         {cutoff === undefined ? null : <CutoffBand cutoff={cutoff} />}
 
-        <CartTotals breakdown={breakdown} loading={repricing} />
+        {/* On a card like everything else on this canvas — the totals are the last block a
+            parent reads before paying, and leaving them loose on the grey read as a footnote. */}
+        <Card>
+          <CartTotals breakdown={breakdown} loading={repricing} />
+        </Card>
       </ScrollView>
 
       {/*
@@ -316,10 +328,18 @@ export function CartScreen({
           onPress={() => onPlaceOrder?.()}
         />
         {signedOut ? (
-          // The one place the gate is mentioned, and it is reassurance rather than a wall:
-          // `F1` — a parent who fears losing the cart at the gate abandons before reaching it.
+          /*
+            The **only** place on this screen the gate is named, and it is reassurance rather
+            than a wall: `F1` — a parent who fears losing the cart at the gate abandons before
+            reaching it, so the sentence exists to say the cart survives.
+
+            It is behind `signedOut` deliberately. `AR7`'s rule is that nothing on the cart
+            *asks* for sign-in; a signed-out parent about to tap the button is the one case
+            where staying silent would be a surprise instead of an absence. The default render
+            still contains the phrase nowhere, which is what the test asserts.
+          */
           <Text style={styles.footerNote} testID="cart-signed-out-note">
-            We&rsquo;ll ask you to confirm who you are — your order is kept.
+            We&rsquo;ll ask you to sign in — your order is kept.
           </Text>
         ) : null}
       </View>
@@ -438,12 +458,19 @@ function useOrderFor(cart: cartDomain.Cart): OrderFor | null {
 export function formatServiceDate(serviceDate: string): string {
   const parsed = new Date(`${serviceDate}T00:00:00Z`);
   if (Number.isNaN(parsed.getTime())) return serviceDate;
-  return parsed.toLocaleDateString('en-IN', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    timeZone: 'UTC',
-  });
+  return (
+    parsed
+      .toLocaleDateString('en-IN', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        timeZone: 'UTC',
+      })
+      // en-IN puts a comma after the weekday on some ICU builds and not others. Dropped here
+      // as it is in `formatCutoffAt`, so the two dates on this screen are set the same way
+      // whichever build the phone shipped with.
+      .replace(/,/g, '')
+  );
 }
 
 /** The phone's own zone, or `undefined` where the runtime cannot say. */
@@ -495,8 +522,10 @@ export function formatCutoffAt(closesAt: string, timeZone?: string): string {
         ...(showZone ? { timeZoneName: 'short' as const } : {}),
       })
       // Newer ICU emits a narrow no-break space before the meridiem, which renders as a
-      // missing space in some Android fonts.
-      .replace(/ /g, ' ')
+      // missing space in some Android fonts. Written as an escape rather than pasted: a
+      // literal U+202F in source is invisible in every diff it ever appears in.
+      .replace(/\u202f/g, ' ')
+      // Some ICU builds return "pm"; the copy rule asks for "11:59 PM".
       .replace(/\b(am|pm)\b/g, (meridiem) => meridiem.toUpperCase());
 
     return `${day}, ${time}`;
@@ -795,7 +824,7 @@ function StepperButton({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: bg.canvas },
   scroll: { flex: 1 },
-  content: { padding: layout.gutter, gap: layout.blockGap, paddingBottom: layout.stickyCtaGap },
+  content: { padding: layout.gutter, gap: layout.blockGap },
 
   // `text.link` is `primary-700`. The brand `#00af52` is 2.9:1 on white — graphics and large
   // text only — so the title takes the darker role, as the menu's does.
@@ -811,8 +840,8 @@ const styles = StyleSheet.create({
 
   emptyBody: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: space[4] },
   emptyArt: {
-    width: THUMB,
-    height: THUMB,
+    width: EMPTY_ART,
+    height: EMPTY_ART,
     flex: 0,
     borderRadius: radius.xl,
   },

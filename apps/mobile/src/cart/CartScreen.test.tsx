@@ -1,9 +1,9 @@
 import { render, screen, userEvent } from '@testing-library/react-native';
-import { cart as cartDomain } from '@graybag/shared';
+import { api, cart as cartDomain } from '@graybag/shared';
 import type { ReactNode } from 'react';
 
 import { CartProvider } from './CartContext';
-import { CartScreen } from './CartScreen';
+import { CartScreen, cutoffCopy, formatCutoffAt, type CartScreenProps } from './CartScreen';
 
 const IDLI = {
   recipientId: 'r-1',
@@ -33,11 +33,11 @@ function withCart(lines: (typeof IDLI)[] = []) {
 }
 
 /** `render` is async in RNTL 14, so every caller awaits it. */
-const renderCart = (lines: (typeof IDLI)[] = []) => {
+const renderCart = (lines: (typeof IDLI)[] = [], props: CartScreenProps = {}) => {
   const Wrapper = withCart(lines);
   return render(
     <Wrapper>
-      <CartScreen />
+      <CartScreen {...props} />
     </Wrapper>,
   );
 };
@@ -246,5 +246,381 @@ describe('CartScreen — who, and how much', () => {
   it('shows no allergen warning while it cannot check against a child', async () => {
     await renderCart([IDLI]);
     expect(screen.queryByText(/allergic/i)).toBeNull();
+  });
+});
+
+/**
+ * The cutoff copy (`C4`, `C5`, §5.7 element 5).
+ *
+ * `2025-08-11` is the prototype's own fixture date, and it is used here because it is a
+ * **Monday** — which lets these tests pin the specified sentence character for character
+ * rather than asserting a shape that a wrong-but-plausible string would also satisfy.
+ */
+describe('formatCutoffAt', () => {
+  const deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  /** 23:59 local on Monday 11 August. Built in local time so the weekday is the same
+   *  everywhere the suite runs, rather than sliding by a day across the date line. */
+  const CLOSES_AT = new Date(2025, 7, 11, 23, 59, 0, 0).toISOString();
+
+  it('renders a full weekday, date and 12-hour time', () => {
+    expect(formatCutoffAt(CLOSES_AT)).toBe('Monday 11 Aug, 11:59 PM');
+  });
+
+  // C5: "00:00" is ambiguous about which midnight it means and reads as a whole day wrong.
+  it('never renders midnight as a bare 00:00', () => {
+    const midnight = new Date(2025, 7, 11, 0, 0, 0, 0).toISOString();
+    expect(formatCutoffAt(midnight)).toBe('Monday 11 Aug, 12:00 AM');
+    expect(formatCutoffAt(midnight)).not.toMatch(/00:00/);
+  });
+
+  // C4: the common case stays short. Naming the zone a parent is already standing in is
+  // noise, and noise in a deadline is what gets skimmed.
+  it('does not name the timezone when it is the phone’s own', () => {
+    expect(formatCutoffAt(CLOSES_AT, deviceZone)).toBe(formatCutoffAt(CLOSES_AT));
+  });
+
+  // ...and the parent abroad still gets it right.
+  it('names the timezone when it differs from the phone’s', () => {
+    const elsewhere = deviceZone === 'Asia/Kolkata' ? 'America/New_York' : 'Asia/Kolkata';
+    const named = formatCutoffAt(CLOSES_AT, elsewhere);
+
+    expect(named).not.toBe(formatCutoffAt(CLOSES_AT));
+    // Ends with a zone token — "GMT+5:30", "IST", "EDT" — rather than with the meridiem.
+    expect(named).toMatch(/(AM|PM) \S+$/);
+  });
+
+  // An unresolvable zone must not produce a confident wrong time. Ugly and honest beats
+  // plausible and wrong (§5.21).
+  it('does not guess when the instant or the zone cannot be read', () => {
+    expect(formatCutoffAt('not-a-date')).toBe('not-a-date');
+    expect(formatCutoffAt(CLOSES_AT, 'Mars/Olympus_Mons')).toBe(CLOSES_AT);
+  });
+
+  // §2.10: no state in this product is carried by colour alone, so the amber band must not
+  // be the only thing distinguishing "closing soon" from "open".
+  it('says in words which state it is in, not only in the tint', () => {
+    expect(cutoffCopy({ state: 'open', closesAt: CLOSES_AT })).toBe(
+      'Ordering closes on Monday 11 Aug, 11:59 PM.',
+    );
+    expect(cutoffCopy({ state: 'closed', closesAt: CLOSES_AT })).toBe(
+      'Ordering closed on Monday 11 Aug, 11:59 PM.',
+    );
+    expect(cutoffCopy({ state: 'soon', closesAt: CLOSES_AT, minutesLeft: 42 })).toBe(
+      'Ordering closes in 42 minutes — on Monday 11 Aug, 11:59 PM.',
+    );
+    // Still distinguishable from `open` with no countdown to show.
+    expect(cutoffCopy({ state: 'soon', closesAt: CLOSES_AT })).toBe(
+      'Ordering closes soon, on Monday 11 Aug, 11:59 PM.',
+    );
+  });
+});
+
+/**
+ * The states the cart cannot know about itself (§5.7).
+ *
+ * Offline, repricing, a price change, the cutoff, a withdrawn item and a failed reprice are
+ * facts about the server and the network. They arrive as props, and **each one defaults to
+ * absent** — which is what makes `R12`/§5.7.1 hold: a cart restored from disk after the OS
+ * killed the app renders as an ordinary cart, never as a stale cache.
+ */
+describe('CartScreen — the states it is told about', () => {
+  const CLOSES_AT = new Date(2025, 7, 11, 23, 59, 0, 0).toISOString();
+
+  // §5.7.1's hardest rule, asserted on the default render because that is exactly what a
+  // restored cart is: the same screen, with nothing extra said about it.
+  it('says nothing about the network unless it is told to', async () => {
+    await renderCart([IDLI]);
+
+    expect(screen.queryByTestId('cart-offline')).toBeNull();
+    expect(screen.queryByTestId('cart-price-changed')).toBeNull();
+    expect(screen.queryByTestId('cart-error')).toBeNull();
+    expect(screen.queryByTestId('cart-unavailable')).toBeNull();
+    expect(screen.queryByText(/showing the .*you last loaded/i)).toBeNull();
+  });
+
+  it('is fully readable offline, and says the last step is what needs a connection', async () => {
+    await renderCart([IDLI], { offline: true, onPlaceOrder: jest.fn() });
+
+    expect(screen.getByTestId('cart-offline')).toBeTruthy();
+    // The cart itself is untouched — the lines, the quantities and the total all still show.
+    expect(screen.getByText('Idli Sambar')).toBeTruthy();
+    expect(screen.getByTestId('cart-total')).toHaveTextContent('₹126.00');
+    // The button says which of its several reasons it is inert for.
+    expect(screen.getByLabelText("You're offline")).toBeTruthy();
+    expect(screen.getByTestId('cart-place-order')).toBeDisabled();
+  });
+
+  // §7 `price_changed`: both amounts, formatted by the shared formatter, so the parent can see
+  // what moved rather than only that something did.
+  it('names the dish and both prices when one changed underneath the cart', async () => {
+    await renderCart([IDLI], {
+      priceChanged: { dishName: 'Idli Sambar', fromPaise: 6000, toPaise: 6500 },
+    });
+
+    expect(screen.getByTestId('cart-price-changed')).toBeTruthy();
+    expect(screen.getByText(/Idli Sambar went from ₹60\.00 to ₹65\.00/)).toBeTruthy();
+  });
+
+  it('renders the cutoff as a band with the full date and time', async () => {
+    await renderCart([IDLI], { cutoff: { state: 'open', closesAt: CLOSES_AT } });
+
+    expect(screen.getByTestId('cart-cutoff-open')).toBeTruthy();
+    expect(screen.getByText('Ordering closes on Monday 11 Aug, 11:59 PM.')).toBeTruthy();
+  });
+
+  it('warns without blocking when the cutoff is close', async () => {
+    await renderCart([IDLI], {
+      cutoff: { state: 'soon', closesAt: CLOSES_AT, minutesLeft: 42 },
+      onPlaceOrder: jest.fn(),
+    });
+
+    expect(screen.getByTestId('cart-cutoff-soon')).toBeTruthy();
+    // Closing soon is still open. Disabling here would lose an order we can still take.
+    expect(screen.getByTestId('cart-place-order')).not.toBeDisabled();
+  });
+
+  // §7 `cutoff_passed`: never a dead end — the notice carries the way forward, and the cart
+  // is explicitly kept.
+  it('offers another day rather than a dead end when ordering has closed', async () => {
+    const user = userEvent.setup();
+    const chooseAnotherDay = jest.fn();
+    await renderCart([IDLI], {
+      cutoff: { state: 'closed', closesAt: CLOSES_AT },
+      onChooseAnotherDay: chooseAnotherDay,
+      onPlaceOrder: jest.fn(),
+    });
+
+    expect(screen.getByTestId('cart-cutoff-passed')).toBeTruthy();
+    expect(screen.getByText('Ordering closed on Monday 11 Aug, 11:59 PM.')).toBeTruthy();
+    expect(screen.getByText(/we'll keep everything in your order/i)).toBeTruthy();
+    expect(screen.getByLabelText('Ordering has closed')).toBeTruthy();
+    expect(screen.getByTestId('cart-place-order')).toBeDisabled();
+
+    await user.press(screen.getByLabelText('Choose another day'));
+    expect(chooseAnotherDay).toHaveBeenCalled();
+  });
+
+  // §5.7: the skeleton is on the totals block only. Blanking the whole screen would say we
+  // had lost the cart, which is the one thing repricing must never imply.
+  it('skeletons only the totals while repricing, and drops the amount from the button', async () => {
+    await renderCart([IDLI], { repricing: true, onPlaceOrder: jest.fn() });
+
+    expect(screen.getByTestId('cart-totals-skeleton')).toBeTruthy();
+    // The amounts are gone rather than dimmed: a stale total shown faintly is still a total.
+    expect(screen.queryByTestId('cart-total')).toBeNull();
+    expect(screen.getByText('Idli Sambar')).toBeTruthy();
+    expect(screen.queryByText(/Place order · /)).toBeNull();
+  });
+
+  // A total we could not confirm must not travel to the payment sheet on a button.
+  it('refuses to put an unconfirmed total on the button when repricing failed', async () => {
+    const user = userEvent.setup();
+    const onRetry = jest.fn();
+    await renderCart([IDLI], {
+      error: 'We couldn’t reach the kitchen just now.',
+      onRetry,
+      onPlaceOrder: jest.fn(),
+    });
+
+    expect(screen.getByTestId('cart-error')).toBeTruthy();
+    expect(screen.queryByText(/Place order · /)).toBeNull();
+    expect(screen.getByTestId('cart-place-order')).toBeDisabled();
+
+    await user.press(screen.getByLabelText('Try again'));
+    expect(onRetry).toHaveBeenCalled();
+  });
+
+  // §7 `item_unavailable`, and §5.7.1's restored-cart rule: say which item, on the line and
+  // above it, rather than failing later at checkout.
+  it('marks a withdrawn item on its own line and names it at the top', async () => {
+    await renderCart([IDLI, DOSA], {
+      unavailableDishIds: ['d-1'],
+      onPlaceOrder: jest.fn(),
+    });
+
+    expect(screen.getByTestId('cart-unavailable')).toBeTruthy();
+    expect(screen.getByText(/Idli Sambar came off the menu/)).toBeTruthy();
+    expect(
+      screen.getByTestId(`cart-line-unavailable-${cartDomain.lineKey(IDLI)}`),
+    ).toBeTruthy();
+    // The other line is untouched.
+    expect(screen.queryByTestId(`cart-line-unavailable-${cartDomain.lineKey(DOSA)}`)).toBeNull();
+    expect(screen.getByTestId('cart-place-order')).toBeDisabled();
+  });
+});
+
+/**
+ * Allergen warnings (§5.7 element 4).
+ *
+ * The rule these pin is one-directional: a warning is **only** ever shown against a named
+ * child. "No warning shown" and "we could not check" look identical on screen and mean
+ * opposite things, so the type makes a recipient a precondition of passing allergens at all
+ * and these assert the screen honours it.
+ */
+describe('CartScreen — allergen warnings', () => {
+  it('warns on the line, naming the child it checked against', async () => {
+    await renderCart([IDLI], {
+      allergens: { recipientName: 'Aarav', byDishId: { 'd-1': ['Peanuts'] } },
+    });
+
+    expect(screen.getByTestId(`cart-line-allergen-${cartDomain.lineKey(IDLI)}`)).toBeTruthy();
+    expect(screen.getByText('Contains Peanuts')).toBeTruthy();
+    expect(screen.getByText('Aarav is allergic')).toBeTruthy();
+  });
+
+  it('warns on the flagged line only, never on the whole cart', async () => {
+    await renderCart([IDLI, DOSA], {
+      allergens: { recipientName: 'Aarav', byDishId: { 'd-1': ['Peanuts'] } },
+    });
+
+    expect(screen.getByTestId(`cart-line-allergen-${cartDomain.lineKey(IDLI)}`)).toBeTruthy();
+    expect(screen.queryByTestId(`cart-line-allergen-${cartDomain.lineKey(DOSA)}`)).toBeNull();
+  });
+
+  it('shows nothing when the check ran and found nothing', async () => {
+    await renderCart([IDLI], { allergens: { recipientName: 'Aarav', byDishId: {} } });
+    expect(screen.queryByText(/allergic/i)).toBeNull();
+  });
+});
+
+/**
+ * The presentation a cart line still cannot carry.
+ *
+ * `CartLineInput` has no `foodType` and no image, so both arrive as `dishInfo`. These tests
+ * exist to make the gap visible: when the shared type grows those fields, they should fail and
+ * be replaced by assertions against the line itself.
+ */
+describe('CartScreen — the photo and the veg mark', () => {
+  it('draws the branded tile rather than a grey box when a line has no photo', async () => {
+    await renderCart([IDLI]);
+    expect(screen.getByTestId(`cart-line-image-${cartDomain.lineKey(IDLI)}`)).toBeTruthy();
+  });
+
+  it('draws the photo and the veg mark when the caller can supply them', async () => {
+    await renderCart([IDLI], {
+      dishInfo: { 'd-1': { imageUri: 'https://example.test/idli.jpg', foodType: 'veg' } },
+    });
+
+    // The photo is decorative — hidden from assistive tech — so the query has to say so.
+    const photo = screen.getByTestId(`cart-line-image-${cartDomain.lineKey(IDLI)}`, {
+      includeHiddenElements: true,
+    });
+    expect(photo.props.source).toEqual({ uri: 'https://example.test/idli.jpg' });
+    expect(photo.props.recyclingKey).toBe('d-1');
+    expect(screen.getByTestId(`cart-line-foodtype-${cartDomain.lineKey(IDLI)}`)).toBeTruthy();
+    // The mark is pure colour, so it carries its meaning in its label too.
+    expect(screen.getByLabelText('Pure vegetarian')).toBeTruthy();
+  });
+
+  it('draws no mark at all rather than guessing one', async () => {
+    await renderCart([IDLI]);
+    expect(screen.queryByTestId(`cart-line-foodtype-${cartDomain.lineKey(IDLI)}`)).toBeNull();
+  });
+});
+
+/**
+ * The "For" block's Change affordance, with a recipient the screen can actually resolve.
+ *
+ * Stubbed at the transport rather than by mocking `api`: `api` is a namespace of ESM
+ * re-exports, so `jest.spyOn` fails with "Cannot redefine property", and going through
+ * `setApiTransport` means the real `guardian_link` read and its payload validation still run.
+ */
+describe('CartScreen — changing who it is for', () => {
+  beforeEach(() => {
+    const builder = {
+      eq: () => builder,
+      is: () => builder,
+      order: () => builder,
+      then: (resolve: (r: { data: unknown; error: unknown }) => unknown) =>
+        Promise.resolve({
+          data: [
+            {
+              can_order: true,
+              can_manage: true,
+              recipient: {
+                id: 'r-1',
+                first_name: 'Aarav',
+                last_name: 'Sharma',
+                class_label: '5',
+                section_label: 'A',
+                is_active: true,
+                school: { id: 's1', name: 'Alpha Public School' },
+              },
+            },
+          ],
+          error: null,
+        }).then(resolve),
+    };
+
+    api.setApiTransport({
+      from: () => ({ select: () => builder }),
+      auth: { getSession: () => Promise.resolve({ data: { session: { user: { id: 'u1' } } } }) },
+    } as never);
+  });
+
+  afterEach(() => api.setApiTransport(null));
+
+  it('states the child, the school and the service date once, for the whole cart', async () => {
+    await renderCart([IDLI]);
+
+    expect(await screen.findByTestId('cart-order-for-child')).toHaveTextContent('Aarav · Class 5-A');
+    expect(screen.getByTestId('cart-order-for-where')).toHaveTextContent('Alpha Public School');
+    // R7: a full weekday and month, never "10/08".
+    expect(screen.getByTestId('cart-order-for-when')).toHaveTextContent('Monday 10 August');
+  });
+
+  it('offers Change once there is something to change', async () => {
+    const user = userEvent.setup();
+    const onChangeRecipient = jest.fn();
+    await renderCart([IDLI], { onChangeRecipient });
+
+    await user.press(await screen.findByTestId('cart-order-for-change'));
+    expect(onChangeRecipient).toHaveBeenCalled();
+  });
+
+  // A button offering to change a child we could not name is a dead end.
+  it('offers no Change affordance while no child is resolved', async () => {
+    api.setApiTransport(null);
+    await renderCart([IDLI], { onChangeRecipient: jest.fn() });
+
+    expect(await screen.findByTestId('cart-order-for-unknown')).toBeTruthy();
+    expect(screen.queryByTestId('cart-order-for-change')).toBeNull();
+  });
+});
+
+/** The footer, and the one sentence on this screen that names the gate. */
+describe('CartScreen — the sticky footer', () => {
+  it('sends an empty cart at the menu, and never at the gate', async () => {
+    const user = userEvent.setup();
+    const onBrowseMenu = jest.fn();
+    await renderCart([], { onBrowseMenu });
+
+    expect(screen.getByTestId('cart-empty')).toBeTruthy();
+    expect(screen.queryByText(/sign in/i)).toBeNull();
+
+    await user.press(screen.getByLabelText('Browse the menu'));
+    expect(onBrowseMenu).toHaveBeenCalled();
+  });
+
+  /**
+   * `AR7` says nothing on the cart *asks* for sign-in, and the default render still contains
+   * the phrase nowhere — the test above and the two earlier ones assert exactly that.
+   *
+   * A signed-out parent one tap from the gate is the single exception, and it is reassurance
+   * rather than a wall: `F1` — the fear of losing a full cart at a sign-in step is what causes
+   * abandonment, so the sentence exists to say the cart survives. The prototype carries it at
+   * `#cart,cart,signedout`.
+   */
+  it('promises the order survives the gate — but only to someone facing it', async () => {
+    await renderCart([IDLI], { signedOut: true, onPlaceOrder: jest.fn() });
+    expect(screen.getByTestId('cart-signed-out-note')).toHaveTextContent(
+      'We’ll ask you to sign in — your order is kept.',
+    );
+  });
+
+  it('says nothing about the gate to someone already through it', async () => {
+    await renderCart([IDLI], { onPlaceOrder: jest.fn() });
+    expect(screen.queryByTestId('cart-signed-out-note')).toBeNull();
+    expect(screen.queryByText(/sign in/i)).toBeNull();
   });
 });

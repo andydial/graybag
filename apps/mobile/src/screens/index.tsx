@@ -10,7 +10,6 @@ import { HomeScreen as HomeScreenImpl, type HomeDish } from '../home/HomeScreen'
 import { useCachedMenu } from '../menu/useCachedMenu';
 import { requiresSignIn, useSession } from '../session/SessionContext';
 
-import { PlaceholderScreen } from './PlaceholderScreen';
 import { AddChildScreen as AddChildScreenImpl } from '../recipients/AddChildScreen';
 import { DishDetailScreen as DishDetailScreenImpl } from '../menu/DishDetailScreen';
 import { ChildrenScreen as ChildrenScreenImpl } from '../recipients/ChildrenScreen';

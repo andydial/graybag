@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react-native';
 
 import { CantConnectScreen } from './CantConnectScreen';
 import { PolicyGateScreen } from './PolicyGateScreen';
+import { SupportScreen } from './SupportScreen';
 
 /**
  * `E21-16` and `E21-17`. Both screens exist to say something precise at a moment when the
@@ -61,5 +62,34 @@ describe('PolicyGateScreen', () => {
   it('disables accept while saving, so a double tap cannot double-record consent', async () => {
     await render(<PolicyGateScreen summary="…" onAccept={() => {}} accepting />);
     expect(screen.getByText('Saving…')).toBeTruthy();
+  });
+});
+
+describe('SupportScreen', () => {
+  it('says the grievance contact is coming rather than inventing one', async () => {
+    await render(<SupportScreen />);
+    // A published contact that goes nowhere is a commitment on record we are already failing.
+    // Saying "not yet" is honest; a plausible-looking address is worse than useless.
+    expect(screen.getByTestId('screen-support-grievance-pending')).toBeTruthy();
+  });
+
+  it('publishes the real contact once it has one, and drops the notice', async () => {
+    await render(
+      <SupportScreen
+        grievance={{
+          name: 'A Person',
+          designation: 'Grievance Officer',
+          email: 'grievance@graybag.in',
+          address: 'Mohali, Punjab',
+        }}
+      />,
+    );
+    expect(screen.queryByTestId('screen-support-grievance-pending')).toBeNull();
+    expect(screen.getByText('grievance@graybag.in')).toBeTruthy();
+  });
+
+  it('offers no email button when there is no address to send to', async () => {
+    await render(<SupportScreen />);
+    expect(screen.queryByTestId('screen-support-email')).toBeNull();
   });
 });

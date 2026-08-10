@@ -155,6 +155,12 @@ export function PaymentWaitingScreen({
   // button that leaves is the opposite instruction one line below it.
   const canLeave = state !== 'confirming';
 
+  // **Only once we know there is nothing in flight.** A retry offered during `pending` is an
+  // invitation to pay twice — §13 means the capture may be settling *right now*, and §10.6 is
+  // the incident that follows. `failed` and `dismissed` are the two states where the provider
+  // or the user has already ended the attempt.
+  const canRetry = state === 'failed' || state === 'dismissed';
+
   return (
     <BrandPanel radius={radius.none} style={styles.panel} testID={testID}>
       <View style={styles.body}>
@@ -182,7 +188,7 @@ export function PaymentWaitingScreen({
       </View>
 
       <View style={styles.actions}>
-        {!canLeave || onRetry === undefined ? null : (
+        {!canRetry || onRetry === undefined ? null : (
           <Button
             label="Try again"
             variant="secondary"
