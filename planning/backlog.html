@@ -1949,13 +1949,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/13</span>
+          <span class="meter-num">0/16</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 13 tasks</summary>
+        <summary>Context &amp; 16 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -2066,6 +2066,30 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Screens rebuilt to the new design system — Home, Menu, Dish detail, Cart, Checkout, Orders, Order detail, Profile, Dependents, Login, Signup, T&amp;Cs</span>
+      </li>
+      <li class="task" data-id="E14-15" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-15"></button>
+        <code class="tid">E14-15</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Safe-area frame at the shell</strong>, applied where routes are registered rather than screen by screen — the first iOS build drew every screen from y=0, under the status bar</span>
+      </li>
+      <li class="task" data-id="E14-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-16"></button>
+        <code class="tid">E14-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Real tab bar icons.</strong> All four tabs fall through to React Navigation&#39;s default placeholder triangle; there is no icon set in the project at all</span>
+      </li>
+      <li class="task" data-id="E14-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-17"></button>
+        <code class="tid">E14-17</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Placeholder screens say something a parent can read. They currently ship developer notes to the device (&quot;Browsable signed out&quot;, &quot;Never a wall — the tab still opens&quot;)</span>
       </li></ul>
       </details>
     </article>
