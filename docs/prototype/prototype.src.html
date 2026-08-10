@@ -1,0 +1,1180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GrayBag — clickable prototype</title>
+<style>
+/* ==========================================================================
+   GrayBag prototype — brand from Graybag_Design Package, IA from docs/ux-spec.md
+   ========================================================================== */
+:root{
+  --green:#00af52;        /* Primary   */
+  --deep:#145f48;         /* Secondary */
+  --amber:#ffbb39;        /* Secondary — warnings that are not errors */
+  --lime:#b3cf3f;         /* Accent    */
+  --pale:#e5ea98;         /* Accent    */
+  --ink:#12211a;
+  --muted:#7b8a83;
+  --line:#e8ebe9;
+  --field:#f1f3f2;
+  --danger:#c0392b;
+  --radius:22px;
+  /* VAG Rounded Next is the brand face; licence unconfirmed (ux-spec §3.2), so the
+     prototype uses the nearest rounded stack available without redistributing anything. */
+  --font:'SF Pro Rounded','Nunito',ui-rounded,-apple-system,'Segoe UI Variable Display','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#0e1512;font-family:var(--font);color:var(--ink);
+     display:flex;justify-content:center;align-items:flex-start;gap:28px;padding:28px 20px 60px}
+
+/* ---------- the control rail: how Andy reaches every state deliberately ---------- */
+#rail{width:250px;flex:0 0 250px;color:#cfe0d7;position:sticky;top:28px;max-height:calc(100vh - 56px);overflow:auto}
+#rail h1{font-size:15px;margin:0 0 4px;color:#fff;letter-spacing:.2px}
+#rail p.sub{font-size:11.5px;line-height:1.5;color:#8fa79b;margin:0 0 18px}
+#rail h2{font-size:10px;text-transform:uppercase;letter-spacing:.13em;color:#6f8a7c;margin:18px 0 7px}
+#rail button{display:block;width:100%;text-align:left;background:transparent;border:0;color:#cfe0d7;
+  font:inherit;font-size:12.5px;padding:6px 9px;border-radius:8px;cursor:pointer}
+#rail button:hover{background:#1b2924}
+#rail button.on{background:var(--green);color:#fff;font-weight:600}
+#rail .note{font-size:10.5px;color:#6f8a7c;line-height:1.5;margin:6px 0 0;padding:0 9px}
+
+/* ---------- device ---------- */
+#device{width:390px;height:844px;background:#fff;border-radius:44px;overflow:hidden;position:relative;
+  box-shadow:0 0 0 11px #1c2723,0 0 0 13px #2f3d38,0 26px 70px rgba(0,0,0,.55);flex:0 0 390px}
+#screen{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden}
+.statusbar{height:52px;flex:0 0 52px;display:flex;align-items:flex-end;justify-content:space-between;
+  padding:0 26px 7px;font-size:14px;font-weight:600;letter-spacing:.2px}
+.statusbar.on-green{color:#fff}
+.body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.homebar{height:26px;flex:0 0 26px;display:flex;align-items:center;justify-content:center}
+.homebar i{display:block;width:140px;height:5px;border-radius:3px;background:#12211a;opacity:.85}
+.homebar.on-green i{background:#fff;opacity:.9}
+
+/* ---------- brand furniture ---------- */
+.pattern{position:absolute;inset:0;background-size:520px;background-repeat:repeat;opacity:.14;pointer-events:none}
+.greenfill{position:relative;background:var(--green)}
+.appbar{display:flex;align-items:center;justify-content:space-between;padding:8px 20px 12px}
+.brandmark{display:flex;align-items:center;gap:9px}
+.brandmark img{height:30px;display:block}
+.wordmark{font-size:22px;font-weight:800;color:var(--green);letter-spacing:-.6px}
+.carticon{position:relative;width:40px;height:40px;border-radius:14px;background:var(--field);
+  display:grid;place-items:center;border:0;cursor:pointer}
+.carticon .badge{position:absolute;top:-4px;right:-4px;min-width:19px;height:19px;border-radius:10px;
+  background:var(--green);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;
+  padding:0 5px;border:2px solid #fff}
+
+.pad{padding:0 20px}
+h2.title{font-size:23px;font-weight:800;margin:2px 0 3px;letter-spacing:-.5px}
+.eyebrow{font-size:12.5px;color:var(--muted);font-weight:600;margin:0}
+.h-green{color:var(--green)}
+
+.search{display:flex;align-items:center;gap:10px;background:var(--field);border-radius:16px;padding:13px 15px;margin:12px 0}
+.search input{border:0;background:transparent;font:inherit;font-size:14.5px;width:100%;outline:none;color:var(--ink)}
+.search svg{flex:0 0 18px;opacity:.42}
+
+/* ---------- "Delivering to" — the most important control on the home screen ---------- */
+.deliver{border-radius:var(--radius);overflow:hidden;margin:4px 0 22px;cursor:pointer;border:0;
+  padding:0;width:100%;text-align:left;font:inherit;display:block}
+.deliver .top{background:var(--green);padding:17px 19px 15px;position:relative;color:#fff}
+.deliver .lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.11em;opacity:.85}
+.deliver .who{font-size:20px;font-weight:800;margin:3px 0 1px;letter-spacing:-.3px;position:relative}
+.deliver .where{font-size:13px;opacity:.92;position:relative}
+.deliver .band{background:var(--deep);color:#fff;padding:11px 19px;display:flex;align-items:center;
+  justify-content:space-between;font-size:13px;font-weight:600}
+.deliver .band .arrow{font-size:17px}
+
+.sectionhead{display:flex;align-items:center;gap:12px;margin:24px 0 13px}
+.sectionhead::before,.sectionhead::after{content:'';flex:1;height:1.5px;background:var(--green);opacity:.28}
+.sectionhead span{font-size:16px;font-weight:800;color:var(--green)}
+
+/* ---------- dish cards ---------- */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px;padding:2px 20px 26px}
+.card{border:0;background:transparent;padding:0;text-align:left;font:inherit;cursor:pointer;display:block}
+.thumb{position:relative;width:100%;aspect-ratio:1/.86;border-radius:18px;overflow:hidden;background:var(--field)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .noimg{position:absolute;inset:0;background:var(--pale);background-size:180px;opacity:1}
+.thumb .noimg span{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;
+  color:var(--deep);font-weight:700;text-align:center;padding:12px;line-height:1.4}
+.mark{position:absolute;top:9px;left:9px;width:19px;height:19px;border-radius:4px;background:#fff;
+  display:grid;place-items:center;border:1.6px solid #1f8a3d}
+.mark i{width:8.5px;height:8.5px;border-radius:50%;background:#1f8a3d;display:block}
+.mark.egg{border-color:#c98a00}.mark.egg i{background:#c98a00}
+.mark.nonveg{border-color:#a4262c}.mark.nonveg i{background:#a4262c}
+.allerg{position:absolute;top:8px;right:8px;background:var(--amber);color:#3d2c00;font-size:10.5px;
+  font-weight:800;padding:4px 8px;border-radius:9px;box-shadow:0 2px 7px rgba(0,0,0,.16)}
+.cname{font-size:13.5px;font-weight:700;margin:9px 0 2px;line-height:1.3;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cprice{font-size:13.5px;font-weight:800;color:var(--green)}
+.crow{display:flex;gap:13px;padding:0 20px 15px;overflow-x:auto;scrollbar-width:none}
+.crow::-webkit-scrollbar{display:none}
+.crow .card{flex:0 0 150px}
+
+/* ---------- tabs / chips ---------- */
+.tabstrip{display:flex;gap:22px;padding:5px 20px 0;overflow-x:auto;scrollbar-width:none;border-bottom:1.5px solid var(--line)}
+.tabstrip::-webkit-scrollbar{display:none}
+.tabstrip button{border:0;background:transparent;font:inherit;font-size:14px;color:var(--muted);
+  font-weight:600;padding:9px 0 11px;cursor:pointer;white-space:nowrap;position:relative}
+.tabstrip button.on{color:var(--green);font-weight:800}
+.tabstrip button.on::after{content:'';position:absolute;left:0;right:0;bottom:-1.5px;height:3px;
+  background:var(--green);border-radius:3px}
+
+/* ---------- tab bar ---------- */
+.tabbar{display:flex;border-top:1.5px solid var(--line);background:#fff;flex:0 0 auto}
+.tabbar button{flex:1;border:0;background:transparent;padding:11px 0 6px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;font:inherit;font-size:10px;
+  color:var(--muted);font-weight:600}
+.tabbar button.on{color:var(--green)}
+.tabbar svg{width:23px;height:23px}
+
+/* ---------- buttons ---------- */
+.btn{display:block;width:100%;border:0;border-radius:30px;padding:16px;font:inherit;font-size:15.5px;
+  font-weight:700;cursor:pointer;background:var(--green);color:#fff;text-align:center}
+.btn:disabled{background:#d3dbd7;color:#8d9a94;cursor:not-allowed}
+.btn.deep{background:var(--deep)}
+.btn.ghost{background:#fff;color:var(--green);border:1.6px solid #d5e5db}
+.btn.amber{background:var(--amber);color:#3d2c00}
+.btn.small{padding:11px;font-size:13.5px;border-radius:22px}
+.sticky{padding:13px 20px calc(13px + env(safe-area-inset-bottom));background:#fff;
+  border-top:1.5px solid var(--line);flex:0 0 auto}
+
+/* ---------- states: skeleton, empty, banners ---------- */
+@keyframes sheen{0%{background-position:-260px 0}100%{background-position:260px 0}}
+.sk{background:linear-gradient(90deg,#eef1ef 25%,#f7f9f8 50%,#eef1ef 75%);background-size:520px 100%;
+    animation:sheen 1.25s linear infinite;border-radius:10px}
+.sk.thumb{aspect-ratio:1/.86;border-radius:18px}
+.sk.line{height:12px;margin:9px 0 5px}
+.sk.line.short{width:52%}
+
+.empty{padding:46px 34px;text-align:center}
+.empty .art{width:104px;height:104px;border-radius:34px;margin:0 auto 18px;background:var(--pale);
+  background-size:150px;display:grid;place-items:center}
+.empty .art img{width:52px;opacity:.9}
+.empty h3{font-size:17.5px;font-weight:800;margin:0 0 7px}
+.empty p{font-size:13.5px;color:var(--muted);line-height:1.55;margin:0 0 20px}
+
+.banner{display:flex;gap:9px;align-items:flex-start;padding:11px 15px;font-size:12.5px;line-height:1.45;font-weight:600}
+.banner.stale{background:#eef1ef;color:#5d6b64}
+.banner.warn{background:#fff6e3;color:#6b4e00}
+.banner.err{background:#fdeceb;color:#8f2018}
+
+.notice{margin:0 20px 15px;border-radius:16px;padding:14px 16px;font-size:13px;line-height:1.5}
+.notice.warn{background:#fff6e3;color:#6b4e00;border:1.5px solid #ffe3a8}
+.notice.err{background:#fdeceb;color:#8f2018;border:1.5px solid #f8cdc9}
+.notice.info{background:#eef7f1;color:#1d5c39;border:1.5px solid #cfe7d9}
+.notice b{display:block;margin-bottom:3px;font-weight:800}
+
+/* ---------- rows / cart ---------- */
+.row{display:flex;gap:13px;padding:14px 20px;align-items:center;border-bottom:1.5px solid var(--line)}
+.row .rthumb{width:66px;height:66px;border-radius:15px;object-fit:cover;flex:0 0 66px;background:var(--field)}
+.row .rname{font-size:14px;font-weight:700;line-height:1.3}
+.row .rmeta{font-size:12px;color:var(--muted);margin-top:2px}
+.stepper{display:flex;align-items:center;gap:11px;background:var(--field);border-radius:20px;padding:5px 7px}
+.stepper button{width:27px;height:27px;border-radius:50%;border:0;background:#fff;color:var(--green);
+  font-size:17px;font-weight:800;cursor:pointer;display:grid;place-items:center;line-height:1}
+.stepper button.plus{background:var(--green);color:#fff}
+.stepper span{min-width:15px;text-align:center;font-weight:700;font-size:14px}
+
+.forblock{margin:14px 20px 0;border:1.6px solid var(--line);border-radius:18px;padding:14px 16px}
+.forblock .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.11em;color:var(--muted)}
+.forblock .who{font-size:16px;font-weight:800;margin:4px 0 2px}
+.forblock .meta{font-size:12.5px;color:var(--muted);line-height:1.5}
+.forblock .change{color:var(--green);font-weight:800;font-size:13px;background:none;border:0;padding:0;cursor:pointer}
+
+.totals{padding:6px 20px 4px}
+.totals .t{display:flex;justify-content:space-between;font-size:13.5px;padding:6px 0;color:#42544b}
+.totals .t.grand{font-size:17px;font-weight:800;color:var(--ink);border-top:1.5px solid var(--line);
+  margin-top:7px;padding-top:12px}
+.cutoff{margin:12px 20px;border-radius:14px;padding:11px 14px;font-size:12.5px;font-weight:600;
+  background:#eef7f1;color:#1d5c39;line-height:1.45}
+.cutoff.soon{background:#fff6e3;color:#6b4e00}
+.cutoff.closed{background:#fdeceb;color:#8f2018}
+
+/* ---------- sheet (dish detail) ---------- */
+.scrim{position:absolute;inset:0;background:rgba(10,25,18,.45);z-index:5}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:30px 30px 0 0;z-index:6;
+  max-height:90%;display:flex;flex-direction:column;animation:up .26s cubic-bezier(.22,1,.36,1)}
+@keyframes up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.grabber{width:42px;height:5px;border-radius:3px;background:#d7ded9;margin:11px auto 4px;flex:0 0 auto}
+.sheet .inner{overflow-y:auto;padding:8px 20px 4px}
+.sheet .hero{width:100%;aspect-ratio:1/.66;border-radius:20px;object-fit:cover;background:var(--field)}
+
+/* ---------- auth ---------- */
+.authbtn{display:flex;align-items:center;justify-content:center;gap:11px;width:100%;padding:15px;
+  border-radius:30px;border:1.6px solid #d9e2dd;background:#fff;font:inherit;font-size:15px;
+  font-weight:700;cursor:pointer;margin-bottom:12px}
+.divider{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:12.5px;margin:20px 0}
+.divider::before,.divider::after{content:'';flex:1;height:1.5px;background:var(--line)}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:12.5px;font-weight:800;color:var(--green);margin-bottom:7px}
+.field input,.field select,.field textarea{width:100%;border:0;background:var(--field);border-radius:15px;
+  padding:15px;font:inherit;font-size:14.5px;outline:none;color:var(--ink);font-family:var(--font)}
+.field .hint{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.45}
+.field .err{font-size:11.5px;color:var(--danger);margin-top:6px;font-weight:600}
+.otp{display:flex;gap:9px;justify-content:space-between;margin:6px 0 4px}
+.otp div{flex:1;aspect-ratio:1/1.18;background:var(--field);border-radius:14px;display:grid;
+  place-items:center;font-size:23px;font-weight:800}
+.otp div.filled{background:#e7f5ec;color:var(--green)}
+
+.check{display:flex;gap:12px;align-items:flex-start;padding:14px 0;cursor:pointer}
+.check .box{width:23px;height:23px;border-radius:7px;border:2px solid #cbd5cf;flex:0 0 23px;
+  display:grid;place-items:center;margin-top:1px}
+.check.on .box{background:var(--green);border-color:var(--green);color:#fff;font-size:14px;font-weight:900}
+.check .txt{font-size:13px;line-height:1.5;color:#3c4d45}
+.check .txt b{display:block;font-size:13.5px;color:var(--ink);margin-bottom:2px}
+
+.chips{display:flex;gap:9px;flex-wrap:wrap;margin:4px 0 6px}
+.chip{border:1.6px solid var(--line);background:#fff;border-radius:20px;padding:9px 15px;font:inherit;
+  font-size:13px;font-weight:600;cursor:pointer;color:#41544b}
+.chip.on{background:var(--pale);border-color:var(--lime);color:var(--deep);font-weight:800}
+
+/* ---------- full-bleed brand screens ---------- */
+.brandscreen{flex:1;position:relative;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;padding:40px 34px;color:#fff}
+.brandscreen .logo{width:118px;position:relative;margin-bottom:20px}
+.brandscreen h1{font-size:27px;font-weight:800;margin:0 0 10px;letter-spacing:-.5px;position:relative}
+.brandscreen p{font-size:14.5px;line-height:1.55;opacity:.93;margin:0;position:relative;max-width:290px}
+.brandscreen .acts{position:relative;width:100%;margin-top:auto;padding-top:34px}
+
+.timeline{padding:4px 20px 10px}
+.tl{display:flex;gap:13px;padding-bottom:20px;position:relative}
+.tl::before{content:'';position:absolute;left:10px;top:22px;bottom:0;width:2px;background:var(--line)}
+.tl:last-child::before{display:none}
+.tl .dot{width:21px;height:21px;border-radius:50%;border:2.5px solid var(--line);background:#fff;
+  flex:0 0 21px;z-index:1;display:grid;place-items:center;font-size:11px;color:#fff}
+.tl.done .dot{background:var(--green);border-color:var(--green)}
+.tl.now .dot{border-color:var(--green);box-shadow:0 0 0 4px #e7f5ec}
+.tl .tt{font-size:13.5px;font-weight:700;line-height:1.3}
+.tl .ts{font-size:12px;color:var(--muted);margin-top:2px}
+.tl.todo .tt{color:var(--muted);font-weight:600}
+
+.code{background:#fff;border:2.5px dashed rgba(255,255,255,.55);border-radius:20px;padding:15px 30px;
+  position:relative;margin:22px 0 6px;background:rgba(255,255,255,.14)}
+.code .lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.13em;opacity:.85;font-weight:700}
+.code .num{font-size:38px;font-weight:900;letter-spacing:.14em;margin-top:3px}
+.spacer{height:22px}
+.tiny{font-size:11.5px;color:var(--muted);line-height:1.5;padding:0 20px 20px}
+
+/* ---------- dynamic type: the AX1+ fallback from ux-spec §3.5 ----------
+   Past the threshold the two-column grid stops being a grid. The photograph is the thing
+   that gives way — never the price, never the allergen warning, never the primary action. */
+.big{font-size:20px}
+.big .cname{font-size:17px;-webkit-line-clamp:unset;line-clamp:unset}
+.big .cprice{font-size:17px}
+.big .title{font-size:28px}
+.big .eyebrow,.big .rmeta{font-size:15px}
+.big .rname{font-size:17px}
+.big .btn{font-size:18px;padding:19px}
+.big .grid{grid-template-columns:1fr;gap:12px}
+.big .grid .card{display:flex;gap:14px;align-items:center}
+.big .grid .thumb{width:96px;flex:0 0 96px;aspect-ratio:1/1;border-radius:15px}
+.big .grid .card > div:not(.thumb){flex:1}
+.big .crow{flex-direction:column;overflow-x:visible}
+.big .crow .card{flex:1 1 auto;width:100%;display:flex;gap:14px;align-items:center}
+.big .crow .thumb{width:96px;flex:0 0 96px;aspect-ratio:1/1}
+.big .tabstrip{flex-wrap:wrap;gap:14px 18px}
+.big .tabbar span{display:none}          /* labels go before the icons shrink */
+.big .tabbar svg{width:27px;height:27px}
+.big .totals .t{font-size:16px}
+.big .totals .t.grand{font-size:20px}
+.big .cutoff,.big .notice,.big .banner{font-size:15px}
+/* At 96 pt the top-right allergen badge lands on top of the top-left veg mark. Two safety
+   indicators cannot occlude each other, so the badge moves to the foot of the thumbnail. */
+.big .allerg{top:auto;bottom:0;left:0;right:0;border-radius:0;text-align:center;padding:4px 6px;
+  font-size:10px;box-shadow:none}
+</style>
+</head>
+<body>
+
+<div id="rail"></div>
+<div id="device">
+  <div id="screen"></div>
+</div>
+
+<script>
+/*__IMAGES__*/
+
+/* =========================================================================
+   Data — the real GrayBag catalogue. Names and photographs are the actual
+   ones from the legacy export (tools/mirror-dish-images). Prices are
+   GST-EXCLUSIVE integer paise (ux-spec R4/R5); 5% is added at checkout.
+   ========================================================================= */
+const CATS = ['All','Breakfast','Main course','Sandwiches & wraps','Salads & fruit','Bakes','Drinks'];
+
+// veg: 'veg' | 'egg' | 'nonveg'   allergens: what the kitchen declared
+const MENU = [
+  {s:'idli-sambar',                 n:'Idli Sambar',                  c:'Breakfast', p:8500,  v:'veg',  a:[]},
+  {s:'mix-veg-poha',                n:'Mix Veg Poha',                 c:'Breakfast', p:7000,  v:'veg',  a:['Peanuts']},
+  {s:'stuffed-paratha',             n:'Stuffed Paratha',              c:'Breakfast', p:9000,  v:'veg',  a:['Wheat','Milk']},
+  {s:'pancakes-w-honey',            n:'Pancakes with Honey',          c:'Breakfast', p:9500,  v:'egg',  a:['Wheat','Egg','Milk']},
+  {s:'french-toast-with-choco-syrup',n:'French Toast with Choco Syrup',c:'Breakfast',p:9500,  v:'egg',  a:['Wheat','Egg','Milk']},
+  {s:'omelette-w-toast',            n:'Omelette with Toast',          c:'Breakfast', p:10000, v:'egg',  a:['Egg','Wheat']},
+  {s:'scrambled-egg-w-toast',       n:'Scrambled Egg with Toast',     c:'Breakfast', p:10000, v:'egg',  a:['Egg','Wheat','Milk']},
+
+  {s:'rajma-rice',                  n:'Rajma Rice',                   c:'Main course', p:11000, v:'veg', a:[]},
+  {s:'chana-rice',                  n:'Chana Rice',                   c:'Main course', p:10500, v:'veg', a:[]},
+  {s:'quinoa-khichdi',              n:'Quinoa Khichdi',               c:'Main course', p:12000, v:'veg', a:[]},
+  {s:'fried-rice-with-manchurian',  n:'Fried Rice with Manchurian',   c:'Main course', p:12500, v:'veg', a:['Soy','Wheat']},
+  {s:'dal-makhni-with-rice-wheat-prantha',n:'Dal Makhni with Rice',   c:'Main course', p:12500, v:'veg', a:['Milk']},
+  {s:'chole-masala-with-rice-wheat-prantha-wheat-atta-kulcha',n:'Chole Masala with Kulcha',c:'Main course',p:12000,v:'veg',a:['Wheat']},
+  {s:'paneer-gravy-with-rice-wheat-prantha',n:'Paneer Gravy with Rice',c:'Main course',p:13500,v:'veg', a:['Milk']},
+  {s:'brown-wheat-pasta-with-veg-and-tomato-sauce',n:'Brown Wheat Pasta',c:'Main course',p:11500,v:'veg',a:['Wheat','Milk']},
+
+  {s:'veg-sandwich-in-brown-bread', n:'Veg Sandwich (Brown Bread)',   c:'Sandwiches & wraps', p:8000, v:'veg', a:['Wheat']},
+  {s:'paneer-tikka-sandwich-in-focaccia-bread',n:'Paneer Tikka Sandwich',c:'Sandwiches & wraps',p:11000,v:'veg',a:['Wheat','Milk']},
+  {s:'paneer-wrap',                 n:'Paneer Wrap',                  c:'Sandwiches & wraps', p:9500, v:'veg', a:['Wheat','Milk']},
+  {s:'veggie-wrap',                 n:'Veggie Wrap',                  c:'Sandwiches & wraps', p:8500, v:'veg', a:['Wheat']},
+  {s:'egg-sandwich',                n:'Egg Sandwich',                 c:'Sandwiches & wraps', p:9000, v:'egg', a:['Egg','Wheat']},
+  {s:'veg-hot-dog',                 n:'Veg Hot Dog',                  c:'Sandwiches & wraps', p:9500, v:'veg', a:['Wheat']},
+  {s:'vada-pao-atta-base-bread',    n:'Vada Pao',                     c:'Sandwiches & wraps', p:7000, v:'veg', a:['Wheat']},
+  {s:'aloo-pea-tikki-cheese-burger-wheat-burger',n:'Aloo & Pea Tikki Burger',c:'Sandwiches & wraps',p:10500,v:'veg',a:['Wheat','Milk']},
+
+  {s:'fruit-salad',                 n:'Fruit Salad',                  c:'Salads & fruit', p:7500, v:'veg', a:[], none:true},
+  {s:'mixed-fruits',                n:'Mixed Fruits',                 c:'Salads & fruit', p:7000, v:'veg', a:[], none:true},
+  {s:'sprouts',                     n:'Sprouts',                      c:'Salads & fruit', p:6500, v:'veg', a:[], none:true},
+  {s:'three-beans-salad',           n:'Three Beans Salad',            c:'Salads & fruit', p:8500, v:'veg', a:[]},
+  {s:'quinoa-salad',                n:'Quinoa Salad',                 c:'Salads & fruit', p:9500, v:'veg', a:[]},
+  {s:'corn-and-mix-pepper-salad',   n:'Corn & Mix Pepper Salad',      c:'Salads & fruit', p:8000, v:'veg', a:[]},
+  {s:'bhel-puri-salad',             n:'Bhel Puri Salad',              c:'Salads & fruit', p:7000, v:'veg', a:['Peanuts']},
+  // Deliberately included with no mirrored photo (permanent 403 at source, E16-29).
+  // This is how the app must render a dish with no image: brand tile, never a grey box.
+  {s:'aloo-channa-chat',            n:'Aloo Channa Chaat',            c:'Salads & fruit', p:7500, v:'veg', a:[]},
+
+  {s:'blueberry-muffin',            n:'Blueberry Muffin',             c:'Bakes', p:6500, v:'egg', a:['Wheat','Egg','Milk']},
+  {s:'choco-muffin',                n:'Choco Muffin',                 c:'Bakes', p:6500, v:'egg', a:['Wheat','Egg','Milk']},
+  {s:'chocolate-doughnut',          n:'Chocolate Doughnut',           c:'Bakes', p:6000, v:'egg', a:['Wheat','Egg','Milk']},
+  {s:'eggless-brownie',             n:'Eggless Brownie',              c:'Bakes', p:7000, v:'veg', a:['Wheat','Milk']},
+  {s:'wheat-jaggery-cake',          n:'Wheat Jaggery Cake',           c:'Bakes', p:6500, v:'veg', a:['Wheat']},
+  {s:'paneer-puff',                 n:'Paneer Puff',                  c:'Bakes', p:7000, v:'veg', a:['Wheat','Milk']},
+  {s:'corn-and-cheese-puff',        n:'Corn & Cheese Puff',           c:'Bakes', p:7000, v:'veg', a:['Wheat','Milk']},
+
+  {s:'cold-coffee',                 n:'Cold Coffee',                  c:'Drinks', p:8000, v:'veg', a:['Milk']},
+  {s:'banana-shake',                n:'Banana Shake',                 c:'Drinks', p:7500, v:'veg', a:['Milk']},
+  {s:'mango-shake',                 n:'Mango Shake (Seasonal)',       c:'Drinks', p:8000, v:'veg', a:['Milk']},
+  {s:'lemonade',                    n:'Lemonade',                     c:'Drinks', p:5000, v:'veg', a:[], none:true},
+  {s:'lemon-ice-tea',               n:'Lemon Ice Tea',                c:'Drinks', p:5500, v:'veg', a:[], none:true},
+  {s:'hot-choco-milk',              n:'Hot Chocolate',                c:'Drinks', p:7000, v:'veg', a:['Milk']},
+];
+
+const CHILDREN = [
+  {id:'c1', name:'Aarav',  school:'Alpha Public School',   cls:'5', sec:'A', brk:'Morning break · 10:40',  allergens:['Peanuts'], allergenConsent:true,  canOrder:true},
+  {id:'c2', name:'Diya',   school:'Bravo International',   cls:'4', sec:'B', brk:'Mid-morning · 10:00',    allergens:[],          allergenConsent:false, canOrder:true},
+  {id:'c3', name:'Kabir',  school:'Alpha Public School',   cls:'7', sec:'A', brk:'Morning break · 10:40',  allergens:[],          allergenConsent:true,  canOrder:false},
+];
+
+const SCHOOLS = [
+  {id:'s1', name:'Alpha Public School',       city:'Mohali'},
+  {id:'s2', name:'Bravo International School',city:'Mohali'},
+  {id:'s3', name:'Chandra College',           city:'Mohali'},
+];
+
+/* =========================================================================
+   State. `flags` is what the control rail toggles — every state in the spec
+   is reachable deliberately, which is the point of the prototype.
+   ========================================================================= */
+const S = {
+  screen:'splash', tab:'home', cat:'All', q:'', dish:null, sheet:false,
+  child:0, cart:[], otp:'', consent:false, allergenConsent:false, confirmStep:0,
+  flags:{ loading:false, empty:false, error:false, offline:false, signedout:true,
+          nochild:false, unpublished:false, cutoff:'open', pricechanged:false,
+          pending:false, noallergenconsent:false, cantconnect:false, policy:false,
+          bigtext:false }
+};
+
+const rupees = p => '₹' + (p/100).toFixed(2).replace(/\.00$/,'');
+const img = s => DISH_IMAGES[s] || null;
+const child = () => CHILDREN[S.child];
+const cartCount = () => S.cart.reduce((n,l)=>n+l.q,0);
+const subtotal = () => S.cart.reduce((n,l)=>n + l.d.p*l.q, 0);
+
+/* Allergen collision for the *selected* child — ux-spec F5/F6. */
+function clash(d){
+  const c = child();
+  if(!c || !c.allergenConsent || S.flags.noallergenconsent) return null;
+  const hit = (d.a||[]).filter(x => c.allergens.includes(x));
+  return hit.length ? hit : null;
+}
+
+/* ---------- small view helpers ---------- */
+const esc = s => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+/* Over a green fill: the DARK green pattern, near-opaque enough to read as texture. Over a
+   light fill: the green pattern, very faint. Green-on-green is invisible — see build.mjs. */
+const pattern = (onGreen=true) => {
+  const src = onGreen ? BRAND.patternDark : BRAND.patternGreen;
+  return src ? `<div class="pattern" style="background-image:url(${src});opacity:${onGreen?.3:.12}"></div>` : '';
+};
+/* The icon alone — the wordmark is set in type beside it where one is wanted. */
+const logo = (w=118, white=true) => {
+  const src = white ? BRAND.iconWhite : BRAND.iconGreen;
+  return src ? `<img class="logo" src="${src}" style="width:${w}px" alt="GrayBag">`
+             : `<div class="logo" style="width:${w}px;height:${w*0.8}px;background:#fff;border-radius:50% 50% 18% 18%"></div>`;
+};
+/* The full lockup, mark and wordmark together, as supplied. Never re-typeset beside itself. */
+const lockup = (h=30, white=false) => {
+  const src = white ? BRAND.logoWhite : BRAND.logoGreen;
+  return src ? `<img src="${src}" style="height:${h}px;display:block" alt="graybag">`
+             : `<span class="wordmark">graybag</span>`;
+};
+const mark = v => `<span class="mark ${v==='egg'?'egg':v==='nonveg'?'nonveg':''}"><i></i></span>`;
+
+const ICON = {
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  cart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/></svg>',
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>',
+  menu:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
+  user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4S17.8 16.4 19 20"/></svg>',
+  back:'<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M15 5l-7 7 7 7"/></svg>'
+};
+
+/* =========================================================================
+   Screens
+   ========================================================================= */
+const V = {};
+
+V.splash = () => `
+  <div class="greenfill brandscreen" style="justify-content:center">
+    ${pattern()}
+    <div style="position:relative;width:74%">${lockup(64,true)}</div>
+  </div>`;
+
+V.welcome = () => `
+  <div class="greenfill brandscreen">
+    ${pattern()}
+    <div style="margin-top:auto"></div>
+    ${logo(104)}
+    <h1>education meets convenience</h1>
+    <p>healthy, home-fresh meals delivered right to your child at school</p>
+    <div class="acts">
+      <button class="btn deep" onclick="go('school')">Browse the menu</button>
+      <div style="height:11px"></div>
+      <button class="btn ghost" onclick="go('signin')">Sign in</button>
+      <p style="font-size:11.5px;opacity:.8;margin-top:16px">You don't need an account to look around.</p>
+    </div>
+  </div>`;
+
+/* Welcome is CUT — merged into Choose school (ux-spec §6.1.1 cut 1). Kept reachable from the
+   rail only so the merge can be compared against what it replaced. */
+V.school = () => {
+  const f = S.flags;
+  let list;
+  if(f.loading) list = Array.from({length:5},()=>`<div class="row"><div style="flex:1"><div class="sk line" style="width:65%"></div><div class="sk line short"></div></div></div>`).join('');
+  else if(f.error) list = notice('err','We couldn\'t load the school list','This is us, not you. Check your connection and try again.',`<button class="btn small" style="width:auto;padding:9px 20px" onclick="setFlag('error',false)">Try again</button>`);
+  else if(f.empty) list = empty('No school matches that','We\'re adding schools across Mohali. Tell us yours and we\'ll come to you.','Request my school');
+  else list = SCHOOLS.map(s=>`
+      <button class="row" style="width:100%;border-left:0;border-right:0;background:#fff;text-align:left;cursor:pointer"
+              onclick="pickSchool('${s.id}')">
+        <div style="flex:1"><div class="rname">${s.name}</div><div class="rmeta">${s.city}</div></div>
+        <div style="color:var(--muted)">›</div>
+      </button>`).join('');
+
+  // The value proposition lives here now, as this screen's header, instead of on a Welcome
+  // screen whose only job was to be passed through.
+  return shell(`
+    <div class="greenfill" style="padding:26px 24px 24px;color:#fff;position:relative">
+      ${pattern()}
+      <div style="display:flex;align-items:center;justify-content:space-between;position:relative">
+        ${lockup(30,true)}
+        <button style="background:none;border:0;color:#fff;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;opacity:.95"
+                onclick="go('signin')">Sign in</button>
+      </div>
+      <div style="position:relative;margin-top:20px">
+        <div style="font-size:20px;font-weight:800;letter-spacing:-.3px;line-height:1.3">
+          healthy, home-fresh meals delivered<br>right to your child at school</div>
+        <div style="font-size:13.5px;opacity:.9;margin-top:8px">Start by picking their school. No account needed to look around.</div>
+      </div>
+    </div>
+    <div class="pad" style="padding-top:14px">${searchbox('Search schools in Mohali')}</div>
+    ${f.offline ? `<div class="banner stale">Offline — showing the schools you last loaded.</div>` : ''}
+    ${list}
+  `, false);
+};
+
+V.home = () => {
+  const f = S.flags, c = child();
+  const featured = MENU.find(d=>d.s==='paneer-wrap');
+  const popular = ['rajma-rice','idli-sambar','veggie-wrap','fruit-salad','cold-coffee'].map(s=>MENU.find(d=>d.s===s)).filter(Boolean);
+
+  const deliverCard = f.signedout ? `
+    <button class="deliver" onclick="go('school')">
+      <div class="top">${pattern()}
+        <div class="lbl">Browsing</div>
+        <div class="who">Alpha Public School</div>
+        <div class="where">Mohali · menu for this week</div>
+      </div>
+      <div class="band"><span>Add your child to place an order</span><span class="arrow">→</span></div>
+    </button>`
+  : f.nochild ? `
+    <button class="deliver" onclick="go('addchild')">
+      <div class="top">${pattern()}
+        <div class="lbl">Almost there</div>
+        <div class="who">Add your child</div>
+        <div class="where">We need to know who's eating, and where</div>
+      </div>
+      <div class="band"><span>Takes about a minute</span><span class="arrow">→</span></div>
+    </button>`
+  : `
+    <button class="deliver" onclick="go('children')">
+      <div class="top">${pattern()}
+        <div class="lbl">Delivering to</div>
+        <div class="who">${c.name} · Class ${c.cls}-${c.sec}</div>
+        <div class="where">${c.school}</div>
+      </div>
+      <div class="band"><span>${c.brk} · Tue 12 Aug</span><span class="arrow">→</span></div>
+    </button>`;
+
+  let content;
+  if(f.loading){
+    content = `<div class="pad"><div class="sk" style="height:132px;border-radius:22px;margin-bottom:22px"></div></div>
+      <div class="grid">${skCards(2)}</div>`;
+  } else if(f.unpublished){
+    content = `${deliverCard}
+      ${notice('info','Alpha Public School hasn\'t published a menu yet','We\'ll show it here the moment the kitchen publishes it. Nothing is wrong with your app.',
+        `<button class="btn small" style="width:auto;padding:9px 20px" onclick="go('school')">Browse another school</button>`)}`;
+  } else {
+    content = `${deliverCard}
+      <div class="pad"><div class="sectionhead"><span>This week at ${f.signedout?'Alpha Public':c.school.split(' ')[0]}</span></div></div>
+      <div class="pad">
+        <button class="card" style="width:100%" onclick="openDish('${featured.s}')">
+          <div class="thumb" style="aspect-ratio:1/.52">${thumbInner(featured)}</div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:10px">
+            <div><div class="cname" style="font-size:16px">${featured.n}</div>
+                 <div class="cprice" style="font-size:15px">${rupees(featured.p)}</div></div>
+            <span class="btn small" style="width:auto;padding:10px 22px">Order</span>
+          </div>
+        </button>
+      </div>
+      <div class="pad"><div class="sectionhead"><span>Popular this week</span></div></div>
+      <div class="crow">${popular.map(d=>dishCard(d)).join('')}</div>`;
+  }
+
+  return shell(`
+    ${appbar()}
+    ${f.offline?`<div class="banner stale">Offline — showing what you last loaded.</div>`:''}
+    <div class="pad">${searchbox('Search the menu', true)}</div>
+    ${content}
+    <div class="spacer"></div>
+  `);
+};
+
+V.menu = () => {
+  const f = S.flags;
+  let list = MENU.filter(d => (S.cat==='All'||d.c===S.cat) &&
+      (!S.q || d.n.toLowerCase().includes(S.q.toLowerCase())));
+
+  let grid;
+  if(f.loading) grid = `<div class="grid">${skCards(6)}</div>`;
+  else if(f.error) grid = notice('err','We couldn\'t load the menu','Check your connection and try again. Your cart is safe.',
+      `<button class="btn small" style="width:auto;padding:9px 20px" onclick="setFlag('error',false)">Try again</button>`);
+  else if(f.unpublished) grid = empty('Nothing on the menu yet','This school\'s menu hasn\'t been published. It will appear here once it is.','Browse another school','go("school")');
+  else if(!list.length && S.q) grid = empty(`No dishes match "${esc(S.q)}"`,'Try a shorter word, or clear the category filter.','Clear search','clearSearch()');
+  else if(!list.length) grid = empty('Nothing in this category','Try another category — there\'s plenty on today.','Show everything','setCat("All")');
+  else grid = `<div class="grid">${list.map(d=>dishCard(d)).join('')}</div>`;
+
+  return shell(`
+    ${appbar()}
+    ${f.offline?`<div class="banner stale">Offline — showing the menu you last loaded.</div>`:''}
+    ${f.noallergenconsent && !f.signedout ? `<div class="banner warn">You haven't shared allergy details, so we can't warn you about ingredients. <a href="#" onclick="go('addchild');return false" style="color:inherit">Add them</a></div>`:''}
+    <div class="pad">
+      <p class="eyebrow">Our food</p>
+      <h2 class="title h-green">Made specially for your child</h2>
+      ${searchbox('Cold coffee, paneer, sandwich…')}
+    </div>
+    <div class="tabstrip">${CATS.map(c=>`<button class="${S.cat===c?'on':''}" onclick="setCat('${c}')">${c}</button>`).join('')}</div>
+    ${grid}
+  `);
+};
+
+V.cart = () => {
+  const f = S.flags, c = child();
+  if(!S.cart.length) return shell(`${appbar()}${empty('Your order is empty','Add something from the menu and it\'ll show up here.','Browse the menu','goTab("menu")')}`);
+
+  const sub = subtotal(), cgst = Math.round(sub*0.025), sgst = Math.round(sub*0.025);
+  const closed = f.cutoff==='closed';
+
+  return shell(`
+    ${bar('Your order')}
+    ${f.offline?`<div class="banner stale">Offline — you'll need a connection to place this order.</div>`:''}
+    ${f.pricechanged?notice('warn','The price of one item changed','Paneer Wrap went from ₹90.00 to ₹95.00 while your order was open. Check the new total before you pay.'):''}
+    ${closed?notice('err','Ordering for Tue 12 Aug has closed','The kitchen needs the list before midnight. Pick another day and we\'ll keep everything in your order.',
+        `<button class="btn small" style="width:auto;padding:9px 20px" onclick="setFlag('cutoff','open')">Choose another day</button>`):''}
+
+    <div class="forblock">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="lbl">For</div>
+          <div class="who">${f.signedout?'Not chosen yet':c.name+' · Class '+c.cls+'-'+c.sec}</div>
+          <div class="meta">${f.signedout?'You\'ll choose when you place the order':c.school+'<br>'+c.brk+' · Tuesday 12 August'}</div>
+        </div>
+        ${f.signedout?'':`<button class="change" onclick="go('children')">Change</button>`}
+      </div>
+    </div>
+
+    <div style="height:12px"></div>
+    ${S.cart.map((l,i)=>cartRow(l,i)).join('')}
+
+    <div class="cutoff ${closed?'closed':f.cutoff==='soon'?'soon':''}">
+      ${closed ? 'Ordering for Tue 12 Aug closed at 00:00 IST.'
+        : f.cutoff==='soon' ? '⏱ Ordering for Tue 12 Aug closes in 42 minutes (00:00 IST).'
+        : 'Ordering for Tue 12 Aug closes at 00:00 IST, Tuesday.'}
+    </div>
+
+    <div class="totals">
+      <div class="t"><span>Subtotal</span><span>${rupees(sub)}</span></div>
+      <div class="t"><span>CGST 2.5%</span><span>${rupees(cgst)}</span></div>
+      <div class="t"><span>SGST 2.5%</span><span>${rupees(sgst)}</span></div>
+      <div class="t grand"><span>Total</span><span>${rupees(sub+cgst+sgst)}</span></div>
+    </div>
+    <p class="tiny">Menu prices exclude GST. 5% is added here as CGST 2.5% + SGST 2.5%.</p>
+  `, true, `
+    <div class="sticky">
+      <button class="btn" ${closed||f.offline?'disabled':''} onclick="placeOrder()">
+        ${f.offline?'You\'re offline':closed?'Ordering has closed':'Place order · '+rupees(sub+cgst+sgst)}
+      </button>
+      ${f.signedout?`<p style="text-align:center;font-size:11.5px;color:var(--muted);margin:10px 0 0">We'll ask you to sign in — your order is kept.</p>`:''}
+    </div>`);
+};
+
+V.signin = () => shell(`
+  ${bar('', ()=>'back()')}
+  <div class="pad">
+    <h2 class="title h-green" style="font-size:27px">welcome 👋</h2>
+    <p class="eyebrow" style="margin-bottom:26px">We need an account to place your order. It takes a moment, and your order is kept.</p>
+    <button class="authbtn" onclick="go('otp')"><span style="font-size:19px">🇬</span> Continue with Google</button>
+    <button class="authbtn" onclick="go('otp')"><span style="font-size:19px"></span> Continue with Apple</button>
+    <div class="divider">or</div>
+    <div class="field">
+      <label>Email</label>
+      <input placeholder="you@example.com" value="andy@graybag.in">
+      ${S.flags.error?`<div class="err">We couldn't send that code. Try again in a moment.</div>`:''}
+    </div>
+    <button class="btn" ${S.flags.offline?'disabled':''} onclick="go('otp')">
+      ${S.flags.offline?'You\'re offline':'Email me a code'}
+    </button>
+    <p class="tiny" style="padding:16px 0 0;text-align:center">No passwords, ever. We'll send a six-digit code.</p>
+  </div>`, false);
+
+V.otp = () => {
+  const filled = S.otp.length;
+  return shell(`
+    ${bar('', ()=>'go("signin")')}
+    <div class="pad">
+      <h2 class="title">Check your email</h2>
+      <p class="eyebrow" style="margin-bottom:22px">We sent a six-digit code to <b style="color:var(--ink)">andy@graybag.in</b> · <button class="change" onclick="go('signin')">Change</button></p>
+      <div class="otp">${Array.from({length:6},(_,i)=>`<div class="${i<filled?'filled':''}">${S.otp[i]||''}</div>`).join('')}</div>
+      ${S.flags.error?`<div class="err" style="margin-top:10px">That code isn't right. 2 attempts left.</div>`:''}
+      <div style="height:18px"></div>
+      <div class="chips">${'123456'.split('').map(n=>`<button class="chip" onclick="typeOtp('${n}')">${n}</button>`).join('')}
+        <button class="chip" onclick="typeOtp('')">⌫</button></div>
+      <div style="height:10px"></div>
+      <button class="btn" ${filled<6?'disabled':''} onclick="verifyOtp()">${filled<6?'Enter the code':'Verify'}</button>
+      <p class="tiny" style="padding:16px 0 0;text-align:center">Resend in 0:27</p>
+    </div>`, false);
+};
+
+V.addchild = () => shell(`
+  ${bar('Add your child', ()=>'back()')}
+  <div class="pad">
+    <p class="eyebrow" style="margin-bottom:18px">So the right food reaches the right child.</p>
+    <div class="field"><label>First name</label><input placeholder="Aarav"></div>
+    <div class="field"><label>Last name <span style="color:var(--muted);font-weight:600">(optional)</span></label><input placeholder="Sharma"></div>
+    <div class="field"><label>School</label><input value="Alpha Public School" readonly style="color:var(--muted)">
+      <div class="hint">Taken from the menu you were browsing. Tap to change.</div></div>
+    <div style="display:flex;gap:12px">
+      <div class="field" style="flex:1"><label>Class</label><input placeholder="5"></div>
+      <div class="field" style="flex:1"><label>Section</label><input placeholder="A"></div>
+    </div>
+
+    <div style="border-top:1.5px solid var(--line);margin:8px 0 4px"></div>
+    <div class="check ${S.consent?'on':''}" onclick="toggle('consent')">
+      <div class="box">${S.consent?'✓':''}</div>
+      <div class="txt"><b>I agree to GrayBag holding my child's name, class and section</b>
+        We need this to get the right meal to the right child. Nothing else, and never shared with anyone but the school kitchen.</div>
+    </div>
+    <div class="check ${S.allergenConsent?'on':''}" onclick="toggle('allergenConsent')">
+      <div class="box">${S.allergenConsent?'✓':''}</div>
+      <div class="txt"><b>Also hold my child's allergy details <span style="color:var(--muted);font-weight:600">— optional</span></b>
+        This is health information about a minor, so we ask separately. Without it GrayBag still works — we just can't warn you when a dish contains something.</div>
+    </div>
+
+    ${S.allergenConsent?`
+      <div class="field" style="margin-top:14px"><label>Allergies</label>
+        <div class="chips">${['Peanuts','Milk','Egg','Wheat','Soy','Tree nuts'].map(a=>`<button class="chip">${a}</button>`).join('')}</div>
+      </div>
+      <div class="field"><label>Anything else we should know</label>
+        <textarea rows="3" placeholder="e.g. mild lactose intolerance"></textarea></div>`:''}
+
+    ${S.flags.error?notice('err','GrayBag isn\'t serving that school yet','We\'re adding schools across Mohali. We\'ll email you the moment yours is live.'):''}
+    <div style="height:6px"></div>
+    <button class="btn" ${!S.consent||S.flags.offline?'disabled':''} onclick="childAdded()">
+      ${S.flags.offline?'You\'re offline':!S.consent?'Agree above to continue':'Add child'}
+    </button>
+    <div style="height:26px"></div>
+  </div>`, false);
+
+V.checkout = () => {
+  const sub = subtotal(), cgst=Math.round(sub*0.025), sgst=Math.round(sub*0.025), c=child();
+  return shell(`
+    ${bar('Check and pay', ()=>'goTab("cart")')}
+    <div class="forblock" style="margin-top:16px">
+      <div class="lbl">For</div>
+      <div class="who">${c.name} · Class ${c.cls}-${c.sec}</div>
+      <div class="meta">${c.school}<br>${c.brk} · Tuesday 12 August</div>
+    </div>
+    <div style="height:14px"></div>
+    ${S.cart.map(l=>`<div class="row"><img class="rthumb" src="${img(l.d.s)||''}" alt="">
+      <div style="flex:1"><div class="rname">${l.d.n}</div><div class="rmeta">${l.q} × ${rupees(l.d.p)}</div></div>
+      <div style="font-weight:700">${rupees(l.d.p*l.q)}</div></div>`).join('')}
+    <div class="totals">
+      <div class="t"><span>Subtotal</span><span>${rupees(sub)}</span></div>
+      <div class="t"><span>CGST 2.5%</span><span>${rupees(cgst)}</span></div>
+      <div class="t"><span>SGST 2.5%</span><span>${rupees(sgst)}</span></div>
+      <div class="t grand"><span>Total</span><span>${rupees(sub+cgst+sgst)}</span></div>
+    </div>
+    <div class="cutoff">Ordering for Tue 12 Aug closes at 00:00 IST, Tuesday.</div>
+  `, true, `<div class="sticky"><button class="btn" onclick="pay()">Pay ${rupees(sub+cgst+sgst)}</button></div>`);
+};
+
+V.paying = () => `
+  <div class="greenfill brandscreen">
+    ${pattern()}
+    ${logo(84)}
+    <h1 style="font-size:23px">${S.flags.pending?'Still confirming':'Confirming your payment'}</h1>
+    <p>${S.flags.pending
+      ? 'This is taking longer than usual. Your money is safe and your order is not lost — we\'ll email you the moment it\'s confirmed.'
+      : 'Hold on a moment — please don\'t close the app.'}</p>
+    <div style="width:74%;margin-top:26px;position:relative">
+      <div class="sk" style="height:12px;background:rgba(255,255,255,.28);animation:none"></div>
+      <div class="sk" style="height:12px;width:62%;margin-top:9px;background:rgba(255,255,255,.28);animation:none"></div>
+    </div>
+    <div class="acts">
+      ${S.flags.pending?`<button class="btn ghost" onclick="goTab('orders')">See my orders</button>`
+        :`<button class="btn ghost" onclick="confirmed()">(prototype: settlement confirmed)</button>`}
+    </div>
+  </div>`;
+
+V.confirmed = () => `
+  <div class="greenfill brandscreen">
+    ${pattern()}
+    ${logo(78)}
+    <h1>Order placed</h1>
+    <p>${child().name}'s lunch is on the kitchen's list for Tuesday 12 August.</p>
+    <div class="code"><div class="lbl">Pickup code</div><div class="num">4821</div></div>
+    <p style="font-size:12px;opacity:.85">Staff will match ${child().name}'s name as well as the code.</p>
+    <div class="acts">
+      <button class="btn ghost" onclick="goTab('orders')">View order</button>
+      <div style="height:11px"></div>
+      <button class="btn deep" onclick="goTab('menu')">Back to menu</button>
+    </div>
+  </div>`;
+
+V.orders = () => {
+  const f=S.flags;
+  if(f.signedout) return shell(`${appbar()}${empty('Your orders live here','Sign in to see what you\'ve ordered and what\'s coming up.','Sign in','go("signin")')}`);
+  if(f.empty) return shell(`${appbar()}${empty('No orders yet','When you place your first order it\'ll appear here, with its pickup code.','Browse the menu','goTab("menu")')}`);
+  return shell(`
+    ${appbar()}
+    ${f.offline?`<div class="banner stale">Offline — showing your last loaded orders.</div>`:''}
+    <div class="pad"><h2 class="title">Your orders</h2></div>
+    <div class="pad"><div class="sectionhead"><span>Upcoming</span></div></div>
+    ${orderRow('Tue 12 Aug','Aarav','2 items','₹162.76','Paid','var(--green)')}
+    ${orderRow('Wed 13 Aug','Diya','1 item','₹89.25','Paid','var(--green)')}
+    <div class="pad"><div class="sectionhead"><span>Past</span></div></div>
+    ${orderRow('Fri 8 Aug','Aarav','3 items','₹241.50','Delivered','var(--muted)')}
+    ${orderRow('Thu 7 Aug','Aarav','1 item','₹99.75','Refunded','var(--amber)')}
+    <div class="spacer"></div>`);
+};
+
+V.orderdetail = () => shell(`
+  ${bar('Order · Tue 12 Aug', ()=>'goTab("orders")')}
+  <div class="forblock" style="margin-top:14px">
+    <div class="lbl">For</div><div class="who">Aarav · Class 5-A</div>
+    <div class="meta">Alpha Public School<br>Morning break · Tuesday 12 August</div>
+  </div>
+  <div class="pad" style="margin-top:18px"><div class="sectionhead"><span>Pickup code 4821</span></div></div>
+  <div class="timeline">
+    ${tl('done','Order placed','10 Aug, 21:14')}
+    ${tl('done','Payment confirmed','10 Aug, 21:14')}
+    ${tl('now','With the kitchen','Preparing on the morning of 12 Aug')}
+    ${tl('todo','Delivered to Aarav','')}
+  </div>
+  ${S.cart.length?S.cart.map(l=>`<div class="row"><img class="rthumb" src="${img(l.d.s)||''}" alt="">
+     <div style="flex:1"><div class="rname">${l.d.n}</div><div class="rmeta">${l.q} × ${rupees(l.d.p)}</div></div>
+     <div style="font-weight:700">${rupees(l.d.p*l.q)}</div></div>`).join('')
+   :`<div class="row"><img class="rthumb" src="${img('paneer-wrap')||''}" alt="">
+     <div style="flex:1"><div class="rname">Paneer Wrap</div><div class="rmeta">1 × ₹95</div></div><div style="font-weight:700">₹95</div></div>`}
+  <div class="totals">
+    <div class="t"><span>Subtotal</span><span>₹155.00</span></div>
+    <div class="t"><span>CGST 2.5%</span><span>₹3.88</span></div>
+    <div class="t"><span>SGST 2.5%</span><span>₹3.88</span></div>
+    <div class="t grand"><span>Total paid</span><span>₹162.76</span></div>
+  </div>
+  ${S.flags.cutoff==='closed'
+    ? notice('info','This order can no longer be cancelled','Cancelling closed at 00:00 IST on Tuesday, the same moment ordering did. Contact us if something\'s wrong and we\'ll sort it out.')
+    : `<div class="pad"><button class="btn ghost" onclick="setFlag('cutoff','closed')">Cancel this order</button></div>`}
+  <p class="tiny">Invoice GB-2026-00417 · GST 5% (CGST 2.5% + SGST 2.5%) · Mohali, Punjab</p>
+`, true);
+
+V.children = () => shell(`
+  ${bar('Your children', ()=>'back()')}
+  ${CHILDREN.map((c,i)=>`
+    <button class="row" style="width:100%;background:${i===S.child?'#f3faf6':'#fff'};border-left:0;border-right:0;cursor:pointer;text-align:left"
+            onclick="pickChild(${i})">
+      <div style="width:46px;height:46px;border-radius:16px;background:var(--pale);display:grid;place-items:center;
+                  font-weight:800;color:var(--deep);font-size:17px">${c.name[0]}</div>
+      <div style="flex:1">
+        <div class="rname">${c.name} · Class ${c.cls}-${c.sec}</div>
+        <div class="rmeta">${c.school}<br>${c.brk}</div>
+        ${!c.canOrder?`<div style="font-size:11.5px;color:#8f6a00;font-weight:700;margin-top:5px">View only — ${c.name}'s other guardian manages ordering</div>`:''}
+        ${c.allergens.length?`<div style="font-size:11.5px;color:#8f2018;font-weight:700;margin-top:5px">Allergies: ${c.allergens.join(', ')}</div>`:''}
+        ${!c.allergenConsent?`<div style="font-size:11.5px;color:var(--muted);margin-top:5px">No allergy details shared — we can't warn you about ingredients</div>`:''}
+      </div>
+      ${i===S.child?`<div style="color:var(--green);font-weight:800">✓</div>`:'<div style="color:var(--muted)">›</div>'}
+    </button>`).join('')}
+  <div class="pad" style="margin-top:20px"><button class="btn ghost" onclick="go('addchild')">Add another child</button></div>
+  <p class="tiny" style="padding-top:18px">Switching child switches the school and the menu. If your order isn't empty we'll ask before clearing it.</p>
+`, true);
+
+V.account = () => shell(`
+  ${appbar()}
+  <div class="pad"><h2 class="title">Account</h2>
+    <p class="eyebrow">${S.flags.signedout?'Not signed in':'andy@graybag.in'}</p></div>
+  <div style="height:14px"></div>
+  ${S.flags.signedout
+    ? `<div class="pad"><button class="btn" onclick="go('signin')">Sign in</button></div>`
+    : ['Your children','Your orders','Privacy policy','Terms of use','Refund policy','Grievance officer','Delete my account','Sign out']
+        .map(t=>`<button class="row" style="width:100%;background:#fff;border-left:0;border-right:0;text-align:left;cursor:pointer"
+                 onclick="${t==='Your children'?'go(\'children\')':t==='Your orders'?'goTab(\'orders\')':''}">
+                 <div style="flex:1" class="rname"${t==='Delete my account'?' style="color:var(--danger)"':''}>${t}</div>
+                 <div style="color:var(--muted)">›</div></button>`).join('')}
+  <div class="spacer"></div>`);
+
+V.policy = () => shell(`
+  ${bar('Before you continue')}
+  <div class="pad">
+    <div class="empty" style="padding:20px 0 26px">
+      <div class="art" ${BRAND.patternGreen?`style="background-image:url(${BRAND.patternGreen})"`:''}>${BRAND.iconGreen?`<img src="${BRAND.iconGreen}" alt="">`:''}</div>
+      <h3>We've updated our privacy policy</h3>
+      <p>We've changed how long we keep order history, and added our grievance officer's contact details. You can keep browsing — we only need this before your next order.</p>
+    </div>
+    <div class="notice info" style="margin:0 0 18px"><b>What changed</b>
+      Order history is now kept for 24 months instead of 36. Nothing else about what we collect has changed.</div>
+    <button class="btn" onclick="acceptPolicy()">Accept and continue</button>
+    <div style="height:11px"></div>
+    <button class="btn ghost" onclick="goTab('menu')">Not now — keep browsing</button>
+  </div>`, false);
+
+V.cantconnect = () => `
+  <div class="greenfill brandscreen">
+    ${pattern()}
+    ${logo(84)}
+    <h1 style="font-size:23px">We can't reach GrayBag</h1>
+    <p>This is us, not you — and it isn't your school's menu. Nothing you've done is lost. Try again in a moment.</p>
+    <div class="acts">
+      <button class="btn ghost" onclick="setFlag('cantconnect',false)">Try again</button>
+      <div style="background:rgba(0,0,0,.22);border-radius:14px;padding:12px 15px;margin-top:20px;
+                  font-size:11px;line-height:1.6;text-align:left;font-family:ui-monospace,monospace">
+        <b style="opacity:.75">staging build only</b><br>
+        EXPO_PUBLIC_SUPABASE_URL — missing<br>
+        EXPO_PUBLIC_SUPABASE_ANON_KEY — missing
+      </div>
+    </div>
+  </div>`;
+
+/* =========================================================================
+   Fragments
+   ========================================================================= */
+function shell(inner, showTabs = true, sticky = ''){
+  return `<div class="body">${inner}</div>${sticky}${showTabs?tabbar():''}`;
+}
+
+function appbar(){
+  return `<div class="appbar">
+    <div class="brandmark">${lockup(27,false)}</div>
+    <button class="carticon" onclick="goTab('cart')">${ICON.cart}
+      ${cartCount()?`<span class="badge">${cartCount()}</span>`:''}</button>
+  </div>`;
+}
+
+function bar(title, onBack){
+  return `<div class="appbar" style="padding:6px 16px 10px">
+    ${onBack?`<button style="border:0;background:none;cursor:pointer;color:var(--ink);padding:6px" onclick="${onBack()}">${ICON.back}</button>`:'<div style="width:36px"></div>'}
+    <div style="font-size:17px;font-weight:800;color:var(--green)">${title}</div>
+    <button class="carticon" style="background:none" onclick="goTab('cart')">${cartCount()?ICON.cart:''}
+      ${cartCount()?`<span class="badge">${cartCount()}</span>`:''}</button>
+  </div>`;
+}
+
+function searchbox(ph, jump){
+  return `<div class="search" ${jump?'onclick="goTab(\'menu\')"':''}>
+    ${ICON.search}<input placeholder="${ph}" value="${esc(S.q)}" oninput="S.q=this.value;render()">
+  </div>`;
+}
+
+function thumbInner(d){
+  const src = img(d.s);
+  const cl = clash(d);
+  return `${src?`<img src="${src}" alt="${esc(d.n)}">`
+    :`<div class="noimg" ${BRAND.patternGreen?`style="background-image:url(${BRAND.patternGreen})"`:''}><span>Photo coming soon</span></div>`}
+    ${mark(d.v)}${cl?`<span class="allerg">Contains ${cl[0]}</span>`:''}`;
+}
+
+function dishCard(d){
+  return `<button class="card" onclick="openDish('${d.s}')">
+    <div class="thumb">${thumbInner(d)}</div>
+    <div class="cname">${d.n}</div>
+    <div class="cprice">${rupees(d.p)}</div>
+  </button>`;
+}
+
+function skCards(n){
+  return Array.from({length:n},()=>`<div><div class="sk thumb"></div><div class="sk line"></div><div class="sk line short"></div></div>`).join('');
+}
+
+function empty(title, body, action, onclick){
+  return `<div class="empty">
+    <div class="art" ${BRAND.patternGreen?`style="background-image:url(${BRAND.patternGreen})"`:''}>
+      ${BRAND.iconGreen?`<img src="${BRAND.iconGreen}" alt="">`:''}
+    </div>
+    <h3>${title}</h3><p>${body}</p>
+    ${action?`<button class="btn" style="width:auto;padding:13px 28px;margin:0 auto" onclick="${onclick||''}">${action}</button>`:''}
+  </div>`;
+}
+
+function notice(kind, title, body, action){
+  return `<div class="notice ${kind}"><b>${title}</b>${body}${action?`<div style="margin-top:12px">${action}</div>`:''}</div>`;
+}
+
+function cartRow(l,i){
+  const cl = clash(l.d), src = img(l.d.s);
+  return `<div class="row">
+    ${src?`<img class="rthumb" src="${src}" alt="">`:`<div class="rthumb" ${BRAND.patternGreen?`style="background-image:url(${BRAND.patternGreen});background-size:cover"`:''}></div>`}
+    <div style="flex:1">
+      <div class="rname">${l.d.n}</div>
+      <div class="rmeta">${rupees(l.d.p)} each · excl. GST</div>
+      ${cl?`<div style="font-size:11.5px;color:#8f6a00;font-weight:700;margin-top:4px">⚠ Contains ${cl.join(', ')} — ${child().name} is allergic</div>`:''}
+    </div>
+    <div class="stepper">
+      <button onclick="qty(${i},-1)">−</button><span>${l.q}</span><button class="plus" onclick="qty(${i},1)">+</button>
+    </div>
+  </div>`;
+}
+
+function orderRow(date, who, items, total, status, colour){
+  return `<button class="row" style="width:100%;background:#fff;border-left:0;border-right:0;text-align:left;cursor:pointer" onclick="go('orderdetail')">
+    <div style="flex:1"><div class="rname">${date} · ${who}</div><div class="rmeta">${items} · ${total}</div></div>
+    <div style="font-size:11.5px;font-weight:800;color:${colour}">${status}</div>
+  </button>`;
+}
+
+function tl(state, title, sub){
+  return `<div class="tl ${state}"><div class="dot">${state==='done'?'✓':''}</div>
+    <div><div class="tt">${title}</div>${sub?`<div class="ts">${sub}</div>`:''}</div></div>`;
+}
+
+function tabbar(){
+  const t = (id,label,icon) =>
+    `<button class="${S.tab===id?'on':''}" onclick="goTab('${id}')">${icon}<span>${label}</span></button>`;
+  return `<div class="tabbar">
+    ${t('home','Home',ICON.home)}${t('menu','Menu',ICON.menu)}
+    ${t('cart','Cart',ICON.cart)}${t('account','Account',ICON.user)}
+  </div>`;
+}
+
+/* ---------- the dish sheet ---------- */
+function sheet(){
+  if(!S.sheet || !S.dish) return '';
+  const d = MENU.find(x=>x.s===S.dish); if(!d) return '';
+  const cl = clash(d), src = img(d.s), c = child();
+  const closed = S.flags.cutoff==='closed';
+
+  const allergenBlock = cl
+    ? `<div class="notice warn" style="margin:16px 0 0"><b>⚠ Contains ${cl.join(', ')}</b>
+         ${c.name} is allergic to ${cl.join(' and ')}. You can still order this — we'll ask you to confirm.</div>`
+    : d.none
+    ? `<div class="notice info" style="margin:16px 0 0"><b>No allergens</b>The kitchen has declared this dish free of the allergens we track.</div>`
+    : (d.a && d.a.length)
+    ? `<div class="notice info" style="margin:16px 0 0"><b>Contains ${d.a.join(', ')}</b>Declared by the kitchen.</div>`
+    : `<div class="notice" style="margin:16px 0 0;background:#f4f6f5;color:#5d6b64;border:1.5px solid var(--line)">
+         <b>Allergen information not provided</b>The kitchen hasn't told us about this dish either way. That is not the same as "no allergens".</div>`;
+
+  return `<div class="scrim" onclick="closeDish()"></div>
+    <div class="sheet"><div class="grabber"></div>
+      <div class="inner">
+        ${src?`<img class="hero" src="${src}" alt="">`
+          :`<div class="hero" ${BRAND.patternGreen?`style="background-image:url(${BRAND.patternGreen});background-size:cover"`:''}></div>`}
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:15px;gap:14px">
+          <div><div style="font-size:21px;font-weight:800;letter-spacing:-.3px">${d.n}</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+              <span style="position:relative;display:inline-grid;place-items:center;width:18px;height:18px;
+                border-radius:4px;border:1.6px solid ${d.v==='egg'?'#c98a00':d.v==='nonveg'?'#a4262c':'#1f8a3d'}">
+                <i style="width:8px;height:8px;border-radius:50%;display:block;
+                  background:${d.v==='egg'?'#c98a00':d.v==='nonveg'?'#a4262c':'#1f8a3d'}"></i></span>
+              <span style="font-size:12.5px;color:var(--muted);font-weight:600">
+                ${d.v==='egg'?'Contains egg':d.v==='nonveg'?'Non-vegetarian':'Pure vegetarian'} · ${d.c}</span>
+            </div></div>
+          <div style="font-size:20px;font-weight:800;color:var(--green);white-space:nowrap">${rupees(d.p)}</div>
+        </div>
+        ${allergenBlock}
+        <div class="forblock" style="margin:16px 0 0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><div class="lbl">For</div>
+              <div style="font-size:14px;font-weight:700;margin-top:3px">
+                ${S.flags.signedout?'Chosen at checkout':c.name+' · Tue 12 Aug'}</div></div>
+            ${S.flags.signedout?'':'<button class="change">Change</button>'}
+          </div>
+        </div>
+        ${closed?`<div class="cutoff closed" style="margin:14px 0 0">Ordering for Tue 12 Aug has closed. Pick another day to add this.</div>`:''}
+        <p class="tiny" style="padding:14px 0 0">Price excludes GST. 5% is added at checkout.</p>
+      </div>
+      <div class="sticky">
+        <button class="btn" ${closed?'disabled':''} onclick="addToCart('${d.s}')">
+          ${closed?'Ordering has closed':cl?`Add anyway · ${rupees(d.p)}`:`Add to order · ${rupees(d.p)}`}
+        </button>
+      </div>
+    </div>`;
+}
+
+/* =========================================================================
+   Behaviour
+   ========================================================================= */
+function render(){
+  const f = S.flags;
+  const view = f.cantconnect ? V.cantconnect : (V[S.screen] || V.home);
+  const green = ['splash','welcome','paying','confirmed'].includes(S.screen) || f.cantconnect;
+
+  const el = document.getElementById('screen');
+  el.className = f.bigtext ? 'big' : '';
+  el.innerHTML = `
+    <div class="statusbar ${green?'on-green':''}"><span>9:41</span><span>􀙇 􀖀 􀛨</span></div>
+    ${view()}
+    ${sheet()}
+    <div class="homebar ${green?'on-green':''}"><i></i></div>`;
+  document.getElementById('device').style.background = green ? 'var(--green)' : '#fff';
+  renderRail();
+  syncHash();
+}
+
+function renderRail(){
+  const f = S.flags;
+  const screens = [
+    ['splash','Splash'],['school','Choose school'],['home','Home'],
+    ['menu','Menu'],['cart','Cart · review'],['signin','Sign in'],['otp','Email code'],
+    ['addchild','Add child'],['paying','Confirming payment'],
+    ['confirmed','Order placed'],['orders','Orders'],['orderdetail','Order detail'],
+    ['children','Your children'],['account','Account'],['policy','Policy gate']
+  ];
+  const cut = [['welcome','Welcome'],['checkout','Checkout review']];
+  const toggles = [
+    ['loading','Loading (skeletons)'],['empty','Empty'],['error','Error'],['offline','Offline / stale'],
+    ['signedout','Signed out'],['nochild','Signed in, no child'],['unpublished','Menu not published'],
+    ['pricechanged','Price changed'],['pending','Payment pending'],
+    ['noallergenconsent','No allergen consent'],['cantconnect','Can\'t reach backend'],
+    ['bigtext','Largest text size (AX5)'],
+  ];
+  document.getElementById('rail').innerHTML = `
+    <h1>GrayBag prototype</h1>
+    <p class="sub">Brand from the design package. Screens and states from <b>docs/ux-spec.md</b>.
+      Real dish photography from the legacy catalogue.</p>
+    <h2>Screens</h2>
+    ${screens.map(([id,label])=>`<button class="${S.screen===id&&!f.cantconnect?'on':''}" onclick="go('${id}')">${label}</button>`).join('')}
+    <h2>Force a state</h2>
+    ${toggles.map(([k,label])=>`<button class="${f[k]?'on':''}" onclick="setFlag('${k}',${!f[k]})">${label}</button>`).join('')}
+    <h2>Cutoff</h2>
+    ${['open','soon','closed'].map(v=>`<button class="${f.cutoff===v?'on':''}" onclick="setFlag('cutoff','${v}')">${v==='open'?'Open':v==='soon'?'Closing soon':'Closed'}</button>`).join('')}
+    <h2>Cart</h2>
+    <button onclick="seedCart()">Fill the cart</button>
+    <button onclick="S.cart=[];render()">Empty the cart</button>
+    <h2>Cut from the flow</h2>
+    ${cut.map(([id,label])=>`<button class="${S.screen===id?'on':''}" onclick="go('${id}')">${label}</button>`).join('')}
+    <p class="note">Both were removed in ux-spec §6.1.1 — Welcome merged into Choose school,
+      Checkout review merged into the cart. 11 screens → 8. They're here only so you can compare
+      the merge against what it replaced.</p>
+    <p class="note">One child, one service date per order — decided 2026-08-10. That's why there
+      is no per-line date anywhere.</p>`;
+}
+
+const go     = s => { S.screen = s; S.sheet=false; if(['home','menu','cart','account','orders'].includes(s)) S.tab=s; render(); };
+const goTab  = t => { S.tab = t; S.screen = t; S.sheet=false; render(); };
+const back   = () => go(S.screen==='signin'?'cart':'home');
+const setCat = c => { S.cat = c; render(); };
+const clearSearch = () => { S.q=''; S.cat='All'; render(); };
+const toggle = k => { S[k] = !S[k]; render(); };
+const typeOtp = n => { S.otp = n===''?S.otp.slice(0,-1):(S.otp+n).slice(0,6); render(); };
+
+function setFlag(k,v){
+  S.flags[k]=v;
+  if(k==='signedout' && v===false) S.flags.nochild=false;
+  render();
+}
+function pickSchool(){ go('home'); }
+function pickChild(i){ S.child=i; go('home'); }
+function openDish(s){ S.dish=s; S.sheet=true; render(); }
+function closeDish(){ S.sheet=false; render(); }
+
+function addToCart(s){
+  const d = MENU.find(x=>x.s===s);
+  const line = S.cart.find(l=>l.d.s===s);
+  if(line) line.q++; else S.cart.push({d,q:1});
+  S.sheet=false; render();
+}
+function qty(i,delta){
+  S.cart[i].q += delta;
+  if(S.cart[i].q<=0) S.cart.splice(i,1);
+  render();
+}
+function seedCart(){
+  S.cart = [{d:MENU.find(d=>d.s==='paneer-wrap'),q:1},{d:MENU.find(d=>d.s==='fruit-salad'),q:1}];
+  render();
+}
+function placeOrder(){
+  if(S.flags.signedout){ go('signin'); return; }      // ux-spec F1 — the one gate
+  if(S.flags.policy){ go('policy'); return; }          // F14
+  if(S.flags.nochild){ go('addchild'); return; }       // R2
+  // No separate Checkout review: with one child and one date the cart already shows the same
+  // six facts, so re-confirming them is a step we invented (ux-spec §6.1.1 cut 2).
+  go('paying');
+}
+function verifyOtp(){
+  S.flags.signedout=false; S.otp='';
+  go(S.flags.nochild?'addchild':'cart');
+}
+function childAdded(){ S.flags.nochild=false; go('cart'); }
+function acceptPolicy(){ S.flags.policy=false; go('checkout'); }
+function pay(){ go('paying'); }
+function confirmed(){ go('confirmed'); }
+
+/* ---------- deep links ----------
+   `#menu`, or `#menu,loading,bigtext` to land on a screen with states already forced. So a
+   review comment can point at the exact thing it is about instead of describing how to get
+   there. The rail keeps the hash current as you click. */
+function applyHash(){
+  const raw = decodeURIComponent(location.hash.replace(/^#/,'')).trim();
+  if(!raw) return false;
+  const [screen, ...flags] = raw.split(',').map(x=>x.trim()).filter(Boolean);
+  if(screen && V[screen]) S.screen = screen;
+  if(['home','menu','cart','account','orders'].includes(screen)) S.tab = screen;
+  flags.forEach(f=>{
+    if(f.startsWith('cutoff:')) S.flags.cutoff = f.split(':')[1];
+    else if(f==='cart') seedCart();
+    else if(f in S.flags) S.flags[f] = true;
+  });
+  if(flags.includes('signedin')) S.flags.signedout = false;
+  return true;
+}
+function syncHash(){
+  const on = Object.entries(S.flags).filter(([k,v])=>v===true).map(([k])=>k);
+  if(S.flags.cutoff!=='open') on.push('cutoff:'+S.flags.cutoff);
+  history.replaceState(null,'', '#' + [S.screen, ...on].join(','));
+}
+window.addEventListener('hashchange', ()=>{ if(applyHash()) render(); });
+
+if(applyHash()){
+  render();
+} else {
+  /* Splash holds briefly (spec 5.1), then lands straight on Choose school — Welcome is cut. */
+  render();
+  setTimeout(()=>{ if(S.screen==='splash') go('school'); }, 1400);
+}
+</script>
+</body>
+</html>

@@ -25,7 +25,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Network resilience](decisions/network.md) | `NR1`–`NR4` | Per-attempt timeouts, full jitter, what is never retried, and why a write is not |
 | [Money](decisions/money.md) | `M1`–`M9` | Seller of record, GST split, invoice numbering, revenue share, refunds |
 | [Design system and motion](decisions/design-system.md) | `S1`–`S38` | Closed motion catalogue, duration/easing tokens, the 500 rule, contrast bar, lint gates |
-| [Order lifecycle](decisions/order-lifecycle.md) | `L1`–`L8` | The state machine, cutoff snapshotting, `paid` means captured |
+| [Order lifecycle](decisions/order-lifecycle.md) | `L1`–`L9` | The state machine, cutoff snapshotting, `paid` means captured |
 | [Payments integration](decisions/payments.md) | `PY1`–`PY9` | Razorpay secrets, webhook contract, refund arithmetic, reconciliation |
 | [Menu import and the cache token](decisions/menu-import.md) | `MI1`–`MI13`, `MC1`–`MC5` | Blank allergens mean unknown, plan-then-apply, and what bumps `school_menu_version` |
 | [GST and invoicing](decisions/gst-invoicing.md) | `G1`–`G10` | Per-line rounding, CGST/SGST computed independently, gapless series |

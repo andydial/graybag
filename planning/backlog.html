@@ -1348,13 +1348,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/22</span>
+          <span class="meter-num">0/26</span>
         </div>
       </header>
       <p class="summary">Written before any UI code exists. The motion catalogue is what produces &quot;fluid&quot; instead of &quot;flying bird&quot;.</p>
       
       <details>
-        <summary>Context &amp; 22 tasks</summary>
+        <summary>Context &amp; 26 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Source: <code>Graybag_Design Package</code> — VAG Rounded Next font family, primary <code>#00af52</code>, secondary <code>#145f48</code> / <code>#ffbb39</code>, accent <code>#b3cf3f</code> / <code>#e5ea98</code>, pattern assets, and the 06_App UI mocks.</p>
 <p>The motion system is a <strong>closed catalogue</strong>. New screens implement from it; it is only amended when a genuinely new kind of interaction appears, and that is a deliberate joint decision.</p></div>
@@ -1534,6 +1534,38 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The <code>transform</code>/<code>opacity</code> lint gate is an approximation and should be tightened once real components exist.</strong> It catches a <code>useAnimatedStyle</code> callback returning a disallowed key; it does not catch a style assembled elsewhere and returned by reference (<code>S34</code>, <code>docs/design-tokens.md</code> §9.2). Worth revisiting with actual call sites to see whether the gap is reachable in practice before spending a custom ESLint rule on it</span>
+      </li>
+      <li class="task" data-id="E13-23" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-23"></button>
+        <code class="tid">E13-23</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Build the screens in <code>docs/ux-spec.md</code> for real in React Native, one at a time, each verified on a device before the next is started</span>
+      </li>
+      <li class="task" data-id="E13-24" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-24"></button>
+        <code class="tid">E13-24</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Single <code>typography.family</code> token plus a lint rule failing any <code>fontFamily</code> literal outside it, so swapping in VAG Rounded Next is one line if the licence allows it (ux-spec §3.2)</span>
+      </li>
+      <li class="task" data-id="E13-25" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-25"></button>
+        <code class="tid">E13-25</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Dynamic-type behaviour to ux-spec §3.5: single-column fallback past <code>fontScale &gt;= 1.35</code>, tab-bar labels dropped before icons shrink, and price / allergen warning / primary action never truncated</span>
+      </li>
+      <li class="task" data-id="E13-26" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-26"></button>
+        <code class="tid">E13-26</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Re-shoot the three dish photos that are a permanent 403 at the legacy CDN (Aloo Channa Chaat, Tomato-Cucumber cheese sandwich, mushroom-pesto pasta) — see <code>E16-29</code></span>
       </li></ul>
       </details>
     </article>
@@ -1801,13 +1833,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/21</span>
+          <span class="meter-num">0/24</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 21 tasks</summary>
+        <summary>Context &amp; 24 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -1977,6 +2009,30 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Every real order failed on staging with <code>21000: DELETE requires a WHERE clause</code>.</strong> <code>create_checkout</code> cleared its temp table with an unqualified DELETE; hosted Supabase loads <code>safeupdate</code> and a local <code>supabase start</code> does not, so 24 pgTAP assertions passed while no order could be placed through PostgREST. Migration <code>0019</code>. Found 2026-08-10 by <code>scripts/order-path-check.mjs</code></span>
+      </li>
+      <li class="task" data-id="E05-22" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-22"></button>
+        <code class="tid">E05-22</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Collapse <code>order_group</code> per <code>docs/order-lifecycle.md</code> §14 — one child, one service date per checkout is decided (ux-spec §8.5). Retire the multi-date checkout paths rather than leaving them unreachable</span>
+      </li>
+      <li class="task" data-id="E05-23" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-23"></button>
+        <code class="tid">E05-23</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Implement the cutoff grace window <code>L9</code> — <code>cutoff_at + grace</code>, per-kitchen config, default 15 minutes; settlement after it is refused and auto-refunded. Test both sides of the boundary</span>
+      </li>
+      <li class="task" data-id="E05-24" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-24"></button>
+        <code class="tid">E05-24</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Merge the checkout review into the cart and drop the Welcome screen (ux-spec §6.1.1) — 11 screens to 8 on the first-order path</span>
       </li></ul>
       </details>
     </article>
@@ -1989,13 +2045,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/17</span>
+          <span class="meter-num">0/24</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 17 tasks</summary>
+        <summary>Context &amp; 24 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -2138,6 +2194,62 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A non-worklet function called from inside a worklet aborts every release build.</strong> Two gates: a lint rule with an allowlist, and a test asserting the allowlisted names carry <code>__workletHash</code>. Found by the first iOS build crashing on any screen with a <code>TextField</code></span>
+      </li>
+      <li class="task" data-id="E14-19" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-19"></button>
+        <code class="tid">E14-19</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">One <code>ListState</code> type — <code>loading | data | empty | unreachable | forbidden | stale</code> — that every list screen must exhaust, so a screen cannot render &quot;nothing here&quot; for a backend it could not reach (ux-spec §5.21)</span>
+      </li>
+      <li class="task" data-id="E14-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-20"></button>
+        <code class="tid">E14-20</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Build the Can&#39;t-connect screen (ux-spec §5.20) and route an unconfigured or unreachable client to it, instead of letting every screen fail in its own way</span>
+      </li>
+      <li class="task" data-id="E14-21" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-21"></button>
+        <code class="tid">E14-21</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Separate the collapsed empty/error/forbidden/stale states listed in the ux-spec §5.21 audit table — menu, menu allergens, children, orders, school picker</span>
+      </li>
+      <li class="task" data-id="E14-22" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-22"></button>
+        <code class="tid">E14-22</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Persist the cart to disk on every mutation and restore it before first render; ids, quantities, child and service date only — never prices, never a child&#39;s name (ux-spec §5.7.1)</span>
+      </li>
+      <li class="task" data-id="E14-23" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-23"></button>
+        <code class="tid">E14-23</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Make the email-OTP screen survive backgrounding and process death — digits, timestamp-anchored resend timer, pending address, and the interrupted checkout intent; clipboard auto-fill that never auto-submits (ux-spec §5.9.1)</span>
+      </li>
+      <li class="task" data-id="E14-24" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-24"></button>
+        <code class="tid">E14-24</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Maestro: the ux-spec §6.1 flow against a real build and real staging, in CI — launch, pick a school, see dishes, open one, add to cart, sign in, add a child, place an order. Asserts the screen count so a re-added step fails CI</span>
+      </li>
+      <li class="task" data-id="E14-25" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-25"></button>
+        <code class="tid">E14-25</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Run the §6.1 Maestro flow a second time at the largest accessibility text size</span>
       </li></ul>
       </details>
     </article>

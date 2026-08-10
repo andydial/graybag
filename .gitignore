@@ -55,3 +55,6 @@ apps/*/ios/
 # It has been committed twice by accident; the app's real config is apps/mobile/app.json.
 /app.json
 /eas.json
+
+# Generated prototype: 4 MB of inlined binaries. Rebuild with docs/prototype/build.mjs
+docs/prototype/graybag-prototype.html
