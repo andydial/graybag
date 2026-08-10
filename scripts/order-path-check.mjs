@@ -151,13 +151,17 @@ if (!serviceDate || !/^\d{4}-\d{2}-\d{2}$/.test(serviceDate)) {
   fail('pass --date YYYY-MM-DD — a date inside the ordering window for that school');
 }
 
-const { data: menu, error: menuError } = await app.rpc('get_menu_for_school', {
-  p_school_id: school.id,
-  p_service_date: serviceDate,
-});
+// Read exactly as `fetchMenu` does — the `public_menu` view, which is the only menu the app
+// can see. `menu_item_id` is what a checkout line is identified by, and it did not leave the
+// server at all until migration `0017`.
+const { data: menu, error: menuError } = await app
+  .from('public_menu')
+  .select('*')
+  .eq('school_id', school.id)
+  .order('sort_order');
 if (menuError) fail('could not read the menu', menuError.message);
 
-const dishes = (menu?.dishes ?? []).filter((d) => d.menu_item_id);
+const dishes = (menu ?? []).filter((d) => d.menu_item_id);
 if (!dishes.length) fail(`no dishes published for ${school.name} on ${serviceDate}`);
 const dish = dishes[0];
 console.log(`  ${dishes.length} dishes; ordering "${dish.name}"`);
