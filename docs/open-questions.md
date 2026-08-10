@@ -623,3 +623,20 @@ rather than extended.
 **[NEEDS ANDY]** Nothing to decide, but worth knowing: **the app on staging is showing four real
 photographs against five fixture dishes.** It is not showing the real menu, and it will not
 until the import runs.
+
+## The refund timing we tell people — raised 2026-08-11
+
+`OrderDetailScreen` tells a parent a refund "reaches your account in 5–7 working days". **Nobody
+confirmed that number.** It was a plausible default chosen while building the screen, and it is
+the kind of sentence a person plans around and complains about when it slips.
+
+Razorpay's own published windows vary by instrument — UPI is usually far faster than a card,
+and a netbanking reversal can be slower than either. `E19-01`'s spike results may already
+contain the real figures.
+
+**Recommendation:** replace it with the instrument-specific figure where we know it, and
+otherwise say "usually within a week" rather than a range that reads as a commitment. Do not
+ship the invented number.
+
+**[NEEDS ANDY]** Confirm the wording, ideally with whatever Razorpay states for the instruments
+we accept.

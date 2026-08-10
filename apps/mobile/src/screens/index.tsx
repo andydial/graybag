@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 
 
 import { AccountScreen as AccountScreenImpl } from '../account/AccountScreen';
+import { OrderDetailScreen as OrderDetailScreenImpl } from '../orders/OrderDetailScreen';
 import { OrdersScreen as OrdersScreenImpl } from '../orders/OrdersScreen';
 import { HomeScreen as HomeScreenImpl, type HomeDish } from '../home/HomeScreen';
 import { useCachedMenu } from '../menu/useCachedMenu';
@@ -232,13 +233,18 @@ export const DishDetailScreen = () => {
   );
 };
 
-export const OrderDetailScreen = () => (
-  <PlaceholderScreen
-    testID="screen-order-detail"
-    title="Order details"
-    body="This is where you will find what was ordered, its delivery status and your invoice."
-  />
-);
+/**
+ * Order detail (`E21-11`), wired.
+ *
+ * Passed no order, for the same reason Orders is passed none: there is no `fetchOrder` until
+ * `E06`, so it renders its "nothing to show" state — the true answer for a build that cannot
+ * ask. It is the only route still in `KNOWN_DOORLESS`, because the list it would be tapped
+ * from is itself empty.
+ */
+export const OrderDetailScreen = () => {
+  const navigation = useNavigation();
+  return <OrderDetailScreenImpl onBackToMenu={() => navigation.navigate('Tabs')} />;
+};
 
 /**
  * Real as of `E03-14`. Email OTP only for now — Google (`E03-12`) and Apple (`E03-13`) need

@@ -2498,13 +2498,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/31</span>
+          <span class="meter-num">0/32</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 31 tasks</summary>
+        <summary>Context &amp; 32 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -2756,6 +2756,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Assert the UPI <code>&lt;queries&gt;</code> block in the built artefact</strong>, rather than assuming our config plugin is what puts it there. Static analysis during <code>E19-01</code> setup found the block is also supplied by <code>com.razorpay:standard-core</code>, which <code>com.razorpay:checkout</code> pulls in at version <code>LATEST</code> — so the thing <code>E06-29</code> depends on is partly a floating third-party dependency we do not control. <code>scripts/verify-apk-upi-queries.mjs</code> decodes the binary <code>AndroidManifest.xml</code> out of an APK and asserts both the <code>upi</code> scheme query and the six explicit PSP packages, turning a silent degradation to UPI collect/QR into a failed check. Pairs with <code>E19-08</code> (pin the version). <strong>Was filed as a second <code>E06-30</code></strong> — a duplicate id, since <code>E06-30</code> was already taken by the <code>payment_failed</code> task above. Renumbered to the next free id rather than left colliding; nothing referenced it yet</span>
+      </li>
+      <li class="task" data-id="E06-16" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-16"></button>
+        <code class="tid">E06-16</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Replace the invented &quot;5–7 working days&quot; refund timing on Order detail with a figure somebody has confirmed, per instrument. It is a sentence a parent plans around; see <code>docs/open-questions.md</code></span>
       </li></ul>
       </details>
     </article>

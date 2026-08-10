@@ -164,12 +164,12 @@ export function OrderDetailScreen({
         ))}
       </View>
 
-      <View style={styles.gutter}>
+      <View style={styles.block}>
         <Totals totals={order.totals} paid={paid} testID={`${testID}-totals`} />
       </View>
 
       {order.refund === 'none' ? null : (
-        <View style={styles.gutter}>
+        <View style={styles.block}>
           <RefundNotice
             refund={order.refund}
             amountPaise={order.totals.totalPaise}
@@ -185,7 +185,7 @@ export function OrderDetailScreen({
         what happened and a refusal to cancel a cancelled order is noise.
       */}
       {cancel.kind === 'available' ? (
-        <View style={styles.gutter}>
+        <View style={styles.block}>
           <Button
             label="Cancel this order"
             variant="secondary"
@@ -212,7 +212,7 @@ export function OrderDetailScreen({
       ) : null}
 
       {cancel.kind === 'closed' ? (
-        <View style={styles.gutter}>
+        <View style={styles.block}>
           <View style={styles.notice} testID={`${testID}-cancel`}>
             <Text style={styles.noticeTitle}>This order can no longer be cancelled</Text>
             <Text style={styles.noticeBody} testID={`${testID}-cancel-reason`}>
@@ -561,7 +561,8 @@ export function buildTimeline(order: OrderDetail): TimelineStep[] {
  */
 function Timeline({ steps, testID }: { steps: readonly TimelineStep[]; testID: string }) {
   return (
-    <View style={styles.timeline} testID={testID}>
+    // No gap: the connector between two dots *is* the gap, and a second one would break it.
+    <View testID={testID}>
       {steps.map((step, index) => (
         <View
           key={step.key}
@@ -696,7 +697,10 @@ function RefundNotice({
   onContactSupport,
   testID,
 }: {
-  refund: RefundState;
+  // `none` is excluded at the type level rather than handled with a branch that renders
+  // nothing: an order with no refund has no notice, and the caller is the one place that
+  // knows it.
+  refund: Exclude<RefundState, 'none'>;
   amountPaise: number;
   onContactSupport?: (() => void) | undefined;
   testID: string;
@@ -910,11 +914,12 @@ function Frame({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: bg.canvas },
   scroll: { flex: 1 },
-  // The line rows are full-bleed so their hairlines reach both edges, as the prototype draws
-  // them. Everything that is not a row sits inside `gutter`.
+  // One gutter for the whole screen, unlike the orders list: there is no full-bleed row here,
+  // because the items are a card on the canvas rather than a tappable list.
   content: { flexGrow: 1, paddingHorizontal: layout.gutter, paddingBottom: space[8], gap: space[4] },
   centred: { flex: 1, justifyContent: 'center' },
-  gutter: { gap: space[2] },
+  /** A group of things that belong together — a control and the sentence explaining it. */
+  block: { gap: space[2] },
 
   stale: {
     color: text.secondary,
@@ -924,7 +929,6 @@ const styles = StyleSheet.create({
 
   pickup: { marginTop: space[2] },
 
-  timeline: { gap: 0 },
   step: { flexDirection: 'row', gap: space[3] },
   rail: { alignItems: 'center' },
   dot: {
