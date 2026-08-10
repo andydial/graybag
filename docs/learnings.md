@@ -1614,3 +1614,33 @@ Two consequences worth keeping:
 2. **A worklet captures its closure by serialization.** A `Map` does not survive it, and a
    mutation made on the UI runtime is not visible on the JS one — so a lazy cache inside a
    workletized function silently does nothing.
+
+### Why the Android release build survived the same bug
+
+The throw is identical on both platforms and the debug-only guard is compiled out of both. The
+difference is what happens to the exception **after** it leaves the frame callback, and it is
+in the platform dispatch layer rather than anywhere in our code.
+
+**Android** schedules the UI-runtime trigger through React Native's own `GuardedRunnable`
+(`react-native-worklets/android/.../AndroidUIScheduler.kt`):
+
+```kotlin
+UiThreadUtil.runOnUiThread(
+    object : GuardedRunnable(mContext.exceptionHandler) {
+        override fun runGuarded() { mUIThreadRunnable.run() }
+    },
+)
+```
+
+and `GuardedRunnable.run()` is, verbatim, a `try { runGuarded() } catch (e: RuntimeException)
+{ exceptionHandler.handleException(e) }`. The error crossing JNI becomes a Java exception, is
+caught there, and goes to RN's exception handler. The app keeps running.
+
+**iOS has no equivalent.** `grep -rn catch react-native-worklets/apple/` returns **zero
+matches** — the UI runtime is driven straight off a `CADisplayLink` with nothing between the
+worklet and the run loop, so the C++ exception unwinds to `std::terminate`.
+
+**The rule to carry forward: an uncaught error on the Reanimated UI runtime is a soft error on
+Android and a hard crash on iOS, in release.** "It works on Android" is never evidence about
+iOS for anything that runs on a worklet — Android is quietly swallowing a class of error that
+kills the iOS build.
