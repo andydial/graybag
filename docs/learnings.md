@@ -1644,3 +1644,40 @@ worklet and the run loop, so the C++ exception unwinds to `std::terminate`.
 Android and a hard crash on iOS, in release.** "It works on Android" is never evidence about
 iOS for anything that runs on a worklet — Android is quietly swallowing a class of error that
 kills the iOS build.
+
+## `node_modules/` with a trailing slash does not ignore a `node_modules` symlink — 2026-08-10
+
+Two agents working in git worktrees symlinked `node_modules` back to the main checkout to skip
+an install. One of them had both symlinks committed by `git add -A`, because `.gitignore` said
+`node_modules/` — **a trailing slash matches a directory and not a symlink of the same name.**
+
+CI died in Install, before a test ran:
+
+```
+npm error ENOTDIR: not a directory, mkdir '.../apps/mobile/node_modules'
+```
+
+The worse half is local. Checking that branch out into a normal checkout makes git write the
+tracked symlink **over the real `node_modules` directory** — it is willing to, because the
+directory is ignored — and the result is a symlink pointing at itself. The tree needs a full
+`npm install` to recover. Recovering it is what this entry cost.
+
+Fixed by dropping the slash. Two rules worth keeping:
+
+1. **Ignore rules for build directories should have no trailing slash**, so they cover the
+   symlink someone will eventually put there.
+2. **Never check out an untrusted branch in the working tree you are relying on.** Use
+   `git worktree add` in a scratch directory: writing the symlink there destroys nothing.
+
+## Symlinking node_modules into a worktree breaks workspace resolution — 2026-08-10
+
+The related trap, found the same day. Symlinking the whole `node_modules` into a worktree
+points `@graybag/shared` back at the **main checkout**, because npm's workspace link is a
+relative symlink resolved from `node_modules`' own directory. TypeScript resolves the workspace
+by relative path and sees the worktree; jest resolves through `node_modules` and sees main.
+
+So `npm run typecheck` passes against new code in `packages/shared` while every mobile test
+fails with `api.<newFunction> is not a function` — the two toolchains disagreeing about which
+copy of the package they are looking at. If a worktree needs to skip an install, make
+`node_modules` a real directory, symlink the individual entries, and point `@graybag/*` at the
+worktree's own `packages/` and `apps/`.

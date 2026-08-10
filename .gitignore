@@ -8,7 +8,15 @@
 # in here when a task needs it; this rule keeps it from being committed again.
 Legacy-Application/
 
-node_modules/
+# No trailing slash, deliberately. `node_modules/` matches a *directory* and not a **symlink**
+# of the same name — so a worktree that symlinks node_modules to save an install has both
+# links staged by `git add -A`, silently. That reached CI once (2026-08-10): `npm ci` died on
+# `ENOTDIR: not a directory, mkdir .../apps/mobile/node_modules` before a single test ran.
+#
+# The worse half is local: checking out a branch carrying a tracked `node_modules` symlink
+# makes git write that symlink **over the real directory**, because the directory is ignored.
+# The tree then needs a full `npm install` to recover. It cost one.
+node_modules
 .env
 .env.*
 !.env.example
