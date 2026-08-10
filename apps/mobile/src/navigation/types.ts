@@ -33,6 +33,14 @@ export type RootStackParamList = {
    */
   AddChild: undefined;
   /**
+   * The children a parent has added (`E05-01`). Reached from Account, like `AddChild` and
+   * for the same reason — the mock has four tabs, and this is not one of them.
+   *
+   * It mounts signed out and shows its empty state, which is `AR7` again: a list that
+   * demanded a session before it would tell you it was empty is a wall.
+   */
+  Children: undefined;
+  /**
    * The auth gate. Nothing navigates here on open — only a checkout attempt does
    * (`AR7`). `intent` is what the user was trying to do, so the flow can resume it
    * rather than dumping them on Home having forgotten why they signed in.
