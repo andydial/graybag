@@ -4462,13 +4462,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/10</span>
+          <span class="meter-num">0/20</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 10 tasks</summary>
+        <summary>Context &amp; 20 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -4490,9 +4490,12 @@
 <p><strong>Not done</strong> means: built, but not compared against its states, or not seen on a device. Say so</p>
 <p>rather than ticking it.</p>
 <h4>Progress, 2026-08-10</h4>
-<p><code>[~]</code> means **built to the prototype and on a device, but not yet compared against every state</p>
-<p>in its list.** That is deliberately not <code>[x]</code>: the definition of done above says every state,</p>
-<p>and calling them finished because the happy path looks right is the exact mistake <code>E13</code> made.</p>
+<p><strong>Ten screens are built and on a device. None is ticked</strong>, and that is the point: the definition</p>
+<p>of done above says *every* state compared, and calling a screen finished because its happy path</p>
+<p>looks right is the exact mistake <code>E13</code> made.</p>
+<p>They are tracked as open with a <strong>BUILT</strong> note rather than a third checkbox state — the build</p>
+<p>script understands <code>[ ]</code> and <code>[x]</code> only, and a <code>[~]</code> silently dropped all ten from the totals,</p>
+<p>which is precisely the quiet miscount this epic exists to prevent.</p>
 <p>Built this session: Menu, Dish detail, Add child, Sign in, Email OTP, Home, Choose school,</p>
 <p>Orders, Children, Account. Not started: Order detail, Checkout/payment, Order confirmed, Policy</p>
 <p>gate, Can&#39;t connect, Splash, Support.</p></div>
@@ -4505,6 +4508,30 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Cart</strong> — ux-spec §5.7. States: empty · loaded · signed-out · no</span>
       </li>
+      <li class="task" data-id="E21-02" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-02"></button>
+        <code class="tid">E21-02</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Menu</strong> — §5.5. States: loading (six skeleton cards) · loaded ·</span>
+      </li>
+      <li class="task" data-id="E21-03" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-03"></button>
+        <code class="tid">E21-03</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Dish detail</strong> — §5.6. States: loading · loaded · no photo (pattern</span>
+      </li>
+      <li class="task" data-id="E21-04" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-04"></button>
+        <code class="tid">E21-04</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Add child / Add someone</strong> — §5.10. States: empty form · invalid ·</span>
+      </li>
       <li class="task" data-id="E21-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-05"></button>
         <code class="tid">E21-05</code>
@@ -4513,6 +4540,46 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Edit child</strong> — §5.10.1. States: loading · loaded · invalid · saving · saved ·</span>
       </li>
+      <li class="task" data-id="E21-06" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-06"></button>
+        <code class="tid">E21-06</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Sign in</strong> — §5.8. States: default · email sent · cancelled · error · offline.</span>
+      </li>
+      <li class="task" data-id="E21-07" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-07"></button>
+        <code class="tid">E21-07</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Email OTP</strong> — §5.9 and §5.9.1. States: awaiting · verifying · wrong code ·</span>
+      </li>
+      <li class="task" data-id="E21-08" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-08"></button>
+        <code class="tid">E21-08</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Home</strong> — §5.4. States: signed out · signed in no recipient · one recipient ·</span>
+      </li>
+      <li class="task" data-id="E21-09" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-09"></button>
+        <code class="tid">E21-09</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Choose school</strong> — §5.3. States: loading · loaded · empty search · empty list ·</span>
+      </li>
+      <li class="task" data-id="E21-10" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-10"></button>
+        <code class="tid">E21-10</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Orders list</strong> — §5.14. States: loading · loaded · empty · signed out · offline ·</span>
+      </li>
       <li class="task" data-id="E21-11" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-11"></button>
         <code class="tid">E21-11</code>
@@ -4520,6 +4587,22 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Order detail</strong> — §5.15. States: loading · loaded · cancellable · not cancellable</span>
+      </li>
+      <li class="task" data-id="E21-12" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-12"></button>
+        <code class="tid">E21-12</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Your children / Who you order for</strong> — §5.16. States: loading · loaded · empty ·</span>
+      </li>
+      <li class="task" data-id="E21-13" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-13"></button>
+        <code class="tid">E21-13</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Account</strong> — §5.17. States: signed out · signed in. Keeps the build label</span>
       </li>
       <li class="task" data-id="E21-14" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-14"></button>
