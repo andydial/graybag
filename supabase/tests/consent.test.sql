@@ -179,5 +179,50 @@ select is_empty(
          or capture_context::text ilike '%peanut%' $$,
   '§11.5 / non-negotiable #4: capture_context records the screen and the app version, never the child. A consent record is evidence, not a second copy of the data');
 
+-- =============================================================================
+-- 7. The row every authenticated policy depends on — `E05-20`, migration `0018`.
+--
+-- Nothing created an `app_user` row until `0018`. Every suite in this directory inserts its
+-- own, which is exactly why none of them noticed: the fixtures supplied what the real
+-- sign-up path never produced. `auth_is_live_user()` was therefore false for every real
+-- parent, so signing in emptied the school picker and adding a child died on a foreign key.
+--
+-- These assert the *sign-up* path rather than the fixture path — an `auth.users` row and
+-- nothing else, which is all a real email-OTP sign-in produces.
+-- =============================================================================
+
+insert into auth.users (id, email) values
+  ('a0000000-7e57-0000-0000-00000000c010', 'signup-c010@example.test');
+
+select is(
+  (select count(*)::int from app_user where id = 'a0000000-7e57-0000-0000-00000000c010'),
+  1,
+  'E05-20: an auth.users row alone creates the app_user row. Before 0018 nothing did, and '
+  'auth_is_live_user() — which every authenticated policy is gated on — was false for every '
+  'real user: an empty school picker the moment they signed in');
+
+select ok(
+  (select phone_e164 is null from app_user where id = 'a0000000-7e57-0000-0000-00000000c010'),
+  'and it has no phone. v1 sign-in is Google, Apple or email OTP with no phone OTP (U1), so '
+  'there is no number a trigger could honestly invent — which is why phone_e164 stopped being '
+  'not null rather than being filled with a placeholder');
+
+select is(
+  (select email::text from app_user where id = 'a0000000-7e57-0000-0000-00000000c010'),
+  'signup-c010@example.test',
+  'and the email came across, so the account is identifiable without a second write');
+
+-- A second account with no phone must not collide with the first. The old index was total,
+-- not partial — a trap left for whoever adds a phone number later.
+insert into auth.users (id, email) values
+  ('a0000000-7e57-0000-0000-00000000c011', 'signup-c011@example.test');
+
+select is(
+  (select count(*)::int from app_user
+    where id in ('a0000000-7e57-0000-0000-00000000c010', 'a0000000-7e57-0000-0000-00000000c011')),
+  2,
+  'two accounts with no phone coexist — uq_app_user_phone is partial now, like the email one '
+  'beside it always was');
+
 select * from finish();
 rollback;

@@ -163,6 +163,8 @@ insert into auth.users (id) values
   ('a0000000-7e57-0000-0000-00000000000c'),  -- revokedGrantee grant with revoked_at set
   ('a0000000-7e57-0000-0000-00000000000d');  -- schoolScoped   orders.view @ schoolA1 only
 
+-- `0018` added a trigger on `auth.users`, so these rows already exist by the time we reach
+-- here — the fixture no longer creates the account, it *describes* it.
 insert into app_user (id, phone_e164, first_name, last_name, is_disabled, deleted_at) values
   ('a0000000-7e57-0000-0000-000000000001', '+917570000001', 'Asha',   'Customer', false, null),
   ('a0000000-7e57-0000-0000-000000000002', '+917570000002', 'Bikram', 'Customer', false, null),
@@ -176,7 +178,11 @@ insert into app_user (id, phone_e164, first_name, last_name, is_disabled, delete
   ('a0000000-7e57-0000-0000-00000000000a', '+917570000010', 'Jai',    'City',     false, null),
   ('a0000000-7e57-0000-0000-00000000000b', '+917570000011', 'Kiran',  'Expired',  false, null),
   ('a0000000-7e57-0000-0000-00000000000c', '+917570000012', 'Lata',   'Revoked',  false, null),
-  ('a0000000-7e57-0000-0000-00000000000d', '+917570000013', 'Manish', 'Scoped',   false, null);
+  ('a0000000-7e57-0000-0000-00000000000d', '+917570000013', 'Manish', 'Scoped',   false, null)
+on conflict (id) do update set
+  phone_e164 = excluded.phone_e164, first_name = excluded.first_name,
+  last_name = excluded.last_name, is_disabled = excluded.is_disabled,
+  deleted_at = excluded.deleted_at;
 
 insert into city (id, code, name, state_name, gst_state_code) values
   ('c1000000-7e57-0000-0000-000000000001', 'test_sas_nagar', 'SAS Nagar (Mohali)', 'Punjab', '03'),
