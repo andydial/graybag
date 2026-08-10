@@ -214,6 +214,25 @@ export const status = {
   info: forest[500],
 } as const;
 
-export const semantic = { bg, text, border, action, nav, badge, focus, status } as const;
+/**
+ * The veg / egg / non-veg mark — `E21`, and the one part of the palette the brand package does
+ * not supply, because the nine reference screens are a generic delivery template and none of
+ * them has one.
+ *
+ * In India this is the **first thing** a parent looks at on a menu, and the convention is not
+ * ours to reinterpret: a filled dot inside a square outline, green for vegetarian, amber-brown
+ * for egg, dark red for non-vegetarian. Deviating would not read as design, it would read as a
+ * mistake — or worse, be misread.
+ *
+ * These are darker than the brand ramp's mid steps on purpose: the mark is a small dot on a
+ * photograph, so it needs contrast against food, not against white.
+ */
+export const foodType = {
+  veg: primary[800],
+  egg: amber[800],
+  nonVeg: danger[700],
+} as const;
+
+export const semantic = { bg, text, border, action, nav, badge, focus, status, foodType } as const;
 
 export type SemanticRoles = typeof semantic;

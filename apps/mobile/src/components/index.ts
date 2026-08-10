@@ -35,3 +35,19 @@ export { CartBadge, CART_BADGE_MIN_SIZE, useCountCrossFade } from './cart/CartBa
 export { CollapsibleContainer } from './motion/CollapsibleContainer';
 export { InlineError } from './motion/InlineError';
 export { SwipeRow, ARM_THRESHOLD } from './motion/SwipeRow';
+
+/**
+ * The brand furniture (`E21`). One implementation of the header, the veg mark and the pattern
+ * tile, because eight screens are about to use them and a second copy is how two screens come
+ * to disagree about what the product looks like.
+ */
+export {
+  AllergenFlag,
+  BrandHeader,
+  BrandPanel,
+  FoodTypeMark,
+  Lockup,
+  PatternTile,
+  SectionHeading,
+} from './Brand';
+
