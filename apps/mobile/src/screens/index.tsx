@@ -15,11 +15,23 @@ import { useSelectedSchool } from '../session/SelectedSchoolContext';
  * standing constraint and the way it gets broken is one screen at a time.
  */
 
+/**
+ * Every `body` below is written for a parent holding the phone, not for us (`E14-17`).
+ *
+ * What was here before were build notes — "Browsable signed out", "Never a wall — the tab
+ * still opens" — and they shipped to a real device. They record real constraints (`AR7`,
+ * `D7`) and those constraints now live in these comments, which is where they were always
+ * meant to be. The screen says what will be on it, in the second person, as a future,
+ * because it genuinely is not built yet.
+ */
+
+// `AR7`: Home opens with no session and always will. Today's specials are the hook, and a
+// hook behind a sign-in wall is not a hook.
 export const HomeScreen = () => (
   <PlaceholderScreen
     testID="screen-home"
-    title="Home"
-    note="Delivery school, today's specials, top of week. Browsable signed out."
+    title="Welcome to GrayBag"
+    body="Today's specials and the week ahead will show up here. For now, tap Menu to see the food and start an order."
   />
 );
 
@@ -58,35 +70,41 @@ export const MenuScreen = () => {
  */
 export { CartScreen } from '../cart/CartScreen';
 
+// `AR7`, and the reason the old note said "never a wall": this tab **opens** signed out
+// rather than redirecting to sign-in. The invitation is the content, not a gate — which is
+// why the copy leads with what signing in gets you and then says what works without it.
 export const AccountScreen = () => (
   <PlaceholderScreen
     testID="screen-account"
-    title="Account"
-    note="Signed out: an invitation to sign in. Never a wall — the tab still opens."
+    title="Your account"
+    body="Sign in to add your children, see your orders and manage payment. You can browse the menu and fill your cart without signing in."
   />
 );
 
+// Reached from Account and Home rather than being a fifth tab — the mock has four.
 export const OrdersScreen = () => (
   <PlaceholderScreen
     testID="screen-orders"
-    title="Orders"
-    note="Order history. Reachable from Account and Home rather than a fifth tab."
+    title="Your orders"
+    body="Once you have placed an order it will appear here, with what was ordered, for whom, and when it will be delivered."
   />
 );
 
+// `D7`: the allergen warning belongs at add-to-cart, on this screen. That is a constraint on
+// what gets built here, not something to say to a parent in advance of it existing.
 export const DishDetailScreen = () => (
   <PlaceholderScreen
     testID="screen-dish-detail"
-    title="Dish"
-    note="Dish detail sheet, allergen warnings at add-to-cart (D7). Browsable signed out."
+    title="Dish details"
+    body="The full description, what is in it and any allergen information will appear here."
   />
 );
 
 export const OrderDetailScreen = () => (
   <PlaceholderScreen
     testID="screen-order-detail"
-    title="Order"
-    note="One order group: status, pickup code, invoice."
+    title="Order details"
+    body="This is where you will find what was ordered, its delivery status and your invoice."
   />
 );
 
