@@ -37,6 +37,16 @@ export {
   type ApiSchool,
 } from './schools.js';
 
+// The allergens a parent ticks when adding a child (E05-01). Ids, not names, because
+// `recipient_allergen` and `dish_allergen` share this vocabulary — that shared row id is the
+// whole mechanism behind an allergen warning, and a free-text note cannot do it.
+export {
+  ALLERGEN_COLUMNS,
+  AllergenPayloadError,
+  fetchAllergens,
+  type ApiAllergen,
+} from './allergens.js';
+
 // Sign-in (E03, U1). Email OTP today; Google and Apple join this surface rather than
 // growing a second one. No passwords, and no path that could carry one.
 export {

@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react-native';
+import { NavigationContainer } from '@react-navigation/native';
 
 import {
   AccountScreen,
@@ -49,9 +50,23 @@ const SCREENS: [string, () => React.JSX.Element, string][] = [
   ['Order detail', OrderDetailScreen, 'screen-order-detail'],
 ];
 
+/**
+ * Screens are mounted inside a `NavigationContainer`.
+ *
+ * Account gained a working action in `E05-01` — "Add a child" navigates — so it calls
+ * `useNavigation` and throws outside a container. Rendering these bare used to work and
+ * quietly stopped being the right shape the moment a placeholder could do something.
+ */
+const mount = (Screen: () => React.JSX.Element) =>
+  render(
+    <NavigationContainer>
+      <Screen />
+    </NavigationContainer>,
+  );
+
 /** Every string the screen puts on the display, heading included. */
 async function textOf(Screen: () => React.JSX.Element, testID: string): Promise<string> {
-  await render(<Screen />);
+  await mount(Screen);
   // Asserted here so a screen that stopped rendering fails as a missing screen rather than
   // as empty copy, which would read as a passing vocabulary check.
   expect(screen.getByTestId(testID)).toBeOnTheScreen();
@@ -97,7 +112,7 @@ describe('the screens that are not built yet', () => {
   });
 
   it.each(SCREENS)('%s carries a heading for a screen reader', async (_name, Screen, testID) => {
-    await render(<Screen />);
+    await mount(Screen);
     expect(screen.getByTestId(testID)).toBeOnTheScreen();
     expect(screen.getByRole('header')).toBeOnTheScreen();
   });

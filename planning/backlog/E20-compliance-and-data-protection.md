@@ -19,7 +19,7 @@ also exposed the data publicly.
 ## Tasks
 
 - [ ] `E20-01` (risk:critical) (owner:andy) Confirm DPDP obligations that apply to GrayBag with a lawyer or the accountant — children's data, verifiable parental consent, grievance officer, breach reporting timelines
-- [ ] `E20-02` (risk:critical) (mvp) **Consent capture** at dependent creation: explicit, purpose-scoped, recorded with timestamp and policy version
+- [x] `E20-02` (risk:critical) (mvp) **Consent capture** at dependent creation: explicit, purpose-scoped, recorded with timestamp and policy version
 - [ ] `E20-03` (risk:critical) (mvp) `policy_version` and `user_policy_acceptance` tables — store which version each user accepted and when. Ordering is blocked until the current version is accepted
 - [ ] `E20-04` (mvp) Consent withdrawal and data deletion flow, honouring both DPDP and app-store account-deletion requirements (pairs with `E03-08`)
 - [ ] `E20-05` Data retention policy: how long orders, invoices (statutory minimum), children's records and logs are kept, and automated purge for anything past it

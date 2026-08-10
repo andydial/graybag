@@ -69,7 +69,14 @@ export const touchTarget = {
   min: 48,
   /** Minimum gap between adjacent targets. */
   minGap: space[2],
-  /** The stepper, heart and bell draw at this and are hit-slopped out to `min`. */
+  /**
+   * The stepper, heart, bell and **checkbox** draw at this and are hit-slopped — or, in the
+   * checkbox's case, wrapped in a `min`-height row — out to `min`.
+   *
+   * The checkbox joined the list in `E05-01` rather than getting a size of its own: it is
+   * the same case the other three are, a small visual affordance inside a full-size target,
+   * and a fourteenth number would say it was a different one.
+   */
   visualSmall: 28,
 } as const;
 

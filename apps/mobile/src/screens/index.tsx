@@ -1,6 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
+import Constants from 'expo-constants';
 
 import { PlaceholderScreen } from './PlaceholderScreen';
+import { AddChildScreen as AddChildScreenImpl } from '../recipients/AddChildScreen';
 import { MenuScreen as MenuScreenImpl } from '../menu/MenuScreen';
 import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
@@ -73,13 +75,21 @@ export { CartScreen } from '../cart/CartScreen';
 // `AR7`, and the reason the old note said "never a wall": this tab **opens** signed out
 // rather than redirecting to sign-in. The invitation is the content, not a gate — which is
 // why the copy leads with what signing in gets you and then says what works without it.
-export const AccountScreen = () => (
-  <PlaceholderScreen
-    testID="screen-account"
-    title="Your account"
-    body="Sign in to add your children, see your orders and manage payment. You can browse the menu and fill your cart without signing in."
-  />
-);
+//
+// The one action is real (`E05-01`). It is reached **by intent** from here and is never
+// pushed at anybody: `AR7` says adding a child must not be a wall in front of browsing.
+export const AccountScreen = () => {
+  const navigation = useNavigation();
+  return (
+    <PlaceholderScreen
+      testID="screen-account"
+      title="Your account"
+      body="Sign in to add your children, see your orders and manage payment. You can browse the menu and fill your cart without signing in."
+      actionLabel="Add a child"
+      onAction={() => navigation.navigate('AddChild')}
+    />
+  );
+};
 
 // Reached from Account and Home rather than being a fifth tab — the mock has four.
 export const OrdersScreen = () => (
@@ -119,4 +129,28 @@ export const OrderDetailScreen = () => (
 export const SignInScreen = () => {
   const navigation = useNavigation();
   return <SignInScreenImpl onSignedIn={() => navigation.goBack()} />;
+};
+
+/**
+ * Adding a child (`E05-01`, `E20-02`).
+ *
+ * The school defaults to the one already being browsed. A parent arriving here has almost
+ * always answered "which school" once already, and `AR7` makes every avoidable step a cost
+ * we can measure in registrations.
+ *
+ * `app_version` goes onto the consent record as evidence of *which build* showed the wording.
+ * It comes from `expo-constants` rather than a literal, so it cannot drift from the binary.
+ */
+export const AddChildScreen = () => {
+  const navigation = useNavigation();
+  const { schoolId, schoolName } = useSelectedSchool();
+
+  return (
+    <AddChildScreenImpl
+      initialSchool={{ schoolId, schoolName }}
+      appVersion={Constants.expoConfig?.version ?? 'unknown'}
+      onAdded={() => navigation.goBack()}
+      onCancel={() => navigation.goBack()}
+    />
+  );
 };

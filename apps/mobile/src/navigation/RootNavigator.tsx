@@ -7,6 +7,7 @@ import { design } from '@graybag/shared';
 
 import {
   AccountScreen,
+  AddChildScreen,
   CartScreen,
   DishDetailScreen,
   HomeScreen,
@@ -126,6 +127,7 @@ const AccountTab = withScreenFrame(AccountScreen, TAB_SCREEN_EDGES);
 const DishDetailStackScreen = withScreenFrame(DishDetailScreen, STACK_SCREEN_EDGES);
 const OrdersStackScreen = withScreenFrame(OrdersScreen, STACK_SCREEN_EDGES);
 const OrderDetailStackScreen = withScreenFrame(OrderDetailScreen, STACK_SCREEN_EDGES);
+const AddChildStackScreen = withScreenFrame(AddChildScreen, STACK_SCREEN_EDGES);
 // The modal takes the full set too. On iOS it is presented as a page sheet whose top already
 // clears the status bar, so the top inset buys a little unnecessary whitespace there; on
 // Android `presentation: 'modal'` is a full-screen route where the same inset is the
@@ -238,6 +240,9 @@ export function RootNavigator() {
         <Stack.Screen name="DishDetail" component={DishDetailStackScreen} />
         <Stack.Screen name="Orders" component={OrdersStackScreen} />
         <Stack.Screen name="OrderDetail" component={OrderDetailStackScreen} />
+        {/* Reached by intent from Account, never pushed (`AR7`). A stack screen rather than
+            a tab for the same reason `Orders` is one: the mock has four tabs. */}
+        <Stack.Screen name="AddChild" component={AddChildStackScreen} />
         <Stack.Screen
           name="SignIn"
           component={SignInStackScreen}

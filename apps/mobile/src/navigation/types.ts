@@ -27,6 +27,12 @@ export type RootStackParamList = {
   Orders: undefined;
   OrderDetail: { orderGroupId: string };
   /**
+   * Adding a child (`E05-01`). A stack screen reached **by intent** from Account, never a
+   * step the app pushes you into — `AR7` says in as many words that adding a child must not
+   * be a wall in front of browsing the menu.
+   */
+  AddChild: undefined;
+  /**
    * The auth gate. Nothing navigates here on open — only a checkout attempt does
    * (`AR7`). `intent` is what the user was trying to do, so the flow can resume it
    * rather than dumping them on Home having forgotten why they signed in.
