@@ -2075,7 +2075,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Safe-area frame at the shell</strong>, applied where routes are registered rather than screen by screen — the first iOS build drew every screen from y=0, under the status bar</span>
       </li>
-      <li class="task" data-id="E14-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E14-16" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-16"></button>
         <code class="tid">E14-16</code>
         
@@ -3613,13 +3613,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/27</span>
+          <span class="meter-num">0/28</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 27 tasks</summary>
+        <summary>Context &amp; 28 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -3842,6 +3842,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Decouple Gate G3 (point of no return) from the overnight run.</strong> Reach the reversible Gate G2 overnight, then a mandatory operator rest gate, then sign G3 fresh (Sat afternoon or Sun morning) — the weekend freeze has slack (42h soak, no Sat/Sun service). Implements the option chosen in <code>[CO-08]</code> (review finding #23)</span>
+      </li>
+      <li class="task" data-id="E17-28" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-28"></button>
+        <code class="tid">E17-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Split the non-production app identity</strong> — <code>com.gracord.graybag.staging</code> / <code>com.Gracord.Graybag.staging</code>, display name &quot;GrayBag Staging&quot;, its own URL scheme. An internal build must install *beside* the live store app, never over it</span>
       </li></ul>
       </details>
     </article>
