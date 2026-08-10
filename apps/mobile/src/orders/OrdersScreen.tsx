@@ -399,7 +399,7 @@ function Prompt({
   title: string;
   body: string;
   actionLabel: string;
-  onAction?: () => void;
+  onAction?: (() => void) | undefined;
 }) {
   return (
     <View style={styles.prompt}>

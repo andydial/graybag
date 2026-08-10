@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 
 
 import { AccountScreen as AccountScreenImpl } from '../account/AccountScreen';
+import { OrdersScreen as OrdersScreenImpl } from '../orders/OrdersScreen';
 import { requiresSignIn, useSession } from '../session/SessionContext';
 
 import { PlaceholderScreen } from './PlaceholderScreen';
@@ -118,13 +119,32 @@ export const AccountScreen = () => {
 
 // Reached from Account. `navigation/types.ts` used to say "and from Home" as well; Home has no
 // such link, and saying so was how nobody noticed this screen had no door at all.
-export const OrdersScreen = () => (
-  <PlaceholderScreen
-    testID="screen-orders"
-    title="Your orders"
-    body="Once you have placed an order it will appear here, with what was ordered, for whom, and when it will be delivered."
-  />
-);
+/**
+ * Orders (`E21-10`), wired.
+ *
+ * **It is passed no orders, and that is honest rather than lazy.** There is no `fetchOrders` in
+ * the `api/` module — `E06` brings it — so the screen renders its empty state, which is the true
+ * answer for a build that cannot ask. Inventing a fetch, or worse a fixture, would make an
+ * unbuilt feature look finished.
+ *
+ * Signed out it prompts rather than walls (`AR7`).
+ */
+export const OrdersScreen = () => {
+  const navigation = useNavigation();
+  const session = useSession();
+
+  return (
+    <OrdersScreenImpl
+      signedOut={requiresSignIn(session)}
+      onSignIn={() => navigation.navigate('SignIn')}
+      // `Tabs` takes no params in RootStackParamList, so the nested-navigate form is not
+      // typed here. Going back to the tabs lands on the last tab, which for anyone who
+      // reached Orders from Account is Account — good enough until the param list grows.
+      onBrowseMenu={() => navigation.navigate('Tabs')}
+      onSelectOrder={(orderGroupId) => navigation.navigate('OrderDetail', { orderGroupId })}
+    />
+  );
+};
 
 /**
  * Real as of `E04-12` / `E14-14`. `D7`: the allergen warning belongs at add-to-cart, on this
