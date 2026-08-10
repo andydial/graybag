@@ -49,3 +49,6 @@ Found while building Block 4 (2026-08-09). Untagged — fast-follow until Andy s
 - [ ] `E13-24` Single `typography.family` token plus a lint rule failing any `fontFamily` literal outside it, so swapping in VAG Rounded Next is one line if the licence allows it (ux-spec §3.2)
 - [ ] `E13-25` (risk:high) Dynamic-type behaviour to ux-spec §3.5: single-column fallback past `fontScale >= 1.35`, tab-bar labels dropped before icons shrink, and price / allergen warning / primary action never truncated
 - [ ] `E13-26` Re-shoot the three dish photos that are a permanent 403 at the legacy CDN (Aloo Channa Chaat, Tomato-Cucumber cheese sandwich, mushroom-pesto pasta) — see `E16-29`
+
+- [ ] `E13-27` Edit child screen — ux-spec §5.10.1, including consent-already-given, the school-change block on undelivered orders, and real deletion when allergen consent is withdrawn
+- [ ] `E13-28` Cutoff copy everywhere: full weekday, date and time; timezone shown only when it differs from the device's (ux-spec R7)

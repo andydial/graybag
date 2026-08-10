@@ -40,7 +40,7 @@ These are settled. They are not re-litigated per screen.
 | R4 | **Menu prices are GST-exclusive.** 5% added at checkout as CGST 2.5% + SGST 2.5%. | `docs/mvp-scope.md`, confirmed 2026-08-07 | Dish cards and dish detail show the ex-GST price. The tax lines appear once, in the cart/checkout total block. A dish card price and the cart line price are the same number. |
 | R5 | **All money is integer paise.** | non-negotiable #3 | Display formats at the edge only. Never a float in state. |
 | R6 | **Children's data is regulated.** Names, class, section, allergies are tier P/S. | DPDP, non-negotiable #4 | Never in logs, Sentry, analytics, or any error string. Failure messages carry an index, never a name. Screenshots for the store must not contain a real child. |
-| R7 | **The cutoff is server-authoritative.** The app's calendar is UX only (E1). | `order-lifecycle.md` §9.2 | Every screen that shows a cutoff shows it **in the school's timezone with the zone named** (C4). A cart valid at 22:00 can be rejected at 22:05 (C8) — the cart screen must handle rejection, never assume it cannot happen. |
+| R7 | **The cutoff is server-authoritative.** The app's calendar is UX only (E1). | `order-lifecycle.md` §9.2 | Cutoffs are written in full — **weekday, date and time** ("Ordering closes on Monday 11 Aug, 11:59 PM"), never a bare "00:00", which is ambiguous about which midnight and reads a whole day wrong (`C5`). Resolved in the school's timezone always; **the zone is displayed only when it differs from the device's** (`C4`), so the common case stays short and the parent abroad still gets it right. A cart valid at 22:00 can be rejected at 22:05 (C8) — the cart must handle rejection, never assume it cannot happen. |
 | R8 | **"Payment succeeded" in the Razorpay sheet is not a confirmed order.** | §8.4, §13 `payment_pending` | The confirmation screen is unreachable until settlement is confirmed server-side. The intermediate state is a waiting state. |
 | R9 | **Skeletons, never spinners.** | `S5`, `docs/motion-system.md` | Every loading state in §5 is a skeleton of the content that is coming. |
 | R10 | **Read-only offline.** Cached menu, stale banner, writes refused with an honest message. | Performance priorities | Every write control has a defined offline behaviour in §5. |
@@ -110,7 +110,7 @@ The rule, applied on every screen and not only the menu:
 | Text size | Menu / promoted rails | Everything else |
 |---|---|---|
 | Default → `xxLarge` | Two-column grid, name capped at 2 lines | As specified in §5 |
-| `AX1` and above (`fontScale ≥ 1.35`) | **Single column.** Photo becomes a 96 pt leading thumbnail, the name gets as many lines as it needs, price below | Horizontal rails become vertical lists; chip rows wrap instead of scrolling; the tab bar drops its labels before it shrinks its icons |
+| `AX1` and above (`fontScale ≥ 1.35`) | **Single column.** Photo becomes a 96 pt leading thumbnail, the name gets as many lines as it needs, price below | Horizontal rails become vertical lists; chip rows wrap instead of scrolling; **the tab bar keeps its labels and grows** — stacking icon over label. Removing text because the user asked for larger text is the opposite of what they asked for |
 
 Three things are absolute regardless of size: **no truncated price**, **no truncated allergen
 warning**, and **no clipped primary action**. If something must give, it is the photograph.
@@ -224,6 +224,8 @@ reviewer can challenge it.
 - **Dish card.** Photo (16:10, rounded 16), veg/non-veg mark top-left on the photo, name (2 lines
   max), price ex-GST in green, and an **allergen flag** when the dish contains a declared allergen
   of the selected child. Tapping adds nothing — it opens the dish (a mis-tap must never add food).
+  The same rule binds the promoted dish on Home: its button reads **"See dish"** and opens the
+  sheet. A control labelled "Order" that does not order is a worse lie than a missing button.
 - **States.** *Loading* (six skeleton cards, not a spinner) · *Loaded* · *Empty — menu
   unpublished* ("Nothing on the menu yet") · *Empty — search* (with "Clear search") · *Empty —
   category* · *Error* (retry) · *Offline/stale* (cached grid + "Offline — showing the menu you
@@ -235,20 +237,75 @@ reviewer can challenge it.
 
 - **Purpose.** Everything a parent needs to decide, then add to cart.
 - **Elements.** Bottom sheet over the menu (ref `07`): grabber, photo, name + category, veg mark,
-  description, ingredients when present, **allergen block**, quantity stepper, "For \<child\> on
-  \<date\>" selector, and a sticky "Add to cart (₹X)" showing the ex-GST line total.
-- **Allergen block.** Three distinct renderings, and the difference matters:
-  - *Contains an allergen the selected child has declared* — amber block, named, and the add
-    button requires a second confirm.
-  - *Kitchen declared "no allergens"* (`allergens_declared_none`) — plain reassurance line.
-  - *Nothing declared either way* — "Allergen information not provided for this dish." This is
-    **not** the same as "no allergens" and must never be rendered as if it were.
-- **States.** *Loading* · *Loaded* · *No photo* (see [NEEDS ANDY] in §8 — pattern-filled brand
-  placeholder, never a grey box) · *Signed-out* (adding works; R1) · *No child selected* (adding
-  works; the child is chosen at checkout) · *Unavailable* (dish dropped from the menu while open
-  → block the add, explain, offer back to menu) · *Cutoff passed for the chosen date* (date
-  chip goes amber, add disabled, offers the next open date) · *Offline* (add to cart works —
-  the cart is local; the sheet says the price will be reconfirmed).
+  description, ingredients when present, **allergen block**, the **For** block, the **kitchen
+  note** field (5.6.1), and a sticky **"Add to cart · ₹X"** showing the ex-GST line total.
+- **The For block is not optional furniture.** It carries the child, class, school, break time
+  and service date, and it appears here as well as in the cart because **a parent must never be
+  one tap from paying without seeing whose lunch this is and when it is handed over**. Signed
+  out it says so plainly — "No child chosen yet · you'll choose when you place the order" —
+  rather than showing a name that does not exist.
+- **Allergen block — four renderings, and the difference between them is the safety property.**
+
+  | Case | Rendering |
+  |---|---|
+  | Clashes with the **selected child's** declared allergens | Amber, names the child and the allergen, and the add takes a **second deliberate tap** (below) |
+  | **We cannot check** — no child selected, or allergen consent not given | Neutral, explicit: "We can't check this against your child." Followed by the kitchen's own declaration if there is one. **Never** silence, and never reassurance |
+  | Kitchen declared **no allergens** (`allergens_declared_none`) | Plain reassurance line |
+  | Kitchen declared **nothing either way** | "Allergen information not provided." **Not** the same as "no allergens" and never rendered as if it were |
+
+  **The signed-out case is a safety defect if got wrong**, and it was: the prototype rendered a
+  warning naming a child while signed out, where no child and no allergen data exist. A warning
+  is a claim about data we hold; manufacturing one from data we do not hold is the same class of
+  failure as swallowing a failed allergen fetch into an empty list (§5.21). **Audit every
+  allergen surface — dish card flag, dish detail, cart line — against a null child.**
+
+- **The second confirm is a screen, not a word.** When a dish clashes, the button stays neutral —
+  **"Add to cart · ₹95"** — and confirming happens in its own surface naming the child and the
+  allergen: *"Mix Veg Poha contains Peanuts. Aarav is allergic to Peanuts. Add it anyway?"* →
+  *"Yes, add it for Aarav"* / *"Don't add it"*.
+
+  Two reasons it is not a button label. A label reading "Add anyway" is **one** tap doing a
+  confirmation's job, and §5.6 requires two for a decision about a child's allergy. And
+  "anyway" is a reprimand — a parent may have entirely good reasons (a mild intolerance, a dish
+  the kitchen prepares differently for them). The product's job is to make sure they know, not
+  to disapprove.
+
+- **States.** *Loading* · *Loaded* · *No photo* (pattern-filled brand tile, never a grey box) ·
+  *Signed-out* (adding works — R1; no allergen warning can exist) · *No child selected* (adding
+  works; allergen warnings unavailable and said so) · *Allergen clash, unconfirmed* · *Allergen
+  clash, confirmed* · *Unavailable* (dish dropped from the menu while open → block the add,
+  explain, offer back to menu) · *Cutoff passed* (add disabled, offers the next open date) ·
+  *Note contains allergy language* (5.6.1) · *Offline* (add to cart works — the cart is local;
+  the sheet says the price will be reconfirmed).
+
+#### 5.6.1 The kitchen note, and why it is dangerous
+
+The legacy app had `Dish_In_Order.special-comments` and **127 rows used it, 15 of them with
+dietary language** (`docs/bubble-recon-findings.md`). Parents will type "less spicy". They will
+also type "allergic to egg" — and free-text allergy information that nobody has committed to
+reading is **worse than no field at all**, because the parent believes they have told us. Recon
+reclassified those rows as regulated data about children.
+
+So the field exists, and it is designed rather than inherited:
+
+- **Per line, not per order.** "Less spicy" on one wrap and not the other is two lines.
+- **A stated contract, next to the input:** *"Requests only — the kitchen reads these. **Do not
+  put allergies here.** Allergies go on your child's profile so we can warn you before you order."*
+- **Typing allergy language routes you out of the field.** On matching a deliberately broad
+  vocabulary (`allerg`, `intoleran`, `anaphyla`, `coeliac`, `lactose`, `gluten`, `peanut`, `nut`,
+  `dairy`, `milk`, `egg`, `soy`, `sesame`, `epipen`), an amber block explains that notes are not
+  a safety record and offers **"Add to allergy details"**, which goes to Edit child (5.10.1).
+  A false positive costs one dismissible prompt; a false negative is an allergy nobody reads.
+- **Never used to compute a warning**, and never treated as allergen data.
+- **Tier P, so it is never logged** (R6).
+
+> **The field is only honest if the kitchen sees it.** A note the packing list drops is a lie
+> told to a parent at the moment they are trying to be careful. **Decision required and recorded
+> before this ships:** either the kitchen packing list and the per-class delivery sheet render
+> the note against its line — in which case build it — **or the field is not built at all**.
+> There is no acceptable middle. Raised as its own task against `E09`, and until it is answered
+> the field stays out of the React Native build. *(The prototype includes it so the interaction
+> can be judged.)*
 
 ### 5.7 Cart
 
@@ -258,7 +315,10 @@ reviewer can challenge it.
   2. **For** block: child, school, break time, service date. Editable.
   3. Line items: photo, name, veg mark, ex-GST unit price, stepper, remove.
   4. Allergen warnings for the selected child, per line.
-  5. **Cutoff line**: "Ordering for \<date\> closes \<time\> \<zone\>" — school timezone, named (R7/C4).
+  5. **Cutoff line**: "Ordering closes on **Monday 11 Aug, 11:59 PM**." Full weekday, date and
+     time — never a bare "00:00", which is ambiguous about which midnight it means and reads as
+     a whole day wrong (`C5`). **The timezone is shown only when it differs from the phone's**,
+     so the common case stays short and the parent abroad still gets it right (`C4`).
   6. Totals: Subtotal · CGST 2.5% · SGST 2.5% · **Total**. GST-exclusive throughout (R4).
   7. Sticky "Place order".
 - **States.** *Empty* (pattern illustration + "Browse the menu") · *Loaded* · *Signed out* (fully
@@ -353,6 +413,32 @@ Mail at all. *(Owner: whoever writes the transactional email template — raise 
   details entered without allergen consent* (blocked client-side **and** server-side) ·
   *Offline* (save disabled) · *Error*.
 
+#### 5.10.1 Edit child *(new — this spec adds it)*
+
+- **Why it was missing and shouldn't have been.** Children move up a class every September and
+  are routinely put in the wrong section at signup. Over a year the average parent opens this
+  screen **more often than Add child**, and without it the only fix for a typo in a child's name
+  is to contact support.
+- **Purpose.** Correct a child's details, change their allergies, move them to another school,
+  or stop ordering for them.
+- **Elements.** First name, last name, school, class, section; a **consent-already-given** notice
+  showing the date and policy version; the allergen-consent toggle with its allergy chips behind
+  it; Save; and a destructive **Remove** at the bottom, separated.
+- **Three things it must not do:**
+  1. **Re-ask for consent that was already given.** The existing consent stands and its version
+     is *shown*, not re-collected — re-consenting on every edit trains people to tap through it.
+  2. **Move a child to another school while they have undelivered orders.** `future_orders_exist`
+     (`D19`) — those lunches were bought against the old kitchen's menu. The refusal names the
+     count and routes to cancelling those days.
+  3. **Silently drop allergy data when allergen consent is withdrawn.** Turning the toggle off
+     *deletes* the details and stops all warnings, and the screen says exactly that before it
+     happens — withdrawal of consent is a real DPDP right and must actually delete.
+- **States.** *Loading* · *Loaded* · *Invalid* (inline, per field) · *Saving* · *Saved* ·
+  *School change blocked by undelivered orders* · *Allergen consent being withdrawn* (confirm,
+  naming what is deleted) · *Removing child* (confirm; past orders and invoices are retained
+  because we are required to retain them, and the screen says so) · *Offline* (save disabled) ·
+  *Unreachable* · *Error*.
+
 ### 5.11 Checkout review
 
 - **Purpose.** The last screen before money. Nothing new is decided here.
@@ -396,8 +482,10 @@ Mail at all. *(Owner: whoever writes the transactional email template — raise 
 ### 5.16 Children · 5.17 Account · 5.18 Support
 
 - **Children.** List from `guardian_link` (never `recipient.created_by_user_id` — `D10`); rows
-  show name, class, school; `can_manage` governs whether edit is offered. States: *loading* ·
-  *loaded* · *empty* · *co-guardian, read-only* · *error*.
+  show name, class, school, allergy summary, and an **Edit** affordance (5.10.1). States:
+  *loading* · *loaded* · *empty* · *unreachable* · *error*.
+  **One parent per child in v1** (`AR8`) — there is no read-only child, no permission UI and no
+  second-guardian invite. `can_order` stays in the schema, defaulted true.
 - **Account.** Name, email, children, orders, policies, **delete account** (compliance), sign out.
 - **Support.** Grievance officer contact (compliance), email, FAQ.
 
@@ -435,8 +523,10 @@ recoveries, and four different logging outcomes.
 | **N3** | **You can't see this** | The request succeeded and authorization filtered it out | Not a retry. Explain *who* can act, or route to support | Yes — usually a bug or an attempt (§13 `recipient_not_permitted`) |
 | **N4** | **This is what we had last time** | Cache hit, no live fetch | Optional refresh; the content is real and usable | No |
 
-**N3 must never render as N1.** "You have no children" shown to a co-guardian whose link was
-revoked is a lie, and a lie that reads as data loss. **N4 must never render as N1 or be silent** —
+**N3 must never render as N1.** "You have no children" shown to someone whose link was revoked
+is a lie, and a lie that reads as data loss. `AR8` removes the co-guardian route to that state
+but not the class: a revoked link, a deactivated child and a failed read still all render empty
+today. **N4 must never render as N1 or be silent** —
 a menu from Sunday shown on Tuesday without saying so is how a parent orders a dish that was
 withdrawn.
 
@@ -546,7 +636,7 @@ Each of these is a real state the backend can produce. Each has a defined screen
 | **F7** | **Network drops mid-payment** | §10.3 | On return, reconcile against `GET /checkout/:group/status`. Land on the true state: confirmed, still pending, or failed. Never assume, never show a tick (R8). |
 | **F8** | **Order placed, webhook hasn't arrived** | §13 `payment_pending` (202) | Waiting state, skeletoned, polling. After 10 s, promise email. **Not** a success screen. |
 | **F9** | **Parent has two children at different schools** | `guardian_link` | The **child selector is the school selector**. Switching child switches school, menu and cart context. A cart is per-child-per-date; switching child with a non-empty cart asks before discarding. This is the strongest argument for the "Delivering to" card being the primary home control. |
-| **F10** | **Co-guardian without `can_order`** | `recipient_not_permitted` (403) | The child appears (read-only) but ordering is not offered for them, with the reason shown. Reaching the error means a bug — it is logged. |
+| **F10** | ~~Co-guardian without `can_order`~~ | — | **Removed — co-guardians are cut from v1 (`AR8`).** There is no way to become a second guardian, so this state is unreachable. `recipient_not_permitted` remains a hard error meaning a bug or an attempt, never a UI state |
 | **F11** | **Price changed between cart and checkout** | `price_changed` (409) | Show old → new, require explicit re-confirm. Never auto-accept a higher total. |
 | **F12** | **Checkout group swept as abandoned** | `checkout_expired`, §10.4 | "That order timed out." Offer to rebuild the cart from the same items. |
 | **F13** | **Duplicate payment** | §10.6 | Not a UI path — reconciled server-side, refunded. Order detail shows the refund. |
@@ -565,7 +655,7 @@ Straight from `order-lifecycle.md` §13. The app acts on the code, never on the 
 | `price_changed` | 409 | Old → new total, explicit re-confirm (F11) |
 | `item_unavailable` | 409 | Remove the line, say which, re-price |
 | `advance_window` | 409 | Should be unreachable from the calendar; generic refusal + log |
-| `recipient_not_permitted` | 403 | Hard error, support route, log (F10) |
+| `recipient_not_permitted` | 403 | Hard error, support route, log. Not a designed state — with `AR8` it means a bug or an attempt |
 | `insufficient_wallet` | 409 | Re-price without the wallet portion |
 | `idempotency_key_reused` | 409 | Client bug. Do **not** retry. Generic failure + log |
 | `cancellation_closed` | 409 | "Too late to cancel online" + contact support |

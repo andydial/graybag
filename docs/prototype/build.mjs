@@ -130,10 +130,63 @@ if (!template.includes('/*__IMAGES__*/')) {
   process.exit(1);
 }
 
+/**
+ * Verify every deep link the README documents actually resolves.
+ *
+ * The README shipped links that had never been run — `#dish` silently fell back to the splash
+ * screen. A documented link that lands on the wrong screen is worse than no link, because the
+ * reviewer believes they are looking at the thing being discussed. So this fails the build.
+ */
+const screens = new Set([...template.matchAll(/^V\.(\w+)\s*=/gm)].map((m) => m[1]));
+screens.add('dish'); // a sheet over the menu, handled explicitly in applyHash
+const flagBlock = template.match(/const DEFAULT_FLAGS = \{([\s\S]*?)\};/);
+const tokens = new Set([
+  ...[...(flagBlock?.[1] ?? '').matchAll(/(\w+)\s*:/g)].map((m) => m[1]),
+  'signedin',
+  'cart',
+]);
+
+const readme = join(HERE, 'README.md');
+const links = existsSync(readme)
+  ? [...readFileSync(readme, 'utf8').matchAll(/^#([a-z][\w:,]*)/gm)].map((m) => m[1])
+  : [];
+
+const broken = [];
+for (const link of links) {
+  const [screen, ...rest] = link.split(',');
+  if (!screens.has(screen)) broken.push(`#${link} — "${screen}" is not a screen`);
+  for (const token of rest) {
+    const name = token.startsWith('cutoff:') ? 'cutoff' : token;
+    if (!tokens.has(name)) broken.push(`#${link} — "${token}" is not a flag`);
+  }
+}
+if (broken.length) {
+  console.error('README documents deep links that do not resolve:\n  ' + broken.join('\n  '));
+  process.exit(1);
+}
+console.log(`${links.length} documented deep links verified`);
+
 const payload =
   `const DISH_IMAGES = ${JSON.stringify(images)};\n` +
   `const BRAND = ${JSON.stringify(brand)};`;
 const out = template.replace('/*__IMAGES__*/', () => payload);
+
+/**
+ * Parse the page's script before writing it.
+ *
+ * A syntax error here renders a completely blank phone — no rail, no screen, nothing to
+ * suggest what went wrong — and the failure that caused it was invisible in review: one
+ * doubled backslash in `can\\'t` closed a string early. Building a prototype that cannot run
+ * is worse than failing, because the file still exists and looks openable.
+ */
+const script = out.slice(out.indexOf('<script>') + 8, out.lastIndexOf('</script>'));
+try {
+  new Function(script);
+} catch (error) {
+  console.error(`The prototype's script does not parse — refusing to write it.\n  ${error.message}`);
+  process.exit(1);
+}
+
 const target = join(HERE, 'graybag-prototype.html');
 writeFileSync(target, out);
 
