@@ -246,7 +246,15 @@ begin
     ('a0000000-0000-0000-0000-000000000004', '+919000000104', now(), 'divya.student@example.invalid',   now(), 'Divya',  'Student',  'native',          now(), null),
     ('a0000000-0000-0000-0000-000000000005', '+919000000105', now(), 'kitchen.op@example.invalid',      now(), 'Kiran',  'Operator', 'native',          now(), null),
     ('a0000000-0000-0000-0000-000000000006', '+919000000106', now(), 'platform.admin@example.invalid',  now(), 'Priya',  'Admin',    'native',          now(), null)
-  on conflict (id) do nothing;
+  -- `0018` added a trigger on `auth.users`, so this row already exists by the time we get
+  -- here — the fixture no longer creates the account, it *describes* it. `do update`
+  -- rather than `do nothing`, or the columns below are silently discarded.
+  on conflict (id) do update set
+    phone_e164 = excluded.phone_e164, phone_verified_at = excluded.phone_verified_at,
+    email = excluded.email, email_verified_at = excluded.email_verified_at,
+    first_name = excluded.first_name, last_name = excluded.last_name,
+    migration_source = excluded.migration_source, claimed_at = excluded.claimed_at,
+    legacy_bubble_id = excluded.legacy_bubble_id;
 
   -- Recipients. Synthetic names only (non-negotiable #4).
   --

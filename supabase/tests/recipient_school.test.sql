@@ -45,9 +45,14 @@ select ok((select school_a <> school_b from s_ctx),
 -- other column in the gotrue schema is nullable or defaulted and touching more of it would
 -- couple this suite to a gotrue version. Same convention as `authorization.test.sql`.
 insert into auth.users (id) values ('a0000000-7e57-0000-0000-00000000e501');
+-- `0018` added a trigger on `auth.users`, so these rows already exist by the time we reach
+-- here — the fixture no longer creates the account, it *describes* it.
 insert into app_user (id, phone_e164, email, first_name)
 values ('a0000000-7e57-0000-0000-00000000e501', '+919777000502',
-        'stranger-e0502@example.test', 'Stranger');
+        'stranger-e0502@example.test', 'Stranger')
+on conflict (id) do update set
+  phone_e164 = excluded.phone_e164, email = excluded.email,
+  first_name = excluded.first_name;
 
 create temporary table s_kid as
 select create_recipient((select guardian_id from s_ctx), 'Ishaan', 'Movertest',
