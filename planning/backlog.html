@@ -1849,13 +1849,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/28</span>
+          <span class="meter-num">0/31</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 28 tasks</summary>
+        <summary>Context &amp; 31 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2072,7 +2072,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Per-line kitchen note with its stated contract and the allergy-language diversion to Edit child (ux-spec §5.6.1) — <strong>blocked on <code>E09-11</code></strong></span>
+        <span class="ttext">Per-line kitchen note — 140-char cap, best-effort copy, allergy-language diversion to Edit child (ux-spec §5.6.1, <code>P12</code>). <strong>Sequenced after <code>E13-27</code> Edit child</strong>, not blocked on it</span>
       </li>
       <li class="task" data-id="E05-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-28"></button>
@@ -2081,6 +2081,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Remove every co-guardian and read-only-child surface per <code>AR8</code>; <code>can_order</code> stays in the schema defaulted true</span>
+      </li>
+      <li class="task" data-id="E05-29" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-29"></button>
+        <code class="tid">E05-29</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Put the break time on the cart line so the cart can show it. ux-spec §5.7 requires the break to be visible before paying, and it is neither on <code>CartLineInput</code> nor returned by <code>fetchRecipients</code> — today the block says the break is confirmed with the kitchen rather than inventing one</span>
+      </li>
+      <li class="task" data-id="E05-30" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-30"></button>
+        <code class="tid">E05-30</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">An <code>api/</code> calendar read so the cart can show the real cutoff. Until it exists the cart shows no cutoff at all, because a cutoff we have not resolved is a promise about when ordering closes that we cannot keep (ux-spec §5.21)</span>
+      </li>
+      <li class="task" data-id="E05-31" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-31"></button>
+        <code class="tid">E05-31</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">A child-allergens read so the cart and menu can warn. <code>fetchRecipients</code> deliberately withholds them (tier S), so allergen warnings are absent everywhere today — and absent must never be rendered as &quot;safe&quot;</span>
       </li></ul>
       </details>
     </article>
@@ -2910,13 +2934,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/15</span>
+          <span class="meter-num">0/16</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 15 tasks</summary>
+        <summary>Context &amp; 16 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3000,7 +3024,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Kitchen users scoped to their kitchen(s) — currently all-access is acceptable, but the scoping must exist</span>
       </li>
-      <li class="task" data-id="E09-11" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E09-11" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-11"></button>
         <code class="tid">E09-11</code>
         
@@ -3032,13 +3056,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The packing list is tier P and needs a retention rule.</strong> <code>packingCsv</code> names children by design — staff hand food to a named child and there is no version of that job that does not. That makes a downloaded packing CSV regulated data sitting on a kitchen laptop indefinitely. Decide how long it may be kept and how it is destroyed, and put it in <code>docs/dpdp-compliance.md</code>. The file warns the reader in its first row, which is the most a file can do for itself; the rest is policy. Raised with <code>E09-11a</code></span>
       </li>
-      <li class="task" data-id="E09-11" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+      <li class="task" data-id="E09-11" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-11"></button>
         <code class="tid">E09-11</code>
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:high) Decide whether the kitchen packing list and per-class delivery sheet surface a parent&#39;s per-line note. If they don&#39;t, the note field is not built at all — a note nobody reads is a lie told to a parent trying to be careful (ux-spec §5.6.1)</span>
+        <span class="ttext">(risk:high) Decide whether the kitchen packing list and per-class delivery sheet surface a parent&#39;s per-line note. <strong>Answered 2026-08-10: yes — <code>P12</code></strong></span>
+      </li>
+      <li class="task" data-id="E09-12" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-12"></button>
+        <code class="tid">E09-12</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Render the per-line kitchen note on the packing list and the per-class delivery sheet, under the same retention rule as the rest of it (<code>P12</code>, <code>E09-14</code>)</span>
       </li></ul>
       </details>
     </article>

@@ -41,3 +41,8 @@ summary: Recipients, cart, cutoff enforcement, break/drop time selection, and or
 - [ ] `E05-26` (risk:high) The allergen second-confirm is its own surface naming the child and the allergen, not an "Add anyway" button label (ux-spec §5.6)
 - [ ] `E05-27` Per-line kitchen note — 140-char cap, best-effort copy, allergy-language diversion to Edit child (ux-spec §5.6.1, `P12`). **Sequenced after `E13-27` Edit child**, not blocked on it
 - [ ] `E05-28` Remove every co-guardian and read-only-child surface per `AR8`; `can_order` stays in the schema defaulted true
+
+- [ ] `E05-29` (risk:high) Put the break time on the cart line so the cart can show it. ux-spec §5.7 requires the break to be visible before paying, and it is neither on `CartLineInput` nor returned by `fetchRecipients` — today the block says the break is confirmed with the kitchen rather than inventing one
+- [ ] `E05-30` (risk:high) An `api/` calendar read so the cart can show the real cutoff. Until it exists the cart shows no cutoff at all, because a cutoff we have not resolved is a promise about when ordering closes that we cannot keep (ux-spec §5.21)
+- [ ] `E05-31` (risk:critical) A child-allergens read so the cart and menu can warn. `fetchRecipients` deliberately withholds them (tier S), so allergen warnings are absent everywhere today — and absent must never be rendered as "safe"
+

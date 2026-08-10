@@ -166,3 +166,63 @@ jobs:
       - name: Stop
         if: always() && steps.scope.outputs.run == 'true'
         run: npx supabase stop --no-backup
+
+  # ---------------------------------------------------------------------------
+  # E14-24. The flow that drives a real build against real staging.
+  #
+  # It runs here rather than in the smoke test because it needs an emulator and a
+  # build — minutes, not the ~60s the smoke budget allows. What the smoke test DOES
+  # run is `check:maestro`, which fails in a second if a flow references a testID
+  # that no longer exists; a missing id makes Maestro hang until it times out, and a
+  # flaky e2e suite gets disabled rather than fixed.
+  # ---------------------------------------------------------------------------
+  maestro:
+    name: Maestro (cart)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Android only for now: an iOS runner needs macOS, and the flow asserts no
+    # platform-specific behaviour. Add the macOS matrix leg when one does.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: The flows reference testIDs that exist
+        run: npm run check:maestro
+
+      - name: Install Maestro
+        run: |
+          curl -Ls https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Build the staging APK
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_APP_ENV: staging
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.STAGING_SUPABASE_ANON_KEY }}
+        run: npx expo prebuild --platform android --no-install && ./android/gradlew -p android assembleRelease
+
+      - name: Run the cart flow
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          script: |
+            adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
+            maestro test apps/mobile/.maestro/cart.yaml --format junit --output maestro-report.xml
+
+      - name: Keep the report even when the flow fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-report
+          path: maestro-report.xml
+          if-no-files-found: ignore

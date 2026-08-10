@@ -69,7 +69,9 @@ describe('CartScreen', () => {
     expect(screen.getByTestId(`cart-line-total-${cartDomain.lineKey(IDLI)}`)).toHaveTextContent(
       '₹120.00',
     );
-    expect(screen.getByText('₹60.00 each')).toBeTruthy();
+    // The line now states the basis as well as the amount: SC2 prices are GST-exclusive and the
+    // split appears below, so "each" alone invited the reader to add it up themselves.
+    expect(screen.getByText('₹60.00 each · excl. GST')).toBeTruthy();
   });
 
   it('shows the subtotal across lines', async () => {
@@ -132,7 +134,7 @@ describe('CartScreen', () => {
 
     // By label, not testID: `TextField` puts its testID on the wrapping View, and `type`
     // only accepts a host TextInput.
-    await user.type(screen.getByLabelText('Special request'), 'no chutney');
+    await user.type(screen.getByLabelText('Note for the kitchen'), 'no chutney');
 
     expect(screen.getByDisplayValue('no chutney')).toBeTruthy();
   });
@@ -144,7 +146,7 @@ describe('CartScreen', () => {
     const user = userEvent.setup();
     await renderCart([IDLI]);
 
-    await user.type(screen.getByLabelText('Special request'), 'no chutney');
+    await user.type(screen.getByLabelText('Note for the kitchen'), 'no chutney');
 
     const committedKey = cartDomain.lineKey({ ...IDLI, comment: 'no chutney' });
     expect(screen.getByTestId(`cart-line-${committedKey}`)).toBeTruthy();
@@ -162,5 +164,87 @@ describe('CartScreen', () => {
     expect(
       screen.getByLabelText('Remove one Idli Sambar'),
     ).toBeTruthy();
+  });
+});
+
+/**
+ * `docs/ux-spec.md` §5.7 additions — the "For" block, the GST split, and the note cap.
+ *
+ * The `api/` module is unconfigured under test, so `fetchRecipients` rejects and the "For" block
+ * takes its null branch. That is the case worth pinning hardest: §5.21 forbids an unknown from
+ * rendering as a known, and a cart that cannot say who it is for must say exactly that.
+ */
+describe('CartScreen — who, and how much', () => {
+  it('says plainly that no child is chosen rather than naming one it cannot resolve', async () => {
+    await renderCart([IDLI]);
+
+    expect(await screen.findByTestId('cart-order-for-unknown')).toBeTruthy();
+    expect(screen.getByText('No child chosen yet')).toBeTruthy();
+    // The confident-looking version must not exist: a resolved child block would be a claim.
+    expect(screen.queryByTestId('cart-order-for-child')).toBeNull();
+  });
+
+  // M2 / SC2: 5% shown as CGST 2.5% + SGST 2.5%, computed per line and half-up (§6.2).
+  // 2 x ₹60.00 = ₹120.00 -> 300 paise each component. 1 x ₹90.00 = ₹90.00 -> 225 paise each.
+  it('shows the tax split, computed per line rather than on the subtotal', async () => {
+    await renderCart([IDLI, DOSA]);
+
+    expect(screen.getByTestId('cart-subtotal')).toHaveTextContent('₹210.00');
+    expect(screen.getByTestId('cart-cgst')).toHaveTextContent('₹5.25');
+    expect(screen.getByTestId('cart-sgst')).toHaveTextContent('₹5.25');
+    expect(screen.getByTestId('cart-total')).toHaveTextContent('₹220.50');
+  });
+
+  // R11: Mohali only, so there is no IGST line and there must not be one until there is a
+  // second state to need it.
+  it('never shows an IGST line', async () => {
+    await renderCart([IDLI]);
+    expect(screen.queryByText(/IGST/i)).toBeNull();
+  });
+
+  // §5.7: the amount and the commitment are never on separate screens.
+  it('puts the payable total on the place-order button itself', async () => {
+    await renderCart([IDLI]);
+    // 2 x ₹60.00 = ₹120.00 taxable; 300 paise CGST + 300 SGST; ₹126.00 payable.
+    expect(screen.getByText('Place order · ₹126.00')).toBeTruthy();
+  });
+
+  // AR7 again, now that the screen has a primary action: the gate is at checkout, and the
+  // word must still not appear here.
+  it('still never says sign in, even with a place-order button', async () => {
+    await renderCart([IDLI]);
+    expect(screen.queryByText(/sign in/i)).toBeNull();
+  });
+
+  // P12: 140 characters, enforced by the field rather than truncated on save.
+  it('caps the kitchen note at 140 characters in the field', async () => {
+    await renderCart([IDLI]);
+
+    const note = screen.getByLabelText('Note for the kitchen');
+    expect(note.props.maxLength).toBe(140);
+  });
+
+  it('describes the note as a request and not as allergy information', async () => {
+    await renderCart([IDLI]);
+    expect(
+      screen.getByText(/request we pass to the kitchen — not a guarantee, and not for allergies/i),
+    ).toBeTruthy();
+  });
+
+  /**
+   * The absences that are deliberate (§5.7's "what this screen does not show yet").
+   *
+   * These assert that the screen does NOT invent data it cannot resolve. If a future change
+   * wires the calendar or the child's allergens in for real, these fail — which is the point:
+   * the replacement should be a real value, reviewed, not a quiet appearance.
+   */
+  it('shows no cutoff time while the client cannot resolve one', async () => {
+    await renderCart([IDLI]);
+    expect(screen.queryByText(/Ordering closes/i)).toBeNull();
+  });
+
+  it('shows no allergen warning while it cannot check against a child', async () => {
+    await renderCart([IDLI]);
+    expect(screen.queryByText(/allergic/i)).toBeNull();
   });
 });

@@ -1,78 +1,179 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { cart as cartDomain, design, money } from '@graybag/shared';
+import { api, cart as cartDomain, design, money } from '@graybag/shared';
 
+import { Button } from '../components/Button';
 import { Card, EmptyState } from '../components/Surfaces';
 import { TextField } from '../components/TextField';
 import { useCart } from './CartContext';
+import { CartTotals } from './CartTotals';
+import { OrderForBlock, type OrderFor } from './OrderForBlock';
 
 const { bg, text, border, scale, space, radius, borderWidth, touchTarget } = design;
 
+/** `P12`: 140 characters, and the field stops accepting input rather than truncating on save. */
+export const COMMENT_MAX_LENGTH = 140;
+
 /**
- * The cart screen (`E05-04`).
+ * The cart (`E05-04`, rebuilt to `docs/ux-spec.md` §5.7).
  *
- * **It fills and edits signed out.** `AR7` makes signup-to-first-order a primary v1 goal and
- * says adding a child must not be a wall in front of browsing; the same reasoning puts the
- * only gate at checkout. So the empty state points at the menu, and the word "sign in"
- * appears nowhere on this screen — asserted in the test, because this is the kind of rule
- * that gets broken by one well-meaning addition.
+ * **It fills and edits signed out.** `AR7` puts the only gate at checkout, so the empty state
+ * points at the menu and the words "sign in" appear nowhere on this screen — asserted in the
+ * test, because this is the rule one well-meaning addition breaks.
  *
- * **Every price on screen comes from `money.formatPaise`.** `design/type.ts` states that
- * neither the formatted output nor the symbol is ever hand-assembled in a component, and a
- * cart is where the temptation is highest.
+ * **One child, one service date** (`AR8`/`[DM-01]`, decided 2026-08-10). Every line therefore
+ * shares a recipient and a date, and the "For" block states them once. `assertHomogeneous`
+ * below is what makes that a checked property rather than an assumption.
+ *
+ * **Every price comes from `money.formatPaise`, and the tax split from `money.gstBreakdown`.**
+ * Neither is assembled here — §6.2's per-line half-up rule is subtle enough that a second
+ * implementation would eventually disagree with the invoice.
+ *
+ * ## What this screen deliberately does not show yet
+ *
+ * The cutoff line, the break time and per-line allergen warnings are all specified in §5.7 and
+ * are **absent**, because the data does not exist in the client yet: there is no calendar read
+ * in `api/` (`E05-30`), the break is not on the cart line (`E05-29`), and `fetchRecipients`
+ * deliberately withholds a child's allergens (`E05-31`).
+ *
+ * They are absent rather than approximated. §5.21 is explicit that an unknown must not render
+ * as a known — a cutoff we have not resolved, shown as a time, is a promise about when ordering
+ * closes that we cannot keep, and a silent absence of allergen warnings reads as "safe".
  */
-export function CartScreen() {
-  const { cart, setQuantity, setComment, remove, subtotalPaise } = useCart();
+export function CartScreen({ onPlaceOrder }: { onPlaceOrder?: () => void } = {}) {
+  const { cart, setQuantity, setComment, remove } = useCart();
+  const orderFor = useOrderFor(cart);
 
   if (cart.lines.length === 0) {
     return (
-      // `screen-cart` is on both branches: the route's identity is the route, not whether it
+      // `screen-cart` is on every branch: the route's identity is the route, not whether it
       // happens to have anything in it, and navigation asserts against it.
       <View style={styles.screen} testID="screen-cart">
         <EmptyState
           testID="cart-empty"
-          title="Your cart is empty"
+          title="Your order is empty"
           body="Browse the menu and add something for lunch."
         />
       </View>
     );
   }
 
-  return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content} testID="screen-cart">
-      {cart.lines.map((line) => (
-        <CartLineRow
-          key={line.key}
-          line={line}
-          onIncrement={() => setQuantity(line.key, line.quantity + 1)}
-          // The domain removes the line at zero. The screen does not add a guard of its own:
-          // two places deciding what the last decrement means is how they come to disagree.
-          onDecrement={() => setQuantity(line.key, line.quantity - 1)}
-          onRemove={() => remove(line.key)}
-          onComment={(next) => setComment(line.key, next)}
-        />
-      ))}
-
-      <View style={styles.totals}>
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Subtotal</Text>
-          <Text style={styles.totalValue} testID="cart-subtotal">
-            {money.formatPaise(subtotalPaise)}
-          </Text>
-        </View>
-        {/*
-          SC2: menu prices are GST-exclusive and 5% is added at checkout. Saying so here is
-          not a disclaimer — a subtotal presented as the amount payable becomes a different
-          number on the next screen, and a payment flow where the total moves is one nobody
-          trusts twice. The rate is not named, because E07 owns the tax rule and a second
-          copy of "5%" in the client is a second thing to get wrong.
-        */}
-        <Text style={styles.taxNote} testID="cart-tax-note">
-          GST is added at checkout.
-        </Text>
-      </View>
-    </ScrollView>
+  const breakdown = money.gstBreakdown(
+    cart.lines.map((line) => ({
+      unitPricePaise: line.unitPricePaise,
+      quantity: line.quantity,
+    })),
   );
+
+  return (
+    <View style={styles.screen} testID="screen-cart">
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <OrderForBlock orderFor={orderFor} />
+
+        {cart.lines.map((line) => (
+          <CartLineRow
+            key={line.key}
+            line={line}
+            onIncrement={() => setQuantity(line.key, line.quantity + 1)}
+            // The domain removes the line at zero. The screen adds no guard of its own: two
+            // places deciding what the last decrement means is how they come to disagree.
+            onDecrement={() => setQuantity(line.key, line.quantity - 1)}
+            onRemove={() => remove(line.key)}
+            onComment={(next) => setComment(line.key, next)}
+          />
+        ))}
+
+        <CartTotals breakdown={breakdown} />
+      </ScrollView>
+
+      {/*
+        Sticky, outside the ScrollView. The total a parent is about to pay is on the button
+        itself — §5.7 — so the amount and the commitment are never on separate screens.
+      */}
+      <View style={styles.footer}>
+        <Button
+          label={`Place order · ${money.formatPaise(breakdown.totalPaise)}`}
+          testID="cart-place-order"
+          onPress={() => onPlaceOrder?.()}
+          disabled={onPlaceOrder === undefined}
+        />
+      </View>
+    </View>
+  );
+}
+
+/**
+ * Resolve who the order is for, from the cart itself.
+ *
+ * Returns `null` — "no child chosen yet" — for a signed-out parent, for one with no children,
+ * and when the read fails. That last case is deliberate and is the §5.21 rule applied: a failed
+ * read must not render as a *different* child or as a confident blank, and the "For" block's
+ * null state says in words that nothing has been chosen rather than implying it has.
+ */
+function useOrderFor(cart: cartDomain.Cart): OrderFor | null {
+  const [orderFor, setOrderFor] = useState<OrderFor | null>(null);
+  const first = cart.lines[0];
+  const recipientId = first?.recipientId ?? null;
+  const serviceDate = first?.serviceDate ?? null;
+
+  useEffect(() => {
+    let live = true;
+    if (recipientId === null || serviceDate === null) {
+      setOrderFor(null);
+      return () => {
+        live = false;
+      };
+    }
+
+    api
+      .fetchRecipients()
+      .then((children) => {
+        if (!live) return;
+        const match = children.find((child) => child.id === recipientId);
+        setOrderFor(
+          match === undefined
+            ? null
+            : {
+                childName: match.firstName,
+                classLabel: match.classLabel,
+                sectionLabel: match.sectionLabel,
+                schoolName: match.schoolName,
+                serviceDate: formatServiceDate(serviceDate),
+              },
+        );
+      })
+      .catch(() => {
+        // Signed out, offline, or a failed read. All three mean "we cannot say who this is
+        // for", which is what `null` renders. Nothing is logged: a failure here would carry a
+        // recipient id, and ids about children stay out of logs (R6).
+        if (live) setOrderFor(null);
+      });
+
+    return () => {
+      live = false;
+    };
+  }, [recipientId, serviceDate]);
+
+  return orderFor;
+}
+
+/**
+ * `2026-08-12` → `Tuesday 12 August`.
+ *
+ * Full weekday and month, per R7 — the cutoff copy rule exists because "12/08" and a bare
+ * "00:00" are each ambiguous enough to be read a whole day wrong. Parsed as UTC and formatted
+ * in UTC so the rendered date is the service date itself and cannot slide by one across the
+ * device's timezone.
+ */
+export function formatServiceDate(serviceDate: string): string {
+  const parsed = new Date(`${serviceDate}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return serviceDate;
+  return parsed.toLocaleDateString('en-IN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
 }
 
 function CartLineRow({
@@ -93,7 +194,9 @@ function CartLineRow({
       <View style={styles.lineHeader}>
         <View style={styles.lineText}>
           <Text style={styles.dishName}>{line.dishName}</Text>
-          <Text style={styles.unitPrice}>{money.formatPaise(line.unitPricePaise)} each</Text>
+          <Text style={styles.unitPrice}>
+            {money.formatPaise(line.unitPricePaise)} each · excl. GST
+          </Text>
         </View>
         <Text style={styles.lineTotal} testID={`cart-line-total-${line.key}`}>
           {money.formatPaise(line.unitPricePaise * line.quantity)}
@@ -139,17 +242,17 @@ function CartLineRow({
 }
 
 /**
- * The comment field holds a **draft**, and commits it when the field loses focus.
+ * The kitchen note (`P12`, `docs/ux-spec.md` §5.6.1).
  *
- * This is not a style preference. A line's identity includes its comment (`lineKey`), because
- * the same dish with two different requests is two different things for the kitchen to make.
- * Committing on every keystroke therefore re-identifies the line on every character: the row
- * is re-keyed, React unmounts and remounts the input, and the field loses focus after the
- * first letter. The test caught exactly that.
+ * **It holds a draft and commits on blur.** A line's identity includes its comment (`lineKey`),
+ * because the same dish with two different requests is two different things for the kitchen to
+ * make. Committing per keystroke re-identifies the line on every character: the row is re-keyed,
+ * React unmounts the input, and focus is lost after the first letter. A test caught exactly that.
  *
- * So the domain keeps its content-derived identity — which is right, and is what makes the
- * merge in `setLineComment` correct — and the screen absorbs the difference between "what is
- * being typed" and "what has been asked for".
+ * **The copy promises best effort and nothing more** — `P12`'s second condition. It is a request
+ * passed to the kitchen, not a guarantee, and explicitly not where allergies go. The allergy
+ * diversion specified in §5.6.1 is not here: it routes to Edit child, which does not exist yet,
+ * and Andy's sequencing is that a diversion to a screen that does not exist is worse than none.
  */
 function CommentField({
   line,
@@ -159,17 +262,25 @@ function CommentField({
   onCommit: (next: string | null) => void;
 }) {
   const [draft, setDraft] = useState(line.comment ?? '');
+  const remaining = COMMENT_MAX_LENGTH - draft.length;
 
   return (
     <TextField
-      label="Special request"
+      label="Note for the kitchen"
       testID={`cart-line-comment-${line.key}`}
       value={draft}
       onChangeText={setDraft}
+      // Hard stop rather than a silent truncation on save: a parent who typed 200 characters
+      // and had 60 of them dropped invisibly believes the kitchen has all of it (`P12`).
+      maxLength={COMMENT_MAX_LENGTH}
       // Blank commits as `null`, so clearing the field genuinely clears the comment rather
-      // than storing an empty string that the domain would have to normalise anyway.
+      // than storing an empty string the domain would have to normalise anyway.
       onBlur={() => onCommit(draft.trim() === '' ? null : draft)}
-      hint="Optional. The kitchen sees this with the order."
+      hint={
+        remaining <= 20
+          ? `${remaining} characters left. A request we pass to the kitchen — not a guarantee, and not for allergies.`
+          : 'Optional. A request we pass to the kitchen — not a guarantee, and not for allergies.'
+      }
     />
   );
 }
@@ -200,6 +311,7 @@ function StepperButton({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: bg.canvas },
+  scroll: { flex: 1 },
   content: { padding: space[4], gap: space[3] },
 
   lineHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: space[3] },
@@ -240,14 +352,10 @@ const styles = StyleSheet.create({
   },
   removeLabel: { color: text.secondary, fontSize: scale.label.size },
 
-  totals: { marginTop: space[2], gap: space[1] },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  totalLabel: { color: text.primary, fontSize: scale.body.size, fontWeight: scale.label.weight },
-  totalValue: {
-    color: text.primary,
-    fontSize: scale.body.size,
-    fontWeight: scale.label.weight,
-    fontVariant: ['tabular-nums'],
+  footer: {
+    padding: space[4],
+    borderTopWidth: borderWidth.hairline,
+    borderTopColor: border.subtle,
+    backgroundColor: bg.surface,
   },
-  taxNote: { color: text.secondary, fontSize: scale.caption.size },
 });

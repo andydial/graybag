@@ -1,8 +1,11 @@
 import type { ComponentType } from 'react';
 import { Platform } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import {
+  createNativeStackNavigator,
+  type NativeStackNavigationProp,
+} from '@react-navigation/native-stack';
 import { design } from '@graybag/shared';
 
 import {
@@ -122,7 +125,19 @@ function withScreenFrame<P extends object>(
 
 const HomeTab = withScreenFrame(HomeScreen, TAB_SCREEN_EDGES);
 const MenuTab = withScreenFrame(MenuScreen, TAB_SCREEN_EDGES);
-const CartTab = withScreenFrame(CartScreen, TAB_SCREEN_EDGES);
+/**
+ * "Place order" is the one gate (`AR7`, ux-spec F1).
+ *
+ * Signed out it opens Sign in, and **the cart is kept** — F1 calls losing it here the single
+ * most likely place to lose a first order. Signed in there is nowhere to go yet: checkout is
+ * `E06`, so the button is inert rather than routing somewhere that would look finished.
+ */
+function CartTabScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return <CartScreen onPlaceOrder={() => navigation.navigate('SignIn')} />;
+}
+
+const CartTab = withScreenFrame(CartTabScreen, TAB_SCREEN_EDGES);
 const AccountTab = withScreenFrame(AccountScreen, TAB_SCREEN_EDGES);
 
 const DishDetailStackScreen = withScreenFrame(DishDetailScreen, STACK_SCREEN_EDGES);
@@ -164,6 +179,10 @@ function Tabs() {
         name="Home"
         component={HomeTab}
         options={{
+          // A stable handle for the Maestro flow (`E14-24`). Without one, the suite that
+          // drives a real build has to tap by visible label — which breaks the first time
+          // a label is shortened or translated, and a flaky e2e suite gets disabled.
+          tabBarButtonTestID: 'tab-home',
           tabBarIcon: ({ focused, color }) => (
             <TabIcon glyph={House} focused={focused} color={color} testID="tab-icon-home" />
           ),
@@ -173,6 +192,10 @@ function Tabs() {
         name="Menu"
         component={MenuTab}
         options={{
+          // A stable handle for the Maestro flow (`E14-24`). Without one, the suite that
+          // drives a real build has to tap by visible label — which breaks the first time
+          // a label is shortened or translated, and a flaky e2e suite gets disabled.
+          tabBarButtonTestID: 'tab-menu',
           tabBarIcon: ({ focused, color }) => (
             <TabIcon
               glyph={UtensilsCrossed}
@@ -187,6 +210,10 @@ function Tabs() {
         name="Cart"
         component={CartTab}
         options={{
+          // A stable handle for the Maestro flow (`E14-24`). Without one, the suite that
+          // drives a real build has to tap by visible label — which breaks the first time
+          // a label is shortened or translated, and a flaky e2e suite gets disabled.
+          tabBarButtonTestID: 'tab-cart',
           // `M06`'s badge, on the tab bar rather than in the cart screen — the whole reason
           // it is the one spring in the product (`S4`) is that adding to cart confirms itself
           // somewhere other than where the user is looking. `animate` stays false here: this
@@ -214,6 +241,10 @@ function Tabs() {
         name="Account"
         component={AccountTab}
         options={{
+          // A stable handle for the Maestro flow (`E14-24`). Without one, the suite that
+          // drives a real build has to tap by visible label — which breaks the first time
+          // a label is shortened or translated, and a flaky e2e suite gets disabled.
+          tabBarButtonTestID: 'tab-account',
           tabBarIcon: ({ focused, color }) => (
             <TabIcon glyph={User} focused={focused} color={color} testID="tab-icon-account" />
           ),

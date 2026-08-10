@@ -1,0 +1,80 @@
+# The cart, on a real build against real staging — `E14-24`, first flow.
+#
+# ## Why this exists at all
+#
+# Three defects reached Andy's phone in one day — a menu that said "not published", an Add
+# Child that said "function was not found", and an app that looked like a wireframe — and the
+# unit suite was green through all of it. None of them were visible from a test that never
+# rendered a screen against a real backend. This is the net that catches that class.
+#
+# ## Why the cart is first
+#
+# It carries more rules than any other screen: the GST split, the child and date binding, the
+# tax-exclusive prices, and the AR7 rule that the word "sign in" appears nowhere until the gate.
+# If those hold on a device, most of the app's logic is proven.
+#
+# ## Running it
+#
+#     npx maestro test apps/mobile/.maestro/cart.yaml
+#
+# Against the staging dev client or a staging build — the app id carries `.staging`, so this
+# cannot accidentally drive a production install (`app.config.js` STAGING_SUFFIX).
+appId: com.gracord.graybag.staging
+---
+- launchApp:
+    clearState: true
+
+# --- browse, signed out. AR7: no gate before checkout. ---
+- tapOn:
+    id: 'tab-menu'
+- assertVisible:
+    id: 'screen-menu'
+
+# Add the first dish the menu offers. Deliberately not a hard-coded dish name: staging's menu
+# is seeded data that changes, and a flow that breaks when a seed changes gets disabled rather
+# than fixed.
+- tapOn:
+    id: 'menu-row-.*'
+    index: 0
+- assertVisible:
+    id: 'screen-dish-detail'
+- tapOn:
+    id: 'screen-dish-detail-button'
+
+# --- the cart ---
+- tapOn:
+    id: 'tab-cart'
+- assertVisible:
+    id: 'screen-cart'
+
+# The GST split, which is the thing most worth pinning on a device: SC2 says menu prices are
+# GST-exclusive and M2 fixes the split at CGST 2.5% + SGST 2.5% for Mohali.
+- assertVisible: 'Subtotal'
+- assertVisible: 'CGST 2.5%'
+- assertVisible: 'SGST 2.5%'
+- assertVisible: 'Total'
+- assertVisible: 'Menu prices exclude GST.*'
+
+# R11: Mohali only. An IGST line appearing here means multi-state logic leaked in.
+- assertNotVisible: 'IGST'
+
+# ux-spec §5.7 — a parent must never be one tap from paying without seeing who it is for.
+# Signed out, that block says so in words rather than naming a child it cannot resolve.
+- assertVisible: 'No child chosen yet'
+
+# The payable total is on the button itself, not on a later screen.
+- assertVisible: 'Place order.*'
+
+# --- the gate, and only here (AR7 / ux-spec F1) ---
+# Nothing before this point may have mentioned signing in. This is the assertion that would
+# have caught a well-meaning "please sign in to continue" added to the cart.
+- tapOn: 'Place order.*'
+- assertVisible:
+    id: 'screen-sign-in'
+
+# F1: the cart survives the trip to the gate. Losing it here is the single most likely place
+# to lose a first order.
+- back
+- assertVisible:
+    id: 'screen-cart'
+- assertVisible: 'Total'

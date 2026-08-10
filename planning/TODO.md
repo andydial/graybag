@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 43 open of 46.
+Your tasks only — 42 open of 46.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -43,7 +43,7 @@ in VS Code or on GitHub without opening anything.
 ## Decisions to make (no rush, but they gate later work)
 
 - [ ] `E09-12` _(fast-follow)_ Decision parked: default delivery mode (classroom bulk vs counter pickup) until real usage data exists. Both are supported
-- [ ] `E09-11` _(fast-follow)_ (risk:high) Decide whether the kitchen packing list and per-class delivery sheet surface a parent's per-line note. If they don't, the note field is not built at all — a note nobody reads is a lie told to a parent trying to be careful (ux-spec §5.6.1)
+- [x] `E09-11` _(fast-follow)_ (risk:high) Decide whether the kitchen packing list and per-class delivery sheet surface a parent's per-line note. Answered 2026-08-10: yes — P12
 - [ ] `E18-01` _(fast-follow)_ Decide: parent subscribes in-app vs school buys in bulk and bills through school fees
 - [ ] `E18-02` _(fast-follow)_ Decide: auto-generate daily orders vs subscription acts as prepaid credit with daily dish selection
 - [ ] `E18-03` _(fast-follow)_ Decide: meal-pack composition (e.g. 20 meals = main + drink + dessert) and whether the customer chooses dishes
