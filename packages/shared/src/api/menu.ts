@@ -25,7 +25,7 @@
  * back for days; a malformed payload accepted once becomes a crash on a later cold start,
  * a long way from the fetch that caused it.
  */
-import { runQuery } from './client.js';
+import { DISH_IMAGE_BUCKET, runQuery, storagePublicUrl } from './client.js';
 
 /** One allergen marking on a dish. Mirrors `dish_allergen`. */
 export interface ApiDishAllergen {
@@ -203,7 +203,10 @@ export async function fetchMenu(schoolId: string): Promise<ApiMenuPayload> {
         categoryId: row.category_id,
         ingredientsText: row.ingredients_text,
         pricePaise: row.price_paise,
-        imageUri: row.image_path,
+        // `image_path` is a Storage KEY (`dishes/<file>.png`), not a URL. RN's Image needs an
+        // absolute one, so it is resolved here — the one place that knows which project is
+        // configured — rather than in each screen (`E16-43`).
+        imageUri: storagePublicUrl(DISH_IMAGE_BUCKET, typeof row.image_path === 'string' ? row.image_path : null),
         allergensDeclaredNone: row.allergens_declared_none,
         allergens: row.allergens,
       },

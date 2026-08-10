@@ -6,6 +6,7 @@ import { configureApiFromEnvironment } from './src/env/configure';
 import { guardFromEnvironment } from './src/env/guard';
 import { installMenuCache } from './src/menu/installMenuCache';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { ConnectivityProvider } from './src/net/ConnectivityContext';
 import { OrderTargetProvider } from './src/session/OrderTargetContext';
 import { SchoolFollowsRecipient } from './src/session/SchoolFollowsRecipient';
 import { SelectedSchoolProvider } from './src/session/SelectedSchoolContext';
@@ -52,7 +53,8 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      <SessionProvider>
+      <ConnectivityProvider>
+        <SessionProvider>
         <SelectedSchoolProvider>
           {/*
             The cart sits *inside* the school provider and *above* the navigator. Inside,
@@ -82,7 +84,8 @@ export default function App() {
             </SchoolFollowsRecipient>
           </OrderTargetProvider>
         </SelectedSchoolProvider>
-      </SessionProvider>
+        </SessionProvider>
+      </ConnectivityProvider>
     </SafeAreaProvider>
   );
 }

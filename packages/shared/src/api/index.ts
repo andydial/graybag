@@ -14,6 +14,8 @@ export {
   ApiNotConfiguredError,
   configureApi,
   invokeFunction,
+  storagePublicUrl,
+  DISH_IMAGE_BUCKET,
   setApiTransport,
   type ApiTransport,
   type FunctionsRef,

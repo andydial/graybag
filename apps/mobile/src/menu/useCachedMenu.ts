@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { menu as menuDomain } from '@graybag/shared';
 
+import { useConnectivity } from '../net/ConnectivityContext';
+
 /**
  * The screen's view of the menu cache (`E04-10`).
  *
@@ -71,6 +73,7 @@ export function useCachedMenu(schoolId: string | null): {
   const [payload, setPayload] = useState<CachedMenuPayload | null>(null);
   const [stale, setStale] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const { report } = useConnectivity();
 
   useEffect(() => {
     // No school chosen yet is not an error and not a load — it is an empty menu. Treating it
@@ -107,12 +110,18 @@ export function useCachedMenu(schoolId: string | null): {
       .get(schoolId)
       .then((result) => {
         if (!live) return;
+        // The menu read is the app's most frequent request, so it is the cheapest place to
+        // learn whether the backend is reachable — no extra round trip, and it answers on
+        // exactly the path a parent is waiting on. `result.stale` means the cache served an
+        // unconfirmed copy, which is itself evidence the network did not answer.
+        report(!result.stale);
         setPayload(result.menu);
         setStale(result.stale);
         setState('ready');
       })
       .catch(() => {
         if (!live) return;
+        report(false);
         // The cache only rejects when there is nothing stored AND the fetch failed — every
         // other path serves something (`MC3`). So reaching here genuinely means there is
         // nothing to show.
@@ -123,7 +132,7 @@ export function useCachedMenu(schoolId: string | null): {
     return () => {
       live = false;
     };
-  }, [schoolId, attempt]);
+  }, [schoolId, attempt, report]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 

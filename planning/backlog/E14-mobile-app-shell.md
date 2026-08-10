@@ -44,3 +44,6 @@ summary: React Native + Expo shell, navigation, the api/ module discipline, and 
 
 - [ ] `E14-26` A connectivity source (NetInfo or equivalent). Six screens now take a `stale`/`offline` prop that **nothing supplies**, so every offline state is unreachable in the real app — they can only infer it from a request that already failed, which is too late to pre-disable a button
 - [ ] `E14-27` `ListRow` needs a `leading` slot, a `tone`, and an `accessibilityLabel` override. Three screens have now hand-rolled its geometry rather than use it: Orders (its merged label drops the status word), Children (no leading slot), Account (no danger tone)
+
+- [ ] `E14-28` Swap the connectivity probe for a real link-layer signal (NetInfo or `expo-network`) when a new dev-client build is due. `ConnectivityContext` measures whether our backend is reachable, which is the more useful question but a weaker one — it can only learn from a request or a probe. Native module, so it cannot ship to an installed dev client
+- [ ] `E14-29` Extend the orphan guard to catch defect 4: an exported module in `packages/shared` that nothing imports. The current guard covers contexts, providers, stores and injection seams in `apps/mobile/src` — E13's unconsumed design tokens were none of those, so it would not have caught them

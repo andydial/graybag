@@ -2229,13 +2229,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/26</span>
+          <span class="meter-num">0/28</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 26 tasks</summary>
+        <summary>Context &amp; 28 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -2450,6 +2450,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><code>ListRow</code> needs a <code>leading</code> slot, a <code>tone</code>, and an <code>accessibilityLabel</code> override. Three screens have now hand-rolled its geometry rather than use it: Orders (its merged label drops the status word), Children (no leading slot), Account (no danger tone)</span>
+      </li>
+      <li class="task" data-id="E14-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-28"></button>
+        <code class="tid">E14-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Swap the connectivity probe for a real link-layer signal (NetInfo or <code>expo-network</code>) when a new dev-client build is due. <code>ConnectivityContext</code> measures whether our backend is reachable, which is the more useful question but a weaker one — it can only learn from a request or a probe. Native module, so it cannot ship to an installed dev client</span>
+      </li>
+      <li class="task" data-id="E14-29" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-29"></button>
+        <code class="tid">E14-29</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Extend the orphan guard to catch defect 4: an exported module in <code>packages/shared</code> that nothing imports. The current guard covers contexts, providers, stores and injection seams in <code>apps/mobile/src</code> — E13&#39;s unconsumed design tokens were none of those, so it would not have caught them</span>
       </li></ul>
       </details>
     </article>

@@ -17,6 +17,7 @@ import { MenuScreen as MenuScreenImpl } from '../menu/MenuScreen';
 import type { RootStackParamList } from '../navigation/types';
 import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
+import { useConnectivity } from '../net/ConnectivityContext';
 import { useOrderTarget } from '../session/OrderTargetContext';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
@@ -57,6 +58,7 @@ export const HomeScreen = () => {
   const session = useSession();
   const { schoolId } = useSelectedSchool();
   const { state, payload, stale } = useCachedMenu(schoolId);
+  const { offline } = useConnectivity();
   // Real now: `OrderTargetProvider` reads the account's recipients and picks one. Before
   // today nothing wrote the target, so this card could never say who it was ordering for.
   const { target } = useOrderTarget();
@@ -74,7 +76,7 @@ export const HomeScreen = () => {
     <HomeScreenImpl
       state={state === 'loading' ? 'loading' : state === 'error' ? 'error' : 'ready'}
       signedOut={requiresSignIn(session)}
-      stale={stale}
+      stale={stale || offline}
       // A school with a published menu and nothing in it is `menuUnpublished`; no school
       // chosen is not, because the card's job in that case is to offer the picker.
       menuUnpublished={schoolId !== null && state === 'ready' && dishes.length === 0}
@@ -296,9 +298,11 @@ export const AddChildScreen = () => {
   const navigation = useNavigation();
   const { schoolId, schoolName } = useSelectedSchool();
   const { refresh } = useOrderTarget();
+  const { offline } = useConnectivity();
 
   return (
     <AddChildScreenImpl
+      offline={offline}
       initialSchool={{ schoolId, schoolName }}
       appVersion={Constants.expoConfig?.version ?? 'unknown'}
       onAdded={(recipient) => {
