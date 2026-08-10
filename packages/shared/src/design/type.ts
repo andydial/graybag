@@ -21,20 +21,28 @@
  */
 
 /**
- * The family, and the fact that it is not settled.
+ * The family. **Settled: Nunito** — decided by Andy, 2026-08-10 (`DS-06`).
  *
- * The VAG Rounded Next licence has never been checked (`E19-03`, `owner:andy`) and a bad
- * answer changes every screen. Two consequences, both already taken: bundle three weights
- * rather than ten, which narrows the question to something buyable or refusable; and name
- * the substitute now rather than in a panic (`DS-02`).
+ * VAG Rounded Next is the brand face and we hold no licence evidence for embedding it in a
+ * shipped binary. Rather than carry that question through the whole build, Nunito becomes the
+ * family outright: it is SIL Open Font Licence, free to embed in an app and on the web, and it
+ * is the rounded geometry the brand is actually reaching for.
+ *
+ * This is not a fallback any more. `fallback` is gone, because a `family`/`fallback` pair
+ * invites somebody to "restore" the brand face later without checking the licence again — and
+ * a settled question that still looks unsettled gets reopened.
+ *
+ * Three weights, not ten: `docs/design-tokens.md` §3.1 takes Regular / Medium / SemiBold from
+ * the brand guideline's own hierarchy, and every additional weight is bundle size on a
+ * connection that is the real constraint.
  */
 export const font = {
   /** Body. */
-  regular: { family: 'VAG Rounded Next', fallback: 'Nunito', weight: 400 },
+  regular: { family: 'Nunito', weight: 400 },
   /** Subheading. */
-  medium: { family: 'VAG Rounded Next', fallback: 'Nunito', weight: 500 },
+  medium: { family: 'Nunito', weight: 500 },
   /** Main Heading and Heading. */
-  semibold: { family: 'VAG Rounded Next', fallback: 'Nunito', weight: 600 },
+  semibold: { family: 'Nunito', weight: 600 },
 } as const;
 
 /**

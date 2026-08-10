@@ -22,7 +22,7 @@ Note: Android supports halt-and-revert; **iOS has no true rollback**, so a fix m
 - [ ] `E17-01` (owner:andy) Confirm Play App Signing / upload key status (low risk — mandatory since Aug 2021, so almost certainly enabled)
 - [ ] `E17-02` (mvp) Set up EAS Build + Submit against the existing Apple and Google accounts
 - [ ] `E17-03` (mvp) Store listing copy, screenshots and privacy links prepared for Andy to submit
-- [ ] `E17-04` (owner:andy) (mvp) **Submit** the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from `E20`; you sign them off in the consoles
+- [ ] `E17-04` (owner:andy) (mvp) (risk:critical) **BLOCKED ON `E20-26`/`E20-10` — do not submit while an unscrubbed Sentry is wired up.** Answering "not collected" then is a false statement to two app stores. **Submit** the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from `E20`; you sign them off in the consoles
 - [ ] `E17-05` (risk:high) Review both stores' policies on apps used by children; confirm no additional obligations apply
 - [ ] `E17-06` (owner:andy) (mvp) TestFlight build + Play internal testing track, ~15 beta users invited
 - [ ] `E17-07` (risk:critical) (mvp) **Beta period** — real orders, real payments, monitored daily. Exit criteria, to be confirmed but written as numbers now:

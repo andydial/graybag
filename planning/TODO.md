@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 42 open of 46.
+Your tasks only — 37 open of 41.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -17,18 +17,13 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E00-02` **[critical]** Rotate the Stripe test secret key and the 2 Bubble marketplace plugin app secrets found in the same file
 - [ ] `E00-04` **[high]** Check whether Bubble's Data API is exposed publicly; if so, disable it (Order and Child data are currently world-readable)
 - [ ] `E00-05` **[high]** Tighten Bubble privacy rules as a stopgap on the live app: Order (currently everyone can search/view all), Child, Dish_In_Order, Temp
-- [ ] `E00-06` **[high]** _(fast-follow)_ Start TRAI DLT registration: Principal Entity on one operator portal (PAN, GST cert, CIN, signatory, letterhead; ~Rs 5,000)
-- [ ] `E00-07` **[high]** _(fast-follow)_ Register DLT Header / Sender ID GRYBAG as Transactional / Service Implicit
-- [ ] `E00-08` **[high]** _(fast-follow)_ Register 5 DLT content templates: OTP login, order confirmation, pickup code, refund confirmation, order cancelled
 - [ ] `E00-10` **[high]** _(fast-follow)_ Accountant: obtain GSTIN, confirm SAC code (996331 assumed), confirm CGST/SGST split for Mohali / SAS Nagar
 - [ ] `E00-11` **[high]** _(fast-follow)_ Accountant: confirm whether the school's 10% revenue share attracts 18% GST on the school's invoice to GrayBag
-- [ ] `E19-03` **[high]** VAG Rounded Next licence check — confirm the licence permits app embedding and webfont use. If not, the entire design system needs a different typeface before E13-01
 - [ ] `E20-01` **[critical]** _(fast-follow)_ Confirm DPDP obligations that apply to GrayBag with a lawyer or the accountant — children's data, verifiable parental consent, grievance officer, breach reporting timelines
 - [ ] `E20-25` **[high]** _(fast-follow)_ Lawyer to review and approve the allergy liability ([PP-03]) and liability cap ([PP-04]) wording in docs/terms.md §8 and §10 — health-and-safety language, must not ship unreviewed. Rides with E20-01
 
 ## Needed within 2–3 weeks
 
-- [ ] `E00-09` _(fast-follow)_ Open account with SMS provider (MSG91 or Gupshup); link DLT Entity ID, Header and Template IDs
 - [x] `E00-12` Confirm whether menu Price in the Excel is GST-inclusive or exclusive (cart currently adds 5% on top)
 - [ ] `E00-13` Verify direct access to Apple Developer account and Google Play Console independent of Bubble
 - [ ] `E00-14` Locate original dish images (Bubble CDN URLs die on migration); inventory what is missing
@@ -63,7 +58,7 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E16-37` _(fast-follow)_ Decide what to do with the 746 roster children who have no recoverable parent — bulk-imported by the school on 2025-09-21, each with a unique school-code, none linked to an account. Migrate them as unlinked records for parents to claim in-app, or leave them behind and re-import from a fresh school roster
 - [ ] `E16-39` _(fast-follow)_ Tell the kitchen that no allergy data is migrating — Child.allergies is empty on all 1,115 legacy rows, so every allergy record in the new system starts blank. They may believe they hold this data
 - [ ] `E17-01` _(fast-follow)_ Confirm Play App Signing / upload key status (low risk — mandatory since Aug 2021, so almost certainly enabled)
-- [ ] `E17-04` Submit the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from E20; you sign them off in the consoles
+- [ ] `E17-04` (risk:critical) BLOCKED ON E20-26/E20-10 — do not submit while an unscrubbed Sentry is wired up. Answering "not collected" then is a false statement to two app stores. Submit the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from E20; you sign them off in the consoles
 - [ ] `E17-06` TestFlight build + Play internal testing track, ~15 beta users invited
 - [ ] `E17-12` Support plan for the first two weeks (who answers, how fast, what the common issues will be)
 - [ ] `E17-26` _(fast-follow)_ Register an iOS device UDID for internal-distribution builds — eas device:create. The staging profile is distribution: internal, which on iOS is ad-hoc: it needs an Apple Developer login (interactive, with 2FA) and at least one registered device, neither of which can be done unattended. Android needs nothing here — EAS generates the keystore itself

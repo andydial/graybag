@@ -704,9 +704,8 @@ V.signin = () => shell(`
   <div class="pad">
     <h2 class="title h-green" style="font-size:27px">welcome 👋</h2>
     <p class="eyebrow" style="margin-bottom:26px">We need an account to place your order. It takes a moment, and your order is kept.</p>
-    <button class="authbtn" onclick="go('otp')">${ICON.google}<span>Continue with Google</span></button>
-    <button class="authbtn" onclick="go('otp')">${ICON.apple}<span>Continue with Apple</span></button>
-    <div class="divider">or</div>
+    <!-- No Google or Apple in v1: the client ids do not exist, and the prototype is the
+         acceptance criteria, so a button drawn here is a button somebody builds. -->
     <div class="field">
       <label>Email</label>
       <input placeholder="you@example.com" value="andy@graybag.in">
@@ -715,7 +714,8 @@ V.signin = () => shell(`
     <button class="btn" ${S.flags.offline?'disabled':''} onclick="go('otp')">
       ${S.flags.offline?'You\'re offline':'Email me a code'}
     </button>
-    <p class="tiny" style="padding:16px 0 0;text-align:center">No passwords, ever. We'll send a six-digit code.</p>
+    <div class="notice info" style="margin:16px 0 0"><b>New here?</b>Enter your email and we&rsquo;ll send a code — that is all it takes to create your account.</div>
+    <p class="tiny" style="padding:14px 0 0;text-align:center">No passwords, ever.</p>
   </div>`, false);
 
 V.otp = () => {

@@ -92,9 +92,17 @@ describe('there is no Bold in the product (S13)', () => {
     }
   });
 
-  it('names Nunito as the substitute for every weight, decided before E19-03 returns', () => {
-    // DS-02: naming it now makes a licence refusal a token change rather than a redesign.
-    for (const f of Object.values(font)) expect(f.fallback).toBe('Nunito');
+  it('is Nunito outright — not a fallback behind an unlicensed face', () => {
+    // `DS-06`, decided 2026-08-10: Nunito IS the family. `DS-02` named it as a substitute while
+    // the VAG Rounded Next licence was unresolved; that question is now closed rather than
+    // deferred, and the pair was removed so nobody "restores" the brand face without checking.
+    for (const f of Object.values(font)) expect(f.family).toBe('Nunito');
+    for (const f of Object.values(font)) expect(f).not.toHaveProperty('fallback');
+  });
+
+  it('bundles exactly the three weights the brand hierarchy uses', () => {
+    // Every extra weight is bundle size on the connection that is the real constraint.
+    expect(Object.values(font).map((f) => f.weight).sort()).toEqual([400, 500, 600]);
   });
 });
 

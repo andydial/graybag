@@ -19,10 +19,10 @@ Every item here is either a live security exposure or has a multi-week external 
 - [ ] `E00-03` (risk:critical) (mvp) Add `*.bubble` to `.gitignore` before the repo exists; store the export outside the repo
 - [ ] `E00-04` (risk:high) (owner:andy) (mvp) Check whether Bubble's **Data API** is exposed publicly; if so, disable it (Order and Child data are currently world-readable)
 - [ ] `E00-05` (risk:high) (owner:andy) (mvp) Tighten Bubble privacy rules as a stopgap on the live app: `Order` (currently everyone can search/view all), `Child`, `Dish_In_Order`, `Temp`
-- [ ] `E00-06` (risk:high) (owner:andy) Start **TRAI DLT registration**: Principal Entity on one operator portal (PAN, GST cert, CIN, signatory, letterhead; ~Rs 5,000)
-- [ ] `E00-07` (risk:high) (owner:andy) Register DLT **Header / Sender ID** `GRYBAG` as Transactional / Service Implicit
-- [ ] `E00-08` (risk:high) (owner:andy) Register 5 DLT **content templates**: OTP login, order confirmation, pickup code, refund confirmation, order cancelled
-- [ ] `E00-09` (owner:andy) Open account with SMS provider (MSG91 or Gupshup); link DLT Entity ID, Header and Template IDs
+- [x] `E00-06` ~~Start **TRAI DLT registration**~~ — **OUT OF SCOPE 2026-08-10 (`P16`).** v1 is email only; no SMS, no push. Not deferred — dropped. If SMS is ever wanted the approval chain restarts, knowingly
+- [x] `E00-07` ~~Register DLT **Header / Sender ID**~~ — **OUT OF SCOPE 2026-08-10 (`P16`).** v1 is email only; no SMS, no push. Not deferred — dropped. If SMS is ever wanted the approval chain restarts, knowingly
+- [x] `E00-08` ~~Register 5 DLT **content templates**~~ — **OUT OF SCOPE 2026-08-10 (`P16`).** v1 is email only; no SMS, no push. Not deferred — dropped. If SMS is ever wanted the approval chain restarts, knowingly
+- [x] `E00-09` ~~Open account with SMS provider~~ — **OUT OF SCOPE 2026-08-10 (`P16`).** v1 is email only; no SMS, no push. Not deferred — dropped. If SMS is ever wanted the approval chain restarts, knowingly
 - [ ] `E00-10` (risk:high) (owner:andy) Accountant: obtain **GSTIN**, confirm **SAC code** (996331 assumed), confirm CGST/SGST split for Mohali / SAS Nagar
 - [ ] `E00-11` (risk:high) (owner:andy) Accountant: confirm whether the school's 10% revenue share attracts 18% GST on the school's invoice to GrayBag
 - [x] `E00-12` (owner:andy) (mvp) Confirm whether menu `Price` in the Excel is GST-inclusive or exclusive (cart currently adds 5% on top)

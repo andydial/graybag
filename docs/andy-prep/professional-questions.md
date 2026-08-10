@@ -47,6 +47,15 @@ rather than researching from nothing. That is usually the difference between one
 
 ## For the lawyer
 
+> **Booked (Andy, 2026-08-10).** This review is not about OTP or authentication — it is about
+> **holding the names, classes and allergy information of minors under the DPDP Act**, and about
+> the fact that **the child-data notice is already published and was written without a lawyer**
+> (`0015`, `0022`). Anything they change, we re-publish before launch rather than after.
+>
+> **Push hardest on question 2.** Our read is No, and Andy agrees — but it is the single answer
+> that most changes what both app stores require of us, it gates `E17-04`, and "we both thought
+> so" is not the standard to hold it to.
+
 ### 1. DPDP obligations (`E20-01`) — the big one
 
 > We hold, about **children**: first name, last name, class, section, school, and — optionally —

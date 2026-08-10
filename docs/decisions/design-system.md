@@ -1,6 +1,6 @@
 # Decisions — Design system and motion
 
-`S1`–`S34` · part of the decision log. Index: `docs/decisions.md`. Superseded entries and build-log history: `docs/decisions-archive.md` (never authoritative).
+`S1`–`S35` · part of the decision log. Index: `docs/decisions.md`. Superseded entries and build-log history: `docs/decisions-archive.md` (never authoritative).
 
 **Decision IDs are permanent and never move between files.** If you change a decision here, change it in the same PR as the code — never silently diverge.
 
@@ -145,3 +145,4 @@ version of the flow that quietly gives up where the default one waits.
 | # | Decision | Why |
 |---|---|---|
 | S44 | **A declared conflict blocks the add; an undescribed dish warns permanently and inline.** `allergenWarning`'s `match` opens the sheet and adds nothing until a second deliberate press; its `unknown` renders as a standing "Allergens not stated" notice on the screen | `MI7` is explicit that `allergenWarning` returns `warn: true, reason: 'unknown'` for an undescribed dish **even when the child has no recorded allergies**, and nothing here weakens that — the parent is told, every time, in a place they cannot miss. What differs is the *interruption*. Blocking every undescribed dish for every parent would put a sheet in front of a large share of the menu, and a sheet that appears constantly is a sheet dismissed unread — which would then also dismiss the one that mattered. Interruption is a scarce resource and spending it on the case that names a specific allergen for a specific child is what makes it work. This is the presentation half of `D7`/`MI1`; the domain half is unchanged and still returns `warn: true` for both |
+| S35 | **Nunito is the app's typeface, outright — not a fallback.** VAG Rounded Next is dropped, `font.fallback` is removed from the token, and three weights ship (400/500/600) | Decided by Andy 2026-08-10, closing `E19-03`. We hold no evidence of a licence permitting VAG Rounded Next in a shipped binary, and carrying that question through the whole build meant every screen was provisional. Nunito is SIL Open Font Licence — free to embed in an app and on the web — and is the rounded geometry the brand is actually reaching for. **The `family`/`fallback` pair was deleted rather than repointed:** a settled question that still *looks* unsettled gets reopened, and the reopening would be somebody restoring the brand face without checking the licence again. Supersedes `DS-02`'s framing of Nunito as a substitute |

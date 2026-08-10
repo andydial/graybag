@@ -34,9 +34,6 @@ MADE FOR INDIAN SCHOOLS
 Pure vegetarian, contains egg, and non-vegetarian are marked on every dish. Prices in rupees.
 GST shown in full at checkout, never hidden.
 
-FOR STAFF AND STUDENTS TOO
-Teachers, school staff and college students can order their own lunch, not just parents.
-
 WHAT YOU GET
 - The full menu for your child's school, with photos
 - Allergy warnings based on your child's own profile
@@ -54,9 +51,11 @@ HOW IT WORKS
 Currently serving schools in Mohali. Ask us to add yours.
 ```
 
-**Cut the FOR STAFF AND STUDENTS section from the first submission** if `E21`'s "Myself / My
-child" screen has not landed — the model supports it (`P13`) but the screen is fast-follow, and
-a listing must not promise a path a user cannot find.
+> **Removed from the first submission, deliberately (Andy, 2026-08-10).** A "for staff and
+> students too" section was drafted and cut: the *model* supports self-ordering (`P13`), but the
+> "Myself / My child" screen is fast-follow, so the listing would promise a path a user cannot
+> find — which is a rejection, and worse, a refund conversation. **Add it back in the same
+> release that ships `E21-04`'s Myself/My child choice**, not before.
 
 ## App Store — promotional text (170 chars, editable without review)
 
