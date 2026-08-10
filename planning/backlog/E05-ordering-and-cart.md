@@ -52,3 +52,5 @@ summary: Recipients, cart, cutoff enforcement, break/drop time selection, and or
 - [ ] `E05-34` Move `recipientId` and `serviceDate` off `CartLineInput` and onto the cart itself. `E05-32` made them nullable per line, which unblocks the wall and is honest, but one-recipient-one-date (`AR8`) means they are cart properties — two lines cannot legitimately disagree about who the order is for
 
 - [ ] `E05-35` Put the break time on the recipient or the cart line so Home's "Delivering to" card and the cart can name it. Both say it is confirmed with the kitchen rather than inventing one — honest, but it is the one fact a parent checks to be sure the lunch reaches the right classroom
+
+- [ ] `E05-36` Switching recipient must ask before discarding a non-empty cart (ux-spec F9). It switches silently today — a parent with four dishes in the cart who taps the wrong row loses them with no warning and no undo

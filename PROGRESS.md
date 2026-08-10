@@ -2,7 +2,92 @@
 
 Newest handover at the top. Assume the reader has forgotten everything.
 
+
+## 2026-08-11 — overnight run: flow fixes, dish photographs, the orphan guard
+
+Branch **`ux-spec-and-prototype`**. Smoke green throughout. Reload Metro and walk it.
+
+### SHIPPED
+
+| | |
+|---|---|
+| **Flow fixes** | `OrderTargetProvider` was mounted nowhere; the school was asked twice and lost; no stack screen had a way back |
+| **Dish photographs** | 82 uploaded to Storage, `image_path` populated, and the app can now resolve a storage key to a URL |
+| **The orphan guard** | `src/architecture/orphans.test.ts` — every context, provider and store must have a reader, a writer and a mount |
+| **Connectivity** | `E14-26`. Six screens took an `offline` prop that nothing supplied |
+| **Children's copy** | Now says what *we* have not read, not what the parent failed to share |
+| **`ListRow`** | `E14-27`. Leading slot, danger tone, label override |
+| **Can't connect + Policy gate** | `E21-17`, `E21-16`. An unconfigured build now says so instead of looking like an empty menu |
+| **`DishImage`** | Draws rectangles; three hand-rolled copies folded back |
+| **`food_type`** | End to end, live on staging — veg/egg marks render |
+
+### FINDINGS
+
+**The same defect, a fifth time.** `OrderTargetProvider` was written, exported, and **mounted
+nowhere** — so every screen read the context's *default*, `target` was permanently null, and
+yesterday's work on `setTarget` could never have helped. Found independently by me and by the
+orphan-guard agent within minutes of each other. That is now: menu cache never installed,
+sign-in behind a wall, target never set, E13 tokens unconsumed, and this.
+
+**The orphan guard caught its first, and it was mine.** I wrote `report()` into
+`ConnectivityContext` and never called it. Caught minutes after the code was written, which is
+the entire point. Its agent proved every rule by mutation rather than asserting them — including
+that a doc comment naming `setMenuCache` does not count as a call, which matters because four
+comments named it during the whole period nothing did.
+
+**The Maestro flow had a wrong testID.** It tapped `screen-dish-detail-button`; the real handle
+is `screen-dish-detail-add-button`. `check-maestro-ids.mjs` reported success because both halves
+are real in that one file. I tightened it to compose two levels, and **documented that it still
+cannot catch this class** — deciding it needs to know which testID prop reaches which component,
+which is runtime behaviour. Only a real run can. That is the argument for the item below.
+
+**Dish photographs are 120px thumbnails.** No higher-resolution source exists on the CDN. Fine
+as list tiles, soft as a hero. See `docs/open-questions.md`.
+
+### BLOCKED
+
+**Maestro's first green run — not done, and not deferrable by me.** This machine has **no
+Xcode, no Android SDK, no simulator, no emulator and no Maestro binary**. There is nothing to
+run the flow against. I fixed the flow's wrong id and its stale first step so it is correct when
+it does run, and filed `E14-30` (`owner:andy`) for the toolchain. **Ten screens are shipping
+behind a suite that has never executed once.**
+
+### NEEDS ANDY
+
+1. **Install Xcode or the Android SDK** so Maestro can run (`E14-30`).
+2. **Dish photography** — ship with the 120px thumbnails and shoot the catalogue as a
+   fast-follow? Recommendation and reasoning in `docs/open-questions.md`.
+3. **Staging has no real menu** — five seed fixtures, so 78 of 82 photographs are unused. The
+   app is showing four real photographs against five fixture dishes.
+4. `E20-10` still blocks the store privacy forms.
+
+### §6 RE-WALK — what is still divergent
+
+Fixed tonight: **F1** (sign-in returns to the cart, and the gate no longer fires on people who
+have passed it), **F9** (switching recipient now switches school and menu), **F10** (gone with
+`AR8`), the back affordance, and the school being asked twice.
+
+Still divergent, all for the same reason — **the data does not exist in the client yet**, and in
+every case the app says so rather than inventing it:
+
+| Flow | Divergence | Blocked on |
+|---|---|---|
+| **F2** cutoff passes with the cart open | The cart shows no cutoff at all | `E05-30` — no calendar read in `api/` |
+| **F5** dish contains the recipient's allergen | **No allergen warning can ever fire.** `fetchRecipients` does not return allergies, so `allergenIds` is null everywhere | `E05-31` |
+| **F7/F8/F11/F12** payment paths | The waiting and confirmation screens exist but nothing routes to them | `E06` |
+| **F14** policy version changed | The gate screen exists; nothing routes to it | needs a policy-version read |
+| **F9** cart discard on switching recipient | Switching does **not** ask before discarding a non-empty cart | small, unbuilt — filed below |
+
+### NEXT
+
+1. Maestro, the moment a toolchain exists.
+2. `E05-31` allergens — F5 is the one divergence with a safety consequence.
+3. `E05-30` cutoff read — unblocks F2 and the cart's cutoff line.
+4. Cart discard prompt on switching recipient.
+5. Splash (`E21-18`) is the one screen from the list I did not reach.
+
 ---
+
 
 ## 2026-08-10 (afternoon) — the order path exists and works; nobody can run it yet
 
