@@ -2,15 +2,10 @@ import { useEffect, useState } from 'react';
 import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import Constants from 'expo-constants';
 
-import { View } from 'react-native';
 
 import { AccountScreen as AccountScreenImpl } from '../account/AccountScreen';
-import { design } from '@graybag/shared';
-
-import { Button } from '../components/Button';
 import { requiresSignIn, useSession } from '../session/SessionContext';
 
-const { space } = design;
 import { PlaceholderScreen } from './PlaceholderScreen';
 import { AddChildScreen as AddChildScreenImpl } from '../recipients/AddChildScreen';
 import { DishDetailScreen as DishDetailScreenImpl } from '../menu/DishDetailScreen';
