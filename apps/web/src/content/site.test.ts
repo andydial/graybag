@@ -64,8 +64,8 @@ describe('the things this page must never say', () => {
     // Andy, 2026-08-11: we position as healthy school food **by description, not assertion**.
     // "Healthy", "nutritious" and their family are close enough to nutrition and health claims
     // under the FSSAI Labelling and Display regulations to need substantiation we do not hold.
-    // The positioning is carried by what is on the menu — no meat, atta bases, brown bread,
-    // quinoa and sprouts — every word of which is checkable against the catalogue.
+    // The positioning is carried by what is on the menu — atta bases, brown bread, quinoa and
+    // sprouts — every word of which is checkable against the catalogue.
     const banned = [
       'healthy', 'healthier', 'health benefit', 'nutritious', 'nutrition', 'nutritional',
       'wholesome', 'balanced diet', 'well-balanced', 'natural', 'wellness', 'superfood',
@@ -92,6 +92,55 @@ describe('the things this page must never say', () => {
     expect(wraps?.body).toMatch(/atta/i);
     expect(wraps?.body).toMatch(/maida/i);
     expect(JSON.stringify(FOOD)).not.toMatch(/as standard/i);
+  });
+
+  it('makes no service-level dietary claim, because we intend to serve non-vegetarian food', () => {
+    // Andy, 2026-08-11. "There is no meat on the menu at all" was true of the catalogue and was
+    // still the wrong thing to publish: non-vegetarian food is planned, so it was a promise we
+    // intend to break. A school that partly chose us for it would be entitled to be angry, and
+    // "it was true when we wrote it" is not a defence.
+    //
+    // **This bans the claim, not the vocabulary.** A *service-level* statement — "we are
+    // vegetarian", "no meat", "meat-free" — is a promise about everything we will ever serve. A
+    // *per-dish marker* — the veg / egg / non-veg mark every dish carries, and the app's "Pure
+    // vegetarian" on one dish sheet — is a fact about that dish and stays true however the menu
+    // changes. The two are easy to separate here for two reasons: the marker vocabulary is the
+    // bare words `veg`, `egg` and `non-veg`, none of which is banned, and the app's dish detail
+    // lives in `apps/mobile`, which this gate does not read.
+    //
+    // If a per-dish marker phrase is ever genuinely needed in *this* copy — a sample menu, say —
+    // it goes in DISH_MARKER_PHRASES below, which is a deliberate, visible act rather than a
+    // quiet weakening of the rule.
+    const DISH_MARKER_PHRASES: string[] = [
+      // e.g. 'Pure vegetarian' — permitted only as a marker against a named dish.
+    ];
+
+    const SERVICE_LEVEL_DIETARY_CLAIMS = [
+      'vegetarian', 'no meat', 'meat-free', 'meat free', 'without meat', 'meatless',
+      'pure veg', 'purely veg', 'all veg', 'all-veg', 'veg only', 'veg-only',
+      'entirely veg', 'strictly veg',
+    ];
+
+    let scanned = allCopy.toLowerCase();
+    for (const allowed of DISH_MARKER_PHRASES) {
+      scanned = scanned.split(allowed.toLowerCase()).join(' ');
+    }
+
+    for (const claim of SERVICE_LEVEL_DIETARY_CLAIMS) {
+      expect(
+        scanned,
+        `"${claim}" is a promise about everything we will ever serve, and we plan to serve non-vegetarian food`,
+      ).not.toContain(claim);
+    }
+  });
+
+  it('says instead that the school chooses, and that every dish is marked', () => {
+    // The replacement claim, asserted positively so it cannot quietly disappear along with the
+    // one it replaced. This is the argument that survives a change of menu.
+    const note = JSON.stringify(FOOD.note).toLowerCase();
+    expect(note).toContain('veg, egg or non-veg');
+    expect(note).toContain('agreed to');
+    expect(FOOD.note.title.toLowerCase()).toContain('you choose');
   });
 
   it('does not claim a food-safety licence we have not evidenced', () => {

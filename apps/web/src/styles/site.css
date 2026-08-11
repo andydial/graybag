@@ -735,7 +735,7 @@ ul, ol { padding: 0; list-style: none; }
 }
 
 /**
- * The vegetarian note — the sixth tile.
+ * The sixth tile: what the school controls.
  *
  * Five categories at three columns leave one empty cell, and this fills it, which is why it is
  * a list item rather than a block underneath. It carries no photograph and inverts to the dark
