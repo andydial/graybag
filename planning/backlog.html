@@ -628,13 +628,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/46</span>
+          <span class="meter-num">0/47</span>
         </div>
       </header>
       <p class="summary">India&#39;s DPDP Act, children&#39;s data, consent records and policy versioning. The system stores minors&#39; names, class, section and allergies (health data), so this is not an app-store checkbox.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 46 tasks</summary>
+        <summary>Context &amp; 47 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>GrayBag stores personal data about <strong>children</strong>, including <strong>allergies</strong>, which is health</p>
 <p>data. India&#39;s Digital Personal Data Protection Act 2023 requires verifiable parental</p>
@@ -880,7 +880,7 @@
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Scoped erasure Edge Function (<code>recipient</code> vs <code>account</code>).</strong> <code>dpdp-compliance.md</code> §6.5 now takes a <code>scope</code> param so a single child&#39;s consent withdrawal no longer anonymises the parent or deletes siblings; <code>E20-18</code> must honour it. Build the function and a test that a <code>recipient</code>-scope run leaves the parent <code>app_user</code> and sibling <code>recipient</code> rows byte-for-byte unchanged (review finding #4)</span>
+        <span class="ttext"><strong>Scoped erasure Edge Function (<code>recipient</code> vs <code>account</code>).</strong> *(The <code>recipient</code> scope is DONE — <code>0026</code> erases inside <code>deactivate_recipient</code>, 18 pgTAP assertions. What remains is the <code>account</code> scope and the standalone Edge Function.)* <code>dpdp-compliance.md</code> §6.5 now takes a <code>scope</code> param so a single child&#39;s consent withdrawal no longer anonymises the parent or deletes siblings; <code>E20-18</code> must honour it. Build the function and a test that a <code>recipient</code>-scope run leaves the parent <code>app_user</code> and sibling <code>recipient</code> rows byte-for-byte unchanged (review finding #4)</span>
       </li>
       <li class="task" data-id="E20-31" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-31"></button>
@@ -986,7 +986,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The database half of <code>C16</code>.</strong> The source scan cannot see a warehouse export or a vendor reading Postgres directly. When <code>E20-34</code> picks an analytics vendor (or cuts analytics), add the pgTAP assertion that whatever role it uses cannot select from <code>recipient</code>, <code>recipient_allergen</code> or <code>guardian_link</code> — default-deny proved, not assumed</span>
       </li>
-      <li class="task" data-id="E20-44" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E20-44" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-44"></button>
         <code class="tid">E20-44</code>
         <span class="badge r-critical">critical</span>
@@ -1009,6 +1009,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The published policy says we collect &quot;usage data&quot;; the store privacy answers say we collect no Analytics.</strong> <code>docs/privacy-policy.md</code> §1 carries the lawyer&#39;s &quot;Device ID, operating system, and usage data&quot; while <code>docs/andy-prep/store-privacy-answers.md</code> declares no Analytics collection, and <code>C16</code> now forbids any telemetry touching a child&#39;s record. Two published statements that disagree is the <code>[SS-02]</code> drift <code>E20-28</code> exists to catch. Rides with <code>E20-34</code>&#39;s vendor decision — and whichever way it goes, one of these two documents changes</span>
+      </li>
+      <li class="task" data-id="E20-47" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-47"></button>
+        <code class="tid">E20-47</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>npx supabase test db</code> finds zero test files locally</strong> (CLI 2.113.0) — <code>Files=0, Tests=0, Result: NOTESTS</code>, while the same command in CI runs eleven suites. So <code>npm run test:db</code> and therefore <code>npm run test:all</code> report success locally having asserted nothing. CI&#39;s <code>MIN_TESTS</code> guard catches it there; nothing catches it here, which is how a local run talks somebody out of a real failure. Until it is fixed, verify with <code>docker exec -i supabase_db_graybag psql -U postgres -d postgres -f - &lt; supabase/tests/&lt;file&gt;</code></span>
       </li></ul>
       </details>
     </article>
