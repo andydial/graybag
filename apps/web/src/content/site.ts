@@ -171,9 +171,12 @@ export const BENEFITS = [
  *
  * What is said instead is checkable against `tools/mirror-dish-images/manifest.json`:
  *
- * - **No meat anywhere on the list.** Verified across all 85 catalogue records — nothing with
- *   chicken, mutton, fish or any processed meat. Vegetarian, with eggs. That is a fact about the
- *   menu, not a claim about health.
+ * - **Every dish carries a veg, egg or non-veg mark, and the school agrees its own menu.** This
+ *   replaced "there is no meat on the menu at all", which was true of today's catalogue and was
+ *   still the wrong thing to say: non-vegetarian food is planned, so it was a promise we intend
+ *   to break, and a school that partly chose us for it would be right to be angry when it
+ *   changed. What is here now stays true whatever we serve, and it argues the school's control
+ *   — which is what the rest of the page argues — rather than a dietary position we cannot hold.
  * - **Wraps on atta bases, sandwiches on brown bread.** 17 records name atta, brown or wheat.
  *   Deliberately *not* "as standard": four items are explicitly `(Maida)` or `(Maida Base)`, so
  *   "as standard" would have been an overstatement. The menu labelling its own maida is worth
@@ -212,7 +215,7 @@ export const FOOD = {
     {
       id: 'wraps',
       title: 'Wraps and sandwiches',
-      body: 'Paneer and vegetable wraps on atta bases, sandwiches on brown bread. Where an item is maida, the menu says so.',
+      body: 'Wraps on atta bases and sandwiches on brown bread — paneer, vegetables, egg. Where an item is maida, the menu says so.',
     },
     {
       id: 'salads',
@@ -226,15 +229,23 @@ export const FOOD = {
     },
   ],
   /**
-   * The one thing on this page that is a genuine differentiator and is easy to skip past: the
-   * whole menu is vegetarian. Stated as the fact it is — what is and is not on the list — rather
-   * than as a virtue.
+   * Control, not diet.
+   *
+   * This tile used to read "Vegetarian, with eggs — there is no meat on the menu at all". True
+   * of the catalogue as it stands, and **cut** (Andy, 2026-08-11) because non-vegetarian food is
+   * planned. A dietary position we intend to change is not a thing to sell a school on: the
+   * school that chose us partly for it would be entitled to be angry, and "we said that when it
+   * was true" is not a defence anyone accepts.
+   *
+   * What replaced it holds whatever the kitchen serves, and it is the better argument anyway —
+   * the school decides, which is what every other section of this page is about.
    */
   note: {
-    title: 'Vegetarian, with eggs',
+    title: 'You choose what is on the menu',
     body:
-      'There is no meat on the menu at all. Eggs appear as their own dishes — boiled, omelette, ' +
-      'egg sandwich — so a school that would rather not serve them can have them left off.',
+      'Every dish carries a veg, egg or non-veg mark, and your school\'s menu contains only what ' +
+      'you have agreed to. If there is something you would rather we did not serve, it does not ' +
+      'go on.',
   },
   footnote:
     'Photographs are of dishes we cook. Your school\'s menu is agreed with you before the term ' +

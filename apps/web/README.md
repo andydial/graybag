@@ -55,7 +55,8 @@ rather than shipping a palette that disagrees with the app's.
 | **Astro 5, `output: 'static'`, no adapter** | Ships zero JavaScript by default (`P11` — the constraint is network, not CPU), real HTML for SEO, and React islands are available later for the admin surfaces without revisiting the choice. Decision `A9` |
 | **Netlify** | `A5`. Static on a CDN. Netlify Functions are **not** used — `A5` rules them out for API work because Netlify has no India region |
 | **Supabase Edge Function for the one write** | `A4`, non-negotiable #1. The site holds no Supabase key of any kind |
-| **No nutrition or health claims** | The positioning is healthy school food, made **by description**. "Healthy", "nutritious", "wholesome" and their family are close to nutrition claims under the FSSAI Labelling and Display regulations and need substantiation we do not hold, so a unit test fails the build if any of them appears in the copy. What is said instead — no meat on the menu, atta bases, brown bread, quinoa and sprouts — is verifiable against `tools/mirror-dish-images/manifest.json` |
+| **No nutrition or health claims** | The positioning is healthy school food, made **by description**. "Healthy", "nutritious", "wholesome" and their family are close to nutrition claims under the FSSAI Labelling and Display regulations and need substantiation we do not hold, so a unit test fails the build if any of them appears in the copy. What is said instead — atta bases, brown bread, quinoa and sprouts — is verifiable against `tools/mirror-dish-images/manifest.json` |
+| **No service-level dietary claim** | The same test bans "vegetarian", "no meat", "meat-free" and their family **as statements about the service**, because non-vegetarian food is planned and a dietary position we intend to change is not something to sell a school on. The per-dish veg / egg / non-veg marker vocabulary is untouched — it is a fact about one dish and stays true however the menu changes. What the site says instead is that the school chooses its own menu and every dish is marked |
 | **`tokens.css` generated from `packages/shared/src/design`** | `S8`, one source and two outputs. Every colour, size, radius and duration on the site is a `var(--gb-*)`; a test asserts the committed file matches its generator, and another asserts `site.css` contains no colour literal |
 | **Nunito, self-hosted, one variable file** | `DS-02`. VAG Rounded Next is the brand face and its licence is unresolved (`E19-03`), so it is never served. Self-hosted because the budget is zero third-party requests |
 
@@ -71,6 +72,8 @@ rather than shipping a palette that disagrees with the app's.
 - **The photographs are 120 pixels and are never upscaled.** See below.
 - **No school is named.** The three names that were here are out until each agrees in writing
   (`E12-11`), and a test fails if one reappears.
+- **Nothing implies GrayBag is a vegetarian service.** Non-vegetarian food is planned. The page
+  argues the school's control over its own menu instead, which stays true either way.
 
 ## The photography, which is the one thing that constrains the design
 
