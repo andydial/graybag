@@ -652,13 +652,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/49</span>
+          <span class="meter-num">0/50</span>
         </div>
       </header>
       <p class="summary">India&#39;s DPDP Act, children&#39;s data, consent records and policy versioning. The system stores minors&#39; names, class, section and allergies (health data), so this is not an app-store checkbox.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 49 tasks</summary>
+        <summary>Context &amp; 50 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>GrayBag stores personal data about <strong>children</strong>, including <strong>allergies</strong>, which is health</p>
 <p>data. India&#39;s Digital Personal Data Protection Act 2023 requires verifiable parental</p>
@@ -1042,13 +1042,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>npx supabase test db</code> finds zero test files locally</strong> (CLI 2.113.0) — <code>Files=0, Tests=0, Result: NOTESTS</code>, while the same command in CI runs eleven suites. So <code>npm run test:db</code> and therefore <code>npm run test:all</code> report success locally having asserted nothing. CI&#39;s <code>MIN_TESTS</code> guard catches it there; nothing catches it here, which is how a local run talks somebody out of a real failure. Until it is fixed, verify with <code>docker exec -i supabase_db_graybag psql -U postgres -d postgres -f - &lt; supabase/tests/&lt;file&gt;</code> <strong>Fixed 2026-08-11.</strong> Cause found: the CLI bind-mounts <code>supabase/tests</code> into a container and runs pg_prove inside it, and this checkout lives under <code>/Volumes/Data</code>, which is not on Docker Desktop&#39;s file-sharing list — so the mount is <strong>empty</strong> (<code>docker run --rm -v &quot;$PWD/supabase/tests:/t&quot; alpine ls /t</code> returns nothing). <code>scripts/test-db.sh</code> now runs each file through <code>psql</code> over TCP, so the host filesystem never has to cross into a container, and it carries the same floor guard CI has had since <code>E02-24</code>. 406 assertions across 13 files now run where the command reported success on 0. <code>E14-31</code> is Andy fixing the mount so the CLI behaves as documented; nothing depends on it</span>
       </li>
-      <li class="task" data-id="E20-48" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
+      <li class="task" data-id="E20-48" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-48"></button>
         <code class="tid">E20-48</code>
         <span class="badge r-high">high</span>
-        <span class="badge r-you">you</span>
+        
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Two published documents disagree about how long we keep order history.</strong> <code>self_data_notice</code> (<code>0022</code>) says *&quot;Order history is kept for 24 months&quot;*; the privacy policy holds invoices, ledger entries <strong>and order history</strong> to a statutory floor that is certainly longer (<code>C18</code>, <code>C19</code>). One of them is a promise we cannot keep, and the notice is the more serious of the two because it is a <code>policy_version</code> with <code>requires_acceptance</code> — it is <strong>consented to</strong>, not merely displayed. <strong>Fixing it means publishing a new notice version, and <code>requires_acceptance</code> re-prompts everyone who accepted the old one.</strong> Today that is nobody, so this is the cheapest it will ever be; once ~150 Amity parents have registered it becomes a second consent interruption during onboarding, which is precisely what <code>0022</code>&#39;s header was written to avoid. Decide the wording (recommend: the notice defers to the privacy policy rather than restating a period, per <code>C18</code>) and publish before launch</span>
+        <span class="ttext"><strong>The self notice no longer restates a retention period.</strong> <code>0032</code> publishes <code>self_data_notice</code> version 2. Version 1 said *&quot;Order history is kept for 24 months&quot;* while the privacy policy holds invoices, ledger entries <strong>and order history</strong> to a statutory floor that is certainly longer — the same rows, two incompatible promises, and the 24-month one is the one that cannot survive (<code>C19</code>). Version 2 defers to the privacy policy per <code>C18</code>. <strong>Done today because <code>requires_acceptance</code> re-prompts everyone who accepted the previous version, and today that is nobody</strong> — after ~150 Amity parents register it becomes a second consent interruption during onboarding, which is exactly the cost <code>0022</code> was written to avoid. The body was generated from version 1&#39;s own <code>content_md</code> with one paragraph replaced and asserted to differ in nothing else, because §11.2&#39;s immutability is only meaningful if a &quot;correction&quot; corrects one thing. <code>child_data_notice</code> needed no version 2 — checked, and it already states no period. Five pgTAP assertions, including that an adult added today consents against version 2</span>
       </li>
       <li class="task" data-id="E20-49" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-49"></button>
@@ -1057,6 +1057,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Correct the retention comments in <code>0026</code>.</strong> Its header says financial records are kept &quot;seven years&quot; — the figure withdrawn by <code>C18</code>. Left in place deliberately: <code>0026</code> has been applied, and <code>MG6</code> defers migration-immutability enforcement rather than licensing edits to applied files. Correct it when the immutability rule is enforced and a mechanism for amending an applied migration&#39;s comments exists, or supersede the comment from a later migration. The code is unaffected — only the stated reason</span>
+      </li>
+      <li class="task" data-id="E20-50" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-50"></button>
+        <code class="tid">E20-50</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>create_recipient</code> orders published notices by <code>version desc</code> on a TEXT column.</strong> Correct today (<code>&#39;2&#39; &gt; &#39;1&#39;</code>) and wrong at version 10, where <code>&#39;9&#39; &gt; &#39;10&#39;</code> and a consent would be recorded against a superseded wording — silently, since the row would look perfectly well-formed. <code>effective_from desc</code> is the leading term and saves it in practice, but only while nobody backdates one. <code>packages/shared/src/api/policy.ts</code> already does this properly with <code>compareVersions</code>; the SQL does not. Either make <code>version</code> an integer or sort it as one</span>
       </li></ul>
       </details>
     </article>

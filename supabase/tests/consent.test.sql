@@ -307,5 +307,62 @@ select throws_ok(
   'E05-38: one adult cannot be two self-recipients. The app hides the entry point once one '
   'exists, but two devices can race and a stale screen can be tapped');
 
+-- =============================================================================
+-- 9. The notices state no retention period — `C18`, `C19`, `E20-48`, migration `0032`.
+--
+-- `self_data_notice` version 1 promised *"Order history is kept for 24 months"* while the
+-- privacy policy holds invoices, ledger entries and order history to a statutory floor that is
+-- certainly longer. The rows are the same rows, so one of the two was a promise we could not
+-- keep. Version 2 defers to the privacy policy instead of restating a number, which is `C18`:
+-- a period is stated once, in the document that publishes it.
+-- =============================================================================
+
+select is(
+  (select version from policy_version
+    where policy_code = 'self_data_notice' and published_at is not null
+    order by effective_from desc, version desc limit 1),
+  '2',
+  'E20-48: version 2 of the self notice is the current one — and this is the exact ordering '
+  'create_recipient uses to choose what to consent against, so it is asserted rather than assumed');
+
+select ok(
+  (select content_md !~* '[0-9]+\s*(month|year)' from policy_version
+    where policy_code = 'self_data_notice' and version = '2'),
+  'C18: the current self notice names NO retention period. The figure it used to carry was '
+  'wrong, and the fix is not a better number — it is that prose defers to the one document '
+  'that states a period');
+
+select ok(
+  (select content_md !~* '[0-9]+\s*(month|year)' from policy_version
+    where policy_code = 'child_data_notice' and version = '1'),
+  'and the child notice never carried one either — checked rather than assumed, because C18 is '
+  'a rule about every published document and not only the one that was wrong');
+
+select ok(
+  (select published_at is not null from policy_version
+    where policy_code = 'self_data_notice' and version = '1'),
+  '§11.2: version 1 is left PUBLISHED and unedited. It is the record of what was published, and '
+  'a record is not corrected by rewriting it — that is what a version is for');
+
+-- The self path, end to end: an adult added today consents against version 2, not version 1.
+create temporary table c_self_v2 as
+select create_recipient((select u.id from app_user u
+                          where not exists (
+                            select 1 from guardian_link gl join recipient r on r.id = gl.recipient_id
+                             where gl.user_id = u.id and gl.revoked_at is null
+                               and r.is_self and r.is_active)
+                          limit 1),
+                        'Rohan', 'Staffmember', (select school_id from c_ctx),
+                        null, null, '{}'::uuid[], null, false,
+                        jsonb_build_object('screen', 'add-self'), true) as r;
+
+select is(
+  (select pv.version from consent_record cr
+     join policy_version pv on pv.id = cr.policy_version_id
+    where cr.subject_id = ((select r->>'recipient_id' from c_self_v2))::uuid),
+  '2',
+  'an adult adding themselves today consents against the CURRENT wording — the whole point of '
+  'recording policy_version_id on the consent is that it answers which words were shown');
+
 select * from finish();
 rollback;

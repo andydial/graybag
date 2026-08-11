@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 49 open of 55.
+Your tasks only — 48 open of 54.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -21,7 +21,6 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E00-11` **[high]** _(fast-follow)_ Accountant: confirm whether the school's 10% revenue share attracts 18% GST on the school's invoice to GrayBag
 - [ ] `E20-01` **[critical]** _(fast-follow)_ Confirm DPDP obligations that apply to GrayBag with a lawyer or the accountant — children's data, verifiable parental consent, grievance officer, breach reporting timelines
 - [ ] `E20-25` **[high]** _(fast-follow)_ Lawyer to review and approve the allergy liability ([PP-03]) and liability cap ([PP-04]) wording in docs/terms.md §8 and §10 — health-and-safety language, must not ship unreviewed. Rides with E20-01
-- [ ] `E20-48` **[high]** _(fast-follow)_ Two published documents disagree about how long we keep order history. self_data_notice (0022) says *"Order history is kept for 24 months"*; the privacy policy holds invoices, ledger entries and order history to a statutory floor that is certainly longer (C18, C19). One of them is a promise we cannot keep, and the notice is the more serious of the two because it is a policy_version with requires_acceptance — it is consented to, not merely displayed. Fixing it means publishing a new notice version, and requires_acceptance re-prompts everyone who accepted the old one. Today that is nobody, so this is the cheapest it will ever be; once ~150 Amity parents have registered it becomes a second consent interruption during onboarding, which is precisely what 0022's header was written to avoid. Decide the wording (recommend: the notice defers to the privacy policy rather than restating a period, per C18) and publish before launch
 
 ## Needed within 2–3 weeks
 
