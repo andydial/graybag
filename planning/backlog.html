@@ -2845,7 +2845,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Idempotent webhook handling — Razorpay retries; the same event must never double-credit</span>
       </li>
-      <li class="task" data-id="E06-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-05" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-05"></button>
         <code class="tid">E06-05</code>
         
@@ -2925,7 +2925,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Environment-scoped Razorpay keys verified — staging can never reach live keys</span>
       </li>
-      <li class="task" data-id="E06-15" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E06-15" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-15"></button>
         <code class="tid">E06-15</code>
         <span class="badge r-critical">critical</span>
@@ -4414,13 +4414,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Fill <code>food_type</code> for the 79 real dishes.</strong> <code>[DM-17]</code>: veg / non-veg / egg is not in the legacy export and the importer refuses to infer it from ingredients — in this market a wrong mark is a trust failure, not a cosmetic gap. The menu currently renders every dish with no food-type mark. Needs an admin column and someone from the kitchen going through the list</span>
       </li>
-      <li class="task" data-id="E16-49" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E16-49" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-49"></button>
         <code class="tid">E16-49</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>The Bubble import cannot insert a historical order.</strong> <code>0039</code> enforces §4.1, where the only legal INSERT states are <code>draft</code> (admin) and <code>pending_payment</code> (system) — everything else is reached by *moving*. That is right for the product and it has no answer for <code>E16</code>, which imports ~361 legacy orders that are already <code>delivered</code> or <code>cancelled</code>. Three options, none free: <strong>(a)</strong> the importer walks each order through the machine, which writes fabricated <code>order_event</code> history — a delivered-at timestamp we invented, on the audit table <code>I2</code> exists to make trustworthy; <strong>(b)</strong> an explicit <code>migration</code> actor in <code>actor_type</code> with its own row in §4.1 permitting a direct insert into a terminal state, which is honest about what is happening and puts the exemption in the table where it can be read; <strong>(c)</strong> the importer disables the trigger, which is the version that gets copied into a script nobody reviews. <strong>Recommend (b)</strong>, with the imported rows carrying <code>migration_source = &#39;bubble_migrated&#39;</code> so they are distinguishable for ever. Decide before <code>E16</code> writes orders, not during</span>
+        <span class="ttext"><strong>The migration actor, and the narrowest exemption I could write.</strong> <code>0040</code>/<code>0041</code>, Andy&#39;s option (b). <code>0039</code> enforces §4.1, whose only entry points are <code>draft</code> and <code>pending_payment</code>, leaving <code>E16</code>&#39;s ~283 finished legacy orders nowhere to go. Walking each through the machine would write an <code>order_event</code> history that never happened onto the table <code>I2</code> exists to make trustworthy; disabling the trigger in the importer is the version that ends up in a script nobody reviews. So: a named <code>migration</code> actor with <strong>T14</strong>, and three properties that keep it narrow — only <code>paid</code> and <code>cancelled</code> (the recon counts 281 and 2; drafts are not migrated, and <code>delivered</code>/<code>refunded</code> are absent because no legacy order is in them), <strong>INSERT only</strong> (no UPDATE row exists for it anywhere, so it can create history and never move a live order), and <strong>the row must carry a <code>legacy_bubble_id</code></strong> (the actor and the data must agree, so a new order — which has no Bubble id and never will — cannot use this path). Four assertions, three of them about what it refuses. §4.1 updated with T14 and the reasoning</span>
       </li></ul>
       </details>
     </article>

@@ -215,5 +215,70 @@ select throws_ok(
   'but not back: a fully refunded payment does not become partially refunded because a late '
   'webhook said so');
 
+-- =============================================================================
+-- 6. The migration actor — `E16-49`, and the assertions are all about how NARROW it is.
+--
+-- `E16` imports ~283 finished legacy orders and §4.1 has no legal insert into a terminal state.
+-- Andy chose a named actor over walking each order through the machine (which would write an
+-- `order_event` history that never happened, onto the table `I2` exists to make trustworthy) and
+-- over disabling the trigger in the importer (the version that ends up in a script nobody
+-- reviews — and precisely how the legacy system came to be the way it is).
+--
+-- So the exemption exists. What is tested here is that it cannot be used for anything else.
+-- =============================================================================
+
+set local app.actor_type = 'migration';
+
+select lives_ok(
+  $$ insert into "order" (order_group_id, order_ref, correlation_id, customer_user_id,
+       recipient_id, school_id, kitchen_id, city_id, service_date, delivery_mode, cutoff_at,
+       config_snapshot, school_name_snapshot, recipient_name_snapshot, status, legacy_bubble_id)
+     select (select group_id from sm_ctx), 'SM-MIG-1', gen_random_uuid(),
+            (select id from app_user limit 1), (select id from recipient limit 1),
+            s.id, s.kitchen_id, s.city_id, current_date - 30, 'classroom',
+            now() - interval '31 days', '{}'::jsonb, s.name, 'Legacy', 'paid',
+            '1749446685836x657725915595526160'
+       from school s where s.id = (select school_id from sm_ctx) $$,
+  'E16-49: the migration actor can insert a finished legacy order — 281 of the 361 Bubble orders '
+  'are `Paid` and there was no legal way to write one');
+
+select throws_ok(
+  $$ insert into "order" (order_group_id, order_ref, correlation_id, customer_user_id,
+       recipient_id, school_id, kitchen_id, city_id, service_date, delivery_mode, cutoff_at,
+       config_snapshot, school_name_snapshot, recipient_name_snapshot, status)
+     select (select group_id from sm_ctx), 'SM-MIG-2', gen_random_uuid(),
+            (select id from app_user limit 1), (select id from recipient limit 1),
+            s.id, s.kitchen_id, s.city_id, current_date - 30, 'classroom',
+            now() - interval '31 days', '{}'::jsonb, s.name, 'Legacy', 'paid'
+       from school s where s.id = (select school_id from sm_ctx) $$,
+  '23514', null,
+  'E16-49, THE narrowing: the same insert with NO legacy_bubble_id is refused. Setting '
+  'app.actor_type = ''migration'' is not enough — the actor and the DATA have to agree, and a '
+  'new order has no legacy id and never will, so this path cannot be opened for one');
+
+select throws_ok(
+  $$ insert into "order" (order_group_id, order_ref, correlation_id, customer_user_id,
+       recipient_id, school_id, kitchen_id, city_id, service_date, delivery_mode, cutoff_at,
+       config_snapshot, school_name_snapshot, recipient_name_snapshot, status, legacy_bubble_id)
+     select (select group_id from sm_ctx), 'SM-MIG-3', gen_random_uuid(),
+            (select id from app_user limit 1), (select id from recipient limit 1),
+            s.id, s.kitchen_id, s.city_id, current_date - 30, 'classroom',
+            now() - interval '31 days', '{}'::jsonb, s.name, 'Legacy', 'delivered',
+            '1749446685836x657725915595526161'
+       from school s where s.id = (select school_id from sm_ctx) $$,
+  '23514', null,
+  'and `delivered` is refused even WITH a legacy id: the recon found only Paid, Cancelled and '
+  'Draft in the export, so the exemption is sized to the states that exist. One sized for states '
+  'that do not is one somebody finds a use for');
+
+-- The sharpest one. A migration actor must never be able to touch a live order.
+select throws_ok(
+  format($$ update "order" set status = 'cancelled' where id = %L $$, (select id from sm_paid)),
+  '23514', null,
+  'E16-49: the migration actor cannot UPDATE anything. There is no UPDATE row for it anywhere in '
+  'the table, so it can create history and can never cancel a real customer''s lunch');
+
+set local app.actor_type = 'system';
+
 select * from finish();
 rollback;

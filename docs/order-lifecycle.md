@@ -179,6 +179,25 @@ Every legal transition, exhaustively. Anything not in this table is rejected by 
 | **T11** | `paid` | `cancelled` | `kitchen`, `admin` | Holder of `orders.cancel`. No time bound | As T10, with the staff reason code (`E09-08`) |
 | **T12** | `preparing` | `cancelled` | `kitchen`, `admin` | Holder of `orders.cancel` | As T11 |
 | **T13** | `cancelled` | `refunded` | `system` | `refunded_total_paise = total_paise` and every contributing `refund.status = 'completed'` | Enqueue `E08-06`; credit note (`E07-07`) |
+| **T14** | *(insert)* | `paid` or `cancelled` | `migration` | **The row must carry a `legacy_bubble_id`** | `order_event(null → …, actor = migration)` |
+
+**T14 is the `E16` import, and it is deliberately the narrowest row in this table** (`E16-49`,
+Andy 2026-08-11, migrations `0040`/`0041`). Three properties make it so:
+
+- **Two states, because only two exist.** `docs/bubble-recon-findings.md` §8 counts 281 `Paid`,
+  2 `Cancelled` and 78 `Draft` in the export, and the drafts are not migrated. `delivered` and
+  `refunded` are absent from T14 because no legacy order is in either — an exemption sized for
+  states that do not exist is one somebody eventually finds a use for.
+- **INSERT only.** There is no `UPDATE` row for `migration` anywhere in this table, so the actor
+  can create history and can never move a live order.
+- **The row must carry a `legacy_bubble_id`.** This is what makes it unusable outside the import:
+  setting `app.actor_type = 'migration'` is not sufficient, because the *data* must also be
+  legacy data, and a new order has no Bubble id and never will.
+
+The alternatives were considered and rejected: walking each imported order through the machine
+writes an `order_event` history that never happened onto the table `I2` exists to make
+trustworthy, and disabling the trigger inside the importer is the version that ends up in a
+script nobody reviews.
 
 ### 4.2 Notable illegal transitions, and why
 
