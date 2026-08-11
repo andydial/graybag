@@ -2982,13 +2982,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/16</span>
+          <span class="meter-num">0/17</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 16 tasks</summary>
+        <summary>Context &amp; 17 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3016,7 +3016,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Packing/delivery list</strong> grouped school -&gt; break -&gt; class -&gt; section <strong>Domain done 2026-08-10</strong> — <code>packingList</code>, grouped in exactly that order because it is the order the food physically moves. Open for the screen</span>
       </li>
-      <li class="task" data-id="E09-04" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E09-04" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-04"></button>
         <code class="tid">E09-04</code>
         
@@ -3024,7 +3024,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>The kitchen dashboard: one working list of the day&#39;s orders.</strong> Child, class, section, break, school, dishes, status. Filters: school, date, break, status. <strong>Production totals as a summary at the top</strong> — &quot;how much do we cook&quot; is answered by the same data, so it is a header on this list rather than a second screen. <code>productionTotals</code> and <code>perSchoolTotals</code> already compute it (<code>E09-01</code>, <code>E09-02</code>)</span>
       </li>
-      <li class="task" data-id="E09-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E09-05" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-05"></button>
         <code class="tid">E09-05</code>
         
@@ -3072,7 +3072,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Kitchen users scoped to their kitchen(s) — currently all-access is acceptable, but the scoping must exist</span>
       </li>
-      <li class="task" data-id="E09-11" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E09-11" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-11"></button>
         <code class="tid">E09-11</code>
         
@@ -3119,6 +3119,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The standalone printable packing list, as its own view.</strong> Grouped school → break → class → section, built on <code>packingList</code>, which is done. <strong>Fast-follow, deliberately</strong> (Andy, 2026-08-11): the MVP kitchen surface is one order list with status updates, and a separate packing screen is a second surface to build, test and teach before there is evidence anyone needs it. The capability already exists as CSV (<code>E09-11a</code>), so nothing is lost by waiting. <code>E09-14</code>&#39;s retention rule governs it whenever it is built, because it names children</span>
+      </li>
+      <li class="task" data-id="E09-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-17"></button>
+        <code class="tid">E09-17</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">Wire the kitchen dashboard to the real server — <code>liveTransport</code> implementing <code>KitchenTransport</code>, selected by <code>PUBLIC_KITCHEN_TRANSPORT=live</code>. Blocked on <code>docs/kitchen-transport-contract.md</code> §1 (<code>E12-06</code> sign-in) and §3 (the <code>kitchen-order-status</code> Edge Function), both owned by the <code>supabase/</code> thread. The screen and every one of its states are built and reviewable against fixtures today</span>
       </li></ul>
       </details>
     </article>
