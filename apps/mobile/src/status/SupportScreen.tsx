@@ -3,6 +3,7 @@ import { design } from '@graybag/shared';
 
 import { Button } from '../components/Button';
 import { Card } from '../components/Surfaces';
+import { SUPPORT_SUBJECTS, supportMailto } from '../support/contact';
 
 const { bg, text, space, scale, layout } = design;
 
@@ -25,23 +26,40 @@ const { bg, text, space, scale, layout } = design;
  * coming.
  *
  * Pass real values through `grievance` and the notice disappears. Nothing else changes.
+ *
+ * ## No address is drawn on this screen — `E20-39`
+ *
+ * Both buttons compose a message to `SUPPORT_EMAIL` without ever displaying it (Andy,
+ * 2026-08-11). That is why `supportEmail` is gone as a prop: it existed, had no caller, and
+ * its only purpose was to be turned into a `mailto:` — which the screen can do for itself from
+ * one constant, with no way for a caller to pass an address that then gets rendered.
+ *
+ * The grievance officer's own email is deliberately **not** rendered either when `E20-21`
+ * fills the block in. A published grievance contact has to be reachable, not scrapeable, and
+ * the compose button is the reachable half.
  */
 export interface GrievanceOfficer {
   name: string;
   designation: string;
-  email: string;
   address: string;
 }
+// No `email` field, deliberately. DPDP requires the grievance contact to be **published**, and
+// it is — in `docs/privacy-policy.md` §7.2, which is where a published document belongs. Making
+// it un-representable here means "never rendered on this screen" is structural rather than
+// something a future edit has to remember.
 
 export function SupportScreen({
   grievance = null,
-  supportEmail = null,
   testID = 'screen-support',
 }: {
   grievance?: GrievanceOfficer | null;
-  supportEmail?: string | null;
   testID?: string;
 }) {
+  // `Linking` directly, with no injectable seam. An `openUrl` prop here would be passed by
+  // nothing but the test file — which `orphans.test.ts` correctly calls an orphan, and which
+  // is the same class of defect as an exported setter only tests call. The test mocks
+  // `Linking` instead, so the production path is the tested path.
+  const open = (url: string) => void Linking.openURL(url);
   return (
     <View style={styles.screen} testID={testID}>
       <Text style={styles.title} accessibilityRole="header">
@@ -52,30 +70,39 @@ export function SupportScreen({
         it out.
       </Text>
 
-      {supportEmail === null ? null : (
-        <Button
-          label="Email us"
-          onPress={() => void Linking.openURL(`mailto:${supportEmail}`)}
-          testID={`${testID}-email`}
-        />
-      )}
+      <Button
+        label="Email us"
+        onPress={() => open(supportMailto(SUPPORT_SUBJECTS.general))}
+        testID={`${testID}-email`}
+      />
 
       <Card testID={`${testID}-grievance`}>
         <Text style={styles.cardHead}>Grievance officer</Text>
         {grievance === null ? (
           <Text style={styles.pending} testID={`${testID}-grievance-pending`}>
-            We&rsquo;re publishing these details before launch. Until then, email us above and
-            it reaches the same people.
+            We&rsquo;re publishing these details before launch. Until then, use the button below
+            and it reaches the same people.
           </Text>
         ) : (
           <>
             <Text style={styles.cardBody}>
               {grievance.name} · {grievance.designation}
             </Text>
-            <Text style={styles.cardBody}>{grievance.email}</Text>
             <Text style={styles.cardBody}>{grievance.address}</Text>
           </>
         )}
+
+        {/*
+          The reachable half of a published contact. Separate from "Email us" so the message
+          arrives with a subject that says it is a data-protection matter — DPDP puts these on
+          a statutory clock, and one undifferentiated inbox is how a deadline gets missed.
+        */}
+        <Button
+          label="Write to the grievance officer"
+          variant="secondary"
+          onPress={() => open(supportMailto(SUPPORT_SUBJECTS.grievance))}
+          testID={`${testID}-grievance-email`}
+        />
         <Text style={styles.cardNote}>
           You can write to us about anything we hold about you or your child — to see it,
           correct it, or have it deleted.

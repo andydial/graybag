@@ -1,4 +1,13 @@
-import { render, screen } from '@testing-library/react-native';
+import { render, screen, fireEvent } from '@testing-library/react-native';
+
+import { Linking } from 'react-native';
+
+import { SUPPORT_EMAIL, SUPPORT_SUBJECTS } from '../support/contact';
+
+// The screen calls `Linking.openURL` directly rather than taking an injectable `openUrl` prop:
+// a prop only this file would ever pass is an orphan, and `orphans.test.ts` says so. Mocking
+// the platform module keeps the production path and the tested path the same one.
+const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
 
 import { CantConnectScreen } from './CantConnectScreen';
 import { PolicyGateScreen } from './PolicyGateScreen';
@@ -79,17 +88,66 @@ describe('SupportScreen', () => {
         grievance={{
           name: 'A Person',
           designation: 'Grievance Officer',
-          email: 'grievance@graybag.in',
           address: 'Mohali, Punjab',
         }}
       />,
     );
     expect(screen.queryByTestId('screen-support-grievance-pending')).toBeNull();
-    expect(screen.getByText('grievance@graybag.in')).toBeTruthy();
+    expect(screen.getByText('A Person · Grievance Officer')).toBeTruthy();
+    expect(screen.getByText('Mohali, Punjab')).toBeTruthy();
   });
 
-  it('offers no email button when there is no address to send to', async () => {
+  /**
+   * **These two assertions replaced their opposites, on Andy's instruction (2026-08-11).**
+   *
+   * The previous tests asserted that the grievance email *was* rendered, and that no email
+   * button appeared unless an address was passed in. Both now assert the reverse: the address
+   * is never drawn, and the compose action is always available.
+   *
+   * Recorded here rather than only in a commit message because a test that reverses direction
+   * deserves to say why in the file someone will read it in.
+   */
+  it('never draws the support address anywhere on the screen', async () => {
+    const { toJSON } = await render(
+      <SupportScreen
+        grievance={{
+          name: 'A Person',
+          designation: 'Grievance Officer',
+          address: 'Mohali, Punjab',
+        }}
+      />,
+    );
+    // The whole rendered tree, not just the text nodes we thought to check — an address in an
+    // accessibility label or a placeholder is just as scrapeable as one in a paragraph.
+    expect(JSON.stringify(toJSON())).not.toContain(SUPPORT_EMAIL);
+    expect(JSON.stringify(toJSON())).not.toContain('@');
+  });
+
+  it('always offers a way to reach a person, address or no address', async () => {
+    // The contact point is a compliance requirement; it cannot be conditional on a prop that
+    // nothing passes. That is precisely how `E20-39` came to be unreachable.
     await render(<SupportScreen />);
-    expect(screen.queryByTestId('screen-support-email')).toBeNull();
+    expect(screen.getByTestId('screen-support-email')).toBeTruthy();
+    expect(screen.getByTestId('screen-support-grievance-email')).toBeTruthy();
+  });
+
+  it('composes to the support address with a subject that says what it is', async () => {
+    openURL.mockClear();
+    await render(<SupportScreen />);
+
+    fireEvent.press(screen.getByTestId('screen-support-grievance-email'));
+    const opened = openURL.mock.calls.map(([url]) => url);
+    expect(opened[0]).toContain(`mailto:${SUPPORT_EMAIL}`);
+    // DPDP puts a data-protection query on a statutory clock. One undifferentiated inbox is
+    // how a deadline gets missed, so the subject carries the reason.
+    expect(opened[0]).toContain(encodeURIComponent(SUPPORT_SUBJECTS.grievance));
+  });
+
+  it('puts nothing identifying in the subject line', async () => {
+    // A subject travels through mail servers in the clear (non-negotiable #4).
+    for (const subject of Object.values(SUPPORT_SUBJECTS)) {
+      expect(subject).toMatch(/^GrayBag — /);
+      expect(subject).not.toMatch(/\d/);
+    }
   });
 });

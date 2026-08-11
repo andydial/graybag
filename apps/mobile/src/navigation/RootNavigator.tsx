@@ -19,6 +19,7 @@ import {
   OrderDetailScreen,
   OrdersScreen,
   SignInScreen,
+  SupportScreen,
 } from '../screens';
 import { House, ShoppingCart, User, UtensilsCrossed } from 'lucide-react-native';
 
@@ -238,6 +239,7 @@ const OrdersStackScreen = withScreenFrame(OrdersScreen, STACK_SCREEN_EDGES, { ba
 const OrderDetailStackScreen = withScreenFrame(OrderDetailScreen, STACK_SCREEN_EDGES, { back: true });
 const AddChildStackScreen = withScreenFrame(AddChildScreen, STACK_SCREEN_EDGES, { back: true });
 const ChildrenStackScreen = withScreenFrame(ChildrenScreen, STACK_SCREEN_EDGES, { back: true });
+const SupportStackScreen = withScreenFrame(SupportScreen, STACK_SCREEN_EDGES, { back: true });
 // The modal takes the full set too. On iOS it is presented as a page sheet whose top already
 // clears the status bar, so the top inset buys a little unnecessary whitespace there; on
 // Android `presentation: 'modal'` is a full-screen route where the same inset is the
@@ -392,6 +394,9 @@ export function RootNavigator() {
             `AddChild` is: the mock has four tabs and this is not one of them. It mounts
             with no session and shows its empty state rather than a gate (`AR7`). */}
         <Stack.Screen name="Children" component={ChildrenStackScreen} />
+        {/* `E20-39`. Reached from Account, and deliberately not behind a session: someone
+            whose complaint is that they cannot sign in must still be able to reach us. */}
+        <Stack.Screen name="Support" component={SupportStackScreen} />
         <Stack.Screen
           name="SignIn"
           component={SignInStackScreen}

@@ -59,6 +59,14 @@ export type RootStackParamList = {
    * not browsing (`AR7`), which is why "Not now" simply returns you to the cart.
    */
   PolicyGate: undefined;
+  /**
+   * Support and the grievance officer (`E20-39`, ux-spec §5.18).
+   *
+   * DPDP requires a published contact point for questions and complaints about personal data,
+   * and both stores expect an in-app route to it. Reached from Account; it mounts with no
+   * session, because someone whose complaint *is* that they cannot sign in must still reach us.
+   */
+  Support: undefined;
 };
 
 /**

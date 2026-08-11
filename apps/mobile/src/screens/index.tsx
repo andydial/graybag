@@ -18,6 +18,7 @@ import { MenuScreen as MenuScreenImpl } from '../menu/MenuScreen';
 import type { RootStackParamList } from '../navigation/types';
 import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
+import { SupportScreen as SupportScreenImpl } from '../status/SupportScreen';
 import { useConnectivity } from '../net/ConnectivityContext';
 import { useAccess, useOrderingTarget, useRefreshRecipients } from '../session/audience';
 import { useSignOut } from '../session/useRecipients';
@@ -187,9 +188,24 @@ export const AccountScreen = () => {
         void signOut();
       }}
       onOrders={() => navigation.navigate('Orders')}
+      // `E20-39`. This had no caller, so the Grievance officer row rendered and did nothing —
+      // one of the six compliance controls, unreachable, on a screen that looked complete.
+      onSupport={() => navigation.navigate('Support')}
     />
   );
 };
+
+/**
+ * Support and the grievance officer (`E20-39`), wired.
+ *
+ * Takes no props. `grievance` stays `null` until `E20-21` supplies the name, designation and
+ * published address — the screen already says so plainly rather than inventing a contact, and
+ * a published contact that goes nowhere is a commitment on record that we are failing.
+ *
+ * There is no `supportEmail` to pass any more: the address lives in `support/contact.ts` and
+ * reaches the screen only as the target of a `mailto:`, never as text (Andy, 2026-08-11).
+ */
+export const SupportScreen = () => <SupportScreenImpl />;
 
 // Reached from Account. `navigation/types.ts` used to say "and from Home" as well; Home has no
 // such link, and saying so was how nobody noticed this screen had no door at all.

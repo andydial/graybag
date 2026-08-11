@@ -380,9 +380,7 @@ const KNOWN_ORPHANS: Record<string, string> = {
   // the screen. Three of the four remain.
   'prop:AccountScreen.onDeleteAccount': 'E20-37 — account deletion has no route',
   'prop:AccountScreen.onPolicy': 'E20-38 — privacy/terms/refund are published but unlinked',
-  'prop:AccountScreen.onSupport': 'E20-39 — support route unwired',
-  'prop:SupportScreen.grievance': 'E20-39 — grievance officer contact unreachable',
-  'prop:SupportScreen.supportEmail': 'E20-39 — same screen',
+  'prop:SupportScreen.grievance': 'E20-21 — awaiting the name, designation and address',
 
   // Ordering paths with both halves built.
   'prop:DishDetailScreen.onChangeTarget': 'E05-40 — switch who a dish is for, from the sheet',
@@ -650,6 +648,10 @@ describe('nothing is half-wired', () => {
     // props and barrel exports; every one of those was already broken and nothing said so.
     // (The scan's own stale-key check caught a 21st entry that contradicted SEAM_PROPS.)
     // 20 -> 17: `E20-36` wired the policy gate, so its three props are no longer orphans.
-    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(17);
+    // 17 -> 15: `E20-39` gave Account's Support row a route, and deleted `supportEmail`
+    // outright — the address is a constant now and never reaches the screen as a prop.
+    // `SupportScreen.grievance` stays, re-pointed at the task that actually blocks it: the
+    // contact details are Andy's to supply (`E20-21`), not a missing wire.
+    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(15);
   });
 });
