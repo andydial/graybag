@@ -130,44 +130,22 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
         </div>
 
         <!--
-          Two drawn frames, not screenshots. The app is not published, and a mocked screenshot of
+          One drawn frame, not a screenshot. The app is not published, and a mocked screenshot of
           software a visitor cannot download is a claim this page should not make.
 
-          **The menu is in front and the delivery card behind**, because those are the two halves
-          of the proposition and a principal needs both in one glance: real food on a real menu,
-          and the fact that it reaches a named child in a named class at a named break. This
-          replaced a single frame showing the *cart* — subtotal, GST lines, "Place order" — which
-          was the most transactional screen we have, shown to the one person who never pays for
-          anything.
+          It shows the **menu**, because food sells food: a grid of real dishes with veg marks and
+          prices is the first thing on the page that looks like a real operation. It replaced the
+          *cart* — subtotal, GST lines, "Place order" — which was the most transactional screen we
+          have, shown to the one person who never pays for anything.
+
+          A second frame behind it carrying "Delivering to Aarav" was tried and **cut**: green on
+          a green pattern read as a rendering fault, the phone clipped it, and it said nothing the
+          hero paragraph does not already say.
 
           Everything inside is at 12px or larger, the design system's floor. Where it did not fit,
-          the content was cut rather than the type shrunk.
+          the content went rather than the type.
         -->
         <div class="hero__device">
-          <!-- Behind and offset: who the food is for. -->
-          <div
-            class="deliver-card"
-            role="img"
-            aria-label="Illustration: the GrayBag app showing an order being delivered to Aarav, Class 4-B at Gem Public School, at second break, 11:20."
-          >
-            <div class="pattern pattern--pale" aria-hidden="true"></div>
-            <div class="deliver-card__top" aria-hidden="true">
-              <p class="deliver-card__label">Delivering to</p>
-              <p class="deliver-card__who">Aarav</p>
-              <p class="deliver-card__where">Class 4-B · Gem Public School</p>
-            </div>
-            <!--
-              The date was here and is cut: the phone occludes this card's right edge, so
-              "Tue 12 Aug" rendered as "Tue 12" and read as a bug rather than as depth. Cut the
-              content, not the type — the break time is the fact that matters, and the date is
-              already carried by the copy beside it.
-            -->
-            <div class="deliver-card__band" aria-hidden="true">
-              <span>Second break · 11:20</span>
-            </div>
-          </div>
-
-          <!-- In front: the food. -->
           <div
             class="device"
             role="img"
@@ -210,16 +188,25 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
             </div>
           </div>
         </div>
-
-        <ul class="facts">
-          {FACTS.map((fact) => (
-            <li class="fact">
-              <p class="fact__value">{fact.value}</p>
-              <p class="fact__label">{fact.label}</p>
-            </li>
-          ))}
-        </ul>
       </div>
+
+      <!--
+        A band beneath the hero, three across — not a column inside it. Stacking these one per
+        row made the hero roughly twice as tall and left a large empty green field under the
+        buttons, which is the opposite of what a hero should do to the eye.
+
+        On a wide viewport the band's rule runs the full width while its content stops short of
+        the device frame, which bleeds down past this point. That is a padding, not a narrower
+        band: the line still reads edge to edge.
+      -->
+      <ul class="facts">
+        {FACTS.map((fact) => (
+          <li class="fact">
+            <p class="fact__value">{fact.value}</p>
+            <p class="fact__label">{fact.label}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   </section>
 
