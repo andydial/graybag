@@ -329,13 +329,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/22</span>
+          <span class="meter-num">0/23</span>
         </div>
       </header>
       <p class="summary">Repo, two real environments, secrets management, and the test harness that every later task depends on.</p>
       <p class="deps">Depends on <code>E00</code></p>
       <details>
-        <summary>Context &amp; 22 tasks</summary>
+        <summary>Context &amp; 23 tasks</summary>
         <div class="context"><h4>Why early</h4>
 <p>Everything after this inherits the quality bar set here. Getting tests and environments right on day one is what stops &quot;manually swapping Razorpay keys&quot; happening again.</p></div>
         <ul class="tasks">
@@ -514,6 +514,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Provider stub server for Razorpay</strong> (answers <code>/v1/orders</code>, <code>/v1/payments/:id</code>, <code>/v1/payments/:id/refund</code>, <code>/v1/payments</code>, <code>/v1/refunds</code>, <code>/v1/settlements/recon/combined</code>) built from the <code>docs/payments-design.md</code> §12 checklist, used by the offline CI payment tests in <code>docs/testing-strategy.md</code> §5. Must be corrected against <code>E19-01</code>&#39;s answers when they land. Overlaps <code>E06-13</code> — if <code>E06-13</code> already owns the fixtures, fold this in there rather than duplicating</span>
+      </li>
+      <li class="task" data-id="E01-25" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-25"></button>
+        <code class="tid">E01-25</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>scripts/tag-mvp.mjs</code> and the backlog markdown disagree about five tasks, and running the script would resolve it the wrong way.</strong> <code>E03-20</code>, <code>E05-16</code>, <code>E05-20</code> and <code>E05-21</code> carry <code>(mvp)</code> in the markdown but are absent from the script&#39;s explicit include list, so a run <strong>strips</strong> them from v1 — four tasks silently leaving scope. <code>E09-11</code> is the mirror case: in the list, missing the marker in markdown. Found 2026-08-11 while registering <code>E04-14</code>…<code>E04-20</code>, and pre-existing. The list is meant to be the authority (<code>docs/mvp-scope.md</code>), so either the four belong in it or their markers are wrong — <strong>that is a scope decision, not a cleanup</strong>, which is why this task does not fix it. Whoever rules should also make the disagreement fail CI, because &quot;runs the script last&quot; is not a scope process</span>
       </li></ul>
       </details>
     </article>
@@ -1723,13 +1731,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/18</span>
+          <span class="meter-num">0/21</span>
         </div>
       </header>
       <p class="summary">Dishes, menus, per-school assignment, Excel import with allergens, and the version-based cache that makes the app feel fast.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 18 tasks</summary>
+        <summary>Context &amp; 21 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Today: 1 kitchen, 3 menus, 3 schools; largest menu is 50 items. Menu changes are rare, which is exactly what makes version-based caching effective.</p>
 <p>Source Excel columns: <code>Item No. | Menu Item | Description | Ingredients | Calories | Portion/Weight | Allergens | Category | Category - ORIG | Price</code>.</p></div>
@@ -1838,37 +1846,37 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Migrate the 3 existing menus and re-source or re-upload all dish images</span>
       </li>
-      <li class="task" data-id="E04-14" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E04-14" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-14"></button>
         <code class="tid">E04-14</code>
         
         
-        <span class="badge r-later">later</span>
+        <span class="badge r-mvp">v1</span>
         <span class="ttext">Expose <code>food_type</code> through <code>public_menu</code> — the view never selected it, so the mark cannot reach the app at all even once it is set. <code>packages/shared/src/menu/types.ts</code> already declares <code>foodType: FoodType | null</code>, so the client is typed for a field the read path does not carry. Bumps <code>school_menu_version</code> (<code>MC*</code>), because a cached menu without the column must not render as &quot;not stated&quot;</span>
       </li>
-      <li class="task" data-id="E04-15" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E04-15" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-15"></button>
         <code class="tid">E04-15</code>
         
         
-        <span class="badge r-later">later</span>
+        <span class="badge r-mvp">v1</span>
         <span class="ttext">Load the returned veg/egg/non-veg marking sheet (<code>tools/food-type-sheet/</code>) into <code>dish.food_type</code>, matching by name with the six duplicate names resolved per <code>docs/bubble-recon-findings.md</code> §9. Plan-then-apply like the menu importer; blank stays blank</span>
       </li>
-      <li class="task" data-id="E04-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E04-16" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-16"></button>
         <code class="tid">E04-16</code>
         
         
-        <span class="badge r-later">later</span>
+        <span class="badge r-mvp">v1</span>
         <span class="ttext">Make <code>food_type</code> structurally required — add <code>not_stated</code> to the enum and set the column <code>not null</code> with <strong>no default</strong>, so a dish cannot be created without someone choosing. Two migrations: <code>ALTER TYPE … ADD VALUE</code> cannot run in the transaction that uses it (same constraint <code>M9</code> hit with <code>bank</code>). Depends on <code>E04-15</code></span>
       </li>
-      <li class="task" data-id="E04-17" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E04-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-17"></button>
         <code class="tid">E04-17</code>
-        <span class="badge r-high">high</span>
         
-        <span class="badge r-later">later</span>
-        <span class="ttext">School-level menu restriction, <strong>enforced server-side</strong>: <code>school.allowed_food_types</code>, a refusal at menu assignment, a refusal at menu-item edit for menus already assigned to a restricted school, a filter in <code>public_menu</code>, and a checkout refusal with its own error code. A menu belongs to a *kitchen* and is shared across schools (<code>menu.kitchen_id</code>, <code>menu_assignment</code>), so this cannot be done by editing the menu. <code>not_stated</code> must fail closed. Needs allow-and-deny tests on all four paths (non-negotiable #2). Backs the website&#39;s written commitment that a school&#39;s menu contains only what it agreed to</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">(risk:high) School-level menu restriction, <strong>enforced server-side</strong>: <code>school.allowed_food_types</code>, a refusal at menu assignment, a refusal at menu-item edit for menus already assigned to a restricted school, a filter in <code>public_menu</code>, and a checkout refusal with its own error code. A menu belongs to a *kitchen* and is shared across schools (<code>menu.kitchen_id</code>, <code>menu_assignment</code>), so this cannot be done by editing the menu. <code>not_stated</code> must fail closed. Needs allow-and-deny tests on all four paths (non-negotiable #2). Backs the website&#39;s written commitment that a school&#39;s menu contains only what it agreed to</span>
       </li>
       <li class="task" data-id="E04-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-18"></button>
@@ -1876,7 +1884,31 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Interim guard until <code>E04-17</code> lands: refuse creation of any <code>non_veg</code> dish. One trigger, dropped by <code>E04-17</code>. The website&#39;s commitment cannot be broken while no non-veg dish exists, so this converts a promise-breaking risk into a build-order dependency</span>
+        <span class="ttext"><strong>Withdrawn 2026-08-11, before any code was written.</strong> Proposed a trigger refusing creation of any <code>non_veg</code> dish until <code>E04-17</code> landed. Andy reversed it: schools are lined up who want non-vegetarian food next, so the guard would have blocked the business it was meant to protect. The id is retained and struck rather than reused. The risk is handled by sequencing instead — <code>E04-17</code> now ships *before* the first non-veg dish exists</span>
+      </li>
+      <li class="task" data-id="E04-19" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-19"></button>
+        <code class="tid">E04-19</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">No fixture anywhere contains a <code>non_veg</code> dish. <code>supabase/seed.sql</code> and <code>supabase/seeds/staging-menu.sql</code> seed four <code>veg</code> and one <code>egg</code>; the clickable prototype&#39;s dish data is 36 <code>veg</code> and 8 <code>egg</code>. The enum value, the shared TS union member and the prototype&#39;s mark renderer all exist and <strong>have never been exercised against data</strong>. <code>E04-17</code> cannot be tested without this, and <code>SD5</code> says fixtures exist for exactly the states that are otherwise untestable</span>
+      </li>
+      <li class="task" data-id="E04-20" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-20"></button>
+        <code class="tid">E04-20</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><code>supabase/tests/</code> has <strong>zero</strong> references to <code>food_type</code> — the pgTAP suite does not touch it at all. <code>E04-17</code> adds four server-side refusal paths that all key off it, and non-negotiable #2 requires an allow *and* a deny test for each</span>
+      </li>
+      <li class="task" data-id="E04-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-21"></button>
+        <code class="tid">E04-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">The website&#39;s food-category copy names only vegetarian dishes (rajma, chana, dal makhni, paneer, quinoa) because that is the entire catalogue today. Honest now; it will read as vegetarian-only positioning the moment non-veg is served. Revisit <code>FOOD.categories</code> in <code>apps/web/src/content/site.ts</code> when the first non-veg dish is menued</span>
       </li></ul>
       </details>
     </article>
