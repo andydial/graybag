@@ -54,9 +54,29 @@ describe('findDisagreements', () => {
 
   test('finds nothing when both sides agree', () => {
     const d = findDisagreements(tasks, new Set(['E01-01', 'E01-03']));
+    assert.deepEqual(d.duplicated, []);
     assert.deepEqual(d.taggedNotListed, []);
     assert.deepEqual(d.listedNotTagged, []);
     assert.deepEqual(d.listedNotFound, []);
+  });
+
+  test('catches two different tasks sharing one id', () => {
+    // This is what hid a real bug. `E09-11` was used twice; every lookup here keys by id, so
+    // the second task silently replaced the first, the genuinely-MVP task read as untagged, and
+    // the reconciliation tagged the wrong one. Ids being permanent is not the same as ids being
+    // unique unless something checks.
+    const withDup = [...tasks, { id: 'E01-01', isMvp: false, file: 'E01.md', line: 40, description: 'a different task' }];
+    const d = findDisagreements(withDup, new Set(['E01-01', 'E01-03']));
+    assert.equal(d.duplicated.length, 1);
+    assert.deepEqual(d.duplicated[0].map((t) => t.line), [3, 40]);
+  });
+
+  test('an id collision makes the run fail even when nothing else disagrees', () => {
+    const withDup = [...tasks, { id: 'E01-03', isMvp: true, file: 'E01.md', line: 41, description: 'x' }];
+    const d = findDisagreements(withDup, new Set(['E01-01', 'E01-03']));
+    assert.equal(d.taggedNotListed.length, 0);
+    assert.equal(d.listedNotTagged.length, 0);
+    assert.equal(d.duplicated.length, 1);
   });
 
   test('catches a task tagged in markdown but missing from the list', () => {
@@ -93,8 +113,13 @@ describe('the real backlog', () => {
 
     const d = findDisagreements(readBacklog(join(root, 'planning', 'backlog')), MVP);
     assert.deepEqual(
-      { tagged: d.taggedNotListed.map((t) => t.id), listed: d.listedNotTagged.map((t) => t.id), missing: d.listedNotFound },
-      { tagged: [], listed: [], missing: [] },
+      {
+        duplicated: d.duplicated.map((g) => g[0].id),
+        tagged: d.taggedNotListed.map((t) => t.id),
+        listed: d.listedNotTagged.map((t) => t.id),
+        missing: d.listedNotFound,
+      },
+      { duplicated: [], tagged: [], listed: [], missing: [] },
     );
   });
 });

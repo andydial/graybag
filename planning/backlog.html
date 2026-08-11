@@ -2982,13 +2982,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/15</span>
+          <span class="meter-num">0/16</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 15 tasks</summary>
+        <summary>Context &amp; 16 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3022,7 +3022,7 @@
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Order list with filters: school, date, break, status</span>
+        <span class="ttext"><strong>The kitchen dashboard: one working list of the day&#39;s orders.</strong> Child, class, section, break, school, dishes, status. Filters: school, date, break, status. <strong>Production totals as a summary at the top</strong> — &quot;how much do we cook&quot; is answered by the same data, so it is a header on this list rather than a second screen. <code>productionTotals</code> and <code>perSchoolTotals</code> already compute it (<code>E09-01</code>, <code>E09-02</code>)</span>
       </li>
       <li class="task" data-id="E09-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-05"></button>
@@ -3030,7 +3030,7 @@
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">&quot;Mark all delivered&quot; per class, one tap</span>
+        <span class="ttext"><strong>Update status from the list</strong>: mark delivered (bulk per class, one tap — <code>L8</code>), mark prepared, and cancel with a reason (<code>E09-08</code>). Optimistic, failing loudly; <code>delivered</code> is terminal (<code>T8</code>/<code>T9</code>)</span>
       </li>
       <li class="task" data-id="E09-06" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-06"></button>
@@ -3104,13 +3104,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The packing list is tier P and needs a retention rule.</strong> <code>packingCsv</code> names children by design — staff hand food to a named child and there is no version of that job that does not. That makes a downloaded packing CSV regulated data sitting on a kitchen laptop indefinitely. Decide how long it may be kept and how it is destroyed, and put it in <code>docs/dpdp-compliance.md</code>. The file warns the reader in its first row, which is the most a file can do for itself; the rest is policy. Raised with <code>E09-11a</code></span>
       </li>
-      <li class="task" data-id="E09-11" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-11"></button>
-        <code class="tid">E09-11</code>
+      <li class="task" data-id="E09-15" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-15"></button>
+        <code class="tid">E09-15</code>
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:high) (mvp) Decide whether the kitchen packing list and per-class delivery sheet surface a parent&#39;s per-line note. If they don&#39;t, the note field is not built at all — a note nobody reads is a lie told to a parent trying to be careful (ux-spec §5.6.1)</span>
+        <span class="ttext">(risk:high) Decide whether the kitchen packing list and per-class delivery sheet surface a parent&#39;s per-line note. If they don&#39;t, the note field is not built at all — a note nobody reads is a lie told to a parent trying to be careful (ux-spec §5.6.1) *(Renumbered from a second <code>E09-11</code> on 2026-08-11. Two different tasks carried that id, so <code>scripts/check-mvp.mjs</code> — which keys tasks by id — saw only the later one and reported the earlier, genuinely-MVP task as untagged. The tablet-legibility task keeps <code>E09-11</code> because it is the older assignment and the one the MVP list means; this is the accidental reuse and takes the next free id. <code>check-mvp.mjs</code> now fails on duplicates.)*</span>
+      </li>
+      <li class="task" data-id="E09-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-16"></button>
+        <code class="tid">E09-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The standalone printable packing list, as its own view.</strong> Grouped school → break → class → section, built on <code>packingList</code>, which is done. <strong>Fast-follow, deliberately</strong> (Andy, 2026-08-11): the MVP kitchen surface is one order list with status updates, and a separate packing screen is a second surface to build, test and teach before there is evidence anyone needs it. The capability already exists as CSV (<code>E09-11a</code>), so nothing is lost by waiting. <code>E09-14</code>&#39;s retention rule governs it whenever it is built, because it names children</span>
       </li></ul>
       </details>
     </article>
