@@ -1,0 +1,335 @@
+/* ==========================================================================
+   The kitchen dashboard — E09-04, E09-05
+   --------------------------------------------------------------------------
+   A working tool, judged on whether someone can read it at a glance in a busy
+   kitchen at 7am. Not on beauty.
+
+   Three ways this deliberately departs from the marketing site's scale, all in
+   the same direction:
+
+     - Base type is 20px, not the 16 the rest of the product uses. This is read
+       at arm's length on a counter, sometimes standing up.
+     - Touch targets are 56px, not the 48 that is the floor everywhere else
+       (design-tokens §4.1). Wet hands, in a hurry.
+     - State is carried by a word AND a shape AND a colour, never colour alone
+       (§2.10). Roughly 6% of Indian men are deuteranopic and green/red is the
+       worst possible pair for it — which is exactly the pair "delivered" and
+       "cancelled" would reach for.
+
+   Every value still comes from tokens.css. Bigger is chosen from the scale, not
+   invented.
+   ========================================================================== */
+
+.kitchen {
+  min-height: 100vh;
+  background: var(--gb-bg-canvas);
+  color: var(--gb-text-primary);
+  font-size: var(--gb-font-size-h3);          /* 20px */
+  line-height: var(--gb-line-height-h3);
+}
+
+.kitchen__wrap {
+  max-width: var(--gb-layout-container-max-width);
+  margin-inline: auto;
+  padding: var(--gb-space-5) var(--gb-space-4) var(--gb-space-16);
+}
+
+/* ------------------------------------------------------------------- header */
+
+.kitchen__bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--gb-z-sticky-header);
+  background: var(--gb-bg-surface-inverse);
+  color: var(--gb-text-on-brand);
+  padding: var(--gb-space-4);
+}
+
+.kitchen__bar-inner {
+  max-width: var(--gb-layout-container-max-width);
+  margin-inline: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gb-space-4);
+}
+
+.kitchen__title {
+  font-size: var(--gb-font-size-h2);
+  line-height: var(--gb-line-height-h2);
+  font-weight: var(--gb-font-semibold);
+  margin-right: auto;
+}
+
+/* -------------------------------------------------------------------- filters */
+
+.kitchen__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gb-space-3);
+}
+
+.kitchen__field { display: grid; gap: var(--gb-space-1); }
+
+.kitchen__field label {
+  font-size: var(--gb-font-size-caption);
+  line-height: var(--gb-line-height-caption);
+  letter-spacing: var(--gb-tracking-overline);
+  text-transform: uppercase;
+  font-weight: var(--gb-font-semibold);
+  color: var(--gb-ramp-lime-200);
+}
+
+.kitchen__field select,
+.kitchen__field input {
+  min-height: var(--gb-touch-min);
+  font-family: inherit;
+  font-size: var(--gb-font-size-body-strong);
+  padding: var(--gb-space-2) var(--gb-space-3);
+  border-radius: var(--gb-radius-md);
+  border: var(--gb-border-width-default) solid var(--gb-border-strong);
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+}
+
+/* -------------------------------------------------------------------- banners */
+
+.kitchen__banner {
+  border-radius: var(--gb-radius-lg);
+  padding: var(--gb-space-4) var(--gb-space-5);
+  margin-bottom: var(--gb-space-5);
+  font-size: var(--gb-font-size-body-strong);
+  line-height: var(--gb-line-height-body-lg);
+  font-weight: var(--gb-font-medium);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gb-space-3);
+}
+.kitchen__banner[data-tone='warning'] { background: var(--gb-bg-surface-warning); color: var(--gb-text-warning); }
+.kitchen__banner[data-tone='danger']  { background: var(--gb-bg-surface-danger);  color: var(--gb-text-danger); }
+.kitchen__banner[data-tone='info']    { background: var(--gb-action-secondary-bg); color: var(--gb-action-secondary-fg); }
+.kitchen__banner b { font-weight: var(--gb-font-semibold); }
+
+/* -------------------------------------------------------------------- summary */
+
+/**
+ * "How much do we cook", folded into this screen rather than living on its own.
+ *
+ * It recomputes from whatever is filtered, so narrowing to one break answers the question for
+ * that break — which is the whole reason Cook and Deliver became one surface.
+ */
+.kitchen__summary {
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-xl);
+  padding: var(--gb-space-5);
+  margin-bottom: var(--gb-space-6);
+}
+
+.kitchen__summary h2 {
+  font-size: var(--gb-font-size-overline);
+  line-height: var(--gb-line-height-overline);
+  letter-spacing: var(--gb-tracking-overline);
+  text-transform: uppercase;
+  color: var(--gb-text-tertiary);
+  font-weight: var(--gb-font-semibold);
+  margin-bottom: var(--gb-space-3);
+}
+
+.kitchen__totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: var(--gb-space-3);
+}
+
+.kitchen__total {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gb-space-3);
+  background: var(--gb-bg-surface-accent);
+  border-radius: var(--gb-radius-md);
+  padding: var(--gb-space-3) var(--gb-space-4);
+}
+.kitchen__total b {
+  font-size: var(--gb-font-size-h2);
+  line-height: var(--gb-line-height-h2);
+  font-weight: var(--gb-font-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--gb-text-on-accent);
+}
+.kitchen__total span { color: var(--gb-text-primary); }
+
+.kitchen__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gb-space-5);
+  margin-top: var(--gb-space-4);
+  padding-top: var(--gb-space-4);
+  border-top: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  font-size: var(--gb-font-size-body-strong);
+  color: var(--gb-text-secondary);
+}
+.kitchen__counts b { color: var(--gb-text-primary); font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------------- groups */
+
+.kitchen__group {
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-xl);
+  margin-bottom: var(--gb-space-5);
+  overflow: hidden;
+}
+
+/**
+ * The group header carries the state, and it carries it three ways at once.
+ *
+ * The left border is a shape, the pill is a word, and the colour agrees with both. Remove any
+ * one and the other two still answer "has this tray gone out".
+ */
+.kitchen__group[data-state='all']     { border-left: var(--gb-space-1) solid var(--gb-status-success); }
+.kitchen__group[data-state='partial'] { border-left: var(--gb-space-1) solid var(--gb-status-warning); }
+.kitchen__group[data-state='none']    { border-left: var(--gb-space-1) solid var(--gb-border-strong); }
+.kitchen__group[data-state='empty']   { border-left: var(--gb-space-1) solid var(--gb-border-subtle); }
+
+.kitchen__group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gb-space-4);
+  padding: var(--gb-space-4) var(--gb-space-5);
+  background: var(--gb-bg-surface-muted);
+}
+
+.kitchen__group-who { margin-right: auto; }
+.kitchen__group-class {
+  font-size: var(--gb-font-size-h2);
+  line-height: var(--gb-line-height-h2);
+  font-weight: var(--gb-font-semibold);
+}
+.kitchen__group-where {
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+  color: var(--gb-text-secondary);
+}
+
+.kitchen__progress {
+  font-size: var(--gb-font-size-body-strong);
+  font-weight: var(--gb-font-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.kitchen__group[data-state='all'] .kitchen__progress     { color: var(--gb-status-success); }
+.kitchen__group[data-state='partial'] .kitchen__progress { color: var(--gb-status-warning); }
+.kitchen__group[data-state='none'] .kitchen__progress    { color: var(--gb-text-secondary); }
+
+/* ---------------------------------------------------------------------- rows */
+
+.kitchen__order {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gb-space-4);
+  padding: var(--gb-space-4) var(--gb-space-5);
+  border-top: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+}
+.kitchen__order[data-busy='true'] { opacity: var(--gb-opacity-pressed); }
+
+.kitchen__child { min-width: 12rem; margin-right: auto; }
+.kitchen__name { font-weight: var(--gb-font-semibold); }
+.kitchen__dishes {
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+  color: var(--gb-text-secondary);
+}
+
+/**
+ * The status pill: a word first, then a mark, then a colour.
+ *
+ * The mark is not decoration — it is what carries the distinction if the colour does not, and
+ * green-versus-red is the single worst pair to rely on (§2.10).
+ */
+.kitchen__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gb-space-2);
+  padding: var(--gb-space-2) var(--gb-space-4);
+  border-radius: var(--gb-radius-full);
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+  font-weight: var(--gb-font-semibold);
+  white-space: nowrap;
+}
+.kitchen__pill[data-status='paid']      { background: var(--gb-bg-surface-muted);   color: var(--gb-text-secondary); }
+.kitchen__pill[data-status='preparing'] { background: var(--gb-bg-surface-warning); color: var(--gb-text-warning); }
+.kitchen__pill[data-status='delivered'] { background: var(--gb-action-secondary-bg); color: var(--gb-action-secondary-fg); }
+.kitchen__pill[data-status='cancelled'] { background: var(--gb-bg-surface-danger);  color: var(--gb-text-danger); }
+
+/* -------------------------------------------------------------------- buttons */
+
+.kitchen__actions { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); }
+
+.kitchen__btn {
+  min-height: 3.5rem;                 /* 56px — bigger than the 48 floor. Wet hands, in a hurry. */
+  padding: var(--gb-space-3) var(--gb-space-5);
+  border: var(--gb-border-width-default) solid transparent;
+  border-radius: var(--gb-radius-full);
+  font-family: inherit;
+  font-size: var(--gb-font-size-body-strong);
+  font-weight: var(--gb-font-semibold);
+  cursor: pointer;
+  background: var(--gb-bg-surface-muted);
+  color: var(--gb-text-primary);
+  border-color: var(--gb-border-strong);
+}
+.kitchen__btn:hover:not(:disabled) { background: var(--gb-action-secondary-bg); }
+.kitchen__btn:disabled { background: var(--gb-action-disabled-bg); color: var(--gb-action-disabled-fg); cursor: not-allowed; border-color: transparent; }
+
+.kitchen__btn--primary {
+  background: var(--gb-action-primary-bg);
+  color: var(--gb-action-primary-fg);
+  border-color: transparent;
+  min-height: 4rem;                   /* The one-tap action, and the biggest thing on the card. */
+  padding-inline: var(--gb-space-6);
+}
+.kitchen__btn--primary:hover:not(:disabled) { background: var(--gb-action-primary-bg-pressed); }
+
+.kitchen__btn--danger { color: var(--gb-text-danger); border-color: var(--gb-border-danger); }
+
+/* --------------------------------------------------------------------- states */
+
+.kitchen__state {
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-xl);
+  padding: var(--gb-space-12) var(--gb-space-6);
+  text-align: center;
+}
+.kitchen__state h2 {
+  font-size: var(--gb-font-size-h2);
+  line-height: var(--gb-line-height-h2);
+  font-weight: var(--gb-font-semibold);
+  margin-bottom: var(--gb-space-3);
+}
+.kitchen__state p { color: var(--gb-text-secondary); max-width: 34rem; margin-inline: auto; }
+.kitchen__state .kitchen__btn { margin-top: var(--gb-space-6); }
+
+/** Skeletons, never spinners (`S5`, `R9`) — and shaped like the rows that are coming. */
+@keyframes kitchen-sheen { to { background-position: 200% 0; } }
+.kitchen__skeleton {
+  height: 5.5rem;
+  border-radius: var(--gb-radius-xl);
+  margin-bottom: var(--gb-space-4);
+  background: linear-gradient(90deg, var(--gb-bg-surface-muted) 25%, var(--gb-bg-surface) 50%, var(--gb-bg-surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: kitchen-sheen var(--gb-duration-slow) linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .kitchen__skeleton { animation: none; } }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
