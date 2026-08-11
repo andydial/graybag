@@ -19,6 +19,37 @@ Format — newest first:
 
 ---
 
+## 2026-08-11 — A constant asserted against a guess is not an assertion
+
+**Context:** first iOS submission to TestFlight. Four Apple errors, two causes, both ours.
+
+**What happened:** `ITMS-90062`, `ITMS-90186` and `ITMS-90478` — the uploaded build was
+`2.0.0` and the live App Store app is **3.7.0**, so the upload was a version *downgrade*.
+`app-config.test.ts` had a test named "starts above the live Bubble build" that asserted
+`major >= 2`. It passed. It had always passed.
+
+**Cause:** `2` was never checked against App Store Connect. Someone reasoned "the rebuild is
+version 2" and wrote a test around it, and from then on the repo contained a green,
+confidently-named assertion whose subject — *what is actually live* — no one had ever looked
+up. The test could not fail, because it was comparing the guess to itself.
+
+**Fix / rule:** the floor is now a named constant `LIVE_STORE_VERSION = '3.7.0'`, carrying
+**where and when it was read** (App Store Connect, 2026-08-11), compared with a strict
+numeric `>` rather than a major-version `>=`. Production is `4.0.0`. Proven by setting the
+version back to `2.0.0` and watching it fail.
+
+The general rule, which is the expensive part of this week: **a test that encodes an
+assumption about the outside world must record where the value came from, or it is
+documentation of a belief wearing the costume of a check.** Same shape as `ITMS-90054` (an
+app id and a bundle id each correct, nothing relating them) and the duplicate task ids below
+(a control that could not distinguish its subjects). Three green signals, three facts nobody
+had verified.
+
+The rest of the release config was swept for the same shape immediately afterwards — see the
+audit entry dated 2026-08-11 below it.
+
+---
+
 ## 2026-08-11 — Eighteen task ids were used twice, and two `owner:andy` tasks went green because of it
 
 **Context:** picking up the four compliance orphans the extended orphan guard found

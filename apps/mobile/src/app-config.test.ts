@@ -307,17 +307,49 @@ describe('the store version floor', () => {
   const app = require('../app.json') as { expo: { version: string } };
 
   /**
+   * The live version, **read off App Store Connect on 2026-08-11**, not assumed.
+   *
+   * This is the whole point of the constant. The previous rule here was `major >= 2`, written
+   * when nobody had looked — and `2.0.0` passed it, was submitted, and came back as
+   * `ITMS-90062`/`90186`/`90478`: the live Bubble app is **3.7.0**, so 2.0.0 is a *downgrade*.
+   * The test was green for weeks while asserting a guess. A constant checked against an
+   * assumption is not an assertion; it is the assumption, restated somewhere it looks
+   * authoritative.
+   *
+   * If the live version moves, change this number and say where the new one was read from.
+   * Nothing else in the repo may be the source for it — App Store Connect is.
+   */
+  const LIVE_STORE_VERSION = '3.7.0';
+
+  /** Numeric compare, so `3.10.0 > 3.7.0` rather than the string ordering that says otherwise. */
+  const parts = (v: string): [number, number, number] => {
+    const [major = 0, minor = 0, patch = 0] = v.split('.').map(Number);
+    return [major, minor, patch];
+  };
+  const compare = (a: string, b: string) => {
+    const x = parts(a);
+    const y = parts(b);
+    return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
+  };
+
+  /**
    * GrayBag is **already live on both stores** as the Bubble build. An upload whose version is
    * not higher than the live one is rejected — after the build has been paid for and waited
    * on, which is the expensive place to discover it.
    *
-   * The rebuild therefore starts at 2.x. The build *number* is separate and comes from EAS
-   * (`appVersionSource: remote` with `autoIncrement`); this is the marketing version, and it
-   * is the one the stores compare.
+   * The build *number* is separate and comes from EAS (`appVersionSource: remote` with
+   * `autoIncrement`); this is the marketing version, and it is the one the stores compare.
    */
-  it('starts above the live Bubble build', () => {
-    const [major] = app.expo.version.split('.').map(Number);
-    expect(major).toBeGreaterThanOrEqual(2);
+  it(`is strictly greater than the live store version ${LIVE_STORE_VERSION}`, () => {
+    expect(compare(app.expo.version, LIVE_STORE_VERSION)).toBeGreaterThan(0);
+  });
+
+  it('rejects a version that merely equals the live one', () => {
+    // Equal is not greater, and the stores treat it as a duplicate. Asserted because the
+    // obvious implementation of the rule above — `>=` — is wrong in exactly this case.
+    expect(compare(LIVE_STORE_VERSION, LIVE_STORE_VERSION)).toBe(0);
+    expect(compare('3.6.9', LIVE_STORE_VERSION)).toBeLessThan(0);
+    expect(compare('3.10.0', LIVE_STORE_VERSION)).toBeGreaterThan(0);
   });
 
   it('is a three-part version, which is what both stores expect', () => {
