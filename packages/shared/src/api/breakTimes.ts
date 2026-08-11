@@ -12,10 +12,11 @@
  * So an empty list is not an empty state. It is the answer "this school is not open for
  * ordering yet", and the caller is expected to say so rather than proceed without a window.
  *
- * Two of the three live schools are in exactly that position. The catalogue seeds two windows
- * for Amity International School and none for Gem Public School or Paragon Senior Secondary —
- * deliberately, because the legacy option-set values contradicted their labels and inventing a
- * time nobody agreed to is worse than having none.
+ * Two of the three live schools were in exactly that position until `0029`. All three now have
+ * windows: Gem and Paragon carry Amity's two as **provisional** rows (`P20`, Andy 2026-08-11),
+ * to be confirmed per school at onboarding. The empty-list branch is therefore not dead code —
+ * it is what any new school looks like between being onboarded and having its times agreed, and
+ * it stays the answer for a school whose provisional windows are ever withdrawn.
  *
  * ## Readable signed out, by `0027`
  *
@@ -96,9 +97,9 @@ export async function fetchBreakTimes(schoolId: string): Promise<BreakTime[]> {
 /**
  * "10:40 – 11:15" from two `HH:MM:SS` values.
  *
- * Shown **under** the label, never instead of it (`P19`). Amity's labels currently hold the
- * time range itself, which is the thing being fixed — a parent choosing between
- * "10:40AM - 11:15AM" and "11:15AM - 11:40AM" is reading raw data rather than a name.
+ * Shown **under** the label, never instead of it (`P19`). Amity's labels used to hold the time
+ * range itself, so the picker drew the same window twice in two formats; `0029` renamed them to
+ * "Morning break" / "Second break" and this line is now the only place the time appears.
  *
  * 24-hour, because that is how a school timetable is written in India and because AM/PM on a
  * range doubles the characters for no gain. An unparseable value renders as itself rather than

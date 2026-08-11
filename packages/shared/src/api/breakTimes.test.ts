@@ -54,8 +54,10 @@ describe('fetchBreakTimes', () => {
   });
 
   it('returns empty for a school with no windows — which is an answer, not a gap', async () => {
-    // `P19`: Gem and Paragon are in exactly this state. The caller must read it as "this school
-    // cannot take orders yet" rather than proceeding without a window.
+    // `P19`. Gem and Paragon were in exactly this state until `0029` gave them Amity's windows
+    // as provisional rows (`P20`); it is now what a newly onboarded school looks like before its
+    // times are agreed. The caller must read it as "this school cannot take orders yet" rather
+    // than proceeding without a window.
     install([]);
     await expect(fetchBreakTimes('s2')).resolves.toEqual([]);
   });

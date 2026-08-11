@@ -15,10 +15,11 @@ const { bg, text, border, space, scale, radius, borderWidth, touchTarget, clampR
  *
  * ## The label is the name, the time is underneath
  *
- * `break_time.label` is documented as "what the customer sees". Amity's currently hold the time
- * range itself, so a parent choosing between "10:40AM - 11:15AM" and "11:15AM - 11:40AM" is
- * reading raw data. The name goes on top and the window under it — and when the real labels
- * land with Gem's and Paragon's times, this screen improves without changing.
+ * `break_time.label` is documented as "what the customer sees". Amity's used to hold the time
+ * range itself, so a parent choosing between "10:40AM - 11:15AM" and "11:15AM - 11:40AM" was
+ * reading raw data; `0029` renamed them, and gave Gem and Paragon the same two windows as
+ * provisional rows. The name goes on top and the window under it — and this screen took the
+ * improvement without changing, which was the point of putting the name in the data.
  *
  * ## Nothing is preselected
  *

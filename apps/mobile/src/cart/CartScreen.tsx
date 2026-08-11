@@ -6,7 +6,6 @@ import { AllergenFlag, BrandHeader, FoodTypeMark, PatternTile } from '../compone
 import { Button } from '../components/Button';
 import { DishImage } from '../components/DishImage';
 import { Card, EmptyState } from '../components/Surfaces';
-import { TextField } from '../components/TextField';
 import { useCart } from './CartContext';
 import { BreakTimePicker } from './BreakTimePicker';
 import { KitchenNoteLine } from './KitchenNote';

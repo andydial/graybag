@@ -56,9 +56,16 @@ on conflict (id) do update set
   is_active    = true,
   updated_at   = now();
 
--- Break times, exactly as exported. Only Amity has any in the source; the other schools
--- get none rather than a plausible invention — an unresolved break renders as "confirmed
--- with the kitchen" (ux-spec §5.4) rather than as a time nobody agreed to.
+-- Break times, exactly as exported. **Only Amity has any in the source**, and this file still
+-- refuses to invent one for the other two: the legacy option-set db values contradict their
+-- labels, so a window taken from them is a time nobody agreed to.
+--
+-- Gem and Paragon are no longer left with none, though. `0029` gives them Amity's two windows as
+-- **provisional** rows on Andy's instruction (2026-08-11) so both schools can open for ordering,
+-- to be confirmed per school at onboarding — marked by a `code` ending `-provisional`, and
+-- argued in that migration's header. Deliberately not folded back into this file: what is here
+-- is the export, and a decision made afterwards does not belong in it. `0029` also renames these
+-- two labels to "Morning break" / "Second break", since `label` is what a parent reads (`P19`).
 insert into break_time (id, school_id, code, label, starts_at, ends_at, sort_order, legacy_option_value) values
   ('06ca8ef9-d342-4596-aae1-08f43f7f3a55', '77308e75-d8e9-47ba-a503-7c38d482a72c', 'break-1', '10:40AM - 11:15AM', '10:40:00', '11:15:00', 10, '10:40AM - 11:15AM'),
   ('5659c6ab-6598-40ee-a563-04d688baaf64', '77308e75-d8e9-47ba-a503-7c38d482a72c', 'break-2', '11:15AM - 11:40AM', '11:15:00', '11:40:00', 20, '11:15AM - 11:40AM')
