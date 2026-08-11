@@ -3,6 +3,7 @@ import { design, menu as menuDomain, money } from '@graybag/shared';
 
 import { BrandPanel, Lockup } from '../components';
 import { Button } from '../components/Button';
+import { NameCapture } from '../account/NameCapture';
 // `R7`: full weekday and month, parsed and formatted in UTC so the rendered day cannot slide.
 // Imported rather than copied — two date formatters is how "Wednesday 12 August" and "12/08"
 // end up on two screens describing the same lunch. This is the order-detail screen's
@@ -212,6 +213,19 @@ export function OrderPlacedScreen({
         <Text style={styles.footnote} testID={`${testID}-name-check`}>
           Staff will match {theirName} as well as the code.
         </Text>
+
+        {/*
+          `P18` / `E05-39`: the account holder's own name, asked **here** rather than at
+          checkout. Andy settled it — checkout is the most fragile screen in the funnel, and
+          nothing breaks without a name, so there is no reason to risk the payment moment for a
+          field we can collect thirty seconds later.
+
+          Mounted unconditionally on purpose. `NameCapture` reads the profile and renders
+          nothing unless there is no name and no record of having asked, so there is no version
+          of this that forgets the "never asked twice" half of the rule. It sits below the
+          pickup code because the code is what the parent came here for.
+        */}
+        <NameCapture testID={`${testID}-name`} />
       </View>
 
       <View style={styles.actions}>

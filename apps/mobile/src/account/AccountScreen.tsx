@@ -52,6 +52,8 @@ export function AccountScreen({
   testID = 'screen-account',
   access = 'pending',
   email = null,
+  yourName = null,
+  onEditName,
   onSignIn,
   onRecipients,
   onOrders,
@@ -71,6 +73,17 @@ export function AccountScreen({
   access?: import('../session/audience').Access;
   /** Display only. Never logged, never sent anywhere. */
   email?: string | null;
+  /**
+   * The account holder's own name, or null — `P18`, `E05-39`. Display only, like the email.
+   *
+   * **Null is the ordinary case and renders as an invitation, not a warning.** Every account in
+   * the system was in this state until `0030`, and Andy's instruction on `P18` was that order
+   * one has no name and that must be fine everywhere. A row that scolded somebody for not
+   * having answered an optional question would be the first place that stopped being true.
+   */
+  yourName?: string | null;
+  /** Opens the name editor. Absent renders the row inert, like every other row here. */
+  onEditName?: () => void;
   onSignIn?: () => void;
   onRecipients?: () => void;
   onOrders?: () => void;
@@ -122,11 +135,26 @@ export function AccountScreen({
         <View style={styles.rows}>
           {access !== 'signedIn' ? null : (
             <>
+              {/*
+                `P18` / `E05-39`. "Never asked twice" is about the *prompt* on the confirmation
+                screen; this row is the other half of the same decision — settable any time,
+                so declining the prompt is not a door that closes.
+
+                The subtitle carries the value rather than a separate line, so the row is one
+                target and one announcement. With no name it invites rather than warns: an
+                optional field that renders as an unfinished task is not optional.
+              */}
+              <Row
+                title="Your name"
+                subtitle={yourName ?? 'Not set — we’ll manage without one'}
+                onPress={onEditName}
+                testID={`${testID}-name`}
+              />
               <Row
                 title="Who you order for"
-                // The one subtitle on the screen. The prototype's row said "Your children";
-                // this one is named for what it holds, and a line of explanation is what
-                // stops the rename reading as a different feature.
+                // The prototype's row said "Your children"; this one is named for what it
+                // holds, and a line of explanation is what stops the rename reading as a
+                // different feature.
                 subtitle="Children, or yourself"
                 onPress={onRecipients}
                 testID={`${testID}-recipients`}

@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
-import { money } from '@graybag/shared';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { api, money } from '@graybag/shared';
 
 import {
   ORDER_PLACED_TEST_ID,
@@ -175,5 +175,67 @@ describe('OrderPlacedScreen', () => {
 
     expect(screen.getByText('Order placed')).toBeTruthy();
     expect(screen.queryByText(/still confirming/i)).toBeNull();
+  });
+});
+
+/**
+ * The account holder's own name — `P18`, `E05-39`.
+ *
+ * Asserted **here**, on the screen, and not only in `NameCapture`'s own suite: `P18` settled
+ * *where* the question is asked, and "it is on the confirmation screen" is the half of the
+ * decision that a unit test of the component cannot hold. The component decides whether to
+ * appear; this decides that it is there to.
+ */
+describe('the name prompt', () => {
+  const NO_NAME = { first_name: null, last_name: null, name_prompted_at: null };
+
+  const stubProfile = (rows: unknown[]) => {
+    const builder = {
+      eq: () => builder,
+      order: () => builder,
+      then: (onfulfilled: (r: { data: unknown; error: null }) => unknown) =>
+        Promise.resolve({ data: rows, error: null }).then(onfulfilled),
+    };
+    api.setApiTransport({
+      from: () => ({ select: () => builder }),
+      functions: { invoke: jest.fn().mockResolvedValue({ data: null, error: null }) },
+      auth: { getSession: () => Promise.resolve({ data: { session: { user: { id: 'u1' } } } }) },
+    } as never);
+  };
+
+  afterEach(() => api.setApiTransport(null));
+
+  it('asks for a name after payment, not before it', async () => {
+    // Andy overruled both of my proposals — checkout, and the OTP moment. Here the money is
+    // taken, the parent is pleased, and they are doing nothing.
+    stubProfile([NO_NAME]);
+    await render(<OrderPlacedScreen order={placedOrder(SETTLED)} />);
+
+    expect(await screen.findByTestId(`${ORDER_PLACED_TEST_ID}-name`)).toBeOnTheScreen();
+    expect(screen.getByText('What should we call you?')).toBeOnTheScreen();
+  });
+
+  it('does not ask again on the next order', async () => {
+    stubProfile([{ ...NO_NAME, name_prompted_at: '2026-08-11T10:00:00+00:00' }]);
+    await render(<OrderPlacedScreen order={placedOrder(SETTLED)} />);
+
+    await waitFor(() =>
+      expect(screen.queryByTestId(`${ORDER_PLACED_TEST_ID}-name`)).toBeNull(),
+    );
+    // The screen itself is unaffected either way — the prompt is an addition to it, never a
+    // condition of it.
+    expect(screen.getByTestId(`${ORDER_PLACED_TEST_ID}-pickup-code`)).toBeOnTheScreen();
+  });
+
+  it('still shows the order when the profile cannot be read', async () => {
+    // Fails closed, and the confirmation is what the parent came here for. A prompt that could
+    // take the pickup code down with it would be a name field breaking a paid order.
+    api.setApiTransport(null);
+    await render(<OrderPlacedScreen order={placedOrder(SETTLED)} />);
+
+    expect(screen.getByTestId(`${ORDER_PLACED_TEST_ID}-pickup-code`)).toHaveTextContent('4821');
+    await waitFor(() =>
+      expect(screen.queryByTestId(`${ORDER_PLACED_TEST_ID}-name`)).toBeNull(),
+    );
   });
 });

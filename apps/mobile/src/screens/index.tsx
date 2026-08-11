@@ -3,6 +3,8 @@ import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-na
 import Constants from 'expo-constants';
 import { Linking } from 'react-native';
 
+import { api } from '@graybag/shared';
+
 import { schoolRequestMailto } from '../support/contact';
 
 
@@ -23,6 +25,8 @@ import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
 import { SupportScreen as SupportScreenImpl } from '../status/SupportScreen';
 import { DeleteAccountScreen as DeleteAccountScreenImpl } from '../account/DeleteAccountScreen';
+import { EditNameSheet } from '../account/EditNameSheet';
+import { Sheet } from '../components';
 import { PolicyDocumentScreen as PolicyDocumentScreenImpl } from '../account/PolicyDocumentScreen';
 import { useConnectivity } from '../net/ConnectivityContext';
 import { useAccess, useOrderingTarget, useRefreshRecipients } from '../session/audience';
@@ -194,14 +198,87 @@ export { CartScreen } from '../cart/CartScreen';
  */
 export const AccountScreen = () => {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
   const access = useAccess();
   const { email } = useSession();
   const signOut = useSignOut();
 
+  /**
+   * The account holder's own name — `P18`, `E05-39`.
+   *
+   * Held here rather than on `AccountScreenImpl`, which fetches nothing and decides nothing by
+   * design. Re-read on focus for the same reason the children list is: the confirmation screen
+   * may have captured a name since this screen was last drawn, and a stack screen stays mounted
+   * underneath whatever was pushed over it.
+   */
+  const [profile, setProfile] = useState<api.Profile | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isFocused || access !== 'signedIn') return;
+    let live = true;
+    api
+      .fetchProfile()
+      .then((next) => {
+        if (live) setProfile(next);
+      })
+      // No name is what the row already renders, and it is the honest answer to a failed read
+      // here: the row invites rather than warns, so a wrong guess costs nothing and a spinner
+      // on a settings row costs attention.
+      .catch(() => {
+        if (live) setProfile(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [isFocused, access]);
+
+  const saveName = async (name: { firstName: string; lastName: string | null }) => {
+    setSavingName(true);
+    setNameError(null);
+    try {
+      // An empty field is a removal, not a refusal (`P18`: order one has no name and that must
+      // be fine everywhere). `setUserName` would be refused with `first_name_required`, which
+      // is the right guard for a blank save and the wrong answer to "take it back".
+      if (name.firstName === '') {
+        await api.clearUserName();
+        setProfile((current) =>
+          current === null ? null : { ...current, firstName: null, lastName: null },
+        );
+      } else {
+        const saved = await api.setUserName(name);
+        setProfile((current) =>
+          current === null
+            ? { firstName: saved.firstName, lastName: saved.lastName, namePromptedAt: null }
+            : { ...current, firstName: saved.firstName, lastName: saved.lastName },
+        );
+      }
+      setEditingName(false);
+    } catch {
+      // Ours, not the server's: a backend message can quote the value it refused, and the
+      // value here is somebody's name (§13.3 tier A).
+      setNameError('We couldn’t save that just now. Please try again.');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   return (
+    <>
     <AccountScreenImpl
       access={access}
       email={email}
+      yourName={
+        profile === null || profile.firstName === null
+          ? null
+          : [profile.firstName, profile.lastName].filter((part) => part !== null).join(' ')
+      }
+      onEditName={() => {
+        setNameError(null);
+        setEditingName(true);
+      }}
       onSignIn={() => navigation.navigate('SignIn')}
       onRecipients={() => navigation.navigate('Children')}
       onSignOut={() => {
@@ -219,6 +296,35 @@ export const AccountScreen = () => {
       // `E20-38`. Three rows rendered and did nothing; nothing in the app opened the policies.
       onPolicy={(which) => navigation.navigate('Policy', { which })}
     />
+
+    {/*
+      Mounted only while it is open, not merely `visible={false}`. `Sheet` calls
+      `useSafeAreaInsets()`, so an always-mounted one makes every test that renders this
+      container need a `SafeAreaProvider` — which is how `PlaceholderScreen.test.tsx` started
+      failing on a change to a settings row. Cheaper at run time too: no Modal in the tree
+      until somebody asks for one.
+    */}
+    {!editingName ? null : (
+    <Sheet
+      visible
+      onDismiss={() => setEditingName(false)}
+      title="Your name"
+      testID="account-name-sheet"
+    >
+      <EditNameSheet
+        // Keyed on what it starts from, so reopening after a save does not show the old value
+        // in the field state.
+        key={`${profile?.firstName ?? ''}|${profile?.lastName ?? ''}`}
+        initialFirstName={profile?.firstName ?? null}
+        initialLastName={profile?.lastName ?? null}
+        onSave={(name) => void saveName(name)}
+        onCancel={() => setEditingName(false)}
+        saving={savingName}
+        error={nameError}
+      />
+    </Sheet>
+    )}
+    </>
   );
 };
 

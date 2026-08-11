@@ -123,3 +123,16 @@ export {
   formatBreakWindow,
   type BreakTime,
 } from './breakTimes.js';
+
+// The account holder's own name (`P18`, `E05-39`). Asked once, after payment, and never a
+// precondition for anything: order one has no name and that has to be fine everywhere.
+export {
+  PROFILE_COLUMNS,
+  ProfilePayloadError,
+  clearUserName,
+  fetchProfile,
+  setUserName,
+  shouldAskForName,
+  skipNamePrompt,
+  type Profile,
+} from './profile.js';

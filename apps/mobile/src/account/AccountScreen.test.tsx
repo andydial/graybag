@@ -77,6 +77,28 @@ describe('AccountScreen, signed in', () => {
     expect(identity.props.onPress).toBeUndefined();
   });
 
+  it('offers the account holder’s own name, and does not scold when there is none', async () => {
+    // `P18` / `E05-39`. Every account was in this state until `0030`, and Andy's instruction
+    // was that order one has no name and that must be fine everywhere — so the row invites.
+    // An optional field that renders as an unfinished task is not optional.
+    const onEditName = jest.fn();
+    await mount({ ...signedIn, onEditName });
+
+    const row = screen.getByTestId('screen-account-name');
+    // Regex, not a string: RNTL's `toHaveTextContent` matches a string EXACTLY against the
+    // node's whole text, and this row concatenates its title, subtitle and chevron.
+    expect(row).toHaveTextContent(/Your name/);
+    expect(row).toHaveTextContent(/we’ll manage without one/);
+
+    await userEvent.setup().press(row);
+    expect(onEditName).toHaveBeenCalled();
+  });
+
+  it('shows the name once there is one', async () => {
+    await mount({ ...signedIn, yourName: 'Priya Sharma' });
+    expect(screen.getByTestId('screen-account-name')).toHaveTextContent(/Priya Sharma/);
+  });
+
   it('opens every door §5.17 says it has', async () => {
     const onRecipients = jest.fn();
     const onOrders = jest.fn();
@@ -194,6 +216,8 @@ describe('AccountScreen, signed out', () => {
 
     expect(screen.queryByTestId('screen-account-recipients')).toBeNull();
     expect(screen.queryByTestId('screen-account-orders')).toBeNull();
+    // `E05-39`. There is no account to name, so there is nothing to set.
+    expect(screen.queryByTestId('screen-account-name')).toBeNull();
     expect(screen.queryByTestId('screen-account-delete')).toBeNull();
     expect(screen.queryByTestId('screen-account-signout')).toBeNull();
   });
