@@ -23,7 +23,7 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 | # | Ask | Asked | Status |
 |---|---|---|---|
 | 1 | **`E05-37` — edit and remove a child.** The edit sheet (first name, class, section) and a Remove action with a confirmation that says what removal does | 2026-08-11 | **Next.** Unblocked: `0026` erasure landed, so Remove can now say what it does |
-| 2 | **Break-time selection at checkout.** The parent chooses from the school's configured windows; "confirmed with the kitchen" is a manual process we can never run. Fix the model, not the sentence | 2026-08-11 | Blocked on a decision — see the finding below |
+| 2 | **Break-time selection at checkout.** Parent picks from the school's real windows. **Option (a) chosen 2026-08-11:** required everywhere, real windows only, nothing invented. A school with no windows **must not reach checkout** — it says "we're still setting up ordering for this school", never "we'll confirm with the kitchen". Friendly labels ("Morning break") with the times underneath | 2026-08-11 | Unblocked on design; **waiting on Andy** for Gem and Paragon start/end pairs. Amity is buildable and launches first |
 | 3 | **Kitchen note moves into the dish sheet**, with a compact tap-to-edit line in the cart | 2026-08-11 | Queued |
 | 4 | **Dish-sheet pass — one change, items 4–8:** image aspect ratio to match Home; allergen block quiet when there is nothing to say; shrink or drop "For the person you've chosen"; show calories; add-to-cart dismisses back to the menu | 2026-08-11 | Queued |
 | 5 | **`E05-38` — self-ordering.** "Order for myself" as a first-class entry in Who-to-order-for, and Add-recipient asking who it is for before anything else | 2026-08-11 | Queued. **Bumped four times** — protected by the no-new-work rule from here |
@@ -56,38 +56,28 @@ Kept so the queue shows movement rather than only what is left. Newest first.
 
 ---
 
-## Finding that blocks item 2 — break windows exist for **one** of the three live schools
+## Item 2 — resolved 2026-08-11, and what is still waiting
 
 Checked before designing the picker, as asked.
 
-**What exists.** `break_time` is a real table with `school_id`, `label`, `starts_at`, `ends_at`,
-`sort_order`, `is_active`, and a `break_time_class` mapping for later per-class windows.
-`create_checkout` **already accepts `break_time_id` per line** and writes it onto the order,
-and `api/checkout.ts`'s `CheckoutLine` already carries `breakTimeId`. So the write path is
-built.
+**Already built:** `break_time` (`school_id`, `label`, `starts_at`, `ends_at`, `sort_order`),
+plus `break_time_class` for per-class windows later. `create_checkout` **already accepts
+`break_time_id` per line** and writes it onto the order; `CheckoutLine` already carries
+`breakTimeId`. The write path is done.
 
-**What does not exist.**
+**Missing:** a read in `api/`, the picker, and — the real constraint — **the windows
+themselves**. The catalogue seeds two for Amity International School and **zero** for Gem Public
+School and Paragon Senior Secondary. That was deliberate: the legacy option-set values
+contradicted their labels, so the seed left them out rather than inventing them.
 
-1. **No read.** Nothing in `api/` fetches a school's break windows. That is the missing piece
-   and it is small.
-2. **Only Amity has windows.** The real catalogue seeds two — `10:40AM - 11:15AM` and
-   `11:15AM - 11:40AM` — for `amity-international-school`, and **zero** for Gem Public School
-   and Paragon Senior Secondary. The seed's own comment says this was deliberate: unresolved
-   legacy break timings were left out rather than invented, because the legacy option-set values
-   contradicted their labels.
+**Andy's decision, 2026-08-11 — option (a).** Required picker everywhere, real windows only,
+nothing invented. Until the real times arrive, Gem and Paragon **must not reach checkout**, and
+must say "we're still setting up ordering for this school" — never "we'll confirm with the
+kitchen", which describes a manual step nobody can perform at volume. Amity is the only school
+that can take an order today, and it is the biggest and launches first.
 
-**So the decision Andy owns:** a required picker works for Amity and blocks checkout at two of
-the three live schools. The options are (a) supply the real windows for Gem and Paragon, and the
-picker is required everywhere; (b) the picker appears only where windows exist and checkout
-proceeds without one elsewhere, which keeps the "we'll confirm it" copy alive for two schools —
-the thing Andy objected to; or (c) one default window per school, invented, which is what the
-seed comment deliberately refused to do.
+Labels are friendly — "Morning break", "Second break" — with the times underneath. A parent
+should not have to read raw data to choose. Amity's `label` currently holds the time range
+itself, so it needs renaming when the real windows land.
 
-**Recommendation: (a).** It is two rows per school and it is the only option that removes the
-manual promise everywhere rather than moving it. Until the numbers exist, building the picker
-means building a screen that two-thirds of live schools cannot show.
-
-**The labels also need a decision.** Amity's are stored as `10:40AM - 11:15AM` — the time is the
-label. A parent picking between "10:40AM - 11:15AM" and "11:15AM - 11:40AM" is reading raw data;
-"Morning break" and "Second break" is what the column was designed for (`label` is described as
-"what the customer sees"). Real names would come with the real windows.
+**Waiting on Andy:** start/end pairs for Gem and Paragon, from the kitchen this week.
