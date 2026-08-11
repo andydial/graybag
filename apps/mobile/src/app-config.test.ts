@@ -27,6 +27,23 @@ describe('app.json identity', () => {
     expect(expo.ios.bundleIdentifier.toLowerCase()).toBe(expo.android.package.toLowerCase());
   });
 
+  /**
+   * **iPhone only, and that matches the live listing** — `E17-36`.
+   *
+   * Verified against App Store Connect by Andy on **2026-08-11**: the live app does not support
+   * iPad, and there is no intention to add it. Recorded because the value was previously
+   * *assumed* — `supportsTablet: false` was written without anyone checking, and if the live
+   * listing had been iPad-enabled this update would have dropped a device family from under
+   * existing users, which Apple permits and users do not forgive.
+   *
+   * This is the same class as the version floor above: a constant about the outside world is
+   * only an assertion once somebody has looked. The difference is that this one now says who
+   * looked and when.
+   */
+  it('is iPhone only, matching the live listing', () => {
+    expect(expo.ios.supportsTablet).toBe(false);
+  });
+
   // S11: light mode only in v1. Left to the OS default, an Android 10+ device in dark mode
   // renders the app's own light surfaces against dark system chrome, which is the one
   // combination the contrast work (E13-13) has never measured.
@@ -93,11 +110,65 @@ describe('eas.json profiles', () => {
         channel?: string;
         env?: { APP_ENV?: string };
         extends?: string;
+        environment?: string;
+        autoIncrement?: boolean;
         android?: { buildType?: string };
       }
     >;
     submit: Record<string, { ios?: { appleTeamId?: string; ascAppId?: string } }>;
   };
+
+  /**
+   * **Every build profile must name the EAS environment it loads variables from.**
+   *
+   * 2026-08-11, caught minutes before a TestFlight build was paid for. No profile declared an
+   * `environment`, so EAS resolved **`production`** for all of them — and the `production`
+   * environment on EAS is empty, while the staging values live in `preview`. `eas
+   * build:version:get` said so itself:
+   *
+   *     Resolved "production" environment for the build.
+   *     No environment variables ... found for the "production" environment on EAS.
+   *
+   * The build would have shipped with `EXPO_PUBLIC_SUPABASE_URL`, `_ANON_KEY` and `_APP_ENV`
+   * all undefined. `configureApiFromEnvironment()` returns false for that, so the app opens on
+   * `CantConnectScreen` — a tester installs it and sees "we can't connect", nothing else.
+   *
+   * The defect is the **default**: omitting the field is silently "production", which is the
+   * one environment a staging build must never read. So the field is required here rather than
+   * left to a default nobody can see in the file.
+   */
+  it.each(['development', 'staging', 'preview', 'production'])(
+    'the %s profile names its EAS environment rather than defaulting to production',
+    (profile) => {
+      expect(eas.build[profile]?.environment).toBeDefined();
+    },
+  );
+
+  it('never points a non-production profile at the production environment', () => {
+    // The specific mistake, stated directly. `preview` builds the staging identity and must
+    // load staging values; production is the only profile that may read production.
+    for (const profile of ['development', 'staging', 'preview']) {
+      expect(eas.build[profile]?.environment).not.toBe('production');
+    }
+    expect(eas.build.production?.environment).toBe('production');
+  });
+
+  /**
+   * `appVersionSource: remote` means EAS owns the build number — and **without
+   * `autoIncrement` it hands back the same integer every time**. `eas build:version:get`
+   * reported `iOS buildNumber - 1` for a profile that had already produced a build.
+   *
+   * The first submit to a fresh App Store Connect record succeeds; the second is rejected as a
+   * duplicate binary, after the build has been paid for and waited on. `production` had this
+   * right from the start and the two internal profiles did not, which is backwards — internal
+   * builds are the ones that get made repeatedly.
+   */
+  it.each(['staging', 'preview', 'production'])(
+    'the %s profile increments its build number',
+    (profile) => {
+      expect(eas.build[profile]?.autoIncrement).toBe(true);
+    },
+  );
 
   it('has one profile per environment, each naming its APP_ENV', () => {
     expect(eas.build.development?.env?.APP_ENV).toBe('local');

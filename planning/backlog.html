@@ -4269,13 +4269,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/36</span>
+          <span class="meter-num">0/40</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 36 tasks</summary>
+        <summary>Context &amp; 40 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -4563,13 +4563,45 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Confirm the live Android package is exactly <code>com.Gracord.Graybag</code>, capitals included</strong> — Play Console → App info. <code>R4</code> calls it owned by the live listing and <code>app-config.test.ts</code> asserts the capitals, but nobody has checked it against Play; it is the same shape of defect as the version floor, and the test&#39;s own comment names the consequence (a new listing with zero installs). iOS&#39;s bundle id was verified by accident this week when Apple&#39;s rejection named the record; Android&#39;s has had no such luck</span>
       </li>
-      <li class="task" data-id="E17-36" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+      <li class="task" data-id="E17-36" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-36"></button>
         <code class="tid">E17-36</code>
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Confirm whether the live iOS listing supports iPad.</strong> <code>app.json</code> sets <code>supportsTablet: false</code>. If the live app is iPad-enabled, this update drops a device family from under existing users. Cheap to check while in App Store Connect; low severity, unverified either way</span>
+        <span class="ttext"><strong>Confirm whether the live iOS listing supports iPad.</strong> <strong>Answered by Andy 2026-08-11: it does not, and we are not adding it.</strong> <code>supportsTablet: false</code> is now asserted as verified-against-App-Store-Connect rather than assumed. <code>app.json</code> sets <code>supportsTablet: false</code>. If the live app is iPad-enabled, this update drops a device family from under existing users. Cheap to check while in App Store Connect; low severity, unverified either way</span>
+      </li>
+      <li class="task" data-id="E17-37" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-37"></button>
+        <code class="tid">E17-37</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>No build profile named its EAS environment, so every build resolved <code>production</code> — which is empty.</strong> Caught by pre-flighting a TestFlight submit: <code>eas build:version:get</code> reported <code>Resolved &quot;production&quot; environment</code> and <code>No environment variables found</code>. The staging values live in the <code>preview</code> environment, so the build would have shipped with <code>EXPO_PUBLIC_SUPABASE_URL</code>/<code>_ANON_KEY</code>/<code>_APP_ENV</code> undefined and opened on <code>CantConnectScreen</code>. Every profile now declares <code>environment</code>, asserted in <code>app-config.test.ts</code></span>
+      </li>
+      <li class="task" data-id="E17-38" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-38"></button>
+        <code class="tid">E17-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>staging</code> and <code>preview</code> never incremented their build number.</strong> <code>appVersionSource: remote</code> without <code>autoIncrement</code> hands back the same integer for ever — <code>iOS buildNumber - 1</code> after a build had already been made. First submit to a fresh record succeeds, second is rejected as a duplicate binary. <code>production</code> had this right and the two internal profiles did not, which is backwards: internal builds are the ones made repeatedly</span>
+      </li>
+      <li class="task" data-id="E17-39" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-39"></button>
+        <code class="tid">E17-39</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The EAS <code>production</code> environment is empty.</strong> A production build today would ship with no Supabase URL, no anon key and no Razorpay key, and open on <code>CantConnectScreen</code>. Set the five <code>EXPO_PUBLIC_*</code> variables for <code>production</code> — with <strong>live</strong> Razorpay and the production Supabase project — before any production build. Blocked behind <code>E01-05</code> (the production project does not exist yet)</span>
+      </li>
+      <li class="task" data-id="E17-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-40"></button>
+        <code class="tid">E17-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The EAS <code>development</code> environment says <code>EXPO_PUBLIC_APP_ENV=staging</code> while the <code>development</code> build profile sets <code>APP_ENV=local</code>.</strong> So a dev build gets the <code>local</code> identity (GrayBag Dev, <code>.dev</code> bundle) and a runtime that reports itself as staging — including the Account footer, which exists precisely so a screenshot says which build it is. Make the two agree</span>
       </li></ul>
       </details>
     </article>
