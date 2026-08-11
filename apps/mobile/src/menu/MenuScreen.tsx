@@ -7,6 +7,9 @@ import { EmptyStateDiagnostic } from '../components/EmptyStateDiagnostic';
 import type { MenuDiagnostic } from './useCachedMenu';
 import { MenuList, type MenuListItem } from './MenuList';
 import { useCachedMenu, type CachedMenuPayload } from './useCachedMenu';
+// Moved out of this file by `E05-45`: the cart needs the same answer, and an allergen match
+// implemented twice is one that will eventually disagree with itself.
+import { clashingAllergens } from './useAllergenWatchlist';
 
 const { bg, layout, radius, scale, space, text, touchTarget } = design;
 const { ALL_CATEGORIES, filterMenu } = menuDomain;
@@ -361,24 +364,6 @@ function toListItem(
     allergens: disclosure.state,
     warnAllergens: clashingAllergens(dish, allergens),
   };
-}
-
-function clashingAllergens(
-  dish: CachedMenuPayload['dishes'][number],
-  watchlist: AllergenWatchlist,
-): string[] {
-  // `none` has nobody to compare against; `unavailable` has nothing to compare with. Neither
-  // may produce a flag, and only `unavailable` produces the line that says so.
-  if (watchlist.status !== 'ready') return [];
-
-  const warning = menuDomain.allergenWarning(
-    { allergens: dish.allergens, allergensDeclaredNone: dish.allergensDeclaredNone },
-    watchlist.avoid.map((entry) => entry.allergenId),
-  );
-  if (!warning.warn || warning.reason !== 'match') return [];
-
-  const labels = new Map(watchlist.avoid.map((entry) => [entry.allergenId, entry.label]));
-  return warning.allergenIds.map((id) => labels.get(id) ?? id);
 }
 
 /**

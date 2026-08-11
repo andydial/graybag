@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '@graybag/shared';
+import { api, menu as menuDomain } from '@graybag/shared';
 
 import type { AllergenWatchlist } from './MenuScreen';
 import { useOrderTarget } from '../session/OrderTargetContext';
@@ -69,4 +69,33 @@ export function useAllergenWatchlist(): AllergenWatchlist {
       label: labels.get(allergenId) ?? 'an allergen you told us about',
     })),
   };
+}
+
+/**
+ * The allergens of one dish that this recipient must be warned about — `F5`/`F6`.
+ *
+ * **Here rather than on a screen, because it is now read by two of them.** It lived inside
+ * `MenuScreen` until `E05-45`; the cart needs exactly the same answer, and an allergen match
+ * implemented twice is an allergen match that will eventually disagree with itself. Of all the
+ * duplication in this app this is the one that must not exist: the two screens would differ on
+ * which dishes are dangerous, and the grid and the cart show the same dish.
+ *
+ * Returns an empty list for `none` (nobody to compare against) and for `unavailable` (nothing
+ * to compare with). **Only `unavailable` produces the separate line saying warnings could not
+ * be checked** — an empty list here is never on its own a claim that a dish is safe.
+ */
+export function clashingAllergens(
+  dish: { allergens: api.ApiDishAllergen[]; allergensDeclaredNone: boolean },
+  watchlist: AllergenWatchlist,
+): string[] {
+  if (watchlist.status !== 'ready') return [];
+
+  const warning = menuDomain.allergenWarning(
+    { allergens: dish.allergens, allergensDeclaredNone: dish.allergensDeclaredNone },
+    watchlist.avoid.map((entry) => entry.allergenId),
+  );
+  if (!warning.warn || warning.reason !== 'match') return [];
+
+  const labels = new Map(watchlist.avoid.map((entry) => [entry.allergenId, entry.label]));
+  return warning.allergenIds.map((id) => labels.get(id) ?? id);
 }

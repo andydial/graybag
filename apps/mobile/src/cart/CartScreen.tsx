@@ -424,8 +424,17 @@ function placeOrderState({
    * tomorrow, and tomorrow is not the problem.
    */
   if (schoolClosed) return { label: 'Not available at this school yet', disabled: true };
-  if (closed) return { label: 'Ordering has closed', disabled: true };
+  /**
+   * **Offline before closed**, which is the prototype's order and was inverted here.
+   *
+   * Both are dead ends, so this is not about which is more actionable — it is about which is
+   * *true for longer*. "Ordering has closed" is a fact about today that a parent can act on
+   * tomorrow; being offline is a fact about right now, and a parent told the kitchen has closed
+   * while their phone has no signal has been given a reason that may simply be wrong — the
+   * cutoff state they are being shown was read before the connection went.
+   */
   if (offline) return { label: "You're offline", disabled: true };
+  if (closed) return { label: 'Ordering has closed', disabled: true };
   if (unavailable) return { label: 'Remove the unavailable item first', disabled: true };
   // Not "Place order · <amount>": the amount is the thing we could not confirm, and putting a
   // number we do not trust on the button is how a parent gets charged something else.

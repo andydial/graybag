@@ -289,3 +289,39 @@ describe('requiresSignIn', () => {
     expect(requiresSignIn({ status: 'signedIn', userId: 'u1', email: null })).toBe(false);
   });
 });
+
+/**
+ * The cart's props are actually passed — `E05-45`.
+ *
+ * This block exists because five of them were not, for weeks. `CartScreen` had the offline
+ * band, the allergen warnings, the signed-out reassurance, the Change affordance and the empty
+ * state's Browse the menu button, each with a passing test of its own, and `RootNavigator`
+ * passed none of them — so none could appear on a phone. Unit-testing a screen proves the
+ * screen; only mounting the navigator proves the wire.
+ *
+ * `orphans.test.ts` does not cover optional props, which is the same gap that hid `dishInfo`
+ * until `E05-42`. These assertions are the cover for the cart specifically, and they are
+ * written against what a parent sees rather than against the prop names.
+ */
+describe('the cart is wired, not merely built', () => {
+  it('offers a way to the menu from an empty cart', async () => {
+    // Without `onBrowseMenu` the empty state renders its sentence and no button — a dead end
+    // on the screen whose entire job is to send someone back to the menu.
+    await renderSignedOut();
+    await userEvent.setup().press(tab('Cart'));
+
+    expect(await screen.findByTestId('cart-empty')).toBeOnTheScreen();
+    expect(screen.getByText('Browse the menu')).toBeOnTheScreen();
+  });
+
+  it('takes an empty cart to the Menu tab when it is pressed', async () => {
+    await renderSignedOut();
+    const user = userEvent.setup();
+    await user.press(tab('Cart'));
+    await user.press(await screen.findByText('Browse the menu'));
+
+    // The Menu tab with no school chosen is the school picker (`E04-12`), so that is what
+    // "we arrived" looks like from an empty cart on a cold open.
+    expect(await screen.findByTestId('school-picker-welcome')).toBeOnTheScreen();
+  });
+});

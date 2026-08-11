@@ -36,11 +36,13 @@ import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
 import { useBreakTimes } from '../cart/useBreakTimes';
+import { clashingAllergens, useAllergenWatchlist } from '../menu/useAllergenWatchlist';
 import { PolicyGateContainer } from '../policy/PolicyGateContainer';
 import { usePolicyGate, useNextPendingPolicy } from '../policy/PolicyGateContext';
-import { useAudience } from '../session/audience';
+import { useAudience, useOrderingTarget } from '../session/audience';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 import { useCachedMenu } from '../menu/useCachedMenu';
+import { useConnectivity } from '../net/ConnectivityContext';
 
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -194,6 +196,49 @@ function CartTabScreen() {
     return info;
   }, [payload]);
 
+  const { offline } = useConnectivity();
+
+  /**
+   * The allergen warnings on the cart lines — `E05-45`, `F5`/`F6`.
+   *
+   * The prop existed with a test and nothing passed it, so **no cart line has ever warned about
+   * anything** while the menu grid two taps away was flagging the same dish. That is the worst
+   * version of this bug class: the last screen before payment was the silent one.
+   *
+   * `clashingAllergens` is the menu's own function, moved somewhere both can reach it rather
+   * than reimplemented — two allergen matchers eventually disagree, and they would disagree
+   * about the same dish on two screens a parent sees in the same minute.
+   *
+   * **`undefined` when the answer is not `ready`, and that is the safety-critical part.** The
+   * prop's absence is what makes `CartLineRow` say nothing at all; passing `byDishId: {}`
+   * instead would render "no warnings" — a claim we did not check — for a recipient whose
+   * allergens we could not read. `[]` means we asked and there are none; `undefined` means we
+   * could not ask (§5.21, and `AddChildScreen`'s old `catch { return [] }`).
+   */
+  const watchlist = useAllergenWatchlist();
+  /**
+   * **`useOrderingTarget`, never `useOrderTarget`.** The first consults the app's session
+   * before it answers; the second is the raw context, and reading it from a screen is the
+   * disclosure `E03-26`/`E03-27` closed — a minor's name rendered for somebody with no
+   * session. `no-recipient-without-session.test.tsx` refuses the raw one here, and it refused
+   * this exact line when it was first written.
+   */
+  const target = useOrderingTarget();
+  const cartAllergens = useMemo(() => {
+    if (watchlist.status !== 'ready') return undefined;
+    const name = target?.displayName ?? null;
+    // The warning names the person — "Aarav is allergic". Without a name there is no honest
+    // sentence to write, so no warning is claimed either.
+    if (name === null) return undefined;
+
+    const byDishId: Record<string, string[]> = {};
+    for (const dish of payload?.dishes ?? []) {
+      const clashes = clashingAllergens(dish, watchlist);
+      if (clashes.length > 0) byDishId[dish.id] = clashes;
+    }
+    return { recipientName: name, byDishId };
+  }, [watchlist, target, payload]);
+
   /**
    * The gate, in the order `docs/ux-spec.md` §6.1 puts it.
    *
@@ -249,6 +294,28 @@ function CartTabScreen() {
       breakWindows={breakWindows}
       breakTimeId={breakTimeId}
       onSelectBreakTime={setBreakTimeId}
+      /*
+       * `E05-45`, and the reason "cart to prototype" was still open: **five of the prototype's
+       * cart states were built, tested, and never passed by this file.** The offline band, the
+       * allergen warnings, the signed-out reassurance, the Change affordance and the empty
+       * state's way out all existed in `CartScreen.tsx` with a test each, and none of them
+       * could appear on a phone. `orphans.test.ts` covers contexts and required props, not
+       * optional ones — which is the same gap that hid `dishInfo` until `E05-42`.
+       *
+       * Wired below in the order a parent meets them.
+       */
+      offline={offline}
+      /*
+       * `F1`. The reassurance that the cart survives sign-in, shown only to somebody who has
+       * not signed in — for whom the gate is otherwise a surprise at the last step. `visitor`
+       * rather than `!== 'ordering'`: a signed-in parent with no recipient has passed the gate
+       * this sentence is about.
+       */
+      signedOut={audience.kind === 'visitor'}
+      /* The empty cart pointed at the menu and had no button to get there. */
+      onBrowseMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+      onChangeRecipient={() => navigation.navigate('Children')}
+      {...(cartAllergens === undefined ? {} : { allergens: cartAllergens })}
     />
   );
 }

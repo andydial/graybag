@@ -2057,13 +2057,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/44</span>
+          <span class="meter-num">0/48</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 44 tasks</summary>
+        <summary>Context &amp; 48 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2298,7 +2298,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Put the break time on the cart line so the cart can show it. ux-spec §5.7 requires the break to be visible before paying, and it is neither on <code>CartLineInput</code> nor returned by <code>fetchRecipients</code> — today the block says the break is confirmed with the kitchen rather than inventing one</span>
       </li>
-      <li class="task" data-id="E05-30" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E05-30" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-30"></button>
         <code class="tid">E05-30</code>
         <span class="badge r-high">high</span>
@@ -2386,7 +2386,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The edit-and-remove sheet.</strong> Wire <code>E05-33</code>/<code>E05-34</code> into <code>ChildrenScreen</code>&#39;s existing edit sheet: first name, class and section fields alongside the school picker, plus a Remove action with a confirmation that says what removal does and does not do (leaves the list; keeps past orders). Needs the <code>future_orders_exist</code> refusal rendered as guidance rather than an error</span>
       </li>
-      <li class="task" data-id="E05-38" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E05-38" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-38"></button>
         <code class="tid">E05-38</code>
         
@@ -2394,7 +2394,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Surface self-ordering</strong> (<code>P13</code>). &quot;Order for myself&quot; as a first-class entry in Who-to-order-for when the account has no <code>is_self</code> recipient, and Add-someone asking who it is for before anything else. <code>create_recipient</code> already takes <code>p_is_self</code> (<code>0022</code>) and <code>NewRecipient</code> needs an <code>isSelf</code> field to reach it. Removes the &quot;am I supposed to add myself as a child&quot; confusion</span>
       </li>
-      <li class="task" data-id="E05-39" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E05-39" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-39"></button>
         <code class="tid">E05-39</code>
         
@@ -2402,7 +2402,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Capture the account holder&#39;s own name on the ORDER CONFIRMED screen</strong> (<code>P18</code>). One optional field, &quot;What should we call you?&quot;, with a clear skip; also settable from Account; never asked twice. <code>app_user.first_name</code>/<code>last_name</code> exist and are never written. <strong>Order one must work with no name everywhere</strong> — invoice falls back to the email local-part, packing list to the child&#39;s name. Depends on <code>E06</code> for the confirmation screen</span>
       </li>
-      <li class="task" data-id="E05-41" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E05-41" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-41"></button>
         <code class="tid">E05-41</code>
         
@@ -2417,6 +2417,38 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Switch who a dish is for, from the dish sheet.</strong> <code>DishDetailScreen.onChangeTarget</code> and <code>ordering</code> are accepted and never passed</span>
+      </li>
+      <li class="task" data-id="E05-45" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-45"></button>
+        <code class="tid">E05-45</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Wire the cart&#39;s five dead props.</strong> Found comparing the built cart against the prototype for Andy&#39;s &quot;cart to prototype&quot;. <code>offline</code>, <code>signedOut</code>, <code>allergens</code>, <code>onChangeRecipient</code> and <code>onBrowseMenu</code> were all implemented in <code>CartScreen.tsx</code> with a passing test each, and <code>RootNavigator</code> passed none of them — so the offline band, <strong>every allergen warning on every cart line</strong>, the sign-in reassurance, the Change affordance and the empty cart&#39;s only exit could not appear on a phone. Same class as <code>dishInfo</code> (<code>E05-42</code>): <code>orphans.test.ts</code> covers contexts and required props, not optional ones. The allergen matcher moved out of <code>MenuScreen</code> to <code>useAllergenWatchlist</code> so the grid and the cart cannot disagree about which dish is dangerous. Two navigator-level tests now assert the wire rather than the screen</span>
+      </li>
+      <li class="task" data-id="E05-46" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-46"></button>
+        <code class="tid">E05-46</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The cutoff band has no data source, so it never renders.</strong> <code>CartScreen</code> implements all three states (open / closing soon / closed) and <code>RootNavigator</code> cannot pass <code>cutoff</code> because nothing in <code>api/</code> reads the orderable calendar — the <code>order-calendar</code> Edge Function exists with no client. Until this lands a parent sees no cutoff anywhere on the cart, and <code>closed</code> (which disables Place order and shows &quot;Choose another day&quot;) is unreachable. Needs the calendar read, the service-date the cart is for, and <code>onChooseAnotherDay</code> pointing somewhere real — there is no day picker yet either</span>
+      </li>
+      <li class="task" data-id="E05-47" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-47"></button>
+        <code class="tid">E05-47</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The price-changed notice has no producer.</strong> <code>priceChanged</code> is implemented and tested and nothing computes it: repricing at checkout is <code>E06</code>. Recorded so the notice is not mistaken for a wiring bug — it is a state waiting for the write that detects it</span>
+      </li>
+      <li class="task" data-id="E05-48" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-48"></button>
+        <code class="tid">E05-48</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Whole rupees or two decimals on customer-facing amounts?</strong> The prototype drops a trailing <code>.00</code> (<code>₹95</code>, <code>₹165</code>); <code>money.formatPaise</code> always renders two (<code>₹95.00</code>). It shows on every line, all four totals rows and the Place order button. Not changed unilaterally because the same formatter renders invoices, where two decimals are right, so this is a decision about where the two diverge rather than a formatting tweak</span>
       </li></ul>
       </details>
     </article>
@@ -3004,13 +3036,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/21</span>
+          <span class="meter-num">0/22</span>
         </div>
       </header>
       <p class="summary">Compliant GST invoices emailed as PDF on every purchase, plus the revenue-share and payout reporting that sits on the same numbers.</p>
       <p class="deps">Depends on <code>E06</code></p>
       <details>
-        <summary>Context &amp; 21 tasks</summary>
+        <summary>Context &amp; 22 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>GrayBag is the <strong>seller of record</strong> and pays kitchens monthly. Cart currently shows a single &quot;5% tax&quot; line; a compliant invoice needs the CGST/SGST split. Place of supply is Mohali / SAS Nagar (intra-state).</p>
 <p>Blocked on E00-10 / E00-11 for GSTIN, SAC code and the school-share GST treatment.</p></div>
@@ -3182,6 +3214,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Derive the CGST/SGST-vs-IGST split in the cart and checkout pricing path</strong>, not only on the invoice. <code>E07-17</code> fixes the invoice; <code>E07-06</code> and <code>docs/order-lifecycle.md</code> §8.2 step 7 compute the split &quot;per <code>M2</code>&quot;, i.e. hard-coded intra-state. The three launch cities span three state codes (Punjab <code>03</code>, Chandigarh <code>04</code>, Haryana <code>06</code> — <code>docs/data-model.md</code> §3.1), so at most one can be intra-state under a single GSTIN and a parent at a Panchkula school would be shown CGST+SGST and invoiced IGST. <code>L7</code> requires the charged total to equal the displayed total, so this is not cosmetic. Share one pricing function between checkout and the invoice builder. See <code>[GST-06]</code></span>
+      </li>
+      <li class="task" data-id="E07-22" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-22"></button>
+        <code class="tid">E07-22</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>invoice.buyer_name_snapshot</code> is <code>not null</code> and there is no name to put in it.</strong> Found by <code>E05-41</code>&#39;s audit. <code>app_user.first_name</code> is null for every account in the system — <code>0018</code>&#39;s signup trigger does not write one, and <code>P18</code>&#39;s capture is optional and skippable by design — so the first invoice ever generated raises <code>23502</code> on its own constraint rather than printing a blank. Invoice row creation does not exist yet (nothing in the repo runs <code>insert into invoice</code> outside a test fixture), so this must be settled <strong>as invoicing is built</strong>, not after. <code>docs/gst-invoicing.md</code> §105 specifies no fallback. The backlog&#39;s stated intent is &quot;falls back to the email local-part&quot; — but <code>app_user.email</code> is <strong>also</strong> nullable (<code>0018</code> stores null for Apple private-relay opt-out), so a third tier is needed. Decide the chain, write it into <code>docs/gst-invoicing.md</code>, and assert it with a pgTAP case for a user with neither name nor email. Andy&#39;s <code>P18</code> instruction stands: order one has no name and that must be fine everywhere — this is a defect to fix in the invoice, never a reason to make the name required</span>
       </li></ul>
       </details>
     </article>
