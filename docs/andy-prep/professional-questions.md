@@ -106,3 +106,26 @@ rather than researching from nothing. That is usually the difference between one
 > midnight the night before), and after that they contact support. Post-delivery refunds are
 > goodwill and discretionary. **Please confirm that is compatible with Indian consumer
 > protection rules**, and whether it must be stated more specifically than "discretionary".
+
+## For the CA — the buyer's name on a B2C invoice (`E07-22`)
+
+**The question:** our tax invoices are GrayBag → a parent, unregistered, for a school lunch —
+a few hundred rupees, never anywhere near ₹50,000. Reading `CGST Rule 46`, clause (f) makes the
+recipient's name and address required on a supply **below ₹50,000 only where the recipient
+requests** them, while clause (e) makes them mandatory at ₹50,000 or more.
+
+**Please confirm:** may we issue a compliant tax invoice with **no buyer name at all** for these
+supplies, provided everything else in Rule 46 is present (our GSTIN and address, invoice number
+and date, SAC, taxable value, CGST/SGST rates and amounts, place of supply, signature)?
+
+**Why we are asking rather than assuming.** Our schema currently makes the buyer name mandatory,
+which is stricter than we read the rule to be — and being stricter is not free here. The name is
+optional to collect by design (it is asked for after payment and can be skipped), so a mandatory
+column means a parent who declines cannot be invoiced at all. We would rather omit a field the
+law says we may omit than write a placeholder like "GrayBag customer" into a statutory record,
+which is our reading of the worse option. If you disagree with either half of that, we will
+collect the name before payment instead and take the conversion cost.
+
+**Second, smaller question:** clause (f) is conditional on the recipient *requesting* the
+details. If a parent asks afterwards for their name on an invoice we have already issued, is a
+**superseding reissue** the correct instrument, or may the original be amended?

@@ -3068,13 +3068,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/22</span>
+          <span class="meter-num">0/23</span>
         </div>
       </header>
       <p class="summary">Compliant GST invoices emailed as PDF on every purchase, plus the revenue-share and payout reporting that sits on the same numbers.</p>
       <p class="deps">Depends on <code>E06</code></p>
       <details>
-        <summary>Context &amp; 22 tasks</summary>
+        <summary>Context &amp; 23 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>GrayBag is the <strong>seller of record</strong> and pays kitchens monthly. Cart currently shows a single &quot;5% tax&quot; line; a compliant invoice needs the CGST/SGST split. Place of supply is Mohali / SAS Nagar (intra-state).</p>
 <p>Blocked on E00-10 / E00-11 for GSTIN, SAC code and the school-share GST treatment.</p></div>
@@ -3253,7 +3253,15 @@
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong><code>invoice.buyer_name_snapshot</code> is <code>not null</code> and there is no name to put in it.</strong> Found by <code>E05-41</code>&#39;s audit. <code>app_user.first_name</code> is null for every account in the system — <code>0018</code>&#39;s signup trigger does not write one, and <code>P18</code>&#39;s capture is optional and skippable by design — so the first invoice ever generated raises <code>23502</code> on its own constraint rather than printing a blank. Invoice row creation does not exist yet (nothing in the repo runs <code>insert into invoice</code> outside a test fixture), so this must be settled <strong>as invoicing is built</strong>, not after. <code>docs/gst-invoicing.md</code> §105 specifies no fallback. The backlog&#39;s stated intent is &quot;falls back to the email local-part&quot; — but <code>app_user.email</code> is <strong>also</strong> nullable (<code>0018</code> stores null for Apple private-relay opt-out), so a third tier is needed. Decide the chain, write it into <code>docs/gst-invoicing.md</code>, and assert it with a pgTAP case for a user with neither name nor email. Andy&#39;s <code>P18</code> instruction stands: order one has no name and that must be fine everywhere — this is a defect to fix in the invoice, never a reason to make the name required</span>
+        <span class="ttext"><strong><code>invoice.buyer_name_snapshot</code> is <code>not null</code> and every account has a null name.</strong> Found by <code>E05-41</code>&#39;s audit; <strong>awaiting Andy&#39;s ruling, proposal below — do not build before it.</strong> Nothing writes <code>app_user.first_name</code> (<code>0018</code>&#39;s signup trigger does not), <code>P18</code>&#39;s capture is optional, skippable and lands *after* payment, and <code>app_user.email</code> is nullable too because of Apple private relay. So a parent who skips the prompt cannot be invoiced, and we would find out at the first invoice in production with money already taken. <strong>The research changed the answer: <code>CGST Rule 46(f)</code> says the recipient&#39;s name and address are required on a B2C supply below ₹50,000 only if the recipient asks for them</strong> — so the <code>not null</code> is stricter than the law, and the constraint rather than GST would be the thing stopping an order. Proposal: make the column <strong>nullable</strong>, never fabricate a name, and add <code>check (buyer_name_snapshot is not null or total_paise &lt; 5000000)</code> so the schema expresses the actual rule — required exactly when the law requires it. Rejected alternatives and the reasoning are in <code>docs/gst-invoicing.md</code> §3.3 once ruled on; the CA question is on <code>docs/andy-prep/professional-questions.md</code></span>
+      </li>
+      <li class="task" data-id="E07-23" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-23"></button>
+        <code class="tid">E07-23</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A parent can ask for their name on an invoice already issued.</strong> <code>Rule 46(f)</code>&#39;s condition is &quot;and the recipient requests that such details be recorded&quot; — so a name is not merely optional, it is optional *until asked for*. Fast-follow: a reissue path that re-renders the document with the name and supersedes the original (never edits it — <code>§13.2</code> requires a reprint to be byte-identical to what was issued). Not v1; recorded so the obligation is not discovered from a support ticket</span>
       </li></ul>
       </details>
     </article>
