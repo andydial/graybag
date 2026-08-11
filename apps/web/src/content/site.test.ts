@@ -6,6 +6,7 @@ import {
   BENEFITS,
   FACTS,
   FAQ,
+  FOOD,
   FOOTER,
   FORBIDDEN_LINK_PATTERNS,
   HERO,
@@ -25,7 +26,7 @@ import {
  */
 
 describe('the things this page must never say', () => {
-  const allCopy = JSON.stringify({ HERO, FACTS, STEPS, BENEFITS, FAQ, SCHOOLS, REPORT, FOOTER, NAV, SITE });
+  const allCopy = JSON.stringify({ HERO, FACTS, STEPS, BENEFITS, FAQ, FOOD, SCHOOLS, REPORT, FOOTER, NAV, SITE });
 
   it.each(FORBIDDEN_LINK_PATTERNS)('never links to %s', (host) => {
     // E12-05 stays open until both apps are published. A dead download button is worse than
@@ -59,6 +60,40 @@ describe('the things this page must never say', () => {
     expect(answer?.a.join(' ')).toMatch(/not a medical guarantee/i);
   });
 
+  it('makes no nutrition or health claim, anywhere', () => {
+    // Andy, 2026-08-11: we position as healthy school food **by description, not assertion**.
+    // "Healthy", "nutritious" and their family are close enough to nutrition and health claims
+    // under the FSSAI Labelling and Display regulations to need substantiation we do not hold.
+    // The positioning is carried by what is on the menu — no meat, atta bases, brown bread,
+    // quinoa and sprouts — every word of which is checkable against the catalogue.
+    const banned = [
+      'healthy', 'healthier', 'health benefit', 'nutritious', 'nutrition', 'nutritional',
+      'wholesome', 'balanced diet', 'well-balanced', 'natural', 'wellness', 'superfood',
+      'immunity', 'low fat', 'low-fat', 'fat free', 'sugar free', 'sugar-free', 'high protein',
+      'high-protein', 'fortified', 'enriched', 'guilt-free', 'clean eating', 'goodness',
+      'preservative-free', 'no preservatives', 'organic',
+    ];
+    const lower = allCopy.toLowerCase();
+    for (const word of banned) {
+      expect(lower, `"${word}" needs substantiating and must be flagged, not shipped`).not.toContain(word);
+    }
+  });
+
+  it('does not claim nothing is deep-fried, because the catalogue says otherwise', () => {
+    // Drafted and cut: vada pao and four puffs are on the list, so the line would have been
+    // false. Recorded here because it is the sort of claim that reads as obviously true.
+    expect(allCopy.toLowerCase()).not.toContain('deep-fried');
+    expect(allCopy.toLowerCase()).not.toContain('deep fried');
+  });
+
+  it('says atta and brown bread specifically, never "as standard"', () => {
+    // Four catalogue items are explicitly (Maida), so "atta as standard" would overstate it.
+    const wraps = FOOD.categories.find((c) => c.id === 'wraps');
+    expect(wraps?.body).toMatch(/atta/i);
+    expect(wraps?.body).toMatch(/maida/i);
+    expect(JSON.stringify(FOOD)).not.toMatch(/as standard/i);
+  });
+
   it('does not claim a food-safety licence we have not evidenced', () => {
     // Raised as an owner:andy task. Until the FSSAI number is confirmed, the honest answer is
     // structural — everything is cooked to the day's order list — not a licence claim.
@@ -73,12 +108,27 @@ describe('the things this page must never say', () => {
 });
 
 describe('the claims that must stay checkable', () => {
-  it('states the dish count that the mirror manifest actually records', () => {
+  it('makes no claim about the size of the catalogue', () => {
+    // "85 dishes" was a hero stat and is gone. A count of the catalogue will change, and no
+    // principal chooses a food supplier on how long its list is — so it is not a number worth
+    // maintaining, and a stale one on a sales page is worse than none.
+    const stats = JSON.stringify(FACTS);
+    expect(stats).not.toMatch(/\b\d+\s*(dishes|items|meals)\b/i);
+  });
+
+  it('leads on the menu being per-school rather than on catalogue size', () => {
+    expect(FACTS[0]?.value.toLowerCase()).toContain('menu per school');
+  });
+
+  it('names only dishes that exist in the real catalogue', () => {
     const manifest = JSON.parse(
       readFileSync(new URL('../../../../tools/mirror-dish-images/manifest.json', import.meta.url), 'utf8'),
-    ) as { counts: { total: number } };
-    const claim = FACTS.find((f) => f.value.includes('dishes'));
-    expect(claim?.value).toContain(String(manifest.counts.total));
+    ) as { images: { dish: string }[] };
+    const catalogue = manifest.images.map((i) => i.dish.toLowerCase()).join(' | ');
+    // A dish named on a sales page that the kitchen does not recognise is a promise nobody made.
+    for (const dish of ['idli', 'poha', 'rajma', 'quinoa khichdi', 'sprouts', 'wheat jaggery cake']) {
+      expect(catalogue, dish).toContain(dish);
+    }
   });
 
   it('claims one city, because v1 is Mohali only', () => {
@@ -91,11 +141,14 @@ describe('the claims that must stay checkable', () => {
     expect(REPORT.sample.subtitle.toLowerCase()).toContain('example');
   });
 
-  it('names the three schools under a softer claim, not as a client list', () => {
-    // Andy's ruling: named smaller, under "already serving schools across Mohali", pending
-    // each school's permission before the DNS cutover (E12-10).
-    expect(SCHOOLS.names).toHaveLength(3);
-    expect(SCHOOLS.heading).not.toMatch(/客|clients?|customers?/i);
+  it('names no school at all until each agrees in writing', () => {
+    // Andy, 2026-08-11: pull the names (E12-11, [WEB-02]). Naming a customer as a reference is
+    // the school's call, and a name published without permission ends a relationship rather
+    // than starting one. This test is what stops them drifting back in.
+    const everything = JSON.stringify({ SCHOOLS, HERO, FACTS, BENEFITS, FAQ, REPORT, FOOTER, NAV, STEPS });
+    for (const name of ['Amity', 'Gem Public', 'Paragon']) {
+      expect(everything, name).not.toContain(name);
+    }
     expect(SCHOOLS.heading.toLowerCase()).toContain('already serving schools');
   });
 });

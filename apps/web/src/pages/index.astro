@@ -35,10 +35,21 @@ import {
  */
 const manifest = JSON.parse(
   readFileSync(new URL('../../public/img/MANIFEST.json', import.meta.url), 'utf8'),
-) as { mosaic: { dish: string; label: string; slug: string }[] };
+) as { range: { category: string; dish: string; label: string; slug: string }[] };
 
-if (manifest.mosaic.length === 0) {
+if (manifest.range.length === 0) {
   throw new Error('public/img/MANIFEST.json has no dishes. Run: node apps/web/scripts/build-web-assets.mjs');
+}
+
+/** category id -> its photograph, so the copy and the images cannot fall out of step. */
+const photo = new Map(manifest.range.map((dish) => [dish.category, dish]));
+
+const missingPhotos = FOOD.categories.filter((category) => !photo.has(category.id));
+if (missingPhotos.length) {
+  throw new Error(
+    `No photograph for: ${missingPhotos.map((c) => c.id).join(', ')}. ` +
+      'Add it to RANGE in apps/web/scripts/build-web-assets.mjs and regenerate.',
+  );
 }
 
 /**
@@ -106,25 +117,25 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
             </div>
 
             <div class="phone__row">
-              <img src={`/img/dishes/${manifest.mosaic[0]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
+              <img src={`/img/dishes/${manifest.range[0]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
               <div>
-                <p class="n">{manifest.mosaic[0]?.label}</p>
+                <p class="n">{manifest.range[0]?.label}</p>
                 <p class="p">₹95</p>
               </div>
             </div>
 
             <div class="phone__row">
-              <img src={`/img/dishes/${manifest.mosaic[2]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
+              <img src={`/img/dishes/${manifest.range[2]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
               <div>
-                <p class="n">{manifest.mosaic[2]?.label}</p>
+                <p class="n">{manifest.range[2]?.label}</p>
                 <p class="p">₹110</p>
               </div>
             </div>
 
             <div class="phone__row">
-              <img src={`/img/dishes/${manifest.mosaic[16]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
+              <img src={`/img/dishes/${manifest.range[3]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
               <div>
-                <p class="n">{manifest.mosaic[16]?.label}</p>
+                <p class="n">{manifest.range[3]?.label}</p>
                 <p class="p">₹60</p>
               </div>
             </div>
@@ -180,9 +191,9 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
       <p class="eyebrow">For your school</p>
       <h2 class="heading" id="benefits-heading">What your school stops dealing with</h2>
       <p class="lead">
-        A canteen is a small business your school did not ask to run. This removes the parts of it
-        that take staff time and create risk, and leaves you the part that matters — children
-        eating properly.
+        A canteen is a small business your school did not ask to run. This removes the parts of
+        it that take staff time and create risk — the money, the queue, the stock — and leaves
+        the part you actually wanted: children fed at the break.
       </p>
 
       <ul class="cards">
@@ -198,6 +209,14 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
   </section>
 
   <!-- ============================================================ food -->
+  <!--
+    Five categories, not a catalogue.
+
+    This was a grid of 28 dish tiles. It read as a contact sheet, it implied a fixed list when
+    every school's menu is its own and rotates, and it would have needed maintaining forever.
+    The photographs are 120px at source and cannot be made appetising at any size, so they are
+    demoted to supporting images beside the copy rather than being asked to carry the section.
+  -->
   <section class="section panel-pale" id="food" aria-labelledby="food-heading">
     <div class="pattern pattern--deep" aria-hidden="true"></div>
 
@@ -206,42 +225,67 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
       <h2 class="heading" id="food-heading">{FOOD.heading}</h2>
       <p class="lead">{FOOD.lead}</p>
 
-      <ul class="mosaic">
-        {manifest.mosaic.map((dish, index) => (
-          <li>
-            <figure class="dish">
-              <img
-                src={`/img/dishes/${dish.slug}.webp`}
-                width="120"
-                height="120"
-                alt=""
-                loading={index < 8 ? 'eager' : 'lazy'}
-                decoding="async"
-              />
-              <figcaption>{dish.label}</figcaption>
-            </figure>
+      <ul class="range">
+        {FOOD.categories.map((category, index) => (
+          <li class="range__item">
+            <img
+              class="range__photo"
+              src={`/img/dishes/${photo.get(category.id)?.slug}.webp`}
+              width="120"
+              height="120"
+              alt=""
+              loading={index < 3 ? 'eager' : 'lazy'}
+              decoding="async"
+            />
+            <div>
+              <h3>{category.title}</h3>
+              <p>{category.body}</p>
+            </div>
           </li>
         ))}
+
+        <!--
+          The vegetarian note is the sixth tile rather than a block underneath, which fills the
+          empty cell a five-item grid leaves at three columns and keeps the section compact. It
+          earns its place in the list because it is a fact about what is on the menu, exactly
+          like the five above it — it simply applies to all of them at once, which is why it has
+          no photograph and its own surface.
+        -->
+        <li class="range__item range__item--note">
+          <div>
+            <h3>{FOOD.note.title}</h3>
+            <p>{FOOD.note.body}</p>
+          </div>
+        </li>
       </ul>
 
-      <p class="section-footnote">
-        {FOOD.footnote}
-      </p>
+      <p class="section-footnote">{FOOD.footnote}</p>
     </div>
   </section>
 
   <!-- ========================================================= schools -->
+  <!--
+    No school is named here. The three names that were on this page are out until each school
+    agrees in writing (`E12-11`, `[WEB-02]`) — that is the school's call to make, not ours.
+    The invitation to come and watch a delivery is the better substitute anyway: for a
+    principal weighing a food partner, seeing the kitchen beats a logo strip.
+  -->
   <section class="section panel-deep on-dark" id="schools" aria-labelledby="schools-heading">
     <div class="pattern" aria-hidden="true"></div>
 
     <div class="wrap">
-      <p class="eyebrow">{SCHOOLS.eyebrow}</p>
-      <h2 class="heading" id="schools-heading">{SCHOOLS.heading}</h2>
-      <p class="lead">{SCHOOLS.lead}</p>
+      <div class="visit">
+        <div>
+          <p class="eyebrow">{SCHOOLS.eyebrow}</p>
+          <h2 class="heading" id="schools-heading">{SCHOOLS.heading}</h2>
+          <p class="lead">{SCHOOLS.lead}</p>
+        </div>
 
-      <ul class="schools">
-        {SCHOOLS.names.map((name) => <li class="school-chip">{name}</li>)}
-      </ul>
+        <div class="visit__card">
+          <p>{SCHOOLS.invitation}</p>
+          <a class="btn btn--amber" href="#enquiry">{SCHOOLS.cta}</a>
+        </div>
+      </div>
     </div>
   </section>
 

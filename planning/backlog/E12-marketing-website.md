@@ -24,12 +24,13 @@ Getting fully off Bubble includes the public website. Largely static but it need
 - [x] `E12-08` Lighthouse performance **and accessibility** budgets enforced in CI, with actual threshold numbers
 - [ ] `E12-09` (mvp) Deploy to Netlify and prepare the graybag.com DNS cutover plan
 - [ ] `E12-10` (owner:andy) (mvp) Make the DNS change at the registrar when the cutover plan is ready
-- [ ] `E12-11` (owner:andy) Confirm Amity International, Gem Public and Paragon Senior Secondary may be named publicly on the website (`[WEB-02]`) — must be settled before `E12-10`
-- [ ] `E12-12` (owner:andy) Name the address enquiries are emailed to, for `ENQUIRY_NOTIFY_EMAIL` (`[WEB-03]`)
+- [ ] `E12-11` (owner:andy) Get **written** agreement from Amity International, Gem Public and Paragon Senior Secondary before naming any of them on the website (`[WEB-02]`). The names were pulled from the page on 2026-08-11 and a test fails if one reappears; the section now offers a kitchen visit instead
+- [x] `E12-12` (owner:andy) Name the address enquiries are emailed to, for `ENQUIRY_NOTIFY_EMAIL` (`[WEB-03]`) — answered 2026-08-11: `andy@graybag.com`, Cc `vivek@graybag.com`. Recorded in `docs/enquiry-submission-contract.md` §6
 - [ ] `E12-13` (owner:andy) Commission dish photography — every existing photo is 120px and no larger original exists (`[WEB-01]`); also closes `E16-29`'s three permanent 403s and unblocks the app's dish-card treatment
 - [ ] `E12-14` (owner:andy) (risk:medium) Confirm what may be stated about food safety and the FSSAI registration (`[WEB-04]`)
 - [ ] `E12-15` Build the `enquiry` table, RLS and the `enquiry-submit` Edge Function to `docs/enquiry-submission-contract.md` — owned by the `supabase/` thread, not by `apps/web`
 - [ ] `E12-16` Wire `check:a11y` into the CI workflow — it is in `npm run test:all` but the GitHub Actions job does not run it yet
 - [ ] `E12-17` Replace the drawn hero phone illustration with a real app screenshot once the app has screens worth showing
 - [ ] `E12-18` Re-check the published policy pages the moment `E20-01` resolves the `«PENDING»` tokens — the production build gate (`E20-22`) will start passing and the pre-launch notice must come off deliberately
+- [ ] `E12-19` Re-shoot or re-frame the food section once real photography exists (`E12-13`) — the five category cards are laid out to take a proper photograph, and the 96px cap comes off the moment there is one worth showing
 

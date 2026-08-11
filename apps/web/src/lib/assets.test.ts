@@ -20,7 +20,7 @@ interface Manifest {
   generated_by: string;
   budget_bytes: number;
   total_bytes: number;
-  mosaic: { dish: string; label: string; slug: string; sourceWidth: number; sourceHeight: number }[];
+  range: { category: string; dish: string; label: string; slug: string; sourceWidth: number; sourceHeight: number }[];
   absent: string[];
   files: { file: string; bytes: number; width: number; height: number }[];
 }
@@ -53,9 +53,18 @@ describe('the committed image budget', () => {
 });
 
 describe('the dish photographs', () => {
-  it('has a photograph for every dish in the mosaic', () => {
+  it('carries five range dishes and no catalogue', () => {
+    // Was 28 tiles of the whole catalogue. That argued *inventory*, which is misleading — menus
+    // rotate and each school gets its own — and it was a grid somebody would have had to
+    // maintain forever. Five categories show range without implying a fixed list.
     expect(manifest.absent).toEqual([]);
-    expect(manifest.mosaic.length).toBeGreaterThanOrEqual(24);
+    expect(manifest.range).toHaveLength(5);
+  });
+
+  it('covers a breakfast, a main, a wrap, a salad and a bake', () => {
+    expect(manifest.range.map((d) => d.category).sort()).toEqual([
+      'bakery', 'breakfast', 'mains', 'salads', 'wraps',
+    ]);
   });
 
   it('never upscales — the source photography is 120px and stays 120px', () => {
@@ -63,7 +72,7 @@ describe('the dish photographs', () => {
     // 80-213px wide (72 of 82 are exactly 120x120), verified against the Bubble CDN with both
     // `?w=` and the Cloudflare resize path. Blowing one up to hero size would look exactly like
     // what it is, so the tiles are capped at 88 CSS px instead.
-    for (const dish of manifest.mosaic) {
+    for (const dish of manifest.range) {
       expect(dish.sourceWidth, dish.dish).toBeLessThanOrEqual(240);
     }
     for (const file of manifest.files.filter((f) => f.file.startsWith('dishes/'))) {
@@ -73,7 +82,7 @@ describe('the dish photographs', () => {
   });
 
   it('ships WebP only, because AVIF is bigger at this size', () => {
-    // Measured: 5.3 KB average as AVIF against 3.8 KB as WebP over the same 28 tiles. At
+    // Measured: 5.3 KB average as AVIF against 3.8 KB as WebP over the original 28 tiles. At
     // 120x120 the container overhead costs more than the compression saves, so shipping both
     // would have added 147 KB to the repository to make every tile larger.
     const dishes = manifest.files.filter((f) => f.file.startsWith('dishes/'));
@@ -84,7 +93,7 @@ describe('the dish photographs', () => {
   });
 
   it('gives every dish a display label distinct from the raw catalogue name where needed', () => {
-    for (const dish of manifest.mosaic) {
+    for (const dish of manifest.range) {
       expect(dish.label.length).toBeGreaterThan(0);
       // Catalogue names carry parentheticals ("Vada Pao (Atta Base Bread)") that read as
       // kitchen shorthand on a sales page.

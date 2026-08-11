@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 47 open of 50.
+Your tasks only — 46 open of 50.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -55,8 +55,8 @@ in VS Code or on GitHub without opening anything.
 
 - [ ] `E03-18` **[high]** _(fast-follow)_ Decide the support policy for the ~15 people who appear to hold two accounts under different spellings of the same school domain (ais.amity.edu vs ais.amity.edu.in vs aismohali.amity.edu) — found by E19-04. As email strings they are distinct and will migrate to distinct accounts, which is correct; but each of those parents will see their children and order history split across two logins. This is a support-model decision, not a data fix: do not merge them automatically — ais.amity.edu and ais.amity.edu.in may be genuinely separate mailboxes, and a wrong merge shows one parent another family's child Post-cutover (SC3) — only migrated accounts can hold two
 - [ ] `E12-10` Make the DNS change at the registrar when the cutover plan is ready
-- [ ] `E12-11` _(fast-follow)_ Confirm Amity International, Gem Public and Paragon Senior Secondary may be named publicly on the website ([WEB-02]) — must be settled before E12-10
-- [ ] `E12-12` _(fast-follow)_ Name the address enquiries are emailed to, for ENQUIRY_NOTIFY_EMAIL ([WEB-03])
+- [ ] `E12-11` _(fast-follow)_ Get written agreement from Amity International, Gem Public and Paragon Senior Secondary before naming any of them on the website ([WEB-02]). The names were pulled from the page on 2026-08-11 and a test fails if one reappears; the section now offers a kitchen visit instead
+- [x] `E12-12` _(fast-follow)_ Name the address enquiries are emailed to, for ENQUIRY_NOTIFY_EMAIL ([WEB-03]) — answered 2026-08-11: andy@graybag.com, Cc vivek@graybag.com. Recorded in docs/enquiry-submission-contract.md §6
 - [ ] `E12-13` _(fast-follow)_ Commission dish photography — every existing photo is 120px and no larger original exists ([WEB-01]); also closes E16-29's three permanent 403s and unblocks the app's dish-card treatment
 - [ ] `E12-14` _(fast-follow)_ (risk:medium) Confirm what may be stated about food safety and the FSSAI registration ([WEB-04])
 - [ ] `E13-09` Review the motion spec with Andy once, before app UI work starts

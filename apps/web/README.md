@@ -23,7 +23,7 @@ That is all you need for the whole site. The dish photographs, the brand assets,
 ```bash
 npm run build:web           # build + budget, link and store-link checks
 npm run check:a11y          # axe-core against every built page, in a real browser
-npm --prefix apps/web test  # 114 unit tests
+npm --prefix apps/web test  # 120 unit tests
 ```
 
 The enquiry form posts to a **local mock** in development
@@ -55,6 +55,7 @@ rather than shipping a palette that disagrees with the app's.
 | **Astro 5, `output: 'static'`, no adapter** | Ships zero JavaScript by default (`P11` — the constraint is network, not CPU), real HTML for SEO, and React islands are available later for the admin surfaces without revisiting the choice. Decision `A9` |
 | **Netlify** | `A5`. Static on a CDN. Netlify Functions are **not** used — `A5` rules them out for API work because Netlify has no India region |
 | **Supabase Edge Function for the one write** | `A4`, non-negotiable #1. The site holds no Supabase key of any kind |
+| **No nutrition or health claims** | The positioning is healthy school food, made **by description**. "Healthy", "nutritious", "wholesome" and their family are close to nutrition claims under the FSSAI Labelling and Display regulations and need substantiation we do not hold, so a unit test fails the build if any of them appears in the copy. What is said instead — no meat on the menu, atta bases, brown bread, quinoa and sprouts — is verifiable against `tools/mirror-dish-images/manifest.json` |
 | **`tokens.css` generated from `packages/shared/src/design`** | `S8`, one source and two outputs. Every colour, size, radius and duration on the site is a `var(--gb-*)`; a test asserts the committed file matches its generator, and another asserts `site.css` contains no colour literal |
 | **Nunito, self-hosted, one variable file** | `DS-02`. VAG Rounded Next is the brand face and its licence is unresolved (`E19-03`), so it is never served. Self-hosted because the budget is zero third-party requests |
 
@@ -68,6 +69,8 @@ rather than shipping a palette that disagrees with the app's.
   and **a production build containing an unresolved `«…-PENDING-…»` token fails** (`E20-22`).
   That is why they render with a pre-launch notice today.
 - **The photographs are 120 pixels and are never upscaled.** See below.
+- **No school is named.** The three names that were here are out until each agrees in writing
+  (`E12-11`), and a test fails if one reappears.
 
 ## The photography, which is the one thing that constrains the design
 
@@ -75,9 +78,10 @@ Every dish photograph GrayBag owns is between 80 and 213 pixels wide; 72 of the 
 120 × 120. That was checked against the source CDN directly — both `?w=1200` and the Cloudflare
 resize path return 120 × 120, so no larger original exists.
 
-There is therefore **no full-bleed food hero available**, and the food section is a mosaic of
-small tiles capped at 88 CSS px instead, where a 120px asset still holds up at 2×. It reads as
-*the menu is broad and it is real food*, which is what a principal is weighing anyway.
+There is therefore **no full-bleed food hero available**. The food section does not try to win
+on photography: it is five category cards — a breakfast, a main, a wrap, a salad, a bake — with
+the photograph at 96 CSS px beside the copy rather than carrying the section. The argument is
+made in words, and the words are checkable against the catalogue.
 
 **Real photography is the single biggest available upgrade to this page.** It is an `owner:andy`
 task on `E12`.
