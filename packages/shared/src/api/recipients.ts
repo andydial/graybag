@@ -55,6 +55,18 @@ export interface NewRecipient {
   allergenConsent?: boolean;
   allergenIds?: string[];
   allergyNote?: string | null;
+  /**
+   * The adult is adding **themselves** — `P13`, `E05-38`. Changes what the server writes in
+   * ways a client cannot patch up afterwards: `self_data_notice` instead of `child_data_notice`,
+   * the `self_*` consent purposes, `guardian_relationship = 'self'`, `is_minor = false`, and
+   * `self_declared` verification instead of `parental_verification_method()` — there is no
+   * third party to have verified (`0022`).
+   *
+   * Absent means a child, and that default is deliberate: a screen that forgets to send this
+   * records a *parental* consent, which is the direction that over-describes rather than
+   * under-describes what was agreed to.
+   */
+  isSelf?: boolean;
   /** Recorded on the consent row. Screen and app version only — never the child (§11.5). */
   screen?: string;
   appVersion?: string;
@@ -78,6 +90,16 @@ export interface ApiRecipient {
   schoolId: string;
   /** Empty when the school row is unreadable, never a reason to hide the child. */
   schoolName: string;
+  /**
+   * This recipient is the signed-in adult themself — `P13`, `E05-38`.
+   *
+   * **Not optional, and false rather than absent when the column does not come back.** The
+   * screens read it to decide whether to say "You" or a person's name, whether to draw a class,
+   * and — the one that matters — whether to offer "Order for myself" at all. An `undefined`
+   * that meant "we did not ask" would end up offering an adult a second self row, which the
+   * server then refuses with `self_recipient_exists`: a wasted round trip and a dead end.
+   */
+  isSelf: boolean;
   /** From the link, not the child: a co-guardian may be able to see but not to edit. */
   canOrder: boolean;
   canManage: boolean;
@@ -104,10 +126,16 @@ export class RecipientPayloadError extends Error {
  * `created_by_user_id` is absent for the same reason it is absent from every policy: naming
  * it here would put a second parent-to-child link in front of the app, which is the defect
  * `D10` exists to prevent.
+ *
+ * `is_self` is here since `E05-38` and is the one addition that is not a name or a place: it
+ * decides whether a row says "You", whether it draws a class, and whether the list offers to
+ * add the adult themself. **`is_minor` stays withheld** — it is the same fact stated backwards
+ * for every row this app can read, and a second field that answers the same question is a
+ * second field that can disagree with the first.
  */
 export const RECIPIENT_COLUMNS =
   'can_order,can_manage,' +
-  'recipient:recipient_id(id,first_name,last_name,class_label,section_label,is_active,' +
+  'recipient:recipient_id(id,first_name,last_name,class_label,section_label,is_active,is_self,' +
   'school:school_id(id,name))';
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -182,6 +210,9 @@ export async function fetchRecipients(): Promise<ApiRecipient[]> {
       // Absent means no. A link that did not say `can_manage` must not open the edit path.
       canOrder: row.can_order === true,
       canManage: row.can_manage === true,
+      // Strict, and false when absent, for the reason on the field. A row that quietly became
+      // "not myself" would put a class label on an adult and offer them a second self row.
+      isSelf: child.is_self === true,
     });
   });
 
@@ -189,7 +220,15 @@ export async function fetchRecipients(): Promise<ApiRecipient[]> {
   // *within* the embed, not the parent rows, so asking the database for this would silently
   // return them in insertion order. `localeCompare` because the audience types Indian names
   // in both scripts.
-  return children.sort((a, b) => a.firstName.localeCompare(b.firstName));
+  //
+  // **The adult's own row comes first** (`E05-38`), ahead of the alphabet. It reads as "You",
+  // so sorting it by the first name nobody sees would put it in a position with no visible
+  // explanation — a row labelled You sitting between two children looks like a bug. There is
+  // at most one: `create_recipient` refuses a second with `self_recipient_exists`.
+  return children.sort((a, b) => {
+    if (a.isSelf !== b.isSelf) return a.isSelf ? -1 : 1;
+    return a.firstName.localeCompare(b.firstName);
+  });
 }
 
 export interface SchoolChange {
@@ -208,22 +247,32 @@ export interface SchoolChangeResult {
 }
 
 /**
- * Add a child.
+ * Add a recipient — a child, or the adult themself (`isSelf`, `P13`/`E05-38`).
  *
  * Allergy details are only sent when `allergenConsent` is true. That is not a second
  * enforcement of the server's rule — the server still refuses the inconsistent combination,
  * and must — it is that a client which held the details back from the *request* leaves
  * nothing to be dropped.
+ *
+ * `isSelf` is sent on every call rather than only when true. The server defaults `p_is_self`
+ * to false, so omitting it would work — until the day the default changes, which is exactly
+ * the class of silent flip this call cannot afford: it decides which privacy notice the
+ * consent record points at.
  */
 export async function createRecipient(input: NewRecipient): Promise<CreatedRecipient> {
   const allergenConsent = input.allergenConsent === true;
+  const isSelf = input.isSelf === true;
 
   const data = await invokeFunction<Record<string, unknown>>('recipients', {
     first_name: input.firstName,
     last_name: input.lastName ?? null,
     school_id: input.schoolId,
-    class_label: input.classLabel ?? null,
-    section_label: input.sectionLabel ?? null,
+    // An adult has neither, and `0022` says so outright: "No class or section is required. A
+    // staff member has neither." Dropped here as well as on the screen, so a stale field left
+    // in a form's state cannot put "Class 5" on a member of staff.
+    class_label: isSelf ? null : (input.classLabel ?? null),
+    section_label: isSelf ? null : (input.sectionLabel ?? null),
+    is_self: isSelf,
     consent_granted: input.consentGranted === true,
     allergen_consent: allergenConsent,
     allergen_ids: allergenConsent ? (input.allergenIds ?? []) : [],

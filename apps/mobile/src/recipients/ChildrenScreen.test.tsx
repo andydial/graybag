@@ -115,6 +115,9 @@ const ROW = (over: Partial<RecipientRow> = {}): RecipientRow => ({
   schoolName: 'Alpha Public School',
   canOrder: true,
   canManage: true,
+  // Required since `E05-38` — `fetchRecipients` returns it on every row now. A child by
+  // default, which is what an unqualified fixture ought to be.
+  isSelf: false,
   ...over,
 });
 
@@ -157,6 +160,66 @@ describe('ChildrenScreen', () => {
     const { onAddChild } = await setup();
     const user = userEvent.setup();
     await user.press(await screen.findByTestId('screen-children-add'));
+    expect(onAddChild).toHaveBeenCalled();
+  });
+
+  it('offers "Order for myself" while the account has no self recipient', async () => {
+    // `E05-38`. First-class, not a line inside the add form: a member of staff ordering their
+    // own lunch is not "someone else". It carries the answer to the form's first question, so
+    // the person who tapped it is not asked again.
+    const onOrderForSelf = jest.fn();
+    await setup({ onOrderForSelf });
+    const user = userEvent.setup();
+
+    await user.press(await screen.findByTestId('screen-children-add-self'));
+    expect(onOrderForSelf).toHaveBeenCalled();
+  });
+
+  it('withdraws it once they are on their own list', async () => {
+    // `create_recipient` refuses a second self recipient (`self_recipient_exists`, `0022`), so
+    // leaving the entry point would be a button whose only possible outcome is a refusal —
+    // which teaches that the button is broken rather than that the thing is already done.
+    rows = [LINK({ id: 'r9', first_name: 'Priya', is_self: true })];
+    await setup({ onOrderForSelf: jest.fn() });
+
+    await screen.findByTestId('screen-children-r9');
+    expect(screen.queryByTestId('screen-children-add-self')).toBeNull();
+    // And the add path itself is untouched — this hides one entry point, not the list's.
+    expect(screen.getByTestId('screen-children-add')).toBeOnTheScreen();
+  });
+
+  it('shows the adult’s own row as "You", above the children', async () => {
+    // `fetchRecipients` sorts the self row first (`E05-38`): it renders as "You", so sorting
+    // it by the first name nobody sees would put it in a position with no visible reason.
+    rows = [LINK(), LINK({ id: 'r9', first_name: 'Priya', is_self: true, class_label: null })];
+    await setup();
+
+    await screen.findByTestId('screen-children-r9');
+    expect(screen.getByText('You')).toBeOnTheScreen();
+    // No class line for an adult — they have neither, and "Class undefined" is worse than
+    // nothing (`0022`).
+    expect(screen.queryByText(/You · Class/)).toBeNull();
+  });
+
+  it('offers it from an empty account too', async () => {
+    // The empty account is where "am I supposed to add myself as a child?" actually happens.
+    // An account with nobody on it has no self recipient by definition.
+    rows = [];
+    const onOrderForSelf = jest.fn();
+    await setup({ onOrderForSelf });
+    const user = userEvent.setup();
+
+    await user.press(await screen.findByTestId('screen-children-empty-self'));
+    expect(onOrderForSelf).toHaveBeenCalled();
+  });
+
+  it('falls back to the add form when nothing wired the self entry', async () => {
+    // The form asks who it is for as its first question, so an unwired route costs one extra
+    // tap rather than producing a button that does nothing.
+    const { onAddChild } = await setup();
+    const user = userEvent.setup();
+
+    await user.press(await screen.findByTestId('screen-children-add-self'));
     expect(onAddChild).toHaveBeenCalled();
   });
 

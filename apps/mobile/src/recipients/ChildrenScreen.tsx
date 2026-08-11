@@ -29,9 +29,12 @@ const {
  * `P13`: an adult can buy their own lunch — school staff and university students did it in the
  * legacy app and the rebuild had dropped them by omission. So the copy here never says "child"
  * about the list as a whole, and a row whose recipient **is** the signed-in adult reads *You*
- * rather than their own name. The "Myself / My child" chooser is fast-follow; the neutral
- * wording is not, because retrofitting it later means a new policy version and a second consent
- * interruption for every existing user.
+ * rather than their own name.
+ *
+ * Since `E05-38` the screen also **offers it**: "Order for myself" is a first-class action, not
+ * a sentence inside the add form, and it disappears once the adult is on the list because the
+ * server refuses a second self recipient. Until then the neutral wording was the whole of the
+ * feature — an honest description of something a parent had no way to do.
  *
  * ## One guardian per recipient (`AR8`)
  *
@@ -59,15 +62,18 @@ const {
 /**
  * A row of this list.
  *
- * Extends `api.ApiRecipient` with the four things the design draws that `fetchRecipients` does
- * not return yet — `is_self` (`P13`, in the schema since `0022`), the break label (`E05-29`,
- * the same gap `OrderForBlock` has), and the allergy summary (tier S: `RECIPIENT_COLUMNS`
- * deliberately does not ask for it). They are **optional and never invented**: an absent
- * allergy summary renders as "we hold nothing", never as reassurance (§5.21, `F5`/`F6`).
+ * Extends `api.ApiRecipient` with the things the design draws that `fetchRecipients` does not
+ * return — the break label (`E05-29`, the same gap `OrderForBlock` has) and the allergy summary
+ * (tier S: `RECIPIENT_COLUMNS` deliberately does not ask for it). They are **optional and never
+ * invented**: an absent allergy summary renders as "we hold nothing", never as reassurance
+ * (§5.21, `F5`/`F6`).
+ *
+ * `isSelf` **used to be one of them** and is not any more: `E05-38` put `is_self` in
+ * `RECIPIENT_COLUMNS`, so it arrives with the row and is required rather than optional. That
+ * matters beyond tidiness — while it was optional, every row this screen actually received had
+ * it `undefined`, so the self rendering below was code no real data could reach.
  */
 export interface RecipientRow extends api.ApiRecipient {
-  /** `recipient.is_self` — the signed-in adult ordering their own lunch (`P13`). */
-  isSelf?: boolean;
   /** "Morning break · 10:40". Absent until the break is resolvable; never guessed. */
   breakLabel?: string | null;
   /** Declared allergen names. Health data about a minor — drawn, never logged. */
@@ -100,11 +106,21 @@ export type ChildrenState =
 export function ChildrenScreen({
   onSignIn,
   onAddChild,
+  onOrderForSelf,
   onSelectRecipient,
   reloadToken,
   testID = 'screen-children',
 }: {
   onAddChild: () => void;
+  /**
+   * "Order for myself" — `E05-38`. Opens the same form with the question already answered.
+   *
+   * Optional, and falls back to `onAddChild`. The fallback is not a placeholder: the form asks
+   * who it is for as its first question, so the worst a missing wire does is ask something the
+   * person has just answered. A route that forgot it degrades to one extra tap rather than to
+   * a button that does nothing.
+   */
+  onOrderForSelf?: () => void;
   /**
    * Choose who the next order is for. Optional, and **not wired yet on purpose**: setting the
    * order target needs the recipient's allergen ids as well as their id (`OrderTarget`), and
@@ -198,6 +214,25 @@ export function ChildrenScreen({
   }, [recipients.kind, recipients.kind === 'ready' ? recipients.rows : null, recipients.kind === 'failed' ? recipients.error : null]);
 
   const retry = recipients.reload;
+
+  /**
+   * Where "Order for myself" goes when it is not wired. See the prop.
+   */
+  const addSelf = onOrderForSelf ?? onAddChild;
+
+  /**
+   * Whether to offer "Order for myself" at all — `E05-38`.
+   *
+   * **Hidden once the adult is on the list**, because `create_recipient` refuses a second self
+   * recipient (`self_recipient_exists`, `0022`) and an entry point that always ends in a
+   * refusal is worse than no entry point: it teaches that the button is broken rather than
+   * that the thing is already done.
+   *
+   * Computed from the rows rather than from a separate read. `is_self` arrives on every row
+   * since `E05-38`, and one list that answers both "who do I order for" and "am I on it" cannot
+   * disagree with itself the way two reads would.
+   */
+  const hasSelf = state.kind === 'loaded' && state.rows.some((row) => row.isSelf);
 
   const moveTo = useCallback(
     async (school: { schoolId: string; schoolName: string }) => {
@@ -360,6 +395,18 @@ export function ChildrenScreen({
             onAction={onAddChild}
           />
           {/*
+            `E05-38`. The empty account is where the "am I supposed to add myself as a child?"
+            confusion actually happens — the body sentence has said "or yourself" for a while
+            and a member of staff still had nothing to tap that said so. An account with nobody
+            on it has no self recipient by definition, so this is always offered here.
+          */}
+          <Button
+            label="Order for myself"
+            variant="secondary"
+            onPress={addSelf}
+            testID={`${testID}-empty-self`}
+          />
+          {/*
             "Nobody added yet" is a claim about an account. It is also what this screen showed
             for a signed-out visitor until `E03-27` split the two apart, so the facts stay on
             screen where the distinction can be checked rather than trusted.
@@ -414,6 +461,23 @@ export function ChildrenScreen({
             ))}
           </View>
 
+          {/*
+            `E05-38`, and **first-class rather than a line inside the add form**: a member of
+            staff who orders their own lunch is not "someone else". It sits above Add someone
+            else because for the person who needs it, it is the primary action on the screen.
+
+            Gone once they are on the list — `hasSelf`. The server refuses a second self
+            recipient, so leaving it would be a button whose only outcome is a refusal.
+          */}
+          {hasSelf ? null : (
+            <Button
+              label="Order for myself"
+              variant="secondary"
+              onPress={addSelf}
+              testID={`${testID}-add-self`}
+            />
+          )}
+
           <Button
             label="Add someone else"
             variant="secondary"
@@ -441,8 +505,8 @@ export function ChildrenScreen({
               editing === null
                 ? 'Edit'
                 : editMode === 'school'
-                  ? `Move ${editing.isSelf === true ? 'yourself' : editing.firstName} to which school?`
-                  : `Edit ${editing.isSelf === true ? 'your details' : editing.firstName}`
+                  ? `Move ${editing.isSelf ? 'yourself' : editing.firstName} to which school?`
+                  : `Edit ${editing.isSelf ? 'your details' : editing.firstName}`
             }
             testID={`${testID}-${editMode === 'school' ? 'school' : 'edit'}-sheet`}
           >
@@ -459,10 +523,11 @@ export function ChildrenScreen({
                 // Keyed on the row, so opening a different child does not inherit the last
                 // one's half-typed class in the field state.
                 key={editing.id}
-                // `isSelf` defaulted here rather than left optional on the sheet: it decides
-                // whether the copy says "you" or a child's name, and a flag that can be
-                // forgotten is a flag that reads wrong on the screen that erases data.
-                recipient={{ ...editing, isSelf: editing.isSelf === true }}
+                // `isSelf` is required on both sides now (`E05-38`), so there is nothing left
+                // to default. It decides whether the copy says "you" or a child's name, on the
+                // screen that erases data — a flag that could be forgotten was the wrong shape
+                // for that.
+                recipient={editing}
                 onSave={saveDetails}
                 onMoveSchool={() => {
                   setEditFailure(null);
@@ -695,7 +760,7 @@ export function fullName(recipient: RecipientRow): string {
  * remove.
  */
 export function displayName(recipient: RecipientRow): string {
-  return recipient.isSelf === true ? 'You' : fullName(recipient);
+  return recipient.isSelf ? 'You' : fullName(recipient);
 }
 
 /**
@@ -706,7 +771,7 @@ export function displayName(recipient: RecipientRow): string {
  * out of the sentence rather than leaving a placeholder or hiding the row.
  */
 export function classLine(recipient: RecipientRow): string | null {
-  if (recipient.isSelf === true || recipient.classLabel === null) return null;
+  if (recipient.isSelf || recipient.classLabel === null) return null;
   const section = recipient.sectionLabel === null ? '' : `-${recipient.sectionLabel}`;
   return `Class ${recipient.classLabel}${section}`;
 }

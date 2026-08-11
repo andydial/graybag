@@ -18,6 +18,16 @@ const METRICS = {
 
 const SCHOOL = { schoolId: 's1', schoolName: 'Alpha Public School' };
 
+/**
+ * `initialAudience` defaults to `'child'` here — **the component's own default is `null`**.
+ *
+ * `E05-38` put "who is this for?" in front of the form, so a screen rendered with no answer
+ * has no First name box to type in. Every test below that is about the form itself would then
+ * be a test of the question instead. Passing the answer in setup keeps each test about the one
+ * thing it names; the question has its own describe block, which renders with `null`
+ * explicitly rather than by omission, so nothing here can quietly become the only coverage of
+ * the default.
+ */
 async function setup(overrides: Partial<Parameters<typeof AddChildScreen>[0]> = {}) {
   const onAdded = jest.fn();
   const onCancel = jest.fn();
@@ -27,6 +37,7 @@ async function setup(overrides: Partial<Parameters<typeof AddChildScreen>[0]> = 
     <SafeAreaProvider initialMetrics={METRICS}>
       <AddChildScreen
         initialSchool={SCHOOL}
+        initialAudience="child"
         appVersion="2.0.0"
         onAdded={onAdded}
         onCancel={onCancel}
@@ -385,11 +396,146 @@ describe('AddChildScreen', () => {
     // `P13`: an adult may add themselves. Nothing on this screen may assume a parent, and the
     // consent block is where that assumption would do the most damage — a member of staff
     // asked to agree to us holding "your child's" details is being asked the wrong question.
-    await setup();
+    //
+    // Asserted **before the question is answered** (`E05-38`). Once it has been, "Adding your
+    // child" is not an assumption, it is a readback of what they chose — so the screen with no
+    // answer on it is the one where any assumption would still be one.
+    await setup({ initialAudience: null });
     expect(screen.getByText('Add someone')).toBeOnTheScreen();
     expect(
       screen.getByText('So the right food reaches the right person.'),
     ).toBeOnTheScreen();
-    expect(screen.queryByText(/your child/i)).toBeNull();
+    expect(screen.queryByText(/your child’s/i)).toBeNull();
+  });
+});
+
+/**
+ * "Who is this for?" — `E05-38`, Andy 2026-08-11.
+ *
+ * Rendered with `initialAudience: null` explicitly rather than by leaving it out, so these stay
+ * tests of the default even if `setup`'s convenience default is ever changed again.
+ */
+describe('AddChildScreen — who is this for', () => {
+  it('asks before it shows a form at all', async () => {
+    // Not a toggle above the fields. `isSelf` decides which privacy notice the consent record
+    // points at, and a toggle has to default to something — preselecting "My child" is what
+    // made staff assume they were in the wrong place.
+    await setup({ initialAudience: null });
+
+    expect(screen.getByTestId('screen-add-child-audience')).toBeOnTheScreen();
+    expect(screen.queryByLabelText('First name')).toBeNull();
+    expect(screen.queryByLabelText('Class')).toBeNull();
+    expect(screen.queryByTestId('screen-add-child-consent-block')).toBeNull();
+  });
+
+  it('lets someone leave without answering it', async () => {
+    // Opening a screen by accident must not require answering a question about your family to
+    // get out of. The way out is outside the fragment the question gates.
+    const { onCancel } = await setup({ initialAudience: null });
+    await userEvent.setup().press(screen.getByTestId('screen-add-child-cancel'));
+    expect(onCancel).toHaveBeenCalled();
+  });
+
+  it('opens the form once it is answered', async () => {
+    await setup({ initialAudience: null });
+    await userEvent.setup().press(screen.getByTestId('screen-add-child-audience-child'));
+
+    expect(screen.getByLabelText('First name')).toBeOnTheScreen();
+    expect(screen.getByTestId('screen-add-child-consent-block')).toBeOnTheScreen();
+  });
+
+  it('drops the class and section for an adult, in the form and in the request', async () => {
+    // `0022`: "No class or section is required. A staff member has neither." Unmounted rather
+    // than hidden, so there is no state left behind to send.
+    await setup({ initialAudience: 'self' });
+    const user = userEvent.setup();
+
+    expect(screen.queryByLabelText('Class')).toBeNull();
+    expect(screen.queryByLabelText('Section')).toBeNull();
+
+    await user.type(screen.getByLabelText('Your first name'), 'Priya');
+    await user.press(screen.getByTestId('screen-add-child-consent'));
+    await user.press(screen.getByTestId('screen-add-child-submit'));
+
+    await waitFor(() => expect(invoke).toHaveBeenCalled());
+    expect(sentBody().is_self).toBe(true);
+    expect(sentBody().class_label).toBeNull();
+    expect(sentBody().section_label).toBeNull();
+  });
+
+  it('sends is_self false for a child, never by omission', async () => {
+    // The server defaults `p_is_self` to false, so an absent field would work today and would
+    // flip silently the day that default changed. It decides which notice was consented to.
+    await setup({ initialAudience: 'child' });
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('First name'), 'Ishaan');
+    await user.press(screen.getByTestId('screen-add-child-consent'));
+    await user.press(screen.getByTestId('screen-add-child-submit'));
+
+    await waitFor(() => expect(invoke).toHaveBeenCalled());
+    expect(sentBody().is_self).toBe(false);
+  });
+
+  it('records which of the two screens the consent was taken on', async () => {
+    // §11.5: `capture_context` is the consent record's own account of itself. One component,
+    // two wordings agreed to — a log that cannot say which was shown cannot answer the only
+    // question anyone will ask of it.
+    await setup({ initialAudience: 'self' });
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('Your first name'), 'Priya');
+    await user.press(screen.getByTestId('screen-add-child-consent'));
+    await user.press(screen.getByTestId('screen-add-child-submit'));
+
+    await waitFor(() => expect(invoke).toHaveBeenCalled());
+    expect(sentBody().screen).toBe('add-self');
+  });
+
+  it('asks an adult to agree about their own details, never a child’s', async () => {
+    // The tick is evidence of what somebody agreed to. A label mentioning a class, shown to
+    // someone who has no class, describes a consent nobody gave.
+    await setup({ initialAudience: 'self' });
+
+    // By its accessible label, not its text: `Checkbox` carries the wording on the control
+    // itself (plus ", required"), which is what a screen-reader user is actually asked.
+    expect(
+      screen.getByLabelText(
+        'I agree to GrayBag holding my name and where I collect my lunch, required',
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByLabelText(/this person’s name, class and section/i)).toBeNull();
+  });
+
+  it('clears a typed class when the answer changes to myself', async () => {
+    // The fields unmount, so anything left in their state would be invisible and still in the
+    // request. `createRecipient` drops them too; this is the other half of that pair.
+    await setup({ initialAudience: 'child' });
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText('First name'), 'Priya');
+    await user.type(screen.getByLabelText('Class'), '5');
+    await user.press(screen.getByTestId('screen-add-child-audience-change'));
+
+    expect(screen.queryByLabelText('Class')).toBeNull();
+    await user.press(screen.getByTestId('screen-add-child-audience-change'));
+    expect(screen.getByLabelText('Class')).toHaveDisplayValue('');
+  });
+
+  it('says where to go when the account already orders for itself', async () => {
+    // `self_recipient_exists` (`0022`). The list hides the entry point once one exists, so
+    // reaching this means a race or a stale screen — in both cases the thing they wanted is
+    // already true, and the advice says where it is rather than what went wrong.
+    await setup({ initialAudience: 'self' });
+    const user = userEvent.setup();
+    refuse('self_recipient_exists', 'You’re already on your own list — you can order for yourself from there.');
+
+    await user.type(screen.getByLabelText('Your first name'), 'Priya');
+    await user.press(screen.getByTestId('screen-add-child-consent'));
+    await user.press(screen.getByTestId('screen-add-child-submit'));
+
+    const notice = await screen.findByTestId('screen-add-child-error');
+    expect(notice).toHaveTextContent(/already on your own list/);
+    expect(notice).toHaveTextContent(/Go back to your list/);
   });
 });

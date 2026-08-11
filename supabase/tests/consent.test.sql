@@ -224,5 +224,88 @@ select is(
   'two accounts with no phone coexist — uq_app_user_phone is partial now, like the email one '
   'beside it always was');
 
+-- =============================================================================
+-- 8. An adult ordering for themselves — `P13`, `0022`, and live for the first time in
+--    `E05-38`.
+--
+-- `p_is_self` has existed since `0022` and **nothing had ever called it with true**: the flag
+-- was built ahead of the screen, deliberately, so that the privacy notice could be published
+-- before any user existed to be re-prompted by it. `E05-38` is the screen, so this is the
+-- point at which the path stops being theoretical and starts needing to be proved.
+--
+-- What is asserted here is the whole reason `0022` did not simply reuse the child branch: a
+-- different notice, different purposes, and a verification method that does not claim to have
+-- verified anything. Those three are what a DPDP request is answered from, and a consent
+-- record that names the wrong one is indistinguishable from a correct one after the fact.
+-- =============================================================================
+
+-- A guardian with no self recipient yet. The seed deliberately ships one adult who orders for
+-- themselves (`seed.test.sql`), so picking `app_user` blindly would hit the duplicate guard
+-- and prove nothing about the happy path.
+create temporary table c_self_ctx as
+select u.id as guardian_id
+  from app_user u
+ where not exists (
+   select 1 from guardian_link gl join recipient r on r.id = gl.recipient_id
+    where gl.user_id = u.id and gl.revoked_at is null and r.is_self and r.is_active)
+ limit 1;
+
+create temporary table c_self as
+select create_recipient((select guardian_id from c_self_ctx), 'Priya', 'Staffmember',
+                        (select school_id from c_ctx),
+                        -- No class and no section: a member of staff has neither.
+                        null, null,
+                        '{}'::uuid[], null, false,
+                        jsonb_build_object('screen', 'add-self'),
+                        true) as r;
+
+select ok((select (r->>'recipient_id') is not null from c_self),
+          'P13: an adult can be created as a recipient of their own lunch');
+
+select is(
+  (select is_self and not is_minor from recipient
+    where id = ((select r->>'recipient_id' from c_self))::uuid),
+  true,
+  'P13: is_self is set and is_minor is NOT — create_recipient used to write is_minor => true '
+  'unconditionally, which is the single defect 0022 existed to fix');
+
+select is(
+  (select relationship::text from guardian_link
+    where recipient_id = ((select r->>'recipient_id' from c_self))::uuid),
+  'self',
+  'the link says self, not guardian — the 0001 §4.2 trigger requires it, and a self recipient '
+  'linked as a guardian is an adult recorded as their own parent');
+
+select is(
+  (select purpose_code from consent_record
+    where subject_id = ((select r->>'recipient_id' from c_self))::uuid),
+  'self_meal_service',
+  'DPDP: the SELF purpose, not child_meal_service. A request about an adult and one about a '
+  'child are answered differently, and a shared code would make them indistinguishable in the '
+  'one record that has to tell them apart');
+
+select is(
+  (select pv.policy_code from consent_record cr
+     join policy_version pv on pv.id = cr.policy_version_id
+    where cr.subject_id = ((select r->>'recipient_id' from c_self))::uuid),
+  'self_data_notice',
+  'and it is consented against the SELF notice — the wording an adult was actually shown');
+
+select is(
+  (select verification_method::text from consent_record
+    where subject_id = ((select r->>'recipient_id' from c_self))::uuid),
+  'self_declared',
+  '[DM-12] does not transfer: there is no third party to verify, and calling the account '
+  'holder "verified" about themselves would overstate what we checked');
+
+select throws_ok(
+  format($$ select create_recipient(%L::uuid, 'Priya', null, %L::uuid, null, null,
+                                    '{}'::uuid[], null, false, '{}'::jsonb, true) $$,
+         (select guardian_id from c_self_ctx), (select school_id from c_ctx)),
+  'P0001',
+  null,
+  'E05-38: one adult cannot be two self-recipients. The app hides the entry point once one '
+  'exists, but two devices can race and a stale screen can be tapped');
+
 select * from finish();
 rollback;

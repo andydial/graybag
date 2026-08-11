@@ -47,12 +47,34 @@ const {
  * prevent. The same goes for the server's refusal: `school_unavailable` and its siblings are
  * shown as the sentences they are, not collapsed into "something went wrong".
  *
+ * ## Who it is for is asked FIRST — `E05-38`, Andy 2026-08-11
+ *
+ * `P13` shipped the model and the recipient-neutral copy and left the chooser as fast-follow.
+ * The gap that left was not cosmetic: a member of staff arriving here found a form headed
+ * "Add someone" with a Class and a Section on it, and no indication anywhere that they were
+ * allowed to put themselves in it. The neutral wording removed the *contradiction*; it did not
+ * answer the question.
+ *
+ * So the form does not exist until the question is answered. Not a toggle above a form — a
+ * form that is not there yet. A toggle would have to default to something, and every default
+ * here is wrong for half the people: preselecting "My child" is what made staff assume they
+ * were in the wrong place, and preselecting "Myself" would have parents consenting under the
+ * self notice by inertia. **`isSelf` decides which privacy notice the consent record points
+ * at**, and that is not a field to be set by whichever option happened to be first.
+ *
+ * It is also the cheapest possible answer to "am I supposed to add myself as a child?" — the
+ * confusion `E05-38` names. The question is asked, so it cannot be guessed wrong.
+ *
+ * The choice stays changeable afterwards, and changing it **clears the class and section**
+ * rather than hiding them: a form that keeps "Class 5" in state while showing a staff member
+ * is a form one refactor away from sending it.
+ *
  * ## Recipient-neutral copy (`P13`)
  *
  * An adult may add **themselves** — school staff and college students order their own lunch.
- * So this is "Add someone", every string says "their" rather than "your child's", and nothing
- * here infers a relationship it was not told about. The "Myself / My child" toggle is
- * explicitly fast-follow; the neutral copy is not.
+ * So this is "Add someone", and once the question above is answered every string speaks to the
+ * answer: "their name" for a child, "your name" for an adult. Nothing here infers a
+ * relationship it was not told about.
  *
  * ## Why the school defaults to the one already chosen
  *
@@ -68,8 +90,14 @@ const {
  * no `console` call in this file and there must never be one; a failure message carries a
  * code or an index, never a name.
  */
+/**
+ * Who the food is for. `null` until asked — see the header; it is not a defaultable field.
+ */
+export type Audience = 'child' | 'self';
+
 export function AddChildScreen({
   initialSchool,
+  initialAudience = null,
   onAdded,
   onCancel,
   appVersion,
@@ -77,6 +105,15 @@ export function AddChildScreen({
   testID = 'screen-add-child',
 }: {
   initialSchool: { schoolId: string | null; schoolName: string | null };
+  /**
+   * Skips the question when it has already been answered elsewhere — "Order for myself" on the
+   * list arrives with `'self'` (`E05-38`). Answering the same question twice in two screens is
+   * the friction `AR7` counts in lost registrations.
+   *
+   * Still changeable on the screen, because arriving by the wrong door is not the same as
+   * having decided.
+   */
+  initialAudience?: Audience | null;
   onAdded: (recipient: { recipientId: string; firstName: string }) => void;
   onCancel: () => void;
   appVersion: string;
@@ -89,6 +126,7 @@ export function AddChildScreen({
   offline?: boolean;
   testID?: string;
 }) {
+  const [audience, setAudience] = useState<Audience | null>(initialAudience);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [classLabel, setClassLabel] = useState('');
@@ -170,6 +208,23 @@ export function AddChildScreen({
     [allergenIds, allergyNote],
   );
 
+  /**
+   * Answer — or change — who this is for.
+   *
+   * **Clears the class and the section on the way to `'self'`.** An adult has neither (`0022`),
+   * and the two fields are unmounted rather than hidden, so anything left in their state would
+   * be invisible and still in the request. `createRecipient` drops them for a self recipient
+   * too; the two together are belt and braces on a field that would put "Class 5" against a
+   * member of staff.
+   */
+  const chooseAudience = useCallback((next: Audience) => {
+    setAudience(next);
+    if (next === 'self') {
+      setClassLabel('');
+      setSectionLabel('');
+    }
+  }, []);
+
   const chooseSchool = useCallback((next: { schoolId: string; schoolName: string }) => {
     setSchoolId(next.schoolId);
     setSchoolName(next.schoolName);
@@ -178,22 +233,32 @@ export function AddChildScreen({
     setPickingSchool(false);
   }, []);
 
+  const isSelf = audience === 'self';
+
   // Save is disabled for the three things a press could not fix: no consent, no connection,
   // and a save already in flight. A missing name or school leaves it **enabled** and answers
   // with an inline message on the field, which is where the fix is.
   const blocked = !consentGranted || offline || saved;
 
   const submit = useCallback(async () => {
-    if (blocked || submitting) return;
+    if (blocked || submitting || audience === null) return;
 
     const missingName = firstName.trim() === '';
     const missingSchool = schoolId === null;
     setNameError(
       missingName
-        ? 'We need a first name — it is what staff read off the packing list when they hand the bag over.'
+        ? isSelf
+          ? 'We need your first name — it is what staff read off the list when they hand the bag over.'
+          : 'We need a first name — it is what staff read off the packing list when they hand the bag over.'
         : null,
     );
-    setSchoolError(missingSchool ? 'Choose the school where they will be eating.' : null);
+    setSchoolError(
+      missingSchool
+        ? isSelf
+          ? 'Choose where you will be collecting your lunch.'
+          : 'Choose the school where they will be eating.'
+        : null,
+    );
     if (missingName || missingSchool || schoolId === null) return;
 
     setSubmitting(true);
@@ -206,23 +271,28 @@ export function AddChildScreen({
         schoolId,
         classLabel: classLabel.trim() === '' ? null : classLabel.trim(),
         sectionLabel: sectionLabel.trim() === '' ? null : sectionLabel.trim(),
+        isSelf,
         consentGranted,
         allergenConsent,
         allergenIds,
         allergyNote: allergyNote.trim() === '' ? null : allergyNote.trim(),
-        screen: 'add-child',
+        // The consent record's own account of where it was taken (§11.5). The two screens are
+        // one component, but they are two different wordings agreed to, and a consent log that
+        // cannot say which was shown is a consent log that cannot answer the only question
+        // anyone will ask of it.
+        screen: isSelf ? 'add-self' : 'add-child',
         appVersion,
       });
       setSaved(true);
       onAdded({ recipientId: created.recipientId, firstName: created.firstName });
     } catch (error) {
-      setFailure(describeFailure(error));
+      setFailure(describeFailure(error, isSelf));
     } finally {
       setSubmitting(false);
     }
   }, [
-    blocked, submitting, schoolId, firstName, lastName, classLabel, sectionLabel,
-    consentGranted, allergenConsent, allergenIds, allergyNote, appVersion, onAdded,
+    blocked, submitting, audience, isSelf, schoolId, firstName, lastName, classLabel,
+    sectionLabel, consentGranted, allergenConsent, allergenIds, allergyNote, appVersion, onAdded,
   ]);
 
   const saveLabel = offline
@@ -245,73 +315,142 @@ export function AddChildScreen({
       </Text>
       <Text style={styles.intro}>So the right food reaches the right person.</Text>
 
-      <View style={styles.fields}>
-        <TextField
-          label="First name"
-          value={firstName}
-          onChangeText={changeFirstName}
-          placeholder="Aarav"
-          autoCapitalize="words"
-          error={nameError}
-          testID={`${testID}-first-name`}
-        />
-        <TextField
-          label="Last name (optional)"
-          value={lastName}
-          onChangeText={setLastName}
-          placeholder="Sharma"
-          autoCapitalize="words"
-          testID={`${testID}-last-name`}
-        />
-
-        <PickerField
-          label="School"
-          value={schoolName}
-          placeholder="Choose a school"
-          hint={
-            schoolPrefilled
-              ? 'Taken from the menu you were browsing. Tap to change.'
-              : 'Tap to change the school.'
-          }
-          error={schoolError}
-          onPress={() => setPickingSchool(true)}
-          testID={`${testID}-school`}
-        />
-
-        <View style={styles.pair}>
-          <View style={styles.pairItem}>
-            <TextField
-              label="Class"
-              value={classLabel}
-              onChangeText={setClassLabel}
-              placeholder="5"
-              testID={`${testID}-class`}
-            />
-          </View>
-          <View style={styles.pairItem}>
-            <TextField
-              label="Section"
-              value={sectionLabel}
-              onChangeText={setSectionLabel}
-              placeholder="A"
-              autoCapitalize="characters"
-              testID={`${testID}-section`}
-            />
-          </View>
+      {/*
+        The question, and until it is answered there is no form under it. See the header: this
+        is not a toggle with a default, because `isSelf` decides which privacy notice the
+        consent record points at and no default is right for half the people who arrive here.
+      */}
+      {audience === null ? (
+        <View style={styles.audience} testID={`${testID}-audience`}>
+          <Text style={styles.fieldLabel} accessibilityRole="header">
+            Who is this for?
+          </Text>
+          <AudienceOption
+            label="My child"
+            description="They’re at a school GrayBag serves, and the food goes to their classroom at break."
+            onPress={() => chooseAudience('child')}
+            testID={`${testID}-audience-child`}
+          />
+          <AudienceOption
+            label="Myself"
+            description="You’re staff, or a college student, ordering your own lunch."
+            onPress={() => chooseAudience('self')}
+            testID={`${testID}-audience-self`}
+          />
         </View>
-      </View>
+      ) : (
+        <>
+          {/* Answered, and still changeable. The answer is stated rather than implied by which
+              fields are on screen — "there is no Class box" is not something anyone reads as
+              "you told us this is for you". */}
+          <View style={styles.chosen} testID={`${testID}-audience-chosen`}>
+            <Text style={styles.chosenText}>
+              {isSelf ? 'Adding yourself' : 'Adding your child'}
+            </Text>
+            <Pressable
+              onPress={() => chooseAudience(isSelf ? 'child' : 'self')}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isSelf ? 'Change to adding your child' : 'Change to adding yourself'
+              }
+              hitSlop={space[2]}
+              testID={`${testID}-audience-change`}
+            >
+              <Text style={styles.chosenAction}>Change</Text>
+            </Pressable>
+          </View>
 
+          <View style={styles.fields}>
+            <TextField
+              label={isSelf ? 'Your first name' : 'First name'}
+              value={firstName}
+              onChangeText={changeFirstName}
+              placeholder={isSelf ? 'Priya' : 'Aarav'}
+              autoCapitalize="words"
+              error={nameError}
+              testID={`${testID}-first-name`}
+            />
+            <TextField
+              label={isSelf ? 'Your last name (optional)' : 'Last name (optional)'}
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder="Sharma"
+              autoCapitalize="words"
+              testID={`${testID}-last-name`}
+            />
+
+            <PickerField
+              label={isSelf ? 'Where you’ll collect it' : 'School'}
+              value={schoolName}
+              placeholder="Choose a school"
+              hint={
+                schoolPrefilled
+                  ? 'Taken from the menu you were browsing. Tap to change.'
+                  : 'Tap to change the school.'
+              }
+              error={schoolError}
+              onPress={() => setPickingSchool(true)}
+              testID={`${testID}-school`}
+            />
+
+            {/*
+              Unmounted for an adult, not disabled and not merely hidden. `0022`: "No class or
+              section is required. A staff member has neither." A greyed-out Class box would
+              still be a Class box on a screen that has just been told there is no class.
+            */}
+            {isSelf ? null : (
+              <View style={styles.pair}>
+                <View style={styles.pairItem}>
+                  <TextField
+                    label="Class"
+                    value={classLabel}
+                    onChangeText={setClassLabel}
+                    placeholder="5"
+                    testID={`${testID}-class`}
+                  />
+                </View>
+                <View style={styles.pairItem}>
+                  <TextField
+                    label="Section"
+                    value={sectionLabel}
+                    onChangeText={setSectionLabel}
+                    placeholder="A"
+                    autoCapitalize="characters"
+                    testID={`${testID}-section`}
+                  />
+                </View>
+              </View>
+            )}
+          </View>
+        </>
+      )}
+
+      {audience === null ? null : (
+        <>
       <View style={styles.rule} />
 
       {/*
         The consent block. Two questions, and the second one is not a detail of the first —
         see the header comment. The reason lives *under* each tick rather than in a policy
         link, because a permission whose purpose is one tap away is a permission nobody read.
+
+        **The wording follows the answer to "who is this for".** It is not politeness: the tick
+        is evidence of what somebody agreed to, and `create_recipient` records it against
+        `self_data_notice` or `child_data_notice` accordingly (`0022`). A label mentioning a
+        class to someone who has no class describes a consent nobody gave.
       */}
       <View style={styles.consent} testID={`${testID}-consent-block`}>
         <Checkbox
-          label="I agree to GrayBag holding this person’s name, class and section"
-          description="We need it to get the right meal to the right person. Nothing else, and never shared with anyone but the school kitchen."
+          label={
+            isSelf
+              ? 'I agree to GrayBag holding my name and where I collect my lunch'
+              : 'I agree to GrayBag holding this person’s name, class and section'
+          }
+          description={
+            isSelf
+              ? 'We need it to get the right meal to the right person. Nothing else, and never shared with anyone but the kitchen.'
+              : 'We need it to get the right meal to the right person. Nothing else, and never shared with anyone but the school kitchen.'
+          }
           checked={consentGranted}
           onChange={setConsentGranted}
           required
@@ -319,7 +458,13 @@ export function AddChildScreen({
         />
 
         <Checkbox
-          label="Also hold their allergy details (optional)"
+          label={
+            isSelf
+              ? 'Also hold my allergy details (optional)'
+              : 'Also hold their allergy details (optional)'
+          }
+          // The same sentence either way — it is about the data, and health data is health
+          // data whoever it belongs to.
           description="This is health information, so we ask separately. Without it GrayBag still works — we just can’t warn you when a dish contains something."
           checked={allergenConsent}
           onChange={changeAllergenConsent}
@@ -379,7 +524,11 @@ export function AddChildScreen({
         <Notice
           tone="neutral"
           title="Added"
-          body="They’re on your list — you can order for them now."
+          body={
+            isSelf
+              ? 'You’re on your own list — you can order for yourself now.'
+              : 'They’re on your list — you can order for them now.'
+          }
           testID={`${testID}-saved`}
         />
       ) : null}
@@ -413,10 +562,19 @@ export function AddChildScreen({
             accessibilityLiveRegion="polite"
             testID={`${testID}-consent-required`}
           >
-            We can’t add anyone until you agree to us holding their name, class and section.
+            {isSelf
+              ? 'We can’t add you until you agree to us holding your name and where you collect.'
+              : 'We can’t add anyone until you agree to us holding their name, class and section.'}
           </Text>
         ) : null}
+      </View>
+        </>
+      )}
 
+      {/* Outside the fragment: the way out has to exist before the question is answered too.
+          Somebody who opened this screen by accident must not have to answer "who is this
+          for?" to leave it. */}
+      <View style={styles.actions}>
         <Button
           label="Cancel"
           variant="secondary"
@@ -457,15 +615,29 @@ const REFUSAL_ADVICE: Record<string, string> = {
   first_name_required: 'Add a first name and save again.',
   no_notice_published: 'This one is on us, not on you. Try again in a minute.',
   recipient_not_found: 'Start again from your list.',
+  /**
+   * `E05-38` / `0022`: one adult cannot be two self-recipients. The list hides "Order for
+   * myself" once one exists, so arriving here means a race between two devices or a screen
+   * that was open before the first one saved — in both cases the thing they wanted is already
+   * true, and the advice says where it is rather than what went wrong.
+   */
+  self_recipient_exists: 'Go back to your list — you’re already on it.',
 };
 
-function describeFailure(error: unknown): { title: string; advice: string | null } {
+function describeFailure(
+  error: unknown,
+  /** Which wording the fallback takes. The mapped refusals are the server's own sentences. */
+  isSelf = false,
+): { title: string; advice: string | null } {
   const code = error instanceof api.ApiError ? error.code : undefined;
   const message = error instanceof Error && error.message !== '' ? error.message : null;
+  const fallbackTitle = isSelf
+    ? 'We could not add you just now.'
+    : 'We could not add them just now.';
 
   if (code !== undefined && code in REFUSAL_ADVICE) {
     return {
-      title: message ?? 'We could not add them just now.',
+      title: message ?? fallbackTitle,
       advice: REFUSAL_ADVICE[code] ?? null,
     };
   }
@@ -473,9 +645,45 @@ function describeFailure(error: unknown): { title: string; advice: string | null
   // Anything unmapped — a network drop, a 500. Save is still live, so the retry is the
   // button rather than a second one saying the same thing in a different place.
   return {
-    title: message ?? 'We could not add them just now.',
+    title: message ?? fallbackTitle,
     advice: 'Check your connection and tap Save again.',
   };
+}
+
+/**
+ * One answer to "who is this for" — `E05-38`.
+ *
+ * A pressable card rather than a radio, because choosing it moves the screen on rather than
+ * setting a value that something else will later submit. A radio implies a form around it that
+ * is not there yet, and a pair of radios implies one of them is already selected.
+ *
+ * The description is part of the accessible label rather than a hint: "you're staff, or a
+ * college student" is the whole reason a member of staff knows this option is theirs, and a
+ * hint is not announced by every screen reader in every mode.
+ */
+function AudienceOption({
+  label,
+  description,
+  onPress,
+  testID,
+}: {
+  label: string;
+  description: string;
+  onPress: () => void;
+  testID: string;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}. ${description}`}
+      style={({ pressed }) => [styles.audienceOption, pressed && styles.pickerPressed]}
+    >
+      <Text style={styles.audienceLabel}>{label}</Text>
+      <Text style={styles.audienceDescription}>{description}</Text>
+    </Pressable>
+  );
 }
 
 /**
@@ -611,6 +819,54 @@ const styles = StyleSheet.create({
     fontSize: scale.body.size,
     lineHeight: scale.body.lineHeight,
     marginTop: -space[2],
+  },
+
+  // "Who is this for?" — `E05-38`. Two cards, not a row of chips: this is the first decision
+  // on the screen and it gets the width to carry a sentence under each option.
+  audience: { gap: space[3] },
+  audienceOption: {
+    minHeight: touchTarget.min,
+    gap: space[1],
+    padding: space[4],
+    backgroundColor: bg.surface,
+    borderRadius: radius.lg,
+    borderWidth: borderWidth.hairline,
+    borderColor: border.strong,
+  },
+  audienceLabel: {
+    color: text.primary,
+    fontSize: scale.bodyStrong.size,
+    lineHeight: scale.bodyStrong.lineHeight,
+    fontWeight: scale.bodyStrong.weight,
+  },
+  audienceDescription: {
+    color: text.secondary,
+    fontSize: scale.bodySm.size,
+    lineHeight: scale.bodySm.lineHeight,
+  },
+  // The answer, once given, with a way back to the question.
+  chosen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space[3],
+    minHeight: touchTarget.min,
+    paddingHorizontal: space[3],
+    borderRadius: radius.md,
+    backgroundColor: bg.surfaceMuted,
+  },
+  chosenText: {
+    flexShrink: 1,
+    color: text.primary,
+    fontSize: scale.bodySm.size,
+    lineHeight: scale.bodySm.lineHeight,
+    fontWeight: scale.label.weight,
+  },
+  chosenAction: {
+    color: text.link,
+    fontSize: scale.label.size,
+    lineHeight: scale.label.lineHeight,
+    fontWeight: scale.label.weight,
   },
 
   fields: { gap: space[4] },

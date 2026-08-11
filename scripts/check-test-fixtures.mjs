@@ -64,6 +64,9 @@ const SHARED_ON_PURPOSE = new Map([
   ['father', 'guardian relationship enum'],
   ['mother', 'guardian relationship enum'],
   ['guardian', 'guardian relationship enum'],
+  // The same enum as `guardian` beside it — `E05-38` asserts an adult's link says `self`
+  // rather than `guardian`. A relationship value, not a code on a unique column.
+  ['self', 'guardian relationship enum'],
   ['school', 'scope_type enum'],
   ['counter', 'delivery mode enum'],
   // Composite uniques whose OTHER column already differs between seed and tests.

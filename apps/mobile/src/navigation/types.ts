@@ -44,8 +44,14 @@ export type RootStackParamList = {
    * Adding a child (`E05-01`). A stack screen reached **by intent** from Account, never a
    * step the app pushes you into — `AR7` says in as many words that adding a child must not
    * be a wall in front of browsing the menu.
+   *
+   * `audience` carries the answer to the screen's own first question when the caller already
+   * has it — "Order for myself" on the list arrives with `'self'` (`E05-38`). Optional in both
+   * senses: the param may be absent, and the screen asks when it is. It is a shortcut past a
+   * question, never a way to decide it on somebody's behalf, and the screen keeps the answer
+   * changeable either way.
    */
-  AddChild: undefined;
+  AddChild: { audience?: 'child' | 'self' } | undefined;
   /**
    * The children a parent has added (`E05-01`). Reached from Account, like `AddChild` and
    * for the same reason — the mock has four tabs, and this is not one of them.

@@ -394,6 +394,7 @@ export const SignInScreen = () => {
  */
 export const AddChildScreen = () => {
   const navigation = useNavigation();
+  const { params } = useRoute<RouteProp<RootStackParamList, 'AddChild'>>();
   const { schoolId, schoolName } = useSelectedSchool();
   const refresh = useRefreshRecipients();
   const { offline } = useConnectivity();
@@ -401,6 +402,9 @@ export const AddChildScreen = () => {
   return (
     <AddChildScreenImpl
       offline={offline}
+      // Absent unless a caller has already asked. "Order for myself" has (`E05-38`); Account's
+      // "Add someone" has not, and the screen asks.
+      initialAudience={params?.audience ?? null}
       initialSchool={{ schoolId, schoolName }}
       appVersion={Constants.expoConfig?.version ?? 'unknown'}
       onAdded={(recipient) => {
@@ -442,6 +446,9 @@ export const ChildrenScreen = () => {
       onSignIn={() => navigation.navigate('SignIn')}
       reloadToken={visit}
       onAddChild={() => navigation.navigate('AddChild')}
+      // `E05-38`. The same form, arriving with its first question already answered — a member
+      // of staff who tapped "Order for myself" has said who it is for by tapping it.
+      onOrderForSelf={() => navigation.navigate('AddChild', { audience: 'self' })}
       /*
        * Selecting a row now actually switches who the order is for. The screen deliberately
        * refused to write the target itself: `OrderTarget` needs the allergen list, and passing

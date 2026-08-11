@@ -88,6 +88,32 @@ describe('createRecipient', () => {
     expect(body.consent_granted).toBe(true);
   });
 
+  it('says which kind of recipient this is on every call, never by omission', async () => {
+    // `E05-38`. The flag decides which privacy notice the consent record points at
+    // (`self_data_notice` against `child_data_notice`) and which purposes it names. The
+    // server defaults it to false, so leaving it out would work today and would flip
+    // silently the day that default changed.
+    const forChild = stub({ data: CREATED });
+    await createRecipient(MINIMAL);
+    expect((forChild.mock.calls[0]?.[1].body as Record<string, unknown>).is_self).toBe(false);
+
+    const forSelf = stub({ data: CREATED });
+    await createRecipient({ ...MINIMAL, isSelf: true });
+    expect((forSelf.mock.calls[0]?.[1].body as Record<string, unknown>).is_self).toBe(true);
+  });
+
+  it('sends no class or section for an adult ordering for themselves', async () => {
+    // `0022`: "No class or section is required. A staff member has neither." Dropped in the
+    // request as well as on the screen, so a field left behind in a form's state cannot put
+    // "Class 5" against a member of staff.
+    const invoke = stub({ data: CREATED });
+    await createRecipient({ ...MINIMAL, isSelf: true, classLabel: '5', sectionLabel: 'A' });
+
+    const body = invoke.mock.calls[0]?.[1].body as Record<string, unknown>;
+    expect(body.class_label).toBeNull();
+    expect(body.section_label).toBeNull();
+  });
+
   it('withholds allergy details when the separate consent was not given', async () => {
     // `C12`: allergies are health data about a minor and are consented to separately. The
     // server refuses the inconsistent combination and must keep doing so — this is about the
@@ -257,8 +283,39 @@ describe('fetchRecipients', () => {
         schoolName: 'Alpha Public School',
         canOrder: true,
         canManage: true,
+        isSelf: false,
       },
     ]);
+  });
+
+  it('reads is_self, because the screens cannot infer it', async () => {
+    // `E05-38`. Without this column every row is a child as far as the app is concerned: the
+    // adult's own row draws their name back at them, gets a class line, and the list goes on
+    // offering "Order for myself" to someone who already does.
+    const fake = readStub([LINK({}, { is_self: true })]);
+    const rows = await fetchRecipients();
+    expect(fake.queries[0]?.columns).toContain('is_self');
+    expect(rows[0]?.isSelf).toBe(true);
+  });
+
+  it('treats a missing is_self as a child, not as unknown', async () => {
+    // Absent means no, the same rule `can_manage` follows. The dangerous direction is the
+    // other one: a row that became "myself" by omission would suppress the class of a real
+    // child and claim a consent nobody gave under the self notice.
+    readStub([LINK({}, { is_self: undefined })]);
+    await expect(fetchRecipients()).resolves.toMatchObject([{ isSelf: false }]);
+  });
+
+  it('puts the adult’s own row first, ahead of the alphabet', async () => {
+    // It renders as "You". Sorted by the first name nobody sees, it would land in a position
+    // with no visible explanation — a row labelled You between two children reads as a bug.
+    readStub([
+      LINK({}, { id: 'r2', first_name: 'Aarav' }),
+      LINK({}, { id: 'r3', first_name: 'Zoya', is_self: true }),
+      LINK(),
+    ]);
+    const rows = await fetchRecipients();
+    expect(rows.map((r) => r.id)).toEqual(['r3', 'r2', 'r1']);
   });
 
   it('skips a link whose child came back unreadable', async () => {
