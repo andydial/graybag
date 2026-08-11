@@ -1,4 +1,11 @@
-import type { KitchenAction, KitchenDay, KitchenFilters, KitchenOrder, KitchenStatus } from './types.js';
+import type {
+  KitchenAction,
+  KitchenDay,
+  KitchenFilters,
+  KitchenOrder,
+  KitchenPermissions,
+  KitchenStatus,
+} from './types.js';
 
 /**
  * Everything the kitchen dashboard computes, as pure functions (`E09-04`).
@@ -24,16 +31,21 @@ export const STATUS_LABEL: Record<KitchenStatus, string> = {
  * drawn. `delivered` is terminal — a delivered order offers nothing, because a goodwill refund
  * afterwards does not un-deliver it (`[OL-04]`) and this screen does not do refunds anyway.
  */
-export function allowedActions(status: KitchenStatus): KitchenAction[] {
-  switch (status) {
-    case 'paid':
-      return ['preparing', 'delivered', 'cancelled'];
-    case 'preparing':
-      return ['delivered', 'cancelled'];
-    case 'delivered':
-    case 'cancelled':
-      return [];
-  }
+export function allowedActions(status: KitchenStatus, permissions?: KitchenPermissions): KitchenAction[] {
+  const byLifecycle: KitchenAction[] =
+    status === 'paid' ? ['preparing', 'delivered', 'cancelled']
+    : status === 'preparing' ? ['delivered', 'cancelled']
+    : [];
+
+  if (!permissions) return byLifecycle;
+
+  // Two independent gates, and both have to pass. The lifecycle says what is *possible*; the
+  // grants say what this person may do. Neither implies the other.
+  return byLifecycle.filter((action) => {
+    if (action === 'cancelled') return permissions.cancelOrders;
+    // `preparing` and `delivered` are both handover-side and both ride on mark_delivered.
+    return permissions.markDelivered;
+  });
 }
 
 export function applyFilters(orders: KitchenOrder[], filters: KitchenFilters): KitchenOrder[] {
@@ -191,6 +203,8 @@ export type BoardState =
   | { kind: 'empty-day' }
   | { kind: 'empty-filter' }
   | { kind: 'unreachable'; message: string }
+  /** N3 — "you can't see this". Never rendered as an empty list, which would read as N1. */
+  | { kind: 'forbidden' }
   | { kind: 'stale'; groups: ClassGroup[]; loadedAt: string };
 
 export function boardState(input: {
@@ -203,6 +217,11 @@ export function boardState(input: {
   if (input.error && !input.day) return { kind: 'unreachable', message: input.error };
   if (input.loading && !input.day) return { kind: 'loading' };
   if (!input.day) return { kind: 'unreachable', message: 'No data yet.' };
+
+  // N3 before everything else. An operator without `orders.view` seeing an empty list would read
+  // it as "no orders today" — §5.21's exact warning, and the one with the worst consequence in a
+  // kitchen: nobody cooks.
+  if (!input.day.permissions.viewOrders) return { kind: 'forbidden' };
 
   const visible = applyFilters(input.day.orders, input.filters);
   const groups = groupByClass(visible);

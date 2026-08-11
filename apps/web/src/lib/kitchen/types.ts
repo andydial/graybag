@@ -66,8 +66,31 @@ export interface KitchenFilters {
   status: KitchenStatus | null;
 }
 
+/**
+ * What this operator may do, as the server reports it (`E09-09`, `D3`).
+ *
+ * The back office uses **scoped grants, not a role enum**, precisely so
+ * `orders.mark_delivered` can be held without `orders.refund`. The screen therefore asks rather
+ * than infers: a kitchen porter who may hand food over is not a manager who may cancel an order
+ * and trigger a refund, and drawing both sets of buttons for both people is how the split stops
+ * meaning anything.
+ *
+ * **This is presentation only.** The server enforces every one of these regardless — hiding a
+ * button is a courtesy to the person, not a control. `E09-09` is the enforcement task and it is
+ * server-side.
+ */
+export interface KitchenPermissions {
+  /** `orders.view` — without it there is no list at all, only an explanation. */
+  viewOrders: boolean;
+  /** `orders.mark_delivered` — the one-tap action. */
+  markDelivered: boolean;
+  /** `orders.cancel` — cancelling triggers a refund, so it is deliberately separate. */
+  cancelOrders: boolean;
+}
+
 export interface KitchenDay {
   serviceDate: string;
+  permissions: KitchenPermissions;
   orders: KitchenOrder[];
   /** Everything that could be filtered *to*, so the controls do not have to guess. */
   schools: { id: string; name: string }[];

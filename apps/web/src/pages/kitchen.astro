@@ -106,7 +106,34 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
        * against fixtures, which is what makes every state reachable in review.
        */
       const today = new Date().toISOString().slice(0, 10);
-      const transport = fixtureTransport(today);
+
+      /**
+       * Every state is reachable deliberately, via `?state=`.
+       *
+       * This is the clickable prototype's control rail, applied to a working tool and for the
+       * same reason: the states nobody designs are the ones you can only reach by breaking
+       * something. A guard that has never been shown to fail is worth nothing, and "the offline
+       * banner works" is not a claim anyone should have to take on trust.
+       *
+       *   ?state=loading   ?state=empty      ?state=offline
+       *   ?state=fail      ?state=forbidden  ?state=readonly   ?state=unreachable
+       */
+      const forced = new URLSearchParams(location.search).get('state');
+
+      const PERMISSION_SETS = {
+        forbidden: { viewOrders: false, markDelivered: false, cancelOrders: false },
+        // A porter who hands food over but may not cancel: cancelling triggers a refund, and
+        // `orders.cancel` is a separate grant precisely so it can be withheld (`D3`, `E09-09`).
+        readonly: { viewOrders: true, markDelivered: false, cancelOrders: false },
+      } as const;
+
+      const permissions =
+        forced === 'forbidden' ? PERMISSION_SETS.forbidden
+        : forced === 'readonly' ? PERMISSION_SETS.readonly
+        : undefined;
+
+      const transport = fixtureTransport(today, permissions);
+      if (forced === 'fail') transport.failNext();
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = { date: $<HTMLInputElement>('k-date'), school: $<HTMLSelectElement>('k-school'),
@@ -194,6 +221,16 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
               `</div></div>`,
           );
         }
+        if (day && day.permissions.viewOrders && !day.permissions.markDelivered) {
+          // Said once, plainly. Buttons that are simply absent leave somebody hunting for a
+          // control that was never there, and concluding the tool is broken.
+          parts.push(
+            `<div class="kitchen__banner" data-tone="info"><span aria-hidden="true">i</span><div>` +
+              `<b>You can see the list but not change it.</b> This account does not hold ` +
+              `<b>orders.mark_delivered</b>. Ask an administrator if you need to hand food over.` +
+              `</div></div>`,
+          );
+        }
         if (error && day) {
           parts.push(
             `<div class="kitchen__banner" data-tone="danger"><span aria-hidden="true">✕</span><div>` +
@@ -239,6 +276,16 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
             `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
           return;
         }
+        if (state.kind === 'forbidden') {
+          // §5.21 N3. An empty list here would read as "no orders today" — the worst possible
+          // misreading in a kitchen, because the response to it is that nobody cooks.
+          el.board.innerHTML =
+            `<div class="kitchen__state"><h2>Your account cannot see orders</h2>` +
+            `<p>You are signed in, but this account does not have permission to view orders for ` +
+            `this kitchen. That is a settings problem, not a problem with today's orders — ask an ` +
+            `administrator to grant <b>orders.view</b>.</p></div>`;
+          return;
+        }
         if (state.kind === 'empty-day') {
           el.board.innerHTML =
             `<div class="kitchen__state"><h2>No orders for this day</h2>` +
@@ -256,7 +303,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
         el.board.innerHTML = state.groups
           .map((g) => {
-            const canAct = !offline && g.outstandingIds.length > 0;
+            const canAct = !offline && g.outstandingIds.length > 0 && Boolean(day?.permissions.markDelivered);
             return (
               `<section class="kitchen__group" data-state="${groupState(g)}" aria-labelledby="h-${esc(g.key)}">` +
                 `<header class="kitchen__group-head">` +
@@ -265,9 +312,11 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
                     `<p class="kitchen__group-where">${esc(g.schoolName)}${g.breakLabel ? ` · ${esc(g.breakLabel)}` : ''}</p>` +
                   `</div>` +
                   `<p class="kitchen__progress">${esc(groupProgress(g))}</p>` +
-                  `<button class="kitchen__btn kitchen__btn--primary" data-group="${esc(g.key)}" ${canAct ? '' : 'disabled'}>` +
-                    `Mark all delivered${g.outstandingIds.length ? ` (${g.outstandingIds.length})` : ''}` +
-                  `</button>` +
+                  (day?.permissions.markDelivered
+                    ? `<button class="kitchen__btn kitchen__btn--primary" data-group="${esc(g.key)}" ${canAct ? '' : 'disabled'}>` +
+                        `Mark all delivered${g.outstandingIds.length ? ` (${g.outstandingIds.length})` : ''}` +
+                      `</button>`
+                    : '') +
                 `</header>` +
                 g.orders.map(renderOrder(offline)).join('') +
               `</section>`
@@ -277,7 +326,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       }
 
       const renderOrder = (offline: boolean) => (o: KitchenDay['orders'][number]) => {
-        const actions = allowedActions(o.status);
+        const actions = allowedActions(o.status, day?.permissions);
         const label = { preparing: 'Start', delivered: 'Delivered', cancelled: 'Cancel' } as const;
         return (
           `<div class="kitchen__order" data-busy="${busy.has(o.id)}">` +
@@ -303,8 +352,14 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       };
 
       function render() {
-        const offline = !navigator.onLine;
-        const state = boardState({ day, filters: filters(), loading, offline, error });
+        const offline = forced === 'offline' || !navigator.onLine;
+        const state = boardState({
+          day: forced === 'empty' && day ? { ...day, orders: [] } : day,
+          filters: filters(),
+          loading: loading || forced === 'loading',
+          offline,
+          error: forced === 'unreachable' ? 'Simulated: the server did not respond.' : error,
+        });
         renderBanner(offline, state);
         renderSummary(state);
         renderBoard(state, offline);
