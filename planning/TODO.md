@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 47 open of 53.
+Your tasks only — 48 open of 54.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -35,6 +35,7 @@ in VS Code or on GitHub without opening anything.
 - [x] `E01-00` One-off: authorise the GitHub (gh auth login) and Supabase CLIs on your machine — after this the build side creates and manages both
 - [ ] `E01-20` _(fast-follow)_ (risk:high) Put the staging Supabase credentials into GitHub Actions secrets — SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD and the staging project ref. E01-04 created the project, but the values were never supplied, so Deploy to staging has failed on every run since 2026-08-08 (supabase link --project-ref ""). CI's required checks are unaffected and green; nothing has ever actually deployed
 - [ ] `E01-21` _(fast-follow)_ Supply the staging client env values — the staging Supabase URL and anon key, plus the Razorpay test key id (rzp_test_…), either into apps/mobile/.env.staging (from .env.staging.example) or as EAS environment variables. Without them a staging build compiles but opens to an app that cannot reach any backend, so there is nothing to look at on a handset. EAS builds from a git archive, so a gitignored .env.staging is not uploaded — for a real device build these must be EAS env vars, not a local file
+- [ ] `E19-10` _(fast-follow)_ The E19-07 sitting itself — ~45 minutes with the Razorpay dashboard in TEST mode. Three actions, listed in docs/e19-07-webhook-sitting.md §4: subscribe the probe URL and save the webhook secret; make one test UPI payment and let a second collect request expire unpaid (the only way to learn how long Razorpay holds a pending collect, which is [OL-03] and drives S21's no-timeout waiting screen); run one script and paste the output back. Needs: dashboard in test mode, test-mode API keys, a phone with a UPI app. Not scenario #40 — that is live-mode at release and must never be simulated. Blocks E06 step 6 onward, not steps 1–4, so the ledger work proceeds meanwhile
 - [ ] `E20-21` _(fast-follow)_ Decide and supply the named grievance officer: name, designation, email and published address. E20-07 cannot publish a placeholder, and the four «…-PENDING-E20-21» tokens in docs/dpdp-compliance.md §7.2 block launch
 
 ## Decisions to make (no rush, but they gate later work)

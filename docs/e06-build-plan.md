@@ -1,16 +1,81 @@
 ---
 title: E06 — payments build plan
-status: PLAN ONLY. No payment code has been written. Read before any is.
+status: PLAN. No code that MOVES MONEY has been written. Order creation has — see below.
 ---
 
 # E06 build plan
 
-Written 2026-08-09, after `E19-01` returned. **Nothing in `E06` has been built.** This is the
-order to build it in, where the risk actually sits, and what should be decided before code
-rather than during it.
+Written 2026-08-09, after `E19-01` returned. Revised 2026-08-11 — see §0, which is the part to
+read if you last read this plan when it was written.
+
+**Nothing that moves money has been built.** No Razorpay call, no webhook endpoint, no ledger
+posting, no refund. What HAS been built, and what the original front matter's "no payment code
+has been written" was read as denying:
+
+- **`create_checkout` (`0014`, `0019`)** — order creation, the `order_group`, cutoff
+  snapshotting, price re-checks, and `break_time_id` per line. Tested (`checkout.test.sql`, 27
+  assertions). This is step 6's server half and it exists.
+- **The ledger's structure (`0013`)** — `normal_balance` pinned per account type,
+  `ledger_balance()`, `assert_ledger_integrity()`, and the eleven `ledger` reason codes.
+- **`OrderPlacedScreen` and `PaymentWaitingScreen`** — built, tested, unrouted. `placedOrder()`
+  refuses anything that is not `paid` with a four-digit pickup code, so step 7's return path
+  has a typed landing zone waiting for it.
+
+Rebuilding any of that is the failure this paragraph exists to prevent.
+
+This is the order to build the rest in, where the risk actually sits, and what should be decided
+before code rather than during it.
 
 The design is `docs/payments-design.md` (Q07) and `docs/order-lifecycle.md` §8–§11 (Q06). This
 document does not restate them. It says what to do first and what will hurt.
+
+---
+
+## 0. What has changed since this plan was written
+
+Added 2026-08-11. The plan below is unchanged except where a row here says otherwise; read this
+first if you last read it on 2026-08-09.
+
+**Three of §5's five "decide before code" questions are answered, and they were the expensive
+ones.**
+
+| | Then | Now |
+|---|---|---|
+| `E06-31` sign convention | §5 row 2, and §4.2 — *"the failure mode I would bet on actually happening"* | **Settled structurally, `0013` / `M9`**, and better than this plan proposed. A CHECK pins `normal_balance` per account type; `ledger_balance()` is the only reader and consults the account; the nightly check compares `wallet_balance` against the ledger rather than recomputing a derived balance, because two derivations sharing one sign error agree with each other. §4.2 is designed out, not mitigated |
+| `E06-22` ledger reason codes | §4.1, *"the ledger cannot record anything today"* | **Seeded by `0013`** — eleven `category = 'ledger'` codes. The first `insert into ledger_transaction` no longer fails |
+| `[OL-02]` grace window | §5 row 3, value undecided | **`L9`.** Settlement inside `cutoff_at + grace` is honoured, after it refused and auto-refunded. Per-kitchen config, **default 15 minutes**, never shown to a parent and never counted down at them |
+| `[PAY-02]` refund split | §5 row 5, *"needs Andy"* | **`PY5`.** Wallet-funded portion to the wallet, remainder to the requested destination, capped at what source actually captured — two rows sharing a `correlation_id`. The over-refund guard enforces the cap independently |
+| MDR posting missing from the docs | §3 step 1, *"do the documentation corrections in the same PR"* | **Done.** `order-lifecycle.md` §8.4 step 6 now posts the MDR separately and says what happens if it does not |
+
+**What is left of step 1**, therefore, is two things rather than five: `E06-23` (`bank` on
+`ledger_account_type` plus the seeded `platform:bank` — `M9` deferred it deliberately, because
+`ALTER TYPE … ADD VALUE` cannot be used in the transaction that adds it) and `[OL-05]`'s
+`duplicate_of_payment_id` column, which still does not exist and still blocks `E06-18`.
+
+**Step 5 is unchanged and is now the largest single unknown by a distance.** All seven
+`E19-07` rows are open. The advice to hold it before the client work matters *more* now, not
+less: the risks that used to compete with it for attention have been resolved, and
+`fee`/`tax`-at-capture still decides whether `E07-11` can compute MDR at refund time at all.
+
+**Constraints this plan predates and does not mention:**
+
+- **`E07-20`** (risk:critical, **in the MVP list**) — checkout must refuse in production while
+  `seller_gstin` or `sac_code` is a placeholder, with a boot assertion in the shape of
+  `E06-14`'s key-prefix check. That lands in step 6, and it is a launch blocker.
+- **`E07-22`** — `invoice.buyer_name_snapshot` is `not null` and every account in the system
+  has a null name. Under **CGST Rule 46(f)** a buyer name is not required at all on a B2C supply
+  below ₹50,000, so the `not null` is stricter than the law and would refuse an invoice the law
+  permits — the constraint, not GST, would be the thing that stops an order. Awaiting Andy's
+  ruling on `E07-22`; settle it **as invoicing is built**, not after.
+- **`S21`** — Place Order and Pay take motion Ending B: no timeout, and the app polls
+  `GET /checkout/:group/status`. That makes `E06-16` a dependency of the *interface*, not only
+  of the recovery paths in step 7.
+- **`P19`** — `create_checkout` takes a required `break_time_id` per line, the picker is live,
+  and all three schools have windows since `0029`.
+- **`E07-21` is struck** (2026-08-11). It required deriving the CGST/SGST-vs-IGST split in the
+  cart and checkout pricing path on the basis of "three launch cities span three state codes".
+  `SC1` is Mohali only and non-negotiable #7 forbids the IGST path outright. What survives of
+  its concern is a **one-time check**, not a pricing path — see `docs/gst-invoicing.md` §3.2.
 
 ---
 
