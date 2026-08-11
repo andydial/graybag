@@ -2829,21 +2829,21 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Replace the hosted payment-link redirect with in-app checkout + <strong>native UPI intent</strong> (this is the &quot;clunky&quot; fix)</span>
       </li>
-      <li class="task" data-id="E06-03" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-03" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-03"></button>
         <code class="tid">E06-03</code>
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Server-side <strong>HMAC signature verification</strong> on every webhook and callback. Never trust client-reported status</span>
+        <span class="ttext"><strong>Signature verification</strong>, both signatures. <code>supabase/functions/_shared/signature.ts</code>: the webhook HMAC over the <strong>raw body</strong> (§5.2 — parsing and re-serialising changes key order, whitespace and escaping, so the HMAC never matches and the failure is total, uniform and indistinguishable from an attack), and the callback HMAC over <code>order_id|payment_id</code> with the <strong>key</strong> secret, the shape <code>E19-01</code> confirmed on a handset. Constant-time hex comparison. Fails <strong>closed</strong> on a missing secret or header. Pure Web Crypto and no Deno globals, so it is imported by the Edge Function and by a vitest suite — the one piece of cryptography in the product is not the one piece with no tests. 17 assertions including an RFC 4231 vector, so the test cannot agree with a broken implementation</span>
       </li>
-      <li class="task" data-id="E06-04" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-04" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-04"></button>
         <code class="tid">E06-04</code>
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Idempotent webhook handling — Razorpay retries; the same event must never double-credit</span>
+        <span class="ttext"><strong>The webhook endpoint</strong> — <code>supabase/functions/payments-webhook</code>. Raw bytes first, HMAC, then <code>JSON.parse</code> <strong>only after verifying</strong>, then insert <code>on conflict do nothing</code> (§7.1 layer 4). <strong>Always <code>200</code></strong>, including on a bad signature — a <code>4xx</code> makes Razorpay retry a request we will never accept and the storm buries the real events. The single exception is a failed INSERT: the event is then recorded nowhere and their retry is the only remaining copy, so that alone returns <code>500</code>. <strong>Records; does not settle</strong> — <code>settle_payment</code> (<code>E06-06</code>) runs from the recorded row, so an event storm cannot become a settlement storm. Unverified events are recorded <code>ignored</code> and never picked up</span>
       </li>
       <li class="task" data-id="E06-05" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-05"></button>
@@ -3029,13 +3029,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Tier-3 settlement reconciliation</strong> (§8.4) — ingest the Razorpay settlement recon report, backfill <code>provider_fee_paise</code> / <code>provider_tax_paise</code>, post the settlement to <code>platform:bank</code>, and assert <code>balance(provider:razorpay:clearing)</code> equals what Razorpay says is pending. Depends on <code>E06-23</code></span>
       </li>
-      <li class="task" data-id="E06-28" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E06-28" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-28"></button>
         <code class="tid">E06-28</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Distinguish a misconfigured webhook secret from an attack</strong> (§5.6) — a wrong secret fails 100% of webhooks, records them all, returns <code>200</code> and therefore produces no 5xx and no retries. Alert on ~100% signature failure since a deploy, <strong>and</strong> on zero verified events in a window in which orders were placed. Under <code>E15-05</code></span>
+        <span class="ttext"><strong>Alerting on the failure that makes no noise.</strong> <code>0042</code>, <code>assert_webhook_health()</code>. A wrong webhook secret fails 100% of webhooks, records every one and returns <code>200</code> — no 5xx, no retries, no error rate, no traffic gap, and every capture unprocessed until a customer complains. <strong>Two checks, because each is the other&#39;s blind spot:</strong> a signature-failure rate (which cannot see a deleted subscription — with no events its rate is 0%, reading as perfect health) and orders-placed-but-nothing-verified-arrived (which cannot see a wrong secret, since events are arriving). Reports rather than decides: the threshold and the schedule belong to the caller (<code>E15</code>), the same shape as <code>assert_ledger_integrity()</code>. 7 assertions, written as the two scenarios that produce the alert</span>
       </li>
       <li class="task" data-id="E06-29" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-29"></button>
