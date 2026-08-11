@@ -628,13 +628,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/41</span>
+          <span class="meter-num">0/43</span>
         </div>
       </header>
       <p class="summary">India&#39;s DPDP Act, children&#39;s data, consent records and policy versioning. The system stores minors&#39; names, class, section and allergies (health data), so this is not an app-store checkbox.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 41 tasks</summary>
+        <summary>Context &amp; 43 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>GrayBag stores personal data about <strong>children</strong>, including <strong>allergies</strong>, which is health</p>
 <p>data. India&#39;s Digital Personal Data Protection Act 2023 requires verifiable parental</p>
@@ -969,6 +969,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Make account deletion actually delete, in the app.</strong> <code>E20-37</code> ships an honest manual path — a composed request a person acts on — because <code>E20-18</code> (the erasure Edge Function) and <code>E20-30</code> (its <code>recipient</code> vs <code>account</code> scoping) do not exist. Replace the compose action with a real in-app request the moment they do, and record it as a <code>data_subject_request</code> rather than an email</span>
+      </li>
+      <li class="task" data-id="E20-42" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-42"></button>
+        <code class="tid">E20-42</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>No analytics, telemetry or behavioural tracking may touch a child&#39;s record</strong> — <code>C16</code>. <code>child-data-telemetry.test.ts</code> scans the argument span of every telemetry sink call in <code>apps/mobile/src</code> and <code>packages/shared/src</code> for tier-P/S fields in both spellings, and fails the build. Proves itself on fixtures and on a violation injected into a real file. <code>E15</code> adds its vendor&#39;s call surface to <code>TELEMETRY_SINKS</code> in the same commit that introduces it</span>
+      </li>
+      <li class="task" data-id="E20-43" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-43"></button>
+        <code class="tid">E20-43</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The database half of <code>C16</code>.</strong> The source scan cannot see a warehouse export or a vendor reading Postgres directly. When <code>E20-34</code> picks an analytics vendor (or cuts analytics), add the pgTAP assertion that whatever role it uses cannot select from <code>recipient</code>, <code>recipient_allergen</code> or <code>guardian_link</code> — default-deny proved, not assumed</span>
       </li></ul>
       </details>
     </article>

@@ -117,6 +117,13 @@ the Razorpay line, the lawyer question in `professional-questions.md` covers it.
 
 ### Section 3: Families policy — the one that decides the review
 
+> **DECIDED 2026-08-11 (Andy) — `C15`. The answer is No, and it is final.** GrayBag is not a
+> child-directed service: its users are adults, parents paying for their children and adults
+> ordering for themselves. No child installs the app, signs in, browses or pays. Holding data
+> *about* children is a different question from being a product *for* them, and answering No
+> weakens no DPDP obligation — those attach to the processing regardless of who the user is.
+> This is no longer an open lawyer question; do not re-raise it.
+
 Play asks whether the app **targets children**. Same answer and same reasoning as Apple, and it
 must match: **No**, the audience is adults ordering meals. Answering Yes triggers **Designed for
 Families**, which requires a compliant ads SDK (we have none — fine), a published family privacy
@@ -131,5 +138,5 @@ policy, and a stricter content review.
 1. **Finish or disable `E20-10`** (no PII in logs or Sentry). Everything above assumes it.
 2. **Publish the privacy policy** (`E20-07`), which needs the grievance officer (`E20-21`).
 3. **Ship in-app account deletion** (`E20-04`). Both stores require it; Apple enforces it hard.
-4. Have the lawyer answer the "directed to children" question — it is the single answer that
-   most changes what the stores require of us.
+4. ~~Have the lawyer answer the "directed to children" question.~~ **Answered — `C15`, Andy,
+   2026-08-11: No.** Apple and Google both get No, and they must match.
