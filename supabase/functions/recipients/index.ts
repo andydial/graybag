@@ -155,7 +155,7 @@ Deno.serve(async (request: Request) => {
   }
 
   /**
-   * Removal — `E05-34`. Deactivates the recipient and revokes every guardian link.
+   * Removal — `E05-44`. Deactivates the recipient and revokes every guardian link.
    *
    * Not a DPDP erasure: order history, invoices and ledger entries are retained deliberately
    * (see `0025`). Erasure is `E20-06` and has its own process.

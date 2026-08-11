@@ -19,6 +19,40 @@ Format — newest first:
 
 ---
 
+## 2026-08-11 — Eighteen task ids were used twice, and two `owner:andy` tasks went green because of it
+
+**Context:** picking up the four compliance orphans the extended orphan guard found
+(`E14-32`). Before starting I looked up `E20-11` and got two different tasks.
+
+**What happened:** eighteen ids across eleven epic files were each defined twice —
+`E20-11`…`E20-14`, `E20-26`, `E05-33`, `E05-34`, `E05-36`, `E06-16`, `E06-20`, `E09-11`,
+`E09-12`, `E13-20`, `E15-07`, `E16-44`, `E17-27`, `E17-28`, `E00-20`. `E20-11` was both "the
+policy acceptance gate is never mounted" and "data-processing review of every third party".
+
+**Cause:** new work was appended by **reusing a number instead of continuing the sequence** —
+exactly what `planning/README.md` forbids. It went unnoticed because nothing in the tooling
+ever checked: `build-backlog.mjs` parsed both lines happily and emitted two rows with the same
+`data-id`.
+
+**The consequence that matters:** task ids are the primary key of `backlog-state.json`. A
+single `done` row cannot describe two tasks, so ticking one ticked both — and `E09-11` and
+`E17-28` were `(owner:andy)` tasks showing **complete** because an unrelated twin had been
+finished. `sync-state.mjs` refuses to close an `owner:andy` task, and that enforcement was
+defeated by an id it could not tell apart. A control that cannot distinguish its subjects is
+not a control.
+
+**Fix / rule:** the later copy of each duplicate was renumbered to the next free id in its
+epic (document order is assignment order, because the backlog is append-only); the original
+kept its id, so every existing cross-reference to the older meaning stayed correct.
+`build-backlog.mjs` now **refuses to build** on a duplicate id and names both users — proven
+by reintroducing a collision and watching it fail. Ticks were rebuilt from each line's own
+checkbox, so nothing was lost and nothing was invented.
+
+Related: [`E17-32`] and the version floor below. Three defects this week share one shape — a
+green signal standing in for a fact nobody checked.
+
+---
+
 ## 2026-08-10 — A git worktree with a symlinked `node_modules` silently tests the wrong workspace
 
 **Context:** building the recipients UI (`E05-17`, `E05-18`) in a `git worktree`, with
@@ -1841,7 +1875,7 @@ was never seeded. Seeds are for first application; migrations are for correction
 
 ## 2026-08-11 — three things the real Bubble catalogue does that fixtures never did
 
-Found while importing the real 85-dish catalogue (`E16-44`). All three were invisible against the
+Found while importing the real 85-dish catalogue (`E16-48`). All three were invisible against the
 four-dish fixture set, and each stopped the seed dead:
 
 1. **Six dishes exist twice** under the same name, violating `uq_dish_kitchen_name`

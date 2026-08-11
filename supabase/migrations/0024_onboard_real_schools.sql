@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0024_onboard_real_schools.sql — make the real schools visible. E16-44.
+-- 0024_onboard_real_schools.sql — make the real schools visible. E16-48.
 -- =============================================================================
 --
 -- `supabase/seeds/catalogue.sql` inserts the three real Mohali schools, but its first

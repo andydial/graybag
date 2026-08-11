@@ -118,6 +118,38 @@ const epics = readdirSync(SRC).filter((f) => f.endsWith('.md')).sort().map((f) =
   };
 });
 
+/**
+ * Fail on a reused task id.
+ *
+ * Task ids are the primary key of `backlog-state.json`, so two tasks sharing one id is not a
+ * cosmetic problem: a tick lands on both, and the dashboard shows the state of whichever the
+ * parser saw last. On 2026-08-11 eighteen ids were duplicated this way. Four of them were the
+ * compliance orphans; two were `owner:andy` tasks that appeared **complete** because their
+ * unrelated twin had been ticked — which is precisely the enforcement `sync-state.mjs` exists
+ * to provide, defeated by an id it could not tell apart.
+ *
+ * The cause is always the same: appending new work by reusing a number instead of continuing
+ * the sequence. That is what `planning/README.md` forbids, and now what this refuses to build.
+ */
+const byId = new Map();
+for (const e of epics) {
+  for (const t of e.tasks) {
+    if (!byId.has(t.id)) byId.set(t.id, []);
+    byId.get(t.id).push(`${e.file}: ${t.title.slice(0, 70)}`);
+  }
+}
+const collisions = [...byId].filter(([, uses]) => uses.length > 1);
+if (collisions.length > 0) {
+  const detail = collisions
+    .map(([id, uses]) => `  ${id}\n${uses.map((u) => `    - ${u}`).join('\n')}`)
+    .join('\n');
+  throw new Error(
+    `${collisions.length} task id(s) used more than once. Ids are permanent and are the key\n` +
+      `of backlog-state.json, so a duplicate makes "done" ambiguous. Append the next free\n` +
+      `number in the epic instead of reusing one.\n\n${detail}`,
+  );
+}
+
 const phaseGroups = [...new Set(epics.map((e) => e.phase))].sort((a, b) => a - b);
 const totalTasks = epics.reduce((n, e) => n + e.tasks.length, 0);
 

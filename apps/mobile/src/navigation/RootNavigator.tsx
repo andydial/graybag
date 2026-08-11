@@ -153,7 +153,7 @@ function CartTabScreen() {
   const audience = useAudience();
 
   /**
-   * The photo and the veg mark for each line — `E05-36`.
+   * The photo and the veg mark for each line — `E05-42`.
    *
    * **A cart line cannot carry them.** `cart/line.ts` stores what identifies and prices a line
    * (dish id, who, when, note); a photo is presentation and would go stale the moment the menu

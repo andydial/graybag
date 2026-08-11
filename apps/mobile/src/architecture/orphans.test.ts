@@ -376,29 +376,29 @@ const barrelModules: [string, Source][] = candidates
  */
 const KNOWN_ORPHANS: Record<string, string> = {
   // Compliance, and the four that matter most.
-  'prop:PolicyGateScreen.onAccept': 'E20-11 — the policy acceptance gate is never mounted',
-  'prop:PolicyGateScreen.onNotNow': 'E20-11 — same gate',
-  'prop:PolicyGateScreen.accepting': 'E20-11 — same gate',
-  'prop:AccountScreen.onDeleteAccount': 'E20-12 — account deletion has no route',
-  'prop:AccountScreen.onPolicy': 'E20-13 — privacy/terms/refund are published but unlinked',
-  'prop:AccountScreen.onSupport': 'E20-14 — support route unwired',
-  'prop:SupportScreen.grievance': 'E20-14 — grievance officer contact unreachable',
-  'prop:SupportScreen.supportEmail': 'E20-14 — same screen',
+  'prop:PolicyGateScreen.onAccept': 'E20-36 — the policy acceptance gate is never mounted',
+  'prop:PolicyGateScreen.onNotNow': 'E20-36 — same gate',
+  'prop:PolicyGateScreen.accepting': 'E20-36 — same gate',
+  'prop:AccountScreen.onDeleteAccount': 'E20-37 — account deletion has no route',
+  'prop:AccountScreen.onPolicy': 'E20-38 — privacy/terms/refund are published but unlinked',
+  'prop:AccountScreen.onSupport': 'E20-39 — support route unwired',
+  'prop:SupportScreen.grievance': 'E20-39 — grievance officer contact unreachable',
+  'prop:SupportScreen.supportEmail': 'E20-39 — same screen',
 
   // Ordering paths with both halves built.
   'prop:DishDetailScreen.onChangeTarget': 'E05-40 — switch who a dish is for, from the sheet',
   'prop:DishDetailScreen.ordering': 'E05-40 — same sheet',
-  'prop:OrderDetailScreen.cancelling': 'E06-20 — order detail is unreachable until checkout ships',
-  'prop:OrderDetailScreen.imageUri': 'E06-20 — same screen',
-  'prop:OrderDetailScreen.onContactSupport': 'E06-20 — same screen',
+  'prop:OrderDetailScreen.cancelling': 'E06-34 — order detail is unreachable until checkout ships',
+  'prop:OrderDetailScreen.imageUri': 'E06-34 — same screen',
+  'prop:OrderDetailScreen.onContactSupport': 'E06-34 — same screen',
   'prop:SchoolPicker.onRequestSchool': 'E04-20 — "my school is not listed" has no handler',
 
-  // Presentational options with no caller. Each is either wanted or dead; E13-20 decides.
-  'prop:DishImage.aspectRatio': 'E13-20 — unused presentational option',
-  'prop:ListRow.leading': 'E13-20 — unused presentational option',
-  'prop:Lockup.children': 'E13-20 — unused presentational option',
-  'prop:RecipientListRow.last': 'E13-20 — unused presentational option',
-  'prop:SwipeRow.onHaptic': 'E13-20 — haptics never wired',
+  // Presentational options with no caller. Each is either wanted or dead; E13-29 decides.
+  'prop:DishImage.aspectRatio': 'E13-29 — unused presentational option',
+  'prop:ListRow.leading': 'E13-29 — unused presentational option',
+  'prop:Lockup.children': 'E13-29 — unused presentational option',
+  'prop:RecipientListRow.last': 'E13-29 — unused presentational option',
+  'prop:SwipeRow.onHaptic': 'E13-29 — haptics never wired',
 
   // Native dependency not yet added.
   'prop:SignInScreen.readClipboard': 'E03-24 — needs expo-clipboard and a dev-client build',

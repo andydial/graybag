@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0025_edit_and_remove_recipient.sql — E05-33, E05-34
+-- 0025_edit_and_remove_recipient.sql — E05-43, E05-44
 -- =============================================================================
 --
 -- Two things a parent could not do: correct a child's details, and remove a child.
@@ -85,7 +85,7 @@ end;
 $$;
 
 comment on function update_recipient_details is
-  'E05-33. Corrects a recipient''s name, class or section. can_manage only. Never moves school — that is change_recipient_school, which has its own future-order guard.';
+  'E05-43. Corrects a recipient''s name, class or section. can_manage only. Never moves school — that is change_recipient_school, which has its own future-order guard.';
 
 -- -----------------------------------------------------------------------------
 -- Remove a child.
@@ -148,7 +148,7 @@ end;
 $$;
 
 comment on function deactivate_recipient is
-  'E05-34. Removes a recipient from every guardian list by deactivating the row and revoking its links. NOT DPDP erasure (E20-06) — order history is retained deliberately.';
+  'E05-44. Removes a recipient from every guardian list by deactivating the row and revoking its links. NOT DPDP erasure (E20-06) — order history is retained deliberately.';
 
 revoke all on function update_recipient_details(uuid, uuid, text, text, text, text, boolean, boolean) from public, anon, authenticated;
 revoke all on function deactivate_recipient(uuid, uuid) from public, anon, authenticated;

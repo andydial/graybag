@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CONFIG = join(ROOT, 'supabase', 'config.toml');
 /**
- * Which seed file to apply. Defaults to the real catalogue (`E16-44`); the old synthetic
+ * Which seed file to apply. Defaults to the real catalogue (`E16-48`); the old synthetic
  * `staging-menu.sql` is still selectable by name for a from-scratch project that wants
  * obviously-fake schools.
  *

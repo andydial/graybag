@@ -301,7 +301,7 @@ So the field exists, and it is designed rather than inherited:
 - **Never used to compute a warning**, and never treated as allergen data.
 - **Tier P, so it is never logged** (R6).
 
-> **RESOLVED 2026-08-10 (Andy) — `P12`, settling `E09-11`. The packing list surfaces the note,
+> **RESOLVED 2026-08-10 (Andy) — `P12`, settling `E09-15`. The packing list surfaces the note,
 > so the field is built.** The packing list is the only *per-child* artefact we produce; the
 > production list is aggregated, so a note about one portion has nowhere to live on it. If the
 > note does not reach the packing list it reaches nobody.

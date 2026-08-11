@@ -314,9 +314,9 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Implement the <strong>rotation logbook + a scheduled reminder</strong> (calendar or Better Stack heartbeat) driving the <code>docs/secret-rotation-policy.md</code> §1 cadences, so 180/90/365-day rotations are prompted, not remembered. The reminder mechanism only — the credentialed rotation itself stays Andy&#39;s</span>
       </li>
-      <li class="task" data-id="E00-20" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-20"></button>
-        <code class="tid">E00-20</code>
+      <li class="task" data-id="E00-22" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-22"></button>
+        <code class="tid">E00-22</code>
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
@@ -914,41 +914,41 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Reconcile <code>product_analytics</code> across the three documents that disagree</strong> (privacy-policy collects it, dpdp §5.1 names a vendor but §9 register has no row, store-submission declares &quot;no Analytics&quot;). Pick a vendor + declare Analytics, OR cut analytics for v1 and remove the consent purpose/policy line/recipient. Decision + options are <code>[DP-09]</code>; rides with <code>[DP-05]</code> (review finding #19)</span>
       </li>
-      <li class="task" data-id="E20-26" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-26"></button>
-        <code class="tid">E20-26</code>
+      <li class="task" data-id="E20-35" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-35"></button>
+        <code class="tid">E20-35</code>
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>BLOCKS <code>E17-04</code> — no store form may be submitted until this is closed.</strong> Finish or disable <code>E20-10</code> (no PII in logs or Sentry). Every &quot;not collected&quot; answer in <code>docs/andy-prep/store-privacy-answers.md</code> assumes it, and answering a store form wrongly is a compliance problem rather than a paperwork one</span>
       </li>
-      <li class="task" data-id="E20-11" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-11"></button>
-        <code class="tid">E20-11</code>
+      <li class="task" data-id="E20-36" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-36"></button>
+        <code class="tid">E20-36</code>
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The policy acceptance gate is never mounted.</strong> <code>PolicyGateScreen</code> exists, is tested, and <code>onAccept</code>/<code>onNotNow</code>/<code>accepting</code> have no caller — so the version-acceptance gate that <code>E20-03</code> calls one of the six compliance tasks does not run. Found by the extended orphan guard, not by a person</span>
       </li>
-      <li class="task" data-id="E20-12" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-12"></button>
-        <code class="tid">E20-12</code>
+      <li class="task" data-id="E20-37" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-37"></button>
+        <code class="tid">E20-37</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Account deletion has no route.</strong> <code>AccountScreen.onDeleteAccount</code> is never passed. One of the six compliance tasks; the screen renders a row that does nothing</span>
       </li>
-      <li class="task" data-id="E20-13" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-13"></button>
-        <code class="tid">E20-13</code>
+      <li class="task" data-id="E20-38" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-38"></button>
+        <code class="tid">E20-38</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Privacy, terms and refund policies are published but unlinked.</strong> <code>AccountScreen.onPolicy</code> has no caller, so nothing in the app opens them</span>
       </li>
-      <li class="task" data-id="E20-14" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-14"></button>
-        <code class="tid">E20-14</code>
+      <li class="task" data-id="E20-39" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-39"></button>
+        <code class="tid">E20-39</code>
         
         
         <span class="badge r-later">later</span>
@@ -1679,9 +1679,9 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Cutoff copy everywhere: full weekday, date and time; timezone shown only when it differs from the device&#39;s (ux-spec R7)</span>
       </li>
-      <li class="task" data-id="E13-20" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-20"></button>
-        <code class="tid">E13-20</code>
+      <li class="task" data-id="E13-29" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-29"></button>
+        <code class="tid">E13-29</code>
         
         
         <span class="badge r-later">later</span>
@@ -1812,9 +1812,9 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Job-liveness monitor.</strong> A silently-stopped cron produces silence, not a failed uptime probe (<code>E15-03</code> is uptime, not liveness). Emit a heartbeat per scheduled job — the webhook-retry sweep, the abandoned-checkout sweeper, the in-flight payment &amp; refund reconcilers, the daily reconciliation, the idempotency-key purge (<code>docs/order-lifecycle.md</code> §11) — and page when a heartbeat is overdue for its cadence. Distinct from <code>E15-03</code> uptime and from per-job error alerts. Named in <code>docs/payments-design.md</code> §6.6 / <code>PY2</code> (review finding #22)</span>
       </li>
-      <li class="task" data-id="E15-07" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-07"></button>
-        <code class="tid">E15-07</code>
+      <li class="task" data-id="E15-14" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-14"></button>
+        <code class="tid">E15-14</code>
         
         
         <span class="badge r-later">later</span>
@@ -2282,25 +2282,25 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Switching recipient must ask before discarding a non-empty cart (ux-spec F9). It switches silently today — a parent with four dishes in the cart who taps the wrong row loses them with no warning and no undo</span>
       </li>
-      <li class="task" data-id="E05-36" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-36"></button>
-        <code class="tid">E05-36</code>
+      <li class="task" data-id="E05-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-42"></button>
+        <code class="tid">E05-42</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Cart lines show the dish photo and veg mark.</strong> The prop existed and nothing ever passed it, so every line rendered the placeholder and the cart read as a different app from the grid. <code>RootNavigator</code> now builds <code>dishInfo</code> from the cached menu — no extra request, since it is the read the Menu tab just did</span>
       </li>
-      <li class="task" data-id="E05-33" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-33"></button>
-        <code class="tid">E05-33</code>
+      <li class="task" data-id="E05-43" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-43"></button>
+        <code class="tid">E05-43</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Edit a child&#39;s details</strong> — <code>update_recipient_details</code> (<code>0025</code>), a PATCH with no <code>school_id</code>, and <code>api.updateRecipientDetails</code>. Separate from a school move, which has a future-order guard and resets the class: a mistyped section should not have to pretend to be a transfer. Clearing a field is an explicit flag, because <code>null</code> already means &quot;leave alone&quot;. <strong>Server and client only — the edit sheet is <code>E05-37</code></strong></span>
       </li>
-      <li class="task" data-id="E05-34" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-34"></button>
-        <code class="tid">E05-34</code>
+      <li class="task" data-id="E05-44" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-44"></button>
+        <code class="tid">E05-44</code>
         
         
         <span class="badge r-later">later</span>
@@ -2877,17 +2877,17 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Assert the UPI <code>&lt;queries&gt;</code> block in the built artefact</strong>, rather than assuming our config plugin is what puts it there. Static analysis during <code>E19-01</code> setup found the block is also supplied by <code>com.razorpay:standard-core</code>, which <code>com.razorpay:checkout</code> pulls in at version <code>LATEST</code> — so the thing <code>E06-29</code> depends on is partly a floating third-party dependency we do not control. <code>scripts/verify-apk-upi-queries.mjs</code> decodes the binary <code>AndroidManifest.xml</code> out of an APK and asserts both the <code>upi</code> scheme query and the six explicit PSP packages, turning a silent degradation to UPI collect/QR into a failed check. Pairs with <code>E19-08</code> (pin the version). <strong>Was filed as a second <code>E06-30</code></strong> — a duplicate id, since <code>E06-30</code> was already taken by the <code>payment_failed</code> task above. Renumbered to the next free id rather than left colliding; nothing referenced it yet</span>
       </li>
-      <li class="task" data-id="E06-16" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-16"></button>
-        <code class="tid">E06-16</code>
+      <li class="task" data-id="E06-33" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-33"></button>
+        <code class="tid">E06-33</code>
         <span class="badge r-medium">medium</span>
         
         <span class="badge r-later">later</span>
         <span class="ttext">Replace the invented &quot;5–7 working days&quot; refund timing on Order detail with a figure somebody has confirmed, per instrument. It is a sentence a parent plans around; see <code>docs/open-questions.md</code></span>
       </li>
-      <li class="task" data-id="E06-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-20"></button>
-        <code class="tid">E06-20</code>
+      <li class="task" data-id="E06-34" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-34"></button>
+        <code class="tid">E06-34</code>
         
         
         <span class="badge r-later">later</span>
@@ -3352,17 +3352,17 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The packing list is tier P and needs a retention rule.</strong> <code>packingCsv</code> names children by design — staff hand food to a named child and there is no version of that job that does not. That makes a downloaded packing CSV regulated data sitting on a kitchen laptop indefinitely. Decide how long it may be kept and how it is destroyed, and put it in <code>docs/dpdp-compliance.md</code>. The file warns the reader in its first row, which is the most a file can do for itself; the rest is policy. Raised with <code>E09-11a</code></span>
       </li>
-      <li class="task" data-id="E09-11" data-seed="1" data-risk="" data-owner="andy" data-mvp="1" data-seed="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-11"></button>
-        <code class="tid">E09-11</code>
+      <li class="task" data-id="E09-15" data-seed="1" data-risk="" data-owner="andy" data-mvp="1" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-15"></button>
+        <code class="tid">E09-15</code>
         
         <span class="badge r-you">you</span>
         <span class="badge r-mvp">v1</span>
         <span class="ttext">(risk:high) Decide whether the kitchen packing list and per-class delivery sheet surface a parent&#39;s per-line note. <strong>Answered 2026-08-10: yes — <code>P12</code></strong></span>
       </li>
-      <li class="task" data-id="E09-12" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-12"></button>
-        <code class="tid">E09-12</code>
+      <li class="task" data-id="E09-16" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-16"></button>
+        <code class="tid">E09-16</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
@@ -4174,9 +4174,9 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Re-run <code>tools/upload-dish-images</code> WITHOUT <code>--fixture-aliases</code> once the menu import gives dishes their <code>legacy_bubble_id</code>, and delete the alias table rather than extending it. 78 of the 82 uploaded photographs are currently unused because staging has five seed fixtures rather than the real catalogue</span>
       </li>
-      <li class="task" data-id="E16-44" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-44"></button>
-        <code class="tid">E16-44</code>
+      <li class="task" data-id="E16-48" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-48"></button>
+        <code class="tid">E16-48</code>
         
         
         <span class="badge r-later">later</span>
@@ -4265,7 +4265,7 @@
         
         <span class="badge r-you">you</span>
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">(risk:critical) <strong>BLOCKED ON <code>E20-26</code>/<code>E20-10</code> — do not submit while an unscrubbed Sentry is wired up.</strong> Answering &quot;not collected&quot; then is a false statement to two app stores. <strong>Submit</strong> the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from <code>E20</code>; you sign them off in the consoles</span>
+        <span class="ttext">(risk:critical) <strong>BLOCKED ON <code>E20-35</code>/<code>E20-10</code> — do not submit while an unscrubbed Sentry is wired up.</strong> Answering &quot;not collected&quot; then is a false statement to two app stores. <strong>Submit</strong> the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from <code>E20</code>; you sign them off in the consoles</span>
       </li>
       <li class="task" data-id="E17-05" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-05"></button>
@@ -4467,17 +4467,17 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Keep <code>docs/andy-prep/</code> matching reality — when Andy submits a form or gets an answer, fold it back into the repo so the drafts do not drift into fiction</span>
       </li>
-      <li class="task" data-id="E17-27" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-27"></button>
-        <code class="tid">E17-27</code>
+      <li class="task" data-id="E17-30" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-30"></button>
+        <code class="tid">E17-30</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>App Store Connect app id wired into <code>eas.json</code>.</strong> <code>ascAppId</code> 6749555467 alongside <code>appleTeamId</code> F247T8Y2NT, on both <code>submit.production</code> and a new <code>submit.preview</code>. <code>preview</code> also became an iOS store build — it extended <code>staging</code>&#39;s <code>distribution: &quot;internal&quot;</code>, which is ad-hoc and cannot reach TestFlight (<code>R9</code>)</span>
       </li>
-      <li class="task" data-id="E17-28" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-28"></button>
-        <code class="tid">E17-28</code>
+      <li class="task" data-id="E17-31" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-31"></button>
+        <code class="tid">E17-31</code>
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>

@@ -271,7 +271,7 @@ export async function changeRecipientSchool(input: SchoolChange): Promise<School
 }
 
 /**
- * Correct a recipient's details — `E05-33`.
+ * Correct a recipient's details — `E05-43`.
  *
  * **Separate from `changeRecipientSchool`, deliberately.** A move between schools has a
  * future-order guard and resets the class, because a class at the old school means nothing at
@@ -310,7 +310,7 @@ export async function updateRecipientDetails(input: RecipientEdit): Promise<{ re
 }
 
 /**
- * Remove a recipient — `E05-34`. Children leave school.
+ * Remove a recipient — `E05-44`. Children leave school.
  *
  * **Deactivation, not deletion, and not erasure.** The row and its order history survive
  * because an order that happened is a fact about money with an invoice and a ledger entry
