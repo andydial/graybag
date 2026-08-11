@@ -10,7 +10,7 @@
     "packages/*"
   ],
   "scripts": {
-    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm test && npm run build:web",
+    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm run check:mvp && npm test && npm run build:web",
     "test:all": "npm run smoke && npm run check:a11y && npm run test:db",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
@@ -41,7 +41,8 @@
     "dev:mobile:prod": "cp apps/mobile/.env.production apps/mobile/.env && npm --prefix apps/mobile run start",
     "ota:staging": "npm run smoke && npm --prefix apps/mobile exec -- eas update --branch staging",
     "ota:production": "npm run smoke && npm --prefix apps/mobile exec -- eas update --branch production",
-    "check:a11y": "npm --prefix apps/web run check:a11y"
+    "check:a11y": "npm --prefix apps/web run check:a11y",
+    "check:mvp": "node scripts/check-mvp.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
