@@ -18,12 +18,49 @@ describe('PolicyDocumentScreen', () => {
     expect(screen.getByTestId('screen-policy-document-block-0')).toBeTruthy();
   });
 
+  /**
+   * **Terms, not privacy.** This assertion used to name `privacy`, and it was right to: all
+   * three documents were `E20-24` templates full of «…-PENDING-…» placeholders.
+   *
+   * On 2026-08-11 Andy supplied the lawyer-drafted privacy and refund policies, so those two
+   * are now real published documents and carry no banner. Terms has no lawyer baseline yet and
+   * is still the template, so it is what proves the banner still works.
+   */
   it('says plainly when a document is still a draft', async () => {
-    // All three carry «…-PENDING-…» tokens until `E20-01` returns. Rendering those inside a
-    // paragraph and hoping nobody reads that far is how a placeholder reaches a store review.
-    await render(<PolicyDocumentScreen which="privacy" />);
-    expect(POLICY_DOCUMENTS.privacy.hasPendingTokens).toBe(true);
+    await render(<PolicyDocumentScreen which="terms" />);
+    expect(POLICY_DOCUMENTS.terms.hasPendingTokens).toBe(true);
     expect(screen.getByTestId('screen-policy-document-draft')).toBeTruthy();
+  });
+
+  it.each(['privacy', 'refund'] as const)(
+    'shows no draft banner on %s, which is lawyer-approved',
+    async (which) => {
+      // The published documents are the baseline in `docs/legal/` plus a tracked change log
+      // (`C17`). A banner on them would tell a parent the lawyer's text is provisional.
+      await render(<PolicyDocumentScreen which={which} />);
+      expect(POLICY_DOCUMENTS[which].hasPendingTokens).toBe(false);
+      expect(screen.queryByTestId('screen-policy-document-draft')).toBeNull();
+    },
+  );
+
+  it('carries the three tracked changes into the app, not just into docs/', async () => {
+    // The whole point of generating from `docs/`: what a parent reads and what the lawyer
+    // approved are one string. If the change log ever stops reaching the app, this fails.
+    const { markdown } = POLICY_DOCUMENTS.privacy;
+    expect(markdown).toContain('under 18');
+    expect(markdown).toContain('vivek@graybag.com');
+    expect(markdown).toContain('7 years');
+    expect(markdown).toContain('when the guardian link ends');
+    // The corrected address. Asserted on the **body** — everything after the change log's
+    // `---` — because the change log itself quotes the old address in order to record the
+    // correction, which is what a tracked change is for. What must never carry it is the
+    // policy a parent acts on.
+    const refund = POLICY_DOCUMENTS.refund.markdown;
+    const body = refund.slice(refund.indexOf('\n---\n') + 5);
+    expect(body).toContain('info@graybag.com');
+    expect(body).not.toContain('info@graybag.in');
+    // And the change log does record it, so the correction is auditable rather than silent.
+    expect(refund.slice(0, refund.indexOf('\n---\n'))).toContain('info@graybag.in');
   });
 
   describe('the markdown reduction', () => {

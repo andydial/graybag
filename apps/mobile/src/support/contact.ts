@@ -22,14 +22,27 @@
 export const SUPPORT_EMAIL = 'andy@graybag.com';
 
 /**
+ * The **published** grievance contact — `C17`, privacy policy §7A.
+ *
+ * Separate from `SUPPORT_EMAIL` because the DPDP Act requires a *named person* who answers
+ * questions about personal data, and routing a data complaint into the general support inbox
+ * is how a statutory deadline gets missed behind an order query. Vivek is that person.
+ *
+ * Unlike `SUPPORT_EMAIL` this address **is published** — it is in the privacy policy, which
+ * the app renders in full. It is still not drawn on the Support screen, because a screen is
+ * scraped more readily than a policy document and the compose button reaches him either way.
+ */
+export const GRIEVANCE_EMAIL = 'vivek@graybag.com';
+
+/**
  * A `mailto:` with the subject pre-filled.
  *
  * The subject carries the reason, so an inbox with no ticketing system in front of it can still
  * be triaged by eye. Nothing identifying goes in it — not the parent's name, not a child's, not
  * an order id (non-negotiable #4). A subject line travels through mail servers in the clear.
  */
-export function supportMailto(subject: string): string {
-  return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`;
+export function supportMailto(subject: string, to: string = SUPPORT_EMAIL): string {
+  return `mailto:${to}?subject=${encodeURIComponent(subject)}`;
 }
 
 /** The reasons the app composes a message for. Fixed strings, so the inbox can filter on them. */

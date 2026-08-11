@@ -247,7 +247,14 @@ export const DeleteAccountScreen = () => <DeleteAccountScreenImpl />;
  * There is no `supportEmail` to pass any more: the address lives in `support/contact.ts` and
  * reaches the screen only as the target of a `mailto:`, never as text (Andy, 2026-08-11).
  */
-export const SupportScreen = () => <SupportScreenImpl />;
+export const SupportScreen = () => (
+  /*
+   * The officer, published in privacy policy §7A (`C17`, Andy 2026-08-11). No `address`: he
+   * supplied the name, designation and email and not a postal one, so `E20-21` stays open for
+   * that and the screen shows the two facts it has rather than inventing a third.
+   */
+  <SupportScreenImpl grievance={{ name: 'Vivek', designation: 'Grievance Officer' }} />
+);
 
 // Reached from Account. `navigation/types.ts` used to say "and from Home" as well; Home has no
 // such link, and saying so was how nobody noticed this screen had no door at all.

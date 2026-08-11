@@ -3,7 +3,7 @@ import { design } from '@graybag/shared';
 
 import { Button } from '../components/Button';
 import { Card } from '../components/Surfaces';
-import { SUPPORT_SUBJECTS, supportMailto } from '../support/contact';
+import { GRIEVANCE_EMAIL, SUPPORT_SUBJECTS, supportMailto } from '../support/contact';
 
 const { bg, text, space, scale, layout } = design;
 
@@ -41,7 +41,12 @@ const { bg, text, space, scale, layout } = design;
 export interface GrievanceOfficer {
   name: string;
   designation: string;
-  address: string;
+  /**
+   * Postal address. Optional because Andy supplied the name, designation and email on
+   * 2026-08-11 and **not a postal address** — `E20-21` is still open for that. Rendering
+   * "undefined" or inventing one would be worse than showing the two facts we have.
+   */
+  address?: string;
 }
 // No `email` field, deliberately. DPDP requires the grievance contact to be **published**, and
 // it is — in `docs/privacy-policy.md` §7.2, which is where a published document belongs. Making
@@ -88,7 +93,9 @@ export function SupportScreen({
             <Text style={styles.cardBody}>
               {grievance.name} · {grievance.designation}
             </Text>
-            <Text style={styles.cardBody}>{grievance.address}</Text>
+            {grievance.address === undefined ? null : (
+              <Text style={styles.cardBody}>{grievance.address}</Text>
+            )}
           </>
         )}
 
@@ -100,7 +107,7 @@ export function SupportScreen({
         <Button
           label="Write to the grievance officer"
           variant="secondary"
-          onPress={() => open(supportMailto(SUPPORT_SUBJECTS.grievance))}
+          onPress={() => open(supportMailto(SUPPORT_SUBJECTS.grievance, GRIEVANCE_EMAIL))}
           testID={`${testID}-grievance-email`}
         />
         <Text style={styles.cardNote}>

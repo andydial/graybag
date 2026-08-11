@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react-native';
 
 import { Linking } from 'react-native';
 
-import { SUPPORT_EMAIL, SUPPORT_SUBJECTS } from '../support/contact';
+import { GRIEVANCE_EMAIL, SUPPORT_EMAIL, SUPPORT_SUBJECTS } from '../support/contact';
 
 // The screen calls `Linking.openURL` directly rather than taking an injectable `openUrl` prop:
 // a prop only this file would ever pass is an orphan, and `orphans.test.ts` says so. Mocking
@@ -97,6 +97,16 @@ describe('SupportScreen', () => {
     expect(screen.getByText('Mohali, Punjab')).toBeTruthy();
   });
 
+  it('publishes the officer without a postal address, which is what we have', async () => {
+    // Andy supplied name, designation and email on 2026-08-11 and no postal address; `E20-21`
+    // stays open for that. Two real facts beat three with one invented.
+    await render(
+      <SupportScreen grievance={{ name: 'Vivek', designation: 'Grievance Officer' }} />,
+    );
+    expect(screen.queryByTestId('screen-support-grievance-pending')).toBeNull();
+    expect(screen.getByText('Vivek · Grievance Officer')).toBeTruthy();
+  });
+
   /**
    * **These two assertions replaced their opposites, on Andy's instruction (2026-08-11).**
    *
@@ -120,6 +130,7 @@ describe('SupportScreen', () => {
     // The whole rendered tree, not just the text nodes we thought to check — an address in an
     // accessibility label or a placeholder is just as scrapeable as one in a paragraph.
     expect(JSON.stringify(toJSON())).not.toContain(SUPPORT_EMAIL);
+    expect(JSON.stringify(toJSON())).not.toContain(GRIEVANCE_EMAIL);
     expect(JSON.stringify(toJSON())).not.toContain('@');
   });
 
@@ -137,7 +148,11 @@ describe('SupportScreen', () => {
 
     fireEvent.press(screen.getByTestId('screen-support-grievance-email'));
     const opened = openURL.mock.calls.map(([url]) => url);
-    expect(opened[0]).toContain(`mailto:${SUPPORT_EMAIL}`);
+    // **The named officer, not the general inbox** (`C17`). DPDP requires a person who answers
+    // data questions; routing a complaint into the order-query pile is how a statutory
+    // deadline gets missed. This assertion replaced its opposite when Andy named Vivek.
+    expect(opened[0]).toContain(`mailto:${GRIEVANCE_EMAIL}`);
+    expect(opened[0]).not.toContain(SUPPORT_EMAIL);
     // DPDP puts a data-protection query on a statutory clock. One undifferentiated inbox is
     // how a deadline gets missed, so the subject carries the reason.
     expect(opened[0]).toContain(encodeURIComponent(SUPPORT_SUBJECTS.grievance));

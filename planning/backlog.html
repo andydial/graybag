@@ -628,13 +628,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/44</span>
+          <span class="meter-num">0/46</span>
         </div>
       </header>
       <p class="summary">India&#39;s DPDP Act, children&#39;s data, consent records and policy versioning. The system stores minors&#39; names, class, section and allergies (health data), so this is not an app-store checkbox.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 44 tasks</summary>
+        <summary>Context &amp; 46 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>GrayBag stores personal data about <strong>children</strong>, including <strong>allergies</strong>, which is health</p>
 <p>data. India&#39;s Digital Personal Data Protection Act 2023 requires verifiable parental</p>
@@ -993,6 +993,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Removing a child revokes the link but deletes none of the child&#39;s data — which contradicts the retention rule Andy settled on 2026-08-11.</strong> The rule is: a child&#39;s name, class, section and allergy details are deleted <strong>on request, or when the guardian link ends</strong>. <code>deactivate_recipient</code> (<code>0025</code>) sets <code>is_active = false</code> and revokes every <code>guardian_link</code>, and leaves <code>recipient.first_name</code>, <code>last_name</code>, <code>class_label</code>, <code>section_label</code>, <code>allergy_note</code> and every <code>recipient_allergen</code> row exactly as they were. So the guardian link ends and the tier-P/S data stays. Make deactivation null the tier-P/S fields and delete the <code>recipient_allergen</code> rows in the <strong>same transaction</strong>, keeping <code>order</code>, <code>invoice</code> and ledger references intact — this is <code>E20-30</code>&#39;s <code>recipient</code>-scope erasure, needed now rather than later because <code>E05-37</code> puts a Remove button in front of parents. <strong>Blocks <code>E05-37</code>&#39;s removal copy</strong>: until it lands, no screen may tell a parent that removing a child deletes their details</span>
+      </li>
+      <li class="task" data-id="E20-45" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-45"></button>
+        <code class="tid">E20-45</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The lawyer-drafted policies are the published baseline, with a tracked change log</strong> (<code>C17</code>). <code>docs/legal/*-baseline.md</code> verbatim and never edited; <code>docs/{privacy-policy,refund-policy}.md</code> are notice version 2 — baseline body plus a change log naming every alteration and its reason. Three changes: under-18, named grievance officer, split retention. Refund typo corrected. <code>E20-24</code>&#39;s template drafts superseded into <code>docs/legal/superseded/</code>, not deleted</span>
+      </li>
+      <li class="task" data-id="E20-46" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-46"></button>
+        <code class="tid">E20-46</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The published policy says we collect &quot;usage data&quot;; the store privacy answers say we collect no Analytics.</strong> <code>docs/privacy-policy.md</code> §1 carries the lawyer&#39;s &quot;Device ID, operating system, and usage data&quot; while <code>docs/andy-prep/store-privacy-answers.md</code> declares no Analytics collection, and <code>C16</code> now forbids any telemetry touching a child&#39;s record. Two published statements that disagree is the <code>[SS-02]</code> drift <code>E20-28</code> exists to catch. Rides with <code>E20-34</code>&#39;s vendor decision — and whichever way it goes, one of these two documents changes</span>
       </li></ul>
       </details>
     </article>

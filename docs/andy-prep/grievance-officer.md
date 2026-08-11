@@ -16,7 +16,7 @@ Four facts, and all four are published:
 |---|---|---|
 | 1 | **Name** | **[YOU DECIDE]** — a real person, not "The GrayBag Team" |
 | 2 | **Designation** | Suggested: *Grievance Officer* |
-| 3 | **Email** | Suggested: `grievance@graybag.in` — a monitored alias, not a personal inbox |
+| 3 | **Email** | Suggested: `vivek@graybag.com` — a monitored alias, not a personal inbox |
 | 4 | **Published postal address** | **[YOU DECIDE]** — the registered office address. It will be public |
 
 ## Two things worth deciding at the same time
