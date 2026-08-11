@@ -225,7 +225,7 @@ export const FOOD = {
     {
       id: 'bakery',
       title: 'Bakery',
-      body: 'Wheat jaggery cake, muffins, croissants. A school menu with no treat on it is a menu children opt out of.',
+      body: 'Croissants, muffins, wheat jaggery cake. A school menu with no treat on it is a menu children opt out of.',
     },
   ],
   /**
