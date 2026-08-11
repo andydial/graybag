@@ -386,7 +386,6 @@ const KNOWN_ORPHANS: Record<string, string> = {
   'prop:OrderDetailScreen.cancelling': 'E06-34 — order detail is unreachable until checkout ships',
   'prop:OrderDetailScreen.imageUri': 'E06-34 — same screen',
   'prop:OrderDetailScreen.onContactSupport': 'E06-34 — same screen',
-  'prop:SchoolPicker.onRequestSchool': 'E04-20 — "my school is not listed" has no handler',
 
   // Presentational options with no caller. Each is either wanted or dead; E13-29 decides.
   'prop:DishImage.aspectRatio': 'E13-29 — unused presentational option',
@@ -652,6 +651,7 @@ describe('nothing is half-wired', () => {
     // contact details are Andy's to supply (`E20-21`), not a missing wire.
     // 15 -> 14: `E20-37` gave the Delete my account row a screen.
     // 14 -> 13: `E20-38` gave the three policy rows a document to open.
-    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(13);
+    // 13 -> 12: `E04-20` wired "my school is not listed".
+    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(12);
   });
 });

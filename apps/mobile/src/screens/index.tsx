@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import Constants from 'expo-constants';
+import { Linking } from 'react-native';
+
+import { schoolRequestMailto } from '../support/contact';
 
 
 import { AccountScreen as AccountScreenImpl } from '../account/AccountScreen';
@@ -133,6 +136,13 @@ export const MenuScreen = () => {
       <SchoolPicker
         onSelect={(next) => setSchool(next)}
         onSignIn={() => navigation.navigate('SignIn')}
+        /*
+         * `E04-20`. The prop was accepted and never passed, so a parent whose school is not on
+         * the list had nothing to do — and with three schools live that is most people opening
+         * the app. There is no backend for a school request (`E04-21`), so it composes a
+         * message carrying whatever they typed.
+         */
+        onRequestSchool={(query) => void Linking.openURL(schoolRequestMailto(query))}
       />
     );
   }

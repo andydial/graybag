@@ -39,4 +39,23 @@ export const SUPPORT_SUBJECTS = {
   grievance: 'GrayBag — data protection query',
   /** `E20-37`. Named so a deletion request cannot be missed in a general inbox. */
   deleteAccount: 'GrayBag — account deletion request',
+  /** `E04-20`. With three schools live, this is the commonest thing a visitor needs to say. */
+  schoolRequest: 'GrayBag — please add my school',
 } as const;
+
+/**
+ * "My school is not listed" — `E04-20`.
+ *
+ * The typed search goes into the **body**, not the subject: a subject travels through mail
+ * servers in the clear and a school name plus a parent's address is more than we need to put
+ * there (non-negotiable #4). An empty query is the ordinary case — most visitors never search,
+ * because with three schools live the whole list is visible at a glance — so the body prompts
+ * for the name instead of pretending we captured one.
+ */
+export function schoolRequestMailto(query: string): string {
+  const typed = query.trim();
+  const body = typed
+    ? `I was looking for: ${typed}\n\nMy school and city:\n`
+    : 'My school and city:\n';
+  return `${supportMailto(SUPPORT_SUBJECTS.schoolRequest)}&body=${encodeURIComponent(body)}`;
+}

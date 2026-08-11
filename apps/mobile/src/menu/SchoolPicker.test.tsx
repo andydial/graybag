@@ -260,9 +260,30 @@ describe('SchoolPicker', () => {
       await screen.findByText('Alpha Public School');
 
       fireEvent.changeText(search(), 'delta');
+      await waitFor(() => expect(screen.getByTestId('school-picker-no-match')).toBeTruthy());
       fireEvent.press(await screen.findByLabelText('Ask us to add it'));
 
-      expect(onRequestSchool).toHaveBeenCalled();
+      // `E04-20`: it carries what they typed, so the request names a school rather than
+      // arriving as "somebody wants a school".
+      expect(onRequestSchool).toHaveBeenCalledWith('delta');
+    });
+
+    /**
+     * `E04-20`. The offer used to exist **only** after a search matched nothing, which assumed
+     * a parent searches before concluding their school is absent. With three schools live most
+     * visitors see the whole list at a glance and never type anything, so the one action that
+     * fits their situation was behind a search they had no reason to run.
+     */
+    it('offers it from the list too, without anyone having searched', async () => {
+      const onRequestSchool = jest.fn();
+      withSchools(Promise.resolve(SCHOOLS));
+      await render(<SchoolPicker onSelect={() => {}} onRequestSchool={onRequestSchool} />);
+      await screen.findByText('Alpha Public School');
+
+      fireEvent.press(screen.getByTestId('school-picker-request-from-list'));
+
+      // The empty query is the ordinary case here, not a missing value.
+      expect(onRequestSchool).toHaveBeenCalledWith('');
     });
 
     it('leaves that button out when there is nowhere to send it', async () => {

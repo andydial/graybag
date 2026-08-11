@@ -98,11 +98,16 @@ export function SchoolPicker({
    */
   onSignIn?: () => void;
   /**
-   * "Ask us to add it", offered when a search matches nothing. Optional for the same reason:
-   * there is no published support address yet (`E20-21` is still `«PENDING»`), so the button
-   * appears when a caller can route it and the copy stands on its own when nobody can.
+   * "Ask us to add it" — `E04-20`. Carries whatever the parent typed, so the request names the
+   * school instead of arriving as "someone wants a school".
+   *
+   * **Offered on the list as well as on a failed search.** It used to appear only when a query
+   * matched nothing, which assumed a parent searches before concluding their school is absent.
+   * With three schools live, most visitors can see the whole list at a glance and never type
+   * anything — so the one action that fits their situation was behind a search they had no
+   * reason to run. The empty query is the ordinary case, not the edge case.
    */
-  onRequestSchool?: () => void;
+  onRequestSchool?: (query: string) => void;
   /** The merged Welcome header. False for the picker embedded in a sheet. */
   welcome?: boolean;
   testID?: string;
@@ -275,7 +280,7 @@ function Body({
   query: string;
   onSelect: (school: { schoolId: string; schoolName: string }) => void;
   onClearSearch: () => void;
-  onRequestSchool?: () => void;
+  onRequestSchool?: (query: string) => void;
   onRetry: () => void;
   testID: string;
 }) {
@@ -346,7 +351,12 @@ function Body({
         />
         {onRequestSchool !== undefined ? (
           <View style={styles.stateAction}>
-            <Button label="Ask us to add it" onPress={onRequestSchool} variant="primary" />
+            <Button
+              label="Ask us to add it"
+              onPress={() => onRequestSchool(query)}
+              variant="primary"
+              testID={`${testID}-request`}
+            />
           </View>
         ) : null}
       </View>
@@ -371,12 +381,40 @@ function Body({
           onPress={() => onSelect({ schoolId: school.id, schoolName: school.name })}
         />
       ))}
+      {/*
+        `E04-20`. Three schools are live, so most people opening this see a short list with
+        their school not on it and nothing to do about it. This is the door for them, and it
+        does not require guessing that a search would produce one.
+      */}
+      {onRequestSchool !== undefined ? (
+        <View style={styles.listFooter} testID={`${testID}-request-footer`}>
+          <Text style={styles.listFooterText}>Can&rsquo;t see your school?</Text>
+          {/*
+            Worded differently from the no-match button on purpose. A screen-reader user hears
+            the button's label and nothing else, so two buttons reading "Ask us to add it" in
+            two different situations are the same button as far as they are concerned — and the
+            lead-in line above is exactly the context they would not get.
+          */}
+          <Button
+            label="Ask us to add your school"
+            onPress={() => onRequestSchool(query)}
+            variant="secondary"
+            testID={`${testID}-request-from-list`}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: bg.canvas },
+  listFooter: { paddingHorizontal: layout.gutter, paddingTop: space[4], gap: space[2] },
+  listFooterText: {
+    color: text.secondary,
+    fontSize: scale.body.size,
+    lineHeight: scale.body.lineHeight,
+  },
   content: { flexGrow: 1 },
 
   panel: {

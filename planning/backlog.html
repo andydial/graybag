@@ -938,7 +938,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Account deletion has no route.</strong> <code>AccountScreen.onDeleteAccount</code> is never passed. One of the six compliance tasks; the screen renders a row that does nothing</span>
       </li>
-      <li class="task" data-id="E20-38" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E20-38" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-38"></button>
         <code class="tid">E20-38</code>
         
@@ -1851,13 +1851,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/16</span>
+          <span class="meter-num">0/17</span>
         </div>
       </header>
       <p class="summary">Dishes, menus, per-school assignment, Excel import with allergens, and the version-based cache that makes the app feel fast.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 16 tasks</summary>
+        <summary>Context &amp; 17 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Today: 1 kitchen, 3 menus, 3 schools; largest menu is 50 items. Menu changes are rare, which is exactly what makes version-based caching effective.</p>
 <p>Source Excel columns: <code>Item No. | Menu Item | Description | Ingredients | Calories | Portion/Weight | Allergens | Category | Category - ORIG | Price</code>.</p></div>
@@ -1982,13 +1982,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Move <code>fetchMenuVersion</code> onto the <code>menu-version</code> Edge Function instead of reading <code>school_menu_version</code> directly. The function runs with <code>service_role</code>, so its answer cannot itself be filtered away by a grants problem — which is what the empty-menu-vs-refused-read distinction depends on</span>
       </li>
-      <li class="task" data-id="E04-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E04-20" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-20"></button>
         <code class="tid">E04-20</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>&quot;My school is not listed&quot; has no handler.</strong> <code>SchoolPicker.onRequestSchool</code> is accepted and never passed, so a parent whose school is not on the list has no way to say so — and with three schools live, most visitors are in exactly that position</span>
+      </li>
+      <li class="task" data-id="E04-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-21"></button>
+        <code class="tid">E04-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A school request should be a record, not an email.</strong> <code>E04-20</code> composes a message because there is no table, no Edge Function and no admin surface for &quot;please add my school&quot; — so demand is invisible unless somebody reads an inbox and counts. With three schools live this is the strongest signal we have about where to onboard next: give it a row, a count per school name, and a place on the admin screen</span>
       </li></ul>
       </details>
     </article>
