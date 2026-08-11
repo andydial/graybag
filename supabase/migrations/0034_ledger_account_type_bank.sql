@@ -1,0 +1,37 @@
+-- =============================================================================
+-- 0034_ledger_account_type_bank.sql — a cash account exists. `E06-23`, half one of two.
+-- =============================================================================
+--
+-- **There is nowhere for money to land.** `ledger_account_type` has eight values and none of
+-- them is a bank: `provider:razorpay:clearing` is an asset representing money Razorpay is
+-- holding on our behalf, and a settlement is the event where that money becomes *ours*. With no
+-- cash account the clearing account can only ever grow — it never clears — and tier-3
+-- reconciliation (`E06-27`), whose entire job is to assert that it does, cannot be written.
+--
+-- ## Why this migration contains one statement and nothing else
+--
+-- `ALTER TYPE … ADD VALUE` **cannot be used in the same transaction that adds it.** Postgres
+-- will accept the ALTER inside a transaction block, and then refuse every later statement in
+-- that block that mentions the new value:
+--
+--     ERROR: unsafe use of new value "bank" of enum type ledger_account_type
+--     HINT:  New enum values must be committed before they can be used.
+--
+-- Supabase runs each migration file in its own transaction, so the value lands here and its
+-- first use is `0035`. `M9` deferred `E06-23` for exactly this reason and said the pairing
+-- belongs with the settlement work — this is that pairing, arriving before step 2 rather than
+-- after, because the ledger's `normal_balance` CHECK has to know about `bank` before any
+-- posting exists to be consistent with.
+--
+-- `bank` is an **asset**, so its normal balance is `debit` — money we hold goes up on the debit
+-- side. `0035` extends the CHECK that pins this per type; it deliberately is not extended here,
+-- because a constraint mentioning `bank` is a use of `bank`.
+--
+-- irreversible: PostgreSQL has no ALTER TYPE ... DROP VALUE. Removing an enum value means
+-- recreating the type and rewriting every column, constraint, view and function that mentions
+-- it — a great deal of machinery to remove a value that is inert until 0035 uses it, costs
+-- nothing while unused, and is invisible to every query that does not name it. 0035's own
+-- rollback removes the account that uses it, which is the part that has effects.
+-- =============================================================================
+
+alter type ledger_account_type add value if not exists 'bank';

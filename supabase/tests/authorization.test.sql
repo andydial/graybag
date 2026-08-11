@@ -337,9 +337,11 @@ select 'e4000000-7e57-0000-0000-000000000002', ol.id, 1, 1000
   from order_line ol
  where ol.order_id = 'e2000000-7e57-0000-0000-000000000002' and ol.line_no = 1;
 
+-- Fixture codes, not the real ones: `0035` seeds `provider:razorpay:clearing` and
+-- `platform:revenue` as data and `code` is unique, so reusing them collides and kills the file.
 insert into ledger_account (id, code, owner_type, owner_id, account_type, normal_balance) values
-  ('e6000000-7e57-0000-0000-000000000001', 'provider:razorpay:clearing', 'provider', null, 'provider_clearing', 'debit'),
-  ('e6000000-7e57-0000-0000-000000000002', 'platform:revenue',           'platform', null, 'revenue',           'credit');
+  ('e6000000-7e57-0000-0000-000000000001', 'provider:7e57:clearing', 'provider', null, 'provider_clearing', 'debit'),
+  ('e6000000-7e57-0000-0000-000000000002', 'platform:7e57:revenue',  'platform', null, 'revenue',           'credit');
 
 insert into ledger_transaction (id, reason_code, source_type, source_id, occurred_at) values
   ('e7000000-7e57-0000-0000-000000000001', 'migration_opening_balance', 'payment', 'e3000000-7e57-0000-0000-000000000001', now());

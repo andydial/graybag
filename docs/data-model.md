@@ -1396,12 +1396,18 @@ Every column below exists on all three tables unless the scope column says other
 | `allergen_warning_enabled` | boolean | `true` | all | E05-05. Never expected to be false; present so it is a config decision, not a code deploy |
 | `customer_cancellation_allowed` | boolean | `true` | all | E05-11 |
 | `customer_cancellation_cutoff_minutes` | integer | `0` | all | Minutes before `cutoff_at`; 0 = right up to cutoff |
+| `pending_payment_ttl_minutes` | integer | `30` | all | `[OL-03]`, `0037`. How long a `pending_payment` checkout is held before the sweeper cancels it. **Provisional** — its floor is how long Razorpay holds a UPI collect (`E19-07` row 3). The sweeper reconciles against Razorpay before cancelling rather than trusting this clock (`E06-17`): it decides when to ask, not what the answer is |
+| `payment_in_flight_grace_minutes` | integer | `15` | all | `L9`, `0037`. A settlement inside `cutoff_at + this` is honoured; after it the capture is refused and auto-refunded. **Never shown to a parent and never counted down at them** — a server tolerance, not a deadline they can act on. Set to `0` for a hard cutoff, which is `[OL-02]` option (b) as configuration rather than a second code path |
+| `payment_retry_window_minutes` | integer | `30` | all | `0037`. How long a failed attempt may be retried against the same `order_group`. Matched to the TTL on purpose: a longer window lets a retry succeed against a checkout the sweeper already cancelled |
 
-**Three settings are missing from this table** and are required by `docs/order-lifecycle.md`
-(Q06): `pending_payment_ttl_minutes` (`[OL-03]`), `payment_in_flight_grace_minutes` (`[OL-02]`)
-and `payment_retry_window_minutes`. They are not added here because two of the three have an
-undecided *value* and adding a column with a guessed default is how a guess becomes a fact.
-`E06-20` adds all three, on all three scope tables, in the same PR that updates this section.
+**The three payment timings were added by `0037`** (`E06-20`), and this table said for a while
+that they were missing "because two of the three have an undecided *value*, and adding a column
+with a guessed default is how a guess becomes a fact". That caution was right and is now
+answered rather than abandoned: `L9` decided the grace window at 15, and the TTL's 30 is
+**labelled provisional in the column comment itself** — in the database, where the person who
+next reads the number will be — with the fact that settles it named (`E19-07` row 3). A guess
+that says out loud that it is a guess, and where its answer will come from, is not the failure
+mode that paragraph was guarding against.
 
 **Note on the defaults above.** `order_cutoff_time = '00:00'` with `order_cutoff_days_before = 0`
 means the cutoff for Monday's lunch is **00:00 on Monday** — order by Sunday night, not by

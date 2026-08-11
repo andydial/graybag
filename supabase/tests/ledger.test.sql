@@ -33,12 +33,17 @@ select * from no_plan();
 -- -----------------------------------------------------------------------------
 -- Fixtures. Two accounts of opposite nature, and one that is neither.
 -- -----------------------------------------------------------------------------
+-- **Fixture codes, not the real ones.** `0035` seeds `provider:razorpay:clearing` and
+-- `platform:revenue` as actual data, and `ledger_account.code` is unique — so a fixture
+-- claiming those codes collides and takes the whole file down (which is how this was found).
+-- The suite needs *an* account of each type, not the production one, and a test that reuses a
+-- real code is a test that breaks whenever the chart of accounts changes.
 insert into ledger_account (id, code, owner_type, owner_id, account_type, normal_balance) values
-  ('aa000000-7e57-0000-0000-000000000001', 'provider:razorpay:clearing', 'provider', null,
+  ('aa000000-7e57-0000-0000-000000000001', 'provider:7e57:clearing', 'provider', null,
    'provider_clearing', 'debit'),
   ('aa000000-7e57-0000-0000-000000000002', 'user:7e57:wallet', 'user',
    'a0000000-7e57-0000-0000-000000000001', 'wallet', 'credit'),
-  ('aa000000-7e57-0000-0000-000000000003', 'platform:revenue', 'platform', null,
+  ('aa000000-7e57-0000-0000-000000000003', 'platform:7e57:revenue', 'platform', null,
    'revenue', 'credit');
 
 -- =============================================================================
@@ -161,11 +166,14 @@ select is(
 
 update ledger_account set normal_balance = 'credit'
  where id = 'aa000000-7e57-0000-0000-000000000002';
+-- Put back with `bank` included (`0035`). Restoring the pre-bank definition here would fail
+-- outright now that `platform:bank` is seeded — which is a small, useful demonstration that
+-- this constraint and the chart of accounts have to be changed together.
 alter table ledger_account
   add constraint ledger_account_normal_balance_matches_type check (
     (account_type in ('wallet', 'payable', 'tax_payable', 'revenue') and normal_balance = 'credit')
     or
-    (account_type in ('receivable', 'provider_clearing', 'provider_fees', 'suspense')
+    (account_type in ('receivable', 'provider_clearing', 'provider_fees', 'suspense', 'bank')
        and normal_balance = 'debit')
   );
 
