@@ -56,6 +56,18 @@ export interface SelectBuilder extends PromiseLike<QueryResult> {
    * never true — so a revoked `guardian_link` would have been filtered by nothing at all.
    */
   is(column: string, value: null | boolean): SelectBuilder;
+  /**
+   * `<=`. Added for `fetchPendingPolicies`, which must not gate anyone on a policy version
+   * that is published but whose `effective_from` has not arrived.
+   */
+  lte(column: string, value: unknown): SelectBuilder;
+  /**
+   * Negation of another operator — `not('published_at', 'is', null)` is `IS NOT NULL`.
+   *
+   * `is(column, null)` is the opposite query, and there is no `isNot`. Added for
+   * `fetchPendingPolicies`: an unpublished draft must never gate an order.
+   */
+  not(column: string, operator: string, value: unknown): SelectBuilder;
   order(column: string, options?: { ascending?: boolean }): SelectBuilder;
 }
 

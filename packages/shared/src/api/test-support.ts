@@ -18,6 +18,10 @@ export interface RecordedQuery {
   filters: { column: string; value: unknown }[];
   /** `IS NULL` / `IS NOT NULL` filters, recorded separately because they are a different SQL operator. */
   isFilters: { column: string; value: null | boolean }[];
+  /** `<=` filters. Separate for the same reason: a test asserting a range must see the operator. */
+  lteFilters: { column: string; value: unknown }[];
+  /** Negated filters — `not('published_at', 'is', null)`. The operator is part of the assertion. */
+  notFilters: { column: string; operator: string; value: unknown }[];
   orders: { column: string; ascending: boolean }[];
 }
 
@@ -48,6 +52,8 @@ export function fakeTransport(
             columns,
             filters: [],
             isFilters: [],
+            lteFilters: [],
+            notFilters: [],
             orders: [],
           };
           queries.push(record);
@@ -59,6 +65,14 @@ export function fakeTransport(
             },
             is(column, value) {
               record.isFilters.push({ column, value });
+              return builder;
+            },
+            lte(column, value) {
+              record.lteFilters.push({ column, value });
+              return builder;
+            },
+            not(column, operator, value) {
+              record.notFilters.push({ column, operator, value });
               return builder;
             },
             order(column, options) {

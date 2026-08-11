@@ -922,7 +922,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>BLOCKS <code>E17-04</code> — no store form may be submitted until this is closed.</strong> Finish or disable <code>E20-10</code> (no PII in logs or Sentry). Every &quot;not collected&quot; answer in <code>docs/andy-prep/store-privacy-answers.md</code> assumes it, and answering a store form wrongly is a compliance problem rather than a paperwork one</span>
       </li>
-      <li class="task" data-id="E20-36" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E20-36" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-36"></button>
         <code class="tid">E20-36</code>
         <span class="badge r-critical">critical</span>
@@ -2357,13 +2357,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/29</span>
+          <span class="meter-num">0/30</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 29 tasks</summary>
+        <summary>Context &amp; 30 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -2602,6 +2602,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:high) <strong>Install Xcode or the Android SDK on the build machine so Maestro can run.</strong> <code>E14-24</code>&#39;s flow has still never executed: there is no simulator, no emulator and no Maestro binary on this machine, so the e2e net cannot be proven at all. Ten screens are now shipping behind a test suite that has never run once</span>
+      </li>
+      <li class="task" data-id="E14-33" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-33"></button>
+        <code class="tid">E14-33</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The orphan guard does not notice when a known orphan stops being one.</strong> <code>KNOWN_ORPHANS</code>&#39;s stale-key check asserts the key is still *produced by the scan*, not that the prop is still *unwired* — so an exemption for something since fixed sits there forever, silently exempting a prop that could become an orphan again with nobody told. Found wiring <code>E20-36</code>: deleting the three <code>PolicyGateScreen</code> entries by hand was the only thing that proved the gate now has a caller. Make a fixed orphan fail the guard and name itself</span>
       </li></ul>
       </details>
     </article>

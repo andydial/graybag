@@ -375,10 +375,9 @@ const barrelModules: [string, Source][] = candidates
  * has a screen, a test and a green suite.
  */
 const KNOWN_ORPHANS: Record<string, string> = {
-  // Compliance, and the four that matter most.
-  'prop:PolicyGateScreen.onAccept': 'E20-36 — the policy acceptance gate is never mounted',
-  'prop:PolicyGateScreen.onNotNow': 'E20-36 — same gate',
-  'prop:PolicyGateScreen.accepting': 'E20-36 — same gate',
+  // Compliance. `PolicyGateScreen`'s three props left this list when `E20-36` gave the gate a
+  // caller — `src/policy/` mounts it, and `policy-gate.test.tsx` drives the wire rather than
+  // the screen. Three of the four remain.
   'prop:AccountScreen.onDeleteAccount': 'E20-37 — account deletion has no route',
   'prop:AccountScreen.onPolicy': 'E20-38 — privacy/terms/refund are published but unlinked',
   'prop:AccountScreen.onSupport': 'E20-39 — support route unwired',
@@ -650,6 +649,7 @@ describe('nothing is half-wired', () => {
     // Deliberately visible in a diff. It went 0 -> 21 the day the scan learned to see optional
     // props and barrel exports; every one of those was already broken and nothing said so.
     // (The scan's own stale-key check caught a 21st entry that contradicted SEAM_PROPS.)
-    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(20);
+    // 20 -> 17: `E20-36` wired the policy gate, so its three props are no longer orphans.
+    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(17);
   });
 });

@@ -49,6 +49,16 @@ export type RootStackParamList = {
    * rather than dumping them on Home having forgotten why they signed in.
    */
   SignIn: { intent?: 'checkout' | 'orders' | 'account' } | undefined;
+  /**
+   * The policy-version acceptance gate (`E20-36`, `E20-03`, ux-spec §5.19).
+   *
+   * No params: the version comes from `PolicyGateContext`, so the cart and this screen read
+   * one answer rather than two copies that can disagree after an acceptance.
+   *
+   * Reached only from a **write** attempt — Place order — never on open. It blocks ordering,
+   * not browsing (`AR7`), which is why "Not now" simply returns you to the cart.
+   */
+  PolicyGate: undefined;
 };
 
 /**

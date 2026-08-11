@@ -100,3 +100,15 @@ export {
   type SchoolChangeResult,
 } from './recipients.js';
 
+
+// The policy-version acceptance gate (`E20-36`, `E20-03`). The read is a PostgREST query
+// under RLS; the acceptance is a write and so goes through the `policy` Edge Function, which
+// owns `source` and the evidence columns — evidence a client can author is not evidence.
+export {
+  POLICY_VERSION_COLUMNS,
+  PolicyPayloadError,
+  acceptPolicyVersion,
+  compareVersions,
+  fetchPendingPolicies,
+  type PendingPolicy,
+} from './policy.js';

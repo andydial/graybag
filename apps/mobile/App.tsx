@@ -6,6 +6,7 @@ import { configureApiFromEnvironment, missingClientEnvNames } from './src/env/co
 import { guardFromEnvironment } from './src/env/guard';
 import { installMenuCache } from './src/menu/installMenuCache';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { PolicyGateProvider } from './src/policy/PolicyGateContext';
 import { CantConnectScreen } from './src/status/CantConnectScreen';
 import { ConnectivityProvider } from './src/net/ConnectivityContext';
 import { OrderTargetProvider } from './src/session/OrderTargetContext';
@@ -104,7 +105,19 @@ export default function App() {
           <OrderTargetProvider>
             <SchoolFollowsRecipient>
               <CartProvider>
-                <RootNavigator />
+                {/*
+                  The policy-version acceptance gate (`E20-36`). Above the navigator because
+                  the cart decides whether to open it and the gate screen renders it — two
+                  screens that must agree on one answer, which is what `OrderTargetProvider`
+                  above did not have and why it silently read its own default for weeks.
+
+                  Inside the session provider, because it reads `useAudience`: a visitor has
+                  no user id and so can have nothing pending, and it must not fire a request
+                  in front of the menu for someone who has not signed in (`AR7`).
+                */}
+                <PolicyGateProvider>
+                  <RootNavigator />
+                </PolicyGateProvider>
               </CartProvider>
             </SchoolFollowsRecipient>
           </OrderTargetProvider>

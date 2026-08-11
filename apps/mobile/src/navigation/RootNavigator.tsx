@@ -32,6 +32,8 @@ import {
 import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
+import { PolicyGateContainer } from '../policy/PolicyGateContainer';
+import { usePolicyGate, useNextPendingPolicy } from '../policy/PolicyGateContext';
 import { useAudience } from '../session/audience';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 import { useCachedMenu } from '../menu/useCachedMenu';
@@ -189,6 +191,15 @@ function CartTabScreen() {
    * checkout is `E06`, so the button stays inert rather than routing somewhere that would
    * look finished.
    */
+  /**
+   * The policy gate, read here rather than inside the handler — `E20-36`.
+   *
+   * It is checked **after** sign-in and recipient, because those two are prerequisites for
+   * having an acceptance at all: a visitor has no user id, so there is nothing to be pending.
+   * And it is checked **before** checkout, because that is the write it exists to block.
+   */
+  const nextPolicy = useNextPendingPolicy();
+
   const placeOrder = () => {
     switch (audience.kind) {
       case 'unknown':
@@ -202,6 +213,14 @@ function CartTabScreen() {
         navigation.navigate('AddChild');
         return;
       case 'ordering':
+        // The gate: one of the six compliance controls, and until `E20-36` it had no caller
+        // anywhere in the app. It sits here — on the write, not on open — because `AR7`
+        // forbids a wall in front of browsing, and because this is the point the acceptance
+        // requirement actually attaches to (`user_policy_acceptance`, `E20-03`).
+        if (nextPolicy !== null) {
+          navigation.navigate('PolicyGate');
+          return;
+        }
         // Nowhere to go yet: checkout is `E06`. Inert beats routing somewhere that would look
         // finished.
         return;
@@ -225,6 +244,25 @@ const ChildrenStackScreen = withScreenFrame(ChildrenScreen, STACK_SCREEN_EDGES, 
 // difference between a heading and a heading under the clock. Erring toward the whitespace
 // is the cheap mistake — this is the screen a parent reaches mid-checkout.
 const SignInStackScreen = withScreenFrame(SignInScreen, STACK_SCREEN_EDGES, { back: true });
+
+/**
+ * The policy gate (`E20-36`). Reads the version from the context the cart read it from, so
+ * accepting it removes it from both at once.
+ *
+ * **`back: true` even though the screen draws its own "Not now — keep browsing".** The two do
+ * the same thing, and the redundancy is the cheaper mistake: `reachability.test.ts` cannot see
+ * a button inside a screen, and teaching it to would open the exemption every future
+ * unreachable screen needs — "there is a button in there somewhere" is exactly the reasoning
+ * that let sign-in ship behind a wall. A duplicated exit costs a chevron.
+ */
+function PolicyGateRoute() {
+  const version = useNextPendingPolicy();
+  const { clear } = usePolicyGate();
+  return <PolicyGateContainer version={version} onAccepted={clear} />;
+}
+const PolicyGateStackScreen = withScreenFrame(PolicyGateRoute, STACK_SCREEN_EDGES, {
+  back: true,
+});
 
 function Tabs() {
   // The navigator itself reads the cart, which it did not before. The badge alone cannot
@@ -357,6 +395,14 @@ export function RootNavigator() {
         <Stack.Screen
           name="SignIn"
           component={SignInStackScreen}
+          options={{ presentation: 'modal' }}
+        />
+        {/* Modal for the same reason `SignIn` is: it interrupts placing an order and then
+            returns you to it. A push would put it in the back stack as a destination, and
+            "Not now" would read as going back rather than resuming. */}
+        <Stack.Screen
+          name="PolicyGate"
+          component={PolicyGateStackScreen}
           options={{ presentation: 'modal' }}
         />
       </Stack.Navigator>
