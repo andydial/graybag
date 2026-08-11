@@ -19,7 +19,7 @@ import {
   SectionHeading,
   Skeleton,
 } from '../components';
-import { DishImage, IMAGE_SIZES } from '../components/DishImage';
+import { DishImage, HERO_ASPECT, IMAGE_SIZES } from '../components/DishImage';
 
 const {
   bg,
@@ -123,7 +123,6 @@ export interface HomeScreenProps {
 const AX_FONT_SCALE = 1.35;
 
 /** The promoted dish's photograph. Wide, because it is the one image on the screen with room. */
-const HERO_ASPECT = 16 / 9;
 
 /** Skeleton geometry, from tokens, so the boxes match what lands in them (`S5`). */
 const DELIVER_SKELETON_HEIGHT = space[16] * 2;

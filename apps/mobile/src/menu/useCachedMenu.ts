@@ -43,6 +43,14 @@ export interface CachedDish {
    * this is the first and sometimes only question.
    */
   foodType: 'veg' | 'non_veg' | 'egg' | null;
+  /**
+   * The calorie figure as written — "310-340" — or `null` for most dishes (`0028`).
+   *
+   * Cached with the dish rather than fetched per sheet: it comes from the same projection, and
+   * a second round trip on this audience's connection to render one line would be the slowest
+   * thing on the screen.
+   */
+  caloriesText: string | null;
   ingredientsText: string | null;
   pricePaise: number;
   imageUri: string | null;

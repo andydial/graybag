@@ -293,8 +293,13 @@ export const OrdersScreen = () => {
  * connection would be the slowest thing on the screen (`E04-10`, `MC3`).
  */
 export const DishDetailScreen = () => {
-  // No `useNavigation` here any more: this screen never routes anywhere. It used to send
-  // people to AddChild before they could add to the cart, which was the wall (`E05-32`).
+  /**
+   * `useNavigation` is back, for one reason only: **adding dismisses** (Andy, 2026-08-11 item
+   * 8). It is not the old routing that made this screen a wall — that sent people to AddChild
+   * *before* they could add to the cart (`E05-32`), and it stays gone. This fires only after a
+   * line has been added, and it goes back rather than forward.
+   */
+  const navigation = useNavigation();
   const { params } = useRoute<RouteProp<RootStackParamList, 'DishDetail'>>();
   const { schoolId } = useSelectedSchool();
   // Through the audience, so the target is `null` for anyone without a session — a dish sheet
@@ -306,6 +311,10 @@ export const DishDetailScreen = () => {
       dishId={params.dishId}
       schoolId={schoolId}
       target={target}
+      // The cart badge is the confirmation (`M06`, `S4`) — adding confirms itself somewhere
+      // other than where the parent is looking, which is the whole reason it is the one spring
+      // in the product. Staying on a finished sheet made the next dish cost a back tap.
+      onAdded={() => navigation.goBack()}
       // `null` is the ordinary state today: nothing can name a child yet (`E05-16`), so the
       // one honest thing to offer is the screen that creates one.
     />

@@ -125,3 +125,13 @@ const styles = StyleSheet.create({
  * what keeps the rendered set at three. A fourth size is a pipeline change, not a prop.
  */
 export const IMAGE_SIZES = { thumb: 96, card: 160, hero: 640 } as const;
+
+/**
+ * The hero band's proportion, shared by Home's promoted dish and the dish sheet.
+ *
+ * It lives here, beside `IMAGE_SIZES`, because the two screens had **different** values — Home
+ * 16:9, the sheet 16:10 — and nobody chose that. The sheet's image dominated as a result
+ * (Andy, 2026-08-11): Home shows the same dish larger overall and reads better, because the
+ * proportion is right rather than the size being small. One constant so they cannot drift again.
+ */
+export const HERO_ASPECT = 16 / 9;

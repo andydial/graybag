@@ -11,6 +11,7 @@ import {
   type DishDetailTarget,
 } from './DishDetailScreen';
 import { setMenuCache, type CachedMenuPayload } from './useCachedMenu';
+import { HERO_ASPECT } from '../components/DishImage';
 
 // `render` is async on RNTL v14 — see docs/learnings.md 2026-08-09.
 
@@ -31,6 +32,9 @@ const PAYLOAD: CachedMenuPayload = {
       description: 'Chilled, with milk',
       categoryId: 'drinks',
       foodType: 'veg',
+      // A range, exactly as the legacy source writes it — Cold Coffee is one of the dishes
+      // `catalogue.sql` records as having two conflicting figures.
+      caloriesText: '310-340',
       ingredientsText: 'milk, coffee, sugar',
       pricePaise: 7_550,
       imageUri: 'https://example.test/cold-coffee.jpg',
@@ -45,6 +49,7 @@ const PAYLOAD: CachedMenuPayload = {
       description: null,
       categoryId: 'drinks',
       foodType: 'non_veg',
+      caloriesText: null,
       ingredientsText: null,
       pricePaise: 6_000,
       imageUri: null,
@@ -58,6 +63,7 @@ const PAYLOAD: CachedMenuPayload = {
       description: null,
       categoryId: 'drinks',
       foodType: 'veg',
+      caloriesText: null,
       ingredientsText: 'seasonal fruit',
       pricePaise: 5_500,
       imageUri: null,
@@ -277,12 +283,20 @@ describe('DishDetailScreen', () => {
       setMenuCache(fakeCache());
       await renderDish('d2', { target: NO_ALLERGIES });
 
-      await waitFor(() =>
-        expect(screen.getByText('Allergen information not provided')).toBeOnTheScreen(),
-      );
-      expect(screen.getByTestId('screen-dish-detail-allergens-not-provided')).toHaveTextContent(
-        /not the same as/,
-      );
+      /**
+       * **The heading is gone and the substance is not** (Andy, 2026-08-11 item 5). This was a
+       * bordered card the size of a warning, drawn on the majority of dishes because most of
+       * the catalogue has no declaration either way — and a block that is always big teaches
+       * people to skip the one that matters.
+       *
+       * So the assertion moved from the heading to the sentence that carries the risk. What
+       * must never be lost is "not the same as no allergens": that inference is the dangerous
+       * one, and it is asserted here and below.
+       */
+      const notice = await screen.findByTestId('screen-dish-detail-allergens-not-provided');
+      expect(notice).toHaveTextContent(/Allergen information not provided/);
+      expect(notice).toHaveTextContent(/not the same as/);
+      expect(notice).toHaveTextContent(/Ask before ordering/);
       // No reassurance is available for this dish, and there must be none on screen.
       expect(screen.queryByTestId('screen-dish-detail-allergens-none')).toBeNull();
       expect(screen.queryByText('No allergens')).toBeNull();
@@ -422,10 +436,16 @@ describe('DishDetailScreen', () => {
     it('signed out, says nobody is chosen and that adding still works', async () => {
       setMenuCache(fakeCache());
       await renderDish('d3');
-      await waitFor(() => expect(screen.getByText('Nobody chosen yet')).toBeOnTheScreen());
-      expect(screen.getByTestId('screen-dish-detail-for-none')).toHaveTextContent(
-        /Adding to your cart works without this/,
-      );
+      /**
+       * **A line, not a card** (Andy, 2026-08-11 item 6). With no recipient this was the
+       * biggest element on the screen and carried the least — a heading, a school, a date and
+       * no person. The heading "Nobody chosen yet" went with the card.
+       *
+       * What survives is the only thing it needed to say: adding works anyway. `AR7` — the
+       * recipient is chosen at the gate, and this must never read as a prerequisite.
+       */
+      const none = await screen.findByTestId('screen-dish-detail-for-none');
+      expect(none).toHaveTextContent(/choose who this is for when you place the order/i);
     });
 
     it('offers the switcher only when there is somewhere to switch', async () => {
@@ -733,7 +753,9 @@ describe('DishDetailScreen', () => {
       setMenuCache(fakeCache());
       await renderDish('d2', { target: TARGET });
       await waitFor(() =>
-        expect(screen.getByText('Allergen information not provided')).toBeOnTheScreen(),
+        expect(
+          screen.getByTestId('screen-dish-detail-allergens-not-provided'),
+        ).toHaveTextContent(/Allergen information not provided/),
       );
 
       await userEvent.setup().press(screen.getByTestId('screen-dish-detail-add-button'));
@@ -817,5 +839,81 @@ describe('the kitchen note', () => {
     // A field that cannot be acted on is furniture.
     await renderDish('d1', { ordering: { closed: true } });
     expect(screen.queryByLabelText('Note for the kitchen')).toBeNull();
+  });
+});
+
+/**
+ * The dish-sheet pass — Andy's items 4–8 of 2026-08-11, on "the screen I look at most and the
+ * worst laid out". Grouped because they were one change: the sheet's problem was that
+ * everything on it was the same weight, so nothing had any.
+ */
+describe('the dish sheet, laid out', () => {
+  beforeEach(() => setMenuCache(fakeCache()));
+
+  it('uses the same hero proportion as Home', async () => {
+    // Item 4. They were 16:9 and 16:10 and nobody chose that; the sheet's image dominated as a
+    // result. One shared constant, so they cannot drift again.
+    expect(HERO_ASPECT).toBe(16 / 9);
+  });
+
+  it('shows calories as the source wrote them', async () => {
+    // Item 7. A range, not a number: `catalogue.sql` refused to pick a point inside one, and a
+    // number here would give a parent a precision the data does not have.
+    await renderDish('d1');
+    expect(await screen.findByTestId('screen-dish-detail-calories')).toHaveTextContent(
+      '310-340 kcal',
+    );
+  });
+
+  it('draws no calorie line for a dish with no figure', async () => {
+    // The ordinary case for most of the catalogue. "Unknown" would be noise on every card.
+    await renderDish('d2');
+    await screen.findByTestId('screen-dish-detail-add-button');
+    expect(screen.queryByTestId('screen-dish-detail-calories')).toBeNull();
+  });
+
+  it('dismisses back to the menu once the dish is added', async () => {
+    // Item 8. The cart badge is the confirmation — adding confirms itself somewhere other than
+    // where the parent is looking, which is why it is the one spring in the product.
+    const user = userEvent.setup();
+    const onAdded = jest.fn();
+    await render(
+      <SafeAreaProvider initialMetrics={METRICS}>
+        <CartProvider>
+          <CartProbe />
+          <DishDetailScreen dishId="d1" schoolId={SCHOOL} target={null} onAdded={onAdded} />
+        </CartProvider>
+      </SafeAreaProvider>,
+    );
+
+    await user.press(await screen.findByTestId('screen-dish-detail-add-button'));
+
+    expect(seenCart?.lines).toHaveLength(1);
+    expect(onAdded).toHaveBeenCalled();
+  });
+
+  it('does not dismiss when a declared allergen blocks the add', async () => {
+    // The confirmation is the point of `D7`. Dismissing here would take the parent away from
+    // the question before they had answered it.
+    const user = userEvent.setup();
+    const onAdded = jest.fn();
+    await render(
+      <SafeAreaProvider initialMetrics={METRICS}>
+        <CartProvider>
+          <CartProbe />
+          <DishDetailScreen
+            dishId="d1"
+            schoolId={SCHOOL}
+            target={TARGET}
+            onAdded={onAdded}
+          />
+        </CartProvider>
+      </SafeAreaProvider>,
+    );
+
+    await user.press(await screen.findByTestId('screen-dish-detail-add-button'));
+
+    expect(seenCart?.lines).toHaveLength(0);
+    expect(onAdded).not.toHaveBeenCalled();
   });
 });

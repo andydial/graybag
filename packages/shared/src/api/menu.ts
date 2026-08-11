@@ -61,6 +61,16 @@ export interface ApiDish {
    * Guessing vegetarian would be the worst possible default to get wrong.
    */
   foodType: 'veg' | 'non_veg' | 'egg' | null;
+  /**
+   * The calorie figure **as the source wrote it** — "310-340", "160" — or `null`, which is the
+   * ordinary case for most dishes (`0028`).
+   *
+   * Text rather than a number on purpose. The legacy source gives ranges, and `catalogue.sql`
+   * left the integer `calories_kcal` null rather than pick a point inside one: six dish rows
+   * were merged and four carried conflicting figures, Cold Coffee's differing by more than
+   * twofold. A number here would give a parent a precision the data does not have.
+   */
+  caloriesText: string | null;
   ingredientsText: string | null;
   pricePaise: number;
   imageUri: string | null;
@@ -129,6 +139,10 @@ function assertDish(value: unknown, index: number): ApiDish {
       value.foodType === 'veg' || value.foodType === 'non_veg' || value.foodType === 'egg'
         ? value.foodType
         : null,
+    caloriesText:
+      typeof value.caloriesText === 'string' && value.caloriesText.trim() !== ''
+        ? value.caloriesText.trim()
+        : null,
     ingredientsText: typeof value.ingredientsText === 'string' ? value.ingredientsText : null,
     pricePaise,
     imageUri: typeof value.imageUri === 'string' ? value.imageUri : null,
@@ -168,6 +182,7 @@ interface MenuRow {
   dish_id: unknown;
   menu_item_id: unknown;
   food_type: unknown;
+  calories_text: unknown;
   name: unknown;
   description: unknown;
   ingredients_text: unknown;
@@ -198,6 +213,7 @@ export async function fetchMenu(schoolId: string): Promise<ApiMenuPayload> {
         id: row.dish_id,
         menuItemId: row.menu_item_id,
         foodType: row.food_type,
+        caloriesText: row.calories_text,
         name: row.name,
         description: row.description,
         categoryId: row.category_id,

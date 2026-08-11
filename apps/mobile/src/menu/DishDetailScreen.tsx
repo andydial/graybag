@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { design, menu as menuDomain, money } from '@graybag/shared';
 
 import {
@@ -12,7 +12,7 @@ import {
   Sheet,
   Skeleton,
 } from '../components';
-import { DishImage, IMAGE_SIZES } from '../components/DishImage';
+import { DishImage, HERO_ASPECT, IMAGE_SIZES } from '../components/DishImage';
 import { useCart } from '../cart/CartContext';
 import { KitchenNoteField } from '../cart/KitchenNote';
 // The one formatter for a service date (`R7`: full weekday and month, parsed and formatted in
@@ -22,7 +22,7 @@ import { formatServiceDate } from '../cart/CartScreen';
 import type { OrderTarget } from '../session/OrderTargetContext';
 import { useCachedMenu, type CachedDish } from './useCachedMenu';
 
-const { bg, text, border, borderWidth, scale, space, layout, radius } = design;
+const { bg, border, borderWidth, layout, radius, scale, space, text, touchTarget } = design;
 
 /**
  * Who the lunch is for, as this screen has to **say** it.
@@ -96,6 +96,7 @@ export function DishDetailScreen({
   ordering = null,
   onChangeTarget,
   onBackToMenu,
+  onAdded,
   testID = 'screen-dish-detail',
 }: {
   dishId: string;
@@ -108,6 +109,11 @@ export function DishDetailScreen({
   onChangeTarget?: () => void;
   /** Offered when the dish has left the menu. Without it the state still explains itself. */
   onBackToMenu?: () => void;
+  /**
+   * Called after a line is added — `E21`, Andy's item 8. The caller dismisses the sheet; the
+   * cart badge is the confirmation. Optional, so the screen still renders where nothing routes.
+   */
+  onAdded?: () => void;
   /**
    * REMOVED with `E05-32`. There is no longer anywhere for this screen to send someone before
    * they can add: adding always works, and who the order is for is chosen at the gate. The prop
@@ -195,6 +201,19 @@ export function DishDetailScreen({
             </Text>
           ) : null}
 
+          {/*
+            Calories — Andy, 2026-08-11 item 7. Parents in this market look for them.
+
+            Rendered **as written**, because the source gives ranges and `catalogue.sql`
+            refused to invent a point inside one. Most dishes have no figure and draw nothing;
+            that is the ordinary case, not a gap to fill with "unknown".
+          */}
+          {dish.caloriesText !== null ? (
+            <Text style={styles.calories} testID={`${testID}-calories`}>
+              {`${dish.caloriesText} kcal`}
+            </Text>
+          ) : null}
+
           {dish.ingredientsText !== null ? (
             <View style={styles.section} testID={`${testID}-ingredients`}>
               <Text style={styles.sectionTitle} accessibilityRole="header">
@@ -234,7 +253,13 @@ export function DishDetailScreen({
       </ScrollView>
 
       {/* `onNeedsTarget` is no longer passed: adding never routes away (`E05-32`). */}
-      <AddToCart dish={dish} target={target} closed={closed} testID={`${testID}-add`} />
+      <AddToCart
+        dish={dish}
+        target={target}
+        closed={closed}
+        {...(onAdded === undefined ? {} : { onAdded })}
+        testID={`${testID}-add`}
+      />
     </View>
   );
 }
@@ -261,11 +286,14 @@ function AddToCart({
   dish,
   target,
   closed,
+  onAdded,
   testID,
 }: {
   dish: CachedDish;
   target: DishDetailTarget | null;
   closed: boolean;
+  /** Dismiss back to the menu. Optional so the sheet still works where nothing routes. */
+  onAdded?: (() => void) | undefined;
   testID: string;
 }) {
   const { add } = useCart();
@@ -297,7 +325,17 @@ function AddToCart({
     });
     setAdded(true);
     setConflict(null);
-  }, [add, dish, target, note]);
+    /**
+     * **Back to the menu** — Andy, 2026-08-11 item 8. Adding used to leave a parent on the
+     * sheet they had finished with, so the next dish took a back tap they had to think about.
+     *
+     * The badge on the Cart tab is the confirmation (`M06`, `S4`) — it is the whole reason the
+     * badge is the one spring in the product: adding confirms itself somewhere other than
+     * where the user is looking. The inline "Added to your cart" line stays for the case where
+     * nothing routes, and for a screen reader, which does not see a tab badge move.
+     */
+    onAdded?.();
+  }, [add, dish, target, note, onAdded]);
 
   /**
    * `D7` / `E05-05`, and the reason this screen exists in the shape it does.
@@ -580,14 +618,22 @@ export function AllergenBlock({
     );
   }
 
+  /**
+   * **Quiet** — Andy, 2026-08-11 item 5.
+   *
+   * This was a bordered card the size of a warning, drawn on the majority of dishes, because
+   * most of the catalogue has no declaration either way. A block that is always big teaches
+   * people to skip it, and the one it needs them to read is the actual warning further up.
+   *
+   * So the large treatment is reserved for something to warn about, and "nobody has told us"
+   * is one line. The words are unchanged — it still says explicitly that this is not the same
+   * as "no allergens", because that inference is the dangerous one.
+   */
   return (
-    <View style={styles.neutralNotice} testID={testID}>
-      <Text style={styles.noticeTitle} accessibilityRole="header">
-        Allergen information not provided
-      </Text>
-      <Text style={styles.noticeBody} testID={`${testID}-not-provided`}>
-        The kitchen hasn&rsquo;t told us about this dish either way. That is not the same as
-        &ldquo;no allergens&rdquo; — ask before ordering it for someone with an allergy.
+    <View testID={testID}>
+      <Text style={styles.quietNotice} testID={`${testID}-not-provided`}>
+        Allergen information not provided — that is not the same as &ldquo;no allergens&rdquo;.
+        Ask before ordering for someone with an allergy.
       </Text>
     </View>
   );
@@ -629,6 +675,28 @@ export function ForBlock({
     target === null
       ? []
       : [target.breakLabel, formatServiceDate(target.serviceDate)].filter(isText);
+
+  /**
+   * **A line, not a card, until it can name someone** — Andy, 2026-08-11 item 6.
+   *
+   * With no recipient this was the biggest element on the screen and carried the least: a
+   * heading, a school, a date, and no person. The card earns its weight once there is a name
+   * in it; before that it is one sentence explaining that adding works anyway.
+   */
+  if (target === null) {
+    return (
+      <View style={styles.forLine} testID={testID}>
+        <Text style={styles.forMeta} testID={`${testID}-none`}>
+          You&rsquo;ll choose who this is for when you place the order.
+        </Text>
+        {onChange === undefined ? null : (
+          <Pressable onPress={onChange} accessibilityRole="button" testID={`${testID}-change`}>
+            <Text style={styles.forChange}>Choose</Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  }
 
   return (
     <Card {...(testID === undefined ? {} : { testID })}>
@@ -868,7 +936,16 @@ const styles = StyleSheet.create({
    * its bottom third missing.
    */
   hero: {
-    aspectRatio: 16 / 10,
+    /**
+     * **16:9, matching Home** (Andy, 2026-08-11 item 4). It was 16:10, which is taller for the
+     * same width, and on the screen he looks at most the photograph stopped being useful and
+     * started being the screen. Home shows the same dish *larger overall* and reads better,
+     * because the proportion is right rather than the size being small.
+     *
+     * The constant is shared with `HomeScreen` rather than copied, so the two cannot drift
+     * apart again — which is how they came to differ in the first place.
+     */
+    aspectRatio: HERO_ASPECT,
     marginHorizontal: layout.gutter,
     marginTop: layout.gutter,
     borderRadius: radius.lg,
@@ -957,6 +1034,20 @@ const styles = StyleSheet.create({
    * knowledge — so they look the same and neither looks like a warning or a reassurance.
    * `border.default` is decorative weight, which is all this is: the block is not a control.
    */
+  quietNotice: {
+    color: text.secondary,
+    fontSize: scale.caption.size,
+    lineHeight: scale.caption.lineHeight ?? undefined,
+  },
+  calories: { color: text.secondary, fontSize: scale.caption.size },
+  forLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: space[3],
+    minHeight: touchTarget.min,
+  },
+  forChange: { color: text.link, fontSize: scale.label.size, fontWeight: scale.label.weight },
   neutralNotice: {
     backgroundColor: bg.surfaceMuted,
     borderWidth: borderWidth.hairline,
