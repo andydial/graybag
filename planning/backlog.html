@@ -2461,13 +2461,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/32</span>
+          <span class="meter-num">0/33</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 32 tasks</summary>
+        <summary>Context &amp; 33 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -2730,6 +2730,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A guard for the dead-navigation class.</strong> <code>reachability.test.ts</code> proves every route has a <code>navigate(&#39;X&#39;)</code> somewhere; it cannot see that <code>navigate(&#39;Tabs&#39;)</code> from inside <code>Tabs</code> moves nobody. Five buttons were dead for weeks with a green reachability suite. Assert that a tab route is only ever navigated to with a <code>screen</code> param, or find the general form</span>
+      </li>
+      <li class="task" data-id="E14-31" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-31"></button>
+        <code class="tid">E14-31</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Add <code>/Volumes/Data</code> to Docker Desktop&#39;s file sharing</strong> (Settings → Resources → File Sharing). Without it <code>supabase test db</code> bind-mounts <code>supabase/tests</code> as an empty directory and pg_prove runs zero files while exiting 0 — <code>npm run test:all</code> was green on nothing until 2026-08-11. <code>scripts/test-db.sh</code> no longer depends on that mount (it runs the suite through <code>psql</code> over TCP), so this is not blocking anything; it is worth doing so <code>npx supabase test db</code> behaves as documented when reached for directly</span>
       </li></ul>
       </details>
     </article>

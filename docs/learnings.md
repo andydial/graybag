@@ -1972,3 +1972,34 @@ four-dish fixture set, and each stopped the seed dead:
 knows. Every seed-written path 404'd. Two writers for one relationship — the same shape as the two
 sources of truth for the session (`E03-26`). The uploader owns it; the seed no longer writes
 assets at all.
+
+## `npm run test:db` passed while running zero assertions — 2026-08-11
+
+`npm run test:all` was green. The database suite inside it printed
+`Files=0, Tests=0, Result: NOTESTS` and `supabase test db` **exited 0**. Default-deny
+authorization, consent atomicity, the ledger invariants and recipient erasure were all
+reporting success on nothing.
+
+**The cause is not in the repository.** `supabase test db` bind-mounts `supabase/tests` into a
+container and runs `pg_prove` inside it. This checkout lives under `/Volumes/Data`, which is not
+on Docker Desktop's file-sharing list, so the mount is empty. Reproduced in one line:
+
+```bash
+docker run --rm -v "$PWD/supabase/tests:/t" alpine ls /t   # → nothing
+```
+
+`supabase db reset` works regardless, which is what makes it convincing: migrations apply,
+seeds load, everything scrolls past looking healthy, and only the tests are missing.
+
+**Two fixes, and the second is the one that matters.** Adding `/Volumes/Data` under Docker
+Desktop → Settings → Resources → File Sharing repairs the mount (`E14-31`, Andy's machine).
+But `scripts/test-db.sh` now runs each file through `psql` over TCP instead, so the host
+filesystem never has to cross into a container at all — fewer moving parts, and it is how every
+suite in this repo was actually being verified by hand anyway.
+
+**The general lesson, which this project has now learned three times:** a tool that reports
+success having done nothing is worse than one that fails. `E02-24` was the same shape — a
+colliding fixture id killed the first insert and `authorization.test.sql` silently contributed
+zero assertions — and the guard written then lived only in CI. The floor guard is now in the
+local script too, because `CLAUDE.md` sends a human to `npm run test:all` at the end of every
+block, and that was the one place with nothing under it.

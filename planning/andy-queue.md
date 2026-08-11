@@ -18,16 +18,15 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
-## Open — 4 items
+## Open — 1 item
 
 | # | Ask | Asked | Status |
 |---|---|---|---|
-| 1 | **Kitchen note moves into the dish sheet**, with a compact tap-to-edit line in the cart | 2026-08-11 | Queued |
-| 2 | **Dish-sheet pass — one change, items 4–8:** image aspect ratio to match Home; allergen block quiet when there is nothing to say; shrink or drop "For the person you've chosen"; show calories; add-to-cart dismisses back to the menu | 2026-08-11 | Queued |
-| 2 | **`E05-38` — self-ordering.** "Order for myself" as a first-class entry in Who-to-order-for, and Add-recipient asking who it is for before anything else | 2026-08-11 | Queued. **Bumped four times** — protected by the no-new-work rule from here |
-| 2 | **`P18` name capture (`E05-39`, `E05-41`).** The account holder's own name on Order Confirmed, one optional field with a clear skip, plus an audit of every surface that shows a name for the no-name case | earlier session | Queued |
-| 3 | **Cart to prototype** | 2026-08-10 | Queued |
-| 4 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine) |
+| 1 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine) |
+
+**The queue is otherwise empty.** Everything else Andy has asked for directly is done and
+pushed. Next up by his instruction: `E06` payments, starting with the `docs/e06-build-plan.md`
+delta report — not with code.
 
 ---
 
@@ -37,6 +36,10 @@ Kept so the queue shows movement rather than only what is left. Newest first.
 
 | Ask | Asked | Done |
 |---|---|---|
+| **Cart to prototype** | 2026-08-10 | Compared element by element. Five states were built, tested and never wired — allergen warnings on every line, the offline band, the signed-out reassurance, Change, and the empty cart's only exit. `E05-45`; three real gaps filed as `E05-46`/`47`/`48` |
+| **`P18` name capture (`E05-39`, `E05-41`)** | earlier session | Asked once on Order Confirmed, skippable, recorded server-side so it is never asked twice; settable from Account. The audit found nothing broken today and one landmine — `invoice.buyer_name_snapshot` is NOT NULL (`E07-22`) |
+| **`E05-38` — self-ordering** | 2026-08-11 | "Order for myself" is first-class on Who you order for, and Add-someone asks who it is for before it shows a form. Bumped four times; done |
+| **Gem and Paragon on Amity's break windows** | 2026-08-11 | `0029`, provisional and marked so in the data. Both schools open |
 | **Dish-sheet pass (items 4–8)** | 2026-08-11 | Hero matches Home, allergen block quiet, For-block a line, calories shown, adding dismisses |
 | **Kitchen note into the dish sheet** | 2026-08-11 | Full field on the sheet, compact tap-to-edit line in the cart |
 | **Break-time selection at checkout** | 2026-08-11 | Built. Amity can order; Gem and Paragon are closed and say so. "Confirmed with the kitchen" deleted from every surface |
