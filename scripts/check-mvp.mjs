@@ -108,10 +108,24 @@ export function readBacklog(dir) {
   return tasks;
 }
 
-/** The three ways the two sides can disagree. Each names both sides, because either may be wrong. */
+/**
+ * The four ways this can be wrong. Each names both sides, because either may be wrong.
+ *
+ * **`duplicated` is here because its absence hid a real bug.** Two different tasks both carried
+ * `E09-11`, and every lookup in this file keyed tasks by id — so the second silently replaced the
+ * first, the genuinely-MVP task looked untagged, and the "fix" was to tag the wrong task. An id
+ * collision makes every other check in here unsound, which is why it is reported first and why
+ * ids being permanent is not the same as ids being unique unless something checks.
+ */
 export function findDisagreements(tasks, mvp) {
   const byId = new Map(tasks.map((t) => [t.id, t]));
+
+  const counts = new Map();
+  for (const t of tasks) counts.set(t.id, [...(counts.get(t.id) ?? []), t]);
+  const duplicated = [...counts.values()].filter((group) => group.length > 1);
+
   return {
+    duplicated,
     taggedNotListed: tasks.filter((t) => t.isMvp && !mvp.has(t.id)),
     listedNotTagged: [...mvp].filter((id) => byId.has(id) && !byId.get(id).isMvp).map((id) => byId.get(id)),
     listedNotFound: [...mvp].filter((id) => !byId.has(id)),
@@ -122,8 +136,8 @@ export function findDisagreements(tasks, mvp) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const tasks = readBacklog(SRC);
-  const { taggedNotListed, listedNotTagged, listedNotFound } = findDisagreements(tasks, MVP);
-  const total = taggedNotListed.length + listedNotTagged.length + listedNotFound.length;
+  const { duplicated, taggedNotListed, listedNotTagged, listedNotFound } = findDisagreements(tasks, MVP);
+  const total = duplicated.length + taggedNotListed.length + listedNotTagged.length + listedNotFound.length;
 
   if (total === 0) {
     console.log(`check-mvp: ${MVP.size} ids in the list, ${tasks.length} tasks in the backlog, no disagreements.`);
@@ -131,6 +145,16 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
 
   console.error(`check-mvp: ${total} disagreement(s) between scripts/check-mvp.mjs and planning/backlog/.\n`);
+
+  if (duplicated.length) {
+    console.error(`  The same id used by more than one task — ${duplicated.length}:`);
+    for (const group of duplicated) {
+      console.error(`    ${group[0].id}`);
+      for (const t of group) console.error(`      ${t.file}:${t.line}  ${t.description.slice(0, 60)}`);
+    }
+    console.error('    Ids are permanent, so the LATER task takes a new one. Every other check');
+    console.error('    here keys by id and is unsound until this is resolved.\n');
+  }
 
   if (taggedNotListed.length) {
     console.error(`  Tagged (mvp) in the markdown but NOT in the include list — ${taggedNotListed.length}:`);
