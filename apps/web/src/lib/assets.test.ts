@@ -53,18 +53,32 @@ describe('the committed image budget', () => {
 });
 
 describe('the dish photographs', () => {
-  it('carries five range dishes and no catalogue', () => {
+  it('shows range, never a catalogue', () => {
     // Was 28 tiles of the whole catalogue. That argued *inventory*, which is misleading — menus
     // rotate and each school gets its own — and it was a grid somebody would have had to
-    // maintain forever. Five categories show range without implying a fixed list.
+    // maintain forever. The number is asserted as a ceiling rather than an exact count so the
+    // hero can borrow a tile without a test edit, but it can never quietly become a catalogue
+    // again.
     expect(manifest.absent).toEqual([]);
-    expect(manifest.range).toHaveLength(5);
+    expect(manifest.range.length).toBeLessThanOrEqual(8);
   });
 
-  it('covers a breakfast, a main, a wrap, a salad and a bake', () => {
-    expect(manifest.range.map((d) => d.category).sort()).toEqual([
-      'bakery', 'breakfast', 'mains', 'salads', 'wraps',
-    ]);
+  it('covers the five categories the food section renders', () => {
+    // `FOOD.categories` drives that section and looks each one up here, so a missing category
+    // is a missing card. The page throws at build time if one is absent; this says which.
+    const categories = manifest.range.map((d) => d.category);
+    for (const required of ['breakfast', 'mains', 'wraps', 'salads', 'bakery']) {
+      expect(categories, required).toContain(required);
+    }
+  });
+
+  it('carries the two extra tiles the hero frame borrows', () => {
+    // Hero-only. They give the menu mockup a third row, which is what stops it reading as a
+    // stamp on the background. The food section never renders them because it iterates
+    // `FOOD.categories`, which does not name them.
+    const categories = manifest.range.map((d) => d.category);
+    expect(categories).toContain('snacks');
+    expect(categories).toContain('drinks');
   });
 
   it('never upscales — the source photography is 120px and stays 120px', () => {

@@ -53,6 +53,40 @@ if (missingPhotos.length) {
 }
 
 /**
+ * The four dishes shown in the hero's menu frame.
+ *
+ * Keyed by category and resolved through the manifest, so the mockup cannot name a photograph
+ * that was not emitted — the same rule the food section follows. Six, in three rows of two: at
+ * four the frame was short enough to leave a large empty field above it, which is most of what
+ * made the old mockup read as a stamp rather than a window.
+ *
+ * **The prices are illustrative and deliberately modest in prominence.** The page otherwise
+ * publishes no prices at all — what a school pays is a commercial conversation, not a web page —
+ * and a rate card would invite negotiation from a number nobody agreed. Inside a device frame
+ * they read as *what a parent sees in the app*, which is the point, and that is a different
+ * claim from a price list.
+ */
+const MOCKUP_PRICES: Record<string, string> = {
+  breakfast: '\u20b995',
+  mains: '\u20b9110',
+  wraps: '\u20b9120',
+  salads: '\u20b990',
+  snacks: '\u20b945',
+  drinks: '\u20b960',
+};
+
+const MOCKUP_DISHES = Object.keys(MOCKUP_PRICES).map((category) => {
+  const dish = photo.get(category);
+  if (!dish) {
+    throw new Error(
+      `The hero mockup wants a ${category} photograph and the manifest has none. ` +
+        'Add it to RANGE in apps/web/scripts/build-web-assets.mjs and regenerate.',
+    );
+  }
+  return { ...dish, price: MOCKUP_PRICES[category] };
+});
+
+/**
  * Where the enquiry posts.
  *
  * `PUBLIC_ENQUIRY_ENDPOINT` is the deployed Supabase Edge Function's URL, set in Netlify. In
@@ -82,7 +116,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
       </header>
 
       <div class="hero__grid">
-        <div>
+        <div class="hero__copy">
           <p class="eyebrow">{HERO.eyebrow}</p>
           <h1 class="display lowercase">{HERO.headline}</h1>
           <p class="lead">{HERO.lead}</p>
@@ -96,70 +130,96 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
         </div>
 
         <!--
-          A drawn illustration of the delivery card, not a screenshot. The app is not published,
-          and a mocked screenshot of software a visitor cannot download is a claim this page
-          should not make. What it shows is the one thing that is settled and that a principal
-          needs to picture: food addressed to a named child, in a class, at a break, on a date.
+          Two drawn frames, not screenshots. The app is not published, and a mocked screenshot of
+          software a visitor cannot download is a claim this page should not make.
+
+          **The menu is in front and the delivery card behind**, because those are the two halves
+          of the proposition and a principal needs both in one glance: real food on a real menu,
+          and the fact that it reaches a named child in a named class at a named break. This
+          replaced a single frame showing the *cart* — subtotal, GST lines, "Place order" — which
+          was the most transactional screen we have, shown to the one person who never pays for
+          anything.
+
+          Everything inside is at 12px or larger, the design system's floor. Where it did not fit,
+          the content was cut rather than the type shrunk.
         -->
-        <div class="phone" role="img" aria-label="Illustration of the GrayBag app showing an order for one child, at one school, for one break time.">
-          <div class="phone__screen" aria-hidden="true">
-            <div class="phone__deliver">
-              <div class="pattern pattern--pale"></div>
-              <div class="top">
-                <p class="lbl">Delivering to</p>
-                <p class="who">Aarav</p>
-                <p class="where">Class 4-B · Gem Public School</p>
-              </div>
-              <div class="band">
-                <span>Second break · 11:20</span>
-                <span>Tue 12 Aug</span>
-              </div>
+        <div class="hero__device">
+          <!-- Behind and offset: who the food is for. -->
+          <div
+            class="deliver-card"
+            role="img"
+            aria-label="Illustration: the GrayBag app showing an order being delivered to Aarav, Class 4-B at Gem Public School, at second break, 11:20."
+          >
+            <div class="pattern pattern--pale" aria-hidden="true"></div>
+            <div class="deliver-card__top" aria-hidden="true">
+              <p class="deliver-card__label">Delivering to</p>
+              <p class="deliver-card__who">Aarav</p>
+              <p class="deliver-card__where">Class 4-B · Gem Public School</p>
             </div>
+            <!--
+              The date was here and is cut: the phone occludes this card's right edge, so
+              "Tue 12 Aug" rendered as "Tue 12" and read as a bug rather than as depth. Cut the
+              content, not the type — the break time is the fact that matters, and the date is
+              already carried by the copy beside it.
+            -->
+            <div class="deliver-card__band" aria-hidden="true">
+              <span>Second break · 11:20</span>
+            </div>
+          </div>
 
-            <div class="phone__row">
-              <img src={`/img/dishes/${manifest.range[0]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
-              <div>
-                <p class="n">{manifest.range[0]?.label}</p>
-                <p class="p">₹95</p>
+          <!-- In front: the food. -->
+          <div
+            class="device"
+            role="img"
+            aria-label="Illustration: the GrayBag app's menu screen, showing a school's dishes by category with prices."
+          >
+            <div class="device__screen" aria-hidden="true">
+              <div class="device__bar">
+                <img src="/img/logo.webp" width="320" height="105" alt="" />
+                <span class="device__cart">2</span>
               </div>
+
+              <p class="device__eyebrow">Our food</p>
+              <p class="device__title">Made specially for your child</p>
+
+              <ul class="device__tabs">
+                <li class="is-on">All</li>
+                <li>Breakfast</li>
+                <li>Mains</li>
+                <li>Wraps</li>
+              </ul>
+
+              <ul class="device__grid">
+                {MOCKUP_DISHES.map((dish) => (
+                  <li class="device__dish">
+                    <span class="device__thumb">
+                      <img
+                        src={`/img/dishes/${dish.slug}.webp`}
+                        width="120"
+                        height="120"
+                        alt=""
+                        decoding="async"
+                      />
+                      <span class="device__mark"></span>
+                    </span>
+                    <p class="device__name">{dish.label}</p>
+                    <p class="device__price">{dish.price}</p>
+                  </li>
+                ))}
+              </ul>
             </div>
-
-            <div class="phone__row">
-              <img src={`/img/dishes/${manifest.range[2]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
-              <div>
-                <p class="n">{manifest.range[2]?.label}</p>
-                <p class="p">₹110</p>
-              </div>
-            </div>
-
-            <div class="phone__row">
-              <img src={`/img/dishes/${manifest.range[3]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
-              <div>
-                <p class="n">{manifest.range[3]?.label}</p>
-                <p class="p">₹60</p>
-              </div>
-            </div>
-
-            <p class="phone__warn">Contains peanuts — Aarav is allergic to peanuts.</p>
-
-            <div class="phone__totals">
-              <p><span>Subtotal</span><b>₹265</b></p>
-              <p><span>CGST 2.5% + SGST 2.5%</span><b>₹13.25</b></p>
-            </div>
-
-            <p class="phone__cta">Place order · ₹278.25</p>
           </div>
         </div>
-      </div>
 
-      <ul class="facts">
-        {FACTS.map((fact) => (
-          <li class="fact">
-            <p class="fact__value">{fact.value}</p>
-            <p class="fact__label">{fact.label}</p>
-          </li>
-        ))}
-      </ul>
+        <ul class="facts">
+          {FACTS.map((fact) => (
+            <li class="fact">
+              <p class="fact__value">{fact.value}</p>
+              <p class="fact__label">{fact.label}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   </section>
 

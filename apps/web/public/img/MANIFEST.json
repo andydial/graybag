@@ -3,8 +3,8 @@
   "task": "E12-01",
   "note": "Build OUTPUT, committed because CI cannot reach the sources. Regenerate, never hand-edit. Sources: ../Legacy-Application/Graybag_Design Package (RH1) and the dish mirror (E16-28).",
   "photography_note": "Every dish photograph is 120px or smaller at source — verified against the Bubble CDN. Nothing here is upscaled and the page displays them at 72-88 CSS px.",
-  "budget_bytes": 120000,
-  "total_bytes": 112702,
+  "budget_bytes": 130000,
+  "total_bytes": 120710,
   "dish_source_dir": "/Users/andy/graybag-dish-images",
   "range": [
     {
@@ -46,6 +46,22 @@
       "slug": "wheat-jaggery-cake",
       "sourceWidth": 180,
       "sourceHeight": 120
+    },
+    {
+      "category": "snacks",
+      "dish": "Paneer Puff",
+      "label": "Paneer puff",
+      "slug": "paneer-puff",
+      "sourceWidth": 120,
+      "sourceHeight": 120
+    },
+    {
+      "category": "drinks",
+      "dish": "Banana Shake",
+      "label": "Banana shake",
+      "slug": "banana-shake",
+      "sourceWidth": 120,
+      "sourceHeight": 120
     }
   ],
   "absent": [],
@@ -57,8 +73,20 @@
       "height": 192
     },
     {
+      "file": "dishes/banana-shake.webp",
+      "bytes": 4520,
+      "width": 120,
+      "height": 120
+    },
+    {
       "file": "dishes/idli-sambar.webp",
       "bytes": 3144,
+      "width": 120,
+      "height": 120
+    },
+    {
+      "file": "dishes/paneer-puff.webp",
+      "bytes": 3488,
       "width": 120,
       "height": 120
     },
