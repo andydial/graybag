@@ -628,13 +628,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/43</span>
+          <span class="meter-num">0/44</span>
         </div>
       </header>
       <p class="summary">India&#39;s DPDP Act, children&#39;s data, consent records and policy versioning. The system stores minors&#39; names, class, section and allergies (health data), so this is not an app-store checkbox.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 43 tasks</summary>
+        <summary>Context &amp; 44 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>GrayBag stores personal data about <strong>children</strong>, including <strong>allergies</strong>, which is health</p>
 <p>data. India&#39;s Digital Personal Data Protection Act 2023 requires verifiable parental</p>
@@ -985,6 +985,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The database half of <code>C16</code>.</strong> The source scan cannot see a warehouse export or a vendor reading Postgres directly. When <code>E20-34</code> picks an analytics vendor (or cuts analytics), add the pgTAP assertion that whatever role it uses cannot select from <code>recipient</code>, <code>recipient_allergen</code> or <code>guardian_link</code> — default-deny proved, not assumed</span>
+      </li>
+      <li class="task" data-id="E20-44" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-44"></button>
+        <code class="tid">E20-44</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Removing a child revokes the link but deletes none of the child&#39;s data — which contradicts the retention rule Andy settled on 2026-08-11.</strong> The rule is: a child&#39;s name, class, section and allergy details are deleted <strong>on request, or when the guardian link ends</strong>. <code>deactivate_recipient</code> (<code>0025</code>) sets <code>is_active = false</code> and revokes every <code>guardian_link</code>, and leaves <code>recipient.first_name</code>, <code>last_name</code>, <code>class_label</code>, <code>section_label</code>, <code>allergy_note</code> and every <code>recipient_allergen</code> row exactly as they were. So the guardian link ends and the tier-P/S data stays. Make deactivation null the tier-P/S fields and delete the <code>recipient_allergen</code> rows in the <strong>same transaction</strong>, keeping <code>order</code>, <code>invoice</code> and ledger references intact — this is <code>E20-30</code>&#39;s <code>recipient</code>-scope erasure, needed now rather than later because <code>E05-37</code> puts a Remove button in front of parents. <strong>Blocks <code>E05-37</code>&#39;s removal copy</strong>: until it lands, no screen may tell a parent that removing a child deletes their details</span>
       </li></ul>
       </details>
     </article>
