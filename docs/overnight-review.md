@@ -29,6 +29,15 @@ reviewed: docs/data-model.md (Q01), supabase/migrations/0001_initial_schema.sql 
 > |---|---|---|---|
 > | 1 | Invoice placeholder guard fires **after** the customer's money is captured | **BLOCKS** | `E07-20` |
 > | 2 | Three launch cities span three GST state codes; the cart never derives the split | **BLOCKS** | `E07-21` |
+
+> **SUPERSEDED 2026-08-11 by `SC1`.** This finding rests on `docs/data-model.md` §1.7's
+> *12-month planning* column, read as a statement of today's footprint. v1 is **Mohali only** —
+> one city, one state code — and non-negotiable #7 forbids IGST and place-of-supply derivation.
+> The cart is therefore correct as built. `G4` is superseded, `E07-21` struck, `E07-17`
+> rewritten as a one-time assertion on the seller's own GSTIN, `[GST-06]` closed. Left in place
+> rather than deleted because this document is the record of what the review found; what was
+> wrong was the premise it was given, not the reasoning from it.
+
 > | 4 | Withdrawing consent for one child erases the **parent's** account | **BLOCKS** | `E20-30` |
 > | 7 | Push-notification bodies are an unguarded tier-P egress path | HIGH | `E20-29` |
 > | 8 | `order_group_status = 'payment_failed'` is unreachable; test 5 expects it | HIGH | `E06-30` |

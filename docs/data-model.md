@@ -125,7 +125,7 @@ These drive the indexing choices in §13.5, and should be revisited if any is wr
 |---|---|---|
 | Kitchens | 1 | 3–5 |
 | Schools | 3 | 20–40 |
-| Cities | 3 (Chandigarh, SAS Nagar, Panchkula) | 3–6 |
+| Cities | **1 (SAS Nagar / Mohali)** — `SC1` | 3–6 |
 | Customers | ~400 | 5,000–20,000 |
 | Dishes per menu | ≤50 | ≤150 |
 | Orders per service day | low hundreds | 2,000–5,000 |

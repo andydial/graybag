@@ -307,7 +307,7 @@ description ≤4000). `E17-22` verifies each field against the live limits befor
 > your account from inside the app at any time, and we never use your or your child's data for
 > advertising or tracking.
 >
-> GrayBag currently serves schools in Chandigarh, SAS Nagar (Mohali) and Panchkula.
+> GrayBag currently serves schools in SAS Nagar (Mohali).
 >
 > Questions or a data request? Reach our Grievance Officer from Settings → Privacy, or at the
 > address in our privacy policy.

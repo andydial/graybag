@@ -44,7 +44,20 @@ function parseFrontmatter(text) {
   return [meta, m[2]];
 }
 
-const TASK_RE = /^\s*-\s*\[([ xX])\]\s*`([A-Z0-9-]+)`\s*(?:\(risk:(\w+)\)\s*)?(?:\(owner:(\w+)\)\s*)?(\(mvp\)\s*)?(.+)$/gm;
+/**
+ * `[ ]` open, `[x]` done, `[~]` **struck** — decided against, and not to be built.
+ *
+ * The third marker exists because `E07-21` was struck on 2026-08-11 and **disappeared**: the
+ * regex accepted only two states, so a struck line matched nothing, vanished from
+ * `backlog.html` and `TODO.md`, and the id it is forbidden to reuse looked free. Marking it
+ * `[x]` instead would have been a small lie in the other direction — it would count as
+ * progress in every total on the dashboard.
+ *
+ * A struck task is neither open work nor completed work. It is a **decision**, and it stays
+ * visible precisely so that whoever finds the document that generated it lands on the reason
+ * it is not being built rather than on silence.
+ */
+const TASK_RE = /^\s*-\s*\[([ xX~])\]\s*`([A-Z0-9-]+)`\s*(?:\(risk:(\w+)\)\s*)?(?:\(owner:(\w+)\)\s*)?(\(mvp\)\s*)?(.+)$/gm;
 
 function parseTasks(body) {
   const tasks = [];
@@ -53,6 +66,9 @@ function parseTasks(body) {
   while ((m = TASK_RE.exec(body))) {
     tasks.push({
       done: m[1].toLowerCase() === 'x',
+      // Struck tasks are excluded from both the open and the done counts by every consumer —
+      // they are a decision, not a unit of work in either direction.
+      struck: m[1] === '~',
       id: m[2],
       risk: (m[3] || '').toLowerCase(),
       owner: (m[4] || 'build').toLowerCase(),
@@ -104,7 +120,13 @@ if (existsSync(STATE)) {
 
 const epics = readdirSync(SRC).filter((f) => f.endsWith('.md')).sort().map((f) => {
   const [meta, body] = parseFrontmatter(readFileSync(join(SRC, f), 'utf8'));
-  const tasks = parseTasks(body).map((t) => ({ ...t, done: t.done || !!seeded[t.id] }));
+  // A struck task stays struck whatever the state file says: `[~]` is a decision recorded in
+  // the markdown, and a tick in the browser must not quietly turn "we decided not to" into
+  // "we did".
+  const tasks = parseTasks(body).map((t) => ({
+    ...t,
+    done: t.struck ? false : t.done || !!seeded[t.id],
+  }));
   return {
     file: f,
     id: meta.id || f.slice(0, 3),
@@ -157,7 +179,7 @@ const epicHtml = phaseGroups.map((p) => {
   const inPhase = epics.filter((e) => e.phase === p);
   const cards = inPhase.map((e) => {
     const rows = e.tasks.map((t) => `
-      <li class="task" data-id="${esc(t.id)}" data-seed="${t.done ? '1' : '0'}" data-risk="${esc(t.risk)}" data-owner="${esc(t.owner)}" data-mvp="${t.mvp ? '1' : '0'}"${t.done ? ' data-seed="1"' : ''}>
+      <li class="task${t.struck ? ' struck' : ''}" data-id="${esc(t.id)}" data-seed="${t.done ? '1' : '0'}" data-risk="${esc(t.risk)}" data-owner="${esc(t.owner)}" data-mvp="${t.mvp ? '1' : '0'}"${t.struck ? ' data-struck="1"' : ''}${t.done ? ' data-seed="1"' : ''}>
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle ${esc(t.id)}"></button>
         <code class="tid">${esc(t.id)}</code>
         ${t.risk ? `<span class="badge r-${esc(t.risk)}">${esc(t.risk)}</span>` : ''}
@@ -272,6 +294,14 @@ const html = `<!doctype html>
   .context p{margin:6px 0} .context ul{margin:6px 0;padding-left:18px}
   ul.tasks{list-style:none;margin:0;padding:0}
   .task{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13.5px}
+  /* Struck: decided against, and neither open nor done. Faded rather than hidden — whoever
+     follows a reference to a struck id must land on the reason, not on nothing. A tick here is
+     inert: build-backlog forces done:false for a struck task whatever backlog-state says, and
+     sync-state's line regex does not match the struck marker, so it can never rewrite the
+     markdown. (No backticks in this comment: it lives inside a template literal.) */
+  .task.struck{opacity:.55}
+  .task.struck .t{text-decoration:line-through;text-decoration-thickness:1px}
+  .task.struck .box{visibility:hidden}
   .box{flex:none;width:16px;height:16px;padding:0;border:1.5px solid var(--line);border-radius:4px;
     background:var(--surface);cursor:pointer;position:relative;top:3px}
   .box:hover{border-color:var(--meter)}
@@ -486,7 +516,7 @@ const GROUPS = [
 ];
 const used = new Set();
 let todo = `# Andy's TODO\n\n`;
-todo += `Your tasks only — ${andy.filter((t) => !t.done).length} open of ${andy.length}.\n`;
+todo += `Your tasks only — ${andy.filter((t) => !t.done && !t.struck).length} open of ${andy.filter((t) => !t.struck).length}.\n`;
 todo += `Everything here is a **decision**, a **validation**, or something only you have the\n`;
 todo += `credentials to do. Everything else is build work and is not your problem.\n\n`;
 todo += `Generated — do not edit. Tick things off in the dashboard\n`;
@@ -501,7 +531,7 @@ for (const [heading, test] of GROUPS) {
   for (const t of items) {
     const r = t.risk ? ` **[${t.risk}]**` : '';
     const v = t.mvp ? '' : ' _(fast-follow)_';
-    todo += `- [${t.done ? 'x' : ' '}] \`${t.id}\`${r}${v} ${strip(t.title)}\n`;
+    todo += `- [${t.struck ? '~' : t.done ? 'x' : ' '}] \`${t.id}\`${r}${v} ${strip(t.title)}\n`;
   }
 }
 todo += `\n---\n\nFull backlog: \`backlog/\` (markdown) or open \`backlog.html\` for the overview.\n`;

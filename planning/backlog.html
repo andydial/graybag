@@ -76,6 +76,14 @@
   .context p{margin:6px 0} .context ul{margin:6px 0;padding-left:18px}
   ul.tasks{list-style:none;margin:0;padding:0}
   .task{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13.5px}
+  /* Struck: decided against, and neither open nor done. Faded rather than hidden — whoever
+     follows a reference to a struck id must land on the reason, not on nothing. A tick here is
+     inert: build-backlog forces done:false for a struck task whatever backlog-state says, and
+     sync-state's line regex does not match the struck marker, so it can never rewrite the
+     markdown. (No backticks in this comment: it lives inside a template literal.) */
+  .task.struck{opacity:.55}
+  .task.struck .t{text-decoration:line-through;text-decoration-thickness:1px}
+  .task.struck .box{visibility:hidden}
   .box{flex:none;width:16px;height:16px;padding:0;border:1.5px solid var(--line);border-radius:4px;
     background:var(--surface);cursor:pointer;position:relative;top:3px}
   .box:hover{border-color:var(--meter)}
@@ -3205,7 +3213,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Derive the CGST/SGST vs IGST split per invoice from <code>left(seller_gstin, 2)</code> against <code>place_of_supply_state_code</code> — never hard-coded. See <code>[GST-02]</code></span>
+        <span class="ttext"><strong>Assert the seller&#39;s state rather than deriving a split</strong> (rewritten 2026-08-11; <code>G4</code> superseded by <code>SC1</code>). Invoicing must check <code>left(seller_gstin, 2) = &#39;03&#39;</code> and <strong>refuse to issue</strong> if it does not, with the same loudness as <code>E07-20</code>&#39;s placeholder guard. This is the half of the old &quot;derive the split&quot; rule that is genuinely still unknown — the place of supply is <code>03</code> for every invoice v1 will ever issue, but GrayBag&#39;s own registered state is one fact we do not yet have (<code>E00-10</code>, <code>[GST-02]</code>), and if the GSTIN turns out to be <code>04</code> then <strong>every</strong> invoice is IGST and nothing about the product is correct. An assertion that fails loudly is the right shape for that; a branch is not, because the branch silently does the right thing for a case that cannot arise while growing a pricing path non-negotiable #7 forbids. Test: a config whose GSTIN starts <code>04</code> refuses to issue and says why</span>
       </li>
       <li class="task" data-id="E07-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-18"></button>
@@ -3231,13 +3239,13 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Move the placeholder guard before the money moves.</strong> <code>E07-13</code> as specified refuses to allocate an invoice number inside <code>settle_payment()</code> — which <code>docs/gst-invoicing.md</code> §2 itself calls &quot;the checkout&#39;s <strong>post-capture</strong> step&quot;. Under auto-capture (<code>[OL-01]</code>) the customer is already charged, the settlement transaction rolls back, <code>PY2</code> returns <code>200</code> and our own 5-minute sweep retries the failure forever: every customer charged, no order created, no 5xx, no alert but a growing <code>payment_webhook_event</code> backlog. Refuse <code>POST /checkout</code> in production while <code>seller_gstin</code> or <code>sac_code</code> matches <code>^«.*»$</code>, <strong>and</strong> add a boot assertion on the payments Edge Functions in the same shape as <code>E06-14</code>&#39;s key-prefix check. Keep <code>E07-13</code> as defence in depth. Test: with a placeholder in config, checkout returns a typed refusal and no Razorpay order is created</span>
       </li>
-      <li class="task" data-id="E07-21" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task struck" data-id="E07-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0" data-struck="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-21"></button>
         <code class="tid">E07-21</code>
-        <span class="badge r-high">high</span>
+        
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Derive the CGST/SGST-vs-IGST split in the cart and checkout pricing path</strong>, not only on the invoice. <code>E07-17</code> fixes the invoice; <code>E07-06</code> and <code>docs/order-lifecycle.md</code> §8.2 step 7 compute the split &quot;per <code>M2</code>&quot;, i.e. hard-coded intra-state. The three launch cities span three state codes (Punjab <code>03</code>, Chandigarh <code>04</code>, Haryana <code>06</code> — <code>docs/data-model.md</code> §3.1), so at most one can be intra-state under a single GSTIN and a parent at a Panchkula school would be shown CGST+SGST and invoiced IGST. <code>L7</code> requires the charged total to equal the displayed total, so this is not cosmetic. Share one pricing function between checkout and the invoice builder. See <code>[GST-06]</code></span>
+        <span class="ttext"><strong>STRUCK 2026-08-11 — do not build.</strong> It required deriving the CGST/SGST-vs-IGST split in the cart and checkout pricing path, on the premise that &quot;the three launch cities span three state codes (Punjab <code>03</code>, Chandigarh <code>04</code>, Haryana <code>06</code>)&quot;. <strong>That premise was never true of v1 and is forbidden by non-negotiable #7.</strong> <code>SC1</code> (2026-08-07) confirmed Mohali only: one city, one state code, flat 5% as CGST 2.5% + SGST 2.5%. The three-city figure came from <code>docs/data-model.md</code> §1.7&#39;s *12-month planning* column read as a statement of today; the same misreading had put &quot;Chandigarh, SAS Nagar (Mohali) and Panchkula&quot; into the App Store listing, which is now corrected. The task also asserted the cart was already wrong for two of three cities — under <code>SC1</code> the cart is correct. What survives is <code>E07-17</code>, rewritten below as the one-time assertion it should always have been. Struck rather than deleted: <code>docs/overnight-review.md</code> finding 2 generated it, and a reader who finds that finding needs to land here</span>
       </li>
       <li class="task" data-id="E07-22" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-22"></button>
