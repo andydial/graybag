@@ -3,6 +3,7 @@ import type {
   KitchenDay,
   KitchenFilters,
   KitchenOrder,
+  KitchenPermissions,
   KitchenStatus,
   KitchenTransport,
 } from './types.js';
@@ -56,7 +57,18 @@ const STATUS_MIX: KitchenStatus[] = [
 
 const SCHOOL = { id: '50000000-0000-0000-0000-000000000001', name: 'Alpha Public School' };
 
-export function fixtureDay(serviceDate: string, loadedAt = '2026-08-13T01:42:00.000Z'): KitchenDay {
+/** A kitchen operator's usual grants: sees orders, hands food over, may cancel. */
+export const FULL_PERMISSIONS: KitchenPermissions = {
+  viewOrders: true,
+  markDelivered: true,
+  cancelOrders: true,
+};
+
+export function fixtureDay(
+  serviceDate: string,
+  loadedAt = '2026-08-13T01:42:00.000Z',
+  permissions: KitchenPermissions = FULL_PERMISSIONS,
+): KitchenDay {
   const orders: KitchenOrder[] = CHILDREN.map(([first, last], index) => {
     const klass = CLASSES[index % CLASSES.length]!;
     const brk = BREAKS[index % BREAKS.length]!;
@@ -81,6 +93,7 @@ export function fixtureDay(serviceDate: string, loadedAt = '2026-08-13T01:42:00.
 
   return {
     serviceDate,
+    permissions,
     orders,
     schools: [SCHOOL],
     breaks: BREAKS,
@@ -96,8 +109,11 @@ export function fixtureDay(serviceDate: string, loadedAt = '2026-08-13T01:42:00.
  * which matters more than the success path here, because a write that silently does nothing is
  * the worst thing this screen can do and it is the state nobody builds a way to see.
  */
-export function fixtureTransport(serviceDate: string): KitchenTransport & { failNext(): void } {
-  let day = fixtureDay(serviceDate);
+export function fixtureTransport(
+  serviceDate: string,
+  permissions: KitchenPermissions = FULL_PERMISSIONS,
+): KitchenTransport & { failNext(): void } {
+  let day = fixtureDay(serviceDate, undefined, permissions);
   let shouldFail = false;
 
   return {
@@ -106,7 +122,7 @@ export function fixtureTransport(serviceDate: string): KitchenTransport & { fail
     },
 
     async load(filters: KitchenFilters) {
-      if (filters.serviceDate !== day.serviceDate) day = fixtureDay(filters.serviceDate);
+      if (filters.serviceDate !== day.serviceDate) day = fixtureDay(filters.serviceDate, undefined, permissions);
       return { ...day, orders: day.orders.map((o) => ({ ...o })) };
     },
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { fixtureDay, fixtureTransport } from './fixture.js';
+import { FULL_PERMISSIONS, fixtureDay, fixtureTransport } from './fixture.js';
 import type { KitchenFilters, KitchenOrder } from './types.js';
 import {
   allowedActions,
@@ -57,6 +57,30 @@ describe('allowedActions', () => {
 
   it('offers nothing on a cancelled order', () => {
     expect(allowedActions('cancelled')).toEqual([]);
+  });
+});
+
+describe('allowedActions with grants — E09-09, the permission split', () => {
+  const porter = { viewOrders: true, markDelivered: true, cancelOrders: false };
+  const observer = { viewOrders: true, markDelivered: false, cancelOrders: false };
+
+  it('lets a porter hand food over but not cancel', () => {
+    // `orders.cancel` triggers a refund, which is why it is a separate grant (D3). A screen
+    // that draws both sets of buttons for both people makes the split mean nothing.
+    expect(allowedActions('paid', porter)).toEqual(['preparing', 'delivered']);
+  });
+
+  it('offers an observer nothing, even on an actionable order', () => {
+    expect(allowedActions('paid', observer)).toEqual([]);
+  });
+
+  it('still respects the lifecycle — grants cannot resurrect a delivered order', () => {
+    // Two independent gates. Holding every permission does not make `delivered -> paid` legal.
+    expect(allowedActions('delivered', FULL_PERMISSIONS)).toEqual([]);
+  });
+
+  it('falls back to the lifecycle when grants are unknown', () => {
+    expect(allowedActions('paid')).toEqual(['preparing', 'delivered', 'cancelled']);
   });
 });
 
@@ -248,6 +272,19 @@ describe('boardState — emptiness is four different things (ux-spec §5.21)', (
     const state = boardState({ ...base, day: null, error: 'Network request failed' });
     expect(state.kind).toBe('unreachable');
     expect(state.kind === 'unreachable' && state.message).toBe('Network request failed');
+  });
+
+  it('is forbidden — not empty — when the account cannot view orders', () => {
+    // §5.21 N3 must never render as N1. An operator without `orders.view` seeing an empty list
+    // reads it as "nobody ordered today", and the response to that is that nobody cooks.
+    const denied = fixtureDay(DATE, undefined, { viewOrders: false, markDelivered: false, cancelOrders: false });
+    expect(boardState({ ...base, day: denied }).kind).toBe('forbidden');
+  });
+
+  it('reports forbidden even when there would have been orders to show', () => {
+    const denied = fixtureDay(DATE, undefined, { viewOrders: false, markDelivered: true, cancelOrders: true });
+    expect(denied.orders.length).toBeGreaterThan(0);
+    expect(boardState({ ...base, day: denied }).kind).toBe('forbidden');
   });
 
   it('keeps showing the last list when offline, and carries when it was read', () => {
