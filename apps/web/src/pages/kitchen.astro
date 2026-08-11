@@ -1,0 +1,372 @@
+---
+/**
+ * The kitchen dashboard (`E09-04`, `E09-05`).
+ *
+ * A static shell hosting one client-side island. The marketing site stays `output: 'static'` and
+ * ships zero JavaScript; this page is the exception, and it is an exception on one route rather
+ * than a change of architecture. Reads will go through the Supabase client with the operator's
+ * own JWT (`A4` permits reads); writes go through an Edge Function.
+ *
+ * **It is `noindex`.** Not secret — the data behind it is protected server-side by RLS and
+ * always will be — but a kitchen tool has no business in a search result, and `E12-06`'s sign-in
+ * does not exist yet.
+ *
+ * Today it runs against `fixtureTransport`. The two things it needs from the server —
+ * `mark-delivered` and back-office sign-in — belong to another thread, so the screen is built and
+ * reviewable now and the swap is one line in the script below.
+ */
+import '../styles/tokens.css';
+import '../styles/site.css';
+import '../styles/kitchen.css';
+
+import { CANCEL_REASONS } from '../lib/kitchen/types.js';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Kitchen — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner">
+          <h1 class="kitchen__title">Kitchen</h1>
+
+          <div class="kitchen__filters">
+            <div class="kitchen__field">
+              <label for="k-date">Date</label>
+              <input id="k-date" type="date" />
+            </div>
+            <div class="kitchen__field">
+              <label for="k-school">School</label>
+              <select id="k-school"><option value="">All schools</option></select>
+            </div>
+            <div class="kitchen__field">
+              <label for="k-break">Break</label>
+              <select id="k-break"><option value="">All breaks</option></select>
+            </div>
+            <div class="kitchen__field">
+              <label for="k-status">Status</label>
+              <select id="k-status">
+                <option value="">All</option>
+                <option value="paid">To make</option>
+                <option value="preparing">Making</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div class="kitchen__field">
+              <label for="k-reload">&nbsp;</label>
+              <button id="k-reload" class="kitchen__btn" type="button">Refresh</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="kitchen__wrap">
+        <!-- Announced to a screen reader when it changes; the visual state is in the cards. -->
+        <div id="k-status-line" class="visually-hidden" role="status" aria-live="polite"></div>
+        <div id="k-banner"></div>
+        <div id="k-summary"></div>
+        <div id="k-board"></div>
+      </main>
+    </div>
+
+    <template id="k-cancel-reasons">
+      {CANCEL_REASONS.map((r) => <option value={r.code}>{r.label}</option>)}
+    </template>
+
+    <script>
+      import { fixtureTransport } from '../lib/kitchen/fixture.js';
+      import { CANCEL_REASONS } from '../lib/kitchen/types.js';
+      import type { KitchenAction, KitchenDay, KitchenFilters, KitchenStatus } from '../lib/kitchen/types.js';
+      import {
+        STATUS_LABEL,
+        allowedActions,
+        applyFilters,
+        boardState,
+        groupProgress,
+        groupState,
+        productionTotals,
+        summarise,
+      } from '../lib/kitchen/view.js';
+
+      /**
+       * The one line that changes when the server exists.
+       *
+       * `PUBLIC_KITCHEN_TRANSPORT=live` will select a Supabase-backed implementation once
+       * `mark-delivered` and `E12-06`'s sign-in are built. Until then everything below runs
+       * against fixtures, which is what makes every state reachable in review.
+       */
+      const today = new Date().toISOString().slice(0, 10);
+      const transport = fixtureTransport(today);
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = { date: $<HTMLInputElement>('k-date'), school: $<HTMLSelectElement>('k-school'),
+        brk: $<HTMLSelectElement>('k-break'), status: $<HTMLSelectElement>('k-status'),
+        reload: $<HTMLButtonElement>('k-reload'), banner: $('k-banner'), summary: $('k-summary'),
+        board: $('k-board'), live: $('k-status-line') };
+
+      let day: KitchenDay | null = null;
+      let loading = true;
+      let error: string | null = null;
+      /** Orders with a write in flight. Optimistic, but visibly so. */
+      const busy = new Set<string>();
+
+      const filters = (): KitchenFilters => ({
+        serviceDate: el.date.value || today,
+        schoolId: el.school.value || null,
+        breakId: el.brk.value || null,
+        status: (el.status.value || null) as KitchenStatus | null,
+      });
+
+      const esc = (s: string) =>
+        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const say = (message: string) => { el.live.textContent = message; };
+
+      const time = (iso: string) =>
+        new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // ------------------------------------------------------------------ load
+
+      async function load(): Promise<KitchenDay | null> {
+        loading = true;
+        error = null;
+        render();
+        try {
+          day = await transport.load(filters());
+        } catch (cause) {
+          // Keep whatever was on screen. A kitchen mid-service would rather have the 07:12 list
+          // than an error page, and `boardState` renders it as explicitly stale.
+          error = cause instanceof Error ? cause.message : 'Could not reach the server.';
+        } finally {
+          loading = false;
+          render();
+        }
+        return day;
+      }
+
+      // ---------------------------------------------------------------- update
+
+      async function update(orderIds: string[], to: KitchenAction, reasonCode?: string) {
+        if (!orderIds.length || !day) return;
+        orderIds.forEach((id) => busy.add(id));
+
+        // Optimistic: the kitchen sees the change immediately, because waiting on a round trip
+        // before a tray moves is how a queue forms behind the person holding the tablet.
+        const previous = new Map(day.orders.map((o) => [o.id, o.status]));
+        day = { ...day, orders: day.orders.map((o) => (orderIds.includes(o.id) ? { ...o, status: to } : o)) };
+        render();
+
+        try {
+          await transport.updateStatus(reasonCode ? { orderIds, to, reasonCode } : { orderIds, to });
+          say(`${orderIds.length} order${orderIds.length === 1 ? '' : 's'} marked ${STATUS_LABEL[to].toLowerCase()}.`);
+        } catch (cause) {
+          // Roll back and say so loudly. A write that silently does nothing is the worst thing
+          // this screen can do: the tray leaves, the record does not, and nobody finds out until
+          // a parent asks.
+          day = { ...day!, orders: day!.orders.map((o) => ({ ...o, status: previous.get(o.id) ?? o.status })) };
+          error = cause instanceof Error ? cause.message : 'That change did not save.';
+          say('That change did not save. Nothing was recorded.');
+        } finally {
+          orderIds.forEach((id) => busy.delete(id));
+          render();
+        }
+      }
+
+      // ---------------------------------------------------------------- render
+
+      function renderBanner(offline: boolean, state: ReturnType<typeof boardState>) {
+        const parts: string[] = [];
+        if (state.kind === 'stale') {
+          parts.push(
+            `<div class="kitchen__banner" data-tone="warning"><span aria-hidden="true">⚠</span><div>` +
+              `<b>You are offline.</b> This is the list loaded at ${esc(time(state.loadedAt))}. ` +
+              `Marking orders needs a connection — the buttons are off until it comes back.` +
+              `</div></div>`,
+          );
+        }
+        if (error && day) {
+          parts.push(
+            `<div class="kitchen__banner" data-tone="danger"><span aria-hidden="true">✕</span><div>` +
+              `<b>That change did not save.</b> ${esc(error)} Nothing was recorded — try again.` +
+              `</div></div>`,
+          );
+        }
+        el.banner.innerHTML = parts.join('');
+      }
+
+      function renderSummary(state: ReturnType<typeof boardState>) {
+        if (!day || (state.kind !== 'data' && state.kind !== 'stale')) { el.summary.innerHTML = ''; return; }
+        const visible = applyFilters(day.orders, filters());
+        const totals = productionTotals(visible);
+        const s = summarise(visible);
+
+        el.summary.innerHTML =
+          `<section class="kitchen__summary" aria-labelledby="k-cook">` +
+            `<h2 id="k-cook">To cook${el.brk.value ? ` · ${esc(el.brk.selectedOptions[0]!.text)}` : ''}</h2>` +
+            `<div class="kitchen__totals">` +
+              totals.map((t) => `<div class="kitchen__total"><b>${t.quantity}</b><span>${esc(t.dishName)}</span></div>`).join('') +
+            `</div>` +
+            `<p class="kitchen__counts">` +
+              `<span><b>${s.orders}</b> orders</span>` +
+              `<span><b>${s.items}</b> items</span>` +
+              `<span><b>${s.outstanding}</b> still to hand over</span>` +
+              `<span><b>${s.delivered}</b> delivered</span>` +
+              (s.cancelled ? `<span><b>${s.cancelled}</b> cancelled</span>` : '') +
+            `</p>` +
+          `</section>`;
+      }
+
+      function renderBoard(state: ReturnType<typeof boardState>, offline: boolean) {
+        if (state.kind === 'loading') {
+          el.board.innerHTML = Array(4).fill('<div class="kitchen__skeleton"></div>').join('');
+          return;
+        }
+        if (state.kind === 'unreachable') {
+          el.board.innerHTML =
+            `<div class="kitchen__state"><h2>We can't reach the order list</h2>` +
+            `<p>${esc(state.message)} Nothing is wrong with today's orders — this is our side. ` +
+            `If it stays down, the printed list is the fallback.</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+        if (state.kind === 'empty-day') {
+          el.board.innerHTML =
+            `<div class="kitchen__state"><h2>No orders for this day</h2>` +
+            `<p>Nobody has ordered for ${esc(el.date.value || today)}. That is a real answer, not a failure — ` +
+            `check the date if you were expecting some.</p></div>`;
+          return;
+        }
+        if (state.kind === 'empty-filter') {
+          el.board.innerHTML =
+            `<div class="kitchen__state"><h2>Nothing matches these filters</h2>` +
+            `<p>There are orders today, but none with the school, break and status you have chosen.</p>` +
+            `<button class="kitchen__btn" data-clear>Clear filters</button></div>`;
+          return;
+        }
+
+        el.board.innerHTML = state.groups
+          .map((g) => {
+            const canAct = !offline && g.outstandingIds.length > 0;
+            return (
+              `<section class="kitchen__group" data-state="${groupState(g)}" aria-labelledby="h-${esc(g.key)}">` +
+                `<header class="kitchen__group-head">` +
+                  `<div class="kitchen__group-who">` +
+                    `<p class="kitchen__group-class" id="h-${esc(g.key)}">Class ${esc(g.classLabel)}</p>` +
+                    `<p class="kitchen__group-where">${esc(g.schoolName)}${g.breakLabel ? ` · ${esc(g.breakLabel)}` : ''}</p>` +
+                  `</div>` +
+                  `<p class="kitchen__progress">${esc(groupProgress(g))}</p>` +
+                  `<button class="kitchen__btn kitchen__btn--primary" data-group="${esc(g.key)}" ${canAct ? '' : 'disabled'}>` +
+                    `Mark all delivered${g.outstandingIds.length ? ` (${g.outstandingIds.length})` : ''}` +
+                  `</button>` +
+                `</header>` +
+                g.orders.map(renderOrder(offline)).join('') +
+              `</section>`
+            );
+          })
+          .join('');
+      }
+
+      const renderOrder = (offline: boolean) => (o: KitchenDay['orders'][number]) => {
+        const actions = allowedActions(o.status);
+        const label = { preparing: 'Start', delivered: 'Delivered', cancelled: 'Cancel' } as const;
+        return (
+          `<div class="kitchen__order" data-busy="${busy.has(o.id)}">` +
+            `<div class="kitchen__child">` +
+              `<p class="kitchen__name">${esc(o.recipientName)}</p>` +
+              `<p class="kitchen__dishes">${o.lines.map((l) => `${l.quantity} × ${esc(l.dishName)}`).join(' · ')}</p>` +
+            `</div>` +
+            `<span class="kitchen__pill" data-status="${o.status}">` +
+              `<span aria-hidden="true">${({ paid: '○', preparing: '◐', delivered: '✓', cancelled: '✕' })[o.status]}</span>` +
+              `${STATUS_LABEL[o.status]}` +
+            `</span>` +
+            `<div class="kitchen__actions">` +
+              actions
+                .map((a) =>
+                  `<button class="kitchen__btn${a === 'cancelled' ? ' kitchen__btn--danger' : ''}" ` +
+                  `data-order="${o.id}" data-action="${a}" ${offline || busy.has(o.id) ? 'disabled' : ''}>` +
+                  `${label[a]}<span class="visually-hidden"> ${esc(o.recipientName)}</span></button>`,
+                )
+                .join('') +
+            `</div>` +
+          `</div>`
+        );
+      };
+
+      function render() {
+        const offline = !navigator.onLine;
+        const state = boardState({ day, filters: filters(), loading, offline, error });
+        renderBanner(offline, state);
+        renderSummary(state);
+        renderBoard(state, offline);
+      }
+
+      // ----------------------------------------------------------------- wiring
+
+      el.board.addEventListener('click', async (event) => {
+        const target = (event.target as HTMLElement).closest('button');
+        if (!target || !day) return;
+
+        if (target.hasAttribute('data-retry')) return load();
+        if (target.hasAttribute('data-clear')) {
+          el.school.value = ''; el.brk.value = ''; el.status.value = '';
+          return render();
+        }
+
+        const groupKey = target.getAttribute('data-group');
+        if (groupKey) {
+          const state = boardState({ day, filters: filters(), loading, offline: !navigator.onLine, error });
+          const group = (state.kind === 'data' || state.kind === 'stale' ? state.groups : []).find((g) => g.key === groupKey);
+          if (group) await update(group.outstandingIds, 'delivered');
+          return;
+        }
+
+        const orderId = target.getAttribute('data-order');
+        const action = target.getAttribute('data-action') as KitchenAction | null;
+        if (!orderId || !action) return;
+
+        if (action === 'cancelled') {
+          // A cancellation without a reason loses *why* the food was not delivered, and the
+          // schema will not take one — `cancel_reason_code` is how a refund is later explained.
+          const options = CANCEL_REASONS.map((r, i) => `${i + 1}. ${r.label}`).join('\n');
+          const answer = window.prompt(`Why is this order being cancelled?\n\n${options}\n\nEnter 1-${CANCEL_REASONS.length}:`);
+          if (!answer) return;
+          const reason = CANCEL_REASONS[Number(answer) - 1];
+          if (!reason) return;
+          return update([orderId], 'cancelled', reason.code);
+        }
+
+        await update([orderId], action);
+      });
+
+      for (const control of [el.date, el.school, el.brk, el.status]) {
+        control.addEventListener('change', () => (control === el.date ? load() : render()));
+      }
+      el.reload.addEventListener('click', load);
+      window.addEventListener('online', render);
+      window.addEventListener('offline', render);
+
+      // ------------------------------------------------------------------ start
+
+      el.date.value = today;
+      void (async () => {
+        // Populate the filter options from the first load rather than from `day`: TypeScript
+        // cannot see an assignment made inside `load()` from out here, and narrowing a
+        // module-level `let` across an await is exactly where that analysis gives up.
+        const first = await load();
+        if (!first) return;
+        for (const s of first.schools) el.school.add(new Option(s.name, s.id));
+        for (const b of first.breaks) el.brk.add(new Option(b.label, b.id));
+      })();
+    </script>
+  </body>
+</html>

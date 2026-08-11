@@ -82,6 +82,29 @@ if (/graybag\.com|prod/i.test(url) && !has('i-understand-this-is-production')) {
   process.exit(2);
 }
 
+/**
+ * Refuse the local stack by default, and this one is from experience.
+ *
+ * Two worktrees share one Docker stack on port 54322. Seeding a day into it put 24 users tagged
+ * `{"seeded":"kitchen-day"}` in front of the payments thread, which spent fifteen minutes
+ * chasing a failure that was not theirs — and the failure looked like a regression in their own
+ * work rather than like a collision, which is the expensive part.
+ *
+ * A shared database is shared state, and fixtures are the least obvious kind. Staging is where
+ * this data is wanted anyway. `--allow-local` exists for a genuinely private stack, and says out
+ * loud that you have checked.
+ */
+if (/localhost|127\.0\.0\.1|::1/.test(url) && !has('allow-local')) {
+  console.error(
+    `Refusing to seed the local stack: ${url}\n\n` +
+      `It is shared between worktrees, and a seeded day there surfaces in somebody else's test\n` +
+      `run looking like a regression in their work. Seed staging instead — that is where this\n` +
+      `data is wanted.\n\n` +
+      `If your local stack really is private, pass --allow-local.`,
+  );
+  process.exit(2);
+}
+
 const db = createClient(url, key, { auth: { persistSession: false } });
 
 // --------------------------------------------------------------------------- fixture ids

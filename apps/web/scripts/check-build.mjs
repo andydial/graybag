@@ -96,10 +96,23 @@ const cssGz = css.reduce((sum, f) => sum + gz(f.path), 0);
 notes.push(`css             ${cssGz} B gzipped across ${css.length} file(s) (budget ${BUDGETS.cssGz})`);
 if (cssGz > BUDGETS.cssGz) fail(`CSS is ${cssGz} B gzipped, over ${BUDGETS.cssGz}.`);
 
+/**
+ * JavaScript is budgeted **per page**, not in total.
+ *
+ * Summing every `.js` in `dist/` charged the marketing home page for the kitchen dashboard's
+ * island, which it never loads — and would have made the budget fire on a page that ships two
+ * kilobytes. What a visitor downloads is the only thing worth budgeting, and no visitor
+ * downloads two pages at once.
+ */
 const js = files.filter((f) => extname(f.rel) === '.js');
-const jsGz = js.reduce((sum, f) => sum + gz(f.path), 0);
-notes.push(`js              ${jsGz} B gzipped across ${js.length} file(s) (budget ${BUDGETS.jsGz})`);
-if (jsGz > BUDGETS.jsGz) fail(`JavaScript is ${jsGz} B gzipped, over ${BUDGETS.jsGz}.`);
+for (const page of html) {
+  const source = readFileSync(page.path, 'utf8');
+  const referenced = js.filter((f) => source.includes(f.rel));
+  const pageJsGz = referenced.reduce((sum, f) => sum + gz(f.path), 0);
+  notes.push(`js ${page.rel.padEnd(13)} ${pageJsGz} B gzipped across ${referenced.length} file(s) (budget ${BUDGETS.jsGz})`);
+  if (pageJsGz > BUDGETS.jsGz) fail(`${page.rel} ships ${pageJsGz} B of gzipped JavaScript, over ${BUDGETS.jsGz}.`);
+}
+
 
 /**
  * What a first visit to the home page actually costs.
@@ -122,7 +135,10 @@ if (home) {
   eager.add('img/pattern.webp');
   eager.add('fonts/nunito-latin-var.woff2');
 
-  let total = statSync(home.path).size + css.reduce((s, f) => s + f.bytes, 0) + js.reduce((s, f) => s + f.bytes, 0);
+  // Only the JavaScript this page actually references — the kitchen island is not part of a
+  // marketing visitor's first load and must not be charged to it.
+  const homeJs = js.filter((f) => source.includes(f.rel));
+  let total = statSync(home.path).size + css.reduce((s, f) => s + f.bytes, 0) + homeJs.reduce((s, f) => s + f.bytes, 0);
   for (const rel of eager) {
     const file = files.find((f) => f.rel === rel);
     if (!file) fail(`index.html references /${rel}, which was not emitted.`);

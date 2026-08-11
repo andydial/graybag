@@ -11,9 +11,22 @@ export SUPABASE_DB_URL=...           # direct Postgres connection
 node tools/seed-kitchen-day/seed.mjs --date 2026-08-13
 ```
 
-Locally, all three come from `npx supabase status`; `SUPABASE_DB_URL` is
-`postgresql://postgres:postgres@127.0.0.1:54322/postgres`. It needs the fixtures first —
-`npm run db:seed:staging` — because it adds a day to an existing school, it does not create one.
+It needs the fixtures first — `npm run db:seed:staging` — because it adds a day to an existing
+school, it does not create one.
+
+### It refuses the local stack, and that is from experience
+
+Two worktrees share one Docker stack on port 54322. A day seeded there put 24 users tagged
+`{"seeded":"kitchen-day"}` in front of the payments thread, which spent fifteen minutes chasing a
+failure that was not theirs — and it looked like a regression in their own work rather than like
+a collision, which is the expensive part.
+
+So `localhost` needs `--allow-local`, which is there for a genuinely private stack and says out
+loud that you have checked. **Staging is where this data is wanted anyway.**
+
+One consequence worth knowing before you use `--allow-local`: seeded orders **cannot be removed**
+(see below), so the only way to clear them is `npx supabase db reset`, which also clears
+everything anyone else has in that stack.
 
 ## What it writes
 

@@ -43,7 +43,7 @@ const CHROME =
   process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 /** The pages to check, as emitted by `format: 'file'`. */
-const PAGES = ['/index.html', '/privacy.html', '/terms.html', '/refunds.html', '/thanks.html'];
+const PAGES = ['/index.html', '/privacy.html', '/terms.html', '/refunds.html', '/thanks.html', '/kitchen.html'];
 
 const RULE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
