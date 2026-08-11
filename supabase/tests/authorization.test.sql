@@ -914,9 +914,16 @@ select set_eq(
     ('dish_allergen.anon_dish_allergen_of_visible_dish'),
     ('dish_category.anon_dish_category_active'),
     ('allergen.anon_allergen_active'),
-    ('asset.anon_asset_of_visible_dish')
+    ('asset.anon_asset_of_visible_dish'),
+    -- `0027` / `P19`. The thirteenth, and the first that is NOT a menu table. A parent
+    -- picks the break window at checkout, and a school with no windows cannot be ordered
+    -- from at all — so "does this school have any" decides whether browsing can lead
+    -- anywhere. Withholding it until sign-in would mean a visitor identifies themselves in
+    -- order to be turned away. Break times are not personal data; `0002`'s own comment on
+    -- `break_time_read_all` says so.
+    ('break_time.anon_break_time_of_visible_school')
   $$,
-  '§12 item 5: the set of permissive policies in public is EXACTLY the 152 in §7 of the authorization model plus [AUTH-01]''s twelve');
+  '§12 item 5: the set of permissive policies in public is EXACTLY the 152 in §7 of the authorization model plus [AUTH-01]''s twelve and 0027''s break_time');
 
 -- §5 Rule 5. Restrictive, so it ANDs with everything else and cannot be defeated by
 -- adding a permissive policy later. This is what makes "account deletion stops
@@ -944,8 +951,8 @@ select is_empty($$ select tablename || '.' || policyname from pg_policies
                       and policyname <> 'deny_dead_accounts' $$,
                 '§5 Rule 5: deny_dead_accounts is the only restrictive policy in the schema');
 
-select is((select count(*)::int from pg_policies where schemaname = 'public'), 191,
-          '§12 item 5: 191 policies in public — 152 permissive (140 from §7 + [AUTH-01]''s 12) + 39 restrictive');
+select is((select count(*)::int from pg_policies where schemaname = 'public'), 192,
+          '§12 item 5: 192 policies in public — 153 permissive (140 from §7 + [AUTH-01]''s 12 + 0027''s break_time) + 39 restrictive');
 
 -- Catches a table added to the schema without being classified in §8 at all.
 select set_eq(
@@ -999,8 +1006,10 @@ select set_eq(
   $$ select tbl from tests_seen where persona = 'anon' $$,
   $$ values ('school'),('city'),('school_menu_version'),('menu_assignment'),('menu'),
             ('menu_item'),('menu_item_price_override'),('dish'),('dish_allergen'),
-            ('dish_category'),('allergen'),('asset') $$,
-  '§9 items 1-2 / [AUTH-01]: anon selects rows from the menu tables and NOTHING else — not "order", recipient, recipient_allergen, app_user, payment or invoice');
+            ('dish_category'),('allergen'),('asset'),
+            -- `0027`. A time of day and a name for it, for an already-public school.
+            ('break_time') $$,
+  '§9 items 1-2 / [AUTH-01]: anon selects rows from the menu tables and break_time, and NOTHING else — not "order", recipient, recipient_allergen, app_user, payment or invoice');
 
 -- Stated separately and in the other direction, because the set above is the one that
 -- would be quietly widened. These are the names that must never appear in it.
@@ -1702,8 +1711,13 @@ select set_eq(
         and has_column_privilege('anon', c.oid, a.attnum, 'SELECT') $$,
   $$ values ('school'),('city'),('school_menu_version'),('menu_assignment'),('menu'),
             ('menu_item'),('menu_item_price_override'),('dish'),('dish_allergen'),
-            ('dish_category'),('allergen'),('asset'),('public_menu') $$,
-  '[AUTH-01]: anon may SELECT exactly the twelve menu tables and the one menu view. A thirteenth table is a decision, not an accident');
+            ('dish_category'),('allergen'),('asset'),('public_menu'),
+            -- `0027`, and it is the thirteenth — this line is the decision the assertion
+            -- text demanded. Six columns of `break_time`: a time of day and a name for it,
+            -- for a school anon can already see. `legacy_option_value` is withheld, because
+            -- its own column comment says never to trust it.
+            ('break_time') $$,
+  '[AUTH-01]: anon may SELECT exactly the twelve menu tables, the one menu view and break_time. A fourteenth table is a decision, not an accident');
 
 -- -----------------------------------------------------------------------------
 -- `E02-31` — the dropped SECURITY DEFINER readers stay dropped.
@@ -1796,15 +1810,21 @@ select is_empty(
         and has_table_privilege('anon', c.oid, pv.priv) $$,
   '[AUTH-01]: anon holds SELECT and nothing else — no INSERT, UPDATE or DELETE anywhere in public, views included');
 
--- Every policy naming anon is on a menu table. `[AZ-03]`'s "no policy names anon" is gone
--- by decision; this is what replaces it, and it is an exact list rather than a maximum.
+-- Every policy naming anon is on a menu table, or on `break_time`. `[AZ-03]`'s "no policy
+-- names anon" is gone by decision; this is what replaces it, and it is an exact list rather
+-- than a maximum.
+--
+-- `break_time` is the first entry here that is not a menu table, so the sentence changed as
+-- well as the list — "on a menu table" would have become a description that no longer matched
+-- what it was asserting, which is how a pin stops being read.
 select is_empty(
   $$ select tablename || '.' || policyname from pg_policies
       where schemaname = 'public' and 'anon' = any(roles)
         and tablename not in ('school','city','school_menu_version','menu_assignment',
                               'menu','menu_item','menu_item_price_override','dish',
-                              'dish_allergen','dish_category','allergen','asset') $$,
-  '[AUTH-01]: every policy that names anon is on a menu table');
+                              'dish_allergen','dish_category','allergen','asset',
+                              'break_time') $$,
+  '[AUTH-01]: every policy that names anon is on a menu table or on break_time');
 
 -- PUBLIC is still never named. A policy with `roles = {public}` reaches anon by another
 -- name, and that is the missing-TO-clause trap `[AZ-03]` was really about.

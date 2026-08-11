@@ -94,12 +94,13 @@ export function OrderForBlock({
         )}
       </View>
 
-      {orderFor.breakLabel ? null : (
-        // Explicitly unknown, never a guess. See the note above.
-        <Text style={styles.pending} testID={`${testID}-break-unknown`}>
-          Break time is confirmed with the kitchen.
-        </Text>
-      )}
+      {/*
+        The "Break time is confirmed with the kitchen" line lived here and is **gone** (`P19`,
+        Andy 2026-08-11). It described a manual step nobody can perform at volume: orders
+        arrive until midnight for the next day, and no one agrees a window per order overnight.
+        The break is now chosen by the parent, in `BreakTimePicker` further down this screen, so
+        an unknown break is no longer a thing to explain away — it is a thing to ask.
+      */}
     </View>
   );
 }

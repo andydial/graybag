@@ -112,3 +112,14 @@ export {
   fetchPendingPolicies,
   type PendingPolicy,
 } from './policy.js';
+
+// The break windows a parent picks from (`E05-30`, `P19`). An empty list is the answer "this
+// school cannot take orders yet", not an empty state — `0027` makes it readable signed out so a
+// visitor learns that before building a cart rather than after signing in.
+export {
+  BREAK_TIME_COLUMNS,
+  BreakTimePayloadError,
+  fetchBreakTimes,
+  formatBreakWindow,
+  type BreakTime,
+} from './breakTimes.js';

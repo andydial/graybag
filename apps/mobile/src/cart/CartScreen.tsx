@@ -8,6 +8,7 @@ import { DishImage } from '../components/DishImage';
 import { Card, EmptyState } from '../components/Surfaces';
 import { TextField } from '../components/TextField';
 import { useCart } from './CartContext';
+import { BreakTimePicker } from './BreakTimePicker';
 import { CartTotals } from './CartTotals';
 import { OrderForBlock, type OrderFor } from './OrderForBlock';
 
@@ -89,6 +90,17 @@ export interface CartLinePresentation {
 
 export interface CartScreenProps {
   onPlaceOrder?: () => void;
+  /**
+   * The school's orderable break windows — `E05-30`, `P19`.
+   *
+   * `undefined` means not read yet. **`[]` means the school cannot take orders**, which is a
+   * state rather than an absence: two of the three live schools have no windows, and `P19`
+   * says they must not reach checkout.
+   */
+  breakWindows?: readonly api.BreakTime[] | undefined;
+  /** The chosen window. Nothing is preselected — a default here is a choice made for a parent. */
+  breakTimeId?: string | null;
+  onSelectBreakTime?: (id: string) => void;
   /** The "For" block's Change affordance. Absent means the block renders read-only. */
   onChangeRecipient?: () => void;
   /** The cutoff-passed notice's way forward. §7: never a dead end. */
@@ -149,6 +161,9 @@ export interface CartScreenProps {
  */
 export function CartScreen({
   onPlaceOrder,
+  breakWindows,
+  breakTimeId = null,
+  onSelectBreakTime,
   onChangeRecipient,
   onChooseAnotherDay,
   onBrowseMenu,
@@ -302,6 +317,30 @@ export function CartScreen({
 
         {cutoff === undefined ? null : <CutoffBand cutoff={cutoff} />}
 
+        {/*
+          `P19`. Three states, and the middle one is the point: no windows means this school is
+          not open for ordering, and saying so here — before the button — is what replaces
+          "break time is confirmed with the kitchen".
+        */}
+        {breakWindows === undefined ? null : breakWindows.length === 0 ? (
+          <Card testID="cart-school-closed">
+            <Text style={styles.closedHead}>We&rsquo;re still setting up ordering for this school</Text>
+            <Text style={styles.closedBody}>
+              We can&rsquo;t take orders here yet. Your cart is saved — we&rsquo;ll let you know
+              as soon as this school opens.
+            </Text>
+          </Card>
+        ) : (
+          <Card>
+            <BreakTimePicker
+              windows={breakWindows}
+              selectedId={breakTimeId}
+              onSelect={(id) => onSelectBreakTime?.(id)}
+              testID="cart-break-picker"
+            />
+          </Card>
+        )}
+
         {/* On a card like everything else on this canvas — the totals are the last block a
             parent reads before paying, and leaving them loose on the grey read as a footnote. */}
         <Card>
@@ -322,6 +361,9 @@ export function CartScreen({
             repricing,
             unavailable: withdrawnNames.length > 0,
             errored: error !== undefined,
+            schoolClosed: breakWindows !== undefined && breakWindows.length === 0,
+            breakNeeded:
+              breakWindows !== undefined && breakWindows.length > 0 && breakTimeId === null,
             wired: onPlaceOrder !== undefined,
           })}
           testID="cart-place-order"
@@ -361,6 +403,8 @@ function placeOrderState({
   repricing,
   unavailable,
   errored,
+  schoolClosed,
+  breakNeeded,
   wired,
 }: {
   totalPaise: number;
@@ -369,8 +413,16 @@ function placeOrderState({
   repricing: boolean;
   unavailable: boolean;
   errored: boolean;
+  schoolClosed: boolean;
+  breakNeeded: boolean;
   wired: boolean;
 }): { label: string; disabled?: boolean; loading?: boolean } {
+  /**
+   * `P19`, and **first** — above the cutoff. A school with no break windows cannot take an
+   * order at any hour, so "Ordering has closed" would be the wrong sentence: it says come back
+   * tomorrow, and tomorrow is not the problem.
+   */
+  if (schoolClosed) return { label: 'Not available at this school yet', disabled: true };
   if (closed) return { label: 'Ordering has closed', disabled: true };
   if (offline) return { label: "You're offline", disabled: true };
   if (unavailable) return { label: 'Remove the unavailable item first', disabled: true };
@@ -380,6 +432,9 @@ function placeOrderState({
   // Loading keeps the label and adds an indicator (`S5`) — but drops the amount, because the
   // amount is exactly what is being re-checked.
   if (repricing) return { label: 'Place order', loading: true };
+  // Required everywhere (`P19`). The label names the missing step rather than saying "Place
+  // order" and refusing — a disabled button with no reason is the thing parents tap twice.
+  if (breakNeeded) return { label: 'Choose a delivery time', disabled: true };
   return { label: `Place order · ${money.formatPaise(totalPaise)}`, disabled: !wired };
 }
 
@@ -822,6 +877,13 @@ function StepperButton({
 }
 
 const styles = StyleSheet.create({
+  closedHead: {
+    color: text.primary,
+    fontSize: scale.label.size,
+    fontWeight: scale.label.weight,
+    marginBottom: space[2],
+  },
+  closedBody: { color: text.secondary, fontSize: scale.body.size, lineHeight: scale.body.lineHeight },
   screen: { flex: 1, backgroundColor: bg.canvas },
   scroll: { flex: 1 },
   content: { padding: layout.gutter, gap: layout.blockGap },

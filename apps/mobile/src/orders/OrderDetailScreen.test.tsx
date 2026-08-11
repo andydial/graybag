@@ -153,10 +153,15 @@ describe('OrderDetailScreen', () => {
 
     // §5.21: an unresolved break is omitted and said to be unresolved, never guessed.
     it('does not invent a break time it has not been given', async () => {
+      // The "confirmed with the kitchen" line this used to assert is gone (`P19`). Every order
+      // placed from now on carries a break the parent chose; one without a label is a legacy
+      // row, and the honest rendering of an unknown is to omit it rather than to explain it
+      // away with a promise nobody can keep.
       await renderScreen(<OrderDetailScreen order={detail({ breakLabel: null })} now={BEFORE} />);
 
       expect(screen.getByText('Wednesday 12 August')).toBeTruthy();
-      expect(screen.getByTestId('screen-order-detail-for-break-unknown')).toBeTruthy();
+      expect(screen.queryByTestId('screen-order-detail-for-break-unknown')).toBeNull();
+      expect(screen.queryByText(/confirm(ed)? with the kitchen/i)).toBeNull();
     });
   });
 

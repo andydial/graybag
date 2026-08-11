@@ -624,3 +624,107 @@ describe('CartScreen — the sticky footer', () => {
     expect(screen.queryByText(/sign in/i)).toBeNull();
   });
 });
+
+/**
+ * `E05-30` / `P19` — the break window, and the school that cannot take orders.
+ *
+ * Andy, 2026-08-11: "break time is confirmed with the kitchen" described a manual step nobody
+ * can perform at volume, because orders arrive until midnight for the next day. The parent
+ * picks. And where there are no windows to pick from, the school is **closed for ordering** and
+ * says so — which is two of the three live schools today.
+ */
+describe('choosing a break time', () => {
+  const WINDOWS: api.BreakTime[] = [
+    { id: 'b1', label: 'Morning break', startsAt: '10:40:00', endsAt: '11:15:00' },
+    { id: 'b2', label: 'Second break', startsAt: '11:15:00', endsAt: '11:40:00' },
+  ];
+
+  it('offers the school’s windows by name, with the time underneath', async () => {
+    await renderCart([IDLI], { breakWindows: WINDOWS, onPlaceOrder: () => {} });
+
+    expect(screen.getByText('Morning break')).toBeOnTheScreen();
+    expect(screen.getByText('10:40 – 11:15')).toBeOnTheScreen();
+    // The name, not the raw range. Amity's labels currently hold the range itself, which is the
+    // thing `P19` is fixing — a parent should not have to read data to pick.
+    expect(screen.getByText('Second break')).toBeOnTheScreen();
+  });
+
+  it('preselects nothing, and blocks Place order until one is chosen', async () => {
+    // A default that happens to be first in `sort_order` is a choice about a child's day made
+    // for the parent by a database column.
+    await renderCart([IDLI], { breakWindows: WINDOWS, onPlaceOrder: () => {} });
+
+    const button = screen.getByTestId('cart-place-order');
+    expect(button).toHaveTextContent('Choose a delivery time');
+    expect(button).toBeDisabled();
+  });
+
+  it('enables Place order once a window is chosen', async () => {
+    const user = userEvent.setup();
+    const onSelectBreakTime = jest.fn();
+    await renderCart([IDLI], {
+      breakWindows: WINDOWS,
+      onPlaceOrder: () => {},
+      onSelectBreakTime,
+    });
+
+    // The screen reports the choice; the caller owns the state (`RootNavigator`), which is why
+    // this asserts the callback rather than a local toggle.
+    await user.press(screen.getByTestId('cart-break-picker-b1'));
+    expect(onSelectBreakTime).toHaveBeenCalledWith('b1');
+  });
+
+  it('enables Place order when a window is already chosen', async () => {
+    await renderCart([IDLI], {
+      breakWindows: WINDOWS,
+      breakTimeId: 'b1',
+      onPlaceOrder: () => {},
+    });
+    expect(screen.getByTestId('cart-place-order')).not.toBeDisabled();
+  });
+
+  it('announces the window in the label, not only as visible text', async () => {
+    // §7: a control conveying state carries it in the label. A screen-reader user choosing
+    // between two breaks needs the time as much as the name.
+    await renderCart([IDLI], { breakWindows: WINDOWS, onPlaceOrder: () => {} });
+    expect(screen.getByLabelText('Morning break, 10:40 – 11:15')).toBeOnTheScreen();
+  });
+
+  describe('a school with no windows', () => {
+    it('says we are still setting it up, and never "confirmed with the kitchen"', async () => {
+      await renderCart([IDLI], { breakWindows: [], onPlaceOrder: () => {} });
+
+      expect(screen.getByTestId('cart-school-closed')).toBeOnTheScreen();
+      expect(screen.getByText(/still setting up ordering for this school/i)).toBeOnTheScreen();
+      // The sentence Andy asked to have removed everywhere. It described a manual step nobody
+      // can perform at volume, and it must not survive as a fallback.
+      expect(screen.queryByText(/confirm(ed)? with the kitchen/i)).toBeNull();
+    });
+
+    it('blocks Place order with a reason that is not "come back tomorrow"', async () => {
+      await renderCart([IDLI], { breakWindows: [], onPlaceOrder: () => {} });
+
+      const button = screen.getByTestId('cart-place-order');
+      expect(button).toBeDisabled();
+      expect(button).toHaveTextContent('Not available at this school yet');
+      // "Ordering has closed" is the cutoff's sentence and it would be wrong here: it tells a
+      // parent to come back tomorrow, and tomorrow is not the problem.
+      expect(button).not.toHaveTextContent(/closed/i);
+    });
+
+    it('keeps the cart rather than emptying it', async () => {
+      // The school opens later. Throwing away what they chose would punish them for our gap.
+      await renderCart([IDLI], { breakWindows: [], onPlaceOrder: () => {} });
+      expect(screen.getByText('Idli Sambar')).toBeOnTheScreen();
+    });
+  });
+
+  it('shows neither picker nor notice before the windows are known', async () => {
+    // `undefined` is "not read yet". Rendering it as `[]` would tell every parent their school
+    // was closed for the first few hundred milliseconds.
+    await renderCart([IDLI], { onPlaceOrder: () => {} });
+
+    expect(screen.queryByTestId('cart-break-picker')).toBeNull();
+    expect(screen.queryByTestId('cart-school-closed')).toBeNull();
+  });
+});

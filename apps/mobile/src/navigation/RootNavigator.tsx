@@ -1,4 +1,4 @@
-import { useMemo, type ComponentType } from 'react';
+import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { Platform } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -35,6 +35,7 @@ import {
 import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
+import { useBreakTimes } from '../cart/useBreakTimes';
 import { PolicyGateContainer } from '../policy/PolicyGateContainer';
 import { usePolicyGate, useNextPendingPolicy } from '../policy/PolicyGateContext';
 import { useAudience } from '../session/audience';
@@ -174,6 +175,17 @@ function CartTabScreen() {
    */
   const { schoolId } = useSelectedSchool();
   const { payload } = useCachedMenu(schoolId);
+
+  /**
+   * `P19`. The windows decide whether this school can be ordered from at all, so they are read
+   * here rather than at the moment Place order is tapped — a parent should see "we're still
+   * setting up ordering for this school" while looking at their cart, not after committing.
+   */
+  const breakWindows = useBreakTimes(schoolId);
+  const [breakTimeId, setBreakTimeId] = useState<string | null>(null);
+  // A window belongs to a school. Switching school must drop the choice, or a parent could
+  // carry Amity's "Morning break" onto an order for somewhere else entirely.
+  useEffect(() => setBreakTimeId(null), [schoolId]);
   const dishInfo = useMemo(() => {
     const info: Record<string, { imageUri: string | null; foodType: 'veg' | 'non_veg' | 'egg' | null }> = {};
     for (const dish of payload?.dishes ?? []) {
@@ -230,7 +242,15 @@ function CartTabScreen() {
     }
   };
 
-  return <CartScreen onPlaceOrder={placeOrder} dishInfo={dishInfo} />;
+  return (
+    <CartScreen
+      onPlaceOrder={placeOrder}
+      dishInfo={dishInfo}
+      breakWindows={breakWindows}
+      breakTimeId={breakTimeId}
+      onSelectBreakTime={setBreakTimeId}
+    />
+  );
 }
 
 const CartTab = withScreenFrame(CartTabScreen, TAB_SCREEN_EDGES);

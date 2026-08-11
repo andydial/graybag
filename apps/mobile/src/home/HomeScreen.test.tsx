@@ -111,11 +111,20 @@ describe('HomeScreen — the delivering-to card', () => {
     expect(screen.getByTestId('screen-home-deliver-band')).toHaveTextContent('Tue 12 Aug');
   });
 
-  it('says the day is unconfirmed rather than inventing one', async () => {
+  /**
+   * **This assertion was inverted on 2026-08-11 (`P19`).** It used to require the band to read
+   * "Break and day are confirmed with the kitchen". Andy asked for that sentence gone from
+   * everywhere, not only from the cart: it promised a manual step nobody can perform at volume,
+   * and the break is now the parent's choice at checkout.
+   *
+   * With neither a break nor a day there is genuinely nothing to say, so the band says nothing.
+   * Silence is honest; the old line was not.
+   */
+  it('says nothing rather than promising a step nobody performs', async () => {
     await renderHome(<HomeScreen {...SIGNED_IN} breakLabel={null} serviceDate={null} />);
-    expect(screen.getByTestId('screen-home-deliver-band')).toHaveTextContent(
-      'Break and day are confirmed with the kitchen',
-    );
+    const band = screen.getByTestId('screen-home-deliver-band');
+    expect(band).toHaveTextContent('');
+    expect(band).not.toHaveTextContent(/confirm(ed)? with the kitchen/i);
   });
 
   /**

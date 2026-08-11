@@ -482,8 +482,16 @@ function describeDelivery({
     eyebrow: 'Delivering to',
     who,
     where,
-    // Never a guess. An unresolved break or day says so, exactly as the cart's block does.
-    band: when === '' ? 'Break and day are confirmed with the kitchen' : when,
+    /**
+     * Never a guess — and since `P19`, never "confirmed with the kitchen" either. That sentence
+     * promised a manual step nobody can perform at volume, and Andy asked for it gone from
+     * everywhere rather than only from the cart.
+     *
+     * The break is now the parent's choice at checkout, so before they have made one there is
+     * genuinely nothing to say here. An empty band says nothing, which is honest; the previous
+     * line said something untrue.
+     */
+    band: when,
     a11yLabel: `Delivering to ${who}, ${where}${when === '' ? '' : `, ${when}`}. Change.`,
   };
 }
