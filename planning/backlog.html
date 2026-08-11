@@ -2810,13 +2810,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/33</span>
+          <span class="meter-num">0/34</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 33 tasks</summary>
+        <summary>Context &amp; 34 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -2973,13 +2973,13 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Migration <code>0036</code>/<code>0037</code> — the schema, config and seed additions <code>docs/order-lifecycle.md</code> §15 requires.</strong> <code>[OL-05]</code>&#39;s duplicate-capture column and index change (<code>0036</code>): <code>payment.duplicate_of_payment_id</code>, and <code>uq_payment_one_capture_per_group</code> narrowed to <code>where status = &#39;captured&#39; and duplicate_of_payment_id is null</code>, so the invariant becomes &quot;one <strong>primary</strong> capture per group&quot; — which is what <code>D16</code> always meant, and which lets a real double charge be recorded, refunded and reconciled instead of being the one thing the schema forbids. The three timings on all three config tables plus the resolver (<code>0037</code>): <code>pending_payment_ttl_minutes</code> (30, <strong>provisional</strong>, floor pending <code>E19-07</code> row 3), <code>payment_in_flight_grace_minutes</code> (15, decided by <code>L9</code>) and <code>payment_retry_window_minutes</code> (30). The <code>checkout_expired</code> and <code>cutoff_missed</code> reason codes, both customer-visible. <code>docs/data-model.md</code> §9.1 updated in the same change. 15 pgTAP assertions in <code>payments_schema.test.sql</code></span>
       </li>
-      <li class="task" data-id="E06-21" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-21" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-21"></button>
         <code class="tid">E06-21</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Correct the over-refund guard (§7.3) — it must sum refunds at <code>pending</code>, <code>processing</code> <strong>and</strong> <code>completed</code>, and take the <code>order_group</code> row lock, so two admins refunding the same order concurrently cannot both pass. <code>docs/data-model.md</code> §8.3 states it wrongly in both directions</span>
+        <span class="ttext"><strong>The over-refund guard takes the row lock.</strong> <code>0043</code>. §7.3 called <code>docs/data-model.md</code> §8.3 wrong in both directions, and it was — <strong>but only the document.</strong> The implementation already summed <code>status &lt;&gt; &#39;failed&#39;</code>, which is the correct set, so the arithmetic defect existed on paper alone. <strong>The race was real</strong>: the trigger is deferred to COMMIT, which is necessary and not sufficient, because under <code>READ COMMITTED</code> two concurrent transactions cannot see each other&#39;s uncommitted refunds — both sum the same total, both pass, both commit, and the guard reports nothing. It now takes the <code>order_group</code> row lock first, which serialises them. The status list is spelled out rather than <code>&lt;&gt; &#39;failed&#39;</code> so a status added later is excluded until somebody decides. A capture marked duplicate (<code>[OL-05]</code>) counts toward the refundable amount deliberately — the customer really was charged twice. §8.3 corrected in the same change. Five assertions; the race itself is guarded structurally rather than demonstrated, and <code>E06-35</code> is the harness that would demonstrate it</span>
       </li>
       <li class="task" data-id="E06-22" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-22"></button>
@@ -3084,6 +3084,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Order detail is unreachable.</strong> <code>OrderDetailScreen.cancelling</code>, <code>imageUri</code> and <code>onContactSupport</code> have no caller. Expected until checkout ships, recorded so it is not mistaken for a wiring bug later</span>
+      </li>
+      <li class="task" data-id="E06-35" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-35"></button>
+        <code class="tid">E06-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A two-session concurrency harness for pgTAP.</strong> <code>E06-21</code>&#39;s over-refund race — two transactions that cannot see each other&#39;s uncommitted refunds — cannot be demonstrated with the tools this suite has: <code>dblink</code> commits each statement in its own transaction, so it cannot hold one open across the window where the defect lives. The fix (an <code>order_group</code> row lock) is reasoned and guarded by a structural assertion that the lock is still present, which catches somebody simplifying it away but does not prove it works. A harness — two backends, an advisory-lock handshake to line them up inside the window, then release — would let this and every future locking question be tested for real. Worth having before <code>E06-08</code>/<code>E06-18</code> add more concurrent refund paths</span>
       </li></ul>
       </details>
     </article>

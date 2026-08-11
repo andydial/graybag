@@ -1072,14 +1072,23 @@ share).
 | `correlation_id` | uuid | no | | |
 
 - **Index**: `(order_group_id)`, `(status, initiated_at) where status in ('pending','processing')`
-- **Constraint**: `Σ refund.amount_paise` for a group must not exceed the group's captured
-  amount. Enforced by a constraint trigger, because over-refunding is a real and expensive
-  bug.
-  **Superseded by `docs/order-lifecycle.md` §7.3 (Q06).** As stated here the guard is wrong in
-  both directions: it counts `failed` refunds, so two failed attempts block the third
-  legitimate one, and it ignores in-flight ones, so two admins refunding the same order
-  concurrently both pass. The sum is over `status IN ('pending','processing','completed')`, and
-  the trigger takes the `order_group` row lock first. `E06-21`.
+- **Constraint**: `Σ refund.amount_paise` **at `pending`, `processing` and `completed`** for a
+  group must not exceed the group's captured amount. Enforced by a deferred constraint trigger
+  that takes the `order_group` row lock first, because over-refunding is a real and expensive bug.
+
+  **Corrected 2026-08-11 by `E06-21` / `0043`.** This section used to state the guard as "Σ
+  `refund.amount_paise`", which `docs/order-lifecycle.md` §7.3 rightly called wrong in both
+  directions — counting `failed` refunds blocks a legitimate retry, and ignoring in-flight ones
+  lets two admins refunding at once both pass.
+
+  Worth recording precisely, because the two halves had different fates: **the implementation
+  never had the arithmetic defect** (it always summed `status <> 'failed'`), so only this
+  document was wrong about it. **The race was real**, and deferring the trigger to COMMIT did not
+  close it: under `READ COMMITTED` neither transaction can see the other's uncommitted refund, so
+  both summed the same total and both committed. The row lock is what serialises them.
+
+  A capture marked as a duplicate (`[OL-05]`) counts toward the refundable amount deliberately —
+  the customer really was charged twice, and `E06-18` exists to refund exactly that.
 
 **`refund_line`**
 
