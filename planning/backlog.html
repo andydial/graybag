@@ -320,7 +320,7 @@
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:critical) (mvp) <strong>Fix the four failing Supabase auth settings on staging</strong> — <code>npm run check:config</code> names them: OTP length 8 → 6, Site URL still <code>localhost:3000</code>, empty redirect allow-list, and an email rate limit of <strong>2 per hour</strong> (project-wide, so the third parent signing in at the school gate gets nothing). Dashboard only; no PR can fix these</span>
+        <span class="ttext">(risk:critical) (mvp) <strong>Fix the two remaining Supabase auth settings on staging</strong> — re-checked 2026-08-11 and it is <strong>two, not four</strong>: the OTP length and the magic-link template have since been fixed, and the task text was never re-run against the project. (1) <strong>Auth → URL Configuration → Site URL</strong> is <code>http://localhost:3000</code>, so every link Supabase generates opens a blank page on a parent&#39;s phone. (2) <strong>Redirect allow-list</strong> is empty, so only Site URL is permitted and no app scheme can return to the app. Run <code>npm run check:config</code> for the live list rather than trusting this line</span>
       </li>
       <li class="task" data-id="E00-21" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-21"></button>
