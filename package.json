@@ -10,7 +10,7 @@
     "packages/*"
   ],
   "scripts": {
-    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm run check:maestro && npm run check:policy-docs && npm run check:claims && npm test",
+    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm run check:maestro && npm run check:policy-docs && npm run check:claims && npm run check:backlog && npm test",
     "test:all": "npm run smoke && npm run test:db",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
@@ -42,7 +42,8 @@
     "check:maestro": "node scripts/check-maestro-ids.mjs",
     "check:policy-docs": "node scripts/build-policy-docs.mjs --check",
     "check:config": "node scripts/check-supabase-config.mjs",
-    "check:claims": "node scripts/check-outbound-claims.mjs"
+    "check:claims": "node scripts/check-outbound-claims.mjs",
+    "check:backlog": "node scripts/build-backlog.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
