@@ -139,6 +139,65 @@ the same way.
 They cost nothing and `D9` expects a second city eventually; when there is one, `G4` comes back
 out of the archive.
 
+**`docs/terms.md` still tells customers that an inter-state supply is IGST at the same total
+rate, and that sentence stays** — ruled by Andy 2026-08-11, recorded here rather than in the
+document so that nobody "tidies" it after reading `SC1`. It is a **statement of law to a
+customer**, not a description of our pricing engine, and it is accurate. Deleting it would make
+the section narrower than the law it summarises and it would have to come back the day a second
+city arrives. What was removed from that sentence is its citation of `G4`, which is superseded
+and archived: a customer-facing document must not cite a decision no longer in force, and `SC1`
+is what determines the answer today.
+
+Two corrections to what I told Andy when I first raised this, since both were wrong and the
+second is the one that would have cost something. **`terms.md` is not a `policy_version` and is
+not in the acceptance gate** — only `child_data_notice` and `self_data_notice` are — so editing
+it re-prompts nobody, and my caution about a new policy version interrupting every user
+mid-onboarding did not apply. It is also still headed *DRAFT FOR LEGAL REVIEW — DO NOT PUBLISH
+AS-IS*, with unresolved `«TOKEN»` placeholders throughout.
+
+### 3.3 The buyer's name is optional, exactly as far as the law says
+
+`E07-22`, migration `0031`, ruled by Andy 2026-08-11.
+
+`invoice.buyer_name_snapshot` was `not null`. Every `app_user` in the system has a **null**
+name — nothing writes `app_user.first_name`, and `P18` deliberately asks for it *after* payment
+with a clear skip — so the first invoice ever issued would have failed `23502` on its own
+constraint, in production, with the money already taken.
+
+**CGST Rule 46(f):** for a supply to an **unregistered** recipient where the value of the
+taxable supply is **less than ₹50,000**, the recipient's name and address are required *only
+where the recipient requests that such details be recorded in the tax invoice*. Clause (e) makes
+them mandatory at ₹50,000 or more. Every GrayBag invoice is a school lunch, and `P14` keeps bulk
+class ordering out of v1.
+
+So the column is nullable and the schema carries the rule instead:
+
+```sql
+check (buyer_name_snapshot is not null or total_paise < 5000000)   -- ₹50,000 in paise
+```
+
+**Nothing is ever fabricated into that field.** Omission is lawful; a placeholder is a false
+statement in a statutory record. Specifically rejected, each for its own reason:
+
+| Rejected | Why |
+|---|---|
+| The email local-part | `anuragdial` is a username, not a name — and `app_user.email` is nullable too (Apple private relay), so the chain needs a third tier and the third tier is the same problem |
+| `"GrayBag customer"` | A label in the buyer field. The law permits the field to be absent; it does not invite us to fill it with a category |
+| The **recipient's** name | Wrong twice. The child is not the buyer (`M1`: GrayBag → the paying adult), and it would put a minor's name in the buyer field of a document retained under §13.4 long after any erasure request — the opposite of non-negotiable #4 |
+
+**Rendering.** Where there is no name, the buyer block omits the name line entirely. Never
+`Name: —`, and never an empty labelled row: a blank where a legal party belongs reads as a
+defect in the document rather than as a field that was not required.
+
+**The other half of clause (f) is an obligation, not a courtesy.** The name is optional *until
+the recipient asks for it*. `E07-23` covers the reissue path — a superseding document, never an
+edit, because §13.2 requires a reprint to be byte-identical to what was issued.
+
+A CA sign-off is queued on `docs/andy-prep/professional-questions.md` and is a follow-up rather
+than a blocker (Andy, 2026-08-11). What is written here is the rule text, not tax advice.
+
+## 4. What the invoice must contain
+
 ### 4.1 Statutory fields
 
 Rule 46 of the CGST Rules, 2017 lists the particulars a tax invoice must contain. The mapping
