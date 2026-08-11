@@ -254,7 +254,155 @@ function exportsOf(code: string): string[] {
  * something belongs here because the feature that writes it is not built yet, that is fine; if
  * it belongs here because a wire was forgotten, fix the wire instead.
  */
-const KNOWN_ORPHANS: Record<string, string> = {};
+
+/**
+ * ============================================================================
+ * Two more flavours of the same defect — added after they both shipped.
+ * ============================================================================
+ *
+ * This file was built for "both sides written, wire missing", and then twice in one week that
+ * defect arrived wearing clothes it did not recognise:
+ *
+ * - **An optional prop nobody passes.** `CartScreen` took `dishInfo?`, `CartLineRow` rendered a
+ *   photo whenever it was present, and `RootNavigator` never passed it — so every cart line drew
+ *   the placeholder and the cart read as a different app from the menu grid. Both sides written,
+ *   wire missing, tests green, because the tests passed the prop themselves.
+ * - **A barrel export nobody imports.** `updateRecipientDetails` and `removeRecipient` existed,
+ *   typechecked and were called by their own tests — which imported through `api/index.ts`, where
+ *   they had not been re-exported. The functions were unreachable from the app and the failure
+ *   surfaced as "not a function" in a test, not as anything about wiring.
+ *
+ * Andy's instruction, and it is the right one: *if the guard only catches the flavour that bit
+ * you last time, it'll keep being one step behind.* The common shape is not "a context" or "a
+ * prop" — it is **a thing that exists, is referenced only by its own definition and its own
+ * tests, and is therefore not part of the app.**
+ */
+
+/**
+ * Props whose entire purpose is injection, so "no production caller" is their correct state.
+ *
+ * Kept deliberately short and named one by one. A pattern like `/^on/` or "anything a test
+ * passes" would have exempted `dishInfo` too, and the point of this scan is that it did not.
+ */
+const SEAM_PROPS = new Set([
+  // Passed by tests by design; the one prop whose purpose is to be usually absent.
+  'testID',
+  // Provider seeding. Every provider takes one so a test can mount a known state without
+  // driving the whole app to reach it.
+  'initial',
+  // Clock injection. A screen that renders "today" cannot be tested against a moving today.
+  'now',
+  'today',
+  // Network probe target — `ConnectivityContext` points it at a local stub under test.
+  'probeUrl',
+  // Motion, off under test so assertions do not race an animation.
+  'animate',
+]);
+
+/** A component's optional props, by declaring file. */
+interface OptionalProp {
+  file: string;
+  component: string;
+  prop: string;
+}
+
+/**
+ * Optional props declared in a component's inline props type.
+ *
+ * Deliberately narrow: only `Name?:` inside the `}: { … }` annotation of an exported function
+ * component, which is how every screen in this app declares them. A broader regex would pull in
+ * every optional field of every interface and drown the signal.
+ */
+function optionalPropsOf(source: Source): OptionalProp[] {
+  const found: OptionalProp[] = [];
+  const component = /export function ([A-Z]\w*)\s*\(\s*\{([\s\S]*?)\}\s*:\s*\{([\s\S]*?)\n\}\)/g;
+  for (const match of source.code.matchAll(component)) {
+    const [, name, , annotation] = match;
+    if (name === undefined || annotation === undefined) continue;
+    for (const prop of annotation.matchAll(/(?:^|\n)\s*(\w+)\?\s*:/g)) {
+      const propName = prop[1];
+      if (propName === undefined) continue;
+      if (SEAM_PROPS.has(propName)) continue;
+      found.push({ file: source.path, component: name, prop: propName });
+    }
+  }
+  return found;
+}
+
+const optionalProps: OptionalProp[] = candidates.flatMap(optionalPropsOf);
+
+/** Files that are not tests — where a prop has to be passed for it to be part of the app. */
+const productionCallers = callers.filter((s) => !/\.test\.tsx?$/.test(s.path));
+
+/** Does any non-test file pass this prop, or spread an object into the component? */
+function passesProp(prop: string, exclude: string): string[] {
+  // `prop={…}`, `prop="…"`, or the bare-true shorthand `<X prop />`.
+  const explicit = new RegExp(`(?<![.\\w])${prop}\\s*=[{"']`);
+  const shorthand = new RegExp(`(?<![.\\w])${prop}\\s*[/>\\n]`);
+  return productionCallers
+    .filter((s) => s.path !== exclude && (explicit.test(s.code) || shorthand.test(s.code)))
+    .map((s) => s.path);
+}
+
+/**
+ * Names a barrel re-exports. Only `index.ts` files, and only the `export { … }` form — a
+ * `export * from` cannot be unwired, since it carries whatever the source has.
+ */
+function barrelExports(source: Source): string[] {
+  const names: string[] = [];
+  for (const block of source.code.matchAll(/export\s*\{([\s\S]*?)\}/g)) {
+    for (const entry of (block[1] ?? '').split(',')) {
+      const name = entry.trim().replace(/^type\s+/, '').split(/\s+as\s+/).pop()?.trim();
+      if (name !== undefined && /^[A-Za-z_]\w*$/.test(name)) names.push(name);
+    }
+  }
+  return names;
+}
+
+/** Barrels inside the app. `packages/shared`'s own barrel is guarded by its own suite. */
+const barrelModules: [string, Source][] = candidates
+  .filter((s) => s.name === 'index.ts' || s.name === 'index.tsx')
+  .filter((s) => /export\s*\{/.test(s.code))
+  .map((s) => [relative(s.path), s]);
+
+/**
+ * Everything the extended scan found on the day it was added, each with the task that wires it.
+ *
+ * **This list is the finding, not a workaround.** Nine of these are features with both halves
+ * built and no caller — including four that belong to the six compliance tasks: the policy
+ * acceptance gate never opens, account deletion has no route, the published policies have no
+ * link, and the grievance contact is unreachable. They were invisible because every one of them
+ * has a screen, a test and a green suite.
+ */
+const KNOWN_ORPHANS: Record<string, string> = {
+  // Compliance, and the four that matter most.
+  'prop:PolicyGateScreen.onAccept': 'E20-11 — the policy acceptance gate is never mounted',
+  'prop:PolicyGateScreen.onNotNow': 'E20-11 — same gate',
+  'prop:PolicyGateScreen.accepting': 'E20-11 — same gate',
+  'prop:AccountScreen.onDeleteAccount': 'E20-12 — account deletion has no route',
+  'prop:AccountScreen.onPolicy': 'E20-13 — privacy/terms/refund are published but unlinked',
+  'prop:AccountScreen.onSupport': 'E20-14 — support route unwired',
+  'prop:SupportScreen.grievance': 'E20-14 — grievance officer contact unreachable',
+  'prop:SupportScreen.supportEmail': 'E20-14 — same screen',
+
+  // Ordering paths with both halves built.
+  'prop:DishDetailScreen.onChangeTarget': 'E05-40 — switch who a dish is for, from the sheet',
+  'prop:DishDetailScreen.ordering': 'E05-40 — same sheet',
+  'prop:OrderDetailScreen.cancelling': 'E06-20 — order detail is unreachable until checkout ships',
+  'prop:OrderDetailScreen.imageUri': 'E06-20 — same screen',
+  'prop:OrderDetailScreen.onContactSupport': 'E06-20 — same screen',
+  'prop:SchoolPicker.onRequestSchool': 'E04-20 — "my school is not listed" has no handler',
+
+  // Presentational options with no caller. Each is either wanted or dead; E13-20 decides.
+  'prop:DishImage.aspectRatio': 'E13-20 — unused presentational option',
+  'prop:ListRow.leading': 'E13-20 — unused presentational option',
+  'prop:Lockup.children': 'E13-20 — unused presentational option',
+  'prop:RecipientListRow.last': 'E13-20 — unused presentational option',
+  'prop:SwipeRow.onHaptic': 'E13-20 — haptics never wired',
+
+  // Native dependency not yet added.
+  'prop:SignInScreen.readClipboard': 'E03-24 — needs expo-clipboard and a dev-client build',
+};
 
 /**
  * The tables, built once so an empty scan fails at load with an explanation rather than at
@@ -425,6 +573,57 @@ describe('nothing is half-wired', () => {
     },
   );
 
+
+  /**
+   * **An optional prop that no non-test file ever passes is an orphan.**
+   *
+   * This is `dishInfo`: `CartScreen` accepted it, `CartLineRow` drew a photo whenever it was
+   * there, `RootNavigator` never passed it, and the cart showed placeholders for weeks. The
+   * tests passed it themselves, so every side looked exercised.
+   *
+   * Non-test callers only, for the same reason the seam rule uses them: a wire that exists only
+   * in a test is not a wire, it is a rehearsal.
+   */
+  it.each(nonEmpty(optionalProps.map((p) => [`${p.component}.${p.prop}`, p] as const), 'optional props'))(
+    '%s is passed by something that is not a test',
+    (key, prop) => {
+      const passed = unique(passesProp(prop.prop, prop.file));
+      if (passed.length === 0 && KNOWN_ORPHANS[`prop:${key}`] === undefined) {
+        throw new Error(
+          `${prop.component} accepts an optional prop \`${prop.prop}\` and nothing outside a ` +
+            `test ever passes it (${relative(prop.file)}).\n\n` +
+            `Either it is dead and should be deleted, or a caller was never wired — which is ` +
+            `what happened to CartScreen's \`dishInfo\`: the cart drew placeholder images for ` +
+            `weeks while both sides of the feature looked finished.`,
+        );
+      }
+    },
+  );
+
+  /**
+   * **A barrel export nothing imports is an orphan** — and, worse, a name *missing* from a barrel
+   * is invisible. `updateRecipientDetails` and `removeRecipient` typechecked, had tests, and were
+   * unreachable from the app because `api/index.ts` did not re-export them.
+   *
+   * This catches the reachable-but-unused direction. The unreachable direction is caught by the
+   * fact that nothing can import them at all — which is exactly how it surfaced, as a
+   * "not a function" in a test rather than as anything that named the real problem.
+   */
+  it.each(nonEmpty(barrelModules, 'barrel modules'))('%s re-exports only what is used', (name, barrel) => {
+    const unused = barrelExports(barrel).filter(
+      (exported) =>
+        unique(referencesTo(exported, barrel.path).filter((p) => !/\.test\.tsx?$/.test(p))).length === 0 &&
+        KNOWN_ORPHANS[`barrel:${exported}`] === undefined,
+    );
+    if (unused.length > 0) {
+      throw new Error(
+        `${relative(barrel.path)} re-exports names nothing outside a test imports:\n  ${unused.join('\n  ')}\n\n` +
+          `A barrel is a wire. A name that reaches it but goes no further is the same defect as ` +
+          `a context with no reader.`,
+      );
+    }
+  });
+
   it('every declared orphan names the task that wires it up', () => {
     for (const [key, reason] of Object.entries(KNOWN_ORPHANS)) {
       // An exemption without an owner becomes permanent. This keeps the list shrinking.
@@ -435,6 +634,8 @@ describe('nothing is half-wired', () => {
         ...contexts.flatMap((c) => [`${c.base}:reader`, `${c.base}:writer`, `${c.base}:mounted`]),
         ...seams.map((s) => `seam:${s.name}`),
         ...stores.map((s) => `store:${s.name}`),
+        ...optionalProps.map((p) => `prop:${p.component}.${p.prop}`),
+        ...barrelModules.flatMap(([, b]) => barrelExports(b).map((e) => `barrel:${e}`)),
       ];
       if (!known.includes(key)) {
         throw new Error(
@@ -446,6 +647,9 @@ describe('nothing is half-wired', () => {
       expect(known).toContain(key);
     }
     // The list must not grow quietly: any addition changes this number in a diff.
-    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(0);
+    // Deliberately visible in a diff. It went 0 -> 21 the day the scan learned to see optional
+    // props and barrel exports; every one of those was already broken and nothing said so.
+    // (The scan's own stale-key check caught a 21st entry that contradicted SEAM_PROPS.)
+    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(20);
   });
 });

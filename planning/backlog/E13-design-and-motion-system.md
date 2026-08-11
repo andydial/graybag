@@ -52,3 +52,4 @@ Found while building Block 4 (2026-08-09). Untagged — fast-follow until Andy s
 
 - [ ] `E13-27` Edit child screen — ux-spec §5.10.1, including consent-already-given, the school-change block on undelivered orders, and real deletion when allergen consent is withdrawn
 - [ ] `E13-28` Cutoff copy everywhere: full weekday, date and time; timezone shown only when it differs from the device's (ux-spec R7)
+- [x] `E13-20` **Decide or delete five unused presentational options.** `DishImage.aspectRatio`, `ListRow.leading`, `Lockup.children`, `RecipientListRow.last`, `SwipeRow.onHaptic` — each accepted by a component and passed by nothing outside a test. Either wanted and unwired, or dead. Surfaced by the extended orphan guard

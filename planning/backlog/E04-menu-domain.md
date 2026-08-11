@@ -33,3 +33,4 @@ Source Excel columns: `Item No. | Menu Item | Description | Ingredients | Calori
 - [ ] `E04-15` Swap the menu cache's in-memory store for AsyncStorage so it survives a restart. Needs the native dependency and therefore a new dev-client build, which is why `installMenuCache` ships with an in-memory store first
 - [ ] `E04-16` Move `fetchMenuVersion` onto the `menu-version` Edge Function instead of reading `school_menu_version` directly. The function runs with `service_role`, so its answer cannot itself be filtered away by a grants problem — which is what the empty-menu-vs-refused-read distinction depends on
 
+- [ ] `E04-20` **"My school is not listed" has no handler.** `SchoolPicker.onRequestSchool` is accepted and never passed, so a parent whose school is not on the list has no way to say so — and with three schools live, most visitors are in exactly that position

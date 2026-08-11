@@ -628,13 +628,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/35</span>
+          <span class="meter-num">0/39</span>
         </div>
       </header>
       <p class="summary">India&#39;s DPDP Act, children&#39;s data, consent records and policy versioning. The system stores minors&#39; names, class, section and allergies (health data), so this is not an app-store checkbox.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 35 tasks</summary>
+        <summary>Context &amp; 39 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>GrayBag stores personal data about <strong>children</strong>, including <strong>allergies</strong>, which is health</p>
 <p>data. India&#39;s Digital Personal Data Protection Act 2023 requires verifiable parental</p>
@@ -921,6 +921,38 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>BLOCKS <code>E17-04</code> — no store form may be submitted until this is closed.</strong> Finish or disable <code>E20-10</code> (no PII in logs or Sentry). Every &quot;not collected&quot; answer in <code>docs/andy-prep/store-privacy-answers.md</code> assumes it, and answering a store form wrongly is a compliance problem rather than a paperwork one</span>
+      </li>
+      <li class="task" data-id="E20-11" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-11"></button>
+        <code class="tid">E20-11</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The policy acceptance gate is never mounted.</strong> <code>PolicyGateScreen</code> exists, is tested, and <code>onAccept</code>/<code>onNotNow</code>/<code>accepting</code> have no caller — so the version-acceptance gate that <code>E20-03</code> calls one of the six compliance tasks does not run. Found by the extended orphan guard, not by a person</span>
+      </li>
+      <li class="task" data-id="E20-12" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-12"></button>
+        <code class="tid">E20-12</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Account deletion has no route.</strong> <code>AccountScreen.onDeleteAccount</code> is never passed. One of the six compliance tasks; the screen renders a row that does nothing</span>
+      </li>
+      <li class="task" data-id="E20-13" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-13"></button>
+        <code class="tid">E20-13</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Privacy, terms and refund policies are published but unlinked.</strong> <code>AccountScreen.onPolicy</code> has no caller, so nothing in the app opens them</span>
+      </li>
+      <li class="task" data-id="E20-14" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-14"></button>
+        <code class="tid">E20-14</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Support and the grievance officer are unreachable.</strong> <code>AccountScreen.onSupport</code>, <code>SupportScreen.grievance</code> and <code>SupportScreen.supportEmail</code> all have no caller. DPDP requires a published contact point for data complaints. Per Andy 2026-08-11: keep the route, <strong>replace the exposed address with a contact form or a compose action that reaches andy@graybag.com without displaying it</strong></span>
       </li></ul>
       </details>
     </article>
@@ -1412,13 +1444,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/28</span>
+          <span class="meter-num">0/29</span>
         </div>
       </header>
       <p class="summary">Written before any UI code exists. The motion catalogue is what produces &quot;fluid&quot; instead of &quot;flying bird&quot;.</p>
       
       <details>
-        <summary>Context &amp; 28 tasks</summary>
+        <summary>Context &amp; 29 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Source: <code>Graybag_Design Package</code> — VAG Rounded Next font family, primary <code>#00af52</code>, secondary <code>#145f48</code> / <code>#ffbb39</code>, accent <code>#b3cf3f</code> / <code>#e5ea98</code>, pattern assets, and the 06_App UI mocks.</p>
 <p>The motion system is a <strong>closed catalogue</strong>. New screens implement from it; it is only amended when a genuinely new kind of interaction appears, and that is a deliberate joint decision.</p></div>
@@ -1646,6 +1678,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Cutoff copy everywhere: full weekday, date and time; timezone shown only when it differs from the device&#39;s (ux-spec R7)</span>
+      </li>
+      <li class="task" data-id="E13-20" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-20"></button>
+        <code class="tid">E13-20</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Decide or delete five unused presentational options.</strong> <code>DishImage.aspectRatio</code>, <code>ListRow.leading</code>, <code>Lockup.children</code>, <code>RecipientListRow.last</code>, <code>SwipeRow.onHaptic</code> — each accepted by a component and passed by nothing outside a test. Either wanted and unwired, or dead. Surfaced by the extended orphan guard</span>
       </li></ul>
       </details>
     </article>
@@ -1795,13 +1835,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/15</span>
+          <span class="meter-num">0/16</span>
         </div>
       </header>
       <p class="summary">Dishes, menus, per-school assignment, Excel import with allergens, and the version-based cache that makes the app feel fast.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 15 tasks</summary>
+        <summary>Context &amp; 16 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Today: 1 kitchen, 3 menus, 3 schools; largest menu is 50 items. Menu changes are rare, which is exactly what makes version-based caching effective.</p>
 <p>Source Excel columns: <code>Item No. | Menu Item | Description | Ingredients | Calories | Portion/Weight | Allergens | Category | Category - ORIG | Price</code>.</p></div>
@@ -1925,6 +1965,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Move <code>fetchMenuVersion</code> onto the <code>menu-version</code> Edge Function instead of reading <code>school_menu_version</code> directly. The function runs with <code>service_role</code>, so its answer cannot itself be filtered away by a grants problem — which is what the empty-menu-vs-refused-read distinction depends on</span>
+      </li>
+      <li class="task" data-id="E04-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-20"></button>
+        <code class="tid">E04-20</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>&quot;My school is not listed&quot; has no handler.</strong> <code>SchoolPicker.onRequestSchool</code> is accepted and never passed, so a parent whose school is not on the list has no way to say so — and with three schools live, most visitors are in exactly that position</span>
       </li></ul>
       </details>
     </article>
@@ -1937,13 +1985,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/36</span>
+          <span class="meter-num">0/44</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 36 tasks</summary>
+        <summary>Context &amp; 44 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2233,6 +2281,70 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Switching recipient must ask before discarding a non-empty cart (ux-spec F9). It switches silently today — a parent with four dishes in the cart who taps the wrong row loses them with no warning and no undo</span>
+      </li>
+      <li class="task" data-id="E05-36" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-36"></button>
+        <code class="tid">E05-36</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Cart lines show the dish photo and veg mark.</strong> The prop existed and nothing ever passed it, so every line rendered the placeholder and the cart read as a different app from the grid. <code>RootNavigator</code> now builds <code>dishInfo</code> from the cached menu — no extra request, since it is the read the Menu tab just did</span>
+      </li>
+      <li class="task" data-id="E05-33" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-33"></button>
+        <code class="tid">E05-33</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Edit a child&#39;s details</strong> — <code>update_recipient_details</code> (<code>0025</code>), a PATCH with no <code>school_id</code>, and <code>api.updateRecipientDetails</code>. Separate from a school move, which has a future-order guard and resets the class: a mistyped section should not have to pretend to be a transfer. Clearing a field is an explicit flag, because <code>null</code> already means &quot;leave alone&quot;. <strong>Server and client only — the edit sheet is <code>E05-37</code></strong></span>
+      </li>
+      <li class="task" data-id="E05-34" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-34"></button>
+        <code class="tid">E05-34</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Remove a child</strong> — <code>deactivate_recipient</code> (<code>0025</code>) and <code>api.removeRecipient</code>. Deactivates the row and revokes every guardian link, so the child leaves all guardians&#39; lists; refuses while undelivered orders exist. NOT DPDP erasure (<code>E20-06</code>) — order history, invoices and ledger entries are retained deliberately. <strong>Server and client only — the UI is <code>E05-37</code></strong></span>
+      </li>
+      <li class="task" data-id="E05-37" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-37"></button>
+        <code class="tid">E05-37</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The edit-and-remove sheet.</strong> Wire <code>E05-33</code>/<code>E05-34</code> into <code>ChildrenScreen</code>&#39;s existing edit sheet: first name, class and section fields alongside the school picker, plus a Remove action with a confirmation that says what removal does and does not do (leaves the list; keeps past orders). Needs the <code>future_orders_exist</code> refusal rendered as guidance rather than an error</span>
+      </li>
+      <li class="task" data-id="E05-38" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-38"></button>
+        <code class="tid">E05-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Surface self-ordering</strong> (<code>P13</code>). &quot;Order for myself&quot; as a first-class entry in Who-to-order-for when the account has no <code>is_self</code> recipient, and Add-someone asking who it is for before anything else. <code>create_recipient</code> already takes <code>p_is_self</code> (<code>0022</code>) and <code>NewRecipient</code> needs an <code>isSelf</code> field to reach it. Removes the &quot;am I supposed to add myself as a child&quot; confusion</span>
+      </li>
+      <li class="task" data-id="E05-39" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-39"></button>
+        <code class="tid">E05-39</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Capture the account holder&#39;s own name on the ORDER CONFIRMED screen</strong> (<code>P18</code>). One optional field, &quot;What should we call you?&quot;, with a clear skip; also settable from Account; never asked twice. <code>app_user.first_name</code>/<code>last_name</code> exist and are never written. <strong>Order one must work with no name everywhere</strong> — invoice falls back to the email local-part, packing list to the child&#39;s name. Depends on <code>E06</code> for the confirmation screen</span>
+      </li>
+      <li class="task" data-id="E05-41" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-41"></button>
+        <code class="tid">E05-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Audit every surface that shows the account holder&#39;s name for the no-name case</strong> (<code>P18</code>). Invoice, packing list, support view, and every email. Andy&#39;s instruction: if any of them look broken without a name, report it rather than making the field required</span>
+      </li>
+      <li class="task" data-id="E05-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-40"></button>
+        <code class="tid">E05-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Switch who a dish is for, from the dish sheet.</strong> <code>DishDetailScreen.onChangeTarget</code> and <code>ordering</code> are accepted and never passed</span>
       </li></ul>
       </details>
     </article>
@@ -2506,13 +2618,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/32</span>
+          <span class="meter-num">0/33</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 32 tasks</summary>
+        <summary>Context &amp; 33 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -2772,6 +2884,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Replace the invented &quot;5–7 working days&quot; refund timing on Order detail with a figure somebody has confirmed, per instrument. It is a sentence a parent plans around; see <code>docs/open-questions.md</code></span>
+      </li>
+      <li class="task" data-id="E06-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-20"></button>
+        <code class="tid">E06-20</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Order detail is unreachable.</strong> <code>OrderDetailScreen.cancelling</code>, <code>imageUri</code> and <code>onContactSupport</code> have no caller. Expected until checkout ships, recorded so it is not mistaken for a wiring bug later</span>
       </li></ul>
       </details>
     </article>
