@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 42 open of 47.
+Your tasks only — 45 open of 50.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -69,6 +69,9 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E17-26` _(fast-follow)_ Register an iOS device UDID for internal-distribution builds — eas device:create. The staging profile is distribution: internal, which on iOS is ad-hoc: it needs an Apple Developer login (interactive, with 2FA) and at least one registered device, neither of which can be done unattended. Android needs nothing here — EAS generates the keystore itself
 - [ ] `E17-27` _(fast-follow)_ App Store Connect app id (ascAppId) for eas submit. Deliberately absent from eas.json (see docs/decisions/environments.md) — a guessed value submits to somebody else's listing. Not needed until the first submit
 - [x] `E17-31` _(fast-follow)_ Create an App Store Connect API key so submissions do not need a 2FA prompt. App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → generate a key named graybag-eas-submit with the App Manager role. The .p8 downloads once and once only. See docs/release-testflight.md for exactly what to do with the three values. A credentialed action: it needs Account Holder or Admin on the Apple account
+- [ ] `E17-33` _(fast-follow)_ (risk:high) Read the live Google Play numbers off the Play Console — Production → Releases: the live versionName *and* the live versionCode (the integer). Play rejects on versionCode, and appVersionSource: remote mints ours from an EAS counter that started at 1, so the first Android submit fails the same way ITMS-90062 did unless the floor is known. A validation: two numbers read off a screen only Andy can open. app-config.test.ts already holds LIVE_PLAY with the assertions written and dormant
+- [ ] `E17-35` _(fast-follow)_ Confirm the live Android package is exactly com.Gracord.Graybag, capitals included — Play Console → App info. R4 calls it owned by the live listing and app-config.test.ts asserts the capitals, but nobody has checked it against Play; it is the same shape of defect as the version floor, and the test's own comment names the consequence (a new listing with zero installs). iOS's bundle id was verified by accident this week when Apple's rejection named the record; Android's has had no such luck
+- [ ] `E17-36` _(fast-follow)_ Confirm whether the live iOS listing supports iPad. app.json sets supportsTablet: false. If the live app is iPad-enabled, this update drops a device family from under existing users. Cheap to check while in App Store Connect; low severity, unverified either way
 
 ---
 

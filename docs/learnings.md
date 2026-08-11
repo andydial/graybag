@@ -46,7 +46,52 @@ app id and a bundle id each correct, nothing relating them) and the duplicate ta
 had verified.
 
 The rest of the release config was swept for the same shape immediately afterwards — see the
-audit entry dated 2026-08-11 below it.
+audit entry directly below.
+
+---
+
+## 2026-08-11 — Audit: what else in the release config is a belief about the live app
+
+**Context:** asked, after the two TestFlight causes, to sweep the release config for anything
+else derived from an unverified assumption about the live apps. The test is not "is this value
+wrong" — it is **"if this value were wrong, what would have told us?"**
+
+**What the sweep found.** Everything about *iOS* is now verified, largely by accident: this
+week's rejection named record `6749555467`, which incidentally confirmed the team id and the
+production bundle id along with it. **Android is verified nowhere**, and that is where the
+same defect is sitting.
+
+| Value | Status | If wrong |
+|---|---|---|
+| `version` `4.0.0` vs App Store `3.7.0` | **Verified** 2026-08-11 | — |
+| `ascAppId` / `appleTeamId` | **Verified** — Apple's own rejection referenced them | — |
+| `ios.bundleIdentifier` | **Verified** indirectly, same rejection | — |
+| **Live Play `versionCode`** | **Unknown — `E17-33`** | First Android submit rejected. `ITMS-90062` again, different error string |
+| **Live Play `versionName`** | **Unknown — `E17-33`** | Assumed equal to iOS `3.7.0`; two listings hand-updated for 14 months drift |
+| **`android.package` capitals** | **Unverified — `E17-35`** | New listing, zero installs. The test asserting it says so itself |
+| `supportsTablet: false` | **Unverified — `E17-36`** | An update silently drops a device family |
+| `ITSAppUsesNonExemptEncryption: false` | Correct — standard HTTPS is exempt | — |
+
+**The one that matters is the Play `versionCode`.** Play rejects on the integer, not on the
+marketing version, and `appVersionSource: remote` with `autoIncrement` mints ours from an EAS
+counter that began at 1 for this project. The live Bubble app's `versionCode` is some number
+nobody has read. **That is precisely `ITMS-90062`, already loaded, pointed at Android, and the
+iOS fix does not touch it** — worse, the now-real iOS floor reads as though it covers "the
+stores" and does not.
+
+**Cause, common to all of them:** the repo asserts what *it* controls and is silent on what
+the *outside world* controls. Both bugs this week lived in that silence.
+
+**Fix / rule:** `LIVE_PLAY` in `app-config.test.ts` holds both numbers as `null` — not
+guessed — with the assertions **already written and dormant**, so supplying a number turns the
+check on rather than requiring anyone to remember to write one. This copies
+`check-supabase-config.mjs`, which has always held `SUPABASE_PRODUCTION_REF` empty with the
+comment "a wrong ref here would assert a healthy config on a project nobody is using". That
+file had this right before either of this week's failures; the rest of the release config
+should have copied it then.
+
+A test also enforces that the two Play numbers arrive **together**, because the half-filled
+state — a `versionName` typed from memory, no `versionCode` — looks covered and is not.
 
 ---
 

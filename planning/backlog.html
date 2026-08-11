@@ -4221,13 +4221,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/32</span>
+          <span class="meter-num">0/36</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 32 tasks</summary>
+        <summary>Context &amp; 36 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -4490,6 +4490,38 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Create an App Store Connect API key</strong> so submissions do not need a 2FA prompt. App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → generate a key named <code>graybag-eas-submit</code> with the <strong>App Manager</strong> role. The <code>.p8</code> downloads <strong>once and once only</strong>. See <code>docs/release-testflight.md</code> for exactly what to do with the three values. A credentialed action: it needs Account Holder or Admin on the Apple account</span>
+      </li>
+      <li class="task" data-id="E17-33" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-33"></button>
+        <code class="tid">E17-33</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:high) <strong>Read the live Google Play numbers off the Play Console</strong> — Production → Releases: the live <code>versionName</code> *and* the live <code>versionCode</code> (the integer). Play rejects on <code>versionCode</code>, and <code>appVersionSource: remote</code> mints ours from an EAS counter that started at 1, so the first Android submit fails the same way <code>ITMS-90062</code> did unless the floor is known. A validation: two numbers read off a screen only Andy can open. <code>app-config.test.ts</code> already holds <code>LIVE_PLAY</code> with the assertions written and dormant</span>
+      </li>
+      <li class="task" data-id="E17-34" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-34"></button>
+        <code class="tid">E17-34</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Move the EAS Android version counter above the live <code>versionCode</code></strong> once <code>E17-33</code> returns — <code>eas build:version:set --platform android</code>. Fill <code>LIVE_PLAY</code> in <code>app-config.test.ts</code>, which activates the two dormant assertions. Do this *before* paying for an Android production build, not after Play rejects one</span>
+      </li>
+      <li class="task" data-id="E17-35" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-35"></button>
+        <code class="tid">E17-35</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Confirm the live Android package is exactly <code>com.Gracord.Graybag</code>, capitals included</strong> — Play Console → App info. <code>R4</code> calls it owned by the live listing and <code>app-config.test.ts</code> asserts the capitals, but nobody has checked it against Play; it is the same shape of defect as the version floor, and the test&#39;s own comment names the consequence (a new listing with zero installs). iOS&#39;s bundle id was verified by accident this week when Apple&#39;s rejection named the record; Android&#39;s has had no such luck</span>
+      </li>
+      <li class="task" data-id="E17-36" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-36"></button>
+        <code class="tid">E17-36</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Confirm whether the live iOS listing supports iPad.</strong> <code>app.json</code> sets <code>supportsTablet: false</code>. If the live app is iPad-enabled, this update drops a device family from under existing users. Cheap to check while in App Store Connect; low severity, unverified either way</span>
       </li></ul>
       </details>
     </article>

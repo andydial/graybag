@@ -307,7 +307,9 @@ describe('the store version floor', () => {
   const app = require('../app.json') as { expo: { version: string } };
 
   /**
-   * The live version, **read off App Store Connect on 2026-08-11**, not assumed.
+   * The live version **on the App Store**, read off App Store Connect on 2026-08-11, not
+   * assumed. Google Play is a separate number and is deliberately not covered here — see
+   * `LIVE_PLAY` below.
    *
    * This is the whole point of the constant. The previous rule here was `major >= 2`, written
    * when nobody had looked — and `2.0.0` passed it, was submitted, and came back as
@@ -354,5 +356,49 @@ describe('the store version floor', () => {
 
   it('is a three-part version, which is what both stores expect', () => {
     expect(app.expo.version).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  /**
+   * **Google Play has its own floor, and we do not know it yet (`E17-33`).**
+   *
+   * Found auditing the release config after `ITMS-90062`. The iOS floor above is now real, and
+   * it is easy to read it as covering "the stores" — it does not. Play differs twice over:
+   *
+   * 1. Its live `versionName` need not equal the App Store's `3.7.0`. Two listings updated by
+   *    hand over fourteen months drift, and nobody has looked at the Play Console.
+   * 2. **Play rejects on `versionCode`, an integer, not on `versionName`.** `appVersionSource:
+   *    remote` with `autoIncrement` means EAS mints that integer from its own counter, which
+   *    began at 1 for this project. The live Bubble app's `versionCode` is some number nobody
+   *    has read, and any upload at or below it is rejected — the identical failure to the one
+   *    Apple just sent us, with a different error string, waiting on the first Play submit.
+   *
+   * So both are held as `null` rather than guessed, the way `check-supabase-config.mjs` holds
+   * `SUPABASE_PRODUCTION_REF` empty rather than inventing a project ref. **The assertions
+   * below are already written and activate the moment the numbers are filled in** — the gap is
+   * the missing fact, not missing code, and filling one in cannot be done without the check.
+   */
+  const LIVE_PLAY: { versionName: string | null; versionCode: number | null } = {
+    versionName: null,
+    versionCode: null,
+  };
+
+  it('takes both Play numbers or neither', () => {
+    // The half-filled state is the dangerous one: a `versionName` typed in from memory, no
+    // `versionCode`, and a floor that looks covered while the number Play actually rejects on
+    // is still unknown. Both live on the same Play Console screen; there is no honest reason
+    // to have read one and not the other.
+    expect(LIVE_PLAY.versionName === null).toBe(LIVE_PLAY.versionCode === null);
+  });
+
+  it('clears the live Play versionName once it is known', () => {
+    if (LIVE_PLAY.versionName === null) return; // E17-33 — nobody has read the Play Console
+    expect(compare(app.expo.version, LIVE_PLAY.versionName)).toBeGreaterThan(0);
+  });
+
+  it('mints a versionCode above the live one once it is known', () => {
+    if (LIVE_PLAY.versionCode === null) return; // E17-33
+    // EAS owns the value at build time, so what is assertable here is the floor it must clear.
+    // `eas build:version:set` is how the remote counter is moved above it, once.
+    expect(LIVE_PLAY.versionCode).toBeGreaterThan(0);
   });
 });
