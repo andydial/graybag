@@ -1,0 +1,156 @@
+---
+/**
+ * The document shell: head, skip link, footer.
+ *
+ * Everything expensive about page weight is decided here — which font is preloaded, what goes
+ * in `<head>`, and the fact that there is no analytics tag, no tag manager and no embed. The
+ * budget for this site is **zero third-party requests**, and the only way that survives contact
+ * with time is for there to be one file where adding one is visible.
+ */
+import '../styles/tokens.css';
+import '../styles/site.css';
+
+import { design } from '@graybag/shared';
+
+import { FOOTER, SITE } from '../content/site.js';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Path only, e.g. `/privacy`. Joined to `SITE.url` for the canonical and `og:url`. */
+  path: string;
+  /** Long-form pages get a plain header on white instead of the hero's green one. */
+  plainHeader?: boolean;
+}
+
+const { title, description, path, plainHeader = false } = Astro.props;
+
+const canonical = new URL(path, SITE.url).href;
+const fullTitle = path === '/' ? `${SITE.name} — ${SITE.tagline}` : `${title} — ${SITE.name}`;
+
+/**
+ * Structured data.
+ *
+ * Only what is true and checkable: who we are, where we operate, how to reach us. No
+ * `aggregateRating`, no invented `foundingDate`, no `Review` markup — search engines penalise
+ * fabricated structured data and, more to the point, it would be fabricated.
+ */
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FoodService',
+  name: SITE.name,
+  description: SITE.description,
+  url: SITE.url,
+  email: SITE.email,
+  areaServed: { '@type': 'City', name: 'Mohali', containedInPlace: { '@type': 'State', name: 'Punjab' } },
+  address: { '@type': 'PostalAddress', addressLocality: 'Mohali', addressRegion: 'Punjab', addressCountry: 'IN' },
+  audience: { '@type': 'Audience', audienceType: 'Schools' },
+};
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    <!--
+      The font is the one render-blocking-adjacent asset on the page, so it is preloaded from
+      the same origin. `crossorigin` is required even same-origin for fonts, and omitting it
+      makes the browser fetch the file twice — once for the preload it then throws away.
+    -->
+    <link
+      rel="preload"
+      href="/fonts/nunito-latin-var.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+    <link rel="apple-touch-icon" href="/img/apple-touch-icon.png" />
+    <!--
+      The browser-chrome colour comes from the token, not from a hex typed here. `S8` says one
+      source and no third; a literal in a meta tag is exactly how a palette acquires a second.
+      `bg.surfaceInverse` is the footer and hero field, so the chrome matches what is on screen.
+    -->
+    <meta name="theme-color" content={design.semantic.bg.surfaceInverse} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={SITE.name} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL('/img/og.jpg', SITE.url).href} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_IN" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </head>
+
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    {
+      plainHeader && (
+        <header class="wrap site-header">
+          <a class="site-header__logo" href="/" aria-label={`${SITE.name} home`}>
+            <img src="/img/logo.webp" width="560" height="184" alt={SITE.name} />
+          </a>
+          <a class="btn" href="/#enquiry">Get in touch</a>
+        </header>
+      )
+    }
+
+    <main id="main">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <div class="footer__grid">
+          <div class="footer__about">
+            <img src="/img/logo-white.webp" width="560" height="184" alt={SITE.name} loading="lazy" />
+            <p>School lunch, ordered in advance and delivered to the child. Operating in {SITE.city}.</p>
+            <p><a href={`mailto:${SITE.email}`}>{SITE.email}</a></p>
+          </div>
+
+          <nav aria-labelledby="footer-site">
+            <h2 id="footer-site">GrayBag</h2>
+            <ul>
+              {FOOTER.company.map((item) => (
+                <li><a href={item.href.startsWith('#') ? `/${item.href}` : item.href}>{item.label}</a></li>
+              ))}
+            </ul>
+          </nav>
+
+          <nav aria-labelledby="footer-legal">
+            <h2 id="footer-legal">Legal</h2>
+            <ul>
+              {FOOTER.legal.map((item) => (
+                <li><a href={item.href}>{item.label}</a></li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+
+        <section class="footer__grievance" aria-labelledby="grievance">
+          <h2 id="grievance">{FOOTER.grievance.heading}</h2>
+          <p>{FOOTER.grievance.body}</p>
+          <p><a href={`mailto:${FOOTER.grievance.email}`}>{FOOTER.grievance.email}</a></p>
+        </section>
+
+        <div class="footer__legal">
+          <span>© {new Date().getFullYear()} GrayBag. All rights reserved.</span>
+          <span>{SITE.city} · India</span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

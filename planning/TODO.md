@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 43 open of 46.
+Your tasks only — 47 open of 50.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -55,6 +55,10 @@ in VS Code or on GitHub without opening anything.
 
 - [ ] `E03-18` **[high]** _(fast-follow)_ Decide the support policy for the ~15 people who appear to hold two accounts under different spellings of the same school domain (ais.amity.edu vs ais.amity.edu.in vs aismohali.amity.edu) — found by E19-04. As email strings they are distinct and will migrate to distinct accounts, which is correct; but each of those parents will see their children and order history split across two logins. This is a support-model decision, not a data fix: do not merge them automatically — ais.amity.edu and ais.amity.edu.in may be genuinely separate mailboxes, and a wrong merge shows one parent another family's child Post-cutover (SC3) — only migrated accounts can hold two
 - [ ] `E12-10` Make the DNS change at the registrar when the cutover plan is ready
+- [ ] `E12-11` _(fast-follow)_ Confirm Amity International, Gem Public and Paragon Senior Secondary may be named publicly on the website ([WEB-02]) — must be settled before E12-10
+- [ ] `E12-12` _(fast-follow)_ Name the address enquiries are emailed to, for ENQUIRY_NOTIFY_EMAIL ([WEB-03])
+- [ ] `E12-13` _(fast-follow)_ Commission dish photography — every existing photo is 120px and no larger original exists ([WEB-01]); also closes E16-29's three permanent 403s and unblocks the app's dish-card treatment
+- [ ] `E12-14` _(fast-follow)_ (risk:medium) Confirm what may be stated about food safety and the FSSAI registration ([WEB-04])
 - [ ] `E13-09` Review the motion spec with Andy once, before app UI work starts
 - [ ] `E13-14` _(fast-follow)_ DS-01 — approve the "500 rule": #00af52 stays the identity colour but functional green moves to primary-700 #007e3b for fills and text. White on #00af52 is 2.90:1 and fails every WCAG bar, so the mocks cannot ship as drawn. This changes what every button, price and field label looks like. Options and the recommendation are in docs/open-questions.md; the consequences are worked through in docs/design-tokens.md §2.1. E13-15 changed what is being asked, and Andy must be told this before he answers: the brand guidelines' Colour Usage Guide assigns #00AF52 to "Buttons & CTAs in UI" in as many words, so approving the 500 rule means deviating from the brand book on one line, not just from the mocks. The case for doing it is that the brand document contains no contrast analysis anywhere — it was written for packaging, presentations and social. The dark-ink-on-green alternative now also contradicts the brand's five approved logo-on-colour pairings, which put white on #00AF52
 - [x] `E16-21` _(fast-follow)_ ~~Re-extract Child.Parent from Bubble with real ids~~ — closed 2026-08-08 by AR1: Child.Parent was never used. Its emptiness is the accurate state, not export damage, so there is nothing to re-extract. Parent↔child is derived from Order instead (order-parent + child), and a child nobody has ordered for correctly has no parent. Andy confirmed this in conversation

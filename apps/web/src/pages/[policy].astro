@@ -1,0 +1,75 @@
+---
+/**
+ * The three published policy documents (`E12-04`, `E20-13`).
+ *
+ * They have existed in `docs/` for some time and were linked from **nowhere** — which for a
+ * privacy notice is functionally the same as not having one. Both app stores require a reachable
+ * privacy URL before a submission is accepted, and the DPDP Act requires the grievance officer's
+ * contact to be findable by a person who wants to complain.
+ *
+ * One route for all three: they share a layout, a typography treatment and a gate, and three
+ * near-identical files would be three places to fix the next thing.
+ */
+import Base from '../layouts/Base.astro';
+import { POLICIES, assertPublishable, renderPolicy, type PolicyKey } from '../lib/policy.js';
+import { FOOTER } from '../content/site.js';
+
+export function getStaticPaths() {
+  return Object.keys(POLICIES).map((policy) => ({ params: { policy } }));
+}
+
+const key = Astro.params.policy as PolicyKey;
+
+/** `docs/` sits two levels above `apps/web`. */
+const repoRoot = new URL('../../../../', import.meta.url);
+
+const policy = renderPolicy(key, repoRoot);
+
+/**
+ * `PUBLIC_SITE_STAGE` is set to `production` only by the production deploy. Anything else — a
+ * local build, a PR preview, staging — renders the draft with its notice.
+ */
+const isProduction = import.meta.env.PUBLIC_SITE_STAGE === 'production';
+assertPublishable(policy, isProduction);
+
+const other = Object.entries(POLICIES).filter(([k]) => k !== key);
+---
+
+<Base
+  title={policy.title}
+  description={policy.description}
+  path={policy.path}
+  plainHeader
+>
+  <div class="wrap section--tight">
+    <article class="doc">
+      {
+        policy.placeholders.length > 0 && (
+          <div class="notice" role="note">
+            <strong>This is a draft, not the final policy.</strong> It is written against
+            GrayBag's actual data practice so that a lawyer can correct specific sentences rather
+            than start from a blank page, and it has not yet been reviewed
+            (<code>E20-01</code>). {policy.placeholders.length} value
+            {policy.placeholders.length === 1 ? '' : 's'} shown in guillemets are still to be
+            supplied. A production build containing any of them fails
+            (<code>E20-22</code>), so this page cannot reach graybag.com in this state.
+          </div>
+        )
+      }
+
+      <div set:html={policy.html} />
+
+      <nav class="doc__also" aria-label="Other policies">
+        <h2>Also published</h2>
+        <ul>
+          {other.map(([, meta]) => <li><a href={meta.path}>{meta.title}</a></li>)}
+          <li>
+            <a href={`mailto:${FOOTER.grievance.email}`}>
+              {FOOTER.grievance.heading}: {FOOTER.grievance.email}
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </article>
+  </div>
+</Base>

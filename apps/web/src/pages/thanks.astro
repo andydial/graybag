@@ -1,0 +1,36 @@
+---
+/**
+ * Where the no-JavaScript form path lands.
+ *
+ * The enhanced form never navigates here — it shows an inline success state, because sending a
+ * visitor to a new page to be told "thank you" costs a round trip on a connection that may not
+ * have one to spare. This page exists for the case where the script did not run: scripting off,
+ * a dropped bundle, an old browser. That path has to end somewhere that says the enquiry
+ * arrived, or the visitor cannot tell whether it did.
+ */
+import Base from '../layouts/Base.astro';
+import { SITE } from '../content/site.js';
+---
+
+<Base
+  title="Thank you"
+  description="Your enquiry has reached GrayBag."
+  path="/thanks"
+  plainHeader
+>
+  <div class="wrap section">
+    <div class="doc">
+      <p class="eyebrow">Enquiry received</p>
+      <h1 class="heading">Thank you — that has reached us</h1>
+      <p class="lead">
+        One person reads these, and you will get a reply from a real address rather than a
+        sequence of marketing emails. We usually come back within a working day.
+      </p>
+      <p class="prose">
+        If it is urgent, or if you would rather just talk, email
+        <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.
+      </p>
+      <p class="form-submit"><a class="btn" href="/">Back to the home page</a></p>
+    </div>
+  </div>
+</Base>

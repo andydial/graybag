@@ -680,7 +680,7 @@
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Named <strong>grievance officer</strong> with contact details published on the website and in the app</span>
+        <span class="ttext">Named <strong>grievance officer</strong> with contact details published on the website and in the app — *the website surface exists as of <code>E12-04</code> (footer of every page, plus each policy page), currently carrying the generic <code>grievance@graybag.com</code> route. It cannot carry a <strong>name</strong> until <code>E20-21</code>; the app half is untouched*</span>
       </li>
       <li class="task" data-id="E20-08" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-08"></button>
@@ -840,7 +840,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Extend the <code>E20-22</code> placeholder guard to scan <code>docs/privacy-policy.md</code>, <code>docs/terms.md</code> and <code>docs/refund-policy.md</code> for <code>«…-PENDING-…»</code> tokens in any production/published build</span>
+        <span class="ttext">Extend the <code>E20-22</code> placeholder guard to scan <code>docs/privacy-policy.md</code>, <code>docs/terms.md</code> and <code>docs/refund-policy.md</code> for <code>«…-PENDING-…»</code> tokens in any production/published build — *the <strong>website half is implemented</strong> in <code>apps/web/src/lib/policy.ts</code> (<code>assertPublishable</code>, covered by <code>policy.test.ts</code>): a build with <code>PUBLIC_SITE_STAGE=production</code> fails and names every unresolved token. It is a standalone guard, not yet an extension of <code>E20-22</code>, which does not exist. Remaining: fold the two together when <code>E20-22</code> is built, and cover any surface in the app that renders these documents rather than linking to them*</span>
       </li>
       <li class="task" data-id="E20-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-28"></button>
@@ -3264,17 +3264,17 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/10</span>
+          <span class="meter-num">0/18</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 10 tasks</summary>
+        <summary>Context &amp; 18 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
-      <li class="task" data-id="E12-01" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-01"></button>
         <code class="tid">E12-01</code>
         
@@ -3282,7 +3282,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Home page rebuilt on brand from the Graybag Design Package</span>
       </li>
-      <li class="task" data-id="E12-02" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-02" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-02"></button>
         <code class="tid">E12-02</code>
         
@@ -3298,7 +3298,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Investor submission form (replaces <code>investorsubmission</code>) — creator-only visibility</span>
       </li>
-      <li class="task" data-id="E12-04" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-04" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-04"></button>
         <code class="tid">E12-04</code>
         
@@ -3322,7 +3322,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Back-office login entry point (admin / kitchen)</span>
       </li>
-      <li class="task" data-id="E12-07" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E12-07" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-07"></button>
         <code class="tid">E12-07</code>
         
@@ -3330,7 +3330,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">SEO, meta tags, sitemap, favicon, social preview images</span>
       </li>
-      <li class="task" data-id="E12-08" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E12-08" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-08"></button>
         <code class="tid">E12-08</code>
         
@@ -3353,6 +3353,70 @@
         <span class="badge r-you">you</span>
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Make the DNS change at the registrar when the cutover plan is ready</span>
+      </li>
+      <li class="task" data-id="E12-11" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-11"></button>
+        <code class="tid">E12-11</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">Confirm Amity International, Gem Public and Paragon Senior Secondary may be named publicly on the website (<code>[WEB-02]</code>) — must be settled before <code>E12-10</code></span>
+      </li>
+      <li class="task" data-id="E12-12" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-12"></button>
+        <code class="tid">E12-12</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">Name the address enquiries are emailed to, for <code>ENQUIRY_NOTIFY_EMAIL</code> (<code>[WEB-03]</code>)</span>
+      </li>
+      <li class="task" data-id="E12-13" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-13"></button>
+        <code class="tid">E12-13</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">Commission dish photography — every existing photo is 120px and no larger original exists (<code>[WEB-01]</code>); also closes <code>E16-29</code>&#39;s three permanent 403s and unblocks the app&#39;s dish-card treatment</span>
+      </li>
+      <li class="task" data-id="E12-14" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-14"></button>
+        <code class="tid">E12-14</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:medium) Confirm what may be stated about food safety and the FSSAI registration (<code>[WEB-04]</code>)</span>
+      </li>
+      <li class="task" data-id="E12-15" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-15"></button>
+        <code class="tid">E12-15</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Build the <code>enquiry</code> table, RLS and the <code>enquiry-submit</code> Edge Function to <code>docs/enquiry-submission-contract.md</code> — owned by the <code>supabase/</code> thread, not by <code>apps/web</code></span>
+      </li>
+      <li class="task" data-id="E12-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-16"></button>
+        <code class="tid">E12-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Wire <code>check:a11y</code> into the CI workflow — it is in <code>npm run test:all</code> but the GitHub Actions job does not run it yet</span>
+      </li>
+      <li class="task" data-id="E12-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-17"></button>
+        <code class="tid">E12-17</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Replace the drawn hero phone illustration with a real app screenshot once the app has screens worth showing</span>
+      </li>
+      <li class="task" data-id="E12-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-18"></button>
+        <code class="tid">E12-18</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Re-check the published policy pages the moment <code>E20-01</code> resolves the <code>«PENDING»</code> tokens — the production build gate (<code>E20-22</code>) will start passing and the pre-launch notice must come off deliberately</span>
       </li></ul>
       </details>
     </article>

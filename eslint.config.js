@@ -46,6 +46,9 @@ export default tseslint.config(
       '**/.expo/**',
       'planning/backlog.html',
       'Legacy-Application/**',
+      // Astro's generated type shims and its build output.
+      'apps/web/.astro/**',
+      'apps/web/dist/**',
     ],
   },
 
@@ -54,7 +57,15 @@ export default tseslint.config(
 
   {
     // Repo tooling and the menu importer: plain ESM JavaScript on Node.
-    files: ['scripts/**/*.mjs', 'tools/**/*.mjs'],
+    //
+    // `docs/**` and `apps/*/scripts/**` are here because build scripts are not all at the
+    // repository root: `docs/prototype/build.mjs` builds the clickable prototype and
+    // `apps/web/scripts/**` builds the site's tokens, images and fonts. Both are Node programs
+    // and neither matched any block, so every `console`, `process` and `Buffer` in them was a
+    // `no-undef` error — `docs/prototype/build.mjs` alone had **17 of them, and they were
+    // failing `npm run lint` on `main` before this branch existed**. Nothing was wrong with the
+    // script; it was being linted as though it ran in a browser.
+    files: ['scripts/**/*.mjs', 'tools/**/*.mjs', 'docs/**/*.mjs', 'apps/*/scripts/**/*.mjs'],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'module',
@@ -85,7 +96,7 @@ export default tseslint.config(
 
   {
     // Scripts talk to the operator; that is their entire job.
-    files: ['scripts/**', 'tools/**'],
+    files: ['scripts/**', 'tools/**', 'docs/**/*.mjs', 'apps/*/scripts/**'],
     rules: { 'no-console': 'off' },
   },
 

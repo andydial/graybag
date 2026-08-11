@@ -58,3 +58,13 @@ apps/*/ios/
 
 # Generated prototype: 4 MB of inlined binaries. Rebuild with docs/prototype/build.mjs
 docs/prototype/graybag-prototype.html
+
+# Astro's generated type shims for apps/web. An output of the config plus the routes, exactly
+# like the native projects above — committing it lets the checked-in copy drift from what
+# produced it.
+apps/web/.astro/
+
+# Written by the local enquiry-endpoint mock (`astro dev` only). Real submissions go to the
+# `enquiry` table via the Edge Function; this file is a development convenience and would be a
+# small pile of people's contact details in git.
+apps/web/.dev-enquiries.jsonl
