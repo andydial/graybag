@@ -150,11 +150,12 @@ export function ChildrenScreen({
   const recipients = useRecipients();
 
   // `reloadToken` changes when the screen is re-focused, so a child added elsewhere appears.
+  // Only on the token. `reload` is stable, and `recipients` is a fresh object each render, so
+  // depending on it here would loop — which it did, once, straight into an out-of-memory crash.
+  const reload = recipients.reload;
   useEffect(() => {
-    recipients.reload();
-    // Only on the token: reload identity is stable, and depending on it would loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reloadToken]);
+    reload();
+  }, [reloadToken, reload]);
 
   /**
    * **Derived, not mirrored.** Copying this into `useState` inside an effect is what made the
