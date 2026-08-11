@@ -132,11 +132,19 @@ describe('CartScreen', () => {
     const user = userEvent.setup();
     await renderCart([IDLI]);
 
+    // The cart's note is a compact line now (Andy, 2026-08-11) — one tap opens the same field
+    // the dish sheet uses. The extra press is the behaviour change; everything asserted after
+    // it is unchanged.
+    await user.press(screen.getByTestId(`cart-line-note-${cartDomain.lineKey(IDLI)}`));
     // By label, not testID: `TextField` puts its testID on the wrapping View, and `type`
     // only accepts a host TextInput.
     await user.type(screen.getByLabelText('Note for the kitchen'), 'no chutney');
 
-    expect(screen.getByDisplayValue('no chutney')).toBeTruthy();
+    // `type` blurs at the end, which commits — and a comment is part of a line's key, so the
+    // row re-keys and the editor collapses back to the compact line showing what was written.
+    // Asserting the collapsed line rather than the field's display value is asserting what a
+    // parent actually ends up looking at.
+    expect(screen.getByText('no chutney')).toBeTruthy();
   });
 
   // The test above only proves the draft renders. This one proves the draft was committed to
@@ -146,6 +154,10 @@ describe('CartScreen', () => {
     const user = userEvent.setup();
     await renderCart([IDLI]);
 
+    // The cart's note is a compact line now (Andy, 2026-08-11) — one tap opens the same field
+    // the dish sheet uses. The extra press is the behaviour change; everything asserted after
+    // it is unchanged.
+    await user.press(screen.getByTestId(`cart-line-note-${cartDomain.lineKey(IDLI)}`));
     await user.type(screen.getByLabelText('Note for the kitchen'), 'no chutney');
 
     const committedKey = cartDomain.lineKey({ ...IDLI, comment: 'no chutney' });
@@ -218,14 +230,24 @@ describe('CartScreen — who, and how much', () => {
 
   // P12: 140 characters, enforced by the field rather than truncated on save.
   it('caps the kitchen note at 140 characters in the field', async () => {
+    const user = userEvent.setup();
     await renderCart([IDLI]);
+    // The cart's note is a compact line now (Andy, 2026-08-11) — one tap opens the same field
+    // the dish sheet uses. The extra press is the behaviour change; everything asserted after
+    // it is unchanged.
+    await user.press(screen.getByTestId(`cart-line-note-${cartDomain.lineKey(IDLI)}`));
 
     const note = screen.getByLabelText('Note for the kitchen');
     expect(note.props.maxLength).toBe(140);
   });
 
   it('describes the note as a request and not as allergy information', async () => {
+    const user = userEvent.setup();
     await renderCart([IDLI]);
+    // The cart's note is a compact line now (Andy, 2026-08-11) — one tap opens the same field
+    // the dish sheet uses. The extra press is the behaviour change; everything asserted after
+    // it is unchanged.
+    await user.press(screen.getByTestId(`cart-line-note-${cartDomain.lineKey(IDLI)}`));
     expect(
       screen.getByText(/request we pass to the kitchen — not a guarantee, and not for allergies/i),
     ).toBeTruthy();

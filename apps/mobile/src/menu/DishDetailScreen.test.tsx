@@ -768,3 +768,54 @@ describe('DishDetailScreen', () => {
     expect(screen.queryByText('Cold Coffee')).toBeNull();
   });
 });
+
+/**
+ * The kitchen note, moved here from the cart — Andy, 2026-08-11.
+ *
+ * The moment a parent knows they want "no chilli" is while they are looking at the dish, not
+ * three screens later while reading a total. The cart keeps a compact line to change it.
+ */
+describe('the kitchen note', () => {
+  beforeEach(() => setMenuCache(fakeCache()));
+
+  it('is offered on the sheet, where the decision is made', async () => {
+    await renderDish('d1');
+    expect(screen.getByLabelText('Note for the kitchen')).toBeOnTheScreen();
+  });
+
+  it('travels with the line into the cart', async () => {
+    const user = userEvent.setup();
+    await renderDish('d1');
+
+    await user.type(screen.getByLabelText('Note for the kitchen'), 'no chilli please');
+    await user.press(screen.getByTestId('screen-dish-detail-add-button'));
+
+    expect(seenCart?.lines[0]?.comment).toBe('no chilli please');
+  });
+
+  it('adds nothing when the note is left alone', async () => {
+    // `null`, not `''`. An empty string is a comment the domain would have to normalise, and it
+    // would change the line's key for no reason a parent could see.
+    const user = userEvent.setup();
+    await renderDish('d1');
+
+    await user.press(screen.getByTestId('screen-dish-detail-add-button'));
+
+    expect(seenCart?.lines[0]?.comment).toBeNull();
+  });
+
+  it('says it is a request, and not the place for allergies', async () => {
+    // `P12`. A free-text "no peanuts" reads to a parent like a safety instruction and is not
+    // one — allergies are structured data on the child, with a warning path behind them.
+    await renderDish('d1');
+    expect(
+      screen.getByText(/request we pass to the kitchen — not a guarantee, and not for allergies/i),
+    ).toBeOnTheScreen();
+  });
+
+  it('is not offered once ordering has closed', async () => {
+    // A field that cannot be acted on is furniture.
+    await renderDish('d1', { ordering: { closed: true } });
+    expect(screen.queryByLabelText('Note for the kitchen')).toBeNull();
+  });
+});

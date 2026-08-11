@@ -9,13 +9,15 @@ import { Card, EmptyState } from '../components/Surfaces';
 import { TextField } from '../components/TextField';
 import { useCart } from './CartContext';
 import { BreakTimePicker } from './BreakTimePicker';
+import { KitchenNoteLine } from './KitchenNote';
 import { CartTotals } from './CartTotals';
 import { OrderForBlock, type OrderFor } from './OrderForBlock';
 
 const { bg, text, border, scale, space, radius, borderWidth, touchTarget, layout, action } = design;
 
 /** `P12`: 140 characters, and the field stops accepting input rather than truncating on save. */
-export const COMMENT_MAX_LENGTH = 140;
+/** Re-exported from `KitchenNote` so the cap lives with the field that enforces it (`P12`). */
+export { KITCHEN_NOTE_MAX_LENGTH as COMMENT_MAX_LENGTH } from './KitchenNote';
 
 /** The line thumbnail's box. `space[16]` rather than a number, like every other box. */
 const THUMB = space[16];
@@ -792,54 +794,20 @@ function CartLineRow({
         </Text>
       </View>
 
-      <CommentField line={line} onCommit={onComment} />
+      {/*
+        Compact, and tap-to-edit (Andy, 2026-08-11). The full field is on the dish sheet, where
+        the parent is actually looking at the dish; a permanently-open textarea under every
+        line made the cart a form when it should read as a receipt.
+      */}
+      <KitchenNoteLine
+        value={line.comment}
+        onCommit={onComment}
+        testID={`cart-line-note-${line.key}`}
+      />
     </Card>
   );
 }
 
-/**
- * The kitchen note (`P12`, `docs/ux-spec.md` §5.6.1).
- *
- * **It holds a draft and commits on blur.** A line's identity includes its comment (`lineKey`),
- * because the same dish with two different requests is two different things for the kitchen to
- * make. Committing per keystroke re-identifies the line on every character: the row is re-keyed,
- * React unmounts the input, and focus is lost after the first letter. A test caught exactly that.
- *
- * **The copy promises best effort and nothing more** — `P12`'s second condition. It is a request
- * passed to the kitchen, not a guarantee, and explicitly not where allergies go. The allergy
- * diversion specified in §5.6.1 is not here: it routes to Edit child, which does not exist yet,
- * and Andy's sequencing is that a diversion to a screen that does not exist is worse than none.
- */
-function CommentField({
-  line,
-  onCommit,
-}: {
-  line: cartDomain.CartLine;
-  onCommit: (next: string | null) => void;
-}) {
-  const [draft, setDraft] = useState(line.comment ?? '');
-  const remaining = COMMENT_MAX_LENGTH - draft.length;
-
-  return (
-    <TextField
-      label="Note for the kitchen"
-      testID={`cart-line-comment-${line.key}`}
-      value={draft}
-      onChangeText={setDraft}
-      // Hard stop rather than a silent truncation on save: a parent who typed 200 characters
-      // and had 60 of them dropped invisibly believes the kitchen has all of it (`P12`).
-      maxLength={COMMENT_MAX_LENGTH}
-      // Blank commits as `null`, so clearing the field genuinely clears the comment rather
-      // than storing an empty string the domain would have to normalise anyway.
-      onBlur={() => onCommit(draft.trim() === '' ? null : draft)}
-      hint={
-        remaining <= 20
-          ? `${remaining} characters left. A request we pass to the kitchen — not a guarantee, and not for allergies.`
-          : 'Optional. A request we pass to the kitchen — not a guarantee, and not for allergies.'
-      }
-    />
-  );
-}
 
 /**
  * One end of the stepper.

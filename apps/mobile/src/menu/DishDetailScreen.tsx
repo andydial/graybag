@@ -14,6 +14,7 @@ import {
 } from '../components';
 import { DishImage, IMAGE_SIZES } from '../components/DishImage';
 import { useCart } from '../cart/CartContext';
+import { KitchenNoteField } from '../cart/KitchenNote';
 // The one formatter for a service date (`R7`: full weekday and month, parsed and formatted in
 // UTC so the rendered day cannot slide). Imported rather than copied — two date formatters is
 // how "Tuesday 12 August" and "12/08" end up on two screens describing the same lunch.
@@ -270,6 +271,13 @@ function AddToCart({
   const { add } = useCart();
   const [added, setAdded] = useState(false);
   const [conflict, setConflict] = useState<string[] | null>(null);
+  /**
+   * The kitchen note, written here rather than in the cart (Andy, 2026-08-11).
+   *
+   * The moment a parent knows they want "no chilli" is while they are looking at the dish, not
+   * three screens later while reading a total. The cart keeps a compact line to change it.
+   */
+  const [note, setNote] = useState<string | null>(null);
 
   const commit = useCallback(() => {
     // No target is not a refusal (`E05-32`). `R1`/`AR7`: the cart fills signed out and the
@@ -285,11 +293,11 @@ function AddToCart({
       // One. The stepper lives in the cart, where the quantity can be seen next to the total
       // it produces — a counter here would be a second place to change the same number.
       quantity: 1,
-      comment: null,
+      comment: note,
     });
     setAdded(true);
     setConflict(null);
-  }, [add, dish, target]);
+  }, [add, dish, target, note]);
 
   /**
    * `D7` / `E05-05`, and the reason this screen exists in the shape it does.
@@ -331,6 +339,13 @@ function AddToCart({
         Adding always works. Who it is for is chosen at the gate, which is where the spec has
         always put it (§5.6).
       */}
+      {/*
+        Above the button, because it is part of the decision rather than a follow-up to it. Not
+        offered once ordering has closed: a field that cannot be acted on is furniture.
+      */}
+      {closed ? null : (
+        <KitchenNoteField value={note} onCommit={setNote} testID={`${testID}-note`} />
+      )}
       <Button
         label={closed ? 'Ordering has closed' : `Add to cart · ${money.formatPaise(dish.pricePaise)}`}
         onPress={attempt}
