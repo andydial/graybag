@@ -73,7 +73,7 @@ const SCREENS: [string, () => React.JSX.Element, string][] = [
  */
 const mount = (Screen: () => React.JSX.Element) =>
   render(
-    <SessionProvider initial={{ status: 'signedIn', userId: 'u-1' }}>
+    <SessionProvider initial={{ status: 'signedIn', userId: 'u-1', email: null }}>
       <CartProvider>
         <NavigationContainer>
           <Screen />

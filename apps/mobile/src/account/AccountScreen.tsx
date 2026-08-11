@@ -101,7 +101,7 @@ export function AccountScreen({
             answers "which account am I in" without being a field anybody can act on.
           */}
           <Text style={styles.eyebrow} numberOfLines={1} testID={`${testID}-identity`}>
-            {access !== 'signedIn' || email === null || email === '' ? (access === 'pending' ? ' ' : 'Not signed in') : email}
+            {identityLine(access, email)}
           </Text>
         </View>
 
@@ -259,6 +259,23 @@ function DangerRow({
       {body}
     </Pressable>
   );
+}
+
+/**
+ * What the identity line says, with the three states kept apart.
+ *
+ * The bug this replaces read `access !== 'signedIn' || email === null || email === ''` as one
+ * condition, so **a missing address printed "Not signed in"** — a claim about the session, made
+ * on the strength of a field that says nothing about it. Andy saw Account report signed-out while
+ * his children were listed on the next screen.
+ */
+function identityLine(access: import('../session/audience').Access, email: string | null): string {
+  // The stored session has not been read back. Claim nothing; it is one keychain read away.
+  if (access === 'pending') return ' ';
+  if (access === 'signedOut') return 'Not signed in';
+  // Signed in, address unknown — which is a fact about the provider, not about the session.
+  if (email === null || email === '') return 'Signed in';
+  return email;
 }
 
 const styles = StyleSheet.create({

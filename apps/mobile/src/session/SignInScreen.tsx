@@ -256,7 +256,7 @@ export function SignInScreen({
     try {
       const user = await api.verifyEmailOtp(email, code);
       clearPendingSignIn();
-      setSession({ status: 'signedIn', userId: user.userId });
+      setSession({ status: 'signedIn', userId: user.userId, email: user.email ?? email });
       onSignedIn?.();
     } catch (error) {
       const message = describe(error, 'That code did not work. Try again.');

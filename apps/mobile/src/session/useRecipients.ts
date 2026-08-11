@@ -120,6 +120,6 @@ export function useSignOut(): () => Promise<void> {
   const { setSession } = useSession();
   return useCallback(async () => {
     await api.signOut();
-    setSession({ status: 'signedOut', userId: null });
+    setSession({ status: 'signedOut', userId: null, email: null });
   }, [setSession]);
 }

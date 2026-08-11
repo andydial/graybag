@@ -29,6 +29,16 @@ export interface Session {
    */
   status: 'unknown' | 'signedOut' | 'signedIn';
   userId: string | null;
+  /**
+   * The signed-in address, when the provider gave us one.
+   *
+   * **Null means "we do not know the address", never "there is no session".** Account used to
+   * infer the second from the first — `email === null` fell into the same branch as
+   * `access !== 'signedIn'` and printed "Not signed in" — so a signed-in parent was told they
+   * were not, while every other screen disagreed. An identity provider is not obliged to return
+   * an address, and a screen must not read one field as an answer about another.
+   */
+  email: string | null;
 }
 
 interface SessionValue extends Session {
@@ -36,8 +46,8 @@ interface SessionValue extends Session {
   setSession: (next: Session) => void;
 }
 
-const SIGNED_OUT: Session = { status: 'signedOut', userId: null };
-const UNKNOWN: Session = { status: 'unknown', userId: null };
+const SIGNED_OUT: Session = { status: 'signedOut', userId: null, email: null };
+const UNKNOWN: Session = { status: 'unknown', userId: null, email: null };
 
 /**
  * **No provider means `unknown`, not signed out.**
@@ -83,7 +93,11 @@ export function SessionProvider({
       .currentUser()
       .then((user) => {
         if (!live) return;
-        setSession(user === null ? SIGNED_OUT : { status: 'signedIn', userId: user.userId });
+        setSession(
+          user === null
+            ? SIGNED_OUT
+            : { status: 'signedIn', userId: user.userId, email: user.email },
+        );
       })
       .catch(() => {
         // A failed read is not a signed-in user. Falling back to signed-out is the safe

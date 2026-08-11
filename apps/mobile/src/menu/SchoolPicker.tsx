@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { api, design } from '@graybag/shared';
 
+import { EmptyStateDiagnostic } from '../components/EmptyStateDiagnostic';
 import {
   BrandPanel,
   Button,
@@ -313,6 +314,20 @@ function Body({
         <EmptyState
           title="No schools yet"
           body="GrayBag isn't serving any schools or colleges yet. Check back soon."
+        />
+        {/*
+          This screen showed exactly this sentence, confidently, while three real schools with
+          119 priced dishes sat behind an `onboarded_at` that was null — the RLS policy filtered
+          them and the app had no way to say so. "None exist" and "none are visible to you" are
+          different facts and this is the only place the difference can be seen.
+        */}
+        <EmptyStateDiagnostic
+          testID="school-picker-empty-diagnostic"
+          facts={[
+            { label: 'rows', value: 0 },
+            { label: 'query', value: 'school:id,name,city' },
+            { label: 'gate', value: 'anon_school_onboarded' },
+          ]}
         />
       </View>
     );

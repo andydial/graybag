@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 42 open of 46.
+Your tasks only — 42 open of 47.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -68,6 +68,7 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E17-12` Support plan for the first two weeks (who answers, how fast, what the common issues will be)
 - [ ] `E17-26` _(fast-follow)_ Register an iOS device UDID for internal-distribution builds — eas device:create. The staging profile is distribution: internal, which on iOS is ad-hoc: it needs an Apple Developer login (interactive, with 2FA) and at least one registered device, neither of which can be done unattended. Android needs nothing here — EAS generates the keystore itself
 - [ ] `E17-27` _(fast-follow)_ App Store Connect app id (ascAppId) for eas submit. Deliberately absent from eas.json (see docs/decisions/environments.md) — a guessed value submits to somebody else's listing. Not needed until the first submit
+- [x] `E17-28` _(fast-follow)_ Create an App Store Connect API key so submissions do not need a 2FA prompt. App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → generate a key named graybag-eas-submit with the App Manager role. The .p8 downloads once and once only. See docs/release-testflight.md for exactly what to do with the three values. A credentialed action: it needs Account Holder or Admin on the Apple account
 
 ---
 

@@ -24,7 +24,13 @@
     },
     "preview": {
       "extends": "staging",
-      "channel": "staging"
+      "channel": "staging",
+      "ios": {
+        "distribution": "store"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
     },
     "production": {
       "autoIncrement": true,
@@ -37,7 +43,17 @@
   "submit": {
     "production": {
       "ios": {
-        "appleTeamId": "F247T8Y2NT"
+        "appleTeamId": "F247T8Y2NT",
+        "ascAppId": "6749555467"
+      },
+      "android": {
+        "track": "internal"
+      }
+    },
+    "preview": {
+      "ios": {
+        "appleTeamId": "F247T8Y2NT",
+        "ascAppId": "6749555467"
       },
       "android": {
         "track": "internal"

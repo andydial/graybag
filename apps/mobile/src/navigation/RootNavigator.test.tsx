@@ -285,7 +285,7 @@ describe('safe area', () => {
 
 describe('requiresSignIn', () => {
   it('is true when signed out and false when signed in', () => {
-    expect(requiresSignIn({ status: 'signedOut', userId: null })).toBe(true);
-    expect(requiresSignIn({ status: 'signedIn', userId: 'u1' })).toBe(false);
+    expect(requiresSignIn({ status: 'signedOut', userId: null, email: null })).toBe(true);
+    expect(requiresSignIn({ status: 'signedIn', userId: 'u1', email: null })).toBe(false);
   });
 });

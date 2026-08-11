@@ -7,6 +7,8 @@ import { Button, EmptyState, ErrorState, Sheet, Skeleton } from '../components';
 import { SchoolPicker } from '../menu/SchoolPicker';
 import { useOrderingTarget } from '../session/audience';
 import { useRecipients } from '../session/useRecipients';
+import { useSession } from '../session/SessionContext';
+import { EmptyStateDiagnostic } from '../components/EmptyStateDiagnostic';
 
 const {
   bg, text, border, action, space, radius, borderWidth, scale, layout, touchTarget, icon,
@@ -136,6 +138,7 @@ export function ChildrenScreen({
   // Display only. The tick says which recipient the app is currently ordering for; nothing
   // here writes it, for the reason on `onSelectRecipient`. Via the audience, so there is no
   // tick — and no list — without a session.
+  const { status: sessionStatus } = useSession();
   const target = useOrderingTarget();
   const selectedId = target === null ? null : target.recipientId;
 
@@ -265,6 +268,13 @@ export function ChildrenScreen({
             actionLabel="Sign in"
             {...(onSignIn === undefined ? {} : { onAction: onSignIn })}
           />
+          <EmptyStateDiagnostic
+            testID="children-signedout-diagnostic"
+            facts={[
+              { label: 'session', value: sessionStatus },
+              { label: 'read', value: 'refused: no session' },
+            ]}
+          />
         </View>
       );
 
@@ -278,6 +288,19 @@ export function ChildrenScreen({
             body="Add whoever the lunch is for — your child, or yourself. A name and a school is all we need to start."
             actionLabel="Add someone"
             onAction={onAddChild}
+          />
+          {/*
+            "Nobody added yet" is a claim about an account. It is also what this screen showed
+            for a signed-out visitor until `E03-27` split the two apart, so the facts stay on
+            screen where the distinction can be checked rather than trusted.
+          */}
+          <EmptyStateDiagnostic
+            testID="children-empty-diagnostic"
+            facts={[
+              { label: 'session', value: sessionStatus },
+              { label: 'rows', value: 0 },
+              { label: 'query', value: 'guardian_link+recipient' },
+            ]}
           />
         </View>
       );

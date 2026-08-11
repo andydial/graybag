@@ -15,6 +15,15 @@ import { useConnectivity } from '../net/ConnectivityContext';
  * renderer. A hook that reimplemented any of them would be a second, untested copy.
  */
 
+/** Facts about the last menu read. Ids and counts only — never a dish, never a person (R6). */
+export interface MenuDiagnostic {
+  schoolId: string | null;
+  version: number | null;
+  /** Where this render's data came from, or how it failed. */
+  source: 'cache' | 'network' | 'failed' | 'no-cache' | null;
+  rows: number | null;
+}
+
 export interface CachedDish {
   id: string;
   /**
@@ -68,10 +77,22 @@ export function useCachedMenu(schoolId: string | null): {
   payload: CachedMenuPayload | null;
   stale: boolean;
   retry: () => void;
+  /** Why this render looks the way it does. Non-production display only. */
+  diagnostic: MenuDiagnostic;
 } {
   const [state, setState] = useState<MenuState>('loading');
   const [payload, setPayload] = useState<CachedMenuPayload | null>(null);
   const [stale, setStale] = useState(false);
+  /**
+   * The four facts that settle "why is this screen empty" without another round trip to Andy.
+   * Rendered only in non-production builds — see `components/EmptyStateDiagnostic.tsx`.
+   */
+  const [diagnostic, setDiagnostic] = useState<MenuDiagnostic>({
+    schoolId: null,
+    version: null,
+    source: null,
+    rows: null,
+  });
   const [attempt, setAttempt] = useState(0);
   const { report } = useConnectivity();
 
@@ -100,11 +121,14 @@ export function useCachedMenu(schoolId: string | null): {
       setState('error');
       setPayload(null);
       setStale(false);
+      // The one failure with no school in it: the cache itself was never installed.
+      setDiagnostic({ schoolId, version: null, source: 'no-cache', rows: null });
       return;
     }
 
     let live = true;
     setState('loading');
+    setDiagnostic((d) => ({ ...d, schoolId, version: null, source: null, rows: null }));
 
     cache
       .get(schoolId)
@@ -118,6 +142,14 @@ export function useCachedMenu(schoolId: string | null): {
         setPayload(result.menu);
         setStale(result.stale);
         setState('ready');
+        // What was asked for and what came back — see `components/EmptyStateDiagnostic.tsx`.
+        // A count, never the contents.
+        setDiagnostic({
+          schoolId,
+          version: result.version,
+          source: result.refetched ? 'network' : 'cache',
+          rows: result.menu.dishes.length,
+        });
       })
       .catch(() => {
         if (!live) return;
@@ -127,6 +159,7 @@ export function useCachedMenu(schoolId: string | null): {
         // nothing to show.
         setState('error');
         setPayload(null);
+        setDiagnostic({ schoolId, version: null, source: 'failed', rows: null });
       });
 
     return () => {
@@ -136,5 +169,5 @@ export function useCachedMenu(schoolId: string | null): {
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  return { state, payload, stale, retry };
+  return { state, payload, stale, retry, diagnostic };
 }

@@ -3,6 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { design, menu as menuDomain } from '@graybag/shared';
 
 import { BrandHeader, EmptyState, ErrorState, Tabs, TextField, type TabItem } from '../components';
+import { EmptyStateDiagnostic } from '../components/EmptyStateDiagnostic';
+import type { MenuDiagnostic } from './useCachedMenu';
 import { MenuList, type MenuListItem } from './MenuList';
 import { useCachedMenu, type CachedMenuPayload } from './useCachedMenu';
 
@@ -66,7 +68,7 @@ export function MenuScreen({
 }) {
   const [categoryId, setCategoryId] = useState<string>(ALL_CATEGORIES);
   const [query, setQuery] = useState('');
-  const { state, payload, stale, retry } = useCachedMenu(schoolId);
+  const { state, payload, stale, retry, diagnostic } = useCachedMenu(schoolId);
 
   const tabs = useMemo<TabItem[]>(
     () => [{ id: ALL_CATEGORIES, label: 'All' }, ...(payload?.categories ?? [])],
@@ -131,6 +133,7 @@ export function MenuScreen({
         ListHeaderComponent={intro}
         ListEmptyComponent={
           <MenuEmpty
+            diagnostic={diagnostic}
             query={query}
             menuHasDishes={(payload?.dishes.length ?? 0) > 0}
             onClearSearch={() => {
@@ -228,11 +231,14 @@ function MenuEmpty({
   menuHasDishes,
   onClearSearch,
   onShowEverything,
+  diagnostic,
 }: {
   query: string;
   menuHasDishes: boolean;
   onClearSearch: () => void;
   onShowEverything: () => void;
+  /** Non-production only. Four days of "no menu items" that no amount of reasoning closed. */
+  diagnostic: MenuDiagnostic;
 }) {
   const trimmed = query.trim();
 
@@ -258,11 +264,29 @@ function MenuEmpty({
     );
   }
 
+  /**
+   * The one that has been wrong for four days, and the only one where the parent-facing copy is
+   * a *claim about the server* rather than about what they typed. "Not published yet" is a
+   * confident sentence; it is equally the sentence an app shows when it asked the wrong school,
+   * read a poisoned cache, or received rows it then discarded. §5.21 says an unknown must not
+   * render as a known — so below the reassuring sentence, the facts.
+   */
   return (
-    <EmptyState
-      title="Nothing on the menu yet"
-      body="This school's menu has not been published. It will appear here once it is."
-    />
+    <>
+      <EmptyState
+        title="Nothing on the menu yet"
+        body="This school's menu has not been published. It will appear here once it is."
+      />
+      <EmptyStateDiagnostic
+        testID="menu-empty-diagnostic"
+        facts={[
+          { label: 'school', value: diagnostic.schoolId },
+          { label: 'version', value: diagnostic.version },
+          { label: 'source', value: diagnostic.source },
+          { label: 'rows', value: diagnostic.rows },
+        ]}
+      />
+    </>
   );
 }
 

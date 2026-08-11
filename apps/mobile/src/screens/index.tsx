@@ -21,6 +21,7 @@ import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
 import { useConnectivity } from '../net/ConnectivityContext';
 import { useAccess, useOrderingTarget, useRefreshRecipients } from '../session/audience';
 import { useSignOut } from '../session/useRecipients';
+import { useSession } from '../session/SessionContext';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 /**
@@ -171,11 +172,13 @@ export { CartScreen } from '../cart/CartScreen';
 export const AccountScreen = () => {
   const navigation = useNavigation();
   const access = useAccess();
+  const { email } = useSession();
   const signOut = useSignOut();
 
   return (
     <AccountScreenImpl
       access={access}
+      email={email}
       onSignIn={() => navigation.navigate('SignIn')}
       onRecipients={() => navigation.navigate('Children')}
       onSignOut={() => {

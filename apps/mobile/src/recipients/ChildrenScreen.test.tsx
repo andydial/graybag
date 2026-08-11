@@ -125,7 +125,7 @@ async function setup(overrides: Partial<Parameters<typeof ChildrenScreen>[0]> = 
   // about the list a signed-in parent sees, so they say so.
   await render(
     <SafeAreaProvider initialMetrics={METRICS}>
-      <SessionProvider initial={{ status: 'signedIn', userId: 'u1' }}>
+      <SessionProvider initial={{ status: 'signedIn', userId: 'u1', email: null }}>
         <ChildrenScreen onAddChild={onAddChild} {...overrides} />
       </SessionProvider>
     </SafeAreaProvider>,
@@ -392,7 +392,7 @@ describe('ChildrenScreen', () => {
     // stays mounted, so returning from it has to ask again.
     const { rerender } = await render(
       <SafeAreaProvider initialMetrics={METRICS}>
-        <SessionProvider initial={{ status: 'signedIn', userId: 'u1' }}>
+        <SessionProvider initial={{ status: 'signedIn', userId: 'u1', email: null }}>
           <ChildrenScreen onAddChild={jest.fn()} reloadToken={0} />
         </SessionProvider>
       </SafeAreaProvider>,
@@ -402,7 +402,7 @@ describe('ChildrenScreen', () => {
     rows = [LINK(), LINK({ id: 'r2', first_name: 'Zoya', last_name: null })];
     await rerender(
       <SafeAreaProvider initialMetrics={METRICS}>
-        <SessionProvider initial={{ status: 'signedIn', userId: 'u1' }}>
+        <SessionProvider initial={{ status: 'signedIn', userId: 'u1', email: null }}>
           <ChildrenScreen onAddChild={jest.fn()} reloadToken={1} />
         </SessionProvider>
       </SafeAreaProvider>,
@@ -414,7 +414,7 @@ describe('ChildrenScreen', () => {
   it('ticks the recipient the app is currently ordering for', async () => {
     await render(
       <SafeAreaProvider initialMetrics={METRICS}>
-        <SessionProvider initial={{ status: 'signedIn', userId: 'u-1' }}>
+        <SessionProvider initial={{ status: 'signedIn', userId: 'u-1', email: null }}>
         <OrderTargetProvider
           initial={{ recipientId: 'r1', allergenIds: [], serviceDate: '2026-08-11' }}
         >

@@ -4101,13 +4101,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/29</span>
+          <span class="meter-num">0/31</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 29 tasks</summary>
+        <summary>Context &amp; 31 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -4346,6 +4346,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Keep <code>docs/andy-prep/</code> matching reality — when Andy submits a form or gets an answer, fold it back into the repo so the drafts do not drift into fiction</span>
+      </li>
+      <li class="task" data-id="E17-27" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-27"></button>
+        <code class="tid">E17-27</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>App Store Connect app id wired into <code>eas.json</code>.</strong> <code>ascAppId</code> 6749555467 alongside <code>appleTeamId</code> F247T8Y2NT, on both <code>submit.production</code> and a new <code>submit.preview</code>. <code>preview</code> also became an iOS store build — it extended <code>staging</code>&#39;s <code>distribution: &quot;internal&quot;</code>, which is ad-hoc and cannot reach TestFlight (<code>R9</code>)</span>
+      </li>
+      <li class="task" data-id="E17-28" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-28"></button>
+        <code class="tid">E17-28</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Create an App Store Connect API key</strong> so submissions do not need a 2FA prompt. App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → generate a key named <code>graybag-eas-submit</code> with the <strong>App Manager</strong> role. The <code>.p8</code> downloads <strong>once and once only</strong>. See <code>docs/release-testflight.md</code> for exactly what to do with the three values. A credentialed action: it needs Account Holder or Admin on the Apple account</span>
       </li></ul>
       </details>
     </article>

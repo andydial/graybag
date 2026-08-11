@@ -156,7 +156,7 @@ describe('no recipient data without a session', () => {
     api.setApiTransport(persistedSessionTransport({ session: false }));
 
     await render(
-      <SessionProvider initial={{ status: 'signedOut', userId: null }}>
+      <SessionProvider initial={{ status: 'signedOut', userId: null, email: null }}>
         <OrderTargetProvider
           initial={{
             recipientId: 'r-1',
