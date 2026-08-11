@@ -79,14 +79,15 @@ web-optimised build inputs that CI cannot build without. Netlify's checkout has 
 
 So `apps/web/public/img/` holds a **curated, re-encoded, budgeted** set:
 
-- ~24 dish tiles, AVIF + WebP, ≤ 120px, for the mosaic
+- 5 dish tiles, WebP, 120px, one per menu category
 - the logo (full-colour and white lockups) and one pattern tile
 - the OG/social preview image
 
 `scripts/build-web-assets.mjs` regenerates all of it from the mirror and the design package, so
 the committed files are an output with a reproducible input, not a hand-curated pile.
 `apps/web/public/img/MANIFEST.json` records provenance and byte counts, and a test asserts the
-directory stays under its size budget. Recorded as an amendment to `RH1`.
+directory stays under its size budget. Recorded as an amendment to `RH1` (`RH5`). The committed
+set is **113 KB**; it was 232 KB before the food section was cut from 28 tiles to five.
 
 ---
 
@@ -100,8 +101,8 @@ scrolling, and the form is reachable from the top.
 | 1 | **Hero** | What GrayBag is, in one sentence a principal can repeat to a colleague: parents order and pay in advance from their phone, food arrives at the right child at the right break, no cash at school. Pattern-on-green. One CTA |
 | 2 | **How it works** | Four steps, showing the parent side and the school side together — because the school's question is "what does this cost *me* to run", and the answer is "nothing you do not already do" |
 | 3 | **What the school stops dealing with** | The benefit block: no cash handling, no queues at the counter, allergen-aware ordering, per-school reporting, a kitchen already operating in Mohali |
-| 4 | **The food** | The dish mosaic (§3). Breadth, veg marks, real names from the real catalogue |
-| 5 | **Already serving schools across Mohali** | The softer credibility line, with Amity International, Gem Public and Paragon Senior Secondary named underneath |
+| 4 | **The food** | Five category cards (§3). The menu is built per school and rotates; every descriptive line is checkable against the catalogue, and no nutrition claim is made |
+| 5 | **Already serving schools across Mohali** | **No school is named** (Andy, 2026-08-11) until each agrees in writing — `E12-11`. What stands in place of a reference list is an invitation to come and watch a morning's delivery, which for a principal is worth more than a logo strip |
 | 6 | **The monthly report** | `P6` — a real artefact the principal receives, not a portal they must remember to visit |
 | 7 | **Questions administrators ask** | Short, honest answers: what it costs the school, what we need from you, how allergies are handled, food safety |
 | 8 | **Enquiry form** | The one action |

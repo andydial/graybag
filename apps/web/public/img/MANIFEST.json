@@ -3,11 +3,12 @@
   "task": "E12-01",
   "note": "Build OUTPUT, committed because CI cannot reach the sources. Regenerate, never hand-edit. Sources: ../Legacy-Application/Graybag_Design Package (RH1) and the dish mirror (E16-28).",
   "photography_note": "Every dish photograph is 120px or smaller at source — verified against the Bubble CDN. Nothing here is upscaled and the page displays them at 72-88 CSS px.",
-  "budget_bytes": 260000,
-  "total_bytes": 232453,
+  "budget_bytes": 120000,
+  "total_bytes": 112702,
   "dish_source_dir": "/Users/andy/graybag-dish-images",
-  "mosaic": [
+  "range": [
     {
+      "category": "breakfast",
       "dish": "Idli Sambar",
       "label": "Idli sambar",
       "slug": "idli-sambar",
@@ -15,6 +16,7 @@
       "sourceHeight": 120
     },
     {
+      "category": "mains",
       "dish": "Rajma Rice",
       "label": "Rajma rice",
       "slug": "rajma-rice",
@@ -22,6 +24,7 @@
       "sourceHeight": 120
     },
     {
+      "category": "wraps",
       "dish": "Paneer Wrap",
       "label": "Paneer wrap",
       "slug": "paneer-wrap",
@@ -29,104 +32,7 @@
       "sourceHeight": 120
     },
     {
-      "dish": "Stuffed Paratha",
-      "label": "Stuffed paratha",
-      "slug": "stuffed-paratha",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Mix Veg Poha",
-      "label": "Mix veg poha",
-      "slug": "mix-veg-poha",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Fried Rice With Exotic Veg",
-      "label": "Veg fried rice",
-      "slug": "fried-rice-with-exotic-veg",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Chana Rice",
-      "label": "Chana rice",
-      "slug": "chana-rice",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Dal Makhni With Rice/Wheat Prantha",
-      "label": "Dal makhni",
-      "slug": "dal-makhni-with-rice-wheat-prantha",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Quinoa Khichdi",
-      "label": "Quinoa khichdi",
-      "slug": "quinoa-khichdi",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Veggie Wrap",
-      "label": "Veggie wrap",
-      "slug": "veggie-wrap",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Sprouts",
-      "label": "Sprouts",
-      "slug": "sprouts",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Paneer Sandwich",
-      "label": "Paneer sandwich",
-      "slug": "paneer-sandwich",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Corn and Pepper Sandwich",
-      "label": "Corn & pepper sandwich",
-      "slug": "corn-and-pepper-sandwich",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Veg Sandwich In Brown Bread",
-      "label": "Veg sandwich",
-      "slug": "veg-sandwich-in-brown-bread",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Vada Pao (Atta Base Bread)",
-      "label": "Vada pao",
-      "slug": "vada-pao-atta-base-bread",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Paneer Puff",
-      "label": "Paneer puff",
-      "slug": "paneer-puff",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Fruit Salad",
-      "label": "Fruit salad",
-      "slug": "fruit-salad",
-      "sourceWidth": 80,
-      "sourceHeight": 120
-    },
-    {
+      "category": "salads",
       "dish": "Quinoa Salad",
       "label": "Quinoa salad",
       "slug": "quinoa-salad",
@@ -134,73 +40,11 @@
       "sourceHeight": 120
     },
     {
-      "dish": "Three Beans Salad",
-      "label": "Three-bean salad",
-      "slug": "three-beans-salad",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Bhel Puri Salad",
-      "label": "Bhel puri",
-      "slug": "bhel-puri-salad",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Veg Manchurian With Fried Rice",
-      "label": "Veg manchurian",
-      "slug": "veg-manchurian-with-fried-rice",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Paneer Tikka Sandwich In Focaccia Bread",
-      "label": "Paneer tikka sandwich",
-      "slug": "paneer-tikka-sandwich-in-focaccia-bread",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Masala Corn",
-      "label": "Masala corn",
-      "slug": "masala-corn",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Banana Shake",
-      "label": "Banana shake",
-      "slug": "banana-shake",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Lemonade",
-      "label": "Lemonade",
-      "slug": "lemonade",
-      "sourceWidth": 80,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "Blueberry Muffin",
-      "label": "Blueberry muffin",
-      "slug": "blueberry-muffin",
-      "sourceWidth": 120,
-      "sourceHeight": 120
-    },
-    {
+      "category": "bakery",
       "dish": "Wheat Jaggery Cake",
       "label": "Wheat jaggery cake",
       "slug": "wheat-jaggery-cake",
       "sourceWidth": 180,
-      "sourceHeight": 120
-    },
-    {
-      "dish": "French Butter Croissant",
-      "label": "Butter croissant",
-      "slug": "french-butter-croissant",
-      "sourceWidth": 120,
       "sourceHeight": 120
     }
   ],
@@ -213,170 +57,32 @@
       "height": 192
     },
     {
-      "file": "dishes/banana-shake.webp",
-      "bytes": 3578,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/bhel-puri-salad.webp",
-      "bytes": 5220,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/blueberry-muffin.webp",
-      "bytes": 2156,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/chana-rice.webp",
-      "bytes": 4768,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/corn-and-pepper-sandwich.webp",
-      "bytes": 3550,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/dal-makhni-with-rice-wheat-prantha.webp",
-      "bytes": 3330,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/french-butter-croissant.webp",
-      "bytes": 3664,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/fried-rice-with-exotic-veg.webp",
-      "bytes": 4878,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/fruit-salad.webp",
-      "bytes": 1312,
-      "width": 80,
-      "height": 120
-    },
-    {
       "file": "dishes/idli-sambar.webp",
-      "bytes": 2388,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/lemonade.webp",
-      "bytes": 394,
-      "width": 80,
-      "height": 120
-    },
-    {
-      "file": "dishes/masala-corn.webp",
-      "bytes": 4276,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/mix-veg-poha.webp",
-      "bytes": 3678,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/paneer-puff.webp",
-      "bytes": 2696,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/paneer-sandwich.webp",
-      "bytes": 3540,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/paneer-tikka-sandwich-in-focaccia-bread.webp",
-      "bytes": 2632,
+      "bytes": 3144,
       "width": 120,
       "height": 120
     },
     {
       "file": "dishes/paneer-wrap.webp",
-      "bytes": 2900,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/quinoa-khichdi.webp",
-      "bytes": 3720,
+      "bytes": 3724,
       "width": 120,
       "height": 120
     },
     {
       "file": "dishes/quinoa-salad.webp",
-      "bytes": 6066,
+      "bytes": 7388,
       "width": 120,
       "height": 120
     },
     {
       "file": "dishes/rajma-rice.webp",
-      "bytes": 5318,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/sprouts.webp",
-      "bytes": 4764,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/stuffed-paratha.webp",
-      "bytes": 3770,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/three-beans-salad.webp",
-      "bytes": 4998,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/vada-pao-atta-base-bread.webp",
-      "bytes": 5090,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/veg-manchurian-with-fried-rice.webp",
-      "bytes": 4874,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/veg-sandwich-in-brown-bread.webp",
-      "bytes": 2804,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/veggie-wrap.webp",
-      "bytes": 2986,
+      "bytes": 6602,
       "width": 120,
       "height": 120
     },
     {
       "file": "dishes/wheat-jaggery-cake.webp",
-      "bytes": 1950,
+      "bytes": 2672,
       "width": 120,
       "height": 120
     },
@@ -387,32 +93,26 @@
       "height": 64
     },
     {
-      "file": "icon.webp",
-      "bytes": 7890,
-      "width": 192,
-      "height": 187
-    },
-    {
       "file": "logo-white.webp",
-      "bytes": 10408,
-      "width": 560,
-      "height": 184
+      "bytes": 5590,
+      "width": 320,
+      "height": 105
     },
     {
       "file": "logo.webp",
-      "bytes": 20546,
-      "width": 560,
-      "height": 184
+      "bytes": 10828,
+      "width": 320,
+      "height": 105
     },
     {
       "file": "og.jpg",
-      "bytes": 35086,
+      "bytes": 28935,
       "width": 1200,
       "height": 630
     },
     {
       "file": "pattern.webp",
-      "bytes": 49534,
+      "bytes": 36130,
       "width": 420,
       "height": 636
     }

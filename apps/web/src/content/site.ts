@@ -48,19 +48,25 @@ export const HERO = {
 /**
  * The proof strip.
  *
- * Three claims, each one checkable from something in this repository, because a number a
- * principal cannot verify is worth less than no number.
+ * Three claims, each checkable from something in this repository or from how the operation
+ * actually runs, because a number a principal cannot verify is worth less than no number.
+ *
+ * **"85 dishes" was here and has been removed.** It was a count of the catalogue, and a count
+ * of the catalogue is the wrong argument twice over: it will change, and no principal has ever
+ * chosen a food supplier on how long its list is. What replaced it is the thing the food
+ * section now leads with — that the menu is built per school and rotates — which is a
+ * difference from a canteen contract rather than a bigger version of the same thing.
  */
 export const FACTS = [
   {
-    value: '85 dishes',
-    label: 'on the rotating menu — Indian, continental, breakfast through afternoon snack',
-    // tools/mirror-dish-images/manifest.json: 85 dish records in the legacy catalogue.
+    value: 'A menu per school',
+    label: 'agreed with you and rotated through the term, not a fixed list',
+    // The proposition, not a measurement. SC1: one city, so this is per school and not per region.
   },
   {
-    value: 'One kitchen',
-    label: 'in Mohali, already cooking for schools every school day',
-    // SC1: Mohali only, confirmed 2026-08-07.
+    value: 'Cooked that morning',
+    label: 'to the day\'s order list — nothing prepared speculatively, nothing held over',
+    // How the kitchen works: orders close the night before, so the count is known before cooking.
   },
   {
     value: 'Zero cash',
@@ -148,30 +154,116 @@ export const BENEFITS = [
   },
 ] as const;
 
+/**
+ * The food section.
+ *
+ * **This used to be a 28-tile grid of the catalogue and that was the wrong argument.** A fixed
+ * grid of every dish says "here is our list", which is misleading — menus rotate and each school
+ * gets its own — and it is a maintenance liability that goes stale the first time a menu
+ * changes. The proposition a principal should take away is *bespoke and moving*, not *long*.
+ *
+ * ## Every line here is a description, not a claim
+ *
+ * The positioning is healthy school food. It is made **by describing what is on the menu**, and
+ * never by asserting it. "Healthy", "nutritious", "wholesome" and "balanced" are close enough to
+ * nutrition and health claims under the FSSAI Labelling and Display regulations that they need
+ * substantiation we do not hold, so none of them appears anywhere on this site.
+ *
+ * What is said instead is checkable against `tools/mirror-dish-images/manifest.json`:
+ *
+ * - **No meat anywhere on the list.** Verified across all 85 catalogue records — nothing with
+ *   chicken, mutton, fish or any processed meat. Vegetarian, with eggs. That is a fact about the
+ *   menu, not a claim about health.
+ * - **Wraps on atta bases, sandwiches on brown bread.** 17 records name atta, brown or wheat.
+ *   Deliberately *not* "as standard": four items are explicitly `(Maida)` or `(Maida Base)`, so
+ *   "as standard" would have been an overstatement. The menu labelling its own maida is worth
+ *   saying — it is the sort of thing that goes unlabelled elsewhere.
+ * - **Quinoa, sprouts and salads on the same list as the bakery.** True, and it is the honest
+ *   version of the point: this is a school menu with a bakery on it, not a health-food menu.
+ *
+ * One line that was drafted and **cut**: "nothing deep-fried". The catalogue contains vada pao
+ * and four puffs, so it would have been false.
+ */
 export const FOOD = {
   eyebrow: 'The food',
-  heading: 'Real dishes, on a menu that moves',
+  heading: 'Your school gets its own menu',
   lead:
-    'The menu runs from idli sambar and rajma rice through wraps, salads and sandwiches to a ' +
-    'small bakery. Brown wheat and atta bases as standard, paneer rather than processed meat, ' +
-    'and quinoa and sprouts on the same list as the muffins.',
+    'We build the menu with you before the term starts, and it moves through the term — so it ' +
+    'fits your children, your break times and what they actually eat. It is not a fixed list ' +
+    'we hand every school.',
+  /**
+   * Five categories, one dish photographed for each: a breakfast, a main, a wrap, a salad, a
+   * bake. Enough to show the range, few enough that nobody reads it as an inventory.
+   *
+   * The dish names in each line are real catalogue names, because a name we invented for a
+   * marketing page is a name the kitchen does not recognise.
+   */
+  categories: [
+    {
+      id: 'breakfast',
+      title: 'Breakfast',
+      body: 'Idli and sambar, poha, stuffed paratha, pancakes — for schools whose first break is early enough to matter.',
+    },
+    {
+      id: 'mains',
+      title: 'Mains',
+      body: 'Rajma, chana or dal makhni with rice; fried rice; quinoa khichdi. The food a child will actually finish.',
+    },
+    {
+      id: 'wraps',
+      title: 'Wraps and sandwiches',
+      body: 'Paneer and vegetable wraps on atta bases, sandwiches on brown bread. Where an item is maida, the menu says so.',
+    },
+    {
+      id: 'salads',
+      title: 'Salads and fruit',
+      body: 'Sprouts, quinoa, three-bean, corn and pepper, and cut fruit — on the same menu as everything else, not a separate virtuous list.',
+    },
+    {
+      id: 'bakery',
+      title: 'Bakery',
+      body: 'Wheat jaggery cake, muffins, croissants. A school menu with no treat on it is a menu children opt out of.',
+    },
+  ],
+  /**
+   * The one thing on this page that is a genuine differentiator and is easy to skip past: the
+   * whole menu is vegetarian. Stated as the fact it is — what is and is not on the list — rather
+   * than as a virtue.
+   */
+  note: {
+    title: 'Vegetarian, with eggs',
+    body:
+      'There is no meat on the menu at all. Eggs appear as their own dishes — boiled, omelette, ' +
+      'egg sandwich — so a school that would rather not serve them can have them left off.',
+  },
   footnote:
-    'Photographs are of the dishes we actually cook. The menu published to your school is ' +
-    'agreed with you and changes through the year.',
+    'Photographs are of dishes we cook. Your school\'s menu is agreed with you before the term ' +
+    'and changes through it; nothing here is a list you would be committing to.',
 } as const;
 
+/**
+ * Credibility, without naming anyone.
+ *
+ * **The three school names have been pulled** (Andy, 2026-08-11) and stay out until each school
+ * agrees **in writing** to be named — `E12-11`, `[WEB-02]`. Naming a customer as a reference is
+ * the school's call and not ours, and a name published without permission is the sort of thing
+ * that ends a relationship rather than starting one.
+ *
+ * What is left is the claim we can make on our own authority — that the operation is running
+ * today — plus the strongest available substitute for a reference, which is an invitation to
+ * come and watch a delivery go out. For a principal weighing a food partner, seeing the kitchen
+ * is worth more than a logo strip anyway.
+ */
 export const SCHOOLS = {
   eyebrow: 'Already running',
   heading: 'Already serving schools across Mohali',
   lead:
-    'We would rather show you the operation than describe it. If you are within reach of the ' +
-    'kitchen, come and see a delivery go out.',
-  /**
-   * Named smaller, under a softer claim, on Andy's instruction — the strongest version of this
-   * section names them as clients outright, and that is a claim each school should get to
-   * approve first. Raised as an `owner:andy` task before the DNS cutover (`E12-10`).
-   */
-  names: ['Amity International', 'Gem Public', 'Paragon Senior Secondary'] as const,
+    'We are cooking and delivering to schools in Mohali every school day. Your school would not ' +
+    'be the pilot, and you would not be waiting on us to find a kitchen.',
+  invitation:
+    'We would rather show you the operation than describe it. Come and see a morning\'s ' +
+    'delivery go out, and talk to the schools we already serve.',
+  cta: 'Arrange a visit',
 } as const;
 
 export const REPORT = {

@@ -46,9 +46,10 @@ export default tseslint.config(
       '**/.expo/**',
       'planning/backlog.html',
       'Legacy-Application/**',
-      // Astro's generated type shims and its build output.
-      'apps/web/.astro/**',
-      'apps/web/dist/**',
+      // Astro's generated type shims. Globbed rather than pinned to `apps/web/`: running
+      // `astro build` from the wrong directory writes a `.astro/` wherever it was run, and the
+      // failure then looks like six lint errors in code nobody wrote.
+      '**/.astro/**',
     ],
   },
 

@@ -207,8 +207,12 @@ One email per stored enquiry.
 
 - **From** `GrayBag <orders@graybag.com>`, **Reply-To** `support@graybag.com` — `U4`. No
   `no-reply@` address anywhere.
-- **To** the value of the `ENQUIRY_NOTIFY_EMAIL` secret. **This is currently unset and needs
-  Andy to name an address** — see §8.
+- **To** `andy@graybag.com`, **Cc** `vivek@graybag.com` (Andy, 2026-08-11). Both are
+  configuration, not literals in code: `ENQUIRY_NOTIFY_EMAIL` and `ENQUIRY_NOTIFY_CC`, set as
+  Supabase secrets so the recipients change without a deploy. Seed them to those two values.
+  **Cc rather than two separate sends**, so a reply-all keeps both people on the thread —
+  the point of the second address is that an enquiry does not sit unanswered because one
+  person is away.
 - **Subject** `New school enquiry — <school>, <city>`
 - **Body** every field, plus the enquiry id, plus a `mailto:` link to the sender so replying is
   one tap on a phone.
@@ -239,7 +243,7 @@ without the table becoming a log of who visited.
 | # | Need | Blocking? |
 |---|---|---|
 | 1 | The deployed function URL, to set as `PUBLIC_ENQUIRY_ENDPOINT` in Netlify | **Yes** — until then the form posts to the dev mock and production submissions go nowhere |
-| 2 | `ENQUIRY_NOTIFY_EMAIL` — the address enquiries land in. **Andy's to name** | **Yes** — without it a stored enquiry is not seen by a human |
+| 2 | ~~`ENQUIRY_NOTIFY_EMAIL`~~ — **answered 2026-08-11:** `andy@graybag.com`, Cc `vivek@graybag.com`. Set both as Supabase secrets | No longer blocking |
 | 3 | The migration and RLS above, applied to staging | Yes, to test end to end |
 | 4 | Confirmation of the CORS origin allowlist, including the Netlify preview domain | No — a preview can use the mock |
 

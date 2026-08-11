@@ -27,9 +27,10 @@
  * larger original exists. It is the real catalogue photography at the size it was shot for.
  *
  * **Nothing here upscales them.** They are emitted at native size and the page displays them
- * at 72-88 CSS pixels, where they are still above 1x and hold up at 2x. A hero-sized food
+ * at 96 CSS pixels, where they are still above 1x and hold up at 2x. A hero-sized food
  * photograph is not available from this source and pretending otherwise would look exactly
- * like what it is.
+ * like what it is — so the page stops trying to win on photography and lets the copy carry
+ * the argument until there is real photography to use (`E12-13`).
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -42,50 +43,40 @@ const ROOT = join(WEB, '..', '..');
 const OUT = join(WEB, 'public', 'img');
 const MANIFEST_OUT = join(OUT, 'MANIFEST.json');
 
-/** Asserted by `src/lib/assets.test.ts`. A budget nobody checks is a wish. */
-export const BUDGET_BYTES = 260_000;
+/**
+ * The committed-bytes budget. Asserted by `src/lib/assets.test.ts` — a budget nobody checks
+ * is a wish.
+ *
+ * This governs what the *repository* carries, not what a visitor downloads — page weight has its
+ * own budget in `scripts/check-build.mjs`. It halved when the 28-tile catalogue mosaic became
+ * five range tiles; the number was reset to the new reality rather than left with the old
+ * slack in it, because a budget with room to spare is one that never fires.
+ */
+export const BUDGET_BYTES = 120_000;
 
 const PACKAGE = join(ROOT, '..', 'Legacy-Application', 'Graybag_Design Package');
 const DISH_MANIFEST = join(ROOT, 'tools', 'mirror-dish-images', 'manifest.json');
 
 /**
- * The dishes the mosaic shows, in display order.
+ * One dish per category, and that is the whole set.
  *
- * Chosen for what a principal reads off them in three seconds: predominantly Indian, school
- * appropriate, breakfast through lunch through snack, and visibly *food a child will eat*
- * rather than a caterer's showpieces. Names are exactly as they appear in the legacy
- * catalogue, because a name we invented for a marketing page is a name the kitchen does not
- * recognise.
+ * This was a 28-tile mosaic of the catalogue. It was replaced because it made the wrong
+ * argument: a fixed grid of every dish reads as "here is our list", when the actual proposition
+ * is that **each school gets its own menu, agreed with them, rotating through the term**. A
+ * catalogue grid is also a maintenance liability — it goes stale the first time a menu changes,
+ * and it implies a permanence the product does not have.
+ *
+ * Five dishes, one per category, chosen to show *range*: a breakfast, a main, a wrap, a salad,
+ * a bake. The page uses them as supporting images beside category copy, not as the argument.
+ *
+ * A side effect worth stating: the committed image set drops from 232 KB to 113 KB.
  */
-const MOSAIC = [
-  ['Idli Sambar', 'Idli sambar'],
-  ['Rajma Rice', 'Rajma rice'],
-  ['Paneer Wrap', 'Paneer wrap'],
-  ['Stuffed Paratha', 'Stuffed paratha'],
-  ['Mix Veg Poha', 'Mix veg poha'],
-  ['Fried Rice With Exotic Veg', 'Veg fried rice'],
-  ['Chana Rice', 'Chana rice'],
-  ['Dal Makhni With Rice/Wheat Prantha', 'Dal makhni'],
-  ['Quinoa Khichdi', 'Quinoa khichdi'],
-  ['Veggie Wrap', 'Veggie wrap'],
-  ['Sprouts', 'Sprouts'],
-  ['Paneer Sandwich', 'Paneer sandwich'],
-  ['Corn and Pepper Sandwich', 'Corn & pepper sandwich'],
-  ['Veg Sandwich In Brown Bread', 'Veg sandwich'],
-  ['Vada Pao (Atta Base Bread)', 'Vada pao'],
-  ['Paneer Puff', 'Paneer puff'],
-  ['Fruit Salad', 'Fruit salad'],
-  ['Quinoa Salad', 'Quinoa salad'],
-  ['Three Beans Salad', 'Three-bean salad'],
-  ['Bhel Puri Salad', 'Bhel puri'],
-  ['Veg Manchurian With Fried Rice', 'Veg manchurian'],
-  ['Paneer Tikka Sandwich In Focaccia Bread', 'Paneer tikka sandwich'],
-  ['Masala Corn', 'Masala corn'],
-  ['Banana Shake', 'Banana shake'],
-  ['Lemonade', 'Lemonade'],
-  ['Blueberry Muffin', 'Blueberry muffin'],
-  ['Wheat Jaggery Cake', 'Wheat jaggery cake'],
-  ['French Butter Croissant', 'Butter croissant'],
+const RANGE = [
+  ['breakfast', 'Idli Sambar', 'Idli sambar'],
+  ['mains', 'Rajma Rice', 'Rajma rice'],
+  ['wraps', 'Paneer Wrap', 'Paneer wrap'],
+  ['salads', 'Quinoa Salad', 'Quinoa salad'],
+  ['bakery', 'Wheat Jaggery Cake', 'Wheat jaggery cake'],
 ];
 
 /** `Rajma With Rice` -> `rajma-with-rice`. Same slug rule the prototype uses. */
@@ -172,10 +163,10 @@ async function emit(relative, buffer) {
 
 // --------------------------------------------------------------------------- dishes
 
-const mosaic = [];
+const range = [];
 const absent = [];
 
-for (const [dish, label] of MOSAIC) {
+for (const [category, dish, label] of RANGE) {
   const source = dishFiles.get(dish);
   if (!source) {
     absent.push(dish);
@@ -188,7 +179,7 @@ for (const [dish, label] of MOSAIC) {
   // Square, centre-cropped, and **never enlarged** — `withoutEnlargement` is the whole point.
   //
   // **WebP only, and no AVIF.** The usual advice is AVIF-with-a-WebP-fallback, and it is wrong
-  // at this size: measured over these 28 tiles, AVIF came out at 5.3 KB average against WebP's
+  // at this size: measured over the original 28 tiles, AVIF came out at 5.3 KB average against WebP's
   // 3.8 KB, because a 120 x 120 image is small enough that AVIF's container and entropy-coder
   // overhead costs more than its compression saves. Shipping both would have added 147 KB to
   // the repository to make every tile bigger. WebP is supported by every browser this audience
@@ -198,11 +189,11 @@ for (const [dish, label] of MOSAIC) {
     await input
       .clone()
       .resize(120, 120, { fit: 'cover', position: 'centre', withoutEnlargement: true })
-      .webp({ quality: 74 })
+      .webp({ quality: 82 })
       .toBuffer(),
   );
 
-  mosaic.push({ dish, label, slug: key, sourceWidth: meta.width, sourceHeight: meta.height });
+  range.push({ category, dish, label, slug: key, sourceWidth: meta.width, sourceHeight: meta.height });
 }
 
 if (absent.length) {
@@ -225,7 +216,7 @@ const brandSource = (relative) => {
 await emit(
   'logo.webp',
   await sharp(brandSource('01_Graybag_Logo/Logo/Graybag_Logo_Transparent.png'))
-    .resize({ width: 560, withoutEnlargement: true })
+    .resize({ width: 320, withoutEnlargement: true })
     .webp({ quality: 90 })
     .toBuffer(),
 );
@@ -233,18 +224,11 @@ await emit(
 await emit(
   'logo-white.webp',
   await sharp(brandSource('01_Graybag_Logo/Black&White/Graybag_Logo_White_Transparent.png'))
-    .resize({ width: 560, withoutEnlargement: true })
+    .resize({ width: 320, withoutEnlargement: true })
     .webp({ quality: 90 })
     .toBuffer(),
 );
 
-await emit(
-  'icon.webp',
-  await sharp(brandSource('01_Graybag_Logo/Icons/Graybag_Icon Filled_Nutritious Green.png'))
-    .resize({ width: 192, withoutEnlargement: true })
-    .webp({ quality: 90 })
-    .toBuffer(),
-);
 
 /**
  * The vegetable pattern.
@@ -257,11 +241,17 @@ await emit(
  * `design-tokens.md` §1: the full-colour pattern is packaging and marketing; in digital
  * layouts it is the monochrome variant. A single-hue colourway is that variant.
  */
+const patternAlpha = await sharp(brandSource('05_Pattern/Pattern_Dark Green.png'))
+  .resize({ width: 420, withoutEnlargement: true })
+  .ensureAlpha()
+  .extractChannel('alpha')
+  .toBuffer();
+
 await emit(
   'pattern.webp',
-  await sharp(brandSource('05_Pattern/Pattern_Dark Green.png'))
-    .resize({ width: 420, withoutEnlargement: true })
-    .webp({ quality: 58, alphaQuality: 62 })
+  await sharp({ create: { width: 420, height: 636, channels: 3, background: '#000000' } })
+    .joinChannel(patternAlpha)
+    .webp({ quality: 30, alphaQuality: 72 })
     .toBuffer(),
 );
 
@@ -323,7 +313,7 @@ await emit(
       { input: ogPattern, top: 0, left: 0 },
       { input: ogLogo, gravity: 'centre' },
     ])
-    .jpeg({ quality: 82, progressive: true })
+    .jpeg({ quality: 76, progressive: true })
     .toBuffer(),
 );
 
@@ -346,7 +336,7 @@ writeFileSync(
       budget_bytes: BUDGET_BYTES,
       total_bytes: total,
       dish_source_dir: dishDir,
-      mosaic,
+      range,
       absent,
       files: records.sort((a, b) => a.file.localeCompare(b.file)),
     },

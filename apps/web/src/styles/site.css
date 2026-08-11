@@ -673,78 +673,110 @@ ul, ol { padding: 0; list-style: none; }
 }
 .card p { color: var(--gb-text-secondary); font-size: var(--gb-font-size-body-sm); line-height: var(--gb-line-height-body-lg); }
 
-/* -------------------------------------------------------------- dish mosaic */
+/* ---------------------------------------------------------------- the range */
 
 /**
- * The food.
+ * Five categories, not a catalogue.
  *
- * Every dish photograph GrayBag owns is 120 x 120 pixels — verified against the source CDN, see
- * `apps/web/scripts/build-web-assets.mjs`. So the tiles are capped at 88 CSS px, where a 120px
- * asset is still above 1x and holds up at 2x. Nothing is upscaled.
+ * The previous treatment was a 28-tile grid at 72-88 px. Two things were wrong with it. It
+ * argued *inventory* — a fixed list of everything — when the proposition is that each school's
+ * menu is its own and rotates. And it leaned the whole section on photography that is 120px at
+ * source and cannot be made appetising at any size.
  *
- * A wall of forty small dishes says "the menu is broad and it is real food", which is what a
- * principal is actually weighing, and it says it better than one large photograph would even if
- * one existed.
+ * So the tile is now a **card**, and the card is larger while the photograph stays at 96 px.
+ * That is deliberate and it is the opposite of what "bigger tiles" usually means: at a 120px
+ * source, enlarging the image makes it softer, not better. The card grows, the copy carries the
+ * argument, and the photograph supports it. When there is real photography (`E12-13`) this
+ * section is where it goes, and the layout already has room for it.
  */
-.mosaic {
+.range {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
-  gap: var(--gb-space-3);
-  margin-top: var(--gb-space-8);
+  gap: var(--gb-space-4);
+  margin-top: var(--gb-space-12);
 }
-@media (min-width: 640px) {
-  .mosaic { grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr)); gap: var(--gb-space-4); }
+@media (min-width: 640px) { .range { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1040px) { .range { grid-template-columns: repeat(3, 1fr); gap: var(--gb-space-6); } }
+
+.range__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gb-space-4);
+  background: var(--gb-bg-surface);
+  border-radius: var(--gb-radius-xl);
+  padding: var(--gb-space-5);
 }
 
-.dish { text-align: center; }
-
-.dish img {
-  width: 100%;
-  max-width: 5.5rem;
-  aspect-ratio: 1;
-  margin-inline: auto;
+/**
+ * 96 px, and no larger.
+ *
+ * The source is 120 x 120 (see `scripts/build-web-assets.mjs`). At 96 CSS px it renders at
+ * 1.25x, which still resolves on a 2x phone; at 120 it is 1x and visibly soft. Nothing here is
+ * upscaled and `assets.test.ts` asserts it.
+ */
+.range__photo {
+  flex: none;
+  width: 6rem;
+  height: 6rem;
   border-radius: var(--gb-radius-lg);
   object-fit: cover;
   background: var(--gb-bg-surface-muted);
-  border: var(--gb-border-width-hairline) solid var(--gb-border-accent);
 }
 
-.dish figcaption {
-  margin-top: var(--gb-space-2);
-  font-size: var(--gb-font-size-caption);
-  line-height: var(--gb-line-height-caption);
-  color: var(--gb-text-secondary);
-  font-weight: var(--gb-font-medium);
+.range__item h3 {
+  font-size: var(--gb-font-size-h3);
+  line-height: var(--gb-line-height-h3);
+  font-weight: var(--gb-font-weight-h3);
+  margin-bottom: var(--gb-space-2);
 }
+.range__item p {
+  color: var(--gb-text-secondary);
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-lg);
+}
+
+/**
+ * The vegetarian note — the sixth tile.
+ *
+ * Five categories at three columns leave one empty cell, and this fills it, which is why it is
+ * a list item rather than a block underneath. It carries no photograph and inverts to the dark
+ * surface, so it reads as a statement about the whole menu rather than as a sixth category.
+ *
+ * `lime-200` on `forest-500` is 6.00:1 — the legal secondary ink on a dark green field. White
+ * would work too; lime distinguishes the body from the heading without reaching for opacity,
+ * which is what broke contrast in the hero card.
+ */
+.range__item--note {
+  background: var(--gb-bg-surface-inverse);
+  color: var(--gb-text-on-brand);
+}
+.range__item--note p { color: var(--gb-ramp-lime-200); }
 
 /* ---------------------------------------------------------------- schools */
 
-.schools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--gb-space-3);
-  margin-top: var(--gb-space-8);
-}
-
-.school-chip {
-  display: inline-flex;
+/**
+ * No logo strip, no named chips.
+ *
+ * The three school names are out until each agrees in writing (`E12-11`). What stands in their
+ * place is an invitation to come and watch a delivery, which is a stronger thing to offer a
+ * principal than a name they cannot ring up anyway.
+ */
+.visit {
+  display: grid;
+  gap: var(--gb-space-8);
   align-items: center;
-  gap: var(--gb-space-2);
-  padding: var(--gb-space-3) var(--gb-space-5);
-  border-radius: var(--gb-radius-full);
-  background: var(--gb-ramp-forest-600);
-  border: var(--gb-border-width-hairline) solid var(--gb-bg-surface-inverse);
-  color: var(--gb-text-on-brand);
-  font-size: var(--gb-font-size-body-sm);
-  font-weight: var(--gb-font-medium);
 }
-.school-chip::before {
-  content: '';
-  width: var(--gb-space-2);
-  height: var(--gb-space-2);
-  border-radius: var(--gb-radius-full);
-  background: var(--gb-ramp-lime-500);
-  flex: none;
+@media (min-width: 900px) { .visit { grid-template-columns: 1.15fr 1fr; gap: var(--gb-space-12); } }
+
+.visit__card {
+  background: var(--gb-ramp-forest-600);
+  border: var(--gb-border-width-hairline) solid var(--gb-ramp-forest-500);
+  border-radius: var(--gb-radius-xl);
+  padding: var(--gb-space-6);
+}
+.visit__card p {
+  font-size: var(--gb-font-size-body-lg);
+  line-height: var(--gb-line-height-body-lg);
+  margin-bottom: var(--gb-space-5);
 }
 
 /* -------------------------------------------------------------- the report */
