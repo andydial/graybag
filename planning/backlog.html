@@ -4221,13 +4221,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/31</span>
+          <span class="meter-num">0/32</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 31 tasks</summary>
+        <summary>Context &amp; 32 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -4467,13 +4467,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Keep <code>docs/andy-prep/</code> matching reality — when Andy submits a form or gets an answer, fold it back into the repo so the drafts do not drift into fiction</span>
       </li>
-      <li class="task" data-id="E17-30" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E17-30" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-30"></button>
         <code class="tid">E17-30</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>App Store Connect app id wired into <code>eas.json</code>.</strong> <code>ascAppId</code> 6749555467 alongside <code>appleTeamId</code> F247T8Y2NT, on both <code>submit.production</code> and a new <code>submit.preview</code>. <code>preview</code> also became an iOS store build — it extended <code>staging</code>&#39;s <code>distribution: &quot;internal&quot;</code>, which is ad-hoc and cannot reach TestFlight (<code>R9</code>)</span>
+        <span class="ttext"><strong>App Store Connect app id wired into <code>eas.json</code>.</strong> *(Done, then corrected by <code>E17-32</code> — the preview half pointed at the wrong record.)* <code>ascAppId</code> 6749555467 alongside <code>appleTeamId</code> F247T8Y2NT, on both <code>submit.production</code> and a new <code>submit.preview</code>. <code>preview</code> also became an iOS store build — it extended <code>staging</code>&#39;s <code>distribution: &quot;internal&quot;</code>, which is ad-hoc and cannot reach TestFlight (<code>R9</code>)</span>
+      </li>
+      <li class="task" data-id="E17-32" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-32"></button>
+        <code class="tid">E17-32</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Staging gets its own App Store Connect record.</strong> <code>ITMS-90054</code>: <code>submit.preview</code> pointed at <code>6749555467</code>, the live app&#39;s record, while <code>preview</code> builds <code>com.gracord.graybag.staging</code> — one record accepts one bundle id, so every preview submission was rejected. Andy created record <code>6800175123</code> for the staging bundle id (2026-08-11); <code>submit.preview.ios.ascAppId</code> now points at it and <code>submit.production</code> keeps <code>6749555467</code>. Asserted as a <strong>pairing</strong> of record to bundle id, resolved through <code>applyIdentity</code>, not as two loose constants</span>
       </li>
       <li class="task" data-id="E17-31" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-31"></button>

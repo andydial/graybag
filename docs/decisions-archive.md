@@ -212,3 +212,18 @@ chose "nullable and unset so tax calculation refuses to run until answered" prec
 this moment would be explicit. `0001` is already applied to staging and must not be edited
 (`MG5`), so the value is set by a new migration and the column made `NOT NULL`. Tracked under
 `E02-06`.
+
+## One App Store Connect record for both profiles — `R9`, superseded by `R10` the same day
+
+`R9` put `ascAppId` `6749555467` on **both** `submit.production` and `submit.preview`. Apple
+rejected the first preview submission with `ITMS-90054`: an App Store Connect record accepts
+exactly one bundle id, and `preview` builds `com.gracord.graybag.staging` — the identity
+`E17-28` had split off precisely so internal builds could not touch the live app.
+
+So `R9` was unsatisfiable from the moment it was written, and the reason nobody noticed is
+worth keeping: the app id was correct, the bundle id was correct, and **nothing related the
+two**. Each was asserted alone, and neither assertion could fail.
+
+Replaced by `R10` — a second record, `6800175123`, for the staging bundle id, with the
+record-to-identity pairing asserted in `apps/mobile/src/app-config.test.ts`. `R9`'s other
+half, that `preview` must be an iOS store build to reach TestFlight at all, survives in `R10`.

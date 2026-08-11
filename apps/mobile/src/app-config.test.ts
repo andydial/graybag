@@ -96,7 +96,7 @@ describe('eas.json profiles', () => {
         android?: { buildType?: string };
       }
     >;
-    submit: Record<string, { ios?: { appleTeamId?: string } }>;
+    submit: Record<string, { ios?: { appleTeamId?: string; ascAppId?: string } }>;
   };
 
   it('has one profile per environment, each naming its APP_ENV', () => {
@@ -121,6 +121,51 @@ describe('eas.json profiles', () => {
 
   it('carries the Apple team id for submission', () => {
     expect(eas.submit.production?.ios?.appleTeamId).toBe('F247T8Y2NT');
+  });
+
+  /**
+   * **`ITMS-90054`, 2026-08-11.** `preview` was made a store-distribution build so it could
+   * reach TestFlight, but it still carries the *staging* identity — and its submit profile
+   * pointed at `6749555467`, the App Store Connect record for the **live** app. One record
+   * accepts exactly one bundle id, so every preview submission was rejected on arrival.
+   *
+   * The fix is a second App Store Connect record, `6800175123`, whose bundle id is
+   * `com.gracord.graybag.staging`. Staging now has its own TestFlight and its own testers,
+   * and no path from an internal build touches the live listing.
+   *
+   * These are asserted as a **pairing**, not as two constants. The defect was never a wrong
+   * number in isolation; it was a record and a bundle id that disagreed, which is invisible
+   * until Apple says so. `applyIdentity` is the same function the build uses, so this reads
+   * the bundle id each profile really produces rather than restating it.
+   */
+  describe('each submit profile targets the record that accepts its bundle id', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { applyIdentity } = require('../app.config.js');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const appJsonExpo = (require('../app.json') as { expo: unknown }).expo;
+
+    const bundleIdFor = (profile: string) => {
+      // `preview` inherits its environment from `staging` via `extends`, exactly as the build
+      // does. Resolving it here means the test cannot drift from what EAS actually builds.
+      const build = eas.build[profile];
+      const appEnv = build?.env?.APP_ENV ?? eas.build[build?.extends ?? '']?.env?.APP_ENV;
+      return applyIdentity(appJsonExpo, appEnv).ios.bundleIdentifier;
+    };
+
+    it.each([
+      ['production', 'com.gracord.graybag', '6749555467'],
+      ['preview', 'com.gracord.graybag.staging', '6800175123'],
+    ])('%s builds %s and submits to %s', (profile, bundleId, ascAppId) => {
+      expect(bundleIdFor(profile)).toBe(bundleId);
+      expect(eas.submit[profile]?.ios?.ascAppId).toBe(ascAppId);
+    });
+
+    it('never submits two different bundle ids to one record', () => {
+      // The shape of the failure, stated directly: if these ever agree again, some profile is
+      // submitting a staging binary to the live app's record — or the reverse, which is worse.
+      expect(bundleIdFor('preview')).not.toBe(bundleIdFor('production'));
+      expect(eas.submit.preview?.ios?.ascAppId).not.toBe(eas.submit.production?.ios?.ascAppId);
+    });
   });
 
   // `preview` is the name Andy uses for "a build to hand round". It extends `staging` rather

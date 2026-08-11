@@ -2,8 +2,21 @@
 
 For putting GrayBag in front of someone who is not on your wifi and not holding your laptop.
 
-Decision `R9`. App Store Connect app id **6749555467**, team **Graycord Pty Ltd (F247T8Y2NT)** —
-both now in `apps/mobile/eas.json`.
+Decision `R10`. Team **Graycord Pty Ltd (F247T8Y2NT)**, and **two** App Store Connect records,
+because one record accepts one bundle id:
+
+| Profile | Builds | Submits to | TestFlight |
+|---|---|---|---|
+| `production` | `com.gracord.graybag` | **6749555467** — the live GrayBag listing | Real releases |
+| `preview` | `com.gracord.graybag.staging` | **6800175123** — GrayBag Staging | Internal testers, staging backend |
+
+Both are in `apps/mobile/eas.json`. **`eas submit --profile preview` can never reach the live
+listing**, which is the point: the staging record has its own testers and its own builds, and
+the live app is not involved in handing a build around.
+
+> Superseded `R9`, which used one record for both and was rejected with `ITMS-90054` on
+> 2026-08-11. If you ever see that code again, it means a profile's `ascAppId` and its bundle
+> id have drifted apart — `app-config.test.ts` asserts the pairing and should fail first.
 
 ---
 
