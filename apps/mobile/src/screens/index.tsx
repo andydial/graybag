@@ -98,12 +98,15 @@ export const HomeScreen = () => {
       serviceDate={target?.serviceDate ?? null}
       featured={dishes[0] ? toHomeDish(dishes[0]) : null}
       popular={dishes.slice(1, 6).map(toHomeDish)}
-      onBrowseMenu={() => navigation.navigate('Tabs')}
-      onChooseSchool={() => navigation.navigate('Tabs')}
+      // `E14-34`. These were `navigate('Tabs')` from a screen that is *already* inside Tabs,
+      // which React Navigation treats as "you are here" and does nothing. Naming the tab is
+      // what actually moves. "Open the Menu" was the most-tapped dead button in the app.
+      onBrowseMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+      onChooseSchool={() => navigation.navigate('Tabs', { screen: 'Menu' })}
       onAddRecipient={() => navigation.navigate('AddChild')}
       onSelectDish={(dishId) => navigation.navigate('DishDetail', { dishId })}
       onSwitchRecipient={() => navigation.navigate('Children')}
-      onRetry={() => navigation.navigate('Tabs')}
+      onRetry={() => navigation.navigate('Tabs', { screen: 'Menu' })}
     />
   );
 };
@@ -123,7 +126,7 @@ export const HomeScreen = () => {
  */
 export const MenuScreen = () => {
   const navigation = useNavigation();
-  const { schoolId, setSchool } = useSelectedSchool();
+  const { schoolId, schoolName, setSchool } = useSelectedSchool();
   // `E05-31`. Before this the menu drew no allergen flags at all, because nothing could tell it
   // what to warn about — F5 was the only §6 divergence with a safety consequence.
   const watchlist = useAllergenWatchlist();
@@ -151,6 +154,13 @@ export const MenuScreen = () => {
     <MenuScreenImpl
       allergens={watchlist}
       schoolId={schoolId}
+      schoolName={schoolName}
+      /*
+       * `E14-34`. Choosing a school was a one-way door — the picker unmounts the moment a
+       * school is set, so the choice was both invisible and permanent. Clearing it brings the
+       * picker back, which is the screen that already knows how to choose one.
+       */
+      onChangeSchool={() => setSchool({ schoolId: null, schoolName: null })}
       onSelectDish={(dishId) => navigation.navigate('DishDetail', { dishId })}
     />
   );
@@ -259,10 +269,9 @@ export const OrdersScreen = () => {
     <OrdersScreenImpl
       access={access}
       onSignIn={() => navigation.navigate('SignIn')}
-      // `Tabs` takes no params in RootStackParamList, so the nested-navigate form is not
-      // typed here. Going back to the tabs lands on the last tab, which for anyone who
-      // reached Orders from Account is Account — good enough until the param list grows.
-      onBrowseMenu={() => navigation.navigate('Tabs')}
+      // The param list has grown, so this can now say where it means: the Menu tab, not
+      // "whichever tab you were on last", which for anyone arriving from Account was Account.
+      onBrowseMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
       onSelectOrder={(orderGroupId) => navigation.navigate('OrderDetail', { orderGroupId })}
     />
   );
@@ -306,7 +315,11 @@ export const DishDetailScreen = () => {
  */
 export const OrderDetailScreen = () => {
   const navigation = useNavigation();
-  return <OrderDetailScreenImpl onBackToMenu={() => navigation.navigate('Tabs')} />;
+  return (
+    <OrderDetailScreenImpl
+      onBackToMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+    />
+  );
 };
 
 /**

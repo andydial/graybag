@@ -2381,13 +2381,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/30</span>
+          <span class="meter-num">0/32</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 30 tasks</summary>
+        <summary>Context &amp; 32 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -2634,6 +2634,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The orphan guard does not notice when a known orphan stops being one.</strong> <code>KNOWN_ORPHANS</code>&#39;s stale-key check asserts the key is still *produced by the scan*, not that the prop is still *unwired* — so an exemption for something since fixed sits there forever, silently exempting a prop that could become an orphan again with nobody told. Found wiring <code>E20-36</code>: deleting the three <code>PolicyGateScreen</code> entries by hand was the only thing that proved the gate now has a caller. Make a fixed orphan fail the guard and name itself</span>
+      </li>
+      <li class="task" data-id="E14-34" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-34"></button>
+        <code class="tid">E14-34</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Five dead navigations and a one-way school choice.</strong> <code>navigate(&#39;Tabs&#39;)</code> from a screen already inside the tabs is a no-op, so Home&#39;s &quot;Open the Menu&quot;, its choose-a-school prompt, its retry, the Orders empty state and Order detail&#39;s back-to-menu all did nothing — and all typechecked, because <code>Tabs</code> was <code>undefined</code> in the param list and the nested form was not expressible. <code>Tabs</code> is now <code>NavigatorScreenParams&lt;TabParamList&gt;</code>. Separately: <code>SchoolPicker</code> unmounts once a school is set, so the choice was invisible and permanent — the menu now names its school and offers Change</span>
+      </li>
+      <li class="task" data-id="E14-35" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-35"></button>
+        <code class="tid">E14-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A guard for the dead-navigation class.</strong> <code>reachability.test.ts</code> proves every route has a <code>navigate(&#39;X&#39;)</code> somewhere; it cannot see that <code>navigate(&#39;Tabs&#39;)</code> from inside <code>Tabs</code> moves nobody. Five buttons were dead for weeks with a green reachability suite. Assert that a tab route is only ever navigated to with a <code>screen</code> param, or find the general form</span>
       </li></ul>
       </details>
     </article>

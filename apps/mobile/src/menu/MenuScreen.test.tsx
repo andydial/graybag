@@ -1,4 +1,4 @@
-import { render, screen, userEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, userEvent, waitFor, fireEvent } from '@testing-library/react-native';
 import { Dimensions } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { menu as menuDomain, money } from '@graybag/shared';
@@ -98,6 +98,8 @@ function fakeCache(
 async function renderMenu(
   schoolId: string | null = SCHOOL,
   allergens: AllergenWatchlist = { status: 'none' },
+  /** `E14-34`'s two props. Optional so every existing call site is unchanged. */
+  extra: { schoolName?: string | null; onChangeSchool?: () => void } = {},
 ) {
   const onSelect = jest.fn();
   await render(
@@ -105,7 +107,12 @@ async function renderMenu(
     // still no session provider in this file: `AR7` — nothing on this screen asks who you are.
     <SafeAreaProvider initialMetrics={METRICS}>
       <CartProvider>
-        <MenuScreen schoolId={schoolId} onSelectDish={onSelect} allergens={allergens} />
+        <MenuScreen
+          schoolId={schoolId}
+          onSelectDish={onSelect}
+          allergens={allergens}
+          {...extra}
+        />
       </CartProvider>
     </SafeAreaProvider>,
   );
@@ -335,5 +342,42 @@ describe('the domain rules the screen leans on', () => {
     expect(menuDomain.allergenDisclosure(d(['milk'], false)).state).toBe('declared');
     expect(menuDomain.allergenDisclosure(d([], true)).state).toBe('declaredNone');
     expect(menuDomain.allergenDisclosure(d([], false)).state).toBe('unknown');
+  });
+});
+
+/**
+ * `E14-34`. Choosing a school was a one-way door: `SchoolPicker` renders only while `schoolId`
+ * is null, so once one was set there was no way to see which, and no way to change it. A parent
+ * with children at two schools, or anyone who tapped the wrong row, had to reinstall the app.
+ */
+describe('changing school', () => {
+  const withSchool = { schoolName: 'Alpha Public School', onChangeSchool: jest.fn() };
+
+  beforeEach(() => {
+    withSchool.onChangeSchool.mockClear();
+    setMenuCache(fakeCache());
+  });
+
+  it('names the school whose menu this is', async () => {
+    await renderMenu(SCHOOL, { status: 'none' }, withSchool);
+    expect(await screen.findByText('Alpha Public School')).toBeTruthy();
+  });
+
+  it('offers a way back to the picker', async () => {
+    await renderMenu(SCHOOL, { status: 'none' }, withSchool);
+    fireEvent.press(await screen.findByTestId('screen-menu-change-school'));
+    expect(withSchool.onChangeSchool).toHaveBeenCalled();
+  });
+
+  it('announces the school and the action together', async () => {
+    // A screen-reader user hears the button's label and nothing else, so "Change" alone would
+    // never say what is being changed from.
+    await renderMenu(SCHOOL, { status: 'none' }, withSchool);
+    expect(await screen.findByLabelText('Alpha Public School. Change school')).toBeTruthy();
+  });
+
+  it('leaves the row out when there is nowhere to send it', async () => {
+    await renderMenu();
+    expect(screen.queryByTestId('screen-menu-change-school')).toBeNull();
   });
 });

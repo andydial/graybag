@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 /**
  * Route names and their params.
  *
@@ -25,7 +27,16 @@ export type TabParamList = {
  * `reachability.test.ts` is, and it found this on its first run.
  */
 export type RootStackParamList = {
-  Tabs: undefined;
+  /**
+   * The tab navigator.
+   *
+   * `NavigatorScreenParams` rather than `undefined` so a stack screen can say **which tab**
+   * to land on. It used to be `undefined`, which made `navigate('Tabs')` the only expressible
+   * form — and from a screen already inside the tabs that is a no-op. Home's "Open the Menu",
+   * its school picker prompt, its retry, the Orders empty state and Order detail's "back to
+   * the menu" were all that call: five buttons that did nothing, and typed as correct.
+   */
+  Tabs: NavigatorScreenParams<TabParamList> | undefined;
   DishDetail: { dishId: string };
   Orders: undefined;
   OrderDetail: { orderGroupId: string };

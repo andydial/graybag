@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { design, menu as menuDomain } from '@graybag/shared';
 
 import { BrandHeader, EmptyState, ErrorState, Tabs, TextField, type TabItem } from '../components';
@@ -8,7 +8,7 @@ import type { MenuDiagnostic } from './useCachedMenu';
 import { MenuList, type MenuListItem } from './MenuList';
 import { useCachedMenu, type CachedMenuPayload } from './useCachedMenu';
 
-const { bg, text, scale, space, radius, layout } = design;
+const { bg, layout, radius, scale, space, text, touchTarget } = design;
 const { ALL_CATEGORIES, filterMenu } = menuDomain;
 
 /**
@@ -53,11 +53,24 @@ const NO_WATCHLIST: AllergenWatchlist = { status: 'none' };
  */
 export function MenuScreen({
   schoolId,
+  schoolName = null,
+  onChangeSchool,
   onSelectDish,
   allergens = NO_WATCHLIST,
   testID = 'screen-menu',
 }: {
   schoolId: string | null;
+  /** Shown above the menu so a parent can see *whose* menu this is. */
+  schoolName?: string | null;
+  /**
+   * Back to the picker — `E14-34`.
+   *
+   * Choosing a school was a **one-way door**: the picker renders only while `schoolId` is
+   * null, so the moment one was chosen there was no way to change it or to see which one was
+   * chosen. A parent with children at two schools, or anyone who tapped the wrong row, had to
+   * reinstall.
+   */
+  onChangeSchool?: () => void;
   onSelectDish: (dishId: string) => void;
   /**
    * Defaults to `none` because nothing wires a recipient into this screen yet. When one does,
@@ -90,6 +103,8 @@ export function MenuScreen({
       categoryId={categoryId}
       onCategoryChange={setCategoryId}
       allergensUnavailable={allergens.status === 'unavailable'}
+      schoolName={schoolName}
+      {...(onChangeSchool ? { onChangeSchool } : {})}
       testID={testID}
     />
   );
@@ -163,6 +178,8 @@ function MenuIntro({
   categoryId,
   onCategoryChange,
   allergensUnavailable,
+  schoolName,
+  onChangeSchool,
   testID,
 }: {
   query: string;
@@ -171,10 +188,32 @@ function MenuIntro({
   categoryId: string;
   onCategoryChange: (next: string) => void;
   allergensUnavailable: boolean;
+  schoolName: string | null;
+  onChangeSchool?: () => void;
   testID: string;
 }) {
   return (
     <View style={styles.intro}>
+      {/*
+        Which school's menu this is, and the way to a different one. Both were missing: the
+        picker unmounts once a school is chosen, so the choice was invisible and permanent.
+      */}
+      {onChangeSchool === undefined ? null : (
+        <Pressable
+          onPress={onChangeSchool}
+          accessibilityRole="button"
+          accessibilityLabel={
+            schoolName === null ? 'Change school' : `${schoolName}. Change school`
+          }
+          style={styles.schoolRow}
+          testID={`${testID}-change-school`}
+        >
+          <Text style={styles.schoolName} numberOfLines={1}>
+            {schoolName ?? 'Your school'}
+          </Text>
+          <Text style={styles.schoolChange}>Change</Text>
+        </Pressable>
+      )}
       <Text style={styles.eyebrow}>Our food</Text>
       <Text style={styles.title} accessibilityRole="header">
         Made specially for your child
@@ -360,6 +399,15 @@ function readFoodType(dish: CachedMenuPayload['dishes'][number]): menuDomain.Foo
 }
 
 const styles = StyleSheet.create({
+  schoolRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: touchTarget.min,
+    gap: space[3],
+  },
+  schoolName: { flexShrink: 1, color: text.primary, fontSize: scale.label.size, fontWeight: scale.label.weight },
+  schoolChange: { color: text.link, fontSize: scale.label.size, fontWeight: scale.label.weight },
   screen: { flex: 1, backgroundColor: bg.surface },
   intro: { paddingTop: space[2], gap: space[1] },
   eyebrow: {
