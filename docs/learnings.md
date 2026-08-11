@@ -2003,3 +2003,34 @@ colliding fixture id killed the first insert and `authorization.test.sql` silent
 zero assertions — and the guard written then lived only in CI. The floor guard is now in the
 local script too, because `CLAUDE.md` sends a human to `npm run test:all` at the end of every
 block, and that was the one place with nothing under it.
+
+## A pgTAP file can stop mid-way and report zero failures — 2026-08-11
+
+Adding assertions to `consent.test.sql` I used `isnt_imatching()`, which does not exist in this
+pgTAP build. What happened next is the point:
+
+```
+ok 31 - E20-48: version 2 of the self notice is the current one
+--- (and then nothing)
+psql:supabase/tests/consent.test.sql:333: ERROR:  function isnt_imatching(text, unknown, unknown) does not exist
+```
+
+**Thirty-one assertions passed, four never ran, and not one line said `not ok`.** The error
+aborted the transaction; every statement after it returned "current transaction is aborted", and
+`finish()` never printed a plan. Counting `ok` lines — the obvious way to check a suite —
+reports a healthy-looking 31 and no failures.
+
+This is the **same class** as `supabase test db` reporting green on zero files (`E20-47`): a
+suite that can go quiet without saying so. Both share a shape worth naming — *the absence of a
+failure is not the presence of a pass* — and both were invisible to the check that was supposed
+to cover them.
+
+**Why it is not a live problem:** `scripts/test-db.sh` greps each file's output for
+`^psql:.*ERROR` **as well as** counting `ok`/`not ok`, and fails the file on either. That grep
+looks redundant beside the `not ok` check and is not: it is the only thing that catches this,
+because this failure never produces a `not ok`. There is a comment saying so in the script, so
+nobody removes it as duplication.
+
+**The general rule:** when a runner reports a count, the count is only trustworthy if something
+independent asserts the run actually reached the end. For pgTAP that is the `ERROR` grep and the
+`MIN_TESTS` floor; for the suite as a whole it is CI's floor guard from `E02-24`.

@@ -56,6 +56,17 @@ for file in "$TESTS_DIR"/*.test.sql; do
 
   ok_count="$(printf '%s\n' "$out" | grep -cE '^ *ok [0-9]+' || true)"
   not_ok="$(printf '%s\n' "$out" | grep -E '^ *not ok [0-9]+' || true)"
+
+  # DO NOT REMOVE THIS AS REDUNDANT. It looks like a belt-and-braces duplicate of the `not ok`
+  # check above and it is the only thing that catches the commonest way a pgTAP file lies:
+  #
+  #   a statement raises (a typo, a function that does not exist in this pgTAP build), the
+  #   transaction aborts, every remaining statement returns "current transaction is aborted",
+  #   `finish()` never runs — and the output contains a run of passing `ok` lines and NOT ONE
+  #   `not ok`.
+  #
+  # On 2026-08-11 that was 31 passes, 4 assertions never run, zero reported failures. See
+  # docs/learnings.md. The absence of a failure is not the presence of a pass.
   errors="$(printf '%s\n' "$out" | grep -E '^psql:.*ERROR' || true)"
 
   total=$((total + ok_count))

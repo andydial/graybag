@@ -364,5 +364,47 @@ select is(
   'an adult adding themselves today consents against the CURRENT wording — the whole point of '
   'recording policy_version_id on the consent is that it answers which words were shown');
 
+-- =============================================================================
+-- 10. '9' does not come after '10' — `E20-50`, migration `0033`.
+--
+-- `policy_version.version` is TEXT, and the notice lookup used to sort it as text. The bug is
+-- invisible when it fires: nothing errors, nothing is null, and the consent_record simply
+-- points at superseded wording — on the one row whose whole job is to answer "which words did
+-- this person agree to?", and which `C9` keeps after erasure as the evidence that holding the
+-- data was lawful.
+--
+-- The assertions below **fail under the old ordering**, which is the only kind worth writing
+-- for a fix: version 10 is published with the SAME `effective_from` as version 9, so the
+-- timestamp cannot break the tie and the version comparison has to.
+-- =============================================================================
+
+select ok(policy_version_rank('9') < policy_version_rank('10'),
+          'E20-50: 9 sorts before 10. As text it does not, and the tenth version of a notice '
+          'would have been silently superseded by the ninth');
+
+select ok(policy_version_rank('1.2') < policy_version_rank('1.10'),
+          'and a dotted version compares component-wise, matching compareVersions() in '
+          'packages/shared — the client and the database must not disagree about which wording '
+          'is current');
+
+-- Two versions sharing an `effective_from`, so only the version comparison can decide. This is
+-- the case a backdated correction creates, and it is the one `effective_from desc` was
+-- accidentally protecting us from.
+insert into policy_version (policy_code, version, effective_from, published_at,
+                            content_md, content_sha256, requires_acceptance, blocks_ordering,
+                            summary_of_changes)
+select 'child_data_notice', v.version,
+       '2030-01-01T00:00:00+00'::timestamptz, '2030-01-01T00:00:00+00'::timestamptz,
+       v.body, encode(sha256(v.body::bytea), 'hex'), false, false, 'ordering fixture'
+  from (values ('9', 'ninth wording'), ('10', 'tenth wording')) as v(version, body);
+
+select is(
+  (select pv.version from policy_version pv
+    where pv.id = current_policy_version_id('child_data_notice')),
+  '10',
+  'E20-50: with 9 and 10 sharing an effective_from, the CURRENT notice is 10. Under the old '
+  'text sort this returned 9 — and a parent adding a child would have consented against '
+  'wording we had already replaced, with nothing anywhere to show it');
+
 select * from finish();
 rollback;
