@@ -52,7 +52,7 @@ const MANIFEST_OUT = join(OUT, 'MANIFEST.json');
  * five range tiles; the number was reset to the new reality rather than left with the old
  * slack in it, because a budget with room to spare is one that never fires.
  */
-export const BUDGET_BYTES = 120_000;
+export const BUDGET_BYTES = 130_000;
 
 const PACKAGE = join(ROOT, '..', 'Legacy-Application', 'Graybag_Design Package');
 const DISH_MANIFEST = join(ROOT, 'tools', 'mirror-dish-images', 'manifest.json');
@@ -68,6 +68,8 @@ const DISH_MANIFEST = join(ROOT, 'tools', 'mirror-dish-images', 'manifest.json')
  *
  * Five dishes, one per category, chosen to show *range*: a breakfast, a main, a wrap, a salad,
  * a bake. The page uses them as supporting images beside category copy, not as the argument.
+ * Two more — a snack and a drink — exist only for the hero's menu frame; `FOOD.categories`
+ * drives the food section and does not name them, so it still renders five.
  *
  * A side effect worth stating: the committed image set drops from 232 KB to 113 KB.
  */
@@ -77,6 +79,11 @@ const RANGE = [
   ['wraps', 'Paneer Wrap', 'Paneer wrap'],
   ['salads', 'Quinoa Salad', 'Quinoa salad'],
   ['bakery', 'Wheat Jaggery Cake', 'Wheat jaggery cake'],
+  // Two more for the hero's menu frame only. The food section iterates FOOD.categories and
+  // looks these up by id, so it renders five cards regardless; these simply give the mockup a
+  // sixth tile and a third row, which is what stops it looking like a stamp on the background.
+  ['snacks', 'Paneer Puff', 'Paneer puff'],
+  ['drinks', 'Banana Shake', 'Banana shake'],
 ];
 
 /** `Rajma With Rice` -> `rajma-with-rice`. Same slug rule the prototype uses. */
