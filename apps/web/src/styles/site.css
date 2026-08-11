@@ -395,12 +395,12 @@ ul, ol { padding: 0; list-style: none; }
 .hero { padding-bottom: 0; }
 
 /**
- * The hero grid, and why the facts strip lives inside it.
+ * The hero grid: copy left, one device frame right, and nothing else in it.
  *
- * On a wide viewport the copy and the proof numbers share the left column and the device stack
- * owns the right one outright, spanning both rows. That is what lets the device be genuinely
- * large and bleed off the bottom edge: it is no longer sitting in a half-height box with a
- * full-width strip underneath it.
+ * The facts band used to live in the left column, stacked one per row. That made the hero about
+ * twice as tall and left a large empty green field under the buttons — the eye reached the
+ * bottom of the copy and had nowhere to go. The band is beneath the grid now, three across, and
+ * the hero is back to roughly one laptop screen.
  */
 .hero__grid {
   display: grid;
@@ -410,29 +410,11 @@ ul, ol { padding: 0; list-style: none; }
 
 @media (min-width: 900px) {
   .hero__grid {
-    grid-template-columns: 1.02fr 1fr;
-    grid-template-rows: auto 1fr;
-    grid-template-areas:
-      "copy   device"
-      "facts  device";
-    align-items: start;
+    grid-template-columns: 1.05fr 0.95fr;
+    align-items: center;
     column-gap: var(--gb-space-12);
-    row-gap: var(--gb-space-10);
-    padding-top: var(--gb-space-10);
+    padding-top: var(--gb-space-8);
   }
-  .hero__copy   { grid-area: copy; align-self: center; }
-  .hero__device { grid-area: device; align-self: end; }
-
-  /**
-   * Stacked, not three across.
-   *
-   * Sharing the row with the device leaves this column about 590px, and three columns of that
-   * is 180px each — enough to make every label wrap to three lines and read as cramped. One
-   * per row is comfortable at any column width, and the extra height balances the device
-   * standing beside it.
-   */
-  .hero .facts { grid-area: facts; margin-top: 0; }
-  .fact { display: grid; gap: var(--gb-space-0-5); }
 }
 
 .hero__actions {
@@ -449,19 +431,35 @@ ul, ol { padding: 0; list-style: none; }
 }
 
 /**
- * The proof strip: three plain facts, no ornament.
+ * The proof band: three plain facts, no ornament.
  *
  * A principal's first question is "is this real". Plain statements answer it faster than a
  * paragraph does.
+ *
+ * On a wide viewport the rule spans the full container while the three facts stop short of the
+ * device frame — `padding-right` on the element, so the `border-top` still runs edge to edge and
+ * it reads as a band rather than as a narrower column. The frame bleeds down through this space
+ * on the right, which is why the content has to clear it.
  */
 .facts {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--gb-space-5);
-  margin-top: var(--gb-space-10);
-  padding-top: var(--gb-space-8);
+  margin-top: var(--gb-space-8);
+  padding-top: var(--gb-space-6);
+  padding-bottom: var(--gb-space-8);
   border-top: var(--gb-border-width-hairline) solid var(--gb-ramp-forest-600);
 }
+
+@media (min-width: 640px) {
+  .facts { grid-template-columns: repeat(3, 1fr); gap: var(--gb-space-6); }
+}
+
+@media (min-width: 900px) {
+  .facts { padding-right: 36%; }
+}
+
+.fact { display: grid; gap: var(--gb-space-0-5); }
 
 /**
  * The proof numbers were amber, and amber was wrong.
@@ -473,138 +471,50 @@ ul, ol { padding: 0; list-style: none; }
  * call-to-action button, which is `badge.bg` and a shape, not ink.
  */
 .fact__value {
-  font-size: var(--subheading);
+  font-size: var(--gb-font-size-h3);
   line-height: var(--gb-line-height-h3);
   font-weight: var(--gb-font-semibold);
   color: var(--gb-text-on-brand);
 }
 .fact__label {
-  margin-top: var(--gb-space-1);
   font-size: var(--gb-font-size-body-sm);
   line-height: var(--gb-line-height-body-sm);
   color: var(--gb-ramp-lime-200);
 }
 
-/* ------------------------------------------------------------ the device stack */
+/* ------------------------------------------------------------- the device frame */
 
 /**
- * Two frames, overlapping, bleeding off the bottom of the green.
+ * One frame, large, bleeding off the bottom of the green.
  *
- * The previous version was one narrow frame floating in a large green field, showing the **cart**
- * — subtotal, GST lines, "Place order · ₹278.25". Two things wrong with it. A cart is the most
- * transactional screen in the product, shown to the one person who never pays for anything; and a
- * small frame with air on every side reads as a sticker placed on a background rather than as a
- * window into a working product.
+ * Three versions of this. It began as a narrow frame showing the **cart** — subtotal, GST lines,
+ * "Place order" — which is the most transactional screen in the product, shown to the one person
+ * who never pays for anything. Then two overlapping frames, the menu in front and a "Delivering
+ * to Aarav" card behind: **cut**, because green on a green pattern read as a rendering fault, the
+ * phone clipped it, and it carried nothing the hero paragraph does not already say.
  *
- * So: the **menu** in front, because food sells food and a grid of real dishes says "this is a
- * real operation" in a way a receipt cannot. The **delivery card** behind and offset, because
- * that is the other half of the proposition — the food reaches a named child, in a named class,
- * at a named break. Both halves in one glance.
+ * What is left is the thing that was working: the menu, with real dishes, veg marks and prices.
+ * It is the hero's visual anchor, so it is sized to balance the copy beside it rather than to
+ * sit politely in the corner.
  *
- * The bleed is a negative bottom margin working against the panel's `overflow: hidden`: the stack
- * is taller than the space it is allowed to occupy, so the green clips it and it reads as
- * continuing past the fold rather than stopping.
+ * The bleed is a negative bottom margin against the panel's `overflow: hidden`: the frame is
+ * taller than the space it is allowed to occupy, so the green clips it and it reads as
+ * continuing past the fold. The facts band's `padding-right` is what keeps its text clear of the
+ * part that bleeds through.
  */
 .hero__device {
   position: relative;
   margin-bottom: calc(-1 * var(--gb-space-10));
 }
 
-/**
- * `align-self: end` is what makes the bleed real.
- *
- * With the stack aligned to the top, the grid row was sized by the *left* column — which is
- * taller — so the device simply floated with green underneath it and the negative margin did
- * nothing visible. Pinned to the bottom of the row, the negative margin then pushes it past the
- * panel's edge and `overflow: hidden` cuts it.
- */
 @media (min-width: 900px) {
-  .hero__device { margin-bottom: calc(-2 * var(--gb-space-12)); }
+  .hero__device { margin-bottom: calc(-1 * var(--gb-space-16) * 3); }
 }
 
-/**
- * The delivery card: a card rather than a second phone. Two phone frames would compete for
- * attention and say the same thing twice; a card reads as another surface of the same product.
- *
- * **It only sits behind the phone on wide viewports, and that is a legibility decision.** At
- * 390px the frame is nearly the full column, leaving the card about 43px of daylight — so
- * "Class 4-B · Gem Public School" and "Second break · 11:20" both rendered cut mid-word, which
- * reads as a bug rather than as depth. Overlapping frames and a large frame cannot both fit
- * across a phone, and the brief is explicit that legibility wins: simplify the arrangement
- * rather than shrink the type. So on a phone the two are stacked, and the overlap is a
- * wide-viewport composition.
- */
-.deliver-card {
-  position: static;
-  width: 100%;
-  max-width: 22rem;
-  margin: 0 0 var(--gb-space-4) auto;
-  border-radius: var(--gb-radius-lg);
-  overflow: hidden;
-  isolation: isolate;
-  box-shadow: var(--gb-elevation-3);
-}
-
-@media (min-width: 900px) {
-  .deliver-card {
-    position: absolute;
-    z-index: 0;
-    top: 0;
-    left: 0;
-    width: min(15rem, 60%);
-    max-width: none;
-    margin: 0;
-  }
-}
-
-.deliver-card__top {
-  position: relative;
-  background: var(--gb-bg-surface-brand-strong);
-  color: var(--gb-text-on-brand);
-  padding: var(--gb-space-4);
-}
-
-.deliver-card__label {
-  font-size: var(--gb-font-size-overline);
-  line-height: var(--gb-line-height-overline);
-  letter-spacing: var(--gb-tracking-overline);
-  text-transform: uppercase;
-}
-.deliver-card__who {
-  font-size: var(--gb-font-size-h3);
-  line-height: var(--gb-line-height-h3);
-  font-weight: var(--gb-font-semibold);
-}
-.deliver-card__where {
-  font-size: var(--gb-font-size-caption);
-  line-height: var(--gb-line-height-caption);
-}
-
-.deliver-card__band {
-  position: relative;
-  background: var(--gb-bg-surface-inverse);
-  color: var(--gb-text-on-brand);
-  padding: var(--gb-space-2) var(--gb-space-4);
-  font-size: var(--gb-font-size-caption);
-  line-height: var(--gb-line-height-caption);
-  font-weight: var(--gb-font-medium);
-  display: flex;
-  justify-content: space-between;
-  gap: var(--gb-space-3);
-}
-
-/**
- * The phone frame.
- *
- * Substantially larger than it was — 272px, which looked like an afterthought. Pushed right and
- * down so the delivery card sits behind its top-left corner.
- */
 .device {
   position: relative;
-  z-index: 1;
   width: min(20rem, 100%);
-  margin-left: auto;
-  margin-top: 0;
+  margin-inline: auto;
   background: var(--gb-bg-surface);
   border-radius: var(--gb-radius-2xl);
   padding: var(--gb-space-2);
@@ -613,7 +523,7 @@ ul, ol { padding: 0; list-style: none; }
 }
 
 @media (min-width: 900px) {
-  .device { width: min(21rem, 94%); margin-top: var(--gb-space-16); }
+  .device { width: min(23rem, 100%); margin-right: 0; }
 }
 
 .device__screen {

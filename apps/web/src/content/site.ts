@@ -60,17 +60,17 @@ export const HERO = {
 export const FACTS = [
   {
     value: 'A menu per school',
-    label: 'agreed with you and rotated through the term, not a fixed list',
+    label: 'agreed with you, and it rotates through the term',
     // The proposition, not a measurement. SC1: one city, so this is per school and not per region.
   },
   {
     value: 'Cooked that morning',
-    label: 'to the day\'s order list — nothing prepared speculatively, nothing held over',
+    label: 'to the day\'s order list — nothing held over',
     // How the kitchen works: orders close the night before, so the count is known before cooking.
   },
   {
     value: 'Zero cash',
-    label: 'handled at school — every order is paid before the food is cooked',
+    label: 'handled at school — paid before the food is cooked',
     // M1: GrayBag is seller of record; payment is captured at checkout (order-lifecycle.md).
   },
 ] as const;
