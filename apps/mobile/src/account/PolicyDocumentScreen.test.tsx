@@ -49,8 +49,28 @@ describe('PolicyDocumentScreen', () => {
     const { markdown } = POLICY_DOCUMENTS.privacy;
     expect(markdown).toContain('under 18');
     expect(markdown).toContain('vivek@graybag.com');
-    expect(markdown).toContain('7 years');
     expect(markdown).toContain('when the guardian link ends');
+
+    /**
+     * Retention defers to the law and **names no period** — corrected 2026-08-11.
+     *
+     * This assertion used to be `toContain('7 years')`, which is how a number nobody had
+     * verified became load-bearing. Andy supplied the figure, withdrew it three days later, and
+     * it may be *below* the floor: the Companies Act 2013 requires books of account for eight
+     * years and the GST record period is 72 months from the annual return. A published
+     * commitment shorter than the law requires is worse than one that does not commit.
+     *
+     * So the body is asserted to carry the deferring wording and **not** a bare number. The
+     * negative half is the half that matters: without it the figure walks back in the first
+     * time somebody "improves" the copy, and the test that should have caught it would be the
+     * test asserting it.
+     *
+     * Sliced past the change log, which quotes the withdrawn figure in order to record the
+     * correction — the same reason the refund address is asserted on the body below.
+     */
+    const privacyBody = markdown.slice(markdown.indexOf('## 4') === -1 ? 0 : markdown.indexOf('## 4'));
+    expect(privacyBody).toContain('as long as Indian tax and company law requires');
+    expect(privacyBody).not.toMatch(/\b(7|seven)[ -]years?\b/i);
     // The corrected address. Asserted on the **body** — everything after the change log's
     // `---` — because the change log itself quotes the old address in order to record the
     // correction, which is what a tracked change is for. What must never carry it is the

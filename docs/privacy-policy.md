@@ -29,7 +29,8 @@ covers: E20-06, E20-38
 |---|---|---|---|
 | 1 | §6 Children's Privacy | "children under 13" → **"children under 18"** | 13 is COPPA's threshold, which is United States law. India's **DPDP Act 2023 defines a child as under 18**, and that is the law GrayBag operates under. The lower number would have understated the protection owed to most of the children in the system |
 | 2 | §7A Grievance Officer *(new)* | Named **Vivek**, `vivek@graybag.com`, as the published contact for data complaints | The DPDP Act requires a Data Fiduciary to **publish** the contact details of a person who answers questions and complaints about personal data processing. The baseline had a general `info@` address, which does not satisfy a named-officer requirement |
-| 3 | §4 Data Retention | Split into **financial records (7 years)** and **a child's personal data (deleted on request, or when the guardian link ends)** | "As long as necessary for business and legal purposes" cannot serve both. Financial records are held under a statutory floor — GST law and the Companies Act 2013 — and cannot be deleted on request. A child's name, class, section and allergy details are under no such floor, and holding them to a seven-year tax rule would be the opposite of data minimisation. One number could not honestly describe both, so it is two |
+| 3 | §4 Data Retention | Split into **financial records (kept for as long as Indian tax and company law requires)** and **a child's personal data (deleted on request, or when the guardian link ends)** | "As long as necessary for business and legal purposes" cannot serve both. Financial records are held under a statutory floor and cannot be deleted on request; a child's name, class, section and allergy details are under no such floor, and holding them to a tax rule would be the opposite of data minimisation. One period could not honestly describe both, so it is two |
+| 3a | §4 Data Retention *(corrected 2026-08-11)* | The financial-records period **no longer states a number**. Version 2 as first published said **seven years** | That figure was not verified against the statutes. Andy, who supplied it, withdrew it: the **Companies Act 2013 requires books of account for eight years**, and the **GST record period runs 72 months from the annual return** — so seven years may be *below* the floor, and a published commitment shorter than the law requires is worse than one that does not commit to a number. The binding period, and whether the GST record period differs from the Companies Act one, is on the accountant's list (`E00-10`, `docs/andy-prep/professional-questions.md`). **When the number comes back we state it once, correctly.** Until then the wording defers to the law, which is both accurate and safe in either direction |
 
 Also corrected in the refund policy, as a typo rather than a decision: `info@graybag.in` →
 `info@graybag.com`.
@@ -68,14 +69,15 @@ We do not sell or rent personal data. We may share data with:
 We keep different kinds of information for different lengths of time, because the law requires
 one and forbids the other.
 
-**Financial records — 7 years.** Invoices, ledger entries and order history are retained for
-seven years. We are required to keep these under Indian tax law (GST) and the Companies Act
-2013, and we cannot delete them on request. They record a transaction, not a child.
+**Financial records — for as long as Indian tax and company law requires.** Invoices, ledger
+entries and order history are retained for as long as Indian tax and company law requires us to
+keep them. We cannot delete them on request. They record a transaction, not a child.
 
 **A child's personal data — deleted on request, or when the guardian link ends.** A child's
 name, class, section and any allergy details you have given us are deleted when you ask us to
 delete them, or when your link to that child ends — whichever happens first. You do not have to
-wait seven years, and we do not keep a child's details because a tax rule applies to an invoice.
+wait for a tax retention period to run out, and we do not keep a child's details because a tax
+rule applies to an invoice.
 
 Where an invoice must survive, it survives as a financial record. It does not carry a child's
 details forward.

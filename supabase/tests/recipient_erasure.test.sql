@@ -6,7 +6,12 @@
 -- and a change that satisfies one while breaking the other looks like a pass:
 --
 --   1. A child's name, class, section and allergy details are GONE when the guardian link ends.
---   2. Every order, invoice and ledger reference SURVIVES — seven years, statutory.
+--   2. Every order, invoice and ledger reference SURVIVES — a statutory floor, and the point
+--      is that it is a floor rather than any particular number. The published policy said
+--      "seven years" until 2026-08-11; that figure was withdrawn as unverified (the Companies
+--      Act 2013 requires books for eight years, GST runs 72 months from the annual return), and
+--      the binding period is on the accountant's list (`E00-10`). What this suite asserts is
+--      SURVIVAL, which is what `D15` requires and what no number changes.
 --
 -- The second is what makes this hard. `D15` forbids hard-deleting a row an invoice depends on,
 -- so erasure is anonymise-in-place, and the temptation is to prove only that the name changed.
@@ -119,7 +124,8 @@ select is((select count(*)::int from guardian_link
 -- 2. The half that is easy to break while making the half above pass.
 --
 -- `D15`: the row must SURVIVE. An invoice whose foreign key has vanished is a broken statutory
--- record, and the books are kept for seven years under GST and the Companies Act.
+-- record, and the books are kept under GST and the Companies Act for a period `E00-10` will
+-- confirm. The number is deliberately not restated here: it was wrong once already.
 -- =============================================================================
 
 select is((select count(*)::int from recipient where id = (select recipient_id from e_id)),

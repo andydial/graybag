@@ -129,3 +129,29 @@ collect the name before payment instead and take the conversion cost.
 **Second, smaller question:** clause (f) is conditional on the recipient *requesting* the
 details. If a parent asks afterwards for their name on an invoice we have already issued, is a
 **superseding reissue** the correct instrument, or may the original be amended?
+
+## For the accountant — the binding retention period (`E00-10`, urgent)
+
+**We have published a number and then withdrawn it.** GrayBag's privacy policy, notice version 2,
+said financial records are kept for **seven years**. That figure was not checked against the
+statutes, and it may be *below* the floor rather than above it — the **Companies Act 2013**
+appears to require books of account for **eight years**, and the **GST record period** runs
+**72 months from the due date of furnishing the annual return**, which is not the same clock.
+
+The published wording now defers to the law and names no period, which is safe in either
+direction. We would rather state the number once, correctly, than keep amending it.
+
+**The questions, precisely:**
+
+1. **What is the binding retention period for our tax invoices and our books of account?** If
+   the Companies Act and the GST rules give different answers, we will hold to the longer — but
+   we want to publish the right basis, not a maximum we guessed at.
+2. **Does the GST record period differ from the Companies Act period for our records**, and does
+   it run from the transaction, the financial year end, or the annual return?
+3. **Does the answer change for a customer who has asked us to delete their account?** Our
+   position is that invoices and ledger entries survive an erasure request because they are the
+   statutory record, and that a child's name, class, section and allergy details do not. We want
+   that confirmed rather than assumed.
+4. Once we have the period: **is it a floor or a ceiling?** Keeping financial records longer
+   than required is ordinary; keeping personal data longer than required is a DPDP problem, so
+   we need to know which side of the line each record sits on.
