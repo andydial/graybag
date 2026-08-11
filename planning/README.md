@@ -68,9 +68,10 @@ checkboxes in both directions. Commit both and git is your permanent audit trail
 
 ## Scope tags
 
-`(mvp)` marks a v1 task. The list is explicit in `scripts/tag-mvp.mjs` — **an id must be
+`(mvp)` marks a v1 task. The list is explicit in `scripts/check-mvp.mjs` — **an id must be
 added there deliberately**. Everything else, including anything added later, is fast-follow.
-Re-run `node scripts/tag-mvp.mjs` after a batch of new tasks; it warns about ids in the list
+Run `npm run check:mvp` after a batch of new tasks. It **verifies and never writes** — it fails
+if the list and the markdown disagree, naming both sides, and reports ids in the list
 that no longer exist.
 
 ## Regenerating

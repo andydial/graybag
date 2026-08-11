@@ -8,7 +8,7 @@ status: agreed 2026-08-07 — supersedes the earlier 288-task version
 ## The rule
 
 **174 tasks are in v1. Everything else is fast-follow.** The list is explicit and lives in
-`scripts/tag-mvp.mjs`. Anything not named there — including anything added later — is
+`scripts/check-mvp.mjs`. Anything not named there — including anything added later — is
 fast-follow by default.
 
 > **173 → 174 on 2026-08-08.** Andy scoped `E02-24` into v1: the authorization suite was

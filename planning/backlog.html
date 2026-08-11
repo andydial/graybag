@@ -515,13 +515,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Provider stub server for Razorpay</strong> (answers <code>/v1/orders</code>, <code>/v1/payments/:id</code>, <code>/v1/payments/:id/refund</code>, <code>/v1/payments</code>, <code>/v1/refunds</code>, <code>/v1/settlements/recon/combined</code>) built from the <code>docs/payments-design.md</code> §12 checklist, used by the offline CI payment tests in <code>docs/testing-strategy.md</code> §5. Must be corrected against <code>E19-01</code>&#39;s answers when they land. Overlaps <code>E06-13</code> — if <code>E06-13</code> already owns the fixtures, fold this in there rather than duplicating</span>
       </li>
-      <li class="task" data-id="E01-25" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E01-25" data-seed="1" data-risk="medium" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-25"></button>
         <code class="tid">E01-25</code>
         <span class="badge r-medium">medium</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong><code>scripts/tag-mvp.mjs</code> and the backlog markdown disagree about five tasks, and running the script would resolve it the wrong way.</strong> <code>E03-20</code>, <code>E05-16</code>, <code>E05-20</code> and <code>E05-21</code> carry <code>(mvp)</code> in the markdown but are absent from the script&#39;s explicit include list, so a run <strong>strips</strong> them from v1 — four tasks silently leaving scope. <code>E09-11</code> is the mirror case: in the list, missing the marker in markdown. Found 2026-08-11 while registering <code>E04-14</code>…<code>E04-20</code>, and pre-existing. The list is meant to be the authority (<code>docs/mvp-scope.md</code>), so either the four belong in it or their markers are wrong — <strong>that is a scope decision, not a cleanup</strong>, which is why this task does not fix it. Whoever rules should also make the disagreement fail CI, because &quot;runs the script last&quot; is not a scope process</span>
+        <span class="ttext"><strong><code>scripts/tag-mvp.mjs</code> rewrote the backlog markdown from its include list, so a disagreement resolved as &quot;whoever ran it last wins&quot;.</strong> <code>E03-20</code>, <code>E05-16</code>, <code>E05-20</code> and <code>E05-21</code> carried <code>(mvp)</code> in markdown and were absent from the list — a run would have <strong>stripped all four from v1</strong> silently. <code>E09-11</code> was the mirror case. <strong>Closed 2026-08-11</strong>: Andy ruled all five are MVP and they are reconciled; the script is replaced by <code>scripts/check-mvp.mjs</code>, which <strong>verifies and never writes</strong>, names both sides of any disagreement, and runs in <code>npm run smoke</code> so CI fails on drift</span>
       </li></ul>
       </details>
     </article>
@@ -3110,7 +3110,7 @@
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:high) Decide whether the kitchen packing list and per-class delivery sheet surface a parent&#39;s per-line note. If they don&#39;t, the note field is not built at all — a note nobody reads is a lie told to a parent trying to be careful (ux-spec §5.6.1)</span>
+        <span class="ttext">(risk:high) (mvp) Decide whether the kitchen packing list and per-class delivery sheet surface a parent&#39;s per-line note. If they don&#39;t, the note field is not built at all — a note nobody reads is a lie told to a parent trying to be careful (ux-spec §5.6.1)</span>
       </li></ul>
       </details>
     </article>
