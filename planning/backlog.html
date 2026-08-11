@@ -160,13 +160,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/21</span>
+          <span class="meter-num">0/22</span>
         </div>
       </header>
       <p class="summary">Things with real-world lead time or live security exposure. Nothing else is blocked by these, but they block launch if started late.</p>
       
       <details>
-        <summary>Context &amp; 21 tasks</summary>
+        <summary>Context &amp; 22 tasks</summary>
         <div class="context"><h4>Why first</h4>
 <p>Every item here is either a live security exposure or has a multi-week external dependency (government, accountant, telco). None of them require any code.</p></div>
         <ul class="tasks">
@@ -337,6 +337,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:high) (mvp) <strong>A real SMTP sender before production</strong> — Supabase&#39;s built-in email is a handful of messages an hour with no delivery guarantee, and for an OTP-only product that means nobody can sign in. Resend/SES/Postmark with SPF and DKIM</span>
+      </li>
+      <li class="task" data-id="E00-23" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-23"></button>
+        <code class="tid">E00-23</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Reconcile <code>backlog-state.json</code> against what is actually built.</strong> The per-epic MVP percentages under-report: <code>E03</code> reads 0/11 while sign-in, OTP, session persistence and the disclosure fixes are all shipped and demonstrable, and <code>E21</code> reads 0/20 while every screen it lists exists. Work was done and nobody ticked it. This matters beyond tidiness — the percentages are what a planning conversation will use to decide what is left before launch, and an epic that reads 0% when it is mostly done is the kind of number that moves a date for no reason. Walk each epic&#39;s MVP ids against the code and the git history, tick what is genuinely done, and where a task turns out to be partly done, say which half</span>
       </li></ul>
       </details>
     </article>

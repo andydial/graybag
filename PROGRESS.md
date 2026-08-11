@@ -2,6 +2,95 @@
 
 Newest handover at the top. Assume the reader has forgotten everything.
 
+---
+
+## 2026-08-11 (overnight) — E06 steps 1–4, and the first invoicing guard
+
+### WHERE WE ARE, BY EPIC — read this bit only
+
+**Live-blocking epics still substantially open: E03, E06, E07, E08, E09, E17.** Everything else
+is either done, nearly done, or fast-follow.
+
+| | Epic | MVP ticked | State |
+|---|---|---|---|
+| ✅ | **E02** data model & authorization | 15/15 | Done. Default-deny proven by 194 pgTAP assertions |
+| ✅ | **E19** de-risking spikes | 4/4 | Done bar the `E19-07` sitting, which is yours and ~45 min |
+| 🟢 | **E13** design system · **E04** menu · **E14** app shell · **E01** foundations | 78% · 75% · 70% · 73% | Close. Remainder is polish and wiring, not unknowns |
+| 🟡 | **E05** ordering & cart | 5/11 | Cart, menu, recipients, break windows all work. Checkout is the gap, and it is E06's |
+| 🟡 | **E06** payments & ledger | 6/15 | **Steps 1–4 of the build plan are done tonight.** Ledger, state machine, webhook, alerting. Steps 5–9 need your `E19-07` sitting |
+| 🔴 | **E07** invoicing & GST | 1/9 | First guard landed tonight. No invoice has ever been generated — this is the biggest untouched MVP epic |
+| 🔴 | **E08** notifications · **E09** kitchen ops · **E10** admin · **E15** observability | 0–20% | Untouched or barely started. E08 and E09 are live-blocking; E10 and E15 are not |
+| 🔴 | **E17** release & cutover | 0/11 | Mostly yours — store consoles, credentials, the cutover itself |
+| ⏭ | **E11** school reporting · **E12** marketing site · **E18** deferred · **E21** screen design | — | Fast-follow (`P15` for E11). E21's screens are built; the epic is a design-review list |
+
+**Two caveats on those numbers.** They count *ticked* state, and older epics under-report:
+**E03 shows 0/11 while sign-in demonstrably works**, and E21 shows 0/20 while every screen it
+lists is built. Nobody ticked them at the time. Filed as `E00-23`; do not read E03 as "not
+started".
+
+**The single largest remaining risk is not code.** It is that no invoice has ever been generated,
+and `E07` is 1/9. Payments can now be taken, recorded and reconciled long before anything can
+lawfully be issued for them.
+
+---
+
+### SHIPPED
+
+Ten commits, each green from a clean database, each pushed.
+
+- **E06 step 1** (`0034`–`0037`) — the chart of accounts (`ledger_account` was **empty**, so the
+  first posting would have failed on a foreign key), `duplicate_of_payment_id` so a real double
+  charge can be recorded, the three payment timings on all three config tables, the two
+  cancellation reason codes, and the refund-to-source guard.
+- **E06 step 2** (`0038`) — the ledger's one way in. Refuses fewer than two entries, a
+  non-positive amount (**a negative amount balances**, so the zero-sum trigger cannot catch it),
+  an unbalanced posting, an unknown or deactivated account, and a non-ledger reason code.
+  Idempotency at the point of harm; corrections are reversals.
+- **E06 step 3** (`0039`) — §4.1's transition table enforced literally, the actor as part of the
+  transition, a missing actor as a refusal. `L3`: payments only move up the capture rank, so a
+  late `authorized` cannot downgrade a capture.
+- **E16-49** (`0040`/`0041`) — the migration actor, narrowed three ways: two states, INSERT only,
+  and the row must carry a `legacy_bubble_id`.
+- **E06 step 4** (`0042`) — **signature verification, the webhook endpoint, and the alerting.**
+  Raw-body rule, constant-time comparison, fail closed, always `200`, idempotency at §7.1 layer 4.
+  17 vitest assertions including an RFC 4231 vector.
+- **E06-21** (`0043`) — the over-refund guard takes the `order_group` row lock.
+- **E06-30** (`0044`) — `order_group.status` is now **derived at all**; it never was.
+- **E07-20** (`0045`) — production refuses to take money it cannot invoice.
+
+`test:all` green from clean: **856 mobile, 612 shared, 500 pgTAP.**
+
+### FINDINGS
+
+- **`order_group.status` was never derived.** `L1` says it is maintained by trigger; no trigger
+  existed. Every group has read `draft` since `0001`, and three statuses were unreachable.
+- **The seller's identity had no home in configuration.** It existed only as snapshot columns on
+  `invoice`, so the invoice builder had nowhere to read from.
+- **`E06-21`'s documented defect was in the document, not the code.** The arithmetic was always
+  right; the *race* was real, and deferring the trigger to COMMIT does not close it.
+- **A wrong webhook secret is silent** — that is what `E06-28` now alarms, with two checks
+  because each is the other's blind spot.
+- **I committed on a failing `build-backlog`**, which clobbered `E07-17`. Restored, and smoke now
+  runs the check that would have caught it.
+
+### BLOCKED
+
+- **Everything from E06 step 5 onward** — client checkout, recovery paths, reconciliation —
+  needs the `E19-07` answers. Not stalled on: I moved to E07.
+
+### NEEDS ANDY
+
+1. **`E19-07`, ~45 minutes.** Step 4's alerting is green, which was your cue.
+   `docs/e19-07-webhook-sitting.md` has the three actions.
+2. **`E20-48` is done but `E07-22`'s CA sign-off is not** — follow-up, not a blocker, as ruled.
+3. **`E00-23`** — the backlog under-reports older epics. Worth an hour of reconciling before you
+   use these percentages for planning.
+
+### NEXT
+
+E07 invoicing is the largest untouched MVP epic and the biggest non-code risk. Then E15.
+
+
 
 ## 2026-08-11 — overnight run: flow fixes, dish photographs, the orphan guard
 
