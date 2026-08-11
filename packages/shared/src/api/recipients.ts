@@ -271,6 +271,66 @@ export async function changeRecipientSchool(input: SchoolChange): Promise<School
 }
 
 /**
+ * Correct a recipient's details — `E05-33`.
+ *
+ * **Separate from `changeRecipientSchool`, deliberately.** A move between schools has a
+ * future-order guard and resets the class, because a class at the old school means nothing at
+ * the new one. A typo in a section label has none of that weight, and the only route to fixing
+ * one used to be pretending to move the child to the school they were already at.
+ *
+ * `null` means "leave it alone". Clearing a field is an explicit flag, because a parent has to
+ * be able to remove a section they added by mistake, and null cannot mean both.
+ */
+export interface RecipientEdit {
+  recipientId: string;
+  firstName?: string;
+  lastName?: string | null;
+  classLabel?: string | null;
+  sectionLabel?: string | null;
+  clearSection?: boolean;
+  clearLastName?: boolean;
+}
+
+export async function updateRecipientDetails(input: RecipientEdit): Promise<{ recipientId: string }> {
+  const data = await invokeFunction<Record<string, unknown>>(
+    `recipients/${input.recipientId}`,
+    {
+      // No `school_id`: its absence is what tells the function this is a correction rather
+      // than a move.
+      first_name: input.firstName ?? null,
+      last_name: input.lastName ?? null,
+      class_label: input.classLabel ?? null,
+      section_label: input.sectionLabel ?? null,
+      clear_section: input.clearSection === true,
+      clear_last_name: input.clearLastName === true,
+    },
+    'PATCH',
+  );
+  return { recipientId: String(data.recipient_id ?? '') };
+}
+
+/**
+ * Remove a recipient — `E05-34`. Children leave school.
+ *
+ * **Deactivation, not deletion, and not erasure.** The row and its order history survive
+ * because an order that happened is a fact about money with an invoice and a ledger entry
+ * behind it. The child disappears from every guardian's list, which is what was asked for.
+ *
+ * A parent asking to have their data *erased* is a different request with a legally defined
+ * process — `E20-06`, `data_subject_request`. Routing "my child left school" through erasure
+ * would destroy records we are required to keep; routing erasure through this would fail to
+ * honour it. Two asks, two paths.
+ */
+export async function removeRecipient(recipientId: string): Promise<{ recipientId: string }> {
+  const data = await invokeFunction<Record<string, unknown>>(
+    `recipients/${recipientId}`,
+    undefined,
+    'DELETE',
+  );
+  return { recipientId: String(data.recipient_id ?? '') };
+}
+
+/**
  * The declared allergens of one recipient — `E05-31`.
  *
  * ## Why this is its own call, and narrow

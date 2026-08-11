@@ -61,14 +61,15 @@ const REFUSALS: Record<string, string> = {
     'To store allergy details we need your permission on the allergies question.',
   no_notice_published: 'We cannot add a child just now. Please try again shortly.',
   recipient_not_found: 'That child is no longer available.',
+  first_name_required: 'A first name is needed.',
   future_orders_exist:
     'There are orders for this child that have not been delivered yet. Cancel those days first, then change the school.',
 };
 
 Deno.serve(async (request: Request) => {
   const method = request.method;
-  if (method !== 'POST' && method !== 'PATCH') {
-    return json(405, { error: 'POST or PATCH only' });
+  if (method !== 'POST' && method !== 'PATCH' && method !== 'DELETE') {
+    return json(405, { error: 'POST, PATCH or DELETE only' });
   }
 
   const authorization = request.headers.get('Authorization') ?? '';
@@ -78,11 +79,14 @@ Deno.serve(async (request: Request) => {
     return json(401, { error: 'sign in to add a child' });
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return json(400, { error: 'body must be JSON' });
+  // DELETE carries no body — the id is in the path. Requiring one would be ceremony.
+  let body: Record<string, unknown> = {};
+  if (method !== 'DELETE') {
+    try {
+      body = await request.json();
+    } catch {
+      return json(400, { error: 'body must be JSON' });
+    }
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
@@ -150,8 +154,43 @@ Deno.serve(async (request: Request) => {
     return json(400, { error: 'recipient id is required in the path' });
   }
 
+  /**
+   * Removal — `E05-34`. Deactivates the recipient and revokes every guardian link.
+   *
+   * Not a DPDP erasure: order history, invoices and ledger entries are retained deliberately
+   * (see `0025`). Erasure is `E20-06` and has its own process.
+   */
+  if (method === 'DELETE') {
+    const { data, error } = await asService.rpc('deactivate_recipient', {
+      p_guardian_user_id: userData.user.id,
+      p_recipient_id: recipientId,
+    });
+    return respond(error, () => json(200, data), 'deactivate_recipient');
+  }
+
+  /**
+   * PATCH does two different things, told apart by whether a school was named.
+   *
+   * With `school_id` it is a move, which has a future-order guard and a class reset. Without
+   * one it is a correction — a mistyped section, a new class in July — and those must not have
+   * to pretend to be a school move to get through, which is the only route that existed.
+   */
   const schoolId = String(body.school_id ?? '').trim();
-  if (!schoolId) return json(400, { error: 'school_id is required' });
+  if (!schoolId) {
+    const { data, error } = await asService.rpc('update_recipient_details', {
+      p_guardian_user_id: userData.user.id,
+      p_recipient_id: recipientId,
+      p_first_name: body.first_name ?? null,
+      p_last_name: body.last_name ?? null,
+      p_class_label: body.class_label ?? null,
+      p_section_label: body.section_label ?? null,
+      // Explicit, because null already means "leave alone" and a parent has to be able to
+      // remove a section they added by mistake.
+      p_clear_section: body.clear_section === true,
+      p_clear_last_name: body.clear_last_name === true,
+    });
+    return respond(error, () => json(200, data), 'update_recipient_details');
+  }
 
   const { data, error } = await asService.rpc('change_recipient_school', {
     p_guardian_user_id: userData.user.id,

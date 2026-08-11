@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import { useMemo, type ComponentType } from 'react';
 import { Platform } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -33,6 +33,8 @@ import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
 import { useAudience } from '../session/audience';
+import { useSelectedSchool } from '../session/SelectedSchoolContext';
+import { useCachedMenu } from '../menu/useCachedMenu';
 
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -151,6 +153,31 @@ function CartTabScreen() {
   const audience = useAudience();
 
   /**
+   * The photo and the veg mark for each line — `E05-36`.
+   *
+   * **A cart line cannot carry them.** `cart/line.ts` stores what identifies and prices a line
+   * (dish id, who, when, note); a photo is presentation and would go stale the moment the menu
+   * changed. So the cart looks them up from the menu it already has cached, which costs no
+   * request — `useCachedMenu` is the same read the Menu tab just did.
+   *
+   * The prop existed and nothing ever passed it, so every line rendered the placeholder and the
+   * cart read as a different app from the grid. Same shape as the four other "both sides
+   * written, wire missing" defects: `orphans.test.ts` covers contexts, not optional props.
+   *
+   * A dish that is no longer on the current school's menu simply has no entry and falls back to
+   * the food-type placeholder, which is correct — we do not have a picture for it any more.
+   */
+  const { schoolId } = useSelectedSchool();
+  const { payload } = useCachedMenu(schoolId);
+  const dishInfo = useMemo(() => {
+    const info: Record<string, { imageUri: string | null; foodType: 'veg' | 'non_veg' | 'egg' | null }> = {};
+    for (const dish of payload?.dishes ?? []) {
+      info[dish.id] = { imageUri: dish.imageUri, foodType: dish.foodType };
+    }
+    return info;
+  }, [payload]);
+
+  /**
    * The gate, in the order `docs/ux-spec.md` §6.1 puts it.
    *
    * This used to be `navigate('SignIn')` unconditionally, which meant a parent who had
@@ -181,7 +208,7 @@ function CartTabScreen() {
     }
   };
 
-  return <CartScreen onPlaceOrder={placeOrder} />;
+  return <CartScreen onPlaceOrder={placeOrder} dishInfo={dishInfo} />;
 }
 
 const CartTab = withScreenFrame(CartTabScreen, TAB_SCREEN_EDGES);

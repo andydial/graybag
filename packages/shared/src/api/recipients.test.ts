@@ -5,6 +5,8 @@ import {
   RECIPIENT_COLUMNS,
   RecipientPayloadError,
   changeRecipientSchool,
+  updateRecipientDetails,
+  removeRecipient,
   createRecipient,
   fetchRecipients,
   setApiTransport,
@@ -371,5 +373,67 @@ describe('changeRecipientSchool', () => {
     );
     expect(thrown).toBeInstanceOf(ApiError);
     expect(thrown).toMatchObject({ code: 'future_orders_exist' });
+  });
+});
+
+describe('updateRecipientDetails', () => {
+  /**
+   * The distinction the whole function exists for. A correction must NOT carry a school, because
+   * `school_id`'s presence is what makes the server treat the request as a move — and a move has
+   * a future-order guard and resets the class. A mistyped section should not need to pretend to
+   * be a school transfer to get fixed.
+   */
+  it('sends no school_id, so the server reads it as a correction', async () => {
+    const invoke = stub({ data: { recipient_id: 'r1' } });
+    await updateRecipientDetails({ recipientId: 'r1', sectionLabel: 'B' });
+
+    const body = invoke.mock.calls[0]?.[1].body as Record<string, unknown>;
+    expect(body).not.toHaveProperty('school_id');
+    expect(body.section_label).toBe('B');
+    expect(invoke.mock.calls[0]?.[0]).toBe('recipients/r1');
+    expect(invoke.mock.calls[0]?.[1].method).toBe('PATCH');
+  });
+
+  /**
+   * `null` already means "leave alone", so it cannot also mean "remove". A parent who added a
+   * section by mistake has to be able to take it off, and that is a different intent from not
+   * mentioning it.
+   */
+  it('separates clearing a field from leaving it alone', async () => {
+    const invoke = stub({ data: { recipient_id: 'r1' } });
+    await updateRecipientDetails({ recipientId: 'r1', clearSection: true });
+
+    const body = invoke.mock.calls[0]?.[1].body as Record<string, unknown>;
+    expect(body.clear_section).toBe(true);
+    expect(body.section_label).toBeNull();
+  });
+
+  it('defaults the clear flags to false rather than undefined', async () => {
+    // `undefined` would drop out of the JSON body entirely and the server would read it as
+    // absent — which is the same as false here, but only by accident. Sent explicitly.
+    const invoke = stub({ data: { recipient_id: 'r1' } });
+    await updateRecipientDetails({ recipientId: 'r1', firstName: 'Aarav' });
+
+    const body = invoke.mock.calls[0]?.[1].body as Record<string, unknown>;
+    expect(body.clear_section).toBe(false);
+    expect(body.clear_last_name).toBe(false);
+  });
+});
+
+describe('removeRecipient', () => {
+  it('is a DELETE with the id in the path and no body', async () => {
+    const invoke = stub({ data: { recipient_id: 'r1' } });
+    await removeRecipient('r1');
+
+    expect(invoke.mock.calls[0]?.[0]).toBe('recipients/r1');
+    expect(invoke.mock.calls[0]?.[1].method).toBe('DELETE');
+    expect(invoke.mock.calls[0]?.[1].body).toBeUndefined();
+  });
+
+  it('surfaces the undelivered-order refusal rather than swallowing it', async () => {
+    // The parent has paid for food the kitchen is going to make. Removing the child it belongs
+    // to would leave a meal with nobody's name on the packing list.
+    stub({ error: Object.assign(new Error('future_orders_exist'), { context: new Response('', { status: 409 }) }) });
+    await expect(removeRecipient('r1')).rejects.toMatchObject({ name: 'ApiError' });
   });
 });
