@@ -1721,3 +1721,88 @@ fails with `api.<newFunction> is not a function` — the two toolchains disagree
 copy of the package they are looking at. If a worktree needs to skip an install, make
 `node_modules` a real directory, symlink the individual entries, and point `@graybag/*` at the
 worktree's own `packages/` and `apps/`.
+
+## The company's dish photography is 120 pixels, and no larger original exists — 2026-08-11
+
+Found while building the public site (`E12`), which needed food photography and had a
+manifest promising 82 images.
+
+`tools/mirror-dish-images/manifest.json` records 85 dish records and 82 that resolve, and it
+reads like an asset library. **Every one of them is between 80 and 213 pixels wide; 72 of the 82
+are exactly 120 × 120.** The bytes on disk match the manifest checksums, so the mirror did not
+downsize anything — that is the size they were uploaded at.
+
+Checked properly before concluding it, because "the mirror fetched thumbnails" was the more
+likely explanation and would have been fixable:
+
+```
+curl <bubble-cdn-url>                          → 120 × 120
+curl "<bubble-cdn-url>?w=1200"                 → 120 × 120
+curl ".../cdn-cgi/image/w=1200/<file>"         → 120 × 120
+```
+
+Bubble's `f<id>` URL *is* the original upload. There is nothing bigger.
+
+**Three consequences, and the third is the expensive one.**
+
+1. No web page can have a full-bleed food hero from this source. `apps/web` shows the dishes as
+   a mosaic capped at 88 CSS px, where a 120px asset still holds up at 2×.
+2. `E16-43` uploading the mirror into Supabase Storage will not improve this. It moves the same
+   120px files.
+3. **The mobile app's dish card is specified at a 16:10 photo across half a 390pt screen**
+   (`ux-spec.md` §5.5) — roughly 175 × 109 CSS px, so about **350 × 218 device pixels on a
+   2× phone**. A 120 × 120 source cannot fill it. The prototype looks right because a prototype
+   at 1× on a laptop is the one place this does not show. **The app needs new photography or a
+   different card treatment**, and that is a design decision nobody has made because nobody
+   knew the constraint existed.
+
+The general lesson: a manifest that records `bytes`, `contentType` and a checksum looks like it
+describes the images, and it does not — none of those three fields would have caught this. It
+now records `sourceWidth`/`sourceHeight` for everything `apps/web` emits, and a test asserts
+nothing is upscaled.
+
+## `position: relative` on `> *` silently deleted the brand pattern — 2026-08-11
+
+`apps/web` painted the vegetable pattern as an absolutely-positioned layer inside each green
+panel, and lifted the content above it with:
+
+```css
+.panel-deep > * { position: relative; }
+```
+
+That rule also matches the pattern layer. `position: absolute` became `relative`, and an
+`inset: 0` element that is no longer positioned collapses to **zero height**. Every green field
+on the site rendered flat. Nothing errored, the div was in the DOM, the mask was correct, and
+the box was 0px tall — so it read as "the pattern is too subtle" rather than as a bug.
+
+Two neighbours of the same family turned up within the hour, which is why this is worth
+recording as a class rather than as three fixes:
+
+- **Flex children shrink by default.** Adding a line to the hero's phone illustration made the
+  browser take the space back out of the delivery card, and its break-time band rendered at one
+  pixel. Same signature: present, correct, invisible. (The prototype has a `min-height: 0` note
+  about the mirror image of this.)
+- **`opacity` on text destroys contrast invisibly.** `opacity: 0.88` white on `primary-700` is
+  5.19:1 dropped to **4.39** — a real AA failure that looks completely fine.
+  `docs/design-tokens.md` §6 warns about exactly this ("dimming text with opacity silently
+  destroys its contrast ratio and is invisible in review") and it still got written.
+
+**All three were caught by tools, not by looking**: the first two by screenshotting the page and
+comparing against intent, the third by the new axe gate (`apps/web/scripts/check-a11y.mjs`).
+Layout bugs whose symptom is *absence* are the ones review never finds, because there is nothing
+on screen to notice.
+
+## Headless Chrome will not give you a viewport narrower than 500px — 2026-08-11
+
+`--window-size=390,900` renders the page at **500 CSS px** and then writes a 390px-wide canvas.
+The result is a "mobile screenshot" of a layout that was never laid out at mobile width, showing
+text apparently overflowing its container. Half an hour went into a horizontal-overflow bug that
+did not exist.
+
+`Emulation.setDeviceMetricsOverride` over the DevTools Protocol is the only way to get a genuine
+narrow viewport. Node 22 has a global `WebSocket`, so driving CDP directly costs no dependency —
+`apps/web/scripts/check-a11y.mjs` does it in about eighty lines and runs axe at 390 × 844.
+
+A related trap in the same tooling: **headless Chrome does not fire `loading="lazy"` during an
+off-screen capture**, so a full-page screenshot shows every below-the-fold image as a grey box.
+That is the screenshot lying, not the page. Set `loading = 'eager'` before capturing.

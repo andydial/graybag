@@ -16,7 +16,7 @@ You do not need to read it to make a change — only to understand why a decisio
 
 | Area | IDs | Scope |
 |---|---|---|
-| [Architecture](decisions/architecture.md) | `A1`–`A8` | Stack, hosting, the `api/` module rule, observability |
+| [Architecture](decisions/architecture.md) | `A1`–`A9` | Stack, hosting, the `api/` module rule, observability |
 | [The `api/` module rule](decisions/api-module.md) | `AP1`–`AP4` | How `A4` is enforced: the lint gate, the shared `no-restricted-syntax` slot, the write ban |
 | [Data model](decisions/data-model.md) | `D1`–`D18` | Roles, recipients, config chain, ledger, money types, RLS default-deny |
 | [Auth](decisions/auth.md) | `U1`–`U5` | Google / Apple / email-OTP, no passwords, sender identity, and how a signed-out user reads the menu |
@@ -42,7 +42,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Branch protection](decisions/branch-protection.md) | `BP1`–`BP4` | No bypass actors, PR required, strict status checks |
 | [Scope confirmations](decisions/scope-confirmations.md) | `SC1`–`SC3` | Mohali only; menu prices GST-exclusive; Amity launches with zero migration |
 | [Authorization fixes](decisions/authorization-fixes.md) | `AZ8`–`AZ10` | Fulfilment scope binding found by running the suite |
-| [Legacy assets outside git](decisions/legacy-assets.md) | `RH1`–`RH4` | Why the 46 MB design package and the fonts are not in history |
+| [Legacy assets outside git](decisions/legacy-assets.md) | `RH1`–`RH5` | Why the 46 MB design package and the fonts are not in history |
 | [The privilege baseline](decisions/privilege-baseline.md) | `PB1`–`PB5` | GRANT written down, not inherited from the platform |
 | [Bubble export constraints](decisions/bubble-export.md) | `BR1`, `BR3`–`BR5`, `BR7` | Migration key, draft orders, label mapping, regulated free text |
 | [Andy's rulings on the recon findings](decisions/recon-rulings.md) | `AR1`–`AR8` | Parent↔child from orders, binary roles, the moving email domain |

@@ -1,0 +1,318 @@
+---
+/**
+ * The sales page (`E12-01`).
+ *
+ * One page, one action. A principal reading this on a phone between two meetings should get the
+ * whole argument by scrolling and be able to reach the form from the top of it. Section order is
+ * argued in `docs/superpowers/specs/2026-08-11-public-website-design.md` §4.
+ */
+import { readFileSync } from 'node:fs';
+
+import Base from '../layouts/Base.astro';
+import EnquiryForm from '../components/EnquiryForm.astro';
+import Icon from '../components/Icon.astro';
+import {
+  BENEFITS,
+  ENQUIRY,
+  FACTS,
+  FAQ,
+  FOOD,
+  HERO,
+  NAV,
+  REPORT,
+  SCHOOLS,
+  SITE,
+  STEPS,
+} from '../content/site.js';
+
+/**
+ * The dish mosaic, read from the asset manifest rather than listed here.
+ *
+ * The manifest is written by `scripts/build-web-assets.mjs`, so the page cannot reference a
+ * photograph that was not emitted — which is the failure mode of every hand-maintained list of
+ * image paths. The build fails loudly if the manifest is missing, because a food page with no
+ * food on it should not deploy quietly.
+ */
+const manifest = JSON.parse(
+  readFileSync(new URL('../../public/img/MANIFEST.json', import.meta.url), 'utf8'),
+) as { mosaic: { dish: string; label: string; slug: string }[] };
+
+if (manifest.mosaic.length === 0) {
+  throw new Error('public/img/MANIFEST.json has no dishes. Run: node apps/web/scripts/build-web-assets.mjs');
+}
+
+/**
+ * Where the enquiry posts.
+ *
+ * `PUBLIC_ENQUIRY_ENDPOINT` is the deployed Supabase Edge Function's URL, set in Netlify. In
+ * development it falls back to the local mock in `scripts/dev-enquiry-endpoint.mjs`, so the form
+ * is fillable before the other thread has landed the function. See
+ * `docs/enquiry-submission-contract.md`.
+ */
+const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
+---
+
+<Base title="Home" description={SITE.description} path="/">
+  <!-- ============================================================ hero -->
+  <section class="panel-deep on-dark hero">
+    <div class="pattern" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <header class="site-header">
+        <a class="site-header__logo" href="/" aria-label={`${SITE.name} home`}>
+          <img src="/img/logo-white.webp" width="560" height="184" alt={SITE.name} />
+        </a>
+
+        <nav class="site-nav" aria-label="Sections of this page">
+          {NAV.map((item) => <a href={item.href}>{item.label}</a>)}
+        </nav>
+
+        <a class="btn btn--amber" href="#enquiry">Get in touch</a>
+      </header>
+
+      <div class="hero__grid">
+        <div>
+          <p class="eyebrow">{HERO.eyebrow}</p>
+          <h1 class="display lowercase">{HERO.headline}</h1>
+          <p class="lead">{HERO.lead}</p>
+
+          <div class="hero__actions">
+            <a class="btn btn--amber" href="#enquiry">{HERO.primaryCta}</a>
+            <a class="btn btn--ghost" href="#how">{HERO.secondaryCta}</a>
+          </div>
+
+          <p class="hero__note">{HERO.note}</p>
+        </div>
+
+        <!--
+          A drawn illustration of the delivery card, not a screenshot. The app is not published,
+          and a mocked screenshot of software a visitor cannot download is a claim this page
+          should not make. What it shows is the one thing that is settled and that a principal
+          needs to picture: food addressed to a named child, in a class, at a break, on a date.
+        -->
+        <div class="phone" role="img" aria-label="Illustration of the GrayBag app showing an order for one child, at one school, for one break time.">
+          <div class="phone__screen" aria-hidden="true">
+            <div class="phone__deliver">
+              <div class="pattern pattern--pale"></div>
+              <div class="top">
+                <p class="lbl">Delivering to</p>
+                <p class="who">Aarav</p>
+                <p class="where">Class 4-B · Gem Public School</p>
+              </div>
+              <div class="band">
+                <span>Second break · 11:20</span>
+                <span>Tue 12 Aug</span>
+              </div>
+            </div>
+
+            <div class="phone__row">
+              <img src={`/img/dishes/${manifest.mosaic[0]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
+              <div>
+                <p class="n">{manifest.mosaic[0]?.label}</p>
+                <p class="p">₹95</p>
+              </div>
+            </div>
+
+            <div class="phone__row">
+              <img src={`/img/dishes/${manifest.mosaic[2]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
+              <div>
+                <p class="n">{manifest.mosaic[2]?.label}</p>
+                <p class="p">₹110</p>
+              </div>
+            </div>
+
+            <div class="phone__row">
+              <img src={`/img/dishes/${manifest.mosaic[16]?.slug}.webp`} width="120" height="120" alt="" loading="lazy" />
+              <div>
+                <p class="n">{manifest.mosaic[16]?.label}</p>
+                <p class="p">₹60</p>
+              </div>
+            </div>
+
+            <p class="phone__warn">Contains peanuts — Aarav is allergic to peanuts.</p>
+
+            <div class="phone__totals">
+              <p><span>Subtotal</span><b>₹265</b></p>
+              <p><span>CGST 2.5% + SGST 2.5%</span><b>₹13.25</b></p>
+            </div>
+
+            <p class="phone__cta">Place order · ₹278.25</p>
+          </div>
+        </div>
+      </div>
+
+      <ul class="facts">
+        {FACTS.map((fact) => (
+          <li class="fact">
+            <p class="fact__value">{fact.value}</p>
+            <p class="fact__label">{fact.label}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ==================================================== how it works -->
+  <section class="section" id="how" aria-labelledby="how-heading">
+    <div class="wrap">
+      <p class="eyebrow">How it works</p>
+      <h2 class="heading" id="how-heading">Four steps, and three of them are ours</h2>
+      <p class="lead">
+        The school's part is a place to hand food over and an agreement on break times. Everything
+        else — the ordering, the money, the cooking and the delivery — sits with us.
+      </p>
+
+      <ol class="steps">
+        {STEPS.map((step) => (
+          <li class="step">
+            <div class="step__n" aria-hidden="true"></div>
+            <h3>{step.title}</h3>
+            <p>{step.body}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <!-- ================================================= for your school -->
+  <section class="section panel-surface" id="schools-benefits" aria-labelledby="benefits-heading">
+    <div class="wrap">
+      <p class="eyebrow">For your school</p>
+      <h2 class="heading" id="benefits-heading">What your school stops dealing with</h2>
+      <p class="lead">
+        A canteen is a small business your school did not ask to run. This removes the parts of it
+        that take staff time and create risk, and leaves you the part that matters — children
+        eating properly.
+      </p>
+
+      <ul class="cards">
+        {BENEFITS.map((benefit) => (
+          <li class="card">
+            <div class="card__icon"><Icon name={benefit.icon} /></div>
+            <h3>{benefit.title}</h3>
+            <p>{benefit.body}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================================================ food -->
+  <section class="section panel-pale" id="food" aria-labelledby="food-heading">
+    <div class="pattern pattern--deep" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <p class="eyebrow">{FOOD.eyebrow}</p>
+      <h2 class="heading" id="food-heading">{FOOD.heading}</h2>
+      <p class="lead">{FOOD.lead}</p>
+
+      <ul class="mosaic">
+        {manifest.mosaic.map((dish, index) => (
+          <li>
+            <figure class="dish">
+              <img
+                src={`/img/dishes/${dish.slug}.webp`}
+                width="120"
+                height="120"
+                alt=""
+                loading={index < 8 ? 'eager' : 'lazy'}
+                decoding="async"
+              />
+              <figcaption>{dish.label}</figcaption>
+            </figure>
+          </li>
+        ))}
+      </ul>
+
+      <p class="section-footnote">
+        {FOOD.footnote}
+      </p>
+    </div>
+  </section>
+
+  <!-- ========================================================= schools -->
+  <section class="section panel-deep on-dark" id="schools" aria-labelledby="schools-heading">
+    <div class="pattern" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <p class="eyebrow">{SCHOOLS.eyebrow}</p>
+      <h2 class="heading" id="schools-heading">{SCHOOLS.heading}</h2>
+      <p class="lead">{SCHOOLS.lead}</p>
+
+      <ul class="schools">
+        {SCHOOLS.names.map((name) => <li class="school-chip">{name}</li>)}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ========================================================== report -->
+  <section class="section" id="report" aria-labelledby="report-heading">
+    <div class="wrap">
+      <div class="report">
+        <div>
+          <p class="eyebrow">{REPORT.eyebrow}</p>
+          <h2 class="heading" id="report-heading">{REPORT.heading}</h2>
+          <p class="lead">{REPORT.lead}</p>
+        </div>
+
+        <figure class="report__sheet">
+          <h3>{REPORT.sample.title}</h3>
+          <p class="caption muted">{REPORT.sample.subtitle}</p>
+          <ul class="report__rows">
+            {REPORT.sample.rows.map((row) => (
+              <li><span>{row.label}</span><b>{row.value}</b></li>
+            ))}
+          </ul>
+          <figcaption class="caption muted report__note">
+            Illustrative figures. Your report is built from your school's own orders.
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================= questions -->
+  <section class="section panel-surface" id="questions" aria-labelledby="faq-heading">
+    <div class="wrap">
+      <p class="eyebrow">Questions</p>
+      <h2 class="heading" id="faq-heading">What administrators ask us</h2>
+
+      <div class="faq">
+        {FAQ.map((item) => (
+          <details>
+            <summary>{item.q}</summary>
+            <div>{item.a.map((paragraph) => <p>{paragraph}</p>)}</div>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================= enquiry -->
+  <section class="section panel-deep on-dark" id="enquiry" aria-labelledby="enquiry-heading">
+    <div class="pattern" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <div class="enquiry">
+        <div>
+          <p class="eyebrow">{ENQUIRY.eyebrow}</p>
+          <h2 class="heading" id="enquiry-heading">{ENQUIRY.heading}</h2>
+          <p class="lead">{ENQUIRY.lead}</p>
+
+          <dl class="contact-list">
+            <div>
+              <dt>Or email us</dt>
+              <dd><a href={`mailto:${SITE.email}`}>{SITE.email}</a></dd>
+            </div>
+            <div>
+              <dt>Where we are</dt>
+              <dd>{SITE.city}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <EnquiryForm endpoint={endpoint} />
+      </div>
+    </div>
+  </section>
+</Base>
