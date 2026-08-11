@@ -1723,13 +1723,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/13</span>
+          <span class="meter-num">0/18</span>
         </div>
       </header>
       <p class="summary">Dishes, menus, per-school assignment, Excel import with allergens, and the version-based cache that makes the app feel fast.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 13 tasks</summary>
+        <summary>Context &amp; 18 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Today: 1 kitchen, 3 menus, 3 schools; largest menu is 50 items. Menu changes are rare, which is exactly what makes version-based caching effective.</p>
 <p>Source Excel columns: <code>Item No. | Menu Item | Description | Ingredients | Calories | Portion/Weight | Allergens | Category | Category - ORIG | Price</code>.</p></div>
@@ -1837,6 +1837,46 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Migrate the 3 existing menus and re-source or re-upload all dish images</span>
+      </li>
+      <li class="task" data-id="E04-14" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-14"></button>
+        <code class="tid">E04-14</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Expose <code>food_type</code> through <code>public_menu</code> — the view never selected it, so the mark cannot reach the app at all even once it is set. <code>packages/shared/src/menu/types.ts</code> already declares <code>foodType: FoodType | null</code>, so the client is typed for a field the read path does not carry. Bumps <code>school_menu_version</code> (<code>MC*</code>), because a cached menu without the column must not render as &quot;not stated&quot;</span>
+      </li>
+      <li class="task" data-id="E04-15" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-15"></button>
+        <code class="tid">E04-15</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Load the returned veg/egg/non-veg marking sheet (<code>tools/food-type-sheet/</code>) into <code>dish.food_type</code>, matching by name with the six duplicate names resolved per <code>docs/bubble-recon-findings.md</code> §9. Plan-then-apply like the menu importer; blank stays blank</span>
+      </li>
+      <li class="task" data-id="E04-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-16"></button>
+        <code class="tid">E04-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Make <code>food_type</code> structurally required — add <code>not_stated</code> to the enum and set the column <code>not null</code> with <strong>no default</strong>, so a dish cannot be created without someone choosing. Two migrations: <code>ALTER TYPE … ADD VALUE</code> cannot run in the transaction that uses it (same constraint <code>M9</code> hit with <code>bank</code>). Depends on <code>E04-15</code></span>
+      </li>
+      <li class="task" data-id="E04-17" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-17"></button>
+        <code class="tid">E04-17</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">School-level menu restriction, <strong>enforced server-side</strong>: <code>school.allowed_food_types</code>, a refusal at menu assignment, a refusal at menu-item edit for menus already assigned to a restricted school, a filter in <code>public_menu</code>, and a checkout refusal with its own error code. A menu belongs to a *kitchen* and is shared across schools (<code>menu.kitchen_id</code>, <code>menu_assignment</code>), so this cannot be done by editing the menu. <code>not_stated</code> must fail closed. Needs allow-and-deny tests on all four paths (non-negotiable #2). Backs the website&#39;s written commitment that a school&#39;s menu contains only what it agreed to</span>
+      </li>
+      <li class="task" data-id="E04-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-18"></button>
+        <code class="tid">E04-18</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Interim guard until <code>E04-17</code> lands: refuse creation of any <code>non_veg</code> dish. One trigger, dropped by <code>E04-17</code>. The website&#39;s commitment cannot be broken while no non-veg dish exists, so this converts a promise-breaking risk into a build-order dependency</span>
       </li></ul>
       </details>
     </article>
