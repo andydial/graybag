@@ -78,7 +78,11 @@ const RANGE = [
   ['mains', 'Rajma Rice', 'Rajma rice'],
   ['wraps', 'Paneer Wrap', 'Paneer wrap'],
   ['salads', 'Quinoa Salad', 'Quinoa salad'],
-  ['bakery', 'Wheat Jaggery Cake', 'Wheat jaggery cake'],
+  // Was Wheat Jaggery Cake, and it was swapped after review: a single brown loaf on pale wood,
+  // the lowest colour variance of the five (stdev 54/59/58 against 72/65/52 here), and at 96px
+  // it read as a featureless beige block in a section whose whole argument is that the food is
+  // real. The croissant has a distinct silhouette and holds contrast at tile size.
+  ['bakery', 'French Butter Croissant', 'Butter croissant'],
   // Two more for the hero's menu frame only. The food section iterates FOOD.categories and
   // looks these up by id, so it renders five cards regardless; these simply give the mockup a
   // sixth tile and a third row, which is what stops it looking like a stamp on the background.

@@ -273,15 +273,22 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
       <p class="lead">{FOOD.lead}</p>
 
       <ul class="range">
-        {FOOD.categories.map((category, index) => (
+        {FOOD.categories.map((category) => (
           <li class="range__item">
+            <!--
+              `loading="eager"` on all five, and the inconsistency is why. Three were eager and
+              two lazy, so the salad and the bakery tile arrived after the rest and showed a grey
+              placeholder in between — in a section arguing the menu is real, a tile that looks
+              empty argues the opposite. They are 3-7 KB each; loading all five costs less than
+              them arriving at different times.
+            -->
             <img
               class="range__photo"
               src={`/img/dishes/${photo.get(category.id)?.slug}.webp`}
               width="120"
               height="120"
               alt=""
-              loading={index < 3 ? 'eager' : 'lazy'}
+              loading="eager"
               decoding="async"
             />
             <div>

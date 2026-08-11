@@ -4,7 +4,7 @@
   "note": "Build OUTPUT, committed because CI cannot reach the sources. Regenerate, never hand-edit. Sources: ../Legacy-Application/Graybag_Design Package (RH1) and the dish mirror (E16-28).",
   "photography_note": "Every dish photograph is 120px or smaller at source — verified against the Bubble CDN. Nothing here is upscaled and the page displays them at 72-88 CSS px.",
   "budget_bytes": 130000,
-  "total_bytes": 120710,
+  "total_bytes": 122728,
   "dish_source_dir": "/Users/andy/graybag-dish-images",
   "range": [
     {
@@ -41,10 +41,10 @@
     },
     {
       "category": "bakery",
-      "dish": "Wheat Jaggery Cake",
-      "label": "Wheat jaggery cake",
-      "slug": "wheat-jaggery-cake",
-      "sourceWidth": 180,
+      "dish": "French Butter Croissant",
+      "label": "Butter croissant",
+      "slug": "french-butter-croissant",
+      "sourceWidth": 120,
       "sourceHeight": 120
     },
     {
@@ -79,6 +79,12 @@
       "height": 120
     },
     {
+      "file": "dishes/french-butter-croissant.webp",
+      "bytes": 4690,
+      "width": 120,
+      "height": 120
+    },
+    {
       "file": "dishes/idli-sambar.webp",
       "bytes": 3144,
       "width": 120,
@@ -105,12 +111,6 @@
     {
       "file": "dishes/rajma-rice.webp",
       "bytes": 6602,
-      "width": 120,
-      "height": 120
-    },
-    {
-      "file": "dishes/wheat-jaggery-cake.webp",
-      "bytes": 2672,
       "width": 120,
       "height": 120
     },
