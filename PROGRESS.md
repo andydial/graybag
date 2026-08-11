@@ -4,12 +4,129 @@ Newest handover at the top. Assume the reader has forgotten everything.
 
 ---
 
-## 2026-08-10 (afternoon) — the order path exists and works; nobody can run it yet
+# WEB thread — 2026-08-11 (written from the `GrayBag-web` worktree, branch `kitchen-seed`)
 
-### SHIPPED
+## Where the project stands, by epic
 
-| Task | One line |
+**MVP-complete (every MVP task in the epic is done):**
+
+| Epic | |
 |---|---|
+| **E02** Data model and authorization | 15/15 MVP |
+
+**Substantially done, MVP tail remaining:**
+
+| Epic | MVP | What is left |
+|---|---|---|
+| **E13** Design and motion system | 7/9 | The component library, which waits on the Expo scaffold |
+| **E14** Mobile app shell | 7/10 | |
+| **E19** De-risking spikes | 3/4 | Only the VAG Rounded licence, `owner:andy` |
+| **E04** Menu domain | 9/18 | `food_type` — the mark is unset, unexposed and untested end to end |
+| **E01** Foundations | 8/11 | |
+| **E05** Ordering and cart | 8/14 | |
+
+**Blocking launch, barely started:**
+
+| Epic | MVP | Note |
+|---|---|---|
+| **E06** Payments and ledger | 0/15 | The long pole. Handset spike now closed, so it is buildable |
+| **E03** Identity and auth | 1/12 | Nothing downstream can be exercised as a real user until this exists |
+| **E17** Release and cutover | 0/11 | |
+| **E16** Data migration | 1/11 | |
+| **E07** Invoicing and GST | 0/9 | |
+| **E20** Compliance | 1/6 | `E20-01` — the lawyer — gates the website going live |
+| **E15** Observability | 0/6 | |
+| **E10** Admin dashboard | 0/8 | Navigation model built today; the screens are not |
+| **E08** Notifications | 0/4 | |
+| **E00** Lead-time items | 1/10 | |
+
+**Partly done this session:**
+
+| Epic | MVP | |
+|---|---|---|
+| **E12** Marketing website | 3/6 | Site built and merged. Left: back-office login, Netlify deploy, DNS |
+| **E09** Kitchen ops | 3/6 | Dashboard built; wiring blocked on the server |
+
+**Fast-follow, not v1:** **E11** school reporting and **E18** deferred carry no MVP tasks at all.
+
+**The shortest path to live** is E03 → E06 → E07/E08 → E17, with E20-01 (the lawyer)
+running in parallel because it gates the website independently.
+
+---
+
+## SHIPPED
+
+- **The public website (`E12-01`, `-02`, `-04`, `-07`, `-08`)** — merged to `main` in PRs
+  #37 and #40. One sales page for school decision-makers, three policy documents rendered from
+  `docs/`, an enquiry form that works with JavaScript disabled. Zero third-party requests,
+  8.8 KB gzipped HTML, axe 0 violations.
+- **The kitchen dashboard (`E09-04`, `E09-05`, `E09-09`, `E09-11`)** — on branch
+  `kitchen-seed`. One working list of the day's orders, filters, production totals as a header,
+  status updates from the list. 20px type, 56px targets, state carried by word + shape + colour.
+  Every state reachable via `?state=` — loading, empty, offline, failed write, forbidden,
+  read-only, unreachable.
+- **`E10-12`'s navigation model** — one app, three permission levels, derived from *grants*
+  rather than a role, so the split survives `D3`.
+- **`E01-25`** — `scripts/tag-mvp.mjs` rewrote the backlog from its include list, which would
+  have silently stripped four tasks from v1. Replaced by `check-mvp.mjs`, which verifies, never
+  writes, and fails CI on any disagreement.
+- **`tools/seed-kitchen-day`** — a realistic day of orders, walking the real order lifecycle.
+- **`tools/food-type-sheet`** — the 79-dish veg/egg/non-veg marking sheet for the kitchen.
+
+## FINDINGS
+
+- **The company's dish photography is 120 × 120 pixels.** Verified against the source CDN;
+  there is no larger original. It constrains the website and it breaks the app's specified dish
+  card, which assumes ~350 × 218. `[WEB-01]`, `E12-13`.
+- **`food_type` is three layers of nothing.** Null on every dish, never selected by
+  `public_menu`, and already typed as `FoodType | null` in the shared client. The type says the
+  app is ready; the pipe is empty and disconnected at both ends.
+- **No fixture anywhere contains a `non_veg` dish** — not the seeds, not the prototype. The enum
+  value and its renderer have never run against data. `E04-19`.
+- **`E09-11` was used by two different tasks**, which defeated the MVP checker I had just
+  written, because every lookup in it keyed by id. Now recorded as a class in
+  `docs/learnings.md`: a check that groups by an identifier must prove the identifier is unique
+  before it verifies anything else.
+- **The order state machine will not let a fixture fabricate an end state**, which turned out to
+  be the best thing about the seed. Also in `docs/learnings.md`.
+- **`npm run lint` was already red on `main`** when this thread started — 17 errors in
+  `docs/prototype/build.mjs`. Fixed.
+
+## BLOCKED
+
+- **`E09-17`, wiring the kitchen dashboard to real data.** Needs back-office sign-in (`E12-06`)
+  and a `kitchen-order-status` Edge Function. Both are in `supabase/`, which the payments thread
+  owns. Specified in full in `docs/kitchen-transport-contract.md`.
+- **Seeding staging.** I have no staging credentials — no `.secrets.staging.env`, no linked
+  project ref, no environment variables. The tool is written, tested and ready; it cannot run.
+- **`E12-15`, the enquiry table and Edge Function.** Payments thread, at its convenience.
+- **The website cannot go live** until `E20-01` returns the policy documents; a production build
+  containing a `«PENDING»` token fails by design.
+
+## NEEDS ANDY
+
+1. **Staging credentials** so the seed can run. Then: `SUPABASE_URL`,
+   `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL` and
+   `node tools/seed-kitchen-day/seed.mjs --date <date>`.
+2. **The local Supabase stack has 24 seeded users in it** from before you told me to stop, and
+   `order_event` is append-only so the orders cannot be deleted. Clearing them means
+   `npx supabase db reset`, which also clears the payments thread's state — their call, not mine.
+   The seed now refuses `localhost` without an explicit flag.
+3. **`E12-11`** — written permission before any school is named on the website.
+4. **`E12-13`** — real photography. Biggest single upgrade available to the site, and it
+   unblocks the app's dish card.
+5. **`E12-14`** — what may be said about food safety and the FSSAI registration.
+
+## NEXT
+
+1. `E09-17` the moment the two server pieces land — one `liveTransport` file.
+2. `E10-08`, the all-kitchens order dashboard, which is the kitchen screen plus money and a
+   different grant. Closest thing to shovel-ready in E10.
+3. `E10-06`, config with visible inheritance.
+4. `E12-06`, back-office sign-in — it is on the E12 list and it unblocks E09-17.
+
+---
+---|
 | — | **`Deploy to staging` is green for the first time.** The project ref was a secret, and an unset secret is an empty string |
 | `E05-09`/`E05-12`/`E05-13` | `create_checkout()` — §8.2 steps 1-9 in one transaction. **`assert_cutoff_open` finally has a caller** |
 | `E05-09` (client) | The `checkout` Edge Function and `api.createCheckout()` — the first write in the system |
