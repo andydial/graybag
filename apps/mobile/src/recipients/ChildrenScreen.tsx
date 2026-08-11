@@ -5,6 +5,7 @@ import { api, design } from '@graybag/shared';
 
 import { Button, EmptyState, ErrorState, Sheet, Skeleton } from '../components';
 import { SchoolPicker } from '../menu/SchoolPicker';
+import { EditChildSheet } from './EditChildSheet';
 import { useOrderingTarget } from '../session/audience';
 import { useRecipients } from '../session/useRecipients';
 import { useSession } from '../session/SessionContext';
@@ -134,6 +135,16 @@ export function ChildrenScreen({
   // reloads.
   const [editing, setEditing] = useState<RecipientRow | null>(null);
   const [editFailure, setEditFailure] = useState<string | null>(null);
+  /**
+   * Which sheet the row's Edit opens — `E05-37`.
+   *
+   * `'details'` is the ordinary case and the default: a name, a class, a section. `'school'` is
+   * the move, reached from inside the details sheet, because it has a future-order guard and
+   * resets the class and is not a fourth field.
+   */
+  const [editMode, setEditMode] = useState<'details' | 'school'>('details');
+  const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   // Display only. The tick says which recipient the app is currently ordering for; nothing
   // here writes it, for the reason on `onSelectRecipient`. Via the audience, so there is no
@@ -207,6 +218,65 @@ export function ChildrenScreen({
     },
     [editing, recipients],
   );
+
+  /** Open the details sheet. Always resets the mode — a previous move must not leak into it. */
+  const openEditor = useCallback((recipient: RecipientRow) => {
+    setEditMode('details');
+    setEditFailure(null);
+    setEditing(recipient);
+  }, []);
+
+  /**
+   * Correct a name, class or section — `E05-43`.
+   *
+   * Re-reads rather than patching the row in place, for the same reason `moveTo` does: the
+   * server is the one that decides what the row now says, and a list patched from the request
+   * rather than the response is a list that disagrees with the database the moment a rule fires.
+   */
+  const saveDetails = useCallback(
+    async (edit: {
+      firstName: string;
+      classLabel: string | null;
+      sectionLabel: string | null;
+      clearSection: boolean;
+    }) => {
+      if (editing === null) return;
+      setSaving(true);
+      setEditFailure(null);
+      try {
+        await api.updateRecipientDetails({ recipientId: editing.id, ...edit });
+        setEditing(null);
+        recipients.reload();
+      } catch (error) {
+        setEditFailure(refusalMessage(error, 'save'));
+      } finally {
+        setSaving(false);
+      }
+    },
+    [editing, recipients],
+  );
+
+  /**
+   * Remove, which since `0026` also erases — `E05-44`, `E20-30`.
+   *
+   * The sheet closes only on success. A failed removal that dismissed itself would leave a
+   * parent believing a child had gone, and the commonest failure here is the future-order
+   * guard, which is guidance rather than an error: there is something they can do about it.
+   */
+  const removeChild = useCallback(async () => {
+    if (editing === null) return;
+    setRemoving(true);
+    setEditFailure(null);
+    try {
+      await api.removeRecipient(editing.id);
+      setEditing(null);
+      recipients.reload();
+    } catch (error) {
+      setEditFailure(refusalMessage(error, 'remove'));
+    } finally {
+      setRemoving(false);
+    }
+  }, [editing, recipients]);
 
   switch (state.kind) {
     case 'loading':
@@ -335,10 +405,10 @@ export function ChildrenScreen({
                 last={index === state.rows.length - 1}
                 onPress={
                   onSelectRecipient === undefined
-                    ? () => setEditing(recipient)
+                    ? () => openEditor(recipient)
                     : () => onSelectRecipient(recipient.id)
                 }
-                onEdit={() => setEditing(recipient)}
+                onEdit={() => openEditor(recipient)}
                 testID={`${testID}-${recipient.id}`}
               />
             ))}
@@ -369,15 +439,42 @@ export function ChildrenScreen({
             // because the parent has just tapped the row.
             title={
               editing === null
-                ? 'Which school?'
-                : `Move ${editing.isSelf === true ? 'yourself' : editing.firstName} to which school?`
+                ? 'Edit'
+                : editMode === 'school'
+                  ? `Move ${editing.isSelf === true ? 'yourself' : editing.firstName} to which school?`
+                  : `Edit ${editing.isSelf === true ? 'your details' : editing.firstName}`
             }
-            testID={`${testID}-school-sheet`}
+            testID={`${testID}-${editMode === 'school' ? 'school' : 'edit'}-sheet`}
           >
-            <SchoolPicker
-          // Embedded in a sheet that already has its own title — the welcome panel belongs
-          // only on the standalone screen (§6.1.1 cut 1).
-          welcome={false} testID={`${testID}-school-picker`} onSelect={moveTo} />
+            {editing === null ? null : editMode === 'school' ? (
+              <SchoolPicker
+                // Embedded in a sheet that already has its own title — the welcome panel
+                // belongs only on the standalone screen (§6.1.1 cut 1).
+                welcome={false}
+                testID={`${testID}-school-picker`}
+                onSelect={moveTo}
+              />
+            ) : (
+              <EditChildSheet
+                // Keyed on the row, so opening a different child does not inherit the last
+                // one's half-typed class in the field state.
+                key={editing.id}
+                // `isSelf` defaulted here rather than left optional on the sheet: it decides
+                // whether the copy says "you" or a child's name, and a flag that can be
+                // forgotten is a flag that reads wrong on the screen that erases data.
+                recipient={{ ...editing, isSelf: editing.isSelf === true }}
+                onSave={saveDetails}
+                onMoveSchool={() => {
+                  setEditFailure(null);
+                  setEditMode('school');
+                }}
+                onRemove={removeChild}
+                saving={saving}
+                removing={removing}
+                error={editFailure}
+                testID={`${testID}-edit`}
+              />
+            )}
           </Sheet>
         </ScrollView>
       );
@@ -529,20 +626,58 @@ export function classifyReadFailure(error: unknown): 'unreachable' | 'error' {
  * was written to be read, and its absence is the marker of one that may quote whatever the
  * database was refusing. That row is a person (non-negotiable #4).
  */
-export function refusalMessage(error: unknown): string {
+export function refusalMessage(
+  error: unknown,
+  /** Which action was refused. The same server code needs different advice per action. */
+  action: 'move' | 'save' | 'remove' = 'move',
+): string {
   const code = error instanceof api.ApiError ? error.code : undefined;
   const message = error instanceof Error ? error.message : '';
 
   if (code === 'future_orders_exist') {
-    // The server's own sentence already says what to do — "Cancel those days first, then
-    // change the school" — so it is shown rather than paraphrased. The fallback exists
-    // because a refusal with no body would otherwise lose the only actionable part of it.
+    /**
+     * **Guidance, not an error** (`E05-37`). There is undelivered food already paid for, and
+     * the parent can do something about it — so this says what, rather than reporting a
+     * failure and stopping.
+     *
+     * The server's sentence is written for the *move* case ("then change the school"), so it
+     * is used only there. Reusing it under Remove would tell a parent to change a school they
+     * were not changing — and after `0026` the refusal is doing more work than it was: it is
+     * the only thing standing between a mistaken tap and a child's details being erased while
+     * their lunch is still on Friday's list.
+     */
+    if (action === 'remove') {
+      return 'There is food ordered for this person that hasn’t been delivered yet. Cancel those days first, then you can remove them.';
+    }
+    if (action === 'save') {
+      // The server does not guard edits this way today. If that changes, a parent should not
+      // be told to cancel lunches in order to fix a section label.
+      return 'We couldn’t save that just now. Please try again.';
+    }
     return message !== ''
       ? message
       : 'There are orders for this person that have not been delivered yet. Cancel those days first, then change the school.';
   }
+
+  if (code === 'first_name_required') {
+    return 'Please enter a first name.';
+  }
+  if (code === 'recipient_not_found') {
+    return action === 'remove'
+      ? 'They’ve already been removed.'
+      : 'That person is no longer available.';
+  }
+
   if (code !== undefined && message !== '') return message;
-  return 'We could not change their school just now. Please try again.';
+
+  switch (action) {
+    case 'remove':
+      return 'We could not remove them just now. Please try again.';
+    case 'save':
+      return 'We could not save those changes just now. Please try again.';
+    case 'move':
+      return 'We could not change their school just now. Please try again.';
+  }
 }
 
 /** Both names when there are two, because two children in a class can share a first name. */

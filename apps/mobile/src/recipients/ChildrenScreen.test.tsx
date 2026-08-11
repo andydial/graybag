@@ -281,6 +281,7 @@ describe('ChildrenScreen', () => {
     await setup();
     const user = userEvent.setup();
     await user.press(await screen.findByTestId('screen-children-r1-edit'));
+    await user.press(await screen.findByTestId('screen-children-edit-move-school'));
 
     expect(await screen.findByTestId('screen-children-school-picker-s2')).toBeOnTheScreen();
   });
@@ -289,6 +290,7 @@ describe('ChildrenScreen', () => {
     await setup();
     const user = userEvent.setup();
     await user.press(await screen.findByTestId('screen-children-r1-edit'));
+    await user.press(await screen.findByTestId('screen-children-edit-move-school'));
     await user.press(await screen.findByTestId('screen-children-school-picker-s2'));
 
     await waitFor(() => expect(invoke).toHaveBeenCalled());
@@ -304,6 +306,7 @@ describe('ChildrenScreen', () => {
     await setup();
     const user = userEvent.setup();
     await user.press(await screen.findByTestId('screen-children-r1-edit'));
+    await user.press(await screen.findByTestId('screen-children-edit-move-school'));
 
     rows = [LINK({ class_label: null, section_label: null, school: SCHOOLS[1] })];
     await user.press(await screen.findByTestId('screen-children-school-picker-s2'));
@@ -331,6 +334,7 @@ describe('ChildrenScreen', () => {
     await setup();
     const user = userEvent.setup();
     await user.press(await screen.findByTestId('screen-children-r1-edit'));
+    await user.press(await screen.findByTestId('screen-children-edit-move-school'));
     await user.press(await screen.findByTestId('screen-children-school-picker-s2'));
 
     expect(await screen.findByText(/Cancel those days first/)).toBeOnTheScreen();
@@ -348,6 +352,7 @@ describe('ChildrenScreen', () => {
     await setup();
     const user = userEvent.setup();
     await user.press(await screen.findByTestId('screen-children-r1-edit'));
+    await user.press(await screen.findByTestId('screen-children-edit-move-school'));
     await user.press(await screen.findByTestId('screen-children-school-picker-s2'));
 
     await screen.findByTestId('screen-children-move-error');
@@ -366,6 +371,7 @@ describe('ChildrenScreen', () => {
     await setup();
     const user = userEvent.setup();
     await user.press(await screen.findByTestId('screen-children-r1-edit'));
+    await user.press(await screen.findByTestId('screen-children-edit-move-school'));
     await user.press(await screen.findByTestId('screen-children-school-picker-s2'));
 
     expect(await screen.findByTestId('screen-children-move-error')).toBeOnTheScreen();
@@ -383,6 +389,7 @@ describe('ChildrenScreen', () => {
     await setup();
     const user = userEvent.setup();
     await user.press(await screen.findByTestId('screen-children-r1-edit'));
+    await user.press(await screen.findByTestId('screen-children-edit-move-school'));
 
     expect(await screen.findByTestId('screen-children-school-picker-s2')).toBeOnTheScreen();
   });
@@ -457,16 +464,153 @@ describe('ChildrenScreen', () => {
     expect(screen.queryByTestId('screen-children-school-picker-s2')).toBeNull();
   });
 
+  /**
+   * `E05-37`. Andy, 2026-08-11: at the start of a school year **every** parent's child is in
+   * the wrong class at once. With no edit they add the child again — duplicate recipients,
+   * duplicate allergy records, and a support queue arriving for the whole user base in the
+   * same week. These are the tests for the thing that stops that.
+   */
+  describe('correcting a child', () => {
+    it('sends the corrected class and section, not a school move', async () => {
+      await setup();
+      const user = userEvent.setup();
+      await user.press(await screen.findByTestId('screen-children-r1-edit'));
+
+      // By label, not testID: `TextField` puts its testID on the wrapper `View` and the
+      // `TextInput` carries `accessibilityLabel`. Targeting the label is also what a screen
+      // reader does, so the test drives the field the way a person reaches it.
+      await user.clear(await screen.findByLabelText('Class'));
+      await user.type(await screen.findByLabelText('Class'), '6');
+      await user.press(await screen.findByTestId('screen-children-edit-save'));
+
+      await waitFor(() => expect(invoke).toHaveBeenCalled());
+      const [name, options] = invoke.mock.calls[0] ?? [];
+      expect(name).toBe('recipients/r1');
+      expect(options.method).toBe('PATCH');
+      expect(options.body.class_label).toBe('6');
+      // `E05-43`: the absence of school_id is what makes this a correction rather than a move.
+      // A correction that carried one would trip the future-order guard for a typo.
+      expect(options.body.school_id).toBeUndefined();
+    });
+
+    it('re-reads rather than patching the row from the request', async () => {
+      await setup();
+      const user = userEvent.setup();
+      await user.press(await screen.findByTestId('screen-children-r1-edit'));
+
+      rows = [LINK({ class_label: '6' })];
+      await user.press(await screen.findByTestId('screen-children-edit-save'));
+
+      expect(await screen.findByText(/Class 6/)).toBeOnTheScreen();
+    });
+
+    it('will not save an empty first name', async () => {
+      // The server refuses it too (`first_name_required`), but a disabled button is a better
+      // answer than a round trip that comes back as an error.
+      await setup();
+      const user = userEvent.setup();
+      await user.press(await screen.findByTestId('screen-children-r1-edit'));
+      await user.clear(await screen.findByLabelText('First name'));
+
+      await user.press(await screen.findByTestId('screen-children-edit-save'));
+      expect(invoke).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removing a child', () => {
+    it('asks first, and says what removal actually does', async () => {
+      // Written against migration `0026`: removal erases. The three facts are the ones the
+      // code enforces — every guardian's list, the details deleted, the invoices kept.
+      await setup();
+      const user = userEvent.setup();
+      await user.press(await screen.findByTestId('screen-children-r1-edit'));
+      await user.press(await screen.findByTestId('screen-children-edit-remove'));
+
+      expect(await screen.findByTestId('screen-children-edit-confirm-remove')).toBeOnTheScreen();
+      expect(screen.getByText(/any other parent/i)).toBeOnTheScreen();
+      expect(screen.getByText(/deleted\. This can.t be undone/i)).toBeOnTheScreen();
+      expect(screen.getByText(/Past orders and invoices are kept/i)).toBeOnTheScreen();
+      // Nothing has been sent yet. A confirmation that had already acted would be a label.
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it('removes only after the second tap', async () => {
+      await setup();
+      const user = userEvent.setup();
+      await user.press(await screen.findByTestId('screen-children-r1-edit'));
+      await user.press(await screen.findByTestId('screen-children-edit-remove'));
+      await user.press(await screen.findByTestId('screen-children-edit-remove-confirm'));
+
+      await waitFor(() => expect(invoke).toHaveBeenCalled());
+      const [name, options] = invoke.mock.calls[0] ?? [];
+      expect(name).toBe('recipients/r1');
+      expect(options.method).toBe('DELETE');
+    });
+
+    it('backs out without sending anything', async () => {
+      await setup();
+      const user = userEvent.setup();
+      await user.press(await screen.findByTestId('screen-children-r1-edit'));
+      await user.press(await screen.findByTestId('screen-children-edit-remove'));
+      await user.press(await screen.findByTestId('screen-children-edit-remove-cancel'));
+
+      expect(await screen.findByLabelText('First name')).toBeOnTheScreen();
+      expect(invoke).not.toHaveBeenCalled();
+    });
+
+    it('renders the undelivered-order refusal as guidance, not an error', async () => {
+      // The commonest refusal, and there is something the parent can do about it. It must not
+      // tell them to change a school — that is the move's advice, and this is a removal.
+      const error = new Error('Edge Function returned a non-2xx status code') as Error & {
+        context?: Response;
+      };
+      error.context = new Response(
+        JSON.stringify({ code: 'future_orders_exist', message: 'Cancel those days first, then change the school.' }),
+        { status: 409 },
+      );
+      invoke.mockResolvedValue({ data: null, error });
+
+      await setup();
+      const user = userEvent.setup();
+      await user.press(await screen.findByTestId('screen-children-r1-edit'));
+      await user.press(await screen.findByTestId('screen-children-edit-remove'));
+      await user.press(await screen.findByTestId('screen-children-edit-remove-confirm'));
+
+      const message = await screen.findByTestId('screen-children-edit-error');
+      expect(message).toHaveTextContent(/hasn.t been delivered yet/i);
+      expect(message).toHaveTextContent(/then you can remove them/i);
+      expect(message).not.toHaveTextContent(/change the school/i);
+    });
+
+    it('keeps the sheet open when removal is refused', async () => {
+      // A sheet that dismissed on failure would leave a parent believing a child had gone.
+      invoke.mockResolvedValue({ data: null, error: new Error('network') });
+
+      await setup();
+      const user = userEvent.setup();
+      await user.press(await screen.findByTestId('screen-children-r1-edit'));
+      await user.press(await screen.findByTestId('screen-children-edit-remove'));
+      await user.press(await screen.findByTestId('screen-children-edit-remove-confirm'));
+
+      expect(await screen.findByTestId('screen-children-edit-confirm-remove')).toBeOnTheScreen();
+    });
+  });
+
   it('falls back to the edit path on a row press when choosing is not wired', async () => {
     // Nothing can set the order target from here yet — that needs the recipient's allergen
     // ids as well as their id, and sending `[]` would silently disable the add-to-cart
     // allergy warning (`F5`). Until it is wired the biggest target on the row still does
     // something a parent expects rather than nothing.
+    //
+    // It now lands on the **details** sheet rather than the school picker (`E05-37`). That is
+    // the change, not a weakening: correcting a class is the ordinary reason to open a child,
+    // and a row press that went straight to "which school?" answered a question nobody asked.
     await setup();
     const user = userEvent.setup();
     await user.press(await screen.findByTestId('screen-children-r1'));
 
-    expect(await screen.findByTestId('screen-children-school-picker-s2')).toBeOnTheScreen();
+    expect(await screen.findByTestId('screen-children-edit')).toBeOnTheScreen();
+    expect(await screen.findByTestId('screen-children-edit-class')).toBeOnTheScreen();
   });
 });
 

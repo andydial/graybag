@@ -18,18 +18,17 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
-## Open — 8 items
+## Open — 7 items
 
 | # | Ask | Asked | Status |
 |---|---|---|---|
-| 1 | **`E05-37` — edit and remove a child.** The edit sheet (first name, class, section) and a Remove action with a confirmation that says what removal does | 2026-08-11 | **Next.** Unblocked: `0026` erasure landed, so Remove can now say what it does |
-| 2 | **Break-time selection at checkout.** Parent picks from the school's real windows. **Option (a) chosen 2026-08-11:** required everywhere, real windows only, nothing invented. A school with no windows **must not reach checkout** — it says "we're still setting up ordering for this school", never "we'll confirm with the kitchen". Friendly labels ("Morning break") with the times underneath | 2026-08-11 | Unblocked on design; **waiting on Andy** for Gem and Paragon start/end pairs. Amity is buildable and launches first |
-| 3 | **Kitchen note moves into the dish sheet**, with a compact tap-to-edit line in the cart | 2026-08-11 | Queued |
-| 4 | **Dish-sheet pass — one change, items 4–8:** image aspect ratio to match Home; allergen block quiet when there is nothing to say; shrink or drop "For the person you've chosen"; show calories; add-to-cart dismisses back to the menu | 2026-08-11 | Queued |
-| 5 | **`E05-38` — self-ordering.** "Order for myself" as a first-class entry in Who-to-order-for, and Add-recipient asking who it is for before anything else | 2026-08-11 | Queued. **Bumped four times** — protected by the no-new-work rule from here |
-| 6 | **`P18` name capture (`E05-39`, `E05-41`).** The account holder's own name on Order Confirmed, one optional field with a clear skip, plus an audit of every surface that shows a name for the no-name case | earlier session | Queued |
-| 7 | **Cart to prototype** | 2026-08-10 | Queued |
-| 8 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine) |
+| 1 | **Break-time selection at checkout.** Parent picks from the school's real windows. **Option (a) chosen 2026-08-11:** required everywhere, real windows only, nothing invented. A school with no windows **must not reach checkout** — it says "we're still setting up ordering for this school", never "we'll confirm with the kitchen". Friendly labels ("Morning break") with the times underneath | 2026-08-11 | Unblocked on design; **waiting on Andy** for Gem and Paragon start/end pairs. Amity is buildable and launches first |
+| 2 | **Kitchen note moves into the dish sheet**, with a compact tap-to-edit line in the cart | 2026-08-11 | Queued |
+| 3 | **Dish-sheet pass — one change, items 4–8:** image aspect ratio to match Home; allergen block quiet when there is nothing to say; shrink or drop "For the person you've chosen"; show calories; add-to-cart dismisses back to the menu | 2026-08-11 | Queued |
+| 4 | **`E05-38` — self-ordering.** "Order for myself" as a first-class entry in Who-to-order-for, and Add-recipient asking who it is for before anything else | 2026-08-11 | Queued. **Bumped four times** — protected by the no-new-work rule from here |
+| 5 | **`P18` name capture (`E05-39`, `E05-41`).** The account holder's own name on Order Confirmed, one optional field with a clear skip, plus an audit of every surface that shows a name for the no-name case | earlier session | Queued |
+| 6 | **Cart to prototype** | 2026-08-10 | Queued |
+| 7 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine) |
 
 ---
 
@@ -39,6 +38,7 @@ Kept so the queue shows movement rather than only what is left. Newest first.
 
 | Ask | Asked | Done |
 |---|---|---|
+| **`E05-37` — edit and remove a child** | 2026-08-11 | Done. Removal erases, and the copy says so |
 | Policy: lawyer baseline + three tracked changes as a new notice version | 2026-08-11 | `E20-45`, `C17` |
 | `E20-44`/`E20-30` — build the recipient-scope erasure before `E05-37` | 2026-08-11 | `0026`, 18 pgTAP assertions |
 | Confirm whether the app stores allergy data | 2026-08-11 | Answered: yes, whole path live |

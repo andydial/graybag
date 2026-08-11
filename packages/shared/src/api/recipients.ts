@@ -310,16 +310,24 @@ export async function updateRecipientDetails(input: RecipientEdit): Promise<{ re
 }
 
 /**
- * Remove a recipient — `E05-44`. Children leave school.
+ * Remove a recipient — `E05-44`, and since migration `0026` also `E20-30`. Children leave school.
  *
- * **Deactivation, not deletion, and not erasure.** The row and its order history survive
- * because an order that happened is a fact about money with an invoice and a ledger entry
- * behind it. The child disappears from every guardian's list, which is what was asked for.
+ * **This erases the child.** The comment here used to say the opposite — "deactivation, not
+ * deletion, and not erasure" — and that was true until 2026-08-11. It is not now, and a stale
+ * description of a destructive call is worse than none: `deactivate_recipient` deletes every
+ * `recipient_allergen` row, clears `allergy_note`, and empties the name, class and section.
  *
- * A parent asking to have their data *erased* is a different request with a legally defined
- * process — `E20-06`, `data_subject_request`. Routing "my child left school" through erasure
- * would destroy records we are required to keep; routing erasure through this would fail to
- * honour it. Two asks, two paths.
+ * **The row still survives**, and that half is unchanged: `order` and `invoice` reference it,
+ * and `D15` forbids breaking a statutory record. So it is anonymise-in-place — the row is a
+ * live financial reference with nothing identifying left in it.
+ *
+ * Why the change: the published privacy policy (notice version 2, §4) says a child's name,
+ * class, section and allergy details are deleted **when the guardian link ends**. Removal is
+ * what ends the link, so removal is what has to honour the sentence.
+ *
+ * A parent asking to have their *own account* erased is still a different request with its own
+ * process — `E20-41`, `data_subject_request`. This is the `recipient` scope of that erasure,
+ * not a replacement for it.
  */
 export async function removeRecipient(recipientId: string): Promise<{ recipientId: string }> {
   const data = await invokeFunction<Record<string, unknown>>(
