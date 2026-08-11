@@ -58,6 +58,20 @@ is not blocked. Do not invent an answer and proceed.
 Whenever you add a new `(owner:andy)` task, ask whether it is genuinely a decision, a
 validation, or a credentialed action. If it is not one of those three, it is your work.
 
+## Andy's queue — `planning/andy-queue.md`
+
+Everything Andy has asked for that is not yet done, **in the order it will be done**, with the
+date he asked. It is not the backlog; it is only work he asked for directly and that is mine to
+do.
+
+- **Update it in every report.** If it is not on there, it is not queued.
+- **Clear it in order.** Take no new work until it is empty.
+- **New asks go to the bottom**, and the report says explicitly that they were added.
+
+It exists because `E05-38` was bumped four times by feedback arriving after it. Each bump was
+individually reasonable; the cumulative effect was invisible, because the queue only ever
+existed in conversation.
+
 ## Recording decisions and learnings — do this continuously
 
 Three files, three purposes. Keep all of them current as you work; they are how you and
