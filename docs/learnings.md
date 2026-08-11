@@ -2034,3 +2034,31 @@ nobody removes it as duplication.
 **The general rule:** when a runner reports a count, the count is only trustworthy if something
 independent asserts the run actually reached the end. For pgTAP that is the `ERROR` grep and the
 `MIN_TESTS` floor; for the suite as a whole it is CI's floor guard from `E02-24`.
+
+## A constraint and its backstop have to change together — 2026-08-11
+
+`0035` added `bank` to `ledger_account`'s `normal_balance` CHECK and **not** to
+`assert_ledger_integrity()`, whose `account_normal_balance` check exists precisely to catch that
+CHECK having been removed (`M9`). The two encode the same rule from opposite ends.
+
+Result: `platform:bank` satisfied the constraint and the nightly job would have reported it as a
+broken account. Not once — **every night, for ever, about a correct row.**
+
+That is worse than no alarm. An alarm that fires on healthy data trains everyone to ignore it,
+and it is still firing on the night it is right. `M9`'s whole design is that the constraint
+prevents the bad state and the nightly check notices if the constraint is gone; a false positive
+from the backstop attacks the only thing it was there to protect.
+
+**The rule: when a constraint and a monitoring check encode the same rule, they are one change,
+not two.** If they can disagree they will, and the disagreement is silent in the direction that
+matters — the check goes on passing when the constraint is dropped, and starts failing when it
+is extended.
+
+Caught by `ledger.test.sql`, which drops the constraint, flips a wallet to debit-normal, and
+asserts the nightly check notices. That test was written for `E06-31` to prove the backstop
+works; it earned its keep by failing when the backstop and the constraint drifted apart.
+
+**Related, same fortnight, same shape:** `check-test-fixtures` compared fixtures against
+`supabase/seed.sql` while migrations also seed data (`0013` reason codes, `0029` break windows,
+`0035` the chart of accounts) — a check consulting one source of truth for a fact that has two.
+Everything on this page this fortnight has been a version of that.

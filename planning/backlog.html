@@ -2861,13 +2861,13 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Handle payment failure, timeout, app-kill-mid-payment, and duplicate payment</span>
       </li>
-      <li class="task" data-id="E06-07" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-07" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-07"></button>
         <code class="tid">E06-07</code>
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Ledger</strong>: append-only credits/debits with reason codes. Every payment, refund, revenue share and future subscription writes here</span>
+        <span class="ttext"><strong>Ledger — the one way in.</strong> <code>0038</code>. The guarantees already existed (<code>0001</code>&#39;s append-only and deferred zero-sum triggers, <code>0013</code>&#39;s structural sign convention, <code>0035</code>&#39;s accounts); what was missing was a posting API, without which every caller assembles a transaction by hand and the zero-sum trigger is the only thing that notices — at COMMIT, with the statement long gone. <code>post_ledger_transaction()</code> refuses fewer than two entries, a non-positive amount (<strong>direction carries the sign and is the only thing that does — a negative credit balances</strong>), an unbalanced posting, an unknown or deactivated account, and a reason code that is not <code>category = &#39;ledger&#39;</code> (the foreign key alone accepts <code>customer_request</code>). Accounts are named by <strong>code</strong>, never uuid. Optional idempotency key: a repeat returns the existing transaction and writes nothing, and a repeat with *different* amounts still returns the first — a retry must never rewrite an append-only ledger. <code>reverse_ledger_transaction()</code> is the only correction: an equal and opposite posting linked by <code>reversal_of_transaction_id</code>, keeping the original reason code and stamping <code>occurred_at</code> with now. 19 pgTAP assertions, most of them about what it refuses</span>
       </li>
       <li class="task" data-id="E06-08" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-08"></button>

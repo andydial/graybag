@@ -1402,12 +1402,17 @@ Every column below exists on all three tables unless the scope column says other
 
 **The three payment timings were added by `0037`** (`E06-20`), and this table said for a while
 that they were missing "because two of the three have an undecided *value*, and adding a column
-with a guessed default is how a guess becomes a fact". That caution was right and is now
-answered rather than abandoned: `L9` decided the grace window at 15, and the TTL's 30 is
-**labelled provisional in the column comment itself** — in the database, where the person who
-next reads the number will be — with the fact that settles it named (`E19-07` row 3). A guess
-that says out loud that it is a guess, and where its answer will come from, is not the failure
-mode that paragraph was guarding against.
+with a guessed default is how a guess becomes a fact".
+
+**That caution is right and it is narrower than it reads.** Andy, 2026-08-11, settling how it
+applies here: *the failure it warns about is a default nobody remembers choosing.* A number that
+names itself provisional **in the column comment**, and names the exact fact that will settle it,
+is not how a guess becomes a fact — it is how a guess stays visible. Recorded so the caution is
+not applied mechanically to block a default that is doing its job.
+
+So: `L9` decided the grace window at 15, and the TTL's 30 is labelled provisional in the
+database, where the person who next reads the number will be, with `E19-07` row 3 named as what
+answers it.
 
 **Note on the defaults above.** `order_cutoff_time = '00:00'` with `order_cutoff_days_before = 0`
 means the cutoff for Monday's lunch is **00:00 on Monday** — order by Sunday night, not by
