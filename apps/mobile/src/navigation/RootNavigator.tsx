@@ -19,6 +19,7 @@ import {
   OrderDetailScreen,
   OrdersScreen,
   DeleteAccountScreen,
+  PolicyScreen,
   SignInScreen,
   SupportScreen,
 } from '../screens';
@@ -244,6 +245,7 @@ const SupportStackScreen = withScreenFrame(SupportScreen, STACK_SCREEN_EDGES, { 
 const DeleteAccountStackScreen = withScreenFrame(DeleteAccountScreen, STACK_SCREEN_EDGES, {
   back: true,
 });
+const PolicyStackScreen = withScreenFrame(PolicyScreen, STACK_SCREEN_EDGES, { back: true });
 // The modal takes the full set too. On iOS it is presented as a page sheet whose top already
 // clears the status bar, so the top inset buys a little unnecessary whitespace there; on
 // Android `presentation: 'modal'` is a full-screen route where the same inset is the
@@ -404,6 +406,9 @@ export function RootNavigator() {
         {/* `E20-37`. A push, not a modal: this is somewhere you went deliberately from
             Account, and backing out of it should read as returning, not as dismissing. */}
         <Stack.Screen name="DeleteAccount" component={DeleteAccountStackScreen} />
+        {/* `E20-38`. No session required — a visitor deciding whether to sign up is exactly
+            who reads a privacy policy, and `[AZ-03]` requires it reachable without an account. */}
+        <Stack.Screen name="Policy" component={PolicyStackScreen} />
         <Stack.Screen
           name="SignIn"
           component={SignInStackScreen}

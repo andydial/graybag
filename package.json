@@ -10,7 +10,7 @@
     "packages/*"
   ],
   "scripts": {
-    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm run check:maestro && npm test",
+    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm run check:maestro && npm run check:policy-docs && npm test",
     "test:all": "npm run smoke && npm run test:db",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
@@ -40,6 +40,7 @@
     "ota:staging": "npm run smoke && npm --prefix apps/mobile exec -- eas update --branch staging",
     "ota:production": "npm run smoke && npm --prefix apps/mobile exec -- eas update --branch production",
     "check:maestro": "node scripts/check-maestro-ids.mjs",
+    "check:policy-docs": "node scripts/build-policy-docs.mjs --check",
     "check:config": "node scripts/check-supabase-config.mjs"
   },
   "devDependencies": {

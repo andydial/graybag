@@ -75,6 +75,14 @@ export type RootStackParamList = {
    * there is no account to delete otherwise.
    */
   DeleteAccount: undefined;
+  /**
+   * A policy document (`E20-38`). `which` picks one of the three Account lists.
+   *
+   * Mounts with no session: a visitor deciding whether to sign up is exactly who reads a
+   * privacy policy, and putting it behind an account would be both a wall (`AR7`) and a
+   * compliance problem — `[AZ-03]` requires the grievance block reachable without one.
+   */
+  Policy: { which: 'privacy' | 'terms' | 'refund' };
 };
 
 /**

@@ -20,6 +20,7 @@ import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
 import { SupportScreen as SupportScreenImpl } from '../status/SupportScreen';
 import { DeleteAccountScreen as DeleteAccountScreenImpl } from '../account/DeleteAccountScreen';
+import { PolicyDocumentScreen as PolicyDocumentScreenImpl } from '../account/PolicyDocumentScreen';
 import { useConnectivity } from '../net/ConnectivityContext';
 import { useAccess, useOrderingTarget, useRefreshRecipients } from '../session/audience';
 import { useSignOut } from '../session/useRecipients';
@@ -195,8 +196,16 @@ export const AccountScreen = () => {
       // `E20-37`. The danger row rendered in red and did nothing — a store reviewer taps this
       // during submission, and one of the six compliance controls was inert behind it.
       onDeleteAccount={() => navigation.navigate('DeleteAccount')}
+      // `E20-38`. Three rows rendered and did nothing; nothing in the app opened the policies.
+      onPolicy={(which) => navigation.navigate('Policy', { which })}
     />
   );
+};
+
+/** A policy document (`E20-38`). The text is generated from `docs/`, never a second copy. */
+export const PolicyScreen = () => {
+  const { params } = useRoute<RouteProp<RootStackParamList, 'Policy'>>();
+  return <PolicyDocumentScreenImpl which={params.which} />;
 };
 
 /**
