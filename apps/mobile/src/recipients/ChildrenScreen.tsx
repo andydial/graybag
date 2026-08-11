@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Check, ChevronRight } from 'lucide-react-native';
 import { api, design } from '@graybag/shared';
@@ -6,6 +6,7 @@ import { api, design } from '@graybag/shared';
 import { Button, EmptyState, ErrorState, Sheet, Skeleton } from '../components';
 import { SchoolPicker } from '../menu/SchoolPicker';
 import { useOrderingTarget } from '../session/audience';
+import { useRecipients } from '../session/useRecipients';
 
 const {
   bg, text, border, action, space, radius, borderWidth, scale, layout, touchTarget, icon,
@@ -83,10 +84,18 @@ export type ChildrenState =
   | { kind: 'loading' }
   | { kind: 'loaded'; rows: readonly RecipientRow[] }
   | { kind: 'empty' }
+  /**
+   * §5.21 N3 — "you cannot see this", which is not N1's "there is nothing here". The old code
+   * conflated them and the comment on `empty` said a signed-out parent lands there too; that is
+   * how a list of children and a list of nobody became the same screen, and why nothing noticed
+   * when the signed-out case started showing real names.
+   */
+  | { kind: 'signedOut' }
   | { kind: 'unreachable' }
   | { kind: 'error' };
 
 export function ChildrenScreen({
+  onSignIn,
   onAddChild,
   onSelectRecipient,
   reloadToken,
@@ -113,10 +122,10 @@ export function ChildrenScreen({
    * ownership of *how*, and there is no handle a parent component could use to fetch twice.
    */
   reloadToken?: unknown;
+  /** Where the N3 state goes. Without a session this screen has no account to describe. */
+  onSignIn?: (() => void) | undefined;
   testID?: string;
 }) {
-  const [state, setState] = useState<ChildrenState>({ kind: 'loading' });
-  const [attempt, setAttempt] = useState(0);
 
   // The recipient whose school is being changed, held as a whole row rather than an id: the
   // sheet has to name them, and looking the id back up would go stale the moment the list
@@ -130,30 +139,50 @@ export function ChildrenScreen({
   const target = useOrderingTarget();
   const selectedId = target === null ? null : target.recipientId;
 
+  /**
+   * **Through `useRecipients`, never `api.fetchRecipients` directly.**
+   *
+   * This screen used to run its own read here, and that is how a minor's name stayed on screen
+   * after `E03-26` supposedly closed the disclosure: `fetchRecipients` gates on the *keychain*
+   * session, this screen gated on nothing, and the guard that shipped only ever inspected the
+   * order-target context. One door now, and it consults the app's session before it opens.
+   */
+  const recipients = useRecipients();
+
+  // `reloadToken` changes when the screen is re-focused, so a child added elsewhere appears.
   useEffect(() => {
-    let live = true;
-    setState({ kind: 'loading' });
+    recipients.reload();
+    // Only on the token: reload identity is stable, and depending on it would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadToken]);
 
-    api
-      .fetchRecipients()
-      .then((rows) => {
-        if (!live) return;
-        setState(rows.length === 0 ? { kind: 'empty' } : { kind: 'loaded', rows });
-      })
-      .catch((error: unknown) => {
-        // The error itself is swallowed on purpose. An RLS refusal or a PostgREST failure can
-        // quote the row it refused, and that row is a person (§13.3). Only its *shape* is
-        // read, never its text.
-        if (!live) return;
-        setState({ kind: classifyReadFailure(error) });
-      });
+  /**
+   * **Derived, not mirrored.** Copying this into `useState` inside an effect is what made the
+   * first attempt loop forever: `useRecipients` returns a fresh object each render, so listing it
+   * as a dependency re-ran the effect, which set state, which re-rendered. There is no second
+   * source of truth to keep in step here — the read already has the state, so this just names it
+   * in the vocabulary the screen renders.
+   */
+  const state: ChildrenState = useMemo(() => {
+    switch (recipients.kind) {
+      case 'loading':
+        return { kind: 'loading' };
+      case 'signedOut':
+        // Not 'empty'. "You have nobody yet" describes an account we can see; this is an account
+        // we cannot. §5.21 N3 against N1.
+        return { kind: 'signedOut' };
+      case 'ready':
+        return recipients.rows.length === 0
+          ? { kind: 'empty' }
+          : { kind: 'loaded', rows: recipients.rows as RecipientRow[] };
+      case 'failed':
+        // Only the error's *shape* is read, never its text: an RLS refusal can quote the row it
+        // refused, and that row is a person (§13.3).
+        return { kind: classifyReadFailure(recipients.error) };
+    }
+  }, [recipients.kind, recipients.kind === 'ready' ? recipients.rows : null, recipients.kind === 'failed' ? recipients.error : null]);
 
-    return () => {
-      live = false;
-    };
-  }, [attempt, reloadToken]);
-
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  const retry = recipients.reload;
 
   const moveTo = useCallback(
     async (school: { schoolId: string; schoolName: string }) => {
@@ -167,12 +196,12 @@ export function ChildrenScreen({
         // Re-read rather than patching the row in place. The server may have cleared the
         // class as part of the move — a class at the old school does not mean anything at the
         // new one — so the list this screen holds is no longer what the database says.
-        setAttempt((n) => n + 1);
+        recipients.reload();
       } catch (error) {
         setEditFailure(refusalMessage(error));
       }
     },
-    [editing],
+    [editing, recipients],
   );
 
   switch (state.kind) {
@@ -222,9 +251,25 @@ export function ChildrenScreen({
         </View>
       );
 
+    case 'signedOut':
+      // Not a wall (`AR7`): browsing never needed a session and still does not. But *this*
+      // screen is a list of people on an account, and without a session there is no account to
+      // list. Offering sign-in is the honest next step, not "add someone" — which cannot
+      // complete without a session either.
+      return (
+        <View style={styles.screen} testID={`${testID}-signedout`}>
+          <EmptyState
+            title="Sign in to see who you order for"
+            body="Your children — or you — live on your account. Browsing the menu never needs one."
+            actionLabel="Sign in"
+            {...(onSignIn === undefined ? {} : { onAction: onSignIn })}
+          />
+        </View>
+      );
+
     case 'empty':
-      // N1 — an invitation, not a failure. A signed-out parent lands here too (`AR7`): the
-      // gate is at checkout and nothing in this app is a wall.
+      // N1 — an invitation, not a failure. Reached only with a session, so this genuinely means
+      // the account has nobody on it yet.
       return (
         <View style={styles.screen} testID={`${testID}-empty`}>
           <EmptyState

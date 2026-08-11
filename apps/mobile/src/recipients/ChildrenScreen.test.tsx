@@ -120,9 +120,14 @@ const ROW = (over: Partial<RecipientRow> = {}): RecipientRow => ({
 
 async function setup(overrides: Partial<Parameters<typeof ChildrenScreen>[0]> = {}) {
   const onAddChild = jest.fn();
+  // A session is now a precondition for this screen reading anything: `useRecipients` refuses
+  // without one, which is the fix for the disclosure Andy found on his phone. These tests are
+  // about the list a signed-in parent sees, so they say so.
   await render(
     <SafeAreaProvider initialMetrics={METRICS}>
-      <ChildrenScreen onAddChild={onAddChild} {...overrides} />
+      <SessionProvider initial={{ status: 'signedIn', userId: 'u1' }}>
+        <ChildrenScreen onAddChild={onAddChild} {...overrides} />
+      </SessionProvider>
     </SafeAreaProvider>,
   );
   return { onAddChild };
@@ -196,11 +201,25 @@ describe('ChildrenScreen', () => {
     expect(onAddChild).toHaveBeenCalled();
   });
 
-  it('is empty rather than a wall for a signed-out parent', async () => {
-    // `AR7`. Nothing in this app demands a session on arrival; the gate is at checkout.
+  /**
+   * CHANGED, deliberately, and it is the fix rather than a concession to it.
+   *
+   * This used to assert `screen-children-empty` for a signed-out parent — the same screen a
+   * signed-in parent with no children sees. That conflation is how a *list of real children*
+   * and a *list of nobody* became indistinguishable, and it is why nothing noticed when the
+   * signed-out case began rendering names: there was no state that meant "we cannot see this
+   * account", so no test could assert its contents.
+   *
+   * `AR7` still holds and is untouched — browsing needs no session and this is not a wall. But
+   * this screen describes an *account*, and without one there is nothing to describe.
+   */
+  it('says it cannot see the account, rather than that the account is empty', async () => {
     userId = null;
     await setup();
-    expect(await screen.findByTestId('screen-children-empty')).toBeOnTheScreen();
+    expect(await screen.findByTestId('screen-children-signedout')).toBeOnTheScreen();
+    // Never N1: claiming "Nobody added yet" about an account we cannot read is a lie that
+    // happens to be true most of the time.
+    expect(screen.queryByTestId('screen-children-empty')).toBeNull();
   });
 
   it('offers a retry when the read fails', async () => {
@@ -373,7 +392,9 @@ describe('ChildrenScreen', () => {
     // stays mounted, so returning from it has to ask again.
     const { rerender } = await render(
       <SafeAreaProvider initialMetrics={METRICS}>
-        <ChildrenScreen onAddChild={jest.fn()} reloadToken={0} />
+        <SessionProvider initial={{ status: 'signedIn', userId: 'u1' }}>
+          <ChildrenScreen onAddChild={jest.fn()} reloadToken={0} />
+        </SessionProvider>
       </SafeAreaProvider>,
     );
     await screen.findByTestId('screen-children-r1');
@@ -381,7 +402,9 @@ describe('ChildrenScreen', () => {
     rows = [LINK(), LINK({ id: 'r2', first_name: 'Zoya', last_name: null })];
     await rerender(
       <SafeAreaProvider initialMetrics={METRICS}>
-        <ChildrenScreen onAddChild={jest.fn()} reloadToken={1} />
+        <SessionProvider initial={{ status: 'signedIn', userId: 'u1' }}>
+          <ChildrenScreen onAddChild={jest.fn()} reloadToken={1} />
+        </SessionProvider>
       </SafeAreaProvider>,
     );
 

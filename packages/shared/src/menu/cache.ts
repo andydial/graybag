@@ -157,8 +157,9 @@ export interface MenuCache<TMenu> {
  * |---|---|---|
  * | 1 | — | Original. |
  * | 2 | `AUTH-01` / `0012_anon_menu_table_grants.sql` | `anon` gained SELECT on the menu tables. Caches written before it hold an empty menu against a valid version and will never refetch. |
+ * | 3 | `E16-44` / `0024_onboard_real_schools.sql` | The whole catalogue was replaced with the real one and three schools became visible for the first time. A device that read a school *while it was still un-onboarded* cached the refusal-shaped answer against a version that has not moved since, so it would keep showing an empty menu behind a real school name for ever. |
  */
-export const MENU_CACHE_EPOCH = 2;
+export const MENU_CACHE_EPOCH = 3;
 
 export function createMenuCache<TMenu>(options: MenuCacheOptions<TMenu>): MenuCache<TMenu> {
   const { storage, fetchVersion, fetchMenu, isEmpty } = options;

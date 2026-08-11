@@ -20,6 +20,7 @@ import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
 import { useConnectivity } from '../net/ConnectivityContext';
 import { useAccess, useOrderingTarget, useRefreshRecipients } from '../session/audience';
+import { useSignOut } from '../session/useRecipients';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 /**
@@ -170,12 +171,18 @@ export { CartScreen } from '../cart/CartScreen';
 export const AccountScreen = () => {
   const navigation = useNavigation();
   const access = useAccess();
+  const signOut = useSignOut();
 
   return (
     <AccountScreenImpl
       access={access}
       onSignIn={() => navigation.navigate('SignIn')}
       onRecipients={() => navigation.navigate('Children')}
+      onSignOut={() => {
+        // Both sessions, Supabase first — see `session/useRecipients.ts`. This prop was never
+        // passed before, so the Sign out row did nothing at all while looking like it worked.
+        void signOut();
+      }}
       onOrders={() => navigation.navigate('Orders')}
     />
   );
@@ -352,6 +359,7 @@ export const ChildrenScreen = () => {
 
   return (
     <ChildrenScreenImpl
+      onSignIn={() => navigation.navigate('SignIn')}
       reloadToken={visit}
       onAddChild={() => navigation.navigate('AddChild')}
       /*
