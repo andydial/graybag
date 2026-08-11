@@ -18,6 +18,7 @@ import {
   MenuScreen,
   OrderDetailScreen,
   OrdersScreen,
+  DeleteAccountScreen,
   SignInScreen,
   SupportScreen,
 } from '../screens';
@@ -240,6 +241,9 @@ const OrderDetailStackScreen = withScreenFrame(OrderDetailScreen, STACK_SCREEN_E
 const AddChildStackScreen = withScreenFrame(AddChildScreen, STACK_SCREEN_EDGES, { back: true });
 const ChildrenStackScreen = withScreenFrame(ChildrenScreen, STACK_SCREEN_EDGES, { back: true });
 const SupportStackScreen = withScreenFrame(SupportScreen, STACK_SCREEN_EDGES, { back: true });
+const DeleteAccountStackScreen = withScreenFrame(DeleteAccountScreen, STACK_SCREEN_EDGES, {
+  back: true,
+});
 // The modal takes the full set too. On iOS it is presented as a page sheet whose top already
 // clears the status bar, so the top inset buys a little unnecessary whitespace there; on
 // Android `presentation: 'modal'` is a full-screen route where the same inset is the
@@ -397,6 +401,9 @@ export function RootNavigator() {
         {/* `E20-39`. Reached from Account, and deliberately not behind a session: someone
             whose complaint is that they cannot sign in must still be able to reach us. */}
         <Stack.Screen name="Support" component={SupportStackScreen} />
+        {/* `E20-37`. A push, not a modal: this is somewhere you went deliberately from
+            Account, and backing out of it should read as returning, not as dismissing. */}
+        <Stack.Screen name="DeleteAccount" component={DeleteAccountStackScreen} />
         <Stack.Screen
           name="SignIn"
           component={SignInStackScreen}

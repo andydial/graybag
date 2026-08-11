@@ -67,6 +67,14 @@ export type RootStackParamList = {
    * session, because someone whose complaint *is* that they cannot sign in must still reach us.
    */
   Support: undefined;
+  /**
+   * Account deletion (`E20-37`). Both stores require an in-app path to it, and it is one of the
+   * six v1 compliance controls.
+   *
+   * Signed-in only — it is reached from a row Account renders only for a signed-in user, since
+   * there is no account to delete otherwise.
+   */
+  DeleteAccount: undefined;
 };
 
 /**

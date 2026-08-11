@@ -628,13 +628,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/39</span>
+          <span class="meter-num">0/41</span>
         </div>
       </header>
       <p class="summary">India&#39;s DPDP Act, children&#39;s data, consent records and policy versioning. The system stores minors&#39; names, class, section and allergies (health data), so this is not an app-store checkbox.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 39 tasks</summary>
+        <summary>Context &amp; 41 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>GrayBag stores personal data about <strong>children</strong>, including <strong>allergies</strong>, which is health</p>
 <p>data. India&#39;s Digital Personal Data Protection Act 2023 requires verifiable parental</p>
@@ -930,7 +930,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The policy acceptance gate is never mounted.</strong> <code>PolicyGateScreen</code> exists, is tested, and <code>onAccept</code>/<code>onNotNow</code>/<code>accepting</code> have no caller — so the version-acceptance gate that <code>E20-03</code> calls one of the six compliance tasks does not run. Found by the extended orphan guard, not by a person</span>
       </li>
-      <li class="task" data-id="E20-37" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E20-37" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-37"></button>
         <code class="tid">E20-37</code>
         <span class="badge r-high">high</span>
@@ -946,13 +946,29 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Privacy, terms and refund policies are published but unlinked.</strong> <code>AccountScreen.onPolicy</code> has no caller, so nothing in the app opens them</span>
       </li>
-      <li class="task" data-id="E20-39" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E20-39" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-39"></button>
         <code class="tid">E20-39</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Support and the grievance officer are unreachable.</strong> <code>AccountScreen.onSupport</code>, <code>SupportScreen.grievance</code> and <code>SupportScreen.supportEmail</code> all have no caller. DPDP requires a published contact point for data complaints. Per Andy 2026-08-11: keep the route, <strong>replace the exposed address with a contact form or a compose action that reaches andy@graybag.com without displaying it</strong></span>
+      </li>
+      <li class="task" data-id="E20-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-40"></button>
+        <code class="tid">E20-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Put the statutory deadline on the deletion screen</strong> once <code>E20-01</code> returns it and the original <code>E20-14</code> adds <code>dsr_ack_days</code>/<code>dsr_response_days</code> to <code>platform_config</code>. <code>DeleteAccountScreen</code> deliberately promises no timeline today — a confident number standing in for an unanswered legal question is the <code>ITMS-90062</code> defect with a parent on the other end</span>
+      </li>
+      <li class="task" data-id="E20-41" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-41"></button>
+        <code class="tid">E20-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Make account deletion actually delete, in the app.</strong> <code>E20-37</code> ships an honest manual path — a composed request a person acts on — because <code>E20-18</code> (the erasure Edge Function) and <code>E20-30</code> (its <code>recipient</code> vs <code>account</code> scoping) do not exist. Replace the compose action with a real in-app request the moment they do, and record it as a <code>data_subject_request</code> rather than an email</span>
       </li></ul>
       </details>
     </article>

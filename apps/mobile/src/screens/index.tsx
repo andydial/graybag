@@ -19,6 +19,7 @@ import type { RootStackParamList } from '../navigation/types';
 import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
 import { SupportScreen as SupportScreenImpl } from '../status/SupportScreen';
+import { DeleteAccountScreen as DeleteAccountScreenImpl } from '../account/DeleteAccountScreen';
 import { useConnectivity } from '../net/ConnectivityContext';
 import { useAccess, useOrderingTarget, useRefreshRecipients } from '../session/audience';
 import { useSignOut } from '../session/useRecipients';
@@ -191,9 +192,21 @@ export const AccountScreen = () => {
       // `E20-39`. This had no caller, so the Grievance officer row rendered and did nothing —
       // one of the six compliance controls, unreachable, on a screen that looked complete.
       onSupport={() => navigation.navigate('Support')}
+      // `E20-37`. The danger row rendered in red and did nothing — a store reviewer taps this
+      // during submission, and one of the six compliance controls was inert behind it.
+      onDeleteAccount={() => navigation.navigate('DeleteAccount')}
     />
   );
 };
+
+/**
+ * Account deletion (`E20-37`), wired.
+ *
+ * Takes no props: the screen composes a request to `SUPPORT_EMAIL` itself. There is no erasure
+ * pipeline to call yet (`E20-18`, `E20-30`), and a "Delete my account" button that quietly does
+ * nothing is worse than one that says plainly it is handled by a person.
+ */
+export const DeleteAccountScreen = () => <DeleteAccountScreenImpl />;
 
 /**
  * Support and the grievance officer (`E20-39`), wired.

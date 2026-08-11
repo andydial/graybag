@@ -378,7 +378,6 @@ const KNOWN_ORPHANS: Record<string, string> = {
   // Compliance. `PolicyGateScreen`'s three props left this list when `E20-36` gave the gate a
   // caller — `src/policy/` mounts it, and `policy-gate.test.tsx` drives the wire rather than
   // the screen. Three of the four remain.
-  'prop:AccountScreen.onDeleteAccount': 'E20-37 — account deletion has no route',
   'prop:AccountScreen.onPolicy': 'E20-38 — privacy/terms/refund are published but unlinked',
   'prop:SupportScreen.grievance': 'E20-21 — awaiting the name, designation and address',
 
@@ -652,6 +651,7 @@ describe('nothing is half-wired', () => {
     // outright — the address is a constant now and never reaches the screen as a prop.
     // `SupportScreen.grievance` stays, re-pointed at the task that actually blocks it: the
     // contact details are Andy's to supply (`E20-21`), not a missing wire.
-    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(15);
+    // 15 -> 14: `E20-37` gave the Delete my account row a screen.
+    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(14);
   });
 });
