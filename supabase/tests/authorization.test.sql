@@ -109,6 +109,11 @@ $$;
 -- assertion below report as an error rather than a failure.
 select * from no_plan();
 
+-- `0039` enforces the §4.1 transition table and refuses any status write with no actor. A
+-- fixture that inserts an order IS acting as somebody — this suite's orders are the system's,
+-- the same as a real checkout's. Transaction-local, so it cannot leak into another test.
+set local app.actor_type = 'system';
+
 -- -----------------------------------------------------------------------------
 -- A NOTE ON throws_ok, because getting it wrong is silent and this suite did.
 --
@@ -298,11 +303,18 @@ insert into "order" (id, order_group_id, order_ref, correlation_id, customer_use
                      school_id, kitchen_id, city_id, service_date, break_time_id, delivery_mode, status,
                      subtotal_paise, tax_cgst_paise, tax_sgst_paise, total_paise,
                      cutoff_at, config_snapshot, school_name_snapshot, recipient_name_snapshot) values
-  ('e2000000-7e57-0000-0000-000000000001', 'e1000000-7e57-0000-0000-000000000001', 'GB-A0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, 'c5000000-7e57-0000-0000-000000000001', 'classroom', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Aarav'),
-  ('e2000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000002', 'GB-B0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000002', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'paid', 20000, 500, 500, 21000, now(), '{}'::jsonb, 'School A1', 'Bela'),
-  ('e2000000-7e57-0000-0000-000000000003', 'e1000000-7e57-0000-0000-000000000003', 'GB-B1001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000003', 'c3000000-7e57-0000-0000-000000000003', 'c2000000-7e57-0000-0000-000000000002', 'c1000000-7e57-0000-0000-000000000002', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School B1', 'Chetan'),
-  ('e2000000-7e57-0000-0000-000000000004', 'e1000000-7e57-0000-0000-000000000004', 'GB-A2001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000007', 'c3000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A2', 'Gopal'),
-  ('e2000000-7e57-0000-0000-000000000005', 'e1000000-7e57-0000-0000-000000000005', 'GB-D0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000004', 'd1000000-7e57-0000-0000-000000000004', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Divya');
+  ('e2000000-7e57-0000-0000-000000000001', 'e1000000-7e57-0000-0000-000000000001', 'GB-A0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, 'c5000000-7e57-0000-0000-000000000001', 'classroom', 'pending_payment', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Aarav'),
+  ('e2000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000002', 'GB-B0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000002', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'pending_payment', 20000, 500, 500, 21000, now(), '{}'::jsonb, 'School A1', 'Bela'),
+  ('e2000000-7e57-0000-0000-000000000003', 'e1000000-7e57-0000-0000-000000000003', 'GB-B1001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000003', 'c3000000-7e57-0000-0000-000000000003', 'c2000000-7e57-0000-0000-000000000002', 'c1000000-7e57-0000-0000-000000000002', current_date, null, 'counter', 'pending_payment', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School B1', 'Chetan'),
+  ('e2000000-7e57-0000-0000-000000000004', 'e1000000-7e57-0000-0000-000000000004', 'GB-A2001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000007', 'c3000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'pending_payment', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A2', 'Gopal'),
+  ('e2000000-7e57-0000-0000-000000000005', 'e1000000-7e57-0000-0000-000000000005', 'GB-D0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000004', 'd1000000-7e57-0000-0000-000000000004', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'pending_payment', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Divya');
+-- `0039`: `paid` is not a legal INSERT state — §4.1 allows only `draft` (admin) and
+-- `pending_payment` (system) as entry points, and everything else is reached by moving. So the
+-- fixture walks the same path a real order does. Cheap here, and it means these fixtures now
+-- exercise the T2 -> T5 transition rather than side-stepping the machine that guards it.
+update "order" set status = 'paid'
+ where status = 'pending_payment' and id in ('e1000000-7e57-0000-0000-000000000001', 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', 'c5000000-7e57-0000-0000-000000000001', 'e1000000-7e57-0000-0000-000000000002', 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000003', 'd1000000-7e57-0000-0000-000000000003', 'c3000000-7e57-0000-0000-000000000003', 'c2000000-7e57-0000-0000-000000000002', 'c1000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000004', 'd1000000-7e57-0000-0000-000000000007', 'c3000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000005', 'a0000000-7e57-0000-0000-000000000004', 'd1000000-7e57-0000-0000-000000000004');
+
 
 insert into order_line (order_id, line_no, menu_item_id, dish_id, quantity, unit_price_paise,
                         line_subtotal_paise, tax_cgst_paise, tax_sgst_paise, line_total_paise, dish_name_snapshot) values

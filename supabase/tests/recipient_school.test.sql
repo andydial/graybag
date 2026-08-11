@@ -26,6 +26,11 @@ $$;
 
 select * from no_plan();
 
+-- `0039` enforces the §4.1 transition table and refuses any status write with no actor. A
+-- fixture that inserts an order IS acting as somebody — this suite's orders are the system's,
+-- the same as a real checkout's. Transaction-local, so it cannot leak into another test.
+set local app.actor_type = 'system';
+
 -- -----------------------------------------------------------------------------
 -- Fixtures. Every id carries 7e57 in its second group (`E02-24`).
 -- -----------------------------------------------------------------------------
@@ -179,9 +184,16 @@ select '00000000-7e57-0000-0000-00000000e502',
        '00000000-7e57-0000-0000-00000000e503', 'GB-7E57-E502', gen_random_uuid(),
        (select guardian_id from s_ctx), (select recipient_id from s_id),
        s.id, s.kitchen_id, s.city_id, current_date + 7,
-       'classroom', now() + interval '6 days', 'paid',
+       'classroom', now() + interval '6 days', 'pending_payment',
        '{}'::jsonb, s.name, 'Ishaan Movertest'
   from school s where s.id = (select school_b from s_ctx);
+-- `0039`: `paid` is not a legal INSERT state — §4.1 allows only `draft` (admin) and
+-- `pending_payment` (system) as entry points, and everything else is reached by moving. So the
+-- fixture walks the same path a real order does. Cheap here, and it means these fixtures now
+-- exercise the T2 -> T5 transition rather than side-stepping the machine that guards it.
+update "order" set status = 'paid'
+ where status = 'pending_payment' and id in ('00000000-7e57-0000-0000-00000000e502', '00000000-7e57-0000-0000-00000000e503');
+
 
 select throws_ok(
   format($$ select change_recipient_school(%L::uuid, %L::uuid, %L::uuid, null, null) $$,
@@ -200,7 +212,12 @@ select is(
   'and nothing moved — a refusal that half-applied would be worse than either outcome');
 
 -- The same order, delivered, is history and must not block anything.
+--
+-- The actor changes because `0039` says so: T8 (`paid -> delivered`) belongs to kitchen and
+-- admin, never `system`. `set local`, so it reverts with the transaction.
+set local app.actor_type = 'kitchen';
 update "order" set status = 'delivered' where id = '00000000-7e57-0000-0000-00000000e502';
+set local app.actor_type = 'system';
 
 select lives_ok(
   format($$ select change_recipient_school(%L::uuid, %L::uuid, %L::uuid, null, null) $$,

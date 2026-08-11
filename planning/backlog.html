@@ -3929,13 +3929,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/48</span>
+          <span class="meter-num">0/49</span>
         </div>
       </header>
       <p class="summary">Move ~400 users, dependents and full order history off Bubble. Rehearsed at least twice before the real thing.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E04</code> <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 48 tasks</summary>
+        <summary>Context &amp; 49 tasks</summary>
         <div class="context"><h4>Known constraints</h4>
 <p>Verified against the real export on 2026-08-08 (<code>E19-04</code>). Full evidence in</p>
 <p><strong><code>docs/bubble-recon-findings.md</code></strong> — read it before writing <code>E16-01</code>. Several constraints below</p>
@@ -4413,6 +4413,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Fill <code>food_type</code> for the 79 real dishes.</strong> <code>[DM-17]</code>: veg / non-veg / egg is not in the legacy export and the importer refuses to infer it from ingredients — in this market a wrong mark is a trust failure, not a cosmetic gap. The menu currently renders every dish with no food-type mark. Needs an admin column and someone from the kitchen going through the list</span>
+      </li>
+      <li class="task" data-id="E16-49" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-49"></button>
+        <code class="tid">E16-49</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The Bubble import cannot insert a historical order.</strong> <code>0039</code> enforces §4.1, where the only legal INSERT states are <code>draft</code> (admin) and <code>pending_payment</code> (system) — everything else is reached by *moving*. That is right for the product and it has no answer for <code>E16</code>, which imports ~361 legacy orders that are already <code>delivered</code> or <code>cancelled</code>. Three options, none free: <strong>(a)</strong> the importer walks each order through the machine, which writes fabricated <code>order_event</code> history — a delivered-at timestamp we invented, on the audit table <code>I2</code> exists to make trustworthy; <strong>(b)</strong> an explicit <code>migration</code> actor in <code>actor_type</code> with its own row in §4.1 permitting a direct insert into a terminal state, which is honest about what is happening and puts the exemption in the table where it can be read; <strong>(c)</strong> the importer disables the trigger, which is the version that gets copied into a script nobody reviews. <strong>Recommend (b)</strong>, with the imported rows carrying <code>migration_source = &#39;bubble_migrated&#39;</code> so they are distinguishable for ever. Decide before <code>E16</code> writes orders, not during</span>
       </li></ul>
       </details>
     </article>

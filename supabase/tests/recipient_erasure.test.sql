@@ -36,6 +36,11 @@ $$;
 
 select * from no_plan();
 
+-- `0039` enforces the §4.1 transition table and refuses any status write with no actor. A
+-- fixture that inserts an order IS acting as somebody — this suite's orders are the system's,
+-- the same as a real checkout's. Transaction-local, so it cannot leak into another test.
+set local app.actor_type = 'system';
+
 -- -----------------------------------------------------------------------------
 -- Fixtures. Every id carries 7e57 in its second group (`E02-24`).
 -- -----------------------------------------------------------------------------
@@ -172,9 +177,16 @@ select '00000000-7e57-0000-0000-00000000e602',
        '00000000-7e57-0000-0000-00000000e603', 'GB-7E57-E602', gen_random_uuid(),
        (select guardian_id from e_ctx), (select recipient_id from e_id2),
        s.id, s.kitchen_id, s.city_id, current_date + 7,
-       'classroom', now() + interval '6 days', 'paid',
+       'classroom', now() + interval '6 days', 'pending_payment',
        '{}'::jsonb, s.name, 'Meera Guardtest'
   from school s where s.id = (select school_a from e_ctx);
+-- `0039`: `paid` is not a legal INSERT state — §4.1 allows only `draft` (admin) and
+-- `pending_payment` (system) as entry points, and everything else is reached by moving. So the
+-- fixture walks the same path a real order does. Cheap here, and it means these fixtures now
+-- exercise the T2 -> T5 transition rather than side-stepping the machine that guards it.
+update "order" set status = 'paid'
+ where status = 'pending_payment' and id in ('00000000-7e57-0000-0000-00000000e602', '00000000-7e57-0000-0000-00000000e603');
+
 
 select throws_ok(
   format($$ select deactivate_recipient(%L::uuid, %L::uuid) $$,
