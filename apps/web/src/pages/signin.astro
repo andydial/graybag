@@ -1,0 +1,264 @@
+---
+/**
+ * Back-office sign-in (`E12-06`).
+ *
+ * Nobody could log into the web app at all before this. Email OTP, the same mechanism the
+ * parent app uses and the same code path — `U1`, non-negotiable #7, no passwords anywhere.
+ *
+ * Two screens in one page, because they are one act: ask for the address, then ask for the code.
+ * `noindex`, like `/kitchen`.
+ */
+import '../styles/tokens.css';
+import '../styles/site.css';
+import '../styles/kitchen.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Sign in — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner">
+          <h1 class="kitchen__title">GrayBag back office</h1>
+        </div>
+      </header>
+
+      <main class="kitchen__wrap">
+        <div class="signin">
+          <div id="s-banner"></div>
+
+          <form id="s-email-form" class="kitchen__state signin__card">
+            <h2>Sign in</h2>
+            <p>We will email you a six-digit code. There is no password.</p>
+
+            <div class="kitchen__field signin__field">
+              <label for="s-email">Work email</label>
+              <input id="s-email" name="email" type="email" inputmode="email" autocomplete="email"
+                     required aria-describedby="s-email-error" />
+              <p class="field__error" id="s-email-error" role="alert"></p>
+            </div>
+
+            <button class="kitchen__btn kitchen__btn--primary" type="submit" id="s-send">
+              Email me a code
+            </button>
+          </form>
+
+          <form id="s-code-form" class="kitchen__state signin__card" hidden>
+            <h2>Check your email</h2>
+            <p>We sent a six-digit code to <b id="s-sent-to"></b>.</p>
+
+            <div class="kitchen__field signin__field">
+              <label for="s-code">Six-digit code</label>
+              <!--
+                `one-time-code` is what lets iOS offer the code from the notification and Android
+                autofill it. `inputmode="numeric"` opens a digit keypad rather than a keyboard.
+              -->
+              <input id="s-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
+                     maxlength="6" required aria-describedby="s-code-error" />
+              <p class="field__error" id="s-code-error" role="alert"></p>
+            </div>
+
+            <button class="kitchen__btn kitchen__btn--primary" type="submit" id="s-verify">Sign in</button>
+            <button class="kitchen__btn" type="button" id="s-resend" disabled>Resend</button>
+            <button class="kitchen__btn" type="button" id="s-restart">Use a different address</button>
+          </form>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      import { looksLikeEmail } from '../lib/enquiry.js';
+      import {
+        RESEND_AFTER_MS,
+        currentUser,
+        looksLikeCode,
+        resendAvailableIn,
+        sendCode,
+        verifyCode,
+      } from '../lib/backoffice/session.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const emailForm = $<HTMLFormElement>('s-email-form');
+      const codeForm = $<HTMLFormElement>('s-code-form');
+      const emailInput = $<HTMLInputElement>('s-email');
+      const codeInput = $<HTMLInputElement>('s-code');
+      const sendBtn = $<HTMLButtonElement>('s-send');
+      const verifyBtn = $<HTMLButtonElement>('s-verify');
+      const resendBtn = $<HTMLButtonElement>('s-resend');
+      const restartBtn = $<HTMLButtonElement>('s-restart');
+      const banner = $('s-banner');
+      const sentTo = $('s-sent-to');
+
+      /** Where to go after signing in. Same-origin paths only — an open redirect on a login page. */
+      const nextParam = new URLSearchParams(location.search).get('next');
+      const next = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')
+        ? nextParam
+        : '/kitchen';
+
+      let sentAt = 0;
+      let timer: ReturnType<typeof setInterval> | undefined;
+
+      const say = (message: string, tone: 'danger' | 'info' = 'danger') => {
+        banner.innerHTML = message
+          ? `<div class="kitchen__banner" data-tone="${tone}"><span aria-hidden="true">${
+              tone === 'danger' ? '✕' : 'i'
+            }</span><div>${message}</div></div>`
+          : '';
+      };
+
+      const fieldError = (id: string, message: string) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = message;
+      };
+
+      /**
+       * Never say whether an address is known.
+       *
+       * Supabase's `signInWithOtp` does not distinguish a registered address from an unknown one,
+       * and neither does this: telling somebody "no such account" turns a login page into a
+       * directory of who works here. The wording is the same either way, and a wrong address
+       * simply never receives a code.
+       */
+      const SENT = 'If that address has a back-office account, a code is on its way.';
+
+      // ------------------------------------------------------------------- send
+
+      emailForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        fieldError('s-email-error', '');
+        say('');
+
+        const email = emailInput.value.trim().toLowerCase();
+        if (!looksLikeEmail(email)) {
+          fieldError('s-email-error', 'That does not look like an email address.');
+          emailInput.focus();
+          return;
+        }
+
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending…';
+        try {
+          await sendCode(email);
+          sentAt = Date.now();
+          sentTo.textContent = email;
+          emailForm.hidden = true;
+          codeForm.hidden = false;
+          say(SENT, 'info');
+          codeInput.focus();
+          startResendCountdown();
+        } catch (cause) {
+          say(
+            `We could not send a code. ${
+              cause instanceof Error ? cause.message : 'Please try again.'
+            }`,
+          );
+        } finally {
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Email me a code';
+        }
+      });
+
+      // ----------------------------------------------------------------- verify
+
+      codeForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        fieldError('s-code-error', '');
+        say('');
+
+        const code = codeInput.value.trim();
+        if (!looksLikeCode(code)) {
+          fieldError('s-code-error', 'The code is six digits.');
+          codeInput.focus();
+          return;
+        }
+
+        verifyBtn.disabled = true;
+        verifyBtn.textContent = 'Signing in…';
+        try {
+          await verifyCode(emailInput.value.trim().toLowerCase(), code);
+          location.assign(next);
+        } catch (cause) {
+          // The code is kept, not cleared. Re-typing five correct digits because the sixth was
+          // wrong is a gratuitous failure, and the same reasoning as ux-spec §5.9.
+          fieldError(
+            's-code-error',
+            cause instanceof Error && /expired/i.test(cause.message)
+              ? 'That code has expired. Ask for another.'
+              : 'That code was not right. Check it and try again.',
+          );
+          codeInput.select();
+        } finally {
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = 'Sign in';
+        }
+      });
+
+      // ----------------------------------------------------------------- resend
+
+      function startResendCountdown() {
+        clearInterval(timer);
+        const tick = () => {
+          // Anchored to a timestamp, never to a counter: a tick-driven countdown restarts when
+          // the tab is backgrounded, which either lets somebody spam resends or blocks a
+          // legitimate one. A kitchen tablet is backgrounded constantly (ux-spec §5.9.1).
+          const remaining = resendAvailableIn(sentAt, Date.now());
+          resendBtn.disabled = remaining > 0;
+          resendBtn.textContent = remaining > 0
+            ? `Resend in ${Math.ceil(remaining / 1000)}s`
+            : 'Resend';
+          if (remaining === 0) clearInterval(timer);
+        };
+        tick();
+        timer = setInterval(tick, 1000);
+      }
+
+      resendBtn.addEventListener('click', async () => {
+        if (resendAvailableIn(sentAt, Date.now()) > 0) return;
+        resendBtn.disabled = true;
+        try {
+          await sendCode(emailInput.value.trim().toLowerCase());
+          sentAt = Date.now();
+          say(SENT, 'info');
+          startResendCountdown();
+        } catch {
+          say('We could not send another code. Please try again.');
+          resendBtn.disabled = false;
+        }
+      });
+
+      restartBtn.addEventListener('click', () => {
+        clearInterval(timer);
+        codeForm.hidden = true;
+        emailForm.hidden = false;
+        codeInput.value = '';
+        say('');
+        emailInput.focus();
+      });
+
+      // ------------------------------------------------------------------ start
+
+      void (async () => {
+        try {
+          // Already signed in — a shared tablet where somebody left a session open is the
+          // common case, not the rare one.
+          if (await currentUser()) location.assign(next);
+        } catch (cause) {
+          // A misconfigured build must say so here rather than let every later screen fail in
+          // its own way. ux-spec §5.20's lesson, applied to the back office.
+          say(cause instanceof Error ? cause.message : 'The back office is not configured.');
+        }
+      })();
+
+      void RESEND_AFTER_MS;
+    </script>
+  </body>
+</html>
