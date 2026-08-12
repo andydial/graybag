@@ -46,6 +46,11 @@ export default tseslint.config(
       '**/.expo/**',
       'planning/backlog.html',
       'Legacy-Application/**',
+      // Written by `supabase start` — the local stack's own runtime bundle, minified vendor
+      // code that is already in .gitignore. It only began failing lint when a Colima rebuild
+      // made the CLI emit a different set of temp artefacts, which is a good reminder that
+      // "gitignored" and "lint-ignored" are two different lists.
+      'supabase/.temp/**',
     ],
   },
 

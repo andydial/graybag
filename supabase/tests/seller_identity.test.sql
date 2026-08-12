@@ -7,11 +7,20 @@
 -- ever. Every customer charged, no order created, no 5xx, no alert.
 -- =============================================================================
 
-create extension if not exists pgtap;
-create schema if not exists tests_tmp;
 
 begin;
 set local search_path = public, tests_tmp, extensions, pg_catalog;
+do $$
+begin
+  if not exists (select 1 from pg_extension where extname = 'pgtap') then
+    begin execute 'create extension pgtap with schema extensions';
+    exception when others then execute 'create extension pgtap'; end;
+  end if;
+end;
+$$;
+
+-- Inside the transaction, so it rolls back — see over_refund.test.sql for what committing it does.
+create schema if not exists tests_tmp;
 select * from no_plan();
 
 -- =============================================================================

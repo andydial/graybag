@@ -14,16 +14,6 @@
 -- The extensions are created outside any transaction, or the rollback below takes them with it.
 -- =============================================================================
 
-create extension if not exists pgtap;
-create extension if not exists dblink;
-create schema if not exists tests_tmp;
-
--- dblink refuses a bare `dbname=` — "non-superusers must provide a password" — so the second
--- connection is opened with explicit local credentials. These are the local stack's fixed
--- development values (`supabase status`), never a secret, and this function exists only so the
--- string is written once.
-create or replace function tests_tmp.local_conninfo() returns text language sql immutable as
-$conn$ select 'host=127.0.0.1 port=5432 dbname=postgres user=postgres password=postgres' $conn$;
 
 -- =============================================================================
 -- 1. The arithmetic. `docs/data-model.md` §8.3 described this wrongly in both directions; the
@@ -31,6 +21,21 @@ $conn$ select 'host=127.0.0.1 port=5432 dbname=postgres user=postgres password=p
 -- =============================================================================
 begin;
 set local search_path = public, tests_tmp, extensions, pg_catalog;
+do $$
+begin
+  if not exists (select 1 from pg_extension where extname = 'pgtap') then
+    begin execute 'create extension pgtap with schema extensions';
+    exception when others then execute 'create extension pgtap'; end;
+  end if;
+end;
+$$;
+
+-- Inside the transaction, so it rolls back. Creating it OUTSIDE commits it, and a committed
+-- `tests_tmp` then breaks every later file that does `create schema tests_tmp` without
+-- `if not exists` — `authorization.test.sql` exits 3 and reports NO plan, which pg_prove counts
+-- as a parse error rather than a failure. Cross-file state, which is the thing this suite is
+-- most careful about everywhere else.
+create schema if not exists tests_tmp;
 select * from no_plan();
 set local app.actor_type = 'system';
 
@@ -74,9 +79,6 @@ select throws_ok(
   '23514', null,
   'one paise beyond the captured amount is refused');
 
-select * from finish();
-rollback;
-
 -- =============================================================================
 -- 2. The lock itself, asserted structurally — and what that does and does not buy.
 --
@@ -88,10 +90,11 @@ rollback;
 -- Until then the honest position is: **the fix is reasoned, not demonstrated.** What IS asserted
 -- is that the lock is still there — which is weak as a proof and strong as a regression guard,
 -- because the way this breaks is somebody simplifying the function and dropping the `perform`.
+--
+-- Same transaction and the same TAP plan as section 1, deliberately: `pg_prove` — which CI runs
+-- through `supabase test db` — allows exactly ONE plan per file, and a second `finish()` fails
+-- the whole suite with "More than one plan found in TAP output". Learned by running it.
 -- =============================================================================
-begin;
-set local search_path = public, tests_tmp, extensions, pg_catalog;
-select * from no_plan();
 
 select matches(
   (select pg_get_functiondef(oid) from pg_proc where proname = 'trg_assert_refund_not_over_captured'),

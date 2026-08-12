@@ -7,13 +7,24 @@
 -- above G4 — because those are the two that look like bugs and are not.
 -- =============================================================================
 
-create extension if not exists pgtap;
--- Outside the transaction, and created here rather than assumed: from a CLEAN database no other
--- suite has made it, and every suite that does makes it inside a transaction it rolls back.
-create schema if not exists tests_tmp;
 
 begin;
 set local search_path = public, tests_tmp, extensions, pg_catalog;
+do $$
+begin
+  if not exists (select 1 from pg_extension where extname = 'pgtap') then
+    begin execute 'create extension pgtap with schema extensions';
+    exception when others then execute 'create extension pgtap'; end;
+  end if;
+end;
+$$;
+
+-- Inside the transaction, so it rolls back. Creating it OUTSIDE commits it, and a committed
+-- `tests_tmp` then breaks every later file that does `create schema tests_tmp` without
+-- `if not exists` — `authorization.test.sql` exits 3 and reports NO plan, which pg_prove counts
+-- as a parse error rather than a failure. Cross-file state, which is the thing this suite is
+-- most careful about everywhere else.
+create schema if not exists tests_tmp;
 select * from no_plan();
 set local app.actor_type = 'system';
 
