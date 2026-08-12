@@ -39,6 +39,26 @@ export {
   type ApiSchool,
 } from './schools.js';
 
+// The kitchen dashboard's reads and its one write (`E09-04`, `E09-05`, `E09-17`).
+//
+// NOTE FOR THE PAYMENTS THREAD: `kitchen.ts` and
+// `supabase/functions/kitchen-order-status/` were written by the WEB thread on 2026-08-12,
+// on Andy's instruction while this thread was on `E06`. These six lines are the only edit
+// made to any file outside those two — without the export, nothing there is reachable from
+// `apps/web`, because this package exposes only `.`.
+export {
+  KITCHEN_ORDER_COLUMNS,
+  KitchenPayloadError,
+  fetchKitchenOrders,
+  fetchMyGrants,
+  updateKitchenOrderStatus,
+  type ApiKitchenOrder,
+  type ApiKitchenOrderLine,
+  type KitchenOrderStatus,
+  type KitchenStatusAction,
+  type KitchenStatusResult,
+} from './kitchen.js';
+
 // The allergens a parent ticks when adding a child (E05-01). Ids, not names, because
 // `recipient_allergen` and `dish_allergen` share this vocabulary — that shared row id is the
 // whole mechanism behind an allergen warning, and a free-text note cannot do it.
