@@ -333,3 +333,18 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* --------------------------------------------------------------------- sign-in */
+
+.signin { max-width: 30rem; margin-inline: auto; }
+.signin__card { text-align: left; padding: var(--gb-space-8) var(--gb-space-6); }
+.signin__card h2 {
+  font-size: var(--gb-font-size-h2);
+  line-height: var(--gb-line-height-h2);
+  font-weight: var(--gb-font-semibold);
+  margin-bottom: var(--gb-space-2);
+}
+.signin__card p { color: var(--gb-text-secondary); margin-bottom: var(--gb-space-6); }
+.signin__field { margin-bottom: var(--gb-space-6); }
+.signin__field input { width: 100%; }
+.signin__card .kitchen__btn { width: 100%; margin-bottom: var(--gb-space-3); }
