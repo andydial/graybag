@@ -4,6 +4,84 @@ Newest handover at the top. Assume the reader has forgotten everything.
 
 ---
 
+## 2026-08-12 — infrastructure unblocked, and the capture path closed
+
+### THIRTY SECONDS
+
+**What moved.** Edge Function deploys no longer need Docker at all; the webhook endpoint is
+**live on staging and verified against real HTTP**. Colima is off the boot disk (11 GB
+reclaimed). `supabase test db` — the command CI runs — was silently running **zero files** for
+weeks; it now runs 20 files and 500 assertions, and fixing it exposed three faults that were
+headed for CI. `settle_payment` exists, so a verified capture now becomes a paid order with a
+pickup code and a ledger posting.
+
+**Epics complete: E02** (data model & authorization, 15/15) and **E19** (spikes, 4/4 — bar the
+45-minute sitting, which is yours).
+
+**Before we can go live**, in rough order of risk:
+
+| Epic | | Why it blocks |
+|---|---|---|
+| **E07** invoicing | 1/9 | **The biggest gap.** No invoice has ever been generated. Money can now be taken, recorded, reconciled and alarmed — and still not lawfully receipted |
+| **E06** payments | 7/15 | Capture path done. Client checkout, status endpoint and recovery remain; most need the sitting |
+| **E08** notifications | 0/4 | Nothing sends email. "Gets a receipt" ends here |
+| **E03** identity | 0/11 ⚠ | **Almost certainly mis-stated — sign-in works.** Nobody ticked it. `E00-23` |
+| **E09** kitchen ops | 1/5 | The kitchen cannot see an order it must cook |
+| **E17** release | 0/11 | Mostly yours — consoles, credentials, cutover |
+
+**Fast-follow, not blocking:** E10 admin, E11 reporting (`P15`), E12 marketing, E15 observability,
+E18, E21 (screens exist; the epic is a review list).
+
+**Blocked on you:** the `E19-07` sitting (~45 min, I'm ready), registering the upload keystore
+with EAS (menu-driven, and the same menu can destroy the key), and `E00-23`'s backlog
+reconciliation before these percentages steer a date.
+
+**MVP overall: 67/194 ticked (35%)** — read with `E00-23` in mind.
+
+---
+
+### SHIPPED
+
+- **Edge Function deploys without Docker.** `--use-api` bundles server-side. The webhook is
+  deployed to staging and verified live: `405` on GET, `200 recorded_unverified` on an unsigned
+  POST, `already_seen` on a replay — which proves the insert and §7.1 layer 4 against a real
+  database, not a fixture.
+- **Colima relocated.** 11 GB reclaimed. `COLIMA_HOME` wholesale **does not work** — it moves the
+  docker socket to virtiofs and `supabase start` dies on `supabase_vector`. Sockets stay on APFS,
+  disk moves. `scripts/colima-up.sh` refuses to start without the volume and prints the symptoms
+  it would otherwise cause.
+- **`supabase test db` works for the first time.** It exposed three real faults: a file emitting
+  two TAP plans, three of my suites committing `tests_tmp`/`pgtap` **outside a transaction**
+  (which put `tap_funky` into `public` and was correctly caught by the authorization pin), and a
+  lint gap on generated files. All were headed for CI.
+- **`settle_payment` (`E06-06`)** — capture → paid order, pickup code, ledger posting. Idempotent
+  without a flag; the test replays the whole function and asserts the money is not doubled.
+- **Upload keystore** secured at `~/.graybag-secrets/` (600 in a 700 dir), fingerprints recorded
+  in `docs/environments.md`.
+
+### FINDINGS
+
+- **Every Docker failure in this project has been the same failure**: a mount the runtime could
+  not see, presenting as something else entirely — `NOTESTS` and exit 0, or "entrypoint does not
+  exist" about a file you can `ls`. Both are now impossible to reach silently.
+- **Test tooling had contaminated the schema the authorization pin protects.** Committing pgTAP
+  into `public` added two anon-readable relations. The pin caught it, which is exactly its job.
+
+### NEEDS ANDY
+
+1. **`E19-07` sitting** — I'm ready, ~45 min.
+2. **EAS keystore registration** — interactive only; exact path in `docs/environments.md`, with
+   the destructive menu option called out.
+3. **`E00-23`** — reconcile the backlog before the percentages above are trusted.
+
+### NEXT
+
+Invoice generation inside `settle_payment`'s transaction (`M3` gapless numbering, `D14`), then
+the client checkout, the status endpoint, and the confirmation email.
+
+
+---
+
 ## 2026-08-11 (overnight) — E06 steps 1–4, and the first invoicing guard
 
 ### WHERE WE ARE, BY EPIC — read this bit only
