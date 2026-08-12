@@ -2861,13 +2861,13 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Order state machine: <code>draft -&gt; pending_payment -&gt; paid -&gt; preparing -&gt; delivered</code>, plus <code>cancelled</code> and <code>refunded</code>, with legal transitions enforced</span>
       </li>
-      <li class="task" data-id="E06-06" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-06" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-06"></button>
         <code class="tid">E06-06</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Handle payment failure, timeout, app-kill-mid-payment, and duplicate payment</span>
+        <span class="ttext"><strong><code>settle_payment</code> — a verified capture becomes a confirmed order.</strong> <code>0046</code>. Payment to <code>captured</code>, orders to <code>paid</code> via T5 as <code>system</code>, a §9.4 four-digit pickup code per order allocated <strong>on capture</strong> (<code>OrderPlacedScreen</code> refuses to render without one, treating its absence as a second witness that money did not move), the sale posted to the ledger across revenue and the two tax accounts, <code>paid_at</code> stamped, all under the group lock. <strong>Idempotent without a flag</strong>: §7.1 layers 5-8 refuse every write of a repeat, so the test replays the whole function rather than checking a boolean — a duplicate delivery returns the same pickup code and does not double the money. Refuses an amount that is not what the customer was shown (<code>L7</code>) and a provider order we have no record of (§10.9, almost always the other environment). Does <strong>not</strong> decide that money moved (<code>R8</code>/§3.6): the caller fetches the payment from Razorpay and passes what the provider says. 14 assertions. Failure handling, the sweeper and the app-kill path remain — <code>E06-16</code>/<code>E06-17</code></span>
       </li>
       <li class="task" data-id="E06-07" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-07"></button>
