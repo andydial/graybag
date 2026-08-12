@@ -71,14 +71,25 @@
 
 .kitchen__field { display: grid; gap: var(--gb-space-1); }
 
+/**
+ * The label's ink depends on what it is sitting on, and getting that wrong is invisible.
+ *
+ * `lime-200` is 6.00:1 on the bar's `forest-500` and **1.26:1 on white** — so reusing these
+ * field styles on the sign-in card produced labels nobody could read. Caught by the axe gate,
+ * not by looking at it, which is the whole argument for having the gate.
+ *
+ * Default to the light-surface ink and override inside the bar, so the failure mode of a new
+ * field somewhere else is "slightly dark" rather than "invisible".
+ */
 .kitchen__field label {
   font-size: var(--gb-font-size-caption);
   line-height: var(--gb-line-height-caption);
   letter-spacing: var(--gb-tracking-overline);
   text-transform: uppercase;
   font-weight: var(--gb-font-semibold);
-  color: var(--gb-ramp-lime-200);
+  color: var(--gb-text-secondary);
 }
+.kitchen__bar .kitchen__field label { color: var(--gb-ramp-lime-200); }
 
 .kitchen__field select,
 .kitchen__field input {
