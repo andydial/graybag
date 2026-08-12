@@ -3648,6 +3648,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Wire the kitchen dashboard to the real server — <code>liveTransport</code> implementing <code>KitchenTransport</code>, selected by <code>PUBLIC_KITCHEN_TRANSPORT=live</code>. Blocked on <code>docs/kitchen-transport-contract.md</code> §1 (<code>E12-06</code> sign-in) and §3 (the <code>kitchen-order-status</code> Edge Function), both owned by the <code>supabase/</code> thread. The screen and every one of its states are built and reviewable against fixtures today</span>
       </li>
+<<<<<<< HEAD
       <li class="task" data-id="E09-20" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-20"></button>
         <code class="tid">E09-20</code>
@@ -3655,6 +3656,15 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>No Edge Function handled a CORS preflight</strong>, so every one of them was correct for the app and unreachable from any web page. React Native&#39;s <code>fetch</code> sends no <code>OPTIONS</code>, which is why nothing failed and nothing was logged for months. A <code>POST</code> with <code>content-type: application/json</code> and an <code>Authorization</code> header is not a simple request, so a browser sends <code>OPTIONS</code> first — and <code>OPTIONS</code> was answered <code>405</code>. Found by the web thread on the back office&#39;s first real click. Fixed once in <code>_shared/cors.ts</code> for all six browser-callable functions rather than six times as six bugs; <code>payments-webhook</code> is deliberately excluded and the exclusion is asserted, because Razorpay calls it server to server and advertising a preflight would describe a browser surface that should not exist. 20 assertions, including one that fails when a seventh function appears unclassified</span>
+=======
+      <li class="task" data-id="E09-18" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-18"></button>
+        <code class="tid">E09-18</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Move <code>kitchen-order-status</code>&#39;s transaction into a SQL function.</strong> The Edge Function currently holds the guards and the <code>BEGIN</code> itself, over a direct connection, because the WEB thread was told not to touch migrations on 2026-08-12. <code>checkout</code> and <code>recipients</code> are thin shells over <code>create_recipient()</code> / <code>change_recipient_school()</code> and this should join them: a guard in SQL is enforced against every caller, whereas a guard in a function body is enforced only against callers who come through that function. Needs one migration adding <code>kitchen_set_order_status()</code></span>
+>>>>>>> 0289444 (E09-17: the kitchen-order-status Edge Function)
       </li></ul>
       </details>
     </article>
