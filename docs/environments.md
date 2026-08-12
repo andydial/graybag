@@ -171,3 +171,54 @@ Items 1, 8 and 9 pass. **2, 4, 5 and 6 fail**, and 7 warns (fine for staging, bl
 Every failure here is fixed in a dashboard by Andy, not in a pull request. A red smoke test that
 no code change can turn green trains people to ignore the smoke test. It runs in
 `integration.yml`, and it is a gated step in the cutover runbook.
+
+## The Android upload keystore — 2026-08-12
+
+**Location: `~/.graybag-secrets/graybag-upload.keystore`** (`600`, in a `700` directory). It is
+**not in this repository and must never be**: a leaked upload keystore lets someone submit builds
+as us. The password is in Andy's password manager, deliberately *not* stored beside the key —
+a key and its password in one directory is one compromise, not two.
+
+| | |
+|---|---|
+| Alias | `graybag_app_keys` |
+| Type | PKCS12, `PrivateKeyEntry` |
+| SHA-256 | `58:12:81:6E:6A:02:9A:DB:68:E3:73:55:27:EB:68:FD:84:38:1C:BC:10:8D:FA:28:34:7E:34:CC:6B:E3:C8:DE` |
+| SHA-1 | `94:CD:13:95:C7:F4:C0:9F:7D:EC:4B:F3:08:67:7B:48:D4:E7:8E:DA` |
+| Subject | `CN=Andy Dial, OU=graybag, O=graycord, L=melbourne, ST=victoria, C=au` |
+| Valid | 2025-05-18 → **2052-10-03** |
+| Package | `com.Gracord.Graybag` — matches `app.config.js` |
+
+The fingerprints are recorded here **because they are not secret** — Play Console publishes them
+— and because the whole point of an upload key is being able to check that the thing you are
+about to sign with is the thing Google expects.
+
+**This is the UPLOAD key, not the app signing key.** Google holds the app signing key, so a
+compromise here is recoverable with an upload key reset. That is why registering it with EAS
+(which puts the private key on Expo's servers) is an acceptable trade for cloud builds, and why
+`credentials.json` local signing was rejected: it would mean no build without Andy's laptop.
+
+### Registering it with EAS
+
+`eas credentials` is **menu-driven only** — there is no flag to upload a keystore, and
+`credentials:configure-build` is interactive too. It therefore needs a human session, and it
+should be a human session rather than an automated one: the same menu offers **"Set up a new
+keystore"**, which generates a *fresh* upload key. Choosing it by accident is what forces the
+upload key reset this whole exercise exists to avoid.
+
+```
+npx eas-cli credentials --platform android
+  → Build Credentials
+  → production (or whichever profile)
+  → Keystore: Manage everything needed to build your project
+  → Set up a new keystore            ← NOT this one
+  → Upload a keystore                ← this one
+      path:        ~/.graybag-secrets/graybag-upload.keystore
+      alias:       graybag_app_keys
+      passwords:   from the password manager (keystore and key password are the same here)
+```
+
+Afterwards the fingerprint EAS reports must equal the SHA-256 above, and that must equal the
+**Upload key certificate** in Play Console → Test and release → Setup → App signing. Note that
+page shows the *App signing key* certificate too; they are different keys and comparing the wrong
+block is the easy mistake.
