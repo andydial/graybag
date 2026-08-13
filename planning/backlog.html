@@ -3502,13 +3502,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/19</span>
+          <span class="meter-num">0/20</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 19 tasks</summary>
+        <summary>Context &amp; 20 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3640,14 +3640,15 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Render the per-line kitchen note on the packing list and the per-class delivery sheet, under the same retention rule as the rest of it (<code>P12</code>, <code>E09-14</code>)</span>
       </li>
-      <li class="task" data-id="E09-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E09-17" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-17"></button>
         <code class="tid">E09-17</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Wire the kitchen dashboard to the real server — <code>liveTransport</code> implementing <code>KitchenTransport</code>, selected by <code>PUBLIC_KITCHEN_TRANSPORT=live</code>. Blocked on <code>docs/kitchen-transport-contract.md</code> §1 (<code>E12-06</code> sign-in) and §3 (the <code>kitchen-order-status</code> Edge Function), both owned by the <code>supabase/</code> thread. The screen and every one of its states are built and reviewable against fixtures today</span>
+        <span class="ttext">Wire the kitchen dashboard to the real server — <code>liveTransport</code> implementing <code>KitchenTransport</code>, selected by <code>PUBLIC_KITCHEN_TRANSPORT=live</code>. <strong>Done 2026-08-13.</strong> Reads and writes both run against staging: signed in as a real account, 24 seeded orders read under RLS, and <code>Mark all delivered</code> on class 6-A moved three orders <code>paid</code>/<code>preparing</code> -&gt; <code>delivered</code>, stamped <code>delivered_by_user_id</code>, appended three <code>order_event</code> rows carrying <code>actor_type</code> <code>kitchen</code> and the caller&#39;s id, and correctly left the cancelled order in that class alone. <code>kitchen-order-status</code> is deployed to <code>graybag-staging</code>. Three defects found by doing it, each fixed and committed separately: the function would not bundle, it logged a null actor, and it had no CORS preflight</span>
       </li>
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
       <li class="task" data-id="E09-20" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
@@ -3660,6 +3661,9 @@
 =======
 =======
       <li class="task" data-id="E09-19" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+=======
+      <li class="task" data-id="E09-19" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+>>>>>>> 47de33e (E09-17 closed: the kitchen dashboard reads and writes staging for real)
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-19"></button>
         <code class="tid">E09-19</code>
         
@@ -3667,7 +3671,18 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The filter bar read as a form, not a tool.</strong> Four dropdowns of equal weight all reading &quot;All&quot;, with a native date picker among them — three interactions to answer a question that is almost always &quot;today&quot; or &quot;tomorrow&quot;. Replaced by: the date as the largest thing on the screen with one-tap <code>‹</code>/<code>›</code> and a <code>Today</code> button that only appears when you have left today; a count line (&quot;24 orders · 3 classes · 2 breaks&quot;, following the filters, singular when it should be); school/break/status as chips that show their own state without being opened, the leading chip of each naming its category (&quot;All breaks&quot;, &quot;Any status&quot;) rather than a bare &quot;All&quot;; and <strong>a filter with fewer than two options is not drawn at all</strong> — an inert control is worse than none (Andy, 2026-08-13). Raised and closed in the same PR</span>
       </li>
+<<<<<<< HEAD
 >>>>>>> 63f2e25 (E09-19: the kitchen filter bar was a form, and a kitchen needs a tool)
+=======
+      <li class="task" data-id="E09-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-20"></button>
+        <code class="tid">E09-20</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>No Edge Function in <code>supabase/functions/</code> handles a CORS preflight.</strong> <code>kitchen-order-status</code> now does; <code>checkout</code>, <code>recipients</code>, <code>menu-version</code> and <code>order-calendar</code> do not. This was invisible for as long as the only client was <code>apps/mobile</code>, because React Native&#39;s <code>fetch</code> issues no preflight — so a function can be entirely correct for the app and unreachable from a web page. Any POST carrying <code>content-type: application/json</code> and an <code>Authorization</code> header is not a simple request, so the browser sends <code>OPTIONS</code> first and gets 405. Found on the first real click of <code>Mark all delivered</code> (2026-08-13). It will recur the moment the back office calls any of the other four. The <code>*</code> origin is correct here rather than lax: authorisation is a bearer token, no cookie is set, so there is no CSRF for an origin allowlist to prevent. Belongs to whoever owns <code>supabase/</code> — this thread was scoped to one file</span>
+      </li>
+>>>>>>> 47de33e (E09-17 closed: the kitchen dashboard reads and writes staging for real)
       <li class="task" data-id="E09-18" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-18"></button>
         <code class="tid">E09-18</code>

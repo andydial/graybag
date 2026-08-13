@@ -44,10 +44,32 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // Function docs use for this driver.
 import postgres from 'npm:postgres@3.4.4';
 
+/**
+ * CORS, which no other function in this directory has, because none has ever had a browser
+ * client. `apps/mobile` is React Native — `fetch` there issues no preflight, so a function can
+ * be perfectly correct for the app and unreachable from a web page. This is the first Edge
+ * Function the back office calls, and it failed on its first real click: a POST carrying
+ * `content-type: application/json` and an `Authorization` header is not a simple request, so
+ * the browser sends `OPTIONS` first, and `OPTIONS` was answered 405.
+ *
+ * `*` is the right origin here and not laziness. Authorisation is the bearer token and nothing
+ * else: no cookie is set, no session rides on the origin, so there is no CSRF to prevent and an
+ * origin allowlist would buy nothing. A caller still needs a valid JWT and the grant.
+ *
+ * Every other function in this directory will need the same thing the moment the web app calls
+ * it. Raised as `E09-20` rather than fixed here, because this thread may only touch this file.
+ */
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'authorization, apikey, content-type, x-client-info',
+  'access-control-allow-methods': 'POST, OPTIONS',
+  'access-control-max-age': '86400',
+};
+
 const json = (status: number, payload: unknown) =>
   new Response(JSON.stringify(payload), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { ...CORS, 'content-type': 'application/json' },
   });
 
 /** Which grant each transition needs. `orders.cancel` is separate because cancelling refunds. */
@@ -67,6 +89,9 @@ const LEGAL_FROM: Record<string, string[]> = {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 Deno.serve(async (request: Request) => {
+  // Answered before anything else, and without a body: a preflight carries no credentials, so
+  // authenticating it would fail every real request that follows.
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (request.method !== 'POST') return json(405, { error: 'method_not_allowed' });
 
   // ---------------------------------------------------------------- who is calling
