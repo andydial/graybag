@@ -2382,3 +2382,51 @@ on a 404 whose empty document failed both rules.
 **When a gate contradicts the built output, suspect the gate's navigation before the output.** It
 resolves `/x` to `x.html` now, as Netlify does, and audits `/kitchen?state=…` so it measures the
 board rather than the redirect.
+
+## A fixture with one of something hides the control that handles many (2026-08-13)
+
+The kitchen board hides a filter with fewer than two options — an inert control is worse than
+none. The fixture had one school. So the rule was right, and its effect was that **the control
+which matters most once three schools are live was the one nobody could ever look at**, on a
+board reviewed a dozen times.
+
+Worse, it was invisible in both directions: the live transport derives its school list from the
+orders, and staging only had orders for one school too. Neither path was wrong; both were
+untested.
+
+**A fixture should have two of everything that can be many** — two schools, uneven; a group with
+one member and a group with several. The cost is a few lines. The alternative is a control whose
+first real exercise is in production.
+
+Related, from the same board: `groupByClass` keys by school, so adding a second school changed a
+count from 3 classes to 6. That is correct — 5-A at two schools is two trays and two handovers —
+but it surfaced as a failing assertion written against a single-school world. When a fixture
+gains a dimension, expectations pinned to constants fail; the fix is to pin them to a *reason*
+instead.
+
+## Append-only means you cannot fill in the blank afterwards (2026-08-13)
+
+`order_event.note` exists, and `write_order_event` never populates it. The obvious workaround is
+to insert via the trigger and then `UPDATE` the row in the same transaction. That is refused
+outright:
+
+    order_event is append-only; UPDATE is not permitted. Write a compensating row instead.
+
+So a column existing is not the same as a column being writable. For a trigger-populated
+append-only table, **the only way in is the trigger**, which means a session GUC — the mechanism
+`app.actor_type`, `app.actor_user_id` and `app.correlation_id` already use — and therefore a
+migration.
+
+Consequence for the cancel dialog: the free-text field was **not shipped**, because a box that
+discards what you type is the same failure as the parent's note the same board had just fixed.
+The reason codes work today; the text arrives with its column (`E09-27`).
+
+## The rule that makes both of the above the same lesson
+
+Twice in one day the honest move was to *not* ship an affordance: no Undo button that the
+lifecycle would refuse, no free-text box with nowhere to store the text. In both cases the
+substitute is the same — **say in the UI what cannot be done and why**, and specify the write in
+a contract document so the thread that owns the territory can implement it.
+
+A control that fails silently teaches people the tool is unreliable. A sentence explaining the
+gap costs one line and keeps the board trustworthy.
