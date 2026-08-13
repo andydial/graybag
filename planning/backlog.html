@@ -3502,13 +3502,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/26</span>
+          <span class="meter-num">0/27</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 26 tasks</summary>
+        <summary>Context &amp; 27 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3632,13 +3632,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The parent&#39;s per-line note reaches the kitchen, and the dish outweighs the child&#39;s name on a row.</strong> <code>order_line.special_comments</code> existed and nothing rendered it, so a parent typing &quot;less spicy&quot; was typing into nothing — the exact failure <code>ux-spec</code> §5.6.1 makes the field conditional on avoiding. It now comes through <code>KITCHEN_ORDER_COLUMNS</code> and renders against its own line in an amber block labelled <strong>Request</strong>, per line and not per order. The label is load-bearing: the note is never a safety record, and it is what stops an operator reading an empty line as &quot;no allergies&quot;. Separately, the row was inverted — the dish is now the dominant element and the name is secondary, because in a kitchen the dish is what is being made and the name matters at handover, and a name that is not dominant is one a visitor does not read off a shared screen (Andy, 2026-08-13)</span>
       </li>
-      <li class="task" data-id="E09-22" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E09-22" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-22"></button>
         <code class="tid">E09-22</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>The cancel dialog, replacing <code>prompt()</code>.</strong> A raw browser prompt asking the operator to &quot;Enter 1-4&quot; blocks the page and is not a UI. Reason codes as selectable options read from <code>reason_code</code> (<code>category = &#39;cancellation&#39;</code>, active, minus the codes that describe a payment or customer action the kitchen cannot know) <strong>plus a free-text field always</strong>, because four codes will never cover the real reason (Andy, 2026-08-13). Free text lands in <code>order_event.note</code> and is tier P by assumption. Must state plainly that cancelling refunds nobody and tells nobody — <code>docs/kitchen-write-contract.md</code> §2.4 has the exact strings, and they are deleted in the same PR that lands the refund, not before</span>
+        <span class="ttext"><strong>The cancel dialog, replacing <code>prompt()</code>.</strong> A native <code>&lt;dialog&gt;</code> — focus trap, Esc and an inert backdrop come with it — instead of a browser prompt asking the operator to &quot;Enter 1-4&quot; while the page was blocked. Reason codes as tappable rows, the child and their dishes named so you can see who you are cancelling for, and an unmissable statement that <strong>cancelling refunds nobody and tells nobody</strong>, repeated on the row afterwards because the person reading the board an hour later never saw the dialog. <code>cutoff_missed</code> removed from the kitchen&#39;s options along with the other system-observed codes — an operator selecting one would be asserting something they cannot know. <strong>The free-text field is deliberately not shipped</strong>: see <code>E09-27</code></span>
       </li>
       <li class="task" data-id="E09-23" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-23"></button>
@@ -3671,6 +3671,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>&quot;By dish&quot; as a second grouping on the same board</strong> — the Cook view, restored as a toggle rather than the separate screen that was cut. &quot;9 Paneer Wrap&quot; as a block with every portion under it: quantity, class, child, break, and the parent&#39;s request against the portion it belongs to. Same orders, same page, one toggle, so it is not a second surface to build, test and teach. <code>groupByClass</code> answers &quot;what goes to this classroom&quot;; <code>groupByDish</code> answers &quot;how many do I make and who is each one for&quot;. <strong>Cancelled orders are excluded here and shown in the class view</strong>, because a cancelled order is still a child standing in a classroom expecting a bag, and is not food to cook. Ordered biggest batch first; the school is named on a portion only when more than one is on the board, since &quot;5-A&quot; is two classes then. The toggle is not persisted — a shared tablet left on <code>By dish</code> by whoever was plating is a surprise for whoever does the handover (Andy, 2026-08-13)</span>
+      </li>
+      <li class="task" data-id="E09-27" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-27"></button>
+        <code class="tid">E09-27</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Free text on a cancellation has nowhere to be stored.</strong> Andy is right that three codes will never cover the real reason, and the field is not shipped until it has a column, because a box that discards what you type is the same lie the parent&#39;s note was (<code>E09-21</code>). <code>order_event.note</code> exists and <code>write_order_event</code> never populates it; the table is <strong>append-only and refuses UPDATE outright</strong>, so it cannot be filled in afterwards even inside the same transaction; and <code>&quot;order&quot;</code> has no free-text column at all. Needs a <strong>migration</strong>. Recommended: <code>write_order_event</code> reads <code>app.event_note</code> from a session setting exactly as it already reads <code>app.actor_type</code>, <code>app.actor_user_id</code> and <code>app.correlation_id</code> — smallest change, same mechanism, and it serves every actor rather than only cancellation. <code>docs/kitchen-write-contract.md</code> §2.1</span>
       </li>
       <li class="task" data-id="E09-18" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-18"></button>

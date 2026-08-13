@@ -135,11 +135,20 @@ export interface KitchenTransport {
  * migration, and a dropdown that is empty because a lookup failed is a dropdown that stops
  * somebody cancelling an order they need to cancel. The server re-checks the code regardless.
  */
+/**
+ * The reasons a **kitchen** may give for cancelling, from `reason_code` where
+ * `category = 'cancellation'`.
+ *
+ * `cutoff_missed` was here and has been removed, along with the other codes the table carries:
+ * `payment_failed`, `checkout_expired`, `cutoff_missed` and `customer_cancelled` all describe a
+ * payment or a customer action, recorded by the system from evidence. A kitchen operator
+ * selecting one would be asserting something they cannot know, and it would be indistinguishable
+ * afterwards from the system having observed it.
+ */
 export const CANCEL_REASONS = [
   { code: 'dish_unavailable', label: 'Dish unavailable' },
   { code: 'kitchen_closed', label: 'Kitchen closed' },
   { code: 'school_holiday', label: 'School holiday' },
-  { code: 'cutoff_missed', label: 'Cut-off missed' },
 ] as const;
 
 /**
