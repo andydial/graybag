@@ -47,7 +47,10 @@ const has = (name) => args.includes(`--${name}`);
 const serviceDate = flag('date');
 
 if (!serviceDate || !/^\d{4}-\d{2}-\d{2}$/.test(serviceDate)) {
-  console.error('usage: node tools/seed-kitchen-day/seed.mjs --date YYYY-MM-DD [--clear]');
+  console.error(
+    'usage: node tools/seed-kitchen-day/seed.mjs --date YYYY-MM-DD ' +
+      '[--school <uuid>] [--slot 0-f] [--count N]',
+  );
   process.exit(2);
 }
 
@@ -109,7 +112,54 @@ const db = createClient(url, key, { auth: { persistSession: false } });
 
 // --------------------------------------------------------------------------- fixture ids
 
-const SCHOOL_ID = '50000000-0000-0000-0000-000000000001'; // Alpha Public School
+/**
+ * One school per run, and the day is built by running it once per school.
+ *
+ * A single-school day cannot show the school filter — it is hidden when fewer than two schools
+ * have orders, which is the right rule and meant the control was unreviewable. Rather than
+ * teaching this script to interleave schools, each run seeds one school and the ids are
+ * namespaced so a second run on the same date sits alongside the first instead of overwriting it.
+ */
+const SCHOOL_ID = flag('school', '50000000-0000-0000-0000-000000000001'); // default: Alpha
+const COUNT = Number(flag('count', '24'));
+
+if (!/^[0-9a-f-]{36}$/i.test(SCHOOL_ID)) {
+  console.error(`--school must be a uuid, got ${SCHOOL_ID}`);
+  process.exit(2);
+}
+if (!Number.isInteger(COUNT) || COUNT < 1 || COUNT > 40) {
+  console.error(`--count must be 1-40, got ${flag('count', '24')}`);
+  process.exit(2);
+}
+
+/**
+ * The school's namespace digit, given explicitly rather than derived.
+ *
+ * It keeps two schools' seeded rows apart on the same date — ids, emails and phone numbers all
+ * carry it, because children and parents belong to one school and sharing them would put the
+ * same child in two schools at once.
+ *
+ * **`0` is the default and reproduces the original single-school scheme byte for byte**, so
+ * re-running an existing day under the default changes nothing. That matters: deriving the slot
+ * from the school id instead moved Alpha's parents to new ids and collided on `uq_app_user_phone`
+ * against the ones already seeded.
+ *
+ * The run prints its slot. Two runs reporting the same one means the second overwrote the first.
+ */
+const slot = flag('slot', '0');
+if (!/^[0-9a-f]$/.test(slot)) {
+  console.error(`--slot must be a single hex digit, got ${slot}`);
+  process.exit(2);
+}
+
+/**
+ * Empty for slot `0`, so the default run reproduces the original addresses exactly.
+ *
+ * The ids and phone numbers fall out identically on their own; the email did not —
+ * `parent001@seed.invalid` is not `parent01@seed.invalid`, so slot `0` tried to create auth users
+ * for `app_user` rows that already existed and failed on the insert.
+ */
+const emailTag = slot === '0' ? '' : slot;
 const pad = (n) => String(n).padStart(12, '0');
 /**
  * People are date-independent; orders are not.
@@ -120,11 +170,13 @@ const pad = (n) => String(n).padStart(12, '0');
  * not collide with the first.
  */
 const stamp = serviceDate.slice(2).replace(/-/g, ''); // 2026-08-13 -> 260813
-const parentId    = (i) => `7a000000-0000-0000-0000-${pad(i)}`;
-const recipientId = (i) => `7c000000-0000-0000-0000-${pad(i)}`;
-const linkId      = (i) => `7d000000-0000-0000-0000-${pad(i)}`;
-const groupId     = (i) => `70${stamp}-0000-0000-0000-${pad(i)}`;
-const orderId     = (i) => `71${stamp}-0000-0000-0000-${pad(i)}`;
+// The school's slot is in every id: children belong to one school, so sharing them across two
+// would put the same child in two schools at once.
+const parentId    = (i) => `7a000000-000${slot}-0000-0000-${pad(i)}`;
+const recipientId = (i) => `7c000000-000${slot}-0000-0000-${pad(i)}`;
+const linkId      = (i) => `7d000000-000${slot}-0000-0000-${pad(i)}`;
+const groupId     = (i) => `70${stamp}-000${slot}-0000-0000-${pad(i)}`;
+const orderId     = (i) => `71${stamp}-000${slot}-0000-0000-${pad(i)}`;
 
 /**
  * Twenty-four invented children.
@@ -292,11 +344,23 @@ const rows = { users: [], recipients: [], links: [], groups: [], orders: [], lin
 const target = new Map();
 const nowIso = new Date().toISOString();
 
-for (const [index, [firstName, lastName]] of CHILDREN.entries()) {
+// Rotated by slot so the two schools do not read as the same list twice, and truncated to
+// `--count` so the split between them can be uneven the way a real kitchen's is.
+const roster = [...CHILDREN.slice(CHILDREN.length - COUNT), ...CHILDREN.slice(0, CHILDREN.length - COUNT)]
+  .slice(0, COUNT);
+
+for (const [index, [firstName, lastName]] of roster.entries()) {
   const n = index + 1;
   const klass = classes[index % classes.length];
   const brk = breaks[index % breaks.length];
-  const status = STATUS_MIX[index % STATUS_MIX.length];
+  /**
+   * Sampled across the whole mix rather than off the front of it.
+   *
+   * `STATUS_MIX[index % length]` walks the array in order, and the array is 14 `paid` followed by
+   * the rest — so a ten-order school got ten `paid` and no `preparing`, `delivered` or
+   * `cancelled` at all. Scaling the index spreads any `--count` over the same proportions.
+   */
+  const status = STATUS_MIX[Math.floor((index * STATUS_MIX.length) / roster.length)];
 
   /**
    * One or two dishes per child, walking the menu so the production totals are varied but stable.
@@ -358,8 +422,10 @@ for (const [index, [firstName, lastName]] of CHILDREN.entries()) {
 
   rows.users.push({
     id: parentId(n),
-    phone_e164: `+9190000${String(10000 + n).slice(-5)}`,
-    email: `parent${String(n).padStart(2, '0')}@seed.invalid`,
+    // The slot sits in the number so two schools' parents cannot collide on `uq_app_user_phone`.
+    // Slot `0` yields exactly the numbers the single-school scheme produced.
+    phone_e164: `+919${slot}000${String(10000 + n).slice(-5)}`,
+    email: `parent${emailTag}${String(n).padStart(2, '0')}@seed.invalid`,
     first_name: `${firstName}'s`,
     last_name: 'parent',
     migration_source: 'native',
@@ -413,7 +479,7 @@ for (const [index, [firstName, lastName]] of CHILDREN.entries()) {
   rows.orders.push({
     id: orderId(n),
     order_group_id: groupId(n),
-    order_ref: `SEED-${serviceDate.replace(/-/g, '')}-${String(n).padStart(3, '0')}`,
+    order_ref: `SEED-${serviceDate.replace(/-/g, '')}-${slot}${String(n).padStart(3, '0')}`,
     correlation_id: groupId(n),
     customer_user_id: parentId(n),
     recipient_id: recipientId(n),
@@ -494,6 +560,13 @@ const insert = (table, values) => {
 };
 
 const ids = (predicate) => rows.orders.filter(predicate).map((o) => lit(o.id));
+
+/** One status move, or an empty line when no order is in that bucket. */
+const moveTo = (status, extraColumns, predicate) => {
+  const list = ids(predicate);
+  if (list.length === 0) return `-- no order moves to '${status}' on this day`;
+  return `update "order" set status = '${status}', ${extraColumns} where id in (${list.join(', ')});`;
+};
 const groupIds = rows.groups.map((g) => lit(g.id));
 
 const wants = (...statuses) => (o) => statuses.includes(target.get(o.id));
@@ -531,9 +604,12 @@ const sql = [
   '',
   '-- Then the kitchen works the list. This is what the dashboard will be doing.',
   "set local app.actor_type = 'kitchen';",
-  `update "order" set status = 'preparing', preparing_at = ${lit(nowIso)} where id in (${ids(wants('preparing', 'delivered')).join(', ')});`,
-  `update "order" set status = 'delivered', delivered_at = ${lit(nowIso)} where id in (${ids(wants('delivered')).join(', ')});`,
-  `update "order" set status = 'cancelled', cancelled_at = ${lit(nowIso)}, cancel_reason_code = 'dish_unavailable' where id in (${ids(wants('cancelled')).join(', ')});`,
+  // `moveTo` returns nothing for an empty set. The status mix is proportional, so a small
+  // `--count` can legitimately produce no `preparing` orders at all — and `where id in ()` is a
+  // syntax error, not an empty update. Found seeding a ten-order school.
+  moveTo('preparing', `preparing_at = ${lit(nowIso)}`, wants('preparing', 'delivered')),
+  moveTo('delivered', `delivered_at = ${lit(nowIso)}`, wants('delivered')),
+  moveTo('cancelled', `cancelled_at = ${lit(nowIso)}, cancel_reason_code = 'dish_unavailable'`, wants('cancelled')),
   '',
   'commit;',
   '',
@@ -554,7 +630,7 @@ const byStatus = rows.orders.reduce((acc, o) => ({ ...acc, [target.get(o.id)]: (
 const byBreak = rows.orders.reduce((acc, o) => ({ ...acc, [o.break_label_snapshot]: (acc[o.break_label_snapshot] ?? 0) + 1 }), {});
 const items_ = rows.lines.reduce((n, l) => n + l.quantity, 0);
 
-console.log(`Seeded ${serviceDate} at ${school.name}`);
+console.log(`Seeded ${serviceDate} at ${school.name} (slot ${slot})`);
 console.log(`  ${rows.orders.length} orders, ${rows.lines.length} lines, ${items_} items`);
 console.log(`  status:  ${Object.entries(byStatus).map(([k, v]) => `${k} ${v}`).join(' · ')}`);
 console.log(`  breaks:  ${Object.entries(byBreak).map(([k, v]) => `${k} ${v}`).join(' · ')}`);
