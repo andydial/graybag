@@ -375,12 +375,6 @@
 .kitchen__order[data-busy='true'] { opacity: var(--gb-opacity-pressed); }
 
 .kitchen__child { min-width: 12rem; margin-right: auto; }
-.kitchen__name { font-weight: var(--gb-font-semibold); }
-.kitchen__dishes {
-  font-size: var(--gb-font-size-body-sm);
-  line-height: var(--gb-line-height-body-sm);
-  color: var(--gb-text-secondary);
-}
 
 /**
  * The status pill: a word first, then a mark, then a colour.
@@ -488,3 +482,76 @@
 .signin__field { margin-bottom: var(--gb-space-6); }
 .signin__field input { width: 100%; }
 .signin__card .kitchen__btn { width: 100%; margin-bottom: var(--gb-space-3); }
+
+/* ------------------------------------------------------- the line, and the note */
+
+/**
+ * The dish is the biggest thing on the row and the child's name sits under it.
+ *
+ * It was the other way round. In a kitchen the dish is what is being *made* and the name is who
+ * it goes to — the name matters at the moment of handover and not before. It is also better on a
+ * shared screen: a name that is not the dominant element is a name a visitor does not read over
+ * somebody's shoulder, which matters because every one of these is a child's name (tier P).
+ */
+.kline-list { list-style: none; display: grid; gap: var(--gb-space-1); }
+
+.kline {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--gb-space-2);
+}
+
+.kline__qty {
+  font-size: var(--gb-font-size-h3);
+  font-weight: var(--gb-font-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--gb-text-secondary);
+  min-width: 1.5rem;
+}
+
+.kline__dish {
+  font-size: var(--gb-font-size-h3);
+  line-height: var(--gb-line-height-h3);
+  font-weight: var(--gb-font-semibold);
+  color: var(--gb-text-primary);
+}
+
+/**
+ * The parent's request, against the dish it belongs to.
+ *
+ * Amber and full-width so it cannot be skimmed past: `ux-spec` §5.6.1 makes the whole field
+ * conditional on the kitchen reading it, so a note styled as a quiet aside would defeat the
+ * reason it is rendered at all.
+ *
+ * The **Request** label is load-bearing, not decoration. It says what this text is and is not —
+ * it is not an allergy record, and the absence of one here means nothing about allergies. Colour
+ * carries none of that on its own (§2.10).
+ */
+.kline__note {
+  flex-basis: 100%;
+  padding: var(--gb-space-2) var(--gb-space-3);
+  border-left: var(--gb-space-1) solid var(--gb-ramp-amber-700);
+  background: var(--gb-ramp-amber-100);
+  color: var(--gb-text-primary);
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+  border-radius: var(--gb-radius-sm);
+}
+
+.kline__note b {
+  text-transform: uppercase;
+  letter-spacing: var(--gb-tracking-overline);
+  font-size: var(--gb-font-size-caption);
+  font-weight: var(--gb-font-bold);
+  margin-right: var(--gb-space-2);
+}
+
+/* Secondary now: who it goes to, read at handover. */
+.kitchen__name {
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+  font-weight: var(--gb-font-medium);
+  color: var(--gb-text-secondary);
+  margin-top: var(--gb-space-1);
+}

@@ -42,7 +42,7 @@ const order = (over: Partial<KitchenOrder> = {}): KitchenOrder => ({
   sectionLabel: 'A',
   status: 'paid',
   pickupCode: null,
-  lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1 }],
+  lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1, note: null }],
   ...over,
 });
 
@@ -174,9 +174,9 @@ describe('groupState and groupProgress', () => {
 describe('productionTotals', () => {
   it('sums quantities per dish, biggest batch first', () => {
     const totals = productionTotals([
-      order({ id: 'a', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 2 }] }),
-      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1 }] }),
-      order({ id: 'c', lines: [{ dishId: 'd2', dishName: 'Paneer Wrap', quantity: 1 }] }),
+      order({ id: 'a', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 2, note: null }] }),
+      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1, note: null }] }),
+      order({ id: 'c', lines: [{ dishId: 'd2', dishName: 'Paneer Wrap', quantity: 1, note: null }] }),
     ]);
     expect(totals).toEqual([
       { dishId: 'd1', dishName: 'Veg Sandwich', quantity: 3 },
@@ -186,23 +186,23 @@ describe('productionTotals', () => {
 
   it('sorts alphabetically within a tie, so the list is stable between renders', () => {
     const totals = productionTotals([
-      order({ id: 'a', lines: [{ dishId: 'd2', dishName: 'Zebra dish', quantity: 1 }] }),
-      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Apple dish', quantity: 1 }] }),
+      order({ id: 'a', lines: [{ dishId: 'd2', dishName: 'Zebra dish', quantity: 1, note: null }] }),
+      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Apple dish', quantity: 1, note: null }] }),
     ]);
     expect(totals.map((t) => t.dishName)).toEqual(['Apple dish', 'Zebra dish']);
   });
 
   it('excludes cancelled orders — cooking against one wastes food', () => {
     const totals = productionTotals([
-      order({ id: 'a', status: 'cancelled', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 5 }] }),
-      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1 }] }),
+      order({ id: 'a', status: 'cancelled', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 5, note: null }] }),
+      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1, note: null }] }),
     ]);
     expect(totals).toEqual([{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1 }]);
   });
 
   it('still counts a delivered order, because it was cooked', () => {
     const totals = productionTotals([
-      order({ id: 'a', status: 'delivered', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 3 }] }),
+      order({ id: 'a', status: 'delivered', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 3, note: null }] }),
     ]);
     expect(totals[0]?.quantity).toBe(3);
   });
@@ -250,8 +250,8 @@ describe('summarise', () => {
 
   it('excludes cancelled orders from the item count', () => {
     const s = summarise([
-      order({ id: 'a', lines: [{ dishId: 'd1', dishName: 'x', quantity: 2 }] }),
-      order({ id: 'b', status: 'cancelled', lines: [{ dishId: 'd1', dishName: 'x', quantity: 9 }] }),
+      order({ id: 'a', lines: [{ dishId: 'd1', dishName: 'x', quantity: 2, note: null }] }),
+      order({ id: 'b', status: 'cancelled', lines: [{ dishId: 'd1', dishName: 'x', quantity: 9, note: null }] }),
     ]);
     expect(s.items).toBe(2);
   });

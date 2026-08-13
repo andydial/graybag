@@ -75,6 +75,50 @@ describe('fetchKitchenOrders', () => {
     });
   });
 
+  describe('the parent\u2019s per-line note', () => {
+    // `ux-spec` §5.6.1 makes the field conditional on the kitchen seeing it: either the kitchen
+    // renders the note against its line, or the field is not built at all. That makes the column
+    // being in the select a product requirement, not an implementation detail.
+    it('is selected, because a note the kitchen never sees is why the field would not exist', () => {
+      expect(KITCHEN_ORDER_COLUMNS).toContain('special_comments');
+    });
+
+    it('comes through against its own line', async () => {
+      install([ROW({ order_line: [
+        { dish_id: 'd1', dish_name_snapshot: 'Veg Sandwich', quantity: 1, special_comments: 'Less spicy' },
+        { dish_id: 'd2', dish_name_snapshot: 'Cold Coffee', quantity: 1, special_comments: null },
+      ] })]);
+      const [order] = await fetchKitchenOrders('2026-08-13');
+      // Per line and not per order: "less spicy" on one wrap and not the other is the case the
+      // field was designed around, and an order-level note cannot express it.
+      expect(order?.lines.map((l) => l.note)).toEqual(['Less spicy', null]);
+    });
+
+    it('treats blank and whitespace-only as no note', async () => {
+      // Otherwise the screen renders an empty amber flag against a dish, which reads as "there
+      // is something to know here" when there is not.
+      install([ROW({ order_line: [
+        { dish_id: 'd1', dish_name_snapshot: 'A', quantity: 1, special_comments: '   ' },
+      ] })]);
+      const [order] = await fetchKitchenOrders('2026-08-13');
+      expect(order?.lines[0]?.note).toBeNull();
+    });
+
+    it('is trimmed rather than rendered with its padding', async () => {
+      install([ROW({ order_line: [
+        { dish_id: 'd1', dish_name_snapshot: 'A', quantity: 1, special_comments: '  No onion  ' },
+      ] })]);
+      const [order] = await fetchKitchenOrders('2026-08-13');
+      expect(order?.lines[0]?.note).toBe('No onion');
+    });
+
+    it('is absent, not undefined, when the column is missing from the payload', async () => {
+      install([ROW()]);
+      const [order] = await fetchKitchenOrders('2026-08-13');
+      expect(order?.lines[0]?.note).toBeNull();
+    });
+  });
+
   it('maps a row to the shape the dashboard renders', async () => {
     install([ROW()]);
     const [order] = await fetchKitchenOrders('2026-08-13');
@@ -90,7 +134,7 @@ describe('fetchKitchenOrders', () => {
       sectionLabel: 'A',
       status: 'paid',
       pickupCode: null,
-      lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 2 }],
+      lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 2, note: null }],
     });
   });
 

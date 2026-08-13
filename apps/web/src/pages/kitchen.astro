@@ -350,14 +350,35 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           .join('');
       }
 
+      /**
+       * One line: the dish, the quantity, and the parent's request if there is one.
+       *
+       * The note sits **against its own line**, not against the order. "Less spicy" on one wrap
+       * and not the other is the case §5.6.1 designed the field around, and an order-level note
+       * cannot express it. It is given a block of its own rather than a parenthetical because
+       * the whole justification for the field existing is that the kitchen actually reads it.
+       *
+       * Labelled "Request", which is what it is. Not a safety record and never an allergy — the
+       * app routes that language into the child's profile — and the label is what stops an
+       * operator reading a blank line as "no allergies".
+       */
+      const renderLine = (l: KitchenDay['orders'][number]['lines'][number]) =>
+        `<li class="kline">` +
+          `<span class="kline__qty">${l.quantity}</span>` +
+          `<span class="kline__dish">${esc(l.dishName)}</span>` +
+          (l.note
+            ? `<span class="kline__note"><b>Request</b> ${esc(l.note)}</span>`
+            : '') +
+        `</li>`;
+
       const renderOrder = (offline: boolean) => (o: KitchenDay['orders'][number]) => {
         const actions = allowedActions(o.status, day?.permissions);
         const label = { preparing: 'Start', delivered: 'Delivered', cancelled: 'Cancel' } as const;
         return (
           `<div class="kitchen__order" data-busy="${busy.has(o.id)}">` +
             `<div class="kitchen__child">` +
+              `<ul class="kline-list">${o.lines.map(renderLine).join('')}</ul>` +
               `<p class="kitchen__name">${esc(o.recipientName)}</p>` +
-              `<p class="kitchen__dishes">${o.lines.map((l) => `${l.quantity} × ${esc(l.dishName)}`).join(' · ')}</p>` +
             `</div>` +
             `<span class="kitchen__pill" data-status="${o.status}">` +
               `<span aria-hidden="true">${({ paid: '○', preparing: '◐', delivered: '✓', cancelled: '✕' })[o.status]}</span>` +

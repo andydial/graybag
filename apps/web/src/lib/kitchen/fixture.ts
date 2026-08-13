@@ -64,6 +64,9 @@ export const FULL_PERMISSIONS: KitchenPermissions = {
   cancelOrders: true,
 };
 
+/** Realistic parent requests. Deliberately none of them allergy language — see §5.6.1. */
+const NOTES = ['Less spicy', 'No coriander', 'Cut into halves', 'No onion, please'];
+
 export function fixtureDay(
   serviceDate: string,
   loadedAt = '2026-08-13T01:42:00.000Z',
@@ -87,7 +90,15 @@ export function fixtureDay(
       sectionLabel: klass.section,
       status: STATUS_MIX[index % STATUS_MIX.length]!,
       pickupCode: null,
-      lines: lines.map((l) => ({ dishId: l.id, dishName: l.name, quantity: l.quantity })),
+      lines: lines.map((l, lineIndex) => ({
+        dishId: l.id,
+        dishName: l.name,
+        quantity: l.quantity,
+        // Roughly one line in four, so the note is a thing you notice rather than a thing you
+        // stop seeing. Requests only — never allergy language, which the app routes out of this
+        // field and into the child's profile (ux-spec §5.6.1).
+        note: (index + lineIndex) % 4 === 0 ? NOTES[(index + lineIndex) % NOTES.length]! : null,
+      })),
     };
   });
 

@@ -33,6 +33,18 @@ export interface KitchenOrderLine {
   dishId: string;
   dishName: string;
   quantity: number;
+  /**
+   * The parent's request for this line — "less spicy", "no coriander" (`ux-spec` §5.6.1).
+   *
+   * **Tier P.** Never logged, never to Sentry, never in a school report. It is also **never a
+   * safety record**: the app routes allergy language out of this field and into the child's
+   * profile, and nothing here may compute a warning from it or treat it as allergen data.
+   *
+   * It is rendered against its dish in both groupings, which is the condition the spec attaches
+   * to the field existing at all — a note the kitchen never sees is a lie told to a parent at
+   * the moment they were trying to be careful.
+   */
+  note: string | null;
 }
 
 /**

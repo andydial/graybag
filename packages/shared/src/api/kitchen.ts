@@ -28,6 +28,8 @@ export interface ApiKitchenOrderLine {
   dishId: string;
   dishName: string;
   quantity: number;
+  /** The parent's request for this line. Tier P — never logged. `null` when there is none. */
+  note: string | null;
 }
 
 export interface ApiKitchenOrder {
@@ -55,7 +57,7 @@ export interface ApiKitchenOrder {
 export const KITCHEN_ORDER_COLUMNS =
   'id,order_ref,school_id,school_name_snapshot,break_time_id,break_label_snapshot,' +
   'recipient_name_snapshot,class_label_snapshot,section_label_snapshot,status,pickup_code,' +
-  'order_line(dish_id,dish_name_snapshot,quantity)';
+  'order_line(dish_id,dish_name_snapshot,quantity,special_comments)';
 
 /** The statuses a kitchen list may contain, filtered client-side. See `fetchKitchenOrders`. */
 const KITCHEN_STATUSES: readonly string[] = ['paid', 'preparing', 'delivered', 'cancelled'];
@@ -118,12 +120,24 @@ export async function fetchKitchenOrders(serviceDate: string): Promise<ApiKitche
       const dishId = str(line.dish_id);
       const dishName = str(line.dish_name_snapshot);
       const quantity = typeof line.quantity === 'number' ? line.quantity : null;
+      /**
+       * The parent's per-line note (`ux-spec` §5.6.1). **Tier P: never logged, never to Sentry.**
+       *
+       * It comes through because the spec makes the field conditional on the kitchen reading it:
+       * "a note the packing list drops is a lie told to a parent at the moment they are trying to
+       * be careful". It is a request and never a safety record — never used to compute a warning,
+       * never treated as allergen data, whatever a parent may have typed into it.
+       *
+       * Blank and whitespace-only both become `null`, so the screen has one thing to test rather
+       * than rendering an empty flag against a dish.
+       */
+      const note = str(line.special_comments)?.trim() || null;
       // A line we cannot read is dropped loudly rather than rendered as a mystery: a kitchen
       // list showing "1 × undefined" is worse than one short line somebody can query.
       if (!dishId || !dishName || quantity === null) {
         throw new KitchenPayloadError(`order ${id} has an unreadable line`);
       }
-      lines.push({ dishId, dishName, quantity });
+      lines.push({ dishId, dishName, quantity, note });
     }
 
     orders.push({
