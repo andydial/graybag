@@ -4872,6 +4872,7 @@
         <span class="ttext"><strong>Split the non-production app identity</strong> — <code>com.gracord.graybag.staging</code> / <code>com.Gracord.Graybag.staging</code>, display name &quot;GrayBag Staging&quot;, its own URL scheme. An internal build must install *beside* the live store app, never over it</span>
       </li>
 <<<<<<< HEAD
+<<<<<<< HEAD
       <li class="task" data-id="E17-29" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-29"></button>
         <code class="tid">E17-29</code>
@@ -4902,25 +4903,38 @@
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-29"></button>
         <code class="tid">E17-29</code>
         <span class="badge r-critical">critical</span>
+=======
+      <li class="task" data-id="E17-43" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-43"></button>
+        <code class="tid">E17-43</code>
+        
+>>>>>>> c4d4974 (E17-43..46: renumbered off main's ids and closed as duplicates)
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong><code>apps/mobile/app.json</code> is <code>version: &quot;2.0.0&quot;</code> and the live Play build is <code>3.7.0</code> — every store upload would be rejected.</strong> <code>app-config.test.ts</code>&#39;s &quot;store version floor&quot; asserts only <code>major &gt;= 2</code>, which passes on 2.0.0 and proves nothing: the comment says &quot;an upload whose version is not higher than the live one is rejected — after the build has been paid for and waited on&quot;, and that is exactly the state the assertion currently permits. Set <code>version</code> above <code>3.7.0</code> and change the assertion to compare against the live version rather than a major number. Found by the WEB thread 2026-08-12; <strong>not fixed, because <code>apps/mobile/</code> belongs to the other thread</strong></span>
+        <span class="ttext"><strong>Closed as a duplicate when <code>kitchen-live</code> merged, 2026-08-13.</strong> Superseded by <code>E17-37</code> on <code>main</code> — the strict store version floor. Renumbered from <code>E17-29</code>, which <code>main</code> had independently assigned to something else; <code>E17-41</code> predicted exactly this collision. Kept rather than deleted because task ids are permanent. <strong><code>(owner:andy)</code> dropped deliberately</strong>: the tag marks work only Andy can do, and a closed duplicate carries no work — the action lives on <code>E17-37</code>. Original text follows. (risk:critical) <strong><code>apps/mobile/app.json</code> is <code>version: &quot;2.0.0&quot;</code> and the live Play build is <code>3.7.0</code> — every store upload would be rejected.</strong> <code>app-config.test.ts</code>&#39;s &quot;store version floor&quot; asserts only <code>major &gt;= 2</code>, which passes on 2.0.0 and proves nothing: the comment says &quot;an upload whose version is not higher than the live one is rejected — after the build has been paid for and waited on&quot;, and that is exactly the state the assertion currently permits. Set <code>version</code> above <code>3.7.0</code> and change the assertion to compare against the live version rather than a major number. Found by the WEB thread 2026-08-12; <strong>not fixed, because <code>apps/mobile/</code> belongs to the other thread</strong></span>
       </li>
-      <li class="task" data-id="E17-30" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-30"></button>
-        <code class="tid">E17-30</code>
-        <span class="badge r-critical">critical</span>
+      <li class="task" data-id="E17-44" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-44"></button>
+        <code class="tid">E17-44</code>
+        
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Android <code>versionCode</code> floor: live is <code>1777726914</code>, a Unix timestamp Bubble minted from the clock</strong> (Andy, Play Console, 2026-08-12). <code>eas.json</code> uses <code>appVersionSource: remote</code> with <code>autoIncrement: true</code>, and EAS&#39;s remote counter starts at <strong>1</strong>, so every production submission would be rejected. Two halves: (a) an assertion in <code>apps/mobile</code> that the configured floor is strictly greater than 1777726914, with the provenance in a comment; (b) setting the remote counter itself, which is <strong>not a file edit</strong> — see <code>E17-31</code></span>
+        <span class="ttext"><strong>Closed as a duplicate when <code>kitchen-live</code> merged, 2026-08-13.</strong> Superseded by <code>E17-33</code> on <code>main</code> — reading the live Play numbers off the Play Console. Renumbered from <code>E17-30</code>, which <code>main</code> had independently assigned to something else; <code>E17-41</code> predicted exactly this collision. Kept rather than deleted because task ids are permanent. <strong><code>(owner:andy)</code> dropped deliberately</strong>: the tag marks work only Andy can do, and a closed duplicate carries no work — the action lives on <code>E17-33</code>. Original text follows. (risk:critical) <strong>Android <code>versionCode</code> floor: live is <code>1777726914</code>, a Unix timestamp Bubble minted from the clock</strong> (Andy, Play Console, 2026-08-12). <code>eas.json</code> uses <code>appVersionSource: remote</code> with <code>autoIncrement: true</code>, and EAS&#39;s remote counter starts at <strong>1</strong>, so every production submission would be rejected. Two halves: (a) an assertion in <code>apps/mobile</code> that the configured floor is strictly greater than 1777726914, with the provenance in a comment; (b) setting the remote counter itself, which is <strong>not a file edit</strong> — see <code>E17-31</code></span>
       </li>
+<<<<<<< HEAD
       <li class="task" data-id="E17-31" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
 >>>>>>> 069b440 (E17: record the Android version-code floor findings — not fixed, wrong thread)
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-31"></button>
         <code class="tid">E17-31</code>
+=======
+      <li class="task" data-id="E17-45" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-45"></button>
+        <code class="tid">E17-45</code>
         
-        <span class="badge r-you">you</span>
+>>>>>>> c4d4974 (E17-43..46: renumbered off main's ids and closed as duplicates)
+        
         <span class="badge r-later">later</span>
+<<<<<<< HEAD
 <<<<<<< HEAD
         <span class="ttext"><strong>Create an App Store Connect API key</strong> so submissions do not need a 2FA prompt. App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → generate a key named <code>graybag-eas-submit</code> with the <strong>App Manager</strong> role. The <code>.p8</code> downloads <strong>once and once only</strong>. See <code>docs/release-testflight.md</code> for exactly what to do with the three values. A credentialed action: it needs Account Holder or Admin on the Apple account</span>
       </li>
@@ -5005,15 +5019,22 @@
         <span class="ttext"><strong>Two threads appending to one epic file will collide again.</strong> <code>E17-41</code> is the symptom; the cause is that <code>planning/backlog/</code> is shared mutable state with no reservation, and the next-free-id is read from whatever the branch happens to have. Either give each thread an id band per epic, or make <code>build-backlog.mjs</code> fail on a duplicate id across <code>git branch -a</code> rather than only within the file it is building</span>
 =======
         <span class="ttext"><strong>Set the EAS remote Android version code above <code>1777726914</code></strong> — <code>eas build:version:set --platform android</code>. With <code>appVersionSource: remote</code> the number lives on EAS&#39;s servers, not in this repository, so no commit can do it. Credentialed action. Pairs with <code>E17-30</code></span>
+=======
+        <span class="ttext"><strong>Closed as a duplicate when <code>kitchen-live</code> merged, 2026-08-13.</strong> Superseded by <code>E17-34</code> on <code>main</code> — the EAS Android version counter, set to 1786591932 on 2026-08-13. Renumbered from <code>E17-31</code>, which <code>main</code> had independently assigned to something else; <code>E17-41</code> predicted exactly this collision. Kept rather than deleted because task ids are permanent. <strong><code>(owner:andy)</code> dropped deliberately</strong>: the tag marks work only Andy can do, and a closed duplicate carries no work — the action lives on <code>E17-34</code>. Original text follows. <strong>Set the EAS remote Android version code above <code>1777726914</code></strong> — <code>eas build:version:set --platform android</code>. With <code>appVersionSource: remote</code> the number lives on EAS&#39;s servers, not in this repository, so no commit can do it. Credentialed action. Pairs with <code>E17-30</code></span>
+>>>>>>> c4d4974 (E17-43..46: renumbered off main's ids and closed as duplicates)
       </li>
-      <li class="task" data-id="E17-32" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-32"></button>
-        <code class="tid">E17-32</code>
+      <li class="task" data-id="E17-46" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-46"></button>
+        <code class="tid">E17-46</code>
         
         
         <span class="badge r-later">later</span>
+<<<<<<< HEAD
         <span class="ttext">Confirm the Android package name is asserted, not just present. <code>app.json</code> already reads <code>com.Gracord.Graybag</code>, which matches the Play Console exactly including the capitals (Andy, 2026-08-12) — but nothing tests it, and an <code>applicationId</code> cannot be changed after publication. Note the iOS bundle id is lowercase <code>com.gracord.graybag</code>: separate namespaces, deliberately different, and exactly the asymmetry somebody later &quot;fixes&quot;</span>
 >>>>>>> 069b440 (E17: record the Android version-code floor findings — not fixed, wrong thread)
+=======
+        <span class="ttext"><strong>Closed as a duplicate when <code>kitchen-live</code> merged, 2026-08-13.</strong> Superseded by <code>E17-35</code> on <code>main</code> — the com.Gracord.Graybag package assertion. Renumbered from <code>E17-32</code>, which <code>main</code> had independently assigned to something else; <code>E17-41</code> predicted exactly this collision. Kept rather than deleted because task ids are permanent. <strong><code>(owner:andy)</code> dropped deliberately</strong>: the tag marks work only Andy can do, and a closed duplicate carries no work — the action lives on <code>E17-35</code>. Original text follows. Confirm the Android package name is asserted, not just present. <code>app.json</code> already reads <code>com.Gracord.Graybag</code>, which matches the Play Console exactly including the capitals (Andy, 2026-08-12) — but nothing tests it, and an <code>applicationId</code> cannot be changed after publication. Note the iOS bundle id is lowercase <code>com.gracord.graybag</code>: separate namespaces, deliberately different, and exactly the asymmetry somebody later &quot;fixes&quot;</span>
+>>>>>>> c4d4974 (E17-43..46: renumbered off main's ids and closed as duplicates)
       </li></ul>
       </details>
     </article>
