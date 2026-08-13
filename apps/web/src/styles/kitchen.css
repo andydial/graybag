@@ -400,7 +400,7 @@
 
 /* -------------------------------------------------------------------- buttons */
 
-.kitchen__actions { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); }
+.kitchen__actions { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); justify-content: flex-end; }
 
 .kitchen__btn {
   min-height: 3.5rem;                 /* 56px — bigger than the 48 floor. Wet hands, in a hurry. */
@@ -554,4 +554,21 @@
   font-weight: var(--gb-font-medium);
   color: var(--gb-text-secondary);
   margin-top: var(--gb-space-1);
+}
+
+/**
+ * The one-way-door explanation, next to the actions that are one.
+ *
+ * Deliberately quiet — it is an explanation, not a warning, and an operator who has already
+ * delivered forty orders correctly should not be shouted at forty times. It exists so that the
+ * one person who mis-taps finds an answer instead of hunting for an Undo that is not there.
+ */
+.kitchen__oneway {
+  flex-basis: 100%;
+  margin-top: var(--gb-space-1);
+  font-size: var(--gb-font-size-caption);
+  line-height: var(--gb-line-height-caption);
+  color: var(--gb-text-secondary);
+  text-align: right;
+  max-width: 22rem;
 }

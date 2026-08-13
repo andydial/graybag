@@ -392,6 +392,25 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
                   `${label[a]}<span class="visually-hidden"> ${esc(o.recipientName)}</span></button>`,
                 )
                 .join('') +
+              /**
+               * Why there is no Undo, said where the mistake happens.
+               *
+               * `order-lifecycle.md` §4.1 is strictly forward — there is no `preparing -> paid`
+               * tuple for any actor, so the database refuses the write. Drawing a button that
+               * cannot work would be worse than drawing none.
+               *
+               * But silently refusing is what Andy hit: a mis-tapped **Start** with no way back
+               * and no explanation. So the screen says what it cannot do and why, rather than
+               * leaving somebody hunting for a control that was never there.
+               * `docs/kitchen-write-contract.md` §1 specifies the two tuples that fix it;
+               * this line is deleted in the PR that lands them.
+               */
+              (o.status === 'preparing' || o.status === 'delivered'
+                ? `<p class="kitchen__oneway">` +
+                    `${o.status === 'preparing' ? 'Started' : 'Delivered'} by hand, and this ` +
+                    `cannot be undone yet — ask an admin to correct it.` +
+                  `</p>`
+                : '') +
             `</div>` +
           `</div>`
         );

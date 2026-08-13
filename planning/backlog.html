@@ -3502,13 +3502,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/21</span>
+          <span class="meter-num">0/24</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 21 tasks</summary>
+        <summary>Context &amp; 24 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3631,6 +3631,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The parent&#39;s per-line note reaches the kitchen, and the dish outweighs the child&#39;s name on a row.</strong> <code>order_line.special_comments</code> existed and nothing rendered it, so a parent typing &quot;less spicy&quot; was typing into nothing — the exact failure <code>ux-spec</code> §5.6.1 makes the field conditional on avoiding. It now comes through <code>KITCHEN_ORDER_COLUMNS</code> and renders against its own line in an amber block labelled <strong>Request</strong>, per line and not per order. The label is load-bearing: the note is never a safety record, and it is what stops an operator reading an empty line as &quot;no allergies&quot;. Separately, the row was inverted — the dish is now the dominant element and the name is secondary, because in a kitchen the dish is what is being made and the name matters at handover, and a name that is not dominant is one a visitor does not read off a shared screen (Andy, 2026-08-13)</span>
+      </li>
+      <li class="task" data-id="E09-22" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-22"></button>
+        <code class="tid">E09-22</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The cancel dialog, replacing <code>prompt()</code>.</strong> A raw browser prompt asking the operator to &quot;Enter 1-4&quot; blocks the page and is not a UI. Reason codes as selectable options read from <code>reason_code</code> (<code>category = &#39;cancellation&#39;</code>, active, minus the codes that describe a payment or customer action the kitchen cannot know) <strong>plus a free-text field always</strong>, because four codes will never cover the real reason (Andy, 2026-08-13). Free text lands in <code>order_event.note</code> and is tier P by assumption. Must state plainly that cancelling refunds nobody and tells nobody — <code>docs/kitchen-write-contract.md</code> §2.4 has the exact strings, and they are deleted in the same PR that lands the refund, not before</span>
+      </li>
+      <li class="task" data-id="E09-23" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-23"></button>
+        <code class="tid">E09-23</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>Start</code> and <code>Delivered</code> are one-way doors, and the screen now says so.</strong> <code>order-lifecycle.md</code> §4.1 is strictly forward: there is no <code>preparing -&gt; paid</code> tuple for any actor, so the database refuses the write and a button would be a lie. Andy mis-tapped <code>Start</code> and found no way back and no explanation. The row now says what it cannot do and why rather than silently refusing. <strong>The write half is <code>E09-24</code> and this line is deleted when it lands</strong></span>
+      </li>
+      <li class="task" data-id="E09-24" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-24"></button>
+        <code class="tid">E09-24</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Two reverse transitions, so a status a human sets by hand can be unset.</strong> <code>preparing -&gt; paid</code> for <code>kitchen</code> (a mis-tapped Start costs nothing to reverse — nothing downstream depends on <code>preparing</code>, no money moves, no parent is told) and <code>delivered -&gt; preparing</code> for <strong><code>admin</code> only</strong>, because <code>delivered</code> is the record that answers &quot;my child says they got nothing&quot; and an operator who can silently un-deliver can rewrite that answer. Both clear their forward stamps and both append an <code>order_event</code> — a correction is a fact, never an erasure. Needs a <strong>migration</strong>: <code>docs/kitchen-write-contract.md</code> §1 has the tuples and the endpoint changes</span>
       </li>
       <li class="task" data-id="E09-18" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-18"></button>
