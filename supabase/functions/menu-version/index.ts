@@ -22,17 +22,23 @@
 // no service-role key and does no writes.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { corsHeaders, preflight } from '../_shared/cors.ts';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_AGE_SECONDS = 30;
 
+const CORS = corsHeaders('GET');
+
 const json = (status: number, payload: unknown, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(payload), {
     status,
-    headers: { 'content-type': 'application/json', ...extra },
+    headers: { ...CORS, 'content-type': 'application/json', ...extra },
   });
 
 Deno.serve(async (request: Request) => {
+  const pre = preflight(request, CORS);
+  if (pre) return pre;
+
   const raw = new URL(request.url).searchParams.get('school')?.trim() ?? '';
 
   if (!UUID_RE.test(raw)) {
