@@ -119,9 +119,9 @@ export function fixtureDay(
     serviceDate,
     permissions,
     orders,
-    // Derived from the orders, exactly as `liveTransport` does — a school with nothing to cook
-    // today is a filter that guarantees an empty result.
-    schools: SCHOOLS.filter((s2) => orders.some((o) => o.schoolId === s2.id)),
+    // Every school, exactly as `liveTransport` now does: the list comes from the `school` table
+    // and not from the day's orders, so the filter does not appear and disappear with the data.
+    schools: SCHOOLS,
     breaks: BREAKS,
     loadedAt,
   };

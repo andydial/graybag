@@ -187,6 +187,42 @@ export async function fetchMyGrants(): Promise<string[]> {
   return [...codes].sort();
 }
 
+export interface KitchenSchool {
+  id: string;
+  name: string;
+}
+
+/**
+ * The schools this account may see, from the `school` table (`E09-28`).
+ *
+ * **Not derived from today's orders**, which is what this replaced. Deriving it meant the filter
+ * appeared and disappeared with the day's data: a school that happened to order nothing vanished
+ * from the control, and a day with one school showed no filter at all — so the operator could not
+ * tell whether they were looking at every school or at one of several. The list of schools a
+ * kitchen serves is a property of the kitchen, not of a Tuesday.
+ *
+ * The scope is **RLS**, not a filter written here. `permission_grant` widens from platform down
+ * to school, so this returns exactly the schools the caller's grants cover — one school for a
+ * school-scoped operator, every school in a kitchen for a kitchen-scoped one.
+ *
+ * `is_active` is deliberately **not** filtered on. A school that is inactive but still has orders
+ * on the board would otherwise be missing from the control while its orders were listed, and a
+ * filter that cannot name something on screen is worse than no filter.
+ */
+export async function fetchKitchenSchools(): Promise<KitchenSchool[]> {
+  const rows = await runQuery<unknown>((t) => t.from('school').select('id,name').order('name'));
+
+  const schools: KitchenSchool[] = [];
+  for (const row of rows) {
+    if (!isRecord(row)) continue;
+    const id = str(row.id);
+    const name = str(row.name);
+    // A school we cannot name is not offered. An unlabelled chip is a control nobody can use.
+    if (id && name) schools.push({ id, name });
+  }
+  return schools;
+}
+
 export interface KitchenStatusResult {
   updated: string[];
   /** Already in the target state. Not a failure — see the function's idempotency note. */

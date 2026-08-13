@@ -4,6 +4,7 @@ import {
   KITCHEN_ORDER_COLUMNS,
   KitchenPayloadError,
   fetchKitchenOrders,
+  fetchKitchenSchools,
   fetchMyGrants,
   setApiTransport,
 } from './index.js';
@@ -192,6 +193,47 @@ describe('fetchKitchenOrders', () => {
     const [order] = await fetchKitchenOrders('2026-08-13');
     expect(order?.breakId).toBeNull();
     expect(order?.breakLabel).toBeNull();
+  });
+});
+
+describe('fetchKitchenSchools', () => {
+  it('reads the school table, not the day’s orders', async () => {
+    // Deriving the list from orders made the filter appear and disappear with the data: a school
+    // that ordered nothing vanished, and a one-school day showed no filter at all — so nobody
+    // could tell whether they were seeing every school or one of several.
+    const fake = install([{ id: 's1', name: 'Alpha Public School' }]);
+    await fetchKitchenSchools();
+    expect(fake.queries[0]?.table).toBe('school');
+  });
+
+  it('returns them in name order', async () => {
+    install([
+      { id: 's1', name: 'Alpha Public School' },
+      { id: 's2', name: 'Bravo International School' },
+    ]);
+    expect(await fetchKitchenSchools()).toEqual([
+      { id: 's1', name: 'Alpha Public School' },
+      { id: 's2', name: 'Bravo International School' },
+    ]);
+  });
+
+  it('drops a school it cannot name rather than drawing a blank chip', async () => {
+    install([{ id: 's1', name: null }, { id: 's2', name: 'Bravo International School' }]);
+    expect(await fetchKitchenSchools()).toEqual([{ id: 's2', name: 'Bravo International School' }]);
+  });
+
+  it('scopes by RLS rather than by a filter written here', async () => {
+    // `permission_grant` widens platform -> city -> kitchen -> school, so the policy returns
+    // exactly what the caller may see. A `.eq('kitchen_id', ...)` here would be a second,
+    // weaker copy of that rule which could disagree with it.
+    const fake = install([]);
+    await fetchKitchenSchools();
+    expect(fake.queries[0]?.filters ?? []).toEqual([]);
+  });
+
+  it('returns nothing for an account with no schools, rather than failing', async () => {
+    install([]);
+    expect(await fetchKitchenSchools()).toEqual([]);
   });
 });
 

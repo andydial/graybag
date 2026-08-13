@@ -3502,13 +3502,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/27</span>
+          <span class="meter-num">0/29</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 27 tasks</summary>
+        <summary>Context &amp; 29 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3679,6 +3679,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Free text on a cancellation has nowhere to be stored.</strong> Andy is right that three codes will never cover the real reason, and the field is not shipped until it has a column, because a box that discards what you type is the same lie the parent&#39;s note was (<code>E09-21</code>). <code>order_event.note</code> exists and <code>write_order_event</code> never populates it; the table is <strong>append-only and refuses UPDATE outright</strong>, so it cannot be filled in afterwards even inside the same transaction; and <code>&quot;order&quot;</code> has no free-text column at all. Needs a <strong>migration</strong>. Recommended: <code>write_order_event</code> reads <code>app.event_note</code> from a session setting exactly as it already reads <code>app.actor_type</code>, <code>app.actor_user_id</code> and <code>app.correlation_id</code> — smallest change, same mechanism, and it serves every actor rather than only cancellation. <code>docs/kitchen-write-contract.md</code> §2.1</span>
+      </li>
+      <li class="task" data-id="E09-28" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-28"></button>
+        <code class="tid">E09-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The school filter reads the <code>school</code> table, not the day&#39;s orders.</strong> Deriving it from orders meant the control appeared and disappeared with the data: a school that ordered nothing today vanished from it, and a single-school day showed no filter at all — so an operator could not tell whether they were looking at every school or at one of several. Which schools a kitchen serves is a property of the kitchen, not of a Tuesday, and selecting one with no orders is a useful answer rather than a dead end (&quot;they ordered nothing today&quot;, which the empty state already says properly). Scope is <strong>RLS</strong>, never a filter written client-side — <code>permission_grant</code> widens platform → city → kitchen → school, so a school-scoped operator sees one school and a kitchen-scoped one sees the kitchen&#39;s. Breaks stay derived from the orders: a break genuinely is a property of the day, and its label is already snapshotted on the row (Andy, 2026-08-13)</span>
+      </li>
+      <li class="task" data-id="E09-29" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-29"></button>
+        <code class="tid">E09-29</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>An undo window on every status tap — the Gmail pattern, and it needs no server change.</strong> Gmail&#39;s &quot;Undo Send&quot; does not recall a sent mail; it holds the send and cancels it. That distinction is the whole design, because the lifecycle has no reverse tuple and a write that has happened cannot be taken back from the client at all. Deferring the request by ten seconds needs no migration and leaves nothing in the audit trail to explain. One pending batch at a time — a second action flushes the first — and the pending write is flushed on <code>visibilitychange</code>, <code>pagehide</code> and any reload, because a deferred write that never happens is the silent no-op this screen exists to avoid. <strong>Layer (a) of three</strong>; (b) and (c) are corrections after the window and genuinely need the server — <code>E09-24</code>, and <code>docs/kitchen-write-contract.md</code> §1</span>
       </li>
       <li class="task" data-id="E09-18" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-18"></button>
