@@ -39,7 +39,10 @@
 // a value. Failures log the error code and the order ids, both of which are opaque.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import postgres from 'https://deno.land/x/postgresjs@v3.4.4/mod.js';
+// `npm:` rather than `https://deno.land/x/postgresjs`: the deno.land specifier fails to bundle
+// ("brotli error" out of `supabase functions deploy`), and npm: is what Supabase's own Edge
+// Function docs use for this driver.
+import postgres from 'npm:postgres@3.4.4';
 
 const json = (status: number, payload: unknown) =>
   new Response(JSON.stringify(payload), {
@@ -130,7 +133,12 @@ Deno.serve(async (request: Request) => {
       // `assert_order_status_transition` refuses without this, and `set local` is scoped to the
       // transaction, so it cannot leak into another request on a pooled connection.
       await tx`select set_config('app.actor_type', 'kitchen', true)`;
-      await tx`select set_config('app.actor_id', ${user.id}, true)`;
+      // `app.actor_user_id`, which is the name `write_order_event` actually reads. This said
+      // `app.actor_id` and nothing complained: the transition succeeded, the order stamped
+      // `delivered_by_user_id` correctly, and only the `order_event` row was silently written
+      // with a null actor. An audit trail that records the change but not who made it is the
+      // one part of this that cannot be reconstructed afterwards.
+      await tx`select set_config('app.actor_user_id', ${user.id}, true)`;
 
       // Lock the rows we are about to move, so a second tablet marking the same class cannot
       // interleave and produce a half-applied batch.
