@@ -121,6 +121,89 @@ export function groupByClass(orders: KitchenOrder[]): ClassGroup[] {
   );
 }
 
+/** One order's worth of a single dish, as the person plating it sees it. */
+export interface DishPortion {
+  orderId: string;
+  recipientName: string;
+  schoolName: string;
+  classLabel: string;
+  breakLabel: string | null;
+  quantity: number;
+  note: string | null;
+  status: KitchenStatus;
+}
+
+export interface DishGroup {
+  key: string;
+  dishId: string;
+  dishName: string;
+  /** Every portion of this dish, so the block header can say "10 Paneer Wrap". */
+  quantity: number;
+  portions: DishPortion[];
+  /** Portions still to hand over, on orders that are neither delivered nor cancelled. */
+  outstandingIds: string[];
+}
+
+/**
+ * Group by dish rather than by class — the view somebody plating food actually wants.
+ *
+ * `groupByClass` is the *handover* unit: one tray, one classroom, one trip. This is the
+ * **cooking** unit: make ten Paneer Wraps, and here is who each one is for and what they asked
+ * for. Same orders, same data, different question — which is why it is a toggle on one screen
+ * and not a second page to build, test and teach.
+ *
+ * Cancelled orders are excluded outright rather than shown struck through. In the class view a
+ * cancelled row still matters, because somebody is standing in that classroom expecting a bag.
+ * Here the only question is how much food to make, and a cancelled order is not food.
+ *
+ * Ordered by quantity descending: the biggest batch is the one to start.
+ */
+export function groupByDish(orders: KitchenOrder[]): DishGroup[] {
+  const groups = new Map<string, DishGroup>();
+
+  for (const order of orders) {
+    if (order.status === 'cancelled') continue;
+
+    for (const line of order.lines) {
+      let group = groups.get(line.dishId);
+      if (!group) {
+        group = {
+          key: line.dishId,
+          dishId: line.dishId,
+          dishName: line.dishName,
+          quantity: 0,
+          portions: [],
+          outstandingIds: [],
+        };
+        groups.set(line.dishId, group);
+      }
+
+      group.quantity += line.quantity;
+      group.portions.push({
+        orderId: order.id,
+        recipientName: order.recipientName,
+        schoolName: order.schoolName,
+        classLabel: [order.classLabel, order.sectionLabel].filter(Boolean).join('-') || 'No class',
+        breakLabel: order.breakLabel,
+        quantity: line.quantity,
+        note: line.note,
+        status: order.status,
+      });
+
+      // An order with two lines of this dish would otherwise be listed twice as outstanding, and
+      // "mark all delivered" would send the same id twice. The endpoint is idempotent, but a
+      // count that says 11 when there are 10 orders is wrong on the screen before it gets there.
+      if (order.status !== 'delivered' && !group.outstandingIds.includes(order.id)) {
+        group.outstandingIds.push(order.id);
+      }
+    }
+  }
+
+  return [...groups.values()].sort(
+    (a, b) => b.quantity - a.quantity || a.dishName.localeCompare(b.dishName),
+  );
+}
+
 export type GroupState = 'none' | 'partial' | 'all' | 'empty';
 
 /** Partial is its own state and is never inferred from a colour — the brief's "12 of 18". */

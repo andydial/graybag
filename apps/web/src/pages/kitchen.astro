@@ -91,6 +91,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         describeDate,
         filterOptions,
         groupByClass,
+        groupByDish,
         shiftDate,
         groupProgress,
         groupState,
@@ -162,6 +163,16 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
        * here, gratefully.
        */
       const sel = { serviceDate: today, schoolId: '', breakId: '', status: '' };
+
+      /**
+       * Which question the board is answering: "what goes to this classroom" or "how many of
+       * these do I make".
+       *
+       * Not persisted. A shared kitchen tablet is picked up by whoever is next, and a toggle
+       * left on `dish` by the person plating is a surprise for the person doing the handover.
+       * Each visit starts on the handover view, which is the one the day ends in.
+       */
+      let grouping: 'class' | 'dish' = 'class';
 
       let day: KitchenDay | null = null;
       let loading = true;
@@ -326,6 +337,11 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           return;
         }
 
+        if (grouping === 'dish') {
+          el.board.innerHTML = renderDishGroups(state.groups.flatMap((g) => g.orders), offline);
+          return;
+        }
+
         el.board.innerHTML = state.groups
           .map((g) => {
             const canAct = !offline && g.outstandingIds.length > 0 && Boolean(day?.permissions.markDelivered);
@@ -417,6 +433,72 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       };
 
       /**
+       * The board grouped by dish — the view somebody plating food actually wants.
+       *
+       * `groupByClass` answers "what goes to this classroom"; this answers "how many of these do
+       * I make, and who is each one for". Same orders, same page, one toggle — a second screen
+       * would be a second thing to build, test and teach for a question this one already holds
+       * all the data for.
+       *
+       * A portion carries its own note, because the note belongs to the line and the whole point
+       * of grouping by dish is that you are looking at the line when you make it.
+       */
+      function renderDishGroups(orders: KitchenDay['orders'], offline: boolean): string {
+        const groups = groupByDish(orders);
+        if (groups.length === 0) return '';
+
+        // "5-A" is two different classes when two schools are on the board, and the dish view
+        // deliberately mixes schools together — so the school is named on the portion whenever
+        // there is more than one, and left off when there is only one and it would be noise.
+        const manySchools = new Set(orders.map((o) => o.schoolId)).size > 1;
+
+        return groups
+          .map((g) => {
+            const canAct = !offline && g.outstandingIds.length > 0 && Boolean(day?.permissions.markDelivered);
+            return (
+              `<section class="kitchen__group" aria-labelledby="d-${esc(g.key)}">` +
+                `<header class="kitchen__group-head">` +
+                  `<div class="kitchen__group-who">` +
+                    `<p class="kitchen__group-class" id="d-${esc(g.key)}">` +
+                      `<span class="kitchen__group-qty">${g.quantity}</span> ${esc(g.dishName)}` +
+                    `</p>` +
+                    `<p class="kitchen__group-where">${g.portions.length} order${g.portions.length === 1 ? '' : 's'}</p>` +
+                  `</div>` +
+                  (day?.permissions.markDelivered
+                    ? `<button class="kitchen__btn kitchen__btn--primary" data-dish-group="${esc(g.key)}" ${canAct ? '' : 'disabled'}>` +
+                        `Mark all delivered${g.outstandingIds.length ? ` (${g.outstandingIds.length})` : ''}` +
+                      `</button>`
+                    : '') +
+                `</header>` +
+                g.portions
+                  .map((portion) =>
+                    `<div class="kitchen__order" data-busy="${busy.has(portion.orderId)}">` +
+                      `<div class="kitchen__child">` +
+                        `<ul class="kline-list"><li class="kline">` +
+                          `<span class="kline__qty">${portion.quantity}</span>` +
+                          `<span class="kline__dish">${esc(portion.classLabel)}</span>` +
+                          (portion.note
+                            ? `<span class="kline__note"><b>Request</b> ${esc(portion.note)}</span>`
+                            : '') +
+                        `</li></ul>` +
+                        `<p class="kitchen__name">${esc(portion.recipientName)}` +
+                          `${manySchools ? ` · ${esc(portion.schoolName)}` : ''}` +
+                          `${portion.breakLabel ? ` · ${esc(portion.breakLabel)}` : ''}</p>` +
+                      `</div>` +
+                      `<span class="kitchen__pill" data-status="${portion.status}">` +
+                        `<span aria-hidden="true">${({ paid: '○', preparing: '◐', delivered: '✓', cancelled: '✕' })[portion.status]}</span>` +
+                        `${STATUS_LABEL[portion.status]}` +
+                      `</span>` +
+                    `</div>`,
+                  )
+                  .join('') +
+              `</section>`
+            );
+          })
+          .join('');
+      }
+
+      /**
        * The secondary filters, drawn as chips rather than dropdowns.
        *
        * A chip shows its state without being opened, which is the whole complaint about a row of
@@ -456,6 +538,25 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           `</div>`;
 
         const parts: string[] = [];
+
+        /**
+         * The grouping toggle leads the row, before any filter.
+         *
+         * It changes what the board *is* rather than what it shows, so it is not a filter and is
+         * separated from them. Same chip shape because it behaves the same way — one tap, its
+         * state visible without being opened.
+         */
+        parts.push(
+          `<div class="chips" role="group" aria-label="Group the list by">` +
+            ([['class', 'By class'], ['dish', 'By dish']] as const)
+              .map(([value, text]) =>
+                `<button class="chip" type="button" data-grouping="${value}" ` +
+                `aria-pressed="${grouping === value}">${text}</button>`,
+              )
+              .join('') +
+          `</div>`,
+        );
+
         if (options.showSchools) {
           parts.push(group('School', 'schoolId', options.schools.map((s2) => ({ id: s2.id, label: s2.name })), 'All schools'));
         }
@@ -512,6 +613,15 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           return render();
         }
 
+        const dishKey = target.getAttribute('data-dish-group');
+        if (dishKey) {
+          const state = boardState({ day, filters: filters(), loading, offline: !navigator.onLine, error });
+          const visible = state.kind === 'data' || state.kind === 'stale' ? state.groups.flatMap((g) => g.orders) : [];
+          const group = groupByDish(visible).find((g) => g.key === dishKey);
+          if (group) await update(group.outstandingIds, 'delivered');
+          return;
+        }
+
         const groupKey = target.getAttribute('data-group');
         if (groupKey) {
           const state = boardState({ day, filters: filters(), loading, offline: !navigator.onLine, error });
@@ -539,7 +649,18 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       });
 
       el.filters.addEventListener('click', (event) => {
-        const chip = (event.target as HTMLElement).closest<HTMLElement>('[data-filter]');
+        const target = event.target as HTMLElement;
+
+        // The grouping toggle lives in this row but is not a filter — it changes what the board
+        // is, not what it shows. Handled first, because the filter branch below returns early on
+        // anything without `data-filter` and would swallow it.
+        const grouped = target.closest<HTMLElement>('[data-grouping]')?.dataset.grouping;
+        if (grouped === 'class' || grouped === 'dish') {
+          grouping = grouped;
+          return render();
+        }
+
+        const chip = target.closest<HTMLElement>('[data-filter]');
         if (!chip) return;
         const key = chip.dataset.filter as 'schoolId' | 'breakId' | 'status';
         sel[key] = chip.dataset.value ?? '';

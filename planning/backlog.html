@@ -3502,13 +3502,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/25</span>
+          <span class="meter-num">0/26</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 25 tasks</summary>
+        <summary>Context &amp; 26 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3663,6 +3663,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The school filter follows the day&#39;s data, not the seed&#39;s.</strong> It was hidden whenever one school had orders, which was right in principle and wrong in effect: the fixture had one school, so the control that matters most once three schools are live was the one nobody could look at. The fixture now spans two schools unevenly, and when exactly one school has orders the board <strong>names it in the count line</strong> — &quot;Alpha Public School · 24 orders · 3 classes&quot; — rather than going silently unlabelled, because &quot;24 orders&quot; means something different if you did not know you were seeing one school out of three (Andy, 2026-08-13)</span>
+      </li>
+      <li class="task" data-id="E09-26" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-26"></button>
+        <code class="tid">E09-26</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>&quot;By dish&quot; as a second grouping on the same board</strong> — the Cook view, restored as a toggle rather than the separate screen that was cut. &quot;9 Paneer Wrap&quot; as a block with every portion under it: quantity, class, child, break, and the parent&#39;s request against the portion it belongs to. Same orders, same page, one toggle, so it is not a second surface to build, test and teach. <code>groupByClass</code> answers &quot;what goes to this classroom&quot;; <code>groupByDish</code> answers &quot;how many do I make and who is each one for&quot;. <strong>Cancelled orders are excluded here and shown in the class view</strong>, because a cancelled order is still a child standing in a classroom expecting a bag, and is not food to cook. Ordered biggest batch first; the school is named on a portion only when more than one is on the board, since &quot;5-A&quot; is two classes then. The toggle is not persisted — a shared tablet left on <code>By dish</code> by whoever was plating is a surprise for whoever does the handover (Andy, 2026-08-13)</span>
       </li>
       <li class="task" data-id="E09-18" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-18"></button>
