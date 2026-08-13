@@ -19,6 +19,58 @@ Format — newest first:
 
 ---
 
+## 2026-08-13 — A placeholder assertion must FAIL until it is real, never pass
+
+**Context:** `app-config.test.ts` held the live Google Play numbers as `null` — nobody had opened
+the Play Console — with the assertions written and dormant, so that filling a number in could not
+be done without the check coming with it. That much was right, and deliberate.
+
+**What happened:** Andy read the real `versionCode` (`1777726914`) off the Play Console and it
+went into `LIVE_PLAY`. The dormant assertion was:
+
+```js
+it('mints a versionCode above the live one once it is known', () => {
+  if (LIVE_PLAY.versionCode === null) return;   // dormant
+  expect(LIVE_PLAY.versionCode).toBeGreaterThan(0);
+});
+```
+
+The moment the real value arrived, the guard went from **inactive** to **tautologically true**.
+Green, in the suite, named as though it checks the version floor, asserting nothing whatsoever.
+The actual floor — is the number EAS will mint above the number Play rejects on — was never
+compared by anything.
+
+**Cause:** the placeholder body was written to *pass trivially* rather than to *fail loudly*. It
+is the natural thing to type: the value is not known, a real assertion cannot be written, so
+something harmless goes in as a stand-in. The `if (… === null) return` guard hides it, because
+while the value is null nobody ever sees the body run, and by the time it does run the person who
+wrote it has moved on. A `> 0` on an unsigned counter is not a weak check — it is not a check.
+
+**The class, which is the point of this entry.** *A dormant assertion is only safe while it stays
+dormant.* The transition from placeholder to real is exactly the moment the check starts
+mattering, and a placeholder that passes dies silently at that moment — it converts into a green
+test that is evidence of nothing. Every unresolved-value stand-in has this shape:
+
+- `expect(x).toBeGreaterThan(0)` on a counter, id or timestamp
+- `expect(thing).toBeDefined()` where the real question is what it equals
+- `expect(list.length).toBeGreaterThanOrEqual(0)`, which is true of every list
+- a `TODO` fixture returning `{}` that satisfies a shape check
+- an `if (value === null) return` early-exit whose body was never written to be run
+
+**Fix / rule:** **a placeholder assertion must fail, not pass, until it is real.** Write the
+stand-in as `expect.fail('E17-33: nobody has read the live Play versionCode')` — or keep the
+early-exit and make the body a genuine assertion of the relationship, so the day the value lands
+the test either passes for a reason or fails for one.
+
+And assert the **relationship**, not the constants. `EAS_REMOTE_VERSION_CODE >
+LIVE_PLAY.versionCode` stays meaningful when either number changes; `versionCode > 0` never did.
+
+The sibling rule from 2026-08-11 below is the same defect one step earlier: *a constant asserted
+against a guess is not an assertion.* Together — **a check must be able to fail, and the thing it
+compares against must be a fact.** Neither is worth anything without the other.
+
+---
+
 ## 2026-08-11 — A constant asserted against a guess is not an assertion
 
 **Context:** first iOS submission to TestFlight. Four Apple errors, two causes, both ours.

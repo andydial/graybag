@@ -125,6 +125,24 @@ If you are about to create a file at the root, you are almost certainly in the w
 
 ## Build rhythm
 
+**No branch runs more than a day without merging to `main`.** Andy's rule, 2026-08-13. If
+something cannot merge because it is incomplete, it goes **behind a flag or ships in pieces** —
+it does not sit on a branch until it is finished.
+
+This is not a tidiness preference. `ux-spec-and-prototype` ran for three days and reached **100
+commits**, and every cost was invisible until the merge:
+
+- The web thread read a `main` where payments did not exist and **reported E06 as 0/15** in a
+  status report to Andy. Nothing was wrong with their reading; the tree was wrong.
+- Both threads appended tasks from `E17-29`, because both correctly read "next free id" from
+  the base they had. Four ids came to mean two different things, and `backlog-state.json` is
+  keyed on ids, so merging would have applied one branch's ticks to the other's tasks.
+- MVP membership moved from a list to inline `(mvp)` tags on `main` while this branch was
+  editing the same lines, so the merge had to reconcile two sources of truth for v1 scope.
+
+None of these was a mistake by anyone. They are what a long-lived branch *does*. The next thing
+it costs will be worse than a false status report.
+
 Work **one block at a time** from `planning/build-order.md`.
 
 - Within a block, complete **one task at a time and commit each separately**. Never batch
