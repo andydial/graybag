@@ -28,23 +28,28 @@ export function liveTransport(): KitchenTransport {
 
       // Both reads together: the grants decide which controls exist, and a screen that renders
       // the list before it knows would flash buttons the operator may not use.
-      const [orders, grants] = await Promise.all([
+      const [orders, grants, schools] = await Promise.all([
         api.fetchKitchenOrders(filters.serviceDate),
         api.fetchMyGrants(),
+        api.fetchKitchenSchools(),
       ]);
 
       /**
-       * The filter options come from the orders, not from a second round trip.
+       * Schools come from the `school` table; breaks still come from the orders.
        *
-       * Two reasons. A kitchen only ever wants to filter to something that is *in front of it* —
-       * offering a school with no orders today is offering a guaranteed empty result. And the
-       * snapshot columns are already on the row, so the alternative would be fetching `school`
-       * and `break_time` to learn names the order already carries.
+       * **Schools were derived from the orders too, and that was wrong** (Andy, 2026-08-13). The
+       * filter then appeared and disappeared with the day's data — a school that ordered nothing
+       * vanished from the control, and a day with a single school showed no filter at all, so an
+       * operator could not tell whether they were seeing every school or one of several. Which
+       * schools a kitchen serves is a property of the kitchen, not of a Tuesday. Selecting one
+       * with no orders is a legitimate and useful answer: "they ordered nothing today."
+       *
+       * Breaks stay derived. A break is genuinely a property of the day's orders — the label is
+       * already snapshotted on the row, so reading `break_time` would be a round trip to learn a
+       * name we are holding.
        */
-      const schools = new Map<string, string>();
       const breaks = new Map<string, string>();
       for (const order of orders) {
-        if (order.schoolId) schools.set(order.schoolId, order.schoolName);
         if (order.breakId) breaks.set(order.breakId, order.breakLabel ?? order.breakId);
       }
 
@@ -52,7 +57,7 @@ export function liveTransport(): KitchenTransport {
         serviceDate: filters.serviceDate,
         permissions: toPermissions(grants),
         orders,
-        schools: [...schools].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),
+        schools,
         breaks: [...breaks].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label)),
         // The moment the data was read, not the moment it is rendered. The offline banner quotes
         // this verbatim and must never be able to say "just now" about a list from 07:12.

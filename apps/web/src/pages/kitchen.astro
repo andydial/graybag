@@ -85,6 +85,15 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       `docs/kitchen-write-contract.md` §2 specifies the refund (`E06`) and the email (`E08`), and
       this paragraph is deleted in the PR that lands them — not before.
     -->
+    <!--
+      The undo strip. Fixed to the bottom so it is thumb-reachable on a tablet and never shifts
+      the list under a finger that is already moving toward the next row.
+    -->
+    <div id="k-undo" class="kundo" hidden>
+      <p class="kundo__what" role="status" aria-live="polite"></p>
+      <button type="button" class="kitchen__btn kundo__btn" id="k-undo-btn">Undo</button>
+    </div>
+
     <dialog id="k-cancel" class="kdialog" aria-labelledby="k-cancel-title">
       <form method="dialog" class="kdialog__form">
         <h2 id="k-cancel-title" class="kdialog__title">Cancel this order?</h2>
@@ -200,6 +209,10 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
        * union — which is the kind of collision that compiles in a dynamic language and does not
        * here, gratefully.
        */
+      const undoStrip = $('k-undo');
+      const undoWhat = undoStrip.querySelector('.kundo__what') as HTMLElement;
+      const undoBtn = $<HTMLButtonElement>('k-undo-btn');
+
       const cancelDialog = $<HTMLDialogElement>('k-cancel');
       const cancelWho = $('k-cancel-who');
 
@@ -239,6 +252,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       // ------------------------------------------------------------------ load
 
       async function load(): Promise<KitchenDay | null> {
+        // Any pending write goes before a reload, or the fresh list would arrive without it and
+        // the optimistic status would be overwritten by the stale one from the server.
+        await flushPending();
         loading = true;
         error = null;
         render();
@@ -257,31 +273,147 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
       // ---------------------------------------------------------------- update
 
-      async function update(orderIds: string[], to: KitchenAction, reasonCode?: string) {
-        if (!orderIds.length || !day) return;
-        orderIds.forEach((id) => busy.add(id));
+      /**
+       * The undo window, and why it defers the write rather than reversing it.
+       *
+       * Gmail's "Undo Send" does not recall a sent mail — it holds the send for a few seconds and
+       * cancels it if you press undo. That distinction is the whole design here, because the
+       * lifecycle has **no reverse tuple**: `preparing -> paid` does not exist for any actor, so
+       * a write that has happened cannot be taken back client-side at all.
+       *
+       * Deferring needs no new tuple, no migration and no server change. If undo is pressed, the
+       * request was never sent and there is nothing in the audit trail to explain — which is also
+       * more honest than recording a mistake that never reached anybody.
+       *
+       * It is deliberately the *first* of the three layers in
+       * `docs/kitchen-write-contract.md` §1, because a finger landing on the wrong button and
+       * being noticed immediately is the overwhelming majority of mis-taps. The other two layers
+       * are corrections after the fact and genuinely need the server.
+       *
+       * **One pending batch at a time.** A second action flushes the first rather than queueing
+       * beside it: two windows running at once means two rollback states to reason about, and it
+       * bounds how stale the server can be to a single window.
+       */
+      const UNDO_WINDOW_MS = 10_000;
 
-        // Optimistic: the kitchen sees the change immediately, because waiting on a round trip
-        // before a tray moves is how a queue forms behind the person holding the tablet.
-        const previous = new Map(day.orders.map((o) => [o.id, o.status]));
+      interface Pending {
+        orderIds: string[];
+        to: KitchenAction;
+        // `| undefined` rather than `?:` — `exactOptionalPropertyTypes` distinguishes "absent"
+        // from "present and undefined", and this is built by spreading a value that may be either.
+        reasonCode: string | undefined;
+        /** The statuses to restore on undo — the real ones, from before the optimistic change. */
+        previous: Map<string, KitchenStatus>;
+        timer: ReturnType<typeof setTimeout>;
+        tick: ReturnType<typeof setInterval>;
+        deadline: number;
+      }
+
+      let pending: Pending | null = null;
+
+      function queueUpdate(orderIds: string[], to: KitchenAction, reasonCode?: string) {
+        if (!orderIds.length || !day) return;
+
+        // Whatever was waiting goes now. Its window is over the moment attention moves on.
+        void flushPending();
+
+        const previous = new Map(day.orders.map((o) => [o.id, o.status] as const));
         day = { ...day, orders: day.orders.map((o) => (orderIds.includes(o.id) ? { ...o, status: to } : o)) };
+
+        const deadline = Date.now() + UNDO_WINDOW_MS;
+        pending = {
+          orderIds, to, reasonCode, previous, deadline,
+          timer: setTimeout(() => void flushPending(), UNDO_WINDOW_MS),
+          // Anchored to a deadline rather than counted down, for the same reason the OTP resend
+          // is: a backgrounded tab stops firing intervals, and a kitchen tablet is backgrounded
+          // constantly. The timeout above is what actually fires; this only draws the number.
+          tick: setInterval(renderUndo, 250),
+        };
+
+        render();
+      }
+
+      /** Send the pending write, if there is one. Returns when the server has answered. */
+      async function flushPending(): Promise<void> {
+        const p = pending;
+        if (!p) return;
+        clearTimeout(p.timer);
+        clearInterval(p.tick);
+        pending = null;
+        renderUndo();
+
+        p.orderIds.forEach((id) => busy.add(id));
         render();
 
         try {
-          await transport.updateStatus(reasonCode ? { orderIds, to, reasonCode } : { orderIds, to });
-          say(`${orderIds.length} order${orderIds.length === 1 ? '' : 's'} marked ${STATUS_LABEL[to].toLowerCase()}.`);
+          await transport.updateStatus(
+            p.reasonCode ? { orderIds: p.orderIds, to: p.to, reasonCode: p.reasonCode } : { orderIds: p.orderIds, to: p.to },
+          );
+          say(`${p.orderIds.length} order${p.orderIds.length === 1 ? '' : 's'} marked ${STATUS_LABEL[p.to].toLowerCase()}.`);
         } catch (cause) {
           // Roll back and say so loudly. A write that silently does nothing is the worst thing
           // this screen can do: the tray leaves, the record does not, and nobody finds out until
           // a parent asks.
-          day = { ...day!, orders: day!.orders.map((o) => ({ ...o, status: previous.get(o.id) ?? o.status })) };
+          day = day ? { ...day, orders: day.orders.map((o) => ({ ...o, status: p.previous.get(o.id) ?? o.status })) } : day;
           error = cause instanceof Error ? cause.message : 'That change did not save.';
           say('That change did not save. Nothing was recorded.');
         } finally {
-          orderIds.forEach((id) => busy.delete(id));
+          p.orderIds.forEach((id) => busy.delete(id));
           render();
         }
       }
+
+      /**
+       * Draw the strip. Called on a short interval while a window is open, so the number moves.
+       *
+       * The message sits in the live region and the seconds do not: announcing "9… 8… 7…" to a
+       * screen reader would bury the one sentence that matters under a countdown.
+       */
+      function renderUndo() {
+        if (!pending) {
+          undoStrip.hidden = true;
+          undoWhat.textContent = '';
+          return;
+        }
+        const left = Math.max(0, Math.ceil((pending.deadline - Date.now()) / 1000));
+        const n = pending.orderIds.length;
+        const verb = pending.to === 'cancelled' ? 'cancelled' : STATUS_LABEL[pending.to].toLowerCase();
+        undoStrip.hidden = false;
+        const next = `${n} order${n === 1 ? '' : 's'} ${pending.to === 'preparing' ? 'started' : verb}`;
+        // Only rewrite when the sentence itself changes, so the live region announces once
+        // instead of on every tick.
+        if (undoWhat.textContent !== next) undoWhat.textContent = next;
+        undoBtn.textContent = `Undo (${left})`;
+      }
+
+      /** Take it back. Nothing was sent, so there is nothing to reverse. */
+      function undoPending() {
+        const p = pending;
+        if (!p || !day) return;
+        clearTimeout(p.timer);
+        clearInterval(p.tick);
+        pending = null;
+
+        day = { ...day, orders: day.orders.map((o) => ({ ...o, status: p.previous.get(o.id) ?? o.status })) };
+        say(`Undone. ${p.orderIds.length} order${p.orderIds.length === 1 ? '' : 's'} unchanged.`);
+        renderUndo();
+        render();
+      }
+
+      undoBtn.addEventListener('click', undoPending);
+
+      /**
+       * A pending write must never be lost by leaving the page.
+       *
+       * `visibilitychange` is the reliable one on a tablet — `beforeunload` is not guaranteed to
+       * run when an app is backgrounded or the tab is killed. Both are here because they fail in
+       * different situations, and a deferred write that never happens is exactly the silent
+       * no-op this screen is otherwise careful to avoid.
+       */
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') void flushPending();
+      });
+      window.addEventListener('pagehide', () => void flushPending());
 
       // ---------------------------------------------------------------- render
 
@@ -646,6 +778,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           error: forced === 'unreachable' ? 'Simulated: the server did not respond.' : error,
         });
         renderDay(state);
+        renderUndo();
         renderFilters();
         renderBanner(offline, state);
         renderSummary(state);
@@ -669,7 +802,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           const state = boardState({ day, filters: filters(), loading, offline: !navigator.onLine, error });
           const visible = state.kind === 'data' || state.kind === 'stale' ? state.groups.flatMap((g) => g.orders) : [];
           const group = groupByDish(visible).find((g) => g.key === dishKey);
-          if (group) await update(group.outstandingIds, 'delivered');
+          if (group) queueUpdate(group.outstandingIds, 'delivered');
           return;
         }
 
@@ -677,7 +810,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         if (groupKey) {
           const state = boardState({ day, filters: filters(), loading, offline: !navigator.onLine, error });
           const group = (state.kind === 'data' || state.kind === 'stale' ? state.groups : []).find((g) => g.key === groupKey);
-          if (group) await update(group.outstandingIds, 'delivered');
+          if (group) queueUpdate(group.outstandingIds, 'delivered');
           return;
         }
 
@@ -690,10 +823,10 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           // schema will not take one — `cancel_reason_code` is how a refund is later explained.
           const reason = await askWhyCancelled(orderId);
           if (!reason) return;
-          return update([orderId], 'cancelled', reason);
+          return queueUpdate([orderId], 'cancelled', reason);
         }
 
-        await update([orderId], action);
+        queueUpdate([orderId], action);
       });
 
       /**
