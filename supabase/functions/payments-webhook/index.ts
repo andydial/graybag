@@ -81,6 +81,34 @@ Deno.serve(async (request: Request) => {
     request.headers.get('x-razorpay-signature'),
   );
 
+  /**
+   * **Why an absent secret is reported differently from a bad signature.**
+   *
+   * Both fail closed and both record `signature_verified = false`, which is correct and is not
+   * what changed. What changed is that they were **indistinguishable from outside**, and they are
+   * completely different problems:
+   *
+   * - a bad signature is *someone else's* fault, and the system working;
+   * - **no secret configured is our fault, and the system not working at all** — every genuine
+   *   Razorpay event will be recorded unverified and never processed, silently, forever.
+   *
+   * This cost a real misreading. `recorded_unverified` was reported to Andy as evidence the
+   * webhook was live and working, when it was the fail-safe firing because no secret existed. A
+   * fail-safe working is not a payment path working, and a probe with a deliberately wrong
+   * signature could not tell the two apart — it returns `recorded_unverified` either way.
+   *
+   * It stays a **200**: Razorpay retrying cannot fix our missing configuration, and a retry storm
+   * on top of a misconfiguration is two problems. The status string is the signal, and
+   * `assert_webhook_health()` is what makes it loud.
+   */
+  const configured = webhookSecret.length > 0;
+  if (!configured) {
+    console.error(
+      'payments-webhook: RAZORPAY_WEBHOOK_SECRET is not set — every event will be recorded ' +
+        'unverified and none will be processed. This is a configuration fault, not a bad sender.',
+    );
+  }
+
   // (3) Parse, only now. A malformed body from a verified sender is still recorded, because the
   // fact that it arrived is itself worth having.
   let event: Record<string, unknown> = {};
@@ -124,7 +152,9 @@ Deno.serve(async (request: Request) => {
   }
 
   // Everything else is 200, including a bad signature. See the header.
-  return json(200, { status: verified ? 'recorded' : 'recorded_unverified' });
+  return json(200, {
+    status: verified ? 'recorded' : configured ? 'recorded_unverified' : 'recorded_no_secret',
+  });
 });
 
 /** Fallback dedup key while `E19-07` row 1 is unanswered. Stable per body, distinct per event. */
