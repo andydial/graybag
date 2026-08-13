@@ -582,22 +582,23 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
                 )
                 .join('') +
               /**
-               * Why there is no Undo, said where the mistake happens.
+               * What can still be corrected, said where the mistake happens.
                *
-               * `order-lifecycle.md` §4.1 is strictly forward — there is no `preparing -> paid`
-               * tuple for any actor, so the database refuses the write. Drawing a button that
-               * cannot work would be worse than drawing none.
+               * The ten-second undo window (`E09-29`) catches the common case, and this covers
+               * what is left: `order-lifecycle.md` §4.1 has no `preparing -> paid` tuple for any
+               * actor, so once the window closes the database refuses the change and a button
+               * would be a lie.
                *
-               * But silently refusing is what Andy hit: a mis-tapped **Start** with no way back
-               * and no explanation. So the screen says what it cannot do and why, rather than
-               * leaving somebody hunting for a control that was never there.
-               * `docs/kitchen-write-contract.md` §1 specifies the two tuples that fix it;
-               * this line is deleted in the PR that lands them.
+               * It deliberately does **not** say "ask an admin" — that was the first wording and
+               * Andy rejected it outright: at volume every mis-tap becomes a support ticket, and
+               * pointing at a person is not a design. `docs/kitchen-write-contract.md` §1(b)
+               * specifies the correction that replaces this line, and it is deleted when that
+               * lands.
                */
               (o.status === 'preparing' || o.status === 'delivered'
                 ? `<p class="kitchen__oneway">` +
-                    `${o.status === 'preparing' ? 'Started' : 'Delivered'} by hand, and this ` +
-                    `cannot be undone yet — ask an admin to correct it.` +
+                    `${o.status === 'preparing' ? 'Started' : 'Delivered'} by hand. ` +
+                    `Correcting this after the undo window is not built yet.` +
                   `</p>`
                 : '') +
               /**

@@ -1,85 +1,114 @@
-# Kitchen write contract — reversal and cancellation
+# Kitchen write contract — correction and cancellation
 
-**Status: specification. Neither half is built.** The kitchen dashboard calls both; today one is
-refused by the database and the other does less than the kitchen will assume.
+**Status: partly built.** §1(a), the undo window, is shipped and needed no server change. §1(b)
+and §1(c) need a **migration**. §2's refund and parent email are `E06` / `E08`.
 
 This follows `docs/kitchen-transport-contract.md`: the screen is built against a stated contract,
-and the thread that owns the territory implements it. §1 needs a **migration**. §2 needs the
-**refund and notification** endpoints in `E06` / `E08`.
+and the thread that owns the territory implements it.
 
 Raised because Andy hit both on a real board on 2026-08-13: *"Start is a one-way door. I pressed
 it by mistake and there's no way back"*, and *"say plainly in the UI what cancelling does and
-doesn't do today."*
+doesn't do today."* The design of §1 is his — *"a correction is a NEW event, never an edit"* — and
+"ask an admin" was rejected as unworkable: at volume every mis-tap becomes a support ticket.
 
 ---
 
-## 1. Undoing a status a human set by hand
+## 1. Correcting a status a human set by hand
 
-### The problem
+### The principle: a correction is a new event, never an edit
 
-`order-lifecycle.md` §4.1 is strictly forward. Every tuple moves an order onward and **there is
-no reverse tuple for any actor** — not `preparing -> paid`, not `delivered -> preparing`, not
-`delivered -> paid`. `assert_order_status_transition` enforces the list literally, so the write
-does not merely lack a button: the database refuses it.
+Andy, 2026-08-13: *"Apply the ledger's own principle: a correction is a NEW event, never an edit.
+`order_event` stays append-only and the audit stays honest — it shows the mistake AND the
+correction, which is more truthful than a history where the mistake never happened."*
 
-That is defensible for a state a *machine* sets from evidence. `pending_payment -> paid` follows
-a verified capture; there is nothing to undo, only a fact to record.
+That settles the design. `order_event` is append-only and stays that way. Status is **derived**,
+so the derived value goes back while the record only grows. A corrected order's history reads
+`paid → preparing → paid`, and that is the truth: somebody did press Start, and somebody did
+take it back.
 
-It is not defensible for a state a **human sets by hand on a touchscreen in a kitchen**.
-`paid -> preparing` is one tap next to `paid -> delivered`, both are 56px, and the operator has
-wet hands. A mis-tap is not an edge case, it is Tuesday. An action a person performs by hand
-needs a way back, or the record stops describing reality — and a kitchen that cannot correct the
-board learns to stop trusting it, which costs more than the mis-tap did.
+*"Ask an admin to correct it" is not viable* — at volume every mis-tap becomes a support ticket.
+Three layers, ordered by how often each will be used.
 
-### What is required
+---
 
-Two new tuples in §4.1 and in the trigger:
+### (a) The immediate undo window — **built, needs no server change**
 
-| | operation | from | to | actor | why |
-|---|---|---|---|---|---|
-| **T15** | `UPDATE` | `preparing` | `paid` | `kitchen`, `admin` | undo a mis-tapped **Start** |
-| **T16** | `UPDATE` | `delivered` | `preparing` | `admin` only | undo a mis-tapped **Delivered** |
+Right after any status tap, "Undo" for ten seconds. This catches the overwhelming majority: a
+finger landing on the wrong button, noticed instantly.
 
-**`preparing -> paid` is the important one** and should be uncontroversial: `preparing` asserts
-only that somebody began cooking. Nothing downstream depends on it, no money moves, no parent is
-told. Reversing it costs nothing and unblocks the common mistake.
+**It defers the write rather than reversing it**, which is the only reason it can exist today.
+Gmail's "Undo Send" does not recall a sent mail — it holds the send and cancels it. Nothing is
+sent, so no tuple is needed and there is nothing in the audit trail to explain. Shipped as
+`E09-29`.
 
-**`delivered -> preparing` is deliberately narrower — `admin` only, not `kitchen`.** `delivered`
-is the assertion that a named child physically received food. It is the record that answers "my
-child says they got nothing", and it is the last write before the order is settled. A kitchen
-operator who can silently un-deliver can also silently rewrite that answer. Requiring an admin
-keeps the correction possible and makes it deliberate.
+Its limits, which are exactly why (b) and (c) still matter: it is ten seconds long, it is lost if
+the device dies mid-window, and it cannot help the operator who notices at the end of the break.
 
-Both must be **stamped and reversible in the audit trail, not erased**:
+---
 
-- clear the forward stamp (`preparing_at`, or `delivered_at` **and** `delivered_by_user_id`)
-- the `order_event` row is appended like any other — `from_status`, `to_status`, `actor_type`,
-  `actor_user_id` — so the history reads `paid -> preparing -> paid`, which is what happened.
-  **Never delete the forward event.** A correction is a fact, not an absence of one.
+### (b) A correction after the window — needs the server
+
+Available to the **kitchen operator without an admin**, and time-bound.
+
+**A distinct event type**, so the audit distinguishes "this was done" from "this was corrected".
+`order_event` has `from_status` and `to_status` and nothing that says *why the shape of the
+change*: a `preparing → paid` row is indistinguishable from a hypothetical legitimate one. Add a
+column — `event_kind` with values `progress` and `correction` — or a reason code reserved for
+corrections. **`event_kind` is recommended**: a reason code is about the world, and this is about
+the record.
+
+Two tuples, both `kitchen` and `admin`:
+
+| | operation | from | to | actor |
+|---|---|---|---|---|
+| **T15** | `UPDATE` | `preparing` | `paid` | `kitchen`, `admin` |
+| **T16** | `UPDATE` | `delivered` | `preparing` | `kitchen`, `admin` — see (c) |
+
+**Time-bound.** Until the break passes, or a configurable window — after that it genuinely is an
+admin matter, because a correction to yesterday's service is a different act from fixing a
+mis-tap. Suggested default: **until the end of the service date**, configurable per kitchen.
+The bound belongs in SQL and not only in the UI, or it is advice rather than a rule.
+
+Both moves must **clear their forward stamps** — `preparing_at`, or `delivered_at` **and**
+`delivered_by_user_id`. A status reading "to make" beside a `delivered_at` of 12:40 is worse than
+no correction at all.
+
+---
+
+### (c) Undoing **Delivered** is a claim about the physical world
+
+`delivered` asserts that a named child received food. It is the record that answers "my child says
+they got nothing". Reversing it is allowed — an admin round trip for every mis-tap is the thing
+this document exists to remove — but it is **not** the same act as taking back "Making".
+
+So, per Andy: **allow it, require a reason, and mark it distinctly in the audit.**
+
+- A **reason is mandatory** — `reasonCode`, and the free text of `E09-27` once it has a column.
+  This is the one correction where "why" cannot be reconstructed from the transition alone.
+- Marked distinctly: `event_kind = 'correction'` **and** a reason, so a query for "orders whose
+  delivery was retracted" is one predicate rather than an inference.
+- The endpoint rejects `delivered → preparing` with no reason — 422, the way cancellation already
+  does. A guard the UI enforces alone is not a guard.
+
+Not proposed: `delivered → paid` in one step. Two hops keep each event meaning one thing.
+
+---
 
 ### The endpoint
 
-`kitchen-order-status` already accepts `to`, and both reversals are ordinary values of it. It
-needs three changes, all small:
+`kitchen-order-status` already takes `to`, and every move above is an ordinary value of it:
 
 ```
-LEGAL_FROM.paid       = ['preparing']                 // new
-LEGAL_FROM.preparing  = ['paid', 'delivered']         // 'delivered' added
+LEGAL_FROM.paid       = ['preparing']              // new
+LEGAL_FROM.preparing  = ['paid', 'delivered']      // 'delivered' added
 GRANT_FOR.paid        = 'orders.mark_delivered'
 ```
 
-plus: `delivered -> preparing` must additionally require an **admin-scoped** grant, and the
-`delivered_at` / `delivered_by_user_id` / `preparing_at` columns must be cleared on the reverse
-move rather than left stale. A reversal with a stale `delivered_at` is worse than no reversal —
-the status says "to make" and the stamp says it was handed over at 12:40.
+plus: clear the forward stamps, stamp `event_kind = 'correction'`, enforce the time bound, and
+require a reason for `delivered → preparing`.
 
-### Until it exists
-
-The dashboard **does not draw an Undo button it knows will fail**. Instead it says so at the
-point of the action, which is what Andy asked for — *"if not, say why in the UI rather than just
-refusing"*. `E09-22` covers the UI; this document covers the write.
-
----
+**What is needed from the `supabase/` thread**: the two tuples in §4.1 and the trigger, the
+`event_kind` column, and the time-bound check. `E09-24`.
 
 ## 2. Cancelling, and the two things it does not do
 
@@ -191,7 +220,10 @@ the refund shipping, the screen lies in the opposite direction.
 
 ## Tasks
 
-- `E09-22` — the cancel UI, reason codes, free text, and the two strings above *(this thread)*
-- `E09-23` — the reversal UI, once §1 exists *(this thread)*
-- `E09-24` — §1's migration and the endpoint changes *(needs `supabase/`)*
+- `E09-22` — **done.** The cancel dialog, reason codes, and §2.4's two strings
+- `E09-23` — **done.** What the row says about what cannot be corrected yet
+- `E09-29` — **done.** §1(a), the undo window. Needed no server change
+- `E09-27` — free text on a cancellation, §2.1. Needs a **migration**
+- `E09-24` — §1(b) and §1(c): the two tuples, `event_kind`, the time bound, and the mandatory
+  reason on `delivered -> preparing`. Needs a **migration** *(`supabase/` thread)*
 - `E06-xx` / `E08-xx` — §2.2 and §2.3 *(payments thread, to be numbered by them)*
