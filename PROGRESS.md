@@ -1,3 +1,73 @@
+# Report — 2026-08-13, the merge, and a blocker on the payment objective
+
+## The epic view
+
+**The 100-commit branch is merged.** `main` carries payments, the ledger, the state machine, the
+webhook and invoicing. The two threads are on one base again, and the second merge of the day
+(`E09-20`) went in an hour later — the one-day rule is in force and being followed.
+
+**"A parent pays and gets a receipt" is now blocked, and it needs Andy.** There are **no Razorpay
+keys on staging**. `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` are all
+absent. Nothing can take a payment, and nothing can verify a webhook, until they exist.
+
+**I was wrong about the kitchen write path and Andy caught it.** I read `main`, found no
+`mark-delivered`, and said it would have to be built. It exists on `kitchen-live` as
+`kitchen-order-status`, deployed and used for real. The rule now has a second half.
+
+---
+
+## SHIPPED
+
+- **PR #36 merged** — 100 commits. Fourteen conflicts, all genuine. Backlog conflicts resolved
+  by task id (my text, main's `(mvp)` tag, a completion from either side), verified no id lost
+  or duplicated.
+- **`E09-20`, PR #42 merged** — CORS preflight for all six browser-callable Edge Functions, fixed
+  once in `_shared/cors.ts`. `payments-webhook` deliberately excluded and the exclusion asserted.
+- **`E17-34`** — the EAS Android version counter moved from **1** to `1786591932`, above the live
+  floor of `1777726914`.
+- **Two rules recorded** — the one-day branch limit in `CLAUDE.md`, and the placeholder-assertion
+  class in `docs/learnings.md`.
+
+## FINDINGS
+
+- **The webhook's "verified live" was overstated, and I should correct it.** It answers
+  `recorded_unverified` because there is no webhook secret — it records the event and *cannot*
+  check the signature. That is the correct fail-safe. It is not a working payment path, and I
+  had recorded it as a success.
+- **Reading `main` is not enough.** Twice in one day: the web thread read a `main` without
+  payments and reported E06 as 0/15; I read a `main` without `kitchen-order-status` and was one
+  step from building a second one. `CLAUDE.md` now says to check the other branch.
+- **A guard that went tautologically true.** `LIVE_PLAY.versionCode`'s dormant assertion was a
+  placeholder `> 0`. The real number arriving turned it from inactive to trivially passing —
+  green, and asserting nothing. Filed as a class in learnings.
+- **I pushed without re-running smoke and CI caught it.** I tagged `E06-36` `(mvp)` without
+  adding it to the include list. `build-backlog` and `sync-state` write files; only smoke checks
+  them. The tag is stripped — new work is fast-follow until Andy says otherwise.
+
+## BLOCKED
+
+**`E06-02` client checkout, on `E06-36`.** I can write the code without the keys; I cannot
+exercise it, and the objective is a real payment on Andy's handset. Also newly visible: nothing
+yet creates a Razorpay *order* server-side — that Edge Function does not exist and is part of
+`E06-02`.
+
+## NEEDS ANDY
+
+1. **`E06-36` — Razorpay TEST keys.** Razorpay dashboard → Settings → API Keys, in **test mode**.
+   Three values: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`. Hand them
+   over and I set the secrets. `EN2` already makes it impossible for an `rzp_live_` key to load
+   under `APP_ENV=staging`, so there is no risk of these reaching production.
+2. **Is `E06-36` in v1?** I believe it is — nothing takes a payment without it — but adding an id
+   to the MVP list is not mine to do. It is untagged pending your word.
+3. **Staging Site URL and redirect allow-list** are still wrong (`localhost:3000`, empty). A
+   dashboard fix, and the reason the config check is red on every branch.
+4. **`E19-07` sitting**, and **EAS keystore registration** — both still with you, unchanged.
+
+## NEXT
+
+`E06-02`'s server half — the create-order Edge Function with `E06-25` payload redaction, which
+needs no keys to be written and tested — then the client half when the keys land, then `E06-16`
+and E08.
 # Report — 2026-08-13, the version guard and the invoice
 
 ## The epic view

@@ -22,6 +22,15 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 | # | Ask | Asked | Status |
 |---|---|---|---|
+| 1 | **"A parent pays and gets a receipt"**, test mode only | 2026-08-12 | **Blocked on `E06-36`** — no Razorpay test keys on staging. `settle_payment` and the invoice are done; `E06-02` client checkout is next and cannot be exercised without keys |
+| 2 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine) |
+
+**Closed 2026-08-13:** merging `ux-spec-and-prototype` to `main` (100 commits, PR #36), the two
+version items (`E17-34`), and `E09-20` CORS (PR #42). Both rules Andy asked for are recorded —
+the one-day branch limit and the second half he added the same hour, *check the other branch, not
+just `main`*.
+
+---|---|---|---|
 | 1 | **"A parent pays and gets a receipt"**, test mode only | 2026-08-12 | In progress. `settle_payment` and the invoice are done and green; client checkout (`E06-02`), the status endpoint (`E06-16`) and the confirmation email (E08) remain |
 | 2 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine) |
 
