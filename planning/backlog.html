@@ -566,13 +566,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/10</span>
+          <span class="meter-num">0/11</span>
         </div>
       </header>
       <p class="summary">Short, throwaway experiments that answer the questions capable of invalidating later work. Each is timeboxed to a day or two and needs almost no infrastructure.</p>
       
       <details>
-        <summary>Context &amp; 10 tasks</summary>
+        <summary>Context &amp; 11 tasks</summary>
         <div class="context"><h4>Why these are first</h4>
 <p>Each of these can invalidate a large amount of downstream work if the answer is bad.</p>
 <p>Doing them in phase 1 costs days; discovering them in phase 4 costs weeks.</p></div>
@@ -656,6 +656,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The <code>E19-07</code> sitting itself — ~45 minutes with the Razorpay dashboard in TEST mode.</strong> Three actions, listed in <code>docs/e19-07-webhook-sitting.md</code> §4: subscribe the probe URL and save the webhook secret; make one test UPI payment <strong>and let a second collect request expire unpaid</strong> (the only way to learn how long Razorpay holds a pending collect, which is <code>[OL-03]</code> and drives <code>S21</code>&#39;s no-timeout waiting screen); run one script and paste the output back. Needs: dashboard in test mode, test-mode API keys, a phone with a UPI app. Not scenario #40 — that is live-mode at release and must never be simulated. <strong>Blocks <code>E06</code> step 6 onward</strong>, not steps 1–4, so the ledger work proceeds meanwhile</span>
+      </li>
+      <li class="task" data-id="E19-11" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-11"></button>
+        <code class="tid">E19-11</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Scenario 40 needs an owner who is not Andy.</strong> The UPI *intent* happy path — the app-switch, the chooser, <code>LSApplicationQueriesSchemes</code> and the Android <code>&lt;queries&gt;</code> block (<code>E06-29</code>), and the process being killed while another app holds the foreground (<code>E06-16</code>) — is the one thing test VPAs and test cards cannot exercise, because it is a property of the handset rather than of our server. <code>E19-01</code> proved it once on a real handset; <strong>Andy is in Australia with no working UPI and cannot repeat it.</strong> Everything downstream of the provider is covered by scenarios 41–43 (<code>docs/payments-design.md</code> §14.1), so this is not a blocker for building — it is a release gate with nobody assigned. Needs a real Indian handset with a working UPI app, in Mohali, before launch</span>
       </li></ul>
       </details>
     </article>

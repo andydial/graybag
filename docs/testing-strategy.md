@@ -143,6 +143,22 @@ This is the crux. `E06-13` — "test-mode payment fixtures so E2E tests cover th
 CI" — must hold **without a live Razorpay account and without a real handset in CI**. Three techniques,
 applied at different levels.
 
+> **And not only in CI. 2026-08-13.**
+>
+> This section was written as though a handset were available outside CI, with a human to hold it.
+> **Andy is in Australia and has no working UPI**, permanently — so "a person can just run it by
+> hand" is not a fallback that exists for this project.
+>
+> Every manual payment test therefore uses the same instruments CI does: test VPAs
+> `success@razorpay` / `failure@razorpay` entered in checkout's **UPI ID** field, or test card
+> `4111 1111 1111 1111`. Open checkout **on a laptop** — a phone with a UPI app installed may go
+> straight to the intent chooser and never offer the field.
+>
+> The one thing no instrument substitutes for is the app-switch itself (`docs/payments-design.md`
+> §14.1, scenario 40): the UPI chooser, `LSApplicationQueriesSchemes`, the Android `<queries>`
+> block, and the process being killed while another app holds the foreground. That needs a real
+> handset in India at release, and it needs an owner who is not Andy.
+
 ### 5.1 The provider boundary is a seam we own
 
 Every Razorpay HTTP call is made from an Edge Function through **one provider client module**, the

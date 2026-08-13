@@ -35,8 +35,32 @@ built in advance; Andy's part is three actions and roughly **45 minutes**.
    API Keys.
 2. **Test-mode API keys** (`rzp_test_…` key id and secret). Not the live ones — nothing in this
    sitting should touch a live account.
-3. **A phone with a UPI app**, for the one question that needs a real payment attempt (#3, how
-   long a collect stays pending). Test mode is enough; no real money moves.
+3. **A desktop browser.** *(Superseded 2026-08-13 — this said "a phone with a UPI app".)*
+
+   **Andy is in Australia and has no working UPI, permanently.** Every payment test from here
+   uses Razorpay's test-mode instruments, and this is not a temporary inconvenience to work
+   around once — it is the standing condition of every payment test this project will run.
+
+   | Path | Instrument | Reaches |
+   |---|---|---|
+   | **UPI collect, success** | VPA `success@razorpay` | `payment.captured` |
+   | **UPI collect, failure** | VPA `failure@razorpay` | `payment.failed` |
+   | **Card, fallback** | `4111 1111 1111 1111`, any future expiry, any CVV | `payment.captured` |
+
+   **Open the checkout on a laptop, not a phone.** The UPI *intent* app-chooser only appears
+   where the OS can resolve an installed UPI app; on a desktop browser there is nothing to
+   resolve, so checkout renders the **collect** path with an "Enter UPI ID" field — which is the
+   one that accepts a test VPA. On a phone with any UPI app installed, checkout may launch
+   straight into intent and never offer the field.
+
+   **Row 3 may not be answerable from here at all, and that is a finding rather than a failure.**
+   It asks how long Razorpay holds an unpaid UPI *collect* before expiring it. A test VPA
+   resolves immediately by design — `success@razorpay` succeeds, `failure@razorpay` fails — so
+   there is no pending state to time. If no test instrument produces a durable pending collect,
+   row 3 must come from Razorpay's documentation or their support, or from a real handset in
+   India at release. **It must not be guessed**: `[OL-03]`, the `pending_payment` hold and
+   `S21`'s Ending B all resolve on it, and a hold shorter than Razorpay's real expiry
+   manufactures exactly the late-capture path `L9`'s grace window exists to absorb.
 
 That is all. No tunnel, no local server, no ngrok — see below.
 
@@ -66,7 +90,7 @@ they are questions about request and response shapes.
 | | Action | Time |
 |---|---|---|
 | 1 | Paste the probe URL into Settings → Webhooks, subscribe **all** payment and refund and settlement events, save. Copy the webhook secret it generates into the staging secrets (`npm run secrets:set`, one command, printed for you) | ~10 min |
-| 2 | Make **one** test-mode UPI payment against a test order the script creates, and **let a second one expire without paying it** — that second one is the only way to learn row 3 | ~20 min, most of it waiting |
+| 2 | Make **one** test-mode payment via a Standard Payment Link opened **on a laptop**, entering `success@razorpay` in the UPI ID field. Create a second link and leave it untouched | ~20 min, most of it waiting |
 | 3 | Run `node scripts/probe-razorpay.mjs` with the test keys in the environment, and paste the output back | ~5 min |
 
 **Total: about 45 minutes**, of which roughly half is waiting for a deliberately-unpaid collect

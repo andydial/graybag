@@ -1223,7 +1223,41 @@ noted.
 | 37 | Ledger transaction with unbalanced entries | Refused at commit (I10) |
 | 38 | `rzp_live_` key id with `APP_ENV != production` | Function refuses to start (`E06-14`) |
 | 39 | A `refund.created` for a provider refund with no local row | Draft record, `200`, page (`[PAY-07]`) |
-| 40 | UPI intent happy path on a real handset | **Live only** — `E19-01`, then `E06-13` scenario 2 |
+| 40 | UPI intent happy path on a real handset | **Live only, and NOT runnable by Andy** — see §14.1 |
+| 41 | UPI **collect** success, test VPA `success@razorpay` | `payment.captured`. The reachable substitute for 40 |
+| 42 | UPI **collect** failure, test VPA `failure@razorpay` | `payment.failed`, and the app shows a decline rather than a cancellation |
+| 43 | Card fallback, `4111 1111 1111 1111` | `payment.captured` on a non-UPI method — proves the settlement path is not UPI-shaped |
+
+### 14.1 Who can run scenario 40, and why it is not Andy
+
+**Andy is in Australia and has no working UPI.** Not temporarily — this is the standing condition
+of every payment test this project runs, so it belongs in the specification rather than in a
+message.
+
+`E19-01` was validated on a real Android handset with a real test-mode UPI **intent** payment
+(`docs/spike-results.md` B6, B7). That evidence stands — it is what closed `[PAY-01]` — but **it
+cannot be reproduced by the person who now runs the tests.** A design that assumes it can is a
+design whose verification plan has no owner.
+
+So the split, explicitly:
+
+| | Runnable by Andy, from anywhere | Needs a real Indian handset with UPI |
+|---|---|---|
+| **Scenarios 41–43** | Yes — test VPAs and test cards, laptop browser | — |
+| **Scenario 40** | No | Yes, at release, in India |
+
+**What the substitutes do and do not cover.** The webhook, the signature, `settle_payment`, the
+invoice and the ledger see an identical `payment.captured` whichever instrument produced it — so
+everything downstream of the provider is fully covered by 41–43. What they cannot exercise is the
+**app-switch itself**: `LSApplicationQueriesSchemes` and the Android `<queries>` block (`E06-29`),
+the chooser, and the process being killed while another app has the foreground (`E06-16`). Those
+are properties of the handset, not of our server, and they need scenario 40.
+
+**Open the checkout on a laptop.** The intent chooser only appears where the OS can resolve an
+installed UPI app; a desktop browser has nothing to resolve, so checkout renders the collect path
+with the "Enter UPI ID" field that accepts a test VPA. On a phone with any UPI app installed,
+checkout may launch straight into intent and never offer the field — which looks like the test
+being impossible rather than like the wrong device.
 
 ---
 
