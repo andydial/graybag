@@ -3127,21 +3127,21 @@
 <p>GrayBag is the <strong>seller of record</strong> and pays kitchens monthly. Cart currently shows a single &quot;5% tax&quot; line; a compliant invoice needs the CGST/SGST split. Place of supply is Mohali / SAS Nagar (intra-state).</p>
 <p>Blocked on E00-10 / E00-11 for GSTIN, SAC code and the school-share GST treatment.</p></div>
         <ul class="tasks">
-      <li class="task" data-id="E07-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-01"></button>
         <code class="tid">E07-01</code>
-        <span class="badge r-high">high</span>
+        
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Gapless sequential invoice numbering</strong> per financial year — failed payments must not burn numbers</span>
+        <span class="ttext"><strong>Gapless invoice numbering.</strong> <code>0047</code>. From <code>invoice_sequence</code> under a row lock, taken <strong>last</strong> — after every check that could refuse has passed — because a Postgres sequence is non-transactional by design and a rolled-back transaction would burn a number and leave a hole nobody can explain to an auditor. Format <code>GB/26-27/000417</code>: <strong>15 characters</strong>, where the original schema comment&#39;s <code>GB/2026-27/000417</code> was seventeen and would have breached Rule 46&#39;s 16-character cap</span>
       </li>
-      <li class="task" data-id="E07-02" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-02" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-02"></button>
         <code class="tid">E07-02</code>
-        <span class="badge r-high">high</span>
+        
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Invoice PDF: GrayBag GSTIN, invoice no + date, customer, place of supply, SAC code, taxable value, <strong>CGST 2.5% + SGST 2.5%</strong>, total. <strong>Rounding rule fixed and unit-tested</strong> against worked examples — per line or per invoice, decided once</span>
+        <span class="ttext"><strong>The invoice itself.</strong> <code>0047</code>/<code>0048</code>, issued inside <code>settle_payment</code>&#39;s transaction (<code>D14</code>) so a paid order can never exist without a tax document, nor a burned number without a settlement. Seller identity <strong>snapshotted</strong> (§13.2 — a reprint must be byte-identical, so a wrong value cannot be quietly fixed in config), place of supply printed always per Rule 46, CGST and SGST as separate figures (<code>M2</code>), pickup codes carried onto the document (<code>P4</code>). Line descriptions carry the child&#39;s <strong>first name only</strong> (§4.3, <code>G7</code>) — asserted positively and negatively, since this is a document a parent forwards to an employer. Buyer name may be NULL and is never fabricated (<code>E07-22</code>, Rule 46(f)). 13 assertions</span>
       </li>
       <li class="task" data-id="E07-03" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-03"></button>
@@ -3247,13 +3247,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Guard triggers: an <code>invoice</code> row can never be <code>DELETE</code>d, and <code>invoice_sequence.last_sequence_no</code> may only increase, by exactly 1</span>
       </li>
-      <li class="task" data-id="E07-16" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-16" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-16"></button>
         <code class="tid">E07-16</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Financial year derived from <code>issued_at</code> in the platform timezone, with tests at 05:20 IST 1 Apr and 23:50 IST 31 Mar</span>
+        <span class="ttext"><strong>Financial year derived from <code>issued_at</code></strong> in the platform timezone — <code>financial_year_at()</code>, <code>0047</code>. April–March, so April 2026 and March 2027 both resolve to <code>2026-27</code>. Derived rather than stored, so an invoice cannot disagree with its own series</span>
       </li>
       <li class="task" data-id="E07-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-17"></button>

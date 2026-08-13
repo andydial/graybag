@@ -43,11 +43,39 @@ select gl.user_id      as customer_id,
  where gl.can_order and gl.revoked_at is null
  limit 1;
 
+-- The Nth ORDERABLE day, not `current_date + N`.
+--
+-- This suite used a fixed offset and therefore failed on any day of the week where the offset
+-- landed on a non-service day — it broke on a Thursday, because `current_date + 3` was a Sunday
+-- and `create_checkout` correctly refused a date the school does not serve. A test whose result
+-- depends on the day it is run is a test that will eventually fail in CI for a reason nobody can
+-- reproduce locally.
+--
+-- `orderable_calendar` is the same function the app's date picker reads, so the fixture now asks
+-- the product what it will accept rather than assuming.
+-- A POSITIVE argument means "the Nth orderable day" — what a valid order uses.
+-- A ZERO OR NEGATIVE argument stays a literal `current_date + n`, because the refusal tests
+-- below want deliberately invalid dates (yesterday, or beyond the advance-order horizon) and
+-- asking the calendar for one would defeat the point.
+create function t_service_date(p_nth int default 3) returns date language sql stable as $$
+  select case
+           when p_nth <= 0 then current_date + p_nth
+           else coalesce(
+             (select service_date
+                from orderable_calendar((select school_id from t_ctx), current_date,
+                                        current_date + 60)
+               where is_orderable
+               order by service_date
+              offset (p_nth - 1) limit 1),
+             current_date + p_nth)
+         end;
+$$;
+
 create function t_line(p_days int default 3, p_qty int default 2, p_item uuid default null)
 returns jsonb language sql stable as $$
   select jsonb_build_array(jsonb_build_object(
     'recipient_id', (select recipient_id from t_ctx),
-    'service_date', (current_date + p_days)::text,
+    'service_date', t_service_date(p_days)::text,
     'menu_item_id', coalesce(p_item, (select menu_item_id from t_ctx)),
     'quantity',     p_qty));
 $$;
