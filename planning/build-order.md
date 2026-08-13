@@ -260,6 +260,47 @@ users.
 adding a step between opening the app and paying needs an explicit justification recorded with
 it.
 
+## Block 7a — The dish mark and school menu restriction  (E04-14…E04-17, E04-19, E04-20)  ← inserted ahead of payments, 2026-08-11
+
+`dish.food_type` is null on every dish, `public_menu` never selected the column, and no fixture
+anywhere contains a `non_veg` dish. So the veg / egg / non-veg mark does not exist end to end:
+not in the data, not in the read path, not in a test.
+
+That was tolerable while it was decoration. Two things changed on 2026-08-11. The public site
+committed in writing that *"every dish carries a veg, egg or non-veg mark, and your school's menu
+contains only what you have agreed to"*; and **schools are lined up who want non-vegetarian food
+next**.
+
+**This is a revenue feature, not a safety catch.** It is what lets us sell non-veg to the schools
+that want it *without* losing the schools that do not. Without it, the only way to honour a
+vegetarian school is to keep the whole catalogue vegetarian, which is the business decision this
+work exists to avoid having to make.
+
+An earlier proposal — a trigger refusing creation of any `non_veg` dish until the restriction
+shipped — was **withdrawn** (`E04-18`). It would have blocked the business it was meant to
+protect. Sequencing does the same job: this block lands before the first non-veg dish exists.
+
+| | |
+|---|---|
+| `E04-14` | Expose `food_type` through `public_menu`; bump the cache token |
+| `E04-19` | A `non_veg` fixture in both seeds and in the prototype — the enum branch has never run |
+| `E04-16` | `not_stated` on the enum; column `not null`, **no default** |
+| `E04-15` | Load the kitchen's marking sheet (`tools/food-type-sheet/`) |
+| `E04-17` | `school.allowed_food_types` + four server-side checkpoints + allow/deny tests |
+| `E04-20` | pgTAP coverage — the suite currently has zero references to `food_type` |
+
+**Done when:** a school configured vegetarian-only cannot be assigned a menu containing a non-veg
+or unmarked dish, cannot have one added to a menu it already has, never sees one in
+`public_menu`, and is refused at checkout if one is submitted anyway — each proved by a test that
+fails if the rule is removed.
+
+**`not_stated` fails closed**, so a dish nobody has marked is treated as disallowed everywhere.
+
+**The kitchen is not on the critical path for building this.** `E04-16` backfills every existing
+dish to `not_stated` and adds the constraint immediately; `E04-15` then corrects those values
+whenever the sheet comes back. What the kitchen *does* gate is the first restricted school going
+live — because until its dishes are marked, failing closed means its menu is empty.
+
 ## Block 8 — Payments  (E06)  ← the long pole
 
 In-app checkout with native UPI, webhook signature verification, idempotent handling, the

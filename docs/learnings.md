@@ -2062,3 +2062,163 @@ works; it earned its keep by failing when the backstop and the constraint drifte
 `supabase/seed.sql` while migrations also seed data (`0013` reason codes, `0029` break windows,
 `0035` the chart of accounts) — a check consulting one source of truth for a fact that has two.
 Everything on this page this fortnight has been a version of that.
+
+## The company's dish photography is 120 pixels, and no larger original exists — 2026-08-11
+
+Found while building the public site (`E12`), which needed food photography and had a
+manifest promising 82 images.
+
+`tools/mirror-dish-images/manifest.json` records 85 dish records and 82 that resolve, and it
+reads like an asset library. **Every one of them is between 80 and 213 pixels wide; 72 of the 82
+are exactly 120 × 120.** The bytes on disk match the manifest checksums, so the mirror did not
+downsize anything — that is the size they were uploaded at.
+
+Checked properly before concluding it, because "the mirror fetched thumbnails" was the more
+likely explanation and would have been fixable:
+
+```
+curl <bubble-cdn-url>                          → 120 × 120
+curl "<bubble-cdn-url>?w=1200"                 → 120 × 120
+curl ".../cdn-cgi/image/w=1200/<file>"         → 120 × 120
+```
+
+Bubble's `f<id>` URL *is* the original upload. There is nothing bigger.
+
+**Three consequences, and the third is the expensive one.**
+
+1. No web page can have a full-bleed food hero from this source. `apps/web` shows the dishes as
+   a mosaic capped at 88 CSS px, where a 120px asset still holds up at 2×.
+2. `E16-43` uploading the mirror into Supabase Storage will not improve this. It moves the same
+   120px files.
+3. **The mobile app's dish card is specified at a 16:10 photo across half a 390pt screen**
+   (`ux-spec.md` §5.5) — roughly 175 × 109 CSS px, so about **350 × 218 device pixels on a
+   2× phone**. A 120 × 120 source cannot fill it. The prototype looks right because a prototype
+   at 1× on a laptop is the one place this does not show. **The app needs new photography or a
+   different card treatment**, and that is a design decision nobody has made because nobody
+   knew the constraint existed.
+
+The general lesson: a manifest that records `bytes`, `contentType` and a checksum looks like it
+describes the images, and it does not — none of those three fields would have caught this. It
+now records `sourceWidth`/`sourceHeight` for everything `apps/web` emits, and a test asserts
+nothing is upscaled.
+
+## `position: relative` on `> *` silently deleted the brand pattern — 2026-08-11
+
+`apps/web` painted the vegetable pattern as an absolutely-positioned layer inside each green
+panel, and lifted the content above it with:
+
+```css
+.panel-deep > * { position: relative; }
+```
+
+That rule also matches the pattern layer. `position: absolute` became `relative`, and an
+`inset: 0` element that is no longer positioned collapses to **zero height**. Every green field
+on the site rendered flat. Nothing errored, the div was in the DOM, the mask was correct, and
+the box was 0px tall — so it read as "the pattern is too subtle" rather than as a bug.
+
+Two neighbours of the same family turned up within the hour, which is why this is worth
+recording as a class rather than as three fixes:
+
+- **Flex children shrink by default.** Adding a line to the hero's phone illustration made the
+  browser take the space back out of the delivery card, and its break-time band rendered at one
+  pixel. Same signature: present, correct, invisible. (The prototype has a `min-height: 0` note
+  about the mirror image of this.)
+- **`opacity` on text destroys contrast invisibly.** `opacity: 0.88` white on `primary-700` is
+  5.19:1 dropped to **4.39** — a real AA failure that looks completely fine.
+  `docs/design-tokens.md` §6 warns about exactly this ("dimming text with opacity silently
+  destroys its contrast ratio and is invisible in review") and it still got written.
+
+**All three were caught by tools, not by looking**: the first two by screenshotting the page and
+comparing against intent, the third by the new axe gate (`apps/web/scripts/check-a11y.mjs`).
+Layout bugs whose symptom is *absence* are the ones review never finds, because there is nothing
+on screen to notice.
+
+## Headless Chrome will not give you a viewport narrower than 500px — 2026-08-11
+
+`--window-size=390,900` renders the page at **500 CSS px** and then writes a 390px-wide canvas.
+The result is a "mobile screenshot" of a layout that was never laid out at mobile width, showing
+text apparently overflowing its container. Half an hour went into a horizontal-overflow bug that
+did not exist.
+
+`Emulation.setDeviceMetricsOverride` over the DevTools Protocol is the only way to get a genuine
+narrow viewport. Node 22 has a global `WebSocket`, so driving CDP directly costs no dependency —
+`apps/web/scripts/check-a11y.mjs` does it in about eighty lines and runs axe at 390 × 844.
+
+A related trap in the same tooling: **headless Chrome does not fire `loading="lazy"` during an
+off-screen capture**, so a full-page screenshot shows every below-the-fold image as a grey box.
+That is the screenshot lying, not the page. Set `loading = 'eager'` before capturing.
+
+## A fixture that can hold a state production cannot produce — 2026-08-11
+
+`tools/seed-kitchen-day` was written to insert orders directly at their end state: fourteen
+`paid`, five `preparing`, four `delivered`, one `cancelled`. The database refused:
+
+```
+ERROR: order status change with no app.actor_type set
+ERROR: illegal order transition '' -> paid by system
+```
+
+`assert_order_status_transition` implements `order-lifecycle.md` §4.1 literally, as
+`(operation, from, to, actor)` tuples, and the **only** permitted INSERT is
+`('', 'pending_payment', 'system')`. There is no way to write a `paid` order. One has to be
+*made* paid, by the actor entitled to make it so.
+
+So the seed now walks the lifecycle: the system takes the order and the money, then
+`set local app.actor_type = 'kitchen'` and the kitchen prepares, delivers or cancels. Four extra
+statements.
+
+**The reason this is worth recording is what the shortcut would have cost.** A dashboard built
+against a fixture that inserts terminal states directly is a dashboard verified against data the
+system cannot generate. Every screen would look right; the first real order would arrive by a
+different route, with different timestamps set and different events written, and the difference
+would surface in production. It is the same failure as a test asserting against a fixture nobody
+could create — the assertion passes and proves nothing.
+
+**The general form: a fixture should be built by the same transitions as the real thing, not by
+writing the end state.** Where the schema enforces that, let it. The four extra statements are
+the cheapest correctness guarantee available, and they are free — the database wrote them for us
+by refusing the shortcut.
+
+Two neighbours found the same way, both also the schema being right:
+
+- `recipient_must_have_guardian` (`D10`) is `deferrable initially deferred`, so a child and its
+  guardian link must land in one transaction. PostgREST runs every request in its own
+  transaction and therefore *cannot* create a child. The tool needs a real `BEGIN`.
+- `order_event` is append-only — DELETE is refused with "write a compensating row instead" — so
+  a seeded order cannot be un-seeded. There is no `--clear`, and there should not be: an order
+  that happened cannot be made not to have happened.
+
+## A check that keys by an identifier must first prove the identifier is unique — 2026-08-11
+
+`scripts/check-mvp.mjs` verifies that the MVP include list and the backlog markdown agree. It
+does everything by id: `new Map(tasks.map(t => [t.id, t]))`, then set operations over those keys.
+
+**Two different tasks were both numbered `E09-11`.** The Map silently kept the second. So the
+first — genuinely in the MVP list, genuinely tagged — read as *absent*, the check reported a
+disagreement that did not exist, and the "fix" was to tag the wrong task. The gate was not
+merely blind to the collision; **it actively produced a wrong answer and looked confident doing
+it.**
+
+This is the second time task ids have defeated a check that assumed they were unique. The first
+was `docs/bubble-recon-findings.md` §9: the legacy system references dishes **by name**, 85 dish
+rows carry 79 distinct names, and 138 of 911 line items are ambiguous as a result. Same shape,
+different key.
+
+**The rule, as a class rather than as two incidents:**
+
+> Any check that groups, joins, or looks up by an identifier must **verify that the identifier is
+> unique before it verifies anything else**, and must fail on a collision rather than resolving
+> it. Last-write-wins in a Map is a silent resolution, and every result computed afterwards is
+> unsound.
+
+`check-mvp.mjs` now reports duplicates first, fails on them, and says why: *"every other check
+here keys by id and is unsound until this is resolved."* Ids being **permanent** — which
+`CLAUDE.md` states — is not the same property as ids being **unique**, and nothing was checking
+the second one.
+
+The same question was then asked of the other id spaces rather than left as a worry. **The
+decision log is clean** — 257 ids across `docs/decisions/`, no collisions — so `DOC1`'s
+permanence claim happens to hold, but nothing checks it either and it is one careless append
+from the same failure. Still open: the menu importer matches dishes **by name** (`MI`-series,
+already known to be ambiguous for 6 names), and `sync-state.mjs` keys by task id, so it inherits
+whatever `check-mvp.mjs` now catches.

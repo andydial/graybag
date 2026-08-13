@@ -1,0 +1,148 @@
+{
+  "generated_by": "apps/web/scripts/build-web-assets.mjs",
+  "task": "E12-01",
+  "note": "Build OUTPUT, committed because CI cannot reach the sources. Regenerate, never hand-edit. Sources: ../Legacy-Application/Graybag_Design Package (RH1) and the dish mirror (E16-28).",
+  "photography_note": "Every dish photograph is 120px or smaller at source — verified against the Bubble CDN. Nothing here is upscaled and the page displays them at 72-88 CSS px.",
+  "budget_bytes": 130000,
+  "total_bytes": 122728,
+  "dish_source_dir": "/Users/andy/graybag-dish-images",
+  "range": [
+    {
+      "category": "breakfast",
+      "dish": "Idli Sambar",
+      "label": "Idli sambar",
+      "slug": "idli-sambar",
+      "sourceWidth": 120,
+      "sourceHeight": 120
+    },
+    {
+      "category": "mains",
+      "dish": "Rajma Rice",
+      "label": "Rajma rice",
+      "slug": "rajma-rice",
+      "sourceWidth": 120,
+      "sourceHeight": 120
+    },
+    {
+      "category": "wraps",
+      "dish": "Paneer Wrap",
+      "label": "Paneer wrap",
+      "slug": "paneer-wrap",
+      "sourceWidth": 120,
+      "sourceHeight": 120
+    },
+    {
+      "category": "salads",
+      "dish": "Quinoa Salad",
+      "label": "Quinoa salad",
+      "slug": "quinoa-salad",
+      "sourceWidth": 120,
+      "sourceHeight": 120
+    },
+    {
+      "category": "bakery",
+      "dish": "French Butter Croissant",
+      "label": "Butter croissant",
+      "slug": "french-butter-croissant",
+      "sourceWidth": 120,
+      "sourceHeight": 120
+    },
+    {
+      "category": "snacks",
+      "dish": "Paneer Puff",
+      "label": "Paneer puff",
+      "slug": "paneer-puff",
+      "sourceWidth": 120,
+      "sourceHeight": 120
+    },
+    {
+      "category": "drinks",
+      "dish": "Banana Shake",
+      "label": "Banana shake",
+      "slug": "banana-shake",
+      "sourceWidth": 120,
+      "sourceHeight": 120
+    }
+  ],
+  "absent": [],
+  "files": [
+    {
+      "file": "apple-touch-icon.png",
+      "bytes": 5071,
+      "width": 192,
+      "height": 192
+    },
+    {
+      "file": "dishes/banana-shake.webp",
+      "bytes": 4520,
+      "width": 120,
+      "height": 120
+    },
+    {
+      "file": "dishes/french-butter-croissant.webp",
+      "bytes": 4690,
+      "width": 120,
+      "height": 120
+    },
+    {
+      "file": "dishes/idli-sambar.webp",
+      "bytes": 3144,
+      "width": 120,
+      "height": 120
+    },
+    {
+      "file": "dishes/paneer-puff.webp",
+      "bytes": 3488,
+      "width": 120,
+      "height": 120
+    },
+    {
+      "file": "dishes/paneer-wrap.webp",
+      "bytes": 3724,
+      "width": 120,
+      "height": 120
+    },
+    {
+      "file": "dishes/quinoa-salad.webp",
+      "bytes": 7388,
+      "width": 120,
+      "height": 120
+    },
+    {
+      "file": "dishes/rajma-rice.webp",
+      "bytes": 6602,
+      "width": 120,
+      "height": 120
+    },
+    {
+      "file": "favicon.png",
+      "bytes": 2618,
+      "width": 64,
+      "height": 64
+    },
+    {
+      "file": "logo-white.webp",
+      "bytes": 5590,
+      "width": 320,
+      "height": 105
+    },
+    {
+      "file": "logo.webp",
+      "bytes": 10828,
+      "width": 320,
+      "height": 105
+    },
+    {
+      "file": "og.jpg",
+      "bytes": 28935,
+      "width": 1200,
+      "height": 630
+    },
+    {
+      "file": "pattern.webp",
+      "bytes": 36130,
+      "width": 420,
+      "height": 636
+    }
+  ]
+}

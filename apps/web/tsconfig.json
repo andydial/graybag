@@ -1,4 +1,31 @@
 {
-  "extends": "../../config/tsconfig.base.json",
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Astro's base is required, not optional: it supplies the `.astro` module shims, the
+  // `astro:*` virtual modules and the JSX factory the templates compile through. The repo's
+  // shared options are layered on top so `apps/web` keeps the same strictness as everything
+  // else — `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes` included.
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // The browser half: the enquiry form's progressive enhancement runs in a document.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["astro/client", "node"]
+  },
+  "include": [".astro/types.d.ts", "src/**/*.ts", "src/**/*.astro", "*.mjs", "scripts/**/*.mjs"],
+  "exclude": ["dist", "node_modules"]
 }

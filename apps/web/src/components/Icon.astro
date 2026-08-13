@@ -1,0 +1,51 @@
+---
+/**
+ * The six benefit icons, drawn inline.
+ *
+ * Inline SVG rather than an icon library: six icons do not justify a dependency, and inline
+ * costs zero requests on a connection where a request is the expensive part. They follow the
+ * Lucide geometry the design tokens name (§7) — a 24px grid, 1.75 stroke, round caps and joins —
+ * so they sit correctly next to the app's icons when someone puts the two side by side.
+ *
+ * `aria-hidden`, always. Every one of these sits beside a heading that says the same thing, and
+ * an icon that repeats its own label is noise in a screen reader.
+ */
+interface Props {
+  name: 'cash' | 'queue' | 'shield' | 'report' | 'kitchen' | 'staff';
+}
+
+const { name } = Astro.props;
+
+const PATHS: Record<Props['name'], string[]> = {
+  // A banknote with a line through it — no cash.
+  cash: ['M2 6h20v12H2z', 'M12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3', 'M3 3l18 18'],
+  // Three figures in a row, the third stepping away.
+  queue: [
+    'M5 20v-1a3 3 0 0 1 3-3h1',
+    'M8.5 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5',
+    'M13 20v-1a3 3 0 0 1 3-3h2a3 3 0 0 1 3 3v1',
+    'M17 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5',
+  ],
+  // A shield with a check.
+  shield: ['M12 3l8 3v5c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6z', 'M9 12l2.2 2.2L15.5 10'],
+  // A document with rules on it.
+  report: ['M6 3h8l4 4v14H6z', 'M14 3v4h4', 'M9.5 12.5h5', 'M9.5 16h5'],
+  // A pot with steam.
+  kitchen: ['M4 11h16v3a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z', 'M2 11h20', 'M9 7c0-1.5 1.5-1.5 1.5-3', 'M14 7c0-1.5 1.5-1.5 1.5-3'],
+  // A person with a tick beside them.
+  staff: ['M4 20v-1.5A4.5 4.5 0 0 1 8.5 14h2A4.5 4.5 0 0 1 15 18.5V20', 'M9.5 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7', 'M17 12.5l1.8 1.8L22 11'],
+};
+---
+
+<svg
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.75"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+  focusable="false"
+>
+  {PATHS[name].map((d) => <path d={d} />)}
+</svg>

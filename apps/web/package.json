@@ -4,10 +4,26 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "dev": "astro dev",
+    "build": "npm run tokens:check && astro build && node scripts/check-build.mjs",
+    "preview": "astro preview",
+    "tokens": "node scripts/build-tokens.mjs",
+    "tokens:check": "node scripts/build-tokens.mjs --check",
+    "assets": "node scripts/build-web-assets.mjs",
+    "assets:check": "node scripts/build-web-assets.mjs --check",
+    "fonts": "node scripts/fetch-fonts.mjs",
+    "typecheck": "astro check --minimumSeverity error",
+    "test": "vitest run",
+    "check:a11y": "node scripts/check-a11y.mjs"
   },
   "dependencies": {
-    "@graybag/shared": "*"
+    "@graybag/shared": "*",
+    "astro": "^5.18.2",
+    "marked": "^16.4.2",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "axe-core": "^4.13.0"
   }
 }

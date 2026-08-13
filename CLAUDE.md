@@ -155,9 +155,12 @@ fix it and say plainly in your summary that you changed a test and why.
 
 ## Scope discipline — read before adding anything
 
-`docs/mvp-scope.md` defines v1: **173 tasks, listed explicitly in `scripts/tag-mvp.mjs`.**
+`docs/mvp-scope.md` defines v1: **184 tasks, listed explicitly in `scripts/check-mvp.mjs`.**
 Anything not in that list is fast-follow, including anything you add later.
 
+- **`npm run check:mvp` verifies the list against the markdown and never rewrites either.**
+  It is in the smoke test, so a disagreement fails CI. The script it replaced rewrote the
+  markdown *from* the list, which is how four tasks nearly left v1 because somebody ran it.
 - **Never add an id to the MVP list yourself.** If you believe something must be in v1, say
   so and let Andy decide. The backlog grew from 161 to 288 because new work quietly defaulted
   into scope; that must not happen again.

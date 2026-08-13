@@ -328,7 +328,7 @@
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:critical) (mvp) <strong>Fix the two remaining Supabase auth settings on staging</strong> — re-checked 2026-08-11 and it is <strong>two, not four</strong>: the OTP length and the magic-link template have since been fixed, and the task text was never re-run against the project. (1) <strong>Auth → URL Configuration → Site URL</strong> is <code>http://localhost:3000</code>, so every link Supabase generates opens a blank page on a parent&#39;s phone. (2) <strong>Redirect allow-list</strong> is empty, so only Site URL is permitted and no app scheme can return to the app. Run <code>npm run check:config</code> for the live list rather than trusting this line</span>
+        <span class="ttext">(risk:critical) <strong>Fix the two remaining Supabase auth settings on staging</strong> — re-checked 2026-08-11 and it is <strong>two, not four</strong>: the OTP length and the magic-link template have since been fixed, and the task text was never re-run against the project. (1) <strong>Auth → URL Configuration → Site URL</strong> is <code>http://localhost:3000</code>, so every link Supabase generates opens a blank page on a parent&#39;s phone. (2) <strong>Redirect allow-list</strong> is empty, so only Site URL is permitted and no app scheme can return to the app. Run <code>npm run check:config</code> for the live list rather than trusting this line</span>
       </li>
       <li class="task" data-id="E00-21" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-21"></button>
@@ -336,7 +336,7 @@
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:high) (mvp) <strong>A real SMTP sender before production</strong> — Supabase&#39;s built-in email is a handful of messages an hour with no delivery guarantee, and for an OTP-only product that means nobody can sign in. Resend/SES/Postmark with SPF and DKIM</span>
+        <span class="ttext">(risk:high) <strong>A real SMTP sender before production</strong> — Supabase&#39;s built-in email is a handful of messages an hour with no delivery guarantee, and for an OTP-only product that means nobody can sign in. Resend/SES/Postmark with SPF and DKIM</span>
       </li>
       <li class="task" data-id="E00-23" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-23"></button>
@@ -361,13 +361,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/22</span>
+          <span class="meter-num">0/23</span>
         </div>
       </header>
       <p class="summary">Repo, two real environments, secrets management, and the test harness that every later task depends on.</p>
       <p class="deps">Depends on <code>E00</code></p>
       <details>
-        <summary>Context &amp; 22 tasks</summary>
+        <summary>Context &amp; 23 tasks</summary>
         <div class="context"><h4>Why early</h4>
 <p>Everything after this inherits the quality bar set here. Getting tests and environments right on day one is what stops &quot;manually swapping Razorpay keys&quot; happening again.</p></div>
         <ul class="tasks">
@@ -546,6 +546,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Provider stub server for Razorpay</strong> (answers <code>/v1/orders</code>, <code>/v1/payments/:id</code>, <code>/v1/payments/:id/refund</code>, <code>/v1/payments</code>, <code>/v1/refunds</code>, <code>/v1/settlements/recon/combined</code>) built from the <code>docs/payments-design.md</code> §12 checklist, used by the offline CI payment tests in <code>docs/testing-strategy.md</code> §5. Must be corrected against <code>E19-01</code>&#39;s answers when they land. Overlaps <code>E06-13</code> — if <code>E06-13</code> already owns the fixtures, fold this in there rather than duplicating</span>
+      </li>
+      <li class="task" data-id="E01-25" data-seed="1" data-risk="medium" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-25"></button>
+        <code class="tid">E01-25</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>scripts/tag-mvp.mjs</code> rewrote the backlog markdown from its include list, so a disagreement resolved as &quot;whoever ran it last wins&quot;.</strong> <code>E03-20</code>, <code>E05-16</code>, <code>E05-20</code> and <code>E05-21</code> carried <code>(mvp)</code> in markdown and were absent from the list — a run would have <strong>stripped all four from v1</strong> silently. <code>E09-11</code> was the mirror case. <strong>Closed 2026-08-11</strong>: Andy ruled all five are MVP and they are reconciled; the script is replaced by <code>scripts/check-mvp.mjs</code>, which <strong>verifies and never writes</strong>, names both sides of any disagreement, and runs in <code>npm run smoke</code> so CI fails on drift</span>
       </li></ul>
       </details>
     </article>
@@ -585,12 +593,12 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Low-end Android performance spike</strong> — Expo + Reanimated + Skia on a <strong>mid-range Android</strong> typical of private-school families (not the cheapest tier). Measure cold start, 50-item list scroll with images, and a shared-element transition. Sets the thresholds used in <code>E14-07</code> and validates the framework choice before <code>E13-05</code> is finalised. <strong>CLOSED 2026-08-09 on a subjective verdict — &quot;performance acceptable&quot; — with no recorded figures.</strong> That is enough to validate <code>E13-05</code>&#39;s framework choice and to keep <code>M05</code>, which is what this spike was for. It is <strong>not</strong> enough for <code>E14-07</code>, whose thresholds Andy ruled must come from measured numbers: see <code>docs/spike-results.md</code> §D. <code>E14-07</code> stays blocked on one <code>adb</code> session, not on a decision</span>
       </li>
-      <li class="task" data-id="E19-03" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+      <li class="task" data-id="E19-03" data-seed="1" data-risk="high" data-owner="andy" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-03"></button>
         <code class="tid">E19-03</code>
-        
-        
-        <span class="badge r-later">later</span>
+        <span class="badge r-high">high</span>
+        <span class="badge r-you">you</span>
+        <span class="badge r-mvp">v1</span>
         <span class="ttext">~~VAG Rounded Next licence check~~ — <strong>CLOSED BY DECISION 2026-08-10 (<code>S35</code>), not by checking.</strong> Nunito is the typeface outright. No licence question remains to answer</span>
       </li>
       <li class="task" data-id="E19-04" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
@@ -728,7 +736,7 @@
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Named <strong>grievance officer</strong> with contact details published on the website and in the app</span>
+        <span class="ttext">Named <strong>grievance officer</strong> with contact details published on the website and in the app — *the website surface exists as of <code>E12-04</code> (footer of every page, plus each policy page), currently carrying the generic <code>grievance@graybag.com</code> route. It cannot carry a <strong>name</strong> until <code>E20-21</code>; the app half is untouched*</span>
       </li>
       <li class="task" data-id="E20-08" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-08"></button>
@@ -888,7 +896,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Extend the <code>E20-22</code> placeholder guard to scan <code>docs/privacy-policy.md</code>, <code>docs/terms.md</code> and <code>docs/refund-policy.md</code> for <code>«…-PENDING-…»</code> tokens in any production/published build</span>
+        <span class="ttext">Extend the <code>E20-22</code> placeholder guard to scan <code>docs/privacy-policy.md</code>, <code>docs/terms.md</code> and <code>docs/refund-policy.md</code> for <code>«…-PENDING-…»</code> tokens in any production/published build — *the <strong>website half is implemented</strong> in <code>apps/web/src/lib/policy.ts</code> (<code>assertPublishable</code>, covered by <code>policy.test.ts</code>): a build with <code>PUBLIC_SITE_STAGE=production</code> fails and names every unresolved token. It is a standalone guard, not yet an extension of <code>E20-22</code>, which does not exist. Remaining: fold the two together when <code>E20-22</code> is built, and cover any surface in the app that renders these documents rather than linking to them*</span>
       </li>
       <li class="task" data-id="E20-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-28"></button>
@@ -1521,12 +1529,12 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Produce the two-account list for <code>E03-18</code> as a support artefact and build the merge-on-request path (user confirms, then histories combine) rather than a bulk merge at cutover <strong>Post-cutover (<code>SC3</code>)</strong> — follows <code>E03-18</code></span>
       </li>
-      <li class="task" data-id="E03-20" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+      <li class="task" data-id="E03-20" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-20"></button>
         <code class="tid">E03-20</code>
         <span class="badge r-high">high</span>
         
-        <span class="badge r-later">later</span>
+        <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Session persistence across app restarts.</strong> <code>E03-14</code> shipped sign-in, but the Supabase client is constructed with no storage adapter, so a session lives in memory and is gone when the app is killed — every cold start is a fresh OTP. Needs a native key/value store (<code>@react-native-async-storage/async-storage</code>, or <code>expo-secure-store</code> if the refresh token should sit in the keychain, which is the stronger option and the one to prefer). Deliberately not added on 2026-08-09: it is a native dependency and adding one unattended, hours after the last verified build, risked leaving Andy with no installable APK at all. <code>packages/shared/src/menu/cache.ts</code> already defines the storage interface this should satisfy. <strong>Closes <code>E03-09</code> with it</strong></span>
       </li>
       <li class="task" data-id="E03-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
@@ -1963,13 +1971,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/17</span>
+          <span class="meter-num">0/21</span>
         </div>
       </header>
       <p class="summary">Dishes, menus, per-school assignment, Excel import with allergens, and the version-based cache that makes the app feel fast.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 17 tasks</summary>
+        <summary>Context &amp; 21 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Today: 1 kitchen, 3 menus, 3 schools; largest menu is 50 items. Menu changes are rare, which is exactly what makes version-based caching effective.</p>
 <p>Source Excel columns: <code>Item No. | Menu Item | Description | Ingredients | Calories | Portion/Weight | Allergens | Category | Category - ORIG | Price</code>.</p></div>
@@ -2078,28 +2086,60 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Migrate the 3 existing menus and re-source or re-upload all dish images</span>
       </li>
-      <li class="task" data-id="E04-15" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E04-14" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-14"></button>
+        <code class="tid">E04-14</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">Expose <code>food_type</code> through <code>public_menu</code> — the view never selected it, so the mark cannot reach the app at all even once it is set. <code>packages/shared/src/menu/types.ts</code> already declares <code>foodType: FoodType | null</code>, so the client is typed for a field the read path does not carry. Bumps <code>school_menu_version</code> (<code>MC*</code>), because a cached menu without the column must not render as &quot;not stated&quot;</span>
+      </li>
+      <li class="task" data-id="E04-15" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-15"></button>
         <code class="tid">E04-15</code>
         
         
-        <span class="badge r-later">later</span>
+        <span class="badge r-mvp">v1</span>
         <span class="ttext">Swap the menu cache&#39;s in-memory store for AsyncStorage so it survives a restart. Needs the native dependency and therefore a new dev-client build, which is why <code>installMenuCache</code> ships with an in-memory store first</span>
       </li>
-      <li class="task" data-id="E04-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E04-16" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-16"></button>
         <code class="tid">E04-16</code>
         
         
-        <span class="badge r-later">later</span>
+        <span class="badge r-mvp">v1</span>
         <span class="ttext">Move <code>fetchMenuVersion</code> onto the <code>menu-version</code> Edge Function instead of reading <code>school_menu_version</code> directly. The function runs with <code>service_role</code>, so its answer cannot itself be filtered away by a grants problem — which is what the empty-menu-vs-refused-read distinction depends on</span>
       </li>
-      <li class="task" data-id="E04-20" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+      <li class="task" data-id="E04-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-17"></button>
+        <code class="tid">E04-17</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">(risk:high) School-level menu restriction, <strong>enforced server-side</strong>: <code>school.allowed_food_types</code>, a refusal at menu assignment, a refusal at menu-item edit for menus already assigned to a restricted school, a filter in <code>public_menu</code>, and a checkout refusal with its own error code. A menu belongs to a *kitchen* and is shared across schools (<code>menu.kitchen_id</code>, <code>menu_assignment</code>), so this cannot be done by editing the menu. <code>not_stated</code> must fail closed. Needs allow-and-deny tests on all four paths (non-negotiable #2). Backs the website&#39;s written commitment that a school&#39;s menu contains only what it agreed to</span>
+      </li>
+      <li class="task" data-id="E04-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-18"></button>
+        <code class="tid">E04-18</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Withdrawn 2026-08-11, before any code was written.</strong> Proposed a trigger refusing creation of any <code>non_veg</code> dish until <code>E04-17</code> landed. Andy reversed it: schools are lined up who want non-vegetarian food next, so the guard would have blocked the business it was meant to protect. The id is retained and struck rather than reused. The risk is handled by sequencing instead — <code>E04-17</code> now ships *before* the first non-veg dish exists</span>
+      </li>
+      <li class="task" data-id="E04-19" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-19"></button>
+        <code class="tid">E04-19</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">No fixture anywhere contains a <code>non_veg</code> dish. <code>supabase/seed.sql</code> and <code>supabase/seeds/staging-menu.sql</code> seed four <code>veg</code> and one <code>egg</code>; the clickable prototype&#39;s dish data is 36 <code>veg</code> and 8 <code>egg</code>. The enum value, the shared TS union member and the prototype&#39;s mark renderer all exist and <strong>have never been exercised against data</strong>. <code>E04-17</code> cannot be tested without this, and <code>SD5</code> says fixtures exist for exactly the states that are otherwise untestable</span>
+      </li>
+      <li class="task" data-id="E04-20" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-20"></button>
         <code class="tid">E04-20</code>
         
         
-        <span class="badge r-later">later</span>
+        <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>&quot;My school is not listed&quot; has no handler.</strong> <code>SchoolPicker.onRequestSchool</code> is accepted and never passed, so a parent whose school is not on the list has no way to say so — and with three schools live, most visitors are in exactly that position</span>
       </li>
       <li class="task" data-id="E04-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
@@ -2250,13 +2290,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>calendar.test.sql</code> test 11 fails depending on the clock.</strong> &quot;inside <code>min_advance_order_days</code> the day is refused as <code>too_soon</code>&quot; gets <code>cutoff_passed</code> instead. Found 2026-08-10 and <strong>it is not a regression</strong> — it fails identically on <code>main</code> at <code>543415a</code>, before migrations <code>0012</code>/<code>0013</code>, so it has been failing since whenever the date last rolled onto a weekend. Two things are wrong and only one of them is the test: the fixture assumes a weekday, and <code>orderable_calendar</code> reports only the *first* reason a day is unorderable, so a day that is both too soon and past its cutoff reports whichever branch is checked first. <strong>Fixed 2026-08-10, and the precedence was not the problem.</strong> <code>orderable_calendar</code> reports <code>cutoff_passed</code> before <code>too_soon</code> deliberately — &quot;you have missed it&quot; is more actionable than &quot;wait&quot; — and that is correct and unchanged. The <strong>fixture</strong> was wrong: with a two-day lead the only <code>too_soon</code> days are today and tomorrow, and tomorrow&#39;s cutoff is 23:00 *today*, so from 23:00 onwards the day is both too soon and past its cutoff. The lead is now four days and the assertion uses <code>current_date + 3</code>, whose cutoff is in the future at every hour of every day. Precedence is still asserted, by the test that was already there. <strong>The suite had been green only because it rarely ran late enough in the day.</strong></span>
       </li>
-      <li class="task" data-id="E05-16" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+      <li class="task" data-id="E05-16" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-16"></button>
         <code class="tid">E05-16</code>
-        <span class="badge r-critical">critical</span>
         
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Nothing creates a <code>recipient</code> or a <code>guardian_link</code>, so no order can be placed by a real user.</strong> <code>create_checkout</code> correctly refuses every request from the app with <code>not_authorized</code> — there is no link. Found 2026-08-10 when the order path was finished and had nobody to run it for. <code>E05-01</code>/<code>E05-02</code> are the tasks, and the reason they are not simply &quot;next&quot; is that adding a child is where consent is captured (<code>E20-01</code>, <code>[DM-12]</code>), which is blocked on the DPDP legal question. <strong>Decide whether v1 captures consent at child creation or defers it</strong> — building the flow twice is the expensive outcome. Staging deliberately carries no children (<code>seeds/staging-menu.sql</code>), so this is not a seeding gap</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">(risk:critical) <strong>Nothing creates a <code>recipient</code> or a <code>guardian_link</code>, so no order can be placed by a real user.</strong> <code>create_checkout</code> correctly refuses every request from the app with <code>not_authorized</code> — there is no link. Found 2026-08-10 when the order path was finished and had nobody to run it for. <code>E05-01</code>/<code>E05-02</code> are the tasks, and the reason they are not simply &quot;next&quot; is that adding a child is where consent is captured (<code>E20-01</code>, <code>[DM-12]</code>), which is blocked on the DPDP legal question. <strong>Decide whether v1 captures consent at child creation or defers it</strong> — building the flow twice is the expensive outcome. Staging deliberately carries no children (<code>seeds/staging-menu.sql</code>), so this is not a seeding gap</span>
       </li>
       <li class="task" data-id="E05-17" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-17"></button>
@@ -2282,21 +2322,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Nothing sets the order target</strong> — who a lunch is for and which day. <code>OrderTargetContext</code> is the seam the dish detail screen was built against and it is permanently <code>null</code> today, so add-to-cart offers &quot;add a child&quot; instead of a line. Filling it is <code>E05-01</code>/<code>E05-03</code> (who) and <code>E05-06</code>/<code>E05-08</code> (when). Found 2026-08-10 while building the dish detail screen</span>
       </li>
-      <li class="task" data-id="E05-20" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+      <li class="task" data-id="E05-20" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-20"></button>
         <code class="tid">E05-20</code>
-        <span class="badge r-critical">critical</span>
         
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Nothing ever created an <code>app_user</code> row, so signing in denied everything.</strong> <code>auth_is_live_user()</code> gates every authenticated policy and reads <code>app_user</code>; a real parent who signed in had no row, so the school picker emptied the moment they signed in and adding a child died on a foreign key. Found 2026-08-10 by <code>scripts/order-path-check.mjs</code> walking the whole path against staging. Migration <code>0018</code>: a trigger on <code>auth.users</code>, and <code>phone_e164</code> nullable because v1 has no phone OTP</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">(risk:critical) <strong>Nothing ever created an <code>app_user</code> row, so signing in denied everything.</strong> <code>auth_is_live_user()</code> gates every authenticated policy and reads <code>app_user</code>; a real parent who signed in had no row, so the school picker emptied the moment they signed in and adding a child died on a foreign key. Found 2026-08-10 by <code>scripts/order-path-check.mjs</code> walking the whole path against staging. Migration <code>0018</code>: a trigger on <code>auth.users</code>, and <code>phone_e164</code> nullable because v1 has no phone OTP</span>
       </li>
-      <li class="task" data-id="E05-21" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+      <li class="task" data-id="E05-21" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-21"></button>
         <code class="tid">E05-21</code>
-        <span class="badge r-critical">critical</span>
         
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Every real order failed on staging with <code>21000: DELETE requires a WHERE clause</code>.</strong> <code>create_checkout</code> cleared its temp table with an unqualified DELETE; hosted Supabase loads <code>safeupdate</code> and a local <code>supabase start</code> does not, so 24 pgTAP assertions passed while no order could be placed through PostgREST. Migration <code>0019</code>. Found 2026-08-10 by <code>scripts/order-path-check.mjs</code></span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">(risk:critical) <strong>Every real order failed on staging with <code>21000: DELETE requires a WHERE clause</code>.</strong> <code>create_checkout</code> cleared its temp table with an unqualified DELETE; hosted Supabase loads <code>safeupdate</code> and a local <code>supabase start</code> does not, so 24 pgTAP assertions passed while no order could be placed through PostgREST. Migration <code>0019</code>. Found 2026-08-10 by <code>scripts/order-path-check.mjs</code></span>
       </li>
       <li class="task" data-id="E05-22" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-22"></button>
@@ -2418,30 +2458,6 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Switching recipient must ask before discarding a non-empty cart (ux-spec F9). It switches silently today — a parent with four dishes in the cart who taps the wrong row loses them with no warning and no undo</span>
       </li>
-      <li class="task" data-id="E05-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-42"></button>
-        <code class="tid">E05-42</code>
-        
-        
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Cart lines show the dish photo and veg mark.</strong> The prop existed and nothing ever passed it, so every line rendered the placeholder and the cart read as a different app from the grid. <code>RootNavigator</code> now builds <code>dishInfo</code> from the cached menu — no extra request, since it is the read the Menu tab just did</span>
-      </li>
-      <li class="task" data-id="E05-43" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-43"></button>
-        <code class="tid">E05-43</code>
-        
-        
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Edit a child&#39;s details</strong> — <code>update_recipient_details</code> (<code>0025</code>), a PATCH with no <code>school_id</code>, and <code>api.updateRecipientDetails</code>. Separate from a school move, which has a future-order guard and resets the class: a mistyped section should not have to pretend to be a transfer. Clearing a field is an explicit flag, because <code>null</code> already means &quot;leave alone&quot;. <strong>Server and client only — the edit sheet is <code>E05-37</code></strong></span>
-      </li>
-      <li class="task" data-id="E05-44" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-44"></button>
-        <code class="tid">E05-44</code>
-        
-        
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Remove a child</strong> — <code>deactivate_recipient</code> (<code>0025</code>) and <code>api.removeRecipient</code>. Deactivates the row and revokes every guardian link, so the child leaves all guardians&#39; lists; refuses while undelivered orders exist. NOT DPDP erasure (<code>E20-06</code>) — order history, invoices and ledger entries are retained deliberately. <strong>Server and client only — the UI is <code>E05-37</code></strong></span>
-      </li>
       <li class="task" data-id="E05-37" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-37"></button>
         <code class="tid">E05-37</code>
@@ -2466,6 +2482,14 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Capture the account holder&#39;s own name on the ORDER CONFIRMED screen</strong> (<code>P18</code>). One optional field, &quot;What should we call you?&quot;, with a clear skip; also settable from Account; never asked twice. <code>app_user.first_name</code>/<code>last_name</code> exist and are never written. <strong>Order one must work with no name everywhere</strong> — invoice falls back to the email local-part, packing list to the child&#39;s name. Depends on <code>E06</code> for the confirmation screen</span>
       </li>
+      <li class="task" data-id="E05-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-40"></button>
+        <code class="tid">E05-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Switch who a dish is for, from the dish sheet.</strong> <code>DishDetailScreen.onChangeTarget</code> and <code>ordering</code> are accepted and never passed</span>
+      </li>
       <li class="task" data-id="E05-41" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-41"></button>
         <code class="tid">E05-41</code>
@@ -2474,13 +2498,29 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Audit every surface that shows the account holder&#39;s name for the no-name case</strong> (<code>P18</code>). Invoice, packing list, support view, and every email. Andy&#39;s instruction: if any of them look broken without a name, report it rather than making the field required</span>
       </li>
-      <li class="task" data-id="E05-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-40"></button>
-        <code class="tid">E05-40</code>
+      <li class="task" data-id="E05-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-42"></button>
+        <code class="tid">E05-42</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Switch who a dish is for, from the dish sheet.</strong> <code>DishDetailScreen.onChangeTarget</code> and <code>ordering</code> are accepted and never passed</span>
+        <span class="ttext"><strong>Cart lines show the dish photo and veg mark.</strong> The prop existed and nothing ever passed it, so every line rendered the placeholder and the cart read as a different app from the grid. <code>RootNavigator</code> now builds <code>dishInfo</code> from the cached menu — no extra request, since it is the read the Menu tab just did</span>
+      </li>
+      <li class="task" data-id="E05-43" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-43"></button>
+        <code class="tid">E05-43</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Edit a child&#39;s details</strong> — <code>update_recipient_details</code> (<code>0025</code>), a PATCH with no <code>school_id</code>, and <code>api.updateRecipientDetails</code>. Separate from a school move, which has a future-order guard and resets the class: a mistyped section should not have to pretend to be a transfer. Clearing a field is an explicit flag, because <code>null</code> already means &quot;leave alone&quot;. <strong>Server and client only — the edit sheet is <code>E05-37</code></strong></span>
+      </li>
+      <li class="task" data-id="E05-44" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-44"></button>
+        <code class="tid">E05-44</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Remove a child</strong> — <code>deactivate_recipient</code> (<code>0025</code>) and <code>api.removeRecipient</code>. Deactivates the row and revokes every guardian link, so the child leaves all guardians&#39; lists; refuses while undelivered orders exist. NOT DPDP erasure (<code>E20-06</code>) — order history, invoices and ledger entries are retained deliberately. <strong>Server and client only — the UI is <code>E05-37</code></strong></span>
       </li>
       <li class="task" data-id="E05-45" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-45"></button>
@@ -2771,6 +2811,14 @@
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:high) <strong>Install Xcode or the Android SDK on the build machine so Maestro can run.</strong> <code>E14-24</code>&#39;s flow has still never executed: there is no simulator, no emulator and no Maestro binary on this machine, so the e2e net cannot be proven at all. Ten screens are now shipping behind a test suite that has never run once</span>
       </li>
+      <li class="task" data-id="E14-31" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-31"></button>
+        <code class="tid">E14-31</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Add <code>/Volumes/Data</code> to Docker Desktop&#39;s file sharing</strong> (Settings → Resources → File Sharing). Without it <code>supabase test db</code> bind-mounts <code>supabase/tests</code> as an empty directory and pg_prove runs zero files while exiting 0 — <code>npm run test:all</code> was green on nothing until 2026-08-11. <code>scripts/test-db.sh</code> no longer depends on that mount (it runs the suite through <code>psql</code> over TCP), so this is not blocking anything; it is worth doing so <code>npx supabase test db</code> behaves as documented when reached for directly</span>
+      </li>
       <li class="task" data-id="E14-33" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-33"></button>
         <code class="tid">E14-33</code>
@@ -2794,14 +2842,6 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A guard for the dead-navigation class.</strong> <code>reachability.test.ts</code> proves every route has a <code>navigate(&#39;X&#39;)</code> somewhere; it cannot see that <code>navigate(&#39;Tabs&#39;)</code> from inside <code>Tabs</code> moves nobody. Five buttons were dead for weeks with a green reachability suite. Assert that a tab route is only ever navigated to with a <code>screen</code> param, or find the general form</span>
-      </li>
-      <li class="task" data-id="E14-31" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-31"></button>
-        <code class="tid">E14-31</code>
-        
-        <span class="badge r-you">you</span>
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Add <code>/Volumes/Data</code> to Docker Desktop&#39;s file sharing</strong> (Settings → Resources → File Sharing). Without it <code>supabase test db</code> bind-mounts <code>supabase/tests</code> as an empty directory and pg_prove runs zero files while exiting 0 — <code>npm run test:all</code> was green on nothing until 2026-08-11. <code>scripts/test-db.sh</code> no longer depends on that mount (it runs the suite through <code>psql</code> over TCP), so this is not blocking anything; it is worth doing so <code>npx supabase test db</code> behaves as documented when reached for directly</span>
       </li></ul>
       </details>
     </article>
@@ -3454,13 +3494,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/16</span>
+          <span class="meter-num">0/17</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 16 tasks</summary>
+        <summary>Context &amp; 17 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3488,21 +3528,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Packing/delivery list</strong> grouped school -&gt; break -&gt; class -&gt; section <strong>Domain done 2026-08-10</strong> — <code>packingList</code>, grouped in exactly that order because it is the order the food physically moves. Open for the screen</span>
       </li>
-      <li class="task" data-id="E09-04" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E09-04" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-04"></button>
         <code class="tid">E09-04</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Order list with filters: school, date, break, status</span>
+        <span class="ttext"><strong>The kitchen dashboard: one working list of the day&#39;s orders.</strong> Child, class, section, break, school, dishes, status. Filters: school, date, break, status. <strong>Production totals as a summary at the top</strong> — &quot;how much do we cook&quot; is answered by the same data, so it is a header on this list rather than a second screen. <code>productionTotals</code> and <code>perSchoolTotals</code> already compute it (<code>E09-01</code>, <code>E09-02</code>)</span>
       </li>
-      <li class="task" data-id="E09-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E09-05" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-05"></button>
         <code class="tid">E09-05</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">&quot;Mark all delivered&quot; per class, one tap</span>
+        <span class="ttext"><strong>Update status from the list</strong>: mark delivered (bulk per class, one tap — <code>L8</code>), mark prepared, and cancel with a reason (<code>E09-08</code>). Optimistic, failing loudly; <code>delivered</code> is terminal (<code>T8</code>/<code>T9</code>)</span>
       </li>
       <li class="task" data-id="E09-06" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-06"></button>
@@ -3576,12 +3616,12 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The packing list is tier P and needs a retention rule.</strong> <code>packingCsv</code> names children by design — staff hand food to a named child and there is no version of that job that does not. That makes a downloaded packing CSV regulated data sitting on a kitchen laptop indefinitely. Decide how long it may be kept and how it is destroyed, and put it in <code>docs/dpdp-compliance.md</code>. The file warns the reader in its first row, which is the most a file can do for itself; the rest is policy. Raised with <code>E09-11a</code></span>
       </li>
-      <li class="task" data-id="E09-15" data-seed="1" data-risk="" data-owner="andy" data-mvp="1" data-seed="1">
+      <li class="task" data-id="E09-15" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-15"></button>
         <code class="tid">E09-15</code>
         
         <span class="badge r-you">you</span>
-        <span class="badge r-mvp">v1</span>
+        <span class="badge r-later">later</span>
         <span class="ttext">(risk:high) Decide whether the kitchen packing list and per-class delivery sheet surface a parent&#39;s per-line note. <strong>Answered 2026-08-10: yes — <code>P12</code></strong></span>
       </li>
       <li class="task" data-id="E09-16" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
@@ -3591,6 +3631,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Render the per-line kitchen note on the packing list and the per-class delivery sheet, under the same retention rule as the rest of it (<code>P12</code>, <code>E09-14</code>)</span>
+      </li>
+      <li class="task" data-id="E09-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-17"></button>
+        <code class="tid">E09-17</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">Wire the kitchen dashboard to the real server — <code>liveTransport</code> implementing <code>KitchenTransport</code>, selected by <code>PUBLIC_KITCHEN_TRANSPORT=live</code>. Blocked on <code>docs/kitchen-transport-contract.md</code> §1 (<code>E12-06</code> sign-in) and §3 (the <code>kitchen-order-status</code> Edge Function), both owned by the <code>supabase/</code> thread. The screen and every one of its states are built and reviewable against fixtures today</span>
       </li></ul>
       </details>
     </article>
@@ -3840,17 +3888,17 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/10</span>
+          <span class="meter-num">0/19</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 10 tasks</summary>
+        <summary>Context &amp; 19 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
-      <li class="task" data-id="E12-01" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-01"></button>
         <code class="tid">E12-01</code>
         
@@ -3858,7 +3906,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Home page rebuilt on brand from the Graybag Design Package</span>
       </li>
-      <li class="task" data-id="E12-02" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-02" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-02"></button>
         <code class="tid">E12-02</code>
         
@@ -3874,7 +3922,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Investor submission form (replaces <code>investorsubmission</code>) — creator-only visibility</span>
       </li>
-      <li class="task" data-id="E12-04" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-04" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-04"></button>
         <code class="tid">E12-04</code>
         
@@ -3898,7 +3946,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Back-office login entry point (admin / kitchen)</span>
       </li>
-      <li class="task" data-id="E12-07" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E12-07" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-07"></button>
         <code class="tid">E12-07</code>
         
@@ -3906,7 +3954,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">SEO, meta tags, sitemap, favicon, social preview images</span>
       </li>
-      <li class="task" data-id="E12-08" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E12-08" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-08"></button>
         <code class="tid">E12-08</code>
         
@@ -3929,6 +3977,78 @@
         <span class="badge r-you">you</span>
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Make the DNS change at the registrar when the cutover plan is ready</span>
+      </li>
+      <li class="task" data-id="E12-11" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-11"></button>
+        <code class="tid">E12-11</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">Get <strong>written</strong> agreement from Amity International, Gem Public and Paragon Senior Secondary before naming any of them on the website (<code>[WEB-02]</code>). The names were pulled from the page on 2026-08-11 and a test fails if one reappears; the section now offers a kitchen visit instead</span>
+      </li>
+      <li class="task" data-id="E12-12" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-12"></button>
+        <code class="tid">E12-12</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">Name the address enquiries are emailed to, for <code>ENQUIRY_NOTIFY_EMAIL</code> (<code>[WEB-03]</code>) — answered 2026-08-11: <code>andy@graybag.com</code>, Cc <code>vivek@graybag.com</code>. Recorded in <code>docs/enquiry-submission-contract.md</code> §6</span>
+      </li>
+      <li class="task" data-id="E12-13" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-13"></button>
+        <code class="tid">E12-13</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">Commission dish photography — every existing photo is 120px and no larger original exists (<code>[WEB-01]</code>); also closes <code>E16-29</code>&#39;s three permanent 403s and unblocks the app&#39;s dish-card treatment</span>
+      </li>
+      <li class="task" data-id="E12-14" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-14"></button>
+        <code class="tid">E12-14</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:medium) Confirm what may be stated about food safety and the FSSAI registration (<code>[WEB-04]</code>)</span>
+      </li>
+      <li class="task" data-id="E12-15" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-15"></button>
+        <code class="tid">E12-15</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Build the <code>enquiry</code> table, RLS and the <code>enquiry-submit</code> Edge Function to <code>docs/enquiry-submission-contract.md</code> — owned by the <code>supabase/</code> thread, not by <code>apps/web</code></span>
+      </li>
+      <li class="task" data-id="E12-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-16"></button>
+        <code class="tid">E12-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Wire <code>check:a11y</code> into the CI workflow — it is in <code>npm run test:all</code> but the GitHub Actions job does not run it yet</span>
+      </li>
+      <li class="task" data-id="E12-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-17"></button>
+        <code class="tid">E12-17</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Replace the drawn hero phone illustration with a real app screenshot once the app has screens worth showing</span>
+      </li>
+      <li class="task" data-id="E12-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-18"></button>
+        <code class="tid">E12-18</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Re-check the published policy pages the moment <code>E20-01</code> resolves the <code>«PENDING»</code> tokens — the production build gate (<code>E20-22</code>) will start passing and the pre-launch notice must come off deliberately</span>
+      </li>
+      <li class="task" data-id="E12-19" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-19"></button>
+        <code class="tid">E12-19</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Re-shoot or re-frame the food section once real photography exists (<code>E12-13</code>) — the five category cards are laid out to take a proper photograph, and the 96px cap comes off the moment there is one worth showing</span>
       </li></ul>
       </details>
     </article>

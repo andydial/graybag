@@ -1,0 +1,88 @@
+# Netlify configuration for the public site (`E12-09`, decision `A5`).
+#
+# The site is fully static: no adapter, no functions, no runtime. The one thing that writes —
+# the enquiry form — posts to a Supabase Edge Function in `ap-south-1`, because `A5` rules
+# Netlify Functions out for API work (no India region) and `A4` requires writes to go through
+# an Edge Function.
+#
+# `base` is this directory, so Netlify's build runs from `apps/web` inside the monorepo. The
+# workspace install still happens at the repository root, which is why the command reaches up.
+
+[build]
+  base    = "apps/web"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# ---------------------------------------------------------------------------- headers
+
+[[headers]]
+  for = "/*"
+
+  [headers.values]
+    # No third-party anything: no embeds, no analytics, no CDN scripts. The CSP is the
+    # enforcement of what `scripts/check-build.mjs` asserts structurally, so a future edit that
+    # slips a script tag past the build check still fails in the browser.
+    #
+    # `connect-src` names the Supabase project the enquiry form posts to. It is set here rather
+    # than left open because a form endpoint is exactly the thing worth pinning.
+    Content-Security-Policy = "default-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self'; script-src 'self'; connect-src 'self' https://*.supabase.co; form-action 'self' https://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy        = "strict-origin-when-cross-origin"
+    # Nothing on this site needs a camera, a microphone or a location.
+    Permissions-Policy     = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+    X-Frame-Options        = "DENY"
+
+# Fingerprinted build output can be cached forever; nothing else can, because the HTML is how a
+# visitor discovers that anything changed.
+[[headers]]
+  for = "/_astro/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# The images are not fingerprinted — they are written by `build-web-assets.mjs` under stable
+# names — so they get a day, not a year. Long enough to help a repeat visit, short enough that
+# re-shot photography appears without a cache-busting scramble.
+[[headers]]
+  for = "/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# ---------------------------------------------------------------------------- redirects
+
+# `trailingSlash: 'never'` in the Astro config, mirrored here so both agree. Two URLs for one
+# page splits search ranking and makes the canonical tag do work the server should do.
+[[redirects]]
+  from   = "/privacy/"
+  to     = "/privacy"
+  status = 301
+
+[[redirects]]
+  from   = "/terms/"
+  to     = "/terms"
+  status = 301
+
+[[redirects]]
+  from   = "/refunds/"
+  to     = "/refunds"
+  status = 301
+
+# The legacy Bubble site's paths, so links already in the world keep working after the DNS
+# cutover (`E12-09`, `E12-10`). Everything on the old site that mattered is now one page.
+[[redirects]]
+  from   = "/findoutmore"
+  to     = "/#enquiry"
+  status = 301
+
+[[redirects]]
+  from   = "/privacy-policy"
+  to     = "/privacy"
+  status = 301

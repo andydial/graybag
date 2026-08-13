@@ -1,0 +1,419 @@
+---
+/**
+ * The sales page (`E12-01`).
+ *
+ * One page, one action. A principal reading this on a phone between two meetings should get the
+ * whole argument by scrolling and be able to reach the form from the top of it. Section order is
+ * argued in `docs/superpowers/specs/2026-08-11-public-website-design.md` §4.
+ */
+import { readFileSync } from 'node:fs';
+
+import Base from '../layouts/Base.astro';
+import EnquiryForm from '../components/EnquiryForm.astro';
+import Icon from '../components/Icon.astro';
+import {
+  BENEFITS,
+  ENQUIRY,
+  FACTS,
+  FAQ,
+  FOOD,
+  HERO,
+  NAV,
+  REPORT,
+  SCHOOLS,
+  SITE,
+  STEPS,
+} from '../content/site.js';
+
+/**
+ * The dish mosaic, read from the asset manifest rather than listed here.
+ *
+ * The manifest is written by `scripts/build-web-assets.mjs`, so the page cannot reference a
+ * photograph that was not emitted — which is the failure mode of every hand-maintained list of
+ * image paths. The build fails loudly if the manifest is missing, because a food page with no
+ * food on it should not deploy quietly.
+ */
+const manifest = JSON.parse(
+  readFileSync(new URL('../../public/img/MANIFEST.json', import.meta.url), 'utf8'),
+) as { range: { category: string; dish: string; label: string; slug: string }[] };
+
+if (manifest.range.length === 0) {
+  throw new Error('public/img/MANIFEST.json has no dishes. Run: node apps/web/scripts/build-web-assets.mjs');
+}
+
+/** category id -> its photograph, so the copy and the images cannot fall out of step. */
+const photo = new Map(manifest.range.map((dish) => [dish.category, dish]));
+
+const missingPhotos = FOOD.categories.filter((category) => !photo.has(category.id));
+if (missingPhotos.length) {
+  throw new Error(
+    `No photograph for: ${missingPhotos.map((c) => c.id).join(', ')}. ` +
+      'Add it to RANGE in apps/web/scripts/build-web-assets.mjs and regenerate.',
+  );
+}
+
+/**
+ * The four dishes shown in the hero's menu frame.
+ *
+ * Keyed by category and resolved through the manifest, so the mockup cannot name a photograph
+ * that was not emitted — the same rule the food section follows. Six, in three rows of two: at
+ * four the frame was short enough to leave a large empty field above it, which is most of what
+ * made the old mockup read as a stamp rather than a window.
+ *
+ * **The prices are illustrative and deliberately modest in prominence.** The page otherwise
+ * publishes no prices at all — what a school pays is a commercial conversation, not a web page —
+ * and a rate card would invite negotiation from a number nobody agreed. Inside a device frame
+ * they read as *what a parent sees in the app*, which is the point, and that is a different
+ * claim from a price list.
+ */
+const MOCKUP_PRICES: Record<string, string> = {
+  breakfast: '\u20b995',
+  mains: '\u20b9110',
+  wraps: '\u20b9120',
+  salads: '\u20b990',
+  snacks: '\u20b945',
+  drinks: '\u20b960',
+};
+
+const MOCKUP_DISHES = Object.keys(MOCKUP_PRICES).map((category) => {
+  const dish = photo.get(category);
+  if (!dish) {
+    throw new Error(
+      `The hero mockup wants a ${category} photograph and the manifest has none. ` +
+        'Add it to RANGE in apps/web/scripts/build-web-assets.mjs and regenerate.',
+    );
+  }
+  return { ...dish, price: MOCKUP_PRICES[category] };
+});
+
+/**
+ * Where the enquiry posts.
+ *
+ * `PUBLIC_ENQUIRY_ENDPOINT` is the deployed Supabase Edge Function's URL, set in Netlify. In
+ * development it falls back to the local mock in `scripts/dev-enquiry-endpoint.mjs`, so the form
+ * is fillable before the other thread has landed the function. See
+ * `docs/enquiry-submission-contract.md`.
+ */
+const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
+---
+
+<Base title="Home" description={SITE.description} path="/">
+  <!-- ============================================================ hero -->
+  <section class="panel-deep on-dark hero">
+    <div class="pattern" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <header class="site-header">
+        <a class="site-header__logo" href="/" aria-label={`${SITE.name} home`}>
+          <img src="/img/logo-white.webp" width="560" height="184" alt={SITE.name} />
+        </a>
+
+        <nav class="site-nav" aria-label="Sections of this page">
+          {NAV.map((item) => <a href={item.href}>{item.label}</a>)}
+        </nav>
+
+        <a class="btn btn--amber" href="#enquiry">Get in touch</a>
+      </header>
+
+      <div class="hero__grid">
+        <div class="hero__copy">
+          <p class="eyebrow">{HERO.eyebrow}</p>
+          <h1 class="display lowercase">{HERO.headline}</h1>
+          <p class="lead">{HERO.lead}</p>
+
+          <div class="hero__actions">
+            <a class="btn btn--amber" href="#enquiry">{HERO.primaryCta}</a>
+            <a class="btn btn--ghost" href="#how">{HERO.secondaryCta}</a>
+          </div>
+
+          <p class="hero__note">{HERO.note}</p>
+        </div>
+
+        <!--
+          One drawn frame, not a screenshot. The app is not published, and a mocked screenshot of
+          software a visitor cannot download is a claim this page should not make.
+
+          It shows the **menu**, because food sells food: a grid of real dishes with veg marks and
+          prices is the first thing on the page that looks like a real operation. It replaced the
+          *cart* — subtotal, GST lines, "Place order" — which was the most transactional screen we
+          have, shown to the one person who never pays for anything.
+
+          A second frame behind it carrying "Delivering to Aarav" was tried and **cut**: green on
+          a green pattern read as a rendering fault, the phone clipped it, and it said nothing the
+          hero paragraph does not already say.
+
+          Everything inside is at 12px or larger, the design system's floor. Where it did not fit,
+          the content went rather than the type.
+        -->
+        <div class="hero__device">
+          <div
+            class="device"
+            role="img"
+            aria-label="Illustration: the GrayBag app's menu screen, showing a school's dishes by category with prices."
+          >
+            <div class="device__screen" aria-hidden="true">
+              <div class="device__bar">
+                <img src="/img/logo.webp" width="320" height="105" alt="" />
+                <span class="device__cart">2</span>
+              </div>
+
+              <p class="device__eyebrow">Our food</p>
+              <p class="device__title">Made specially for your child</p>
+
+              <ul class="device__tabs">
+                <li class="is-on">All</li>
+                <li>Breakfast</li>
+                <li>Mains</li>
+                <li>Wraps</li>
+              </ul>
+
+              <ul class="device__grid">
+                {MOCKUP_DISHES.map((dish) => (
+                  <li class="device__dish">
+                    <span class="device__thumb">
+                      <img
+                        src={`/img/dishes/${dish.slug}.webp`}
+                        width="120"
+                        height="120"
+                        alt=""
+                        decoding="async"
+                      />
+                      <span class="device__mark"></span>
+                    </span>
+                    <p class="device__name">{dish.label}</p>
+                    <p class="device__price">{dish.price}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!--
+        A band beneath the hero, three across — not a column inside it. Stacking these one per
+        row made the hero roughly twice as tall and left a large empty green field under the
+        buttons, which is the opposite of what a hero should do to the eye.
+
+        On a wide viewport the band's rule runs the full width while its content stops short of
+        the device frame, which bleeds down past this point. That is a padding, not a narrower
+        band: the line still reads edge to edge.
+      -->
+      <ul class="facts">
+        {FACTS.map((fact) => (
+          <li class="fact">
+            <p class="fact__value">{fact.value}</p>
+            <p class="fact__label">{fact.label}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ==================================================== how it works -->
+  <section class="section" id="how" aria-labelledby="how-heading">
+    <div class="wrap">
+      <p class="eyebrow">How it works</p>
+      <h2 class="heading" id="how-heading">Four steps, and three of them are ours</h2>
+      <p class="lead">
+        The school's part is a place to hand food over and an agreement on break times. Everything
+        else — the ordering, the money, the cooking and the delivery — sits with us.
+      </p>
+
+      <ol class="steps">
+        {STEPS.map((step) => (
+          <li class="step">
+            <div class="step__n" aria-hidden="true"></div>
+            <h3>{step.title}</h3>
+            <p>{step.body}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <!-- ================================================= for your school -->
+  <section class="section panel-surface" id="schools-benefits" aria-labelledby="benefits-heading">
+    <div class="wrap">
+      <p class="eyebrow">For your school</p>
+      <h2 class="heading" id="benefits-heading">What your school stops dealing with</h2>
+      <p class="lead">
+        A canteen is a small business your school did not ask to run. This removes the parts of
+        it that take staff time and create risk — the money, the queue, the stock — and leaves
+        the part you actually wanted: children fed at the break.
+      </p>
+
+      <ul class="cards">
+        {BENEFITS.map((benefit) => (
+          <li class="card">
+            <div class="card__icon"><Icon name={benefit.icon} /></div>
+            <h3>{benefit.title}</h3>
+            <p>{benefit.body}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================================================ food -->
+  <!--
+    Five categories, not a catalogue.
+
+    This was a grid of 28 dish tiles. It read as a contact sheet, it implied a fixed list when
+    every school's menu is its own and rotates, and it would have needed maintaining forever.
+    The photographs are 120px at source and cannot be made appetising at any size, so they are
+    demoted to supporting images beside the copy rather than being asked to carry the section.
+  -->
+  <section class="section panel-pale" id="food" aria-labelledby="food-heading">
+    <div class="pattern pattern--deep" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <p class="eyebrow">{FOOD.eyebrow}</p>
+      <h2 class="heading" id="food-heading">{FOOD.heading}</h2>
+      <p class="lead">{FOOD.lead}</p>
+
+      <ul class="range">
+        {FOOD.categories.map((category) => (
+          <li class="range__item">
+            <!--
+              `loading="eager"` on all five, and the inconsistency is why. Three were eager and
+              two lazy, so the salad and the bakery tile arrived after the rest and showed a grey
+              placeholder in between — in a section arguing the menu is real, a tile that looks
+              empty argues the opposite. They are 3-7 KB each; loading all five costs less than
+              them arriving at different times.
+            -->
+            <img
+              class="range__photo"
+              src={`/img/dishes/${photo.get(category.id)?.slug}.webp`}
+              width="120"
+              height="120"
+              alt=""
+              loading="eager"
+              decoding="async"
+            />
+            <div>
+              <h3>{category.title}</h3>
+              <p>{category.body}</p>
+            </div>
+          </li>
+        ))}
+
+        <!--
+          The sixth tile fills the empty cell a five-item grid leaves at three columns, and keeps
+          the section compact. It earns its place in the list because it is a fact about what is
+          on the menu, exactly like the five above it — it simply applies to all of them at once,
+          which is why it has no photograph and its own surface.
+
+          It says the school chooses and that every dish is marked. It used to say the menu was
+          vegetarian, which was true of the catalogue and was cut anyway: non-vegetarian food is
+          planned, so it was a promise we intend to break.
+        -->
+        <li class="range__item range__item--note">
+          <div>
+            <h3>{FOOD.note.title}</h3>
+            <p>{FOOD.note.body}</p>
+          </div>
+        </li>
+      </ul>
+
+      <p class="section-footnote">{FOOD.footnote}</p>
+    </div>
+  </section>
+
+  <!-- ========================================================= schools -->
+  <!--
+    No school is named here. The three names that were on this page are out until each school
+    agrees in writing (`E12-11`, `[WEB-02]`) — that is the school's call to make, not ours.
+    The invitation to come and watch a delivery is the better substitute anyway: for a
+    principal weighing a food partner, seeing the kitchen beats a logo strip.
+  -->
+  <section class="section panel-deep on-dark" id="schools" aria-labelledby="schools-heading">
+    <div class="pattern" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <div class="visit">
+        <div>
+          <p class="eyebrow">{SCHOOLS.eyebrow}</p>
+          <h2 class="heading" id="schools-heading">{SCHOOLS.heading}</h2>
+          <p class="lead">{SCHOOLS.lead}</p>
+        </div>
+
+        <div class="visit__card">
+          <p>{SCHOOLS.invitation}</p>
+          <a class="btn btn--amber" href="#enquiry">{SCHOOLS.cta}</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================== report -->
+  <section class="section" id="report" aria-labelledby="report-heading">
+    <div class="wrap">
+      <div class="report">
+        <div>
+          <p class="eyebrow">{REPORT.eyebrow}</p>
+          <h2 class="heading" id="report-heading">{REPORT.heading}</h2>
+          <p class="lead">{REPORT.lead}</p>
+        </div>
+
+        <figure class="report__sheet">
+          <h3>{REPORT.sample.title}</h3>
+          <p class="caption muted">{REPORT.sample.subtitle}</p>
+          <ul class="report__rows">
+            {REPORT.sample.rows.map((row) => (
+              <li><span>{row.label}</span><b>{row.value}</b></li>
+            ))}
+          </ul>
+          <figcaption class="caption muted report__note">
+            Illustrative figures. Your report is built from your school's own orders.
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================= questions -->
+  <section class="section panel-surface" id="questions" aria-labelledby="faq-heading">
+    <div class="wrap">
+      <p class="eyebrow">Questions</p>
+      <h2 class="heading" id="faq-heading">What administrators ask us</h2>
+
+      <div class="faq">
+        {FAQ.map((item) => (
+          <details>
+            <summary>{item.q}</summary>
+            <div>{item.a.map((paragraph) => <p>{paragraph}</p>)}</div>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================= enquiry -->
+  <section class="section panel-deep on-dark" id="enquiry" aria-labelledby="enquiry-heading">
+    <div class="pattern" aria-hidden="true"></div>
+
+    <div class="wrap">
+      <div class="enquiry">
+        <div>
+          <p class="eyebrow">{ENQUIRY.eyebrow}</p>
+          <h2 class="heading" id="enquiry-heading">{ENQUIRY.heading}</h2>
+          <p class="lead">{ENQUIRY.lead}</p>
+
+          <dl class="contact-list">
+            <div>
+              <dt>Or email us</dt>
+              <dd><a href={`mailto:${SITE.email}`}>{SITE.email}</a></dd>
+            </div>
+            <div>
+              <dt>Where we are</dt>
+              <dd>{SITE.city}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <EnquiryForm endpoint={endpoint} />
+      </div>
+    </div>
+  </section>
+</Base>

@@ -10,8 +10,8 @@
     "packages/*"
   ],
   "scripts": {
-    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm run check:maestro && npm run check:policy-docs && npm run check:claims && npm run check:backlog && npm test",
-    "test:all": "npm run smoke && npm run test:db",
+    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm run check:maestro && npm run check:policy-docs && npm run check:claims && npm run check:backlog && npm run check:mvp && npm test && npm run build:web",
+    "test:all": "npm run smoke && npm run check:a11y && npm run test:db",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "test": "npm run test:scripts && npm run test:plugins && npm run test:tools && npm run test --workspaces --if-present",
@@ -23,6 +23,8 @@
     "dev:db:stop": "npx supabase stop",
     "db:reset": "npx supabase db reset",
     "db:seed:staging": "node scripts/seed-staging.mjs",
+    "dev:web": "npm --prefix apps/web run dev",
+    "build:web": "npm --prefix apps/web run build",
     "kitchen": "tsx scripts/kitchen-list.mjs",
     "db:status": "npx supabase status",
     "bundle:check": "npm --prefix apps/mobile run bundle:check",
@@ -43,7 +45,9 @@
     "check:policy-docs": "node scripts/build-policy-docs.mjs --check",
     "check:config": "node scripts/check-supabase-config.mjs",
     "check:claims": "node scripts/check-outbound-claims.mjs",
-    "check:backlog": "node scripts/build-backlog.mjs"
+    "check:backlog": "node scripts/build-backlog.mjs",
+    "check:a11y": "npm --prefix apps/web run check:a11y",
+    "check:mvp": "node scripts/check-mvp.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

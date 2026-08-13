@@ -1,0 +1,261 @@
+---
+/**
+ * The one action on this site (`E12-02`).
+ *
+ * ## It works without JavaScript
+ *
+ * The markup is an ordinary `<form method="post">` pointed at the endpoint. With scripting off,
+ * a slow connection that dropped the script, or a browser that failed to run it, the browser
+ * navigates, the endpoint answers `303` and the visitor lands on `/thanks`. That is the whole
+ * fallback, and it is the reason the form is not a fetch-only component: this site's audience is
+ * on patchy mobile data, and the enquiry is the only thing on the page that matters.
+ *
+ * The script then enhances it — inline validation, an inline success state, no navigation. If
+ * the enhancement never runs, nothing is lost.
+ *
+ * ## No captcha
+ *
+ * Every captcha worth the name is third-party JavaScript, and the budget for this page is zero
+ * third-party requests. Instead: a honeypot field and a floor on how fast the form can be
+ * filled, both re-checked server-side. Neither is a security control — anyone reading the HTML
+ * defeats both — and neither needs to be. They stop undirected form-spam bots, which is
+ * essentially all of the volume, and they cost a real principal nothing.
+ */
+import { ENQUIRY } from '../content/site.js';
+import { HONEYPOT_FIELD, ROLES } from '../lib/enquiry.js';
+
+interface Props {
+  /** Where the form posts. The dev mock in development, the Edge Function in production. */
+  endpoint: string;
+}
+
+const { endpoint } = Astro.props;
+---
+
+<form
+  id="enquiry-form"
+  class="form-card"
+  method="post"
+  action={endpoint}
+  novalidate
+  data-endpoint={endpoint}
+>
+  <!--
+    The no-JavaScript path: the endpoint reads this and answers `303 See Other` to it. Sent as
+    an absolute path rather than a full URL so the endpoint can validate it against an allowlist
+    without having to parse an origin it was given.
+  -->
+  <input type="hidden" name="redirect_to" value="/thanks" />
+
+  <!--
+    How long the form was on screen before it was submitted. Filled by the script; absent when
+    scripting is off, and the server treats absent as "cannot tell" rather than as a failure —
+    otherwise the timing check would reject exactly the visitors the no-JS path exists for.
+  -->
+  <input type="hidden" name="elapsed_ms" value="" id="enquiry-elapsed" />
+
+  <div class="honeypot" aria-hidden="true">
+    <label for="enquiry-website">Do not fill this in</label>
+    <input id="enquiry-website" type="text" name={HONEYPOT_FIELD} tabindex="-1" autocomplete="off" />
+  </div>
+
+  <div class="fields">
+    <div class="fields fields--two">
+      <div class="field" data-field="name">
+        <label for="enquiry-name">Your name</label>
+        <input id="enquiry-name" name="name" type="text" autocomplete="name" required
+          aria-describedby="error-name" />
+        <p class="field__error" id="error-name" role="alert"></p>
+      </div>
+
+      <div class="field" data-field="role">
+        <label for="enquiry-role">Your role</label>
+        <select id="enquiry-role" name="role" required aria-describedby="error-role">
+          <option value="">Choose one…</option>
+          {ROLES.map((role) => <option value={role.value}>{role.label}</option>)}
+        </select>
+        <p class="field__error" id="error-role" role="alert"></p>
+      </div>
+    </div>
+
+    <div class="fields fields--two">
+      <div class="field" data-field="school">
+        <label for="enquiry-school">School</label>
+        <input id="enquiry-school" name="school" type="text" autocomplete="organization" required
+          aria-describedby="error-school" />
+        <p class="field__error" id="error-school" role="alert"></p>
+      </div>
+
+      <div class="field" data-field="city">
+        <label for="enquiry-city">City</label>
+        <input id="enquiry-city" name="city" type="text" autocomplete="address-level2" value="Mohali"
+          required aria-describedby="error-city" />
+        <p class="field__error" id="error-city" role="alert"></p>
+      </div>
+    </div>
+
+    <div class="fields fields--two">
+      <div class="field" data-field="email">
+        <label for="enquiry-email">Email</label>
+        <input id="enquiry-email" name="email" type="email" autocomplete="email"
+          inputmode="email" required aria-describedby="error-email" />
+        <p class="field__error" id="error-email" role="alert"></p>
+      </div>
+
+      <div class="field" data-field="phone">
+        <label for="enquiry-phone">Phone</label>
+        <!--
+          `inputmode="tel"` rather than `type="tel"` alone, so an Android keyboard opens on
+          digits. No `pattern`: normalisation belongs in one place (`normalisePhone`) and a
+          browser-enforced pattern would reject `+91 98765 43210`, which is how people type it.
+        -->
+        <input id="enquiry-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel"
+          required aria-describedby="error-phone" placeholder="98765 43210" />
+        <p class="field__error" id="error-phone" role="alert"></p>
+      </div>
+    </div>
+
+    <div class="field" data-field="message">
+      <label for="enquiry-message">
+        Anything else <span class="optional">— optional</span>
+      </label>
+      <textarea id="enquiry-message" name="message" rows="4" aria-describedby="error-message"
+        placeholder="Roughly how many children, which breaks, and anything you already know you need."
+      ></textarea>
+      <p class="field__error" id="error-message" role="alert"></p>
+    </div>
+  </div>
+
+  <div class="form-status" id="enquiry-status" role="status" aria-live="polite"></div>
+
+  <button class="btn btn--wide form-submit" type="submit" id="enquiry-submit">{ENQUIRY.submit}</button>
+
+  <p class="form-note">{ENQUIRY.reassurance}</p>
+</form>
+
+<script>
+  /**
+   * Progressive enhancement for the enquiry form.
+   *
+   * The validation rules are imported from `src/lib/enquiry.ts` rather than restated, so the
+   * browser, the test suite and `docs/enquiry-submission-contract.md` cannot drift apart. This
+   * is the only JavaScript the site ships.
+   */
+  import {
+    isValid,
+    toPayload,
+    validateEnquiry,
+    type EnquiryErrors,
+    type EnquiryInput,
+  } from '../lib/enquiry.js';
+
+  const form = document.querySelector<HTMLFormElement>('#enquiry-form');
+  const status = document.querySelector<HTMLElement>('#enquiry-status');
+  const submit = document.querySelector<HTMLButtonElement>('#enquiry-submit');
+  const elapsed = document.querySelector<HTMLInputElement>('#enquiry-elapsed');
+
+  if (form && status && submit && elapsed) {
+    const openedAt = Date.now();
+    const endpoint = form.dataset.endpoint ?? form.action;
+
+    const read = (): EnquiryInput => {
+      const data = new FormData(form);
+      const get = (key: string) => String(data.get(key) ?? '');
+      return {
+        name: get('name'),
+        role: get('role'),
+        school: get('school'),
+        city: get('city'),
+        email: get('email'),
+        phone: get('phone'),
+        message: get('message'),
+      };
+    };
+
+    /** Paint one field's error, and set `aria-invalid` so it is announced as well as seen. */
+    const paint = (errors: EnquiryErrors) => {
+      for (const wrapper of form.querySelectorAll<HTMLElement>('[data-field]')) {
+        const field = wrapper.dataset.field as keyof EnquiryInput;
+        const message = errors[field] ?? '';
+        const box = wrapper.querySelector<HTMLElement>('.field__error');
+        const control = wrapper.querySelector<HTMLInputElement>('input, select, textarea');
+        if (box) box.textContent = message;
+        if (message) wrapper.setAttribute('data-invalid', '');
+        else wrapper.removeAttribute('data-invalid');
+        control?.setAttribute('aria-invalid', message ? 'true' : 'false');
+      }
+    };
+
+    const say = (message: string, tone: 'danger' | 'success' | null) => {
+      status.textContent = message;
+      if (tone) status.setAttribute('data-tone', tone);
+      else status.removeAttribute('data-tone');
+    };
+
+    // Re-validate a field once it has been touched and left, never while it is being typed in.
+    // Validating on `input` tells someone their email is wrong when they have typed three
+    // characters of it, which is a way of being wrong at people.
+    for (const control of form.querySelectorAll<HTMLElement>('input, select, textarea')) {
+      control.addEventListener('blur', () => {
+        const wrapper = control.closest<HTMLElement>('[data-field]');
+        if (!wrapper?.hasAttribute('data-invalid')) return;
+        paint(validateEnquiry(read()));
+      });
+    }
+
+    form.addEventListener('submit', async (event) => {
+      const input = read();
+      const errors = validateEnquiry(input);
+      paint(errors);
+
+      if (!isValid(errors)) {
+        event.preventDefault();
+        say('Please check the highlighted fields.', 'danger');
+        form.querySelector<HTMLElement>('[data-invalid] input, [data-invalid] select')?.focus();
+        return;
+      }
+
+      event.preventDefault();
+      elapsed.value = String(Date.now() - openedAt);
+
+      submit.disabled = true;
+      const label = submit.textContent;
+      submit.textContent = 'Sending…';
+      say('', null);
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            ...toPayload(input),
+            elapsed_ms: Number(elapsed.value),
+            website: '',
+          }),
+        });
+
+        if (!response.ok && response.status !== 202) {
+          throw new Error(`enquiry endpoint returned ${response.status}`);
+        }
+
+        form.reset();
+        paint({});
+        say(
+          'Thank you — that has reached us. We will reply from a real address, usually within a working day.',
+          'success',
+        );
+        status.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } catch {
+        // Never swallow this into silence. An enquiry that vanished is the worst outcome on the
+        // page, so the failure names the alternative route rather than saying "try again later".
+        say(
+          'That did not send — the connection may have dropped. Please try again, or email us at hello@graybag.com.',
+          'danger',
+        );
+      } finally {
+        submit.disabled = false;
+        if (label) submit.textContent = label;
+      }
+    });
+  }
+</script>
