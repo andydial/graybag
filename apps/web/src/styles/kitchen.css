@@ -572,3 +572,6 @@
   text-align: right;
   max-width: 22rem;
 }
+
+/* The dish's batch size, which is the number the person plating is working to. */
+.kitchen__group-qty { font-variant-numeric: tabular-nums; }

@@ -7,6 +7,7 @@ import {
   applyFilters,
   boardState,
   countLine,
+  groupByDish,
   describeDate,
   filterOptions,
   groupByClass,
@@ -356,6 +357,60 @@ describe('filterOptions — an inert control is worse than none', () => {
     const options = filterOptions(null);
     expect(options.showSchools).toBe(false);
     expect(options.showBreaks).toBe(false);
+  });
+});
+
+describe('groupByDish — the cooking unit, not the handover unit', () => {
+  const line = (dishId: string, dishName: string, quantity = 1, note: string | null = null) =>
+    ({ dishId, dishName, quantity, note });
+
+  it('sums a dish across orders and leads with the biggest batch', () => {
+    const orders = [
+      order({ id: 'a', lines: [line('d1', 'Paneer Wrap', 2)] }),
+      order({ id: 'b', lines: [line('d1', 'Paneer Wrap', 1), line('d2', 'Cold Coffee', 1)] }),
+    ];
+    expect(groupByDish(orders).map((g) => [g.dishName, g.quantity])).toEqual([
+      ['Paneer Wrap', 3],
+      ['Cold Coffee', 1],
+    ]);
+  });
+
+  it('excludes cancelled orders, because a cancelled order is not food to make', () => {
+    // Deliberately unlike the class view, where a cancelled row still matters — somebody is
+    // standing in that classroom expecting a bag. Here the only question is how much to cook.
+    const orders = [
+      order({ id: 'a', status: 'cancelled', lines: [line('d1', 'Paneer Wrap', 5)] }),
+      order({ id: 'b', lines: [line('d1', 'Paneer Wrap', 1)] }),
+    ];
+    expect(groupByDish(orders)[0]?.quantity).toBe(1);
+  });
+
+  it('carries the child, the class and the note onto each portion', () => {
+    const orders = [order({ id: 'a', recipientName: 'Anaya Singh',
+      lines: [line('d1', 'Paneer Wrap', 1, 'Less spicy')] })];
+    const [portion] = groupByDish(orders)[0]!.portions;
+    expect(portion?.recipientName).toBe('Anaya Singh');
+    expect(portion?.note).toBe('Less spicy');
+    expect(portion?.classLabel).toBe('5-A');
+  });
+
+  it('never lists an order twice as outstanding when it has two lines of one dish', () => {
+    // The endpoint is idempotent, but a header reading "Mark all delivered (2)" for one order is
+    // wrong on the screen before it ever reaches the server.
+    const orders = [order({ id: 'a', lines: [line('d1', 'Paneer Wrap'), line('d1', 'Paneer Wrap')] })];
+    expect(groupByDish(orders)[0]?.outstandingIds).toEqual(['a']);
+  });
+
+  it('does not count a delivered order as outstanding', () => {
+    const orders = [
+      order({ id: 'a', status: 'delivered', lines: [line('d1', 'Paneer Wrap')] }),
+      order({ id: 'b', status: 'paid', lines: [line('d1', 'Paneer Wrap')] }),
+    ];
+    expect(groupByDish(orders)[0]?.outstandingIds).toEqual(['b']);
+  });
+
+  it('returns nothing for a day with no orders rather than an empty dish', () => {
+    expect(groupByDish([])).toEqual([]);
   });
 });
 
