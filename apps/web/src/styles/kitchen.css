@@ -575,3 +575,72 @@
 
 /* The dish's batch size, which is the number the person plating is working to. */
 .kitchen__group-qty { font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------- cancel dialog */
+
+/**
+ * A native `<dialog>`, which brings the focus trap, Esc-to-close and the inert backdrop with it.
+ * It replaced `window.prompt("Enter 1-4")`, which blocked the page and was not a UI.
+ */
+.kdialog {
+  border: none;
+  border-radius: var(--gb-radius-lg);
+  padding: 0;
+  max-width: 32rem;
+  width: calc(100% - var(--gb-space-8));
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+  font-size: var(--gb-font-size-h3);
+}
+.kdialog::backdrop { background: rgb(0 0 0 / 0.5); }
+
+.kdialog__form { display: grid; gap: var(--gb-space-4); padding: var(--gb-space-5); }
+
+.kdialog__title {
+  font-size: var(--gb-font-size-h2);
+  line-height: var(--gb-line-height-h2);
+  font-weight: var(--gb-font-semibold);
+}
+
+.kdialog__who { font-size: var(--gb-font-size-body-sm); color: var(--gb-text-secondary); }
+
+/**
+ * What cancelling does not do, stated before the button that does it.
+ *
+ * Amber rather than red: it is not a warning about the action being dangerous, it is a
+ * correction to what the operator almost certainly assumes — that pressing this refunds someone.
+ */
+.kdialog__warn {
+  padding: var(--gb-space-3) var(--gb-space-4);
+  border-left: var(--gb-space-1) solid var(--gb-ramp-amber-700);
+  background: var(--gb-ramp-amber-100);
+  border-radius: var(--gb-radius-sm);
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+}
+
+.kdialog__reasons { border: none; display: grid; gap: var(--gb-space-2); }
+.kdialog__reasons legend {
+  font-size: var(--gb-font-size-caption);
+  letter-spacing: var(--gb-tracking-overline);
+  text-transform: uppercase;
+  font-weight: var(--gb-font-semibold);
+  color: var(--gb-text-secondary);
+  margin-bottom: var(--gb-space-2);
+}
+
+/* The whole row is the target, not the 20px radio — the same wet-hands argument as the buttons. */
+.kdialog__reason {
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-3);
+  min-height: var(--gb-touch-min);
+  padding: var(--gb-space-2) var(--gb-space-3);
+  border: var(--gb-border-width-default) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-md);
+  cursor: pointer;
+}
+.kdialog__reason:hover { background: var(--gb-bg-canvas); }
+.kdialog__reason input { width: 1.25rem; height: 1.25rem; }
+
+.kdialog__actions { display: flex; flex-wrap: wrap; gap: var(--gb-space-3); justify-content: flex-end; }

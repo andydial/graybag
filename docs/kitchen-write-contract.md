@@ -116,12 +116,34 @@ Not offered to the kitchen: `customer_cancelled`, `payment_failed`, `checkout_ex
 selecting one would be asserting something they cannot know.
 
 **Plus a free-text field, always, not only when `requires_note`.** Andy: *"the four codes will
-never cover the real reason."* The free text goes in `order_event.note`, which exists. It is
-**tier P by assumption** — an operator may type a child's name into it — so it is never logged
-and never leaves the row.
+never cover the real reason."*
 
-The endpoint therefore takes an optional `note` alongside `reasonCode`, and stores it on the
-event rather than on the order.
+**This half is blocked, and the field is deliberately not shipped until it is.** There is nowhere
+to put the text:
+
+- `order_event.note` exists and the trigger never populates it. `write_order_event` inserts
+  `reason_code` and `correlation_id` and no note.
+- The obvious workaround — insert, then `update order_event set note = …` in the same
+  transaction — is refused outright: *"order_event is append-only; UPDATE is not permitted.
+  Write a compensating row instead."*
+- `"order"` has `cancel_reason_code` and no free-text column at all.
+
+So free text needs a **migration**, one of:
+
+1. `write_order_event` reads `app.event_note` from a session setting, exactly as it already reads
+   `app.actor_type`, `app.actor_user_id` and `app.correlation_id`. **Recommended** — smallest
+   change, same mechanism, and it works for every actor rather than only for cancellation.
+2. a `cancel_note` column on `"order"`. Simpler, but it puts a free-text field on the order for
+   one status, and the next status that needs one adds a second column.
+
+Shipping the input before its storage exists would repeat exactly the failure this same board
+just fixed for the parent's note: **a field that quietly discards what you type is a lie told to
+the person typing.** So the dialog offers the reason codes today, and the text box arrives with
+its column.
+
+When it lands, the endpoint takes an optional `note` alongside `reasonCode`. It is **tier P by
+assumption** — an operator may type a child's name into it — so it is never logged and never
+leaves the row.
 
 ### 2.2 The refund — `E06`, payments thread
 

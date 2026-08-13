@@ -72,9 +72,47 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       </main>
     </div>
 
-    <template id="k-cancel-reasons">
-      {CANCEL_REASONS.map((r) => <option value={r.code}>{r.label}</option>)}
-    </template>
+    <!--
+      A real dialog, not `window.prompt`.
+
+      The prompt asked the operator to "Enter 1-4" and blocked the page while it waited. A native
+      `<dialog>` brings the focus trap, Esc-to-close and the inert backdrop with it, so none of
+      that is hand-rolled.
+
+      The warning is the important part. Cancelling today records that food was not delivered and
+      why; **no money moves and the parent is not told**. A kitchen that presses this and believes
+      it has refunded somebody leaves a parent who has paid, has no food and has had no message.
+      `docs/kitchen-write-contract.md` §2 specifies the refund (`E06`) and the email (`E08`), and
+      this paragraph is deleted in the PR that lands them — not before.
+    -->
+    <dialog id="k-cancel" class="kdialog" aria-labelledby="k-cancel-title">
+      <form method="dialog" class="kdialog__form">
+        <h2 id="k-cancel-title" class="kdialog__title">Cancel this order?</h2>
+        <p class="kdialog__who" id="k-cancel-who"></p>
+
+        <div class="kdialog__warn" role="note">
+          <b>This does not refund anyone.</b> Cancelling records that the food was not delivered
+          and why. No money moves and the parent is not told — someone will have to contact them.
+        </div>
+
+        <fieldset class="kdialog__reasons">
+          <legend>Why?</legend>
+          {CANCEL_REASONS.map((r, i) => (
+            <label class="kdialog__reason">
+              <input type="radio" name="reason" value={r.code} checked={i === 0} />
+              <span>{r.label}</span>
+            </label>
+          ))}
+        </fieldset>
+
+        <div class="kdialog__actions">
+          <button type="submit" value="" class="kitchen__btn">Keep the order</button>
+          <button type="submit" value="cancel" class="kitchen__btn kitchen__btn--danger" id="k-cancel-go">
+            Cancel the order
+          </button>
+        </div>
+      </form>
+    </dialog>
 
     <script>
       import { fixtureTransport } from '../lib/kitchen/fixture.js';
@@ -162,6 +200,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
        * union — which is the kind of collision that compiles in a dynamic language and does not
        * here, gratefully.
        */
+      const cancelDialog = $<HTMLDialogElement>('k-cancel');
+      const cancelWho = $('k-cancel-who');
+
       const sel = { serviceDate: today, schoolId: '', breakId: '', status: '' };
 
       /**
@@ -427,6 +468,16 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
                     `cannot be undone yet — ask an admin to correct it.` +
                   `</p>`
                 : '') +
+              /**
+               * A cancelled order says so on the row, not only in the dialog nobody sees again.
+               *
+               * The operator who cancelled it read the warning; the person looking at the board
+               * an hour later did not, and "Cancelled" on its own reads as finished business.
+               * Deleted in the PR that lands the refund — `kitchen-write-contract.md` §2.4.
+               */
+              (o.status === 'cancelled'
+                ? `<p class="kitchen__oneway">Not refunded — no money has moved.</p>`
+                : '') +
             `</div>` +
           `</div>`
         );
@@ -637,16 +688,42 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         if (action === 'cancelled') {
           // A cancellation without a reason loses *why* the food was not delivered, and the
           // schema will not take one — `cancel_reason_code` is how a refund is later explained.
-          const options = CANCEL_REASONS.map((r, i) => `${i + 1}. ${r.label}`).join('\n');
-          const answer = window.prompt(`Why is this order being cancelled?\n\n${options}\n\nEnter 1-${CANCEL_REASONS.length}:`);
-          if (!answer) return;
-          const reason = CANCEL_REASONS[Number(answer) - 1];
+          const reason = await askWhyCancelled(orderId);
           if (!reason) return;
-          return update([orderId], 'cancelled', reason.code);
+          return update([orderId], 'cancelled', reason);
         }
 
         await update([orderId], action);
       });
+
+      /**
+       * Ask why, and return the reason code — or `null` if the operator backed out.
+       *
+       * The child's name goes into the dialog so the operator can see who they are cancelling
+       * for, and is written with `textContent` rather than into the markup: it is tier P, and it
+       * is the one string on this screen that comes from a person rather than from us.
+       */
+      function askWhyCancelled(orderId: string): Promise<string | null> {
+        const order = day?.orders.find((o) => o.id === orderId);
+        cancelWho.textContent = order
+          ? `${order.recipientName} · ${order.lines.map((l) => `${l.quantity} × ${l.dishName}`).join(', ')}`
+          : '';
+
+        cancelDialog.showModal();
+        return new Promise((resolve) => {
+          cancelDialog.addEventListener(
+            'close',
+            () => {
+              // `returnValue` is the submit button's `value`. Esc and the backdrop both close
+              // with an empty one, so backing out and "Keep the order" are the same path.
+              if (cancelDialog.returnValue !== 'cancel') return resolve(null);
+              const chosen = cancelDialog.querySelector<HTMLInputElement>('input[name=reason]:checked');
+              resolve(chosen?.value ?? null);
+            },
+            { once: true },
+          );
+        });
+      }
 
       el.filters.addEventListener('click', (event) => {
         const target = event.target as HTMLElement;
