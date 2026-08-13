@@ -2,10 +2,13 @@
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 Your tasks only — 51 open of 60.
 =======
 =======
 >>>>>>> 7124af8 (E17-43..46: renumbered off main's ids and closed as duplicates)
+=======
+>>>>>>> 1ec1ba9 (backlog: reconcile E09 ticks and add E09-21 after the rebase onto main)
 <<<<<<< HEAD
 Your tasks only — 52 open of 60.
 =======
@@ -26,7 +29,13 @@ Your tasks only — 47 open of 51.
 Your tasks only — 46 open of 50.
 >>>>>>> c4d4974 (E17-43..46: renumbered off main's ids and closed as duplicates)
 >>>>>>> 2b13a7f (E17-43..46: renumbered off main's ids and closed as duplicates)
+<<<<<<< HEAD
 >>>>>>> 7124af8 (E17-43..46: renumbered off main's ids and closed as duplicates)
+=======
+=======
+Your tasks only — 51 open of 59.
+>>>>>>> 3e7f1c5 (backlog: reconcile E09 ticks and add E09-21 after the rebase onto main)
+>>>>>>> 1ec1ba9 (backlog: reconcile E09 ticks and add E09-21 after the rebase onto main)
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -103,18 +112,11 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E17-12` Support plan for the first two weeks (who answers, how fast, what the common issues will be)
 - [ ] `E17-26` _(fast-follow)_ Register an iOS device UDID for internal-distribution builds — eas device:create. The staging profile is distribution: internal, which on iOS is ad-hoc: it needs an Apple Developer login (interactive, with 2FA) and at least one registered device, neither of which can be done unattended. Android needs nothing here — EAS generates the keystore itself
 - [ ] `E17-27` _(fast-follow)_ App Store Connect app id (ascAppId) for eas submit. Deliberately absent from eas.json (see docs/decisions/environments.md) — a guessed value submits to somebody else's listing. Not needed until the first submit
-<<<<<<< HEAD
-<<<<<<< HEAD
 - [x] `E17-31` _(fast-follow)_ Create an App Store Connect API key so submissions do not need a 2FA prompt. App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → generate a key named graybag-eas-submit with the App Manager role. The .p8 downloads once and once only. See docs/release-testflight.md for exactly what to do with the three values. A credentialed action: it needs Account Holder or Admin on the Apple account
 - [ ] `E17-33` _(fast-follow)_ (risk:high) Read the live Google Play numbers off the Play Console — Production → Releases: the live versionName *and* the live versionCode (the integer). Play rejects on versionCode, and appVersionSource: remote mints ours from an EAS counter that started at 1, so the first Android submit fails the same way ITMS-90062 did unless the floor is known. A validation: two numbers read off a screen only Andy can open. Half returned 2026-08-12: versionCode is 1777726914 — a Unix timestamp Bubble minted from the clock — and it is now in LIVE_PLAY, which is what unblocked E17-34. The versionName is still unread, so its assertion stays dormant. Do not close this by copying the App Store's 3.7.0 across: two listings updated by hand over fourteen months drift, and a guessed floor is the thing this task exists to avoid
 - [ ] `E17-35` _(fast-follow)_ Confirm the live Android package is exactly com.Gracord.Graybag, capitals included — Play Console → App info. R4 calls it owned by the live listing and app-config.test.ts asserts the capitals, but nobody has checked it against Play; it is the same shape of defect as the version floor, and the test's own comment names the consequence (a new listing with zero installs). iOS's bundle id was verified by accident this week when Apple's rejection named the record; Android's has had no such luck
 - [x] `E17-36` _(fast-follow)_ Confirm whether the live iOS listing supports iPad. Answered by Andy 2026-08-11: it does not, and we are not adding it. supportsTablet: false is now asserted as verified-against-App-Store-Connect rather than assumed. app.json sets supportsTablet: false. If the live app is iPad-enabled, this update drops a device family from under existing users. Cheap to check while in App Store Connect; low severity, unverified either way
 - [ ] `E17-39` _(fast-follow)_ The EAS production environment is empty. A production build today would ship with no Supabase URL, no anon key and no Razorpay key, and open on CantConnectScreen. Set the five EXPO_PUBLIC_* variables for production — with live Razorpay and the production Supabase project — before any production build. Blocked behind E01-05 (the production project does not exist yet)
-=======
-- [ ] `E17-31` _(fast-follow)_ Set the EAS remote Android version code above 1777726914 — eas build:version:set --platform android. With appVersionSource: remote the number lives on EAS's servers, not in this repository, so no commit can do it. Credentialed action. Pairs with E17-30
->>>>>>> 069b440 (E17: record the Android version-code floor findings — not fixed, wrong thread)
-=======
->>>>>>> c4d4974 (E17-43..46: renumbered off main's ids and closed as duplicates)
 
 ---
 
