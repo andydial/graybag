@@ -37,6 +37,7 @@
         }
       ],
       "./plugins/withUpiQueries",
+      "./plugins/withGradleMemory",
       "./plugins/withRazorpaySdkPin",
       "expo-secure-store"
     ],

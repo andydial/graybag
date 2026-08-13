@@ -196,6 +196,17 @@ jobs:
       - name: The flows reference testIDs that exist
         run: npm run check:maestro
 
+      # Explicit JDK with a Gradle cache. Two reasons, both observed on 2026-08-13:
+      #   * the wrapper download failed outright once (`gradle.wrapper.Install.forceFetch`), a
+      #     transient the cache removes from the critical path on every later run;
+      #   * an uncached Gradle resolves the whole dependency graph from scratch every time, which
+      #     is most of the wall-clock in a job that had no time to spare.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
       - name: Install Maestro
         run: |
           curl -Ls https://get.maestro.mobile.dev | bash
