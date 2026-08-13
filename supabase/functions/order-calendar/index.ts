@@ -22,16 +22,19 @@
 // service-role key and does no writes.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { corsHeaders, preflight } from '../_shared/cors.ts';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_RANGE_DAYS = 62;
 const MAX_AGE_SECONDS = 60;
 
+const CORS = corsHeaders('GET');
+
 const json = (status: number, payload: unknown, extra: Record<string, string> = {}) =>
   new Response(JSON.stringify(payload), {
     status,
-    headers: { 'content-type': 'application/json', ...extra },
+    headers: { ...CORS, 'content-type': 'application/json', ...extra },
   });
 
 /** Rejects `2026-02-30`, which a pattern match alone would accept. */
@@ -42,6 +45,9 @@ function isRealDate(value: string): boolean {
 }
 
 Deno.serve(async (request: Request) => {
+  const pre = preflight(request, CORS);
+  if (pre) return pre;
+
   const params = new URL(request.url).searchParams;
   const school = params.get('school')?.trim() ?? '';
   const from = params.get('from')?.trim() ?? '';

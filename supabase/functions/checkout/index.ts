@@ -38,11 +38,14 @@
 // refusal codes name a condition, never a child.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { corsHeaders, preflight } from '../_shared/cors.ts';
+
+const CORS = corsHeaders('POST');
 
 const json = (status: number, payload: unknown) =>
   new Response(JSON.stringify(payload), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { ...CORS, 'content-type': 'application/json' },
   });
 
 /**
@@ -63,6 +66,9 @@ const REFUSALS: Record<string, string> = {
 };
 
 Deno.serve(async (request: Request) => {
+  const pre = preflight(request, CORS);
+  if (pre) return pre;
+
   if (request.method !== 'POST') return json(405, { error: 'POST only' });
 
   const authorization = request.headers.get('Authorization') ?? '';

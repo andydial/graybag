@@ -143,6 +143,25 @@ commits**, and every cost was invisible until the merge:
 None of these was a mistake by anyone. They are what a long-lived branch *does*. The next thing
 it costs will be worse than a false status report.
 
+**And the rule above is not enough on its own. Before building anything another thread might
+already have, check the other branch — not just `main`.**
+
+Added the same day, because the failure recurred *within the hour of writing the rule*. I read
+`main`, found no `mark-delivered` Edge Function, and told Andy the kitchen write path did not
+exist and would have to be built. It existed: the web thread had built it as
+`kitchen-order-status`, deployed it to staging, and used it to mark a real class delivered. I was
+one step from writing a second one.
+
+```bash
+git fetch origin
+git branch -r --format='%(refname:short) %(committerdate:relative)'   # who else is live
+git ls-tree -r --name-only origin/<their-branch> -- <the area you are about to touch>
+```
+
+A merged `main` is a floor, never a ceiling. This time it would have cost duplicated work rather
+than a wrong status line — and duplicated work is the cheaper of the two only because it was
+caught.
+
 Work **one block at a time** from `planning/build-order.md`.
 
 - Within a block, complete **one task at a time and commit each separately**. Never batch

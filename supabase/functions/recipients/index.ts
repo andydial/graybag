@@ -39,11 +39,14 @@
 // us holding.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { corsHeaders, preflight } from '../_shared/cors.ts';
+
+const CORS = corsHeaders('POST, PATCH, DELETE');
 
 const json = (status: number, payload: unknown) =>
   new Response(JSON.stringify(payload), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { ...CORS, 'content-type': 'application/json' },
   });
 
 /**
@@ -76,6 +79,9 @@ const REFUSALS: Record<string, string> = {
 };
 
 Deno.serve(async (request: Request) => {
+  const pre = preflight(request, CORS);
+  if (pre) return pre;
+
   const method = request.method;
   if (method !== 'POST' && method !== 'PATCH' && method !== 'DELETE') {
     return json(405, { error: 'POST, PATCH or DELETE only' });

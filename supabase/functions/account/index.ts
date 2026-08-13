@@ -35,11 +35,14 @@
 // error's `code` and `hint` and nothing else, the same rule `recipients` follows.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { corsHeaders, preflight } from '../_shared/cors.ts';
+
+const CORS = corsHeaders('PATCH');
 
 const json = (status: number, payload: unknown) =>
   new Response(JSON.stringify(payload), {
     status,
-    headers: { 'content-type': 'application/json' },
+    headers: { ...CORS, 'content-type': 'application/json' },
   });
 
 /** Guard hints, mapped to what the account holder reads. Anything unmapped becomes a 500. */
@@ -49,6 +52,9 @@ const REFUSALS: Record<string, string> = {
 };
 
 Deno.serve(async (request: Request) => {
+  const pre = preflight(request, CORS);
+  if (pre) return pre;
+
   if (request.method !== 'PATCH') return json(405, { error: 'PATCH only' });
 
   const authorization = request.headers.get('Authorization') ?? '';
