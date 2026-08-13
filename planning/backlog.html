@@ -2858,13 +2858,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/34</span>
+          <span class="meter-num">0/35</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 34 tasks</summary>
+        <summary>Context &amp; 35 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -3140,6 +3140,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A two-session concurrency harness for pgTAP.</strong> <code>E06-21</code>&#39;s over-refund race — two transactions that cannot see each other&#39;s uncommitted refunds — cannot be demonstrated with the tools this suite has: <code>dblink</code> commits each statement in its own transaction, so it cannot hold one open across the window where the defect lives. The fix (an <code>order_group</code> row lock) is reasoned and guarded by a structural assertion that the lock is still present, which catches somebody simplifying it away but does not prove it works. A harness — two backends, an advisory-lock handshake to line them up inside the window, then release — would let this and every future locking question be tested for real. Worth having before <code>E06-08</code>/<code>E06-18</code> add more concurrent refund paths</span>
+      </li>
+      <li class="task" data-id="E06-36" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-36"></button>
+        <code class="tid">E06-36</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:critical) (mvp) <strong>Razorpay TEST keys are not set on staging, and nothing can take a payment without them.</strong> <code>supabase secrets list</code> shows only the seven Supabase-managed values: <code>RAZORPAY_KEY_ID</code>, <code>RAZORPAY_KEY_SECRET</code> and <code>RAZORPAY_WEBHOOK_SECRET</code> are all absent. This is why the deployed webhook answers <code>recorded_unverified</code> — with no secret it records the event and cannot verify the signature, which is the correct fail-safe and not a working state. <code>packages/shared/src/env.ts</code> already enforces that a key beginning <code>rzp_live_</code> cannot load under <code>APP_ENV=staging</code> (<code>EN2</code>), so the test keys cannot leak into production by accident. A credentialed action: the values come from Andy&#39;s Razorpay dashboard, Settings → API Keys, in <strong>test mode</strong>. Hand them over and I set the secrets. Blocks <code>E06-02</code>, <code>E06-16</code> and every end-to-end payment test</span>
       </li></ul>
       </details>
     </article>
