@@ -2430,3 +2430,59 @@ a contract document so the thread that owns the territory can implement it.
 
 A control that fails silently teaches people the tool is unreliable. A sentence explaining the
 gap costs one line and keeps the board trustworthy.
+
+## Defer the write instead of reversing it (2026-08-13)
+
+The kitchen board needed an undo for a mis-tapped status. The lifecycle is strictly forward —
+`order-lifecycle.md` §4.1 has no `preparing → paid` tuple for any actor — so the database refuses
+the reversal, and no amount of client code can take back a write that has happened.
+
+**Gmail's "Undo Send" does not recall a sent mail. It holds the send for a few seconds and
+cancels it.** Applied here: the tap updates the screen optimistically, and the request is held for
+ten seconds. Press Undo and it is simply never sent.
+
+That turned a change needing a migration, two new lifecycle tuples and an audit-event type into
+one that needed **nothing on the server at all**. A write that never happened needs no reverse
+tuple and leaves nothing in the audit trail to explain — which is also more honest than recording
+a mistake nobody ever acted on.
+
+**This generalises well past this screen.** Whenever "undo" looks like it needs a compensating
+action, ask first whether the action can be *delayed* instead. Delay is cheap, local, and needs no
+agreement from the system you were about to write to. Compensation needs a new state transition,
+a new permission, an audit story, and someone to build all three.
+
+The costs are real and worth naming: the server is stale for the length of the window, so a
+second device does not see the change; and a pending write must be flushed on
+`visibilitychange`, `pagehide` and before any reload, or a deferred write silently never happens
+— the exact failure the deferral was meant to protect against. Keep the window short, allow one
+pending batch at a time, and make every exit flush.
+
+## Automation that says "I don't understand this" and then acts anyway (2026-08-13)
+
+A rebase driver resolved the two files it understood — `backlog-state.json` and the epic markdown
+— printed `UNHANDLED` for anything else, and then ran `git add -A` regardless. So it staged files
+it had **explicitly declined to resolve**, conflict markers and all.
+
+Two files went in that way and survived two further rebases:
+
+- `packages/shared/src/payments/cors.test.ts`, caught only when `tsc` finally refused to parse it
+- `PROGRESS.md`, which would **never** have been caught: markdown with `<<<<<<< HEAD` in it
+  renders without complaint
+
+The failure was not the resolver's narrow scope — narrow is fine and honest. It was that
+detecting the gap and continuing were separated: it knew, said so on stdout where nobody was
+reading, and carried on.
+
+**Rules taken from it:**
+
+- A tool that recognises a case it cannot handle must **stop**, not log. `process.exitCode = 1`,
+  and let the loop that drives it halt.
+- `git add -A` after an automated resolution is the bug. Stage the files you resolved, by name.
+- **Grep for `^<<<<<<< ` across the whole tree after any scripted rebase**, not just in the files
+  you expected to touch. It costs one command and catches the class.
+- Text that compiles regardless — markdown, JSON without a schema, comments — is where this hides.
+  A green build is not evidence those files are intact.
+
+The wider pattern this fortnight is the same shape: `check-a11y` auditing a 404, `tag-mvp.mjs`
+rewriting the markdown it was meant to check, a seed emitting `where id in ()`. Automation that
+proceeds past a condition it has already noticed.

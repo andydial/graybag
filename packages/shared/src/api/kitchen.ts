@@ -190,6 +190,8 @@ export async function fetchMyGrants(): Promise<string[]> {
 export interface KitchenSchool {
   id: string;
   name: string;
+  /** `false` for a school we have stopped serving — still shown if it has orders that day. */
+  isActive: boolean;
 }
 
 /**
@@ -205,12 +207,15 @@ export interface KitchenSchool {
  * to school, so this returns exactly the schools the caller's grants cover — one school for a
  * school-scoped operator, every school in a kitchen for a kitchen-scoped one.
  *
- * `is_active` is deliberately **not** filtered on. A school that is inactive but still has orders
- * on the board would otherwise be missing from the control while its orders were listed, and a
- * filter that cannot name something on screen is worse than no filter.
+ * `is_active` is **returned rather than filtered on here**, because the caller needs both halves:
+ * the schools we currently serve, plus any school with orders on the day being viewed. A school
+ * we have stopped serving still has last week's orders, and a filter that cannot name a school
+ * whose orders are on the board is worse than one showing an extra name (Andy, 2026-08-13).
  */
 export async function fetchKitchenSchools(): Promise<KitchenSchool[]> {
-  const rows = await runQuery<unknown>((t) => t.from('school').select('id,name').order('name'));
+  const rows = await runQuery<unknown>((t) =>
+    t.from('school').select('id,name,is_active').order('name'),
+  );
 
   const schools: KitchenSchool[] = [];
   for (const row of rows) {
@@ -218,7 +223,9 @@ export async function fetchKitchenSchools(): Promise<KitchenSchool[]> {
     const id = str(row.id);
     const name = str(row.name);
     // A school we cannot name is not offered. An unlabelled chip is a control nobody can use.
-    if (id && name) schools.push({ id, name });
+    // `is_active` defaults to active when absent: hiding a school because a column did not come
+    // back is the wrong way to be wrong.
+    if (id && name) schools.push({ id, name, isActive: row.is_active !== false });
   }
   return schools;
 }

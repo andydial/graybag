@@ -44,20 +44,35 @@ export function liveTransport(): KitchenTransport {
        * schools a kitchen serves is a property of the kitchen, not of a Tuesday. Selecting one
        * with no orders is a legitimate and useful answer: "they ordered nothing today."
        *
+       * The list is **active schools plus any school with orders on the selected day**. Neither
+       * half is sufficient on its own. Active-only would hide a school we have stopped serving
+       * whose orders from last week are on screen — a filter that cannot name something on the
+       * board. Orders-only is the bug above. The union is what an operator can actually use.
+       *
+       * This is not hypothetical here: `supabase/seeds/catalogue.sql` deliberately deactivates
+       * the three synthetic fixture schools once the real Bubble-imported ones exist, so that
+       * "Alpha Public School sitting next to Amity International School" cannot confuse the
+       * parent-facing picker. Alpha and Bravo are therefore inactive **and** carry every seeded
+       * order, and an active-only filter would list neither.
+       *
        * Breaks stay derived. A break is genuinely a property of the day's orders — the label is
        * already snapshotted on the row, so reading `break_time` would be a round trip to learn a
        * name we are holding.
        */
       const breaks = new Map<string, string>();
+      const schoolsWithOrders = new Set<string>();
       for (const order of orders) {
         if (order.breakId) breaks.set(order.breakId, order.breakLabel ?? order.breakId);
+        if (order.schoolId) schoolsWithOrders.add(order.schoolId);
       }
+
+      const offered = schools.filter((s2) => s2.isActive || schoolsWithOrders.has(s2.id));
 
       return {
         serviceDate: filters.serviceDate,
         permissions: toPermissions(grants),
         orders,
-        schools,
+        schools: offered.map(({ id, name }) => ({ id, name })),
         breaks: [...breaks].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label)),
         // The moment the data was read, not the moment it is rendered. The offline banner quotes
         // this verbatim and must never be able to say "just now" about a list from 07:12.
