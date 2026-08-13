@@ -19,6 +19,52 @@ Format — newest first:
 
 ---
 
+## 2026-08-13 — If both outcomes can be produced by the fault you are looking for, it is not a check
+
+**Context:** verifying that `RAZORPAY_WEBHOOK_SECRET` had actually been set on staging. I POSTed
+an event with a deliberately wrong signature, reasoning that a rejection would prove a secret
+existed to reject it against.
+
+**What happened:** the webhook answered `recorded_unverified`, and I had learned nothing. That is
+the reply for a bad signature **and** the reply for no secret configured — it fails closed either
+way, which is correct behaviour and made the probe useless. Worse, it is the same ambiguity that
+had already caused a real misreport: `recorded_unverified` was given to Andy as evidence the
+webhook was live and working, when it was the fail-safe firing into a void.
+
+**Cause:** two states with opposite meanings shared one output.
+
+- **A bad signature is someone else's fault, and the system working.** Nothing to do.
+- **A missing secret is our fault, and the system not working at all** — every genuine event
+  recorded unverified, never processed, silently, forever.
+
+Collapsing them lost exactly the distinction an operator needs. Note also the shape of my own
+mistake: I designed a probe whose *passing* result and *failing* result were the same string.
+
+**The class, and it is the third instance.** The two entries below are the same defect in
+different clothes:
+
+| | The check | Why it was not one |
+|---|---|---|
+| 2026-08-11 | `major >= 2` against the live store version | The constant was a guess, so passing meant nothing |
+| 2026-08-13 | `versionCode > 0` while the real value was unknown | It passed trivially the moment real data arrived |
+| 2026-08-13 | a bad-signature probe for a missing secret | Both outcomes were producible by the fault |
+
+**Fix / rule:** **any check whose passing and failing states can both be produced by the thing it
+is meant to detect is not a check.** Before trusting one, ask what *else* produces this result —
+and if the honest answer includes the fault being hunted, the check is decoration.
+
+Concretely: give distinct causes distinct signals. `recorded_no_secret` is returned when the
+secret is absent, and it is what proved the key had been set — a probe that can distinguish
+outcomes, replacing one that could not. The same reasoning is why `payments-create-order` answers
+**503 with its own log line** for absent Razorpay credentials rather than a generic 500: a
+configuration fault of ours must not look identical to the provider being down, or whoever is on
+call debugs Razorpay.
+
+The general form of all three: **a green check is evidence only if red was reachable, and only if
+red meant something different from green.**
+
+---
+
 ## 2026-08-13 — A placeholder assertion must FAIL until it is real, never pass
 
 **Context:** `app-config.test.ts` held the live Google Play numbers as `null` — nobody had opened

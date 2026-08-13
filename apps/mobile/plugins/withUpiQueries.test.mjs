@@ -20,7 +20,7 @@ import { dirname, join } from 'node:path'
 const require = createRequire(import.meta.url)
 const here = dirname(fileURLToPath(import.meta.url))
 
-const { PSP_PACKAGES, applyUpiQueries } = require('./withUpiQueries.js')
+const { PSP_PACKAGES, PSP_URL_SCHEMES, applyUpiQueries, applyUpiSchemes } = require('./withUpiQueries.js')
 
 /** The android:scheme values declared across every intent in a manifest object. */
 const schemesIn = (manifest) =>
@@ -100,4 +100,50 @@ test('is registered in app.json', () => {
   const appJson = JSON.parse(readFileSync(join(here, '..', 'app.json'), 'utf8'))
   const names = appJson.expo.plugins.map((p) => (Array.isArray(p) ? p[0] : p))
   assert.ok(names.includes('./plugins/withUpiQueries'), 'withUpiQueries is not in app.json')
+})
+
+// ---------------------------------------------------------------------------------------------
+// The iOS half — `E06-29`, landed with `E06-02`.
+//
+// iOS fails differently and worse than Android: `canOpenURL:` returns **false** for any
+// undeclared scheme, silently. No exception, no warning. The Razorpay SDK uses that call to
+// decide which UPI apps to show, so an undeclared scheme is not an error — it is a shorter list,
+// reported later as "GPay is missing on iPhone" and chased in the wrong place.
+// ---------------------------------------------------------------------------------------------
+
+test('declares the upi scheme, which is the one that matters', () => {
+  const plist = applyUpiSchemes({})
+  assert.ok(plist.LSApplicationQueriesSchemes.includes('upi'))
+})
+
+test('covers the same wallets as the Android package list', () => {
+  // The two platforms must not drift into supporting different sets of PSPs — that produces a
+  // bug report that is true on one platform and unreproducible on the other.
+  const plist = applyUpiSchemes({})
+  assert.equal(plist.LSApplicationQueriesSchemes.length, PSP_URL_SCHEMES.length)
+  assert.equal(PSP_PACKAGES.length + 1, PSP_URL_SCHEMES.length,
+    'one scheme per PSP package, plus the generic `upi` scheme')
+})
+
+test('merges rather than replacing what other plugins contributed', () => {
+  // `expo-linking` writes here too. Clobbering the array breaks deep links in a way nobody
+  // would connect to payments.
+  const plist = applyUpiSchemes({ LSApplicationQueriesSchemes: ['mailto', 'tel'] })
+  assert.ok(plist.LSApplicationQueriesSchemes.includes('mailto'))
+  assert.ok(plist.LSApplicationQueriesSchemes.includes('tel'))
+  assert.ok(plist.LSApplicationQueriesSchemes.includes('upi'))
+})
+
+test('is idempotent — prebuild may run the mod more than once', () => {
+  const plist = applyUpiSchemes({})
+  applyUpiSchemes(plist)
+  applyUpiSchemes(plist)
+  assert.equal(plist.LSApplicationQueriesSchemes.filter((s) => s === 'upi').length, 1)
+})
+
+test('throws rather than letting iOS silently ignore entries past 50', () => {
+  // Apple truncates at 50 with no error. A wallet vanishing from the sheet for that reason
+  // appears in no log, so the build is the right place to fail.
+  const tooMany = Array.from({ length: 50 }, (_, i) => `scheme${i}`)
+  assert.throws(() => applyUpiSchemes({ LSApplicationQueriesSchemes: tooMany }), /ignores everything past/)
 })
