@@ -125,7 +125,7 @@ These drive the indexing choices in §13.5, and should be revisited if any is wr
 |---|---|---|
 | Kitchens | 1 | 3–5 |
 | Schools | 3 | 20–40 |
-| Cities | 3 (Chandigarh, SAS Nagar, Panchkula) | 3–6 |
+| Cities | **1 (SAS Nagar / Mohali)** — `SC1` | 3–6 |
 | Customers | ~400 | 5,000–20,000 |
 | Dishes per menu | ≤50 | ≤150 |
 | Orders per service day | low hundreds | 2,000–5,000 |
@@ -1072,14 +1072,23 @@ share).
 | `correlation_id` | uuid | no | | |
 
 - **Index**: `(order_group_id)`, `(status, initiated_at) where status in ('pending','processing')`
-- **Constraint**: `Σ refund.amount_paise` for a group must not exceed the group's captured
-  amount. Enforced by a constraint trigger, because over-refunding is a real and expensive
-  bug.
-  **Superseded by `docs/order-lifecycle.md` §7.3 (Q06).** As stated here the guard is wrong in
-  both directions: it counts `failed` refunds, so two failed attempts block the third
-  legitimate one, and it ignores in-flight ones, so two admins refunding the same order
-  concurrently both pass. The sum is over `status IN ('pending','processing','completed')`, and
-  the trigger takes the `order_group` row lock first. `E06-21`.
+- **Constraint**: `Σ refund.amount_paise` **at `pending`, `processing` and `completed`** for a
+  group must not exceed the group's captured amount. Enforced by a deferred constraint trigger
+  that takes the `order_group` row lock first, because over-refunding is a real and expensive bug.
+
+  **Corrected 2026-08-11 by `E06-21` / `0043`.** This section used to state the guard as "Σ
+  `refund.amount_paise`", which `docs/order-lifecycle.md` §7.3 rightly called wrong in both
+  directions — counting `failed` refunds blocks a legitimate retry, and ignoring in-flight ones
+  lets two admins refunding at once both pass.
+
+  Worth recording precisely, because the two halves had different fates: **the implementation
+  never had the arithmetic defect** (it always summed `status <> 'failed'`), so only this
+  document was wrong about it. **The race was real**, and deferring the trigger to COMMIT did not
+  close it: under `READ COMMITTED` neither transaction can see the other's uncommitted refund, so
+  both summed the same total and both committed. The row lock is what serialises them.
+
+  A capture marked as a duplicate (`[OL-05]`) counts toward the refundable amount deliberately —
+  the customer really was charged twice, and `E06-18` exists to refund exactly that.
 
 **`refund_line`**
 
@@ -1396,12 +1405,23 @@ Every column below exists on all three tables unless the scope column says other
 | `allergen_warning_enabled` | boolean | `true` | all | E05-05. Never expected to be false; present so it is a config decision, not a code deploy |
 | `customer_cancellation_allowed` | boolean | `true` | all | E05-11 |
 | `customer_cancellation_cutoff_minutes` | integer | `0` | all | Minutes before `cutoff_at`; 0 = right up to cutoff |
+| `pending_payment_ttl_minutes` | integer | `30` | all | `[OL-03]`, `0037`. How long a `pending_payment` checkout is held before the sweeper cancels it. **Provisional** — its floor is how long Razorpay holds a UPI collect (`E19-07` row 3). The sweeper reconciles against Razorpay before cancelling rather than trusting this clock (`E06-17`): it decides when to ask, not what the answer is |
+| `payment_in_flight_grace_minutes` | integer | `15` | all | `L9`, `0037`. A settlement inside `cutoff_at + this` is honoured; after it the capture is refused and auto-refunded. **Never shown to a parent and never counted down at them** — a server tolerance, not a deadline they can act on. Set to `0` for a hard cutoff, which is `[OL-02]` option (b) as configuration rather than a second code path |
+| `payment_retry_window_minutes` | integer | `30` | all | `0037`. How long a failed attempt may be retried against the same `order_group`. Matched to the TTL on purpose: a longer window lets a retry succeed against a checkout the sweeper already cancelled |
 
-**Three settings are missing from this table** and are required by `docs/order-lifecycle.md`
-(Q06): `pending_payment_ttl_minutes` (`[OL-03]`), `payment_in_flight_grace_minutes` (`[OL-02]`)
-and `payment_retry_window_minutes`. They are not added here because two of the three have an
-undecided *value* and adding a column with a guessed default is how a guess becomes a fact.
-`E06-20` adds all three, on all three scope tables, in the same PR that updates this section.
+**The three payment timings were added by `0037`** (`E06-20`), and this table said for a while
+that they were missing "because two of the three have an undecided *value*, and adding a column
+with a guessed default is how a guess becomes a fact".
+
+**That caution is right and it is narrower than it reads.** Andy, 2026-08-11, settling how it
+applies here: *the failure it warns about is a default nobody remembers choosing.* A number that
+names itself provisional **in the column comment**, and names the exact fact that will settle it,
+is not how a guess becomes a fact — it is how a guess stays visible. Recorded so the caution is
+not applied mechanically to block a default that is doing its job.
+
+So: `L9` decided the grace window at 15, and the TTL's 30 is labelled provisional in the
+database, where the person who next reads the number will be, with `E19-07` row 3 named as what
+answers it.
 
 **Note on the defaults above.** `order_cutoff_time = '00:00'` with `order_cutoff_days_before = 0`
 means the cutoff for Monday's lunch is **00:00 on Monday** — order by Sunday night, not by

@@ -212,3 +212,40 @@ chose "nullable and unset so tax calculation refuses to run until answered" prec
 this moment would be explicit. `0001` is already applied to staging and must not be edited
 (`MG5`), so the value is set by a new migration and the column made `NOT NULL`. Tracked under
 `E02-06`.
+
+## One App Store Connect record for both profiles — `R9`, superseded by `R10` the same day
+
+`R9` put `ascAppId` `6749555467` on **both** `submit.production` and `submit.preview`. Apple
+rejected the first preview submission with `ITMS-90054`: an App Store Connect record accepts
+exactly one bundle id, and `preview` builds `com.gracord.graybag.staging` — the identity
+`E17-28` had split off precisely so internal builds could not touch the live app.
+
+So `R9` was unsatisfiable from the moment it was written, and the reason nobody noticed is
+worth keeping: the app id was correct, the bundle id was correct, and **nothing related the
+two**. Each was asserted alone, and neither assertion could fail.
+
+Replaced by `R10` — a second record, `6800175123`, for the staging bundle id, with the
+record-to-identity pairing asserted in `apps/mobile/src/app-config.test.ts`. `R9`'s other
+half, that `preview` must be an iOS store build to reach TestFlight at all, survives in `R10`.
+
+## `G4` — the CGST/SGST versus IGST split, derived per invoice
+
+**Superseded 2026-08-11 by `SC1`.** Replaced by the assertion form recorded in
+`docs/decisions/gst-invoicing.md`: invoicing asserts `left(seller_gstin, 2) = '03'` and refuses
+to issue if it does not, rather than deriving a split.
+
+The original entry, as it stood:
+
+> **The CGST+SGST versus IGST split is derived per invoice from the seller GSTIN's state code
+> against `place_of_supply_state_code`. It is never hard-coded.** `M2` asserts intra-state on
+> the basis that the place of supply is Mohali, but intra-state-ness depends on GrayBag's
+> *registered* state, which is the first two digits of a GSTIN we do not have. Deriving it costs
+> one comparison, makes `M2` a consequence rather than an assumption, and is what lets `D9`'s
+> second city work at all. `[GST-02]`
+
+**Why it went.** The premise expired rather than the reasoning failing. `G4` needed two
+variables and `SC1` fixed one of them: the place of supply is `03` for every invoice v1 will
+ever issue. A derivation over one unknown is an assertion wearing a branch, and the branch is
+what `E07-21` then grew into a cart and checkout pricing path for a case with no school, no
+kitchen and no menu in it. `D9`'s second city is still expected; it will need this decision back,
+and it can have it when there is a second city.

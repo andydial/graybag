@@ -55,20 +55,38 @@ export function Card({
 export function ListRow({
   title,
   subtitle,
+  /** Drawn before the text — an avatar, a thumbnail, an icon. */
+  leading,
   trailing,
+  /**
+   * Override the composed label.
+   *
+   * **This exists because the composed one silently dropped information.** The row builds
+   * `"<title>, <subtitle>"` and stops there, so anything in `trailing` — a status word, a
+   * price, a count — was invisible to a screen reader. On the Orders screen the status is the
+   * only part of the row carrying colour, which makes it exactly the part that must survive as
+   * text (§2.10), and that screen hand-rolled the whole row rather than lose it.
+   */
+  accessibilityLabel,
+  /** `danger` for a destructive row, so a delete does not need its own copy of this file. */
+  tone = 'default',
   onPress,
   testID,
 }: {
   title: string;
   subtitle?: string;
+  leading?: ReactNode;
   trailing?: ReactNode;
+  accessibilityLabel?: string;
+  tone?: 'default' | 'danger';
   onPress?: () => void;
   testID?: string;
 }) {
   const body = (
     <View style={styles.row}>
+      {leading}
       <View style={styles.rowText}>
-        <Text style={styles.rowTitle}>{title}</Text>
+        <Text style={[styles.rowTitle, tone === 'danger' && styles.rowTitleDanger]}>{title}</Text>
         {subtitle !== undefined ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
       </View>
       {trailing}
@@ -77,14 +95,18 @@ export function ListRow({
 
   if (onPress === undefined) return <View testID={testID}>{body}</View>;
 
+  // One label for the whole row. A screen reader reading "Veg Sandwich" then "Rs 60" then
+  // "button" as three stops is three times the work for the same information — but the
+  // composition only knows about title and subtitle, so a caller with anything else to say
+  // must be able to say it.
+  const label = accessibilityLabel ?? (subtitle === undefined ? title : `${title}, ${subtitle}`);
+
   return (
     <Pressable
       onPress={onPress}
       testID={testID}
       accessibilityRole="button"
-      // One label for the whole row. A screen reader reading "Veg Sandwich" then "Rs 60"
-      // then "button" as three stops is three times the work for the same information.
-      accessibilityLabel={subtitle === undefined ? title : `${title}, ${subtitle}`}
+      accessibilityLabel={label}
       style={({ pressed }) => [pressed && styles.cardPressed]}
     >
       {body}
@@ -201,6 +223,7 @@ const styles = StyleSheet.create({
     lineHeight: scale.bodyStrong.lineHeight,
     fontWeight: scale.bodyStrong.weight,
   },
+  rowTitleDanger: { color: text.danger },
   rowSubtitle: {
     color: text.secondary,
     fontSize: scale.bodySm.size,

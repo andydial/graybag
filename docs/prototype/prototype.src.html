@@ -414,6 +414,21 @@ const child = () => CHILDREN[S.child];
 const cartCount = () => S.cart.reduce((n,l)=>n+l.q,0);
 const subtotal = () => S.cart.reduce((n,l)=>n + l.d.p*l.q, 0);
 
+/* GST per docs/gst-invoicing.md §6.2: each component computed from EACH LINE's taxable value
+   and rounded half-up, then summed. Taxing the subtotal instead is a paise adrift on a cart of
+   ₹95 + ₹75 — two half-paise that each round up become one that rounds down. Integer only. */
+const halfUp = (n,d) => Math.floor((n*2 + d) / (d*2));
+function gst(){
+  let taxable=0, cgst=0, sgst=0;
+  S.cart.forEach(l=>{
+    const t = l.d.p * l.q;
+    taxable += t;
+    cgst += halfUp(t*250, 10000);
+    sgst += halfUp(t*250, 10000);
+  });
+  return { taxable, cgst, sgst, total: taxable+cgst+sgst };
+}
+
 /* Is there actually a child whose allergen data we hold? Everything about allergen warnings
    hangs off this, and getting it wrong in either direction is a safety defect:
    claiming a warning we cannot compute, or staying silent about one we can. */
@@ -638,7 +653,7 @@ V.cart = () => {
   const f = S.flags, c = child();
   if(!S.cart.length) return shell(`${appbar()}${empty('Your order is empty','Add something from the menu and it\'ll show up here.','Browse the menu','goTab("menu")')}`);
 
-  const sub = subtotal(), cgst = Math.round(sub*0.025), sgst = Math.round(sub*0.025);
+  const { taxable: sub, cgst, sgst, total } = gst();
   const closed = f.cutoff==='closed';
 
   return shell(`
@@ -672,13 +687,13 @@ V.cart = () => {
       <div class="t"><span>Subtotal</span><span>${rupees(sub)}</span></div>
       <div class="t"><span>CGST 2.5%</span><span>${rupees(cgst)}</span></div>
       <div class="t"><span>SGST 2.5%</span><span>${rupees(sgst)}</span></div>
-      <div class="t grand"><span>Total</span><span>${rupees(sub+cgst+sgst)}</span></div>
+      <div class="t grand"><span>Total</span><span>${rupees(total)}</span></div>
     </div>
     <p class="tiny">Menu prices exclude GST. 5% is added here as CGST 2.5% + SGST 2.5%.</p>
   `, true, `
     <div class="sticky">
       <button class="btn" ${closed||f.offline?'disabled':''} onclick="placeOrder()">
-        ${f.offline?'You\'re offline':closed?'Ordering has closed':'Place order · '+rupees(sub+cgst+sgst)}
+        ${f.offline?'You’re offline':closed?'Ordering has closed':'Place order · '+rupees(total)}
       </button>
       ${f.signedout?`<p style="text-align:center;font-size:11.5px;color:var(--muted);margin:10px 0 0">We'll ask you to sign in — your order is kept.</p>`:''}
     </div>`);
@@ -689,9 +704,8 @@ V.signin = () => shell(`
   <div class="pad">
     <h2 class="title h-green" style="font-size:27px">welcome 👋</h2>
     <p class="eyebrow" style="margin-bottom:26px">We need an account to place your order. It takes a moment, and your order is kept.</p>
-    <button class="authbtn" onclick="go('otp')">${ICON.google}<span>Continue with Google</span></button>
-    <button class="authbtn" onclick="go('otp')">${ICON.apple}<span>Continue with Apple</span></button>
-    <div class="divider">or</div>
+    <!-- No Google or Apple in v1: the client ids do not exist, and the prototype is the
+         acceptance criteria, so a button drawn here is a button somebody builds. -->
     <div class="field">
       <label>Email</label>
       <input placeholder="you@example.com" value="andy@graybag.in">
@@ -700,7 +714,8 @@ V.signin = () => shell(`
     <button class="btn" ${S.flags.offline?'disabled':''} onclick="go('otp')">
       ${S.flags.offline?'You\'re offline':'Email me a code'}
     </button>
-    <p class="tiny" style="padding:16px 0 0;text-align:center">No passwords, ever. We'll send a six-digit code.</p>
+    <div class="notice info" style="margin:16px 0 0"><b>New here?</b>Enter your email and we&rsquo;ll send a code — that is all it takes to create your account.</div>
+    <p class="tiny" style="padding:14px 0 0;text-align:center">No passwords, ever.</p>
   </div>`, false);
 
 V.otp = () => {
@@ -821,7 +836,7 @@ V.editchild = () => {
 };
 
 V.checkout = () => {
-  const sub = subtotal(), cgst=Math.round(sub*0.025), sgst=Math.round(sub*0.025), c=child();
+  const { taxable: sub, cgst, sgst, total } = gst(); const c = child();
   return shell(`
     ${bar('Check and pay', ()=>'goTab("cart")')}
     <div class="forblock" style="margin-top:16px">
@@ -837,10 +852,10 @@ V.checkout = () => {
       <div class="t"><span>Subtotal</span><span>${rupees(sub)}</span></div>
       <div class="t"><span>CGST 2.5%</span><span>${rupees(cgst)}</span></div>
       <div class="t"><span>SGST 2.5%</span><span>${rupees(sgst)}</span></div>
-      <div class="t grand"><span>Total</span><span>${rupees(sub+cgst+sgst)}</span></div>
+      <div class="t grand"><span>Total</span><span>${rupees(total)}</span></div>
     </div>
     <div class="cutoff">Ordering for Tue 12 Aug closes at 00:00 IST, Tuesday.</div>
-  `, true, `<div class="sticky"><button class="btn" onclick="pay()">Pay ${rupees(sub+cgst+sgst)}</button></div>`);
+  `, true, `<div class="sticky"><button class="btn" onclick="pay()">Pay ${rupees(total)}</button></div>`);
 };
 
 V.paying = () => `

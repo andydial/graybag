@@ -25,6 +25,11 @@ const CONFIG: EffectiveConfig = {
   allergenWarningEnabled: true,
   customerCancellationAllowed: true,
   customerCancellationCutoffMinutes: 0,
+  // `0037`. Defaults as the platform row carries them: `L9`'s 15-minute grace, and `[OL-03]`'s
+  // provisional 30 for the TTL and the retry window.
+  pendingPaymentTtlMinutes: 30,
+  paymentInFlightGraceMinutes: 15,
+  paymentRetryWindowMinutes: 30,
 };
 
 /** A clock the test moves by hand, so nothing sleeps. */

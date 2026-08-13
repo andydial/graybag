@@ -42,6 +42,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const TESTS = join(ROOT, 'supabase', 'tests');
 const SEED = join(ROOT, 'supabase', 'seed.sql');
+const MIGRATIONS = join(ROOT, 'supabase', 'migrations');
 
 // Files that legitimately reference seed data instead of creating their own.
 const ASSERTS_THE_SEED = new Set(['seed.test.sql']);
@@ -51,7 +52,13 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
 const PHONE = /\+[1-9][0-9]{7,14}/g;
 const EMAIL = /'[^']*@[^']*'/g;
 // Slug-shaped literals — the schema's `code text not null unique` columns.
-const SLUG = /'([a-z][a-z0-9_]{2,40})'/g;
+//
+// **Colons are in the character class deliberately.** Ledger account codes look like
+// `provider:razorpay:clearing`, and without the colon this pattern matched none of them — which
+// is how `0035` seeding the chart of accounts silently collided with the fixtures in
+// `ledger.test.sql` and `authorization.test.sql` and took both files down on the next clean
+// reset. Two suites, including the authorization one, reporting an error and no `not ok`.
+const SLUG = /'([a-z][a-z0-9_:.]{2,60})'/g;
 
 // Values that appear in both seed.sql and the fixtures and are SAFE to share.
 // Each needs a reason, so that adding to this list is a decision rather than a
@@ -64,6 +71,9 @@ const SHARED_ON_PURPOSE = new Map([
   ['father', 'guardian relationship enum'],
   ['mother', 'guardian relationship enum'],
   ['guardian', 'guardian relationship enum'],
+  // The same enum as `guardian` beside it — `E05-38` asserts an adult's link says `self`
+  // rather than `guardian`. A relationship value, not a code on a unique column.
+  ['self', 'guardian relationship enum'],
   ['school', 'scope_type enum'],
   ['counter', 'delivery mode enum'],
   // Composite uniques whose OTHER column already differs between seed and tests.
@@ -71,6 +81,64 @@ const SHARED_ON_PURPOSE = new Map([
 ]);
 
 const readText = (path) => readFileSync(path, 'utf8');
+
+/**
+ * **Namespaced** codes seeded by a migration — `provider:razorpay:clearing`, `platform:revenue`,
+ * `platform:tax_payable:cgst`.
+ *
+ * ## Why colons, and only colons
+ *
+ * Migrations seed data as well as defining schema — `0013` the reason codes, `0029` the break
+ * windows, `0035` the chart of accounts — and this check only ever compared fixtures against
+ * `supabase/seed.sql`. So when `0035` seeded `provider:razorpay:clearing`, the fixtures in
+ * `ledger.test.sql` and `authorization.test.sql` that already used that code collided on
+ * `ledger_account_code_key`, and **both files died on the next clean reset** — including the
+ * authorization suite, with an error and not one `not ok`. Exactly the `E02-24` failure this
+ * script exists to prevent, one source of truth along.
+ *
+ * The obvious generalisation — every slug a migration inserts — is **wrong, and was tried**: an
+ * insert also carries enum values and foreign keys (`'debit'`, `'platform'`,
+ * `'migration_opening_balance'`), and flagging those produced 31 false positives on one file.
+ * Telling a `code` column's value from a `reason_code` foreign key needs the insert's column
+ * list parsed, which is a real piece of work and is `E02-25`.
+ *
+ * A colon is the cheap, precise signal in the meantime: every namespaced code in this schema has
+ * one, and no enum value, permission slug or status does. It closes the hole that actually bit
+ * without a rule nobody can keep green.
+ *
+ * Memoised: it reads every migration, and it is called once per test file.
+ */
+/** Slug-shaped literals inside this file's own `insert` statements. See the use site. */
+const slugsInserted = (path) => {
+  const sql = readText(path);
+  const found = new Set();
+  for (const m of sql.matchAll(/\binsert\s+into\b[\s\S]*?;/gi)) {
+    for (const slug of m[0].matchAll(SLUG)) {
+      if (!SHARED_ON_PURPOSE.has(slug[1])) found.add(slug[1]);
+    }
+  }
+  return found;
+};
+
+let migrationSlugCache = null;
+function migrationSeededSlugs() {
+  if (migrationSlugCache !== null) return migrationSlugCache;
+
+  const found = new Set();
+  for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql'))) {
+    const sql = readText(join(MIGRATIONS, file));
+    // Each `insert` up to its terminating semicolon. Crude, and right for this shape of file:
+    // a semicolon inside a dollar-quoted policy document belongs to a statement that is not an
+    // insert of a code.
+    for (const m of sql.matchAll(/\binsert\s+into\b[\s\S]*?;/gi)) {
+      for (const slug of m[0].matchAll(SLUG)) {
+        if (slug[1].includes(':') && !SHARED_ON_PURPOSE.has(slug[1])) found.add(slug[1]);
+      }
+    }
+  }
+  migrationSlugCache = found;
+  return found;
+}
 const uuidsIn = (path) => new Set(readText(path).match(UUID) ?? []);
 const phonesIn = (path) => new Set(readText(path).match(PHONE) ?? []);
 const emailsIn = (path) => new Set(readText(path).match(EMAIL) ?? []);
@@ -129,6 +197,16 @@ for (const file of testFiles) {
     ['phone number', phonesIn(join(TESTS, file)), phonesIn(SEED), 'uq_app_user_phone'],
     ['email', emailsIn(join(TESTS, file)), emailsIn(SEED), 'uq_app_user_email'],
     ['slug/code', slugsIn(join(TESTS, file)), slugsIn(SEED), 'the `code text not null unique` columns'],
+    // **Migrations seed data too**, and for a long time this check did not look at them.
+    // `0013` seeds reason codes, `0035` seeds the chart of accounts, `0029` seeds break
+    // windows — all on unique natural keys, all applied before any suite runs, and all
+    // invisible here until a fixture collided with one. Only literals inside an `insert`
+    // are considered; every other string in a migration is DDL, not data.
+    // **Only what the test INSERTS**, not everything it mentions. A suite that asserts
+    // `self_meal_service` exists, or cites `migration_opening_balance` as a reason code, is
+    // *referencing* seeded data — which is correct and must stay possible. A duplicate key can
+    // only come from an insert, so that is what is compared.
+    ['slug/code', slugsInserted(join(TESTS, file)), migrationSeededSlugs(), 'a namespaced code seeded by a migration'],
   ];
 
   for (const [label, mine, seeded, constraint] of naturalKeys) {

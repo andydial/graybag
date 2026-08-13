@@ -1,0 +1,26 @@
+-- =============================================================================
+-- 0040_migration_actor.sql — a named actor for the import. `E16-49`, half one of two.
+-- =============================================================================
+--
+-- `0039` enforces §4.1, where the only legal entry points are `draft` (admin) and
+-- `pending_payment` (system). Everything else is reached by *moving*. That is right for the
+-- product and it leaves `E16` with nowhere to put ~283 legacy orders that are already finished.
+--
+-- Andy ruled the options on 2026-08-11:
+--
+--   * **Walking each order through the machine** writes an `order_event` history that never
+--     happened — an invented confirmed-at, an invented delivered-by — onto the one table `I2`
+--     exists to make trustworthy. The audit becomes fiction in order to satisfy a constraint.
+--   * **Disabling the trigger in the importer** is the version that ends up in a script nobody
+--     reviews. It is also, precisely, how the legacy system came to be the way it is.
+--   * **A named actor** is honest: the event says `migration`, because that is what it was.
+--
+-- This half adds the enum value alone — `ALTER TYPE … ADD VALUE` cannot be used in the
+-- transaction that adds it, the same constraint `0034` hit. `0041` is its only use.
+--
+-- irreversible: PostgreSQL has no ALTER TYPE ... DROP VALUE. The value is inert until 0041
+-- gives it a transition, and 0041's rollback removes that — after which nothing can act as
+-- `migration` even though the label still exists.
+-- =============================================================================
+
+alter type actor_type add value if not exists 'migration';

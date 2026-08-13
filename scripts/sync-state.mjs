@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Two-way sync between backlog-state.json (what the HTML page writes) and the
-// [ ] / [x] checkboxes in backlog/*.md.
+// [ ] / [x] checkboxes in backlog/*.md. `[~]` (struck — decided against) is deliberately NOT
+// matched by LINE below: a struck task is a decision recorded in the markdown, and neither a
+// tick in the browser nor a pass of this script may quietly turn "we decided not to" into
+// "we did".
 //
 //   node scripts/sync-state.mjs pull   # backlog-state.json -> markdown checkboxes
 //   node scripts/sync-state.mjs push   # markdown checkboxes -> backlog-state.json

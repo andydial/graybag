@@ -66,8 +66,8 @@ responsible to you for the order.
 
 - All prices are in **Indian Rupees**.
 - **GST applies.** For an intra-state supply this is shown as **CGST 2.5% + SGST 2.5%** (`M2`, `G2`);
-  for an inter-state supply it is IGST at the same total rate. Whether your supply is intra-state or
-  inter-state is determined from GrayBag's registered state and the place of supply (`G4`).
+  for an inter-state supply it is IGST at the same total rate. **Today every GrayBag supply is
+  intra-state**, because we serve Mohali only (`SC1`).
   `[confirm in E00-10]` whether the menu price is inclusive or exclusive of GST (`[DM-20]`, `[GST-01]`).
 - We issue you a **tax invoice** for each payment, with a gapless serial number for the financial
   year (`M3`, `G8`, `G9`). The invoice is the record of what you bought and what tax you paid, and we

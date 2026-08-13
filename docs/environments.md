@@ -127,3 +127,98 @@ Two other things that bit on the way through, both worth recognising on sight:
   host is IPv6-only. A successful `link` records the IPv4 pooler and the error goes away,
   which is why the fix is to link rather than to fight the resolver.
 
+
+---
+
+## 6. Project configuration the repo does not own
+
+**`supabase/config.toml` configures the local stack and nothing else.** Every hosted-project
+setting below lives in the Supabase dashboard: it is not in a migration, not in a test, and
+invisible to CI. That is the whole problem — **it looks configured because nothing says
+otherwise.**
+
+It cost a day on 2026-08-10. The magic-link email template still used `{{ .ConfirmationURL }}`,
+so Supabase emailed a *link* while the app sat waiting for a six-digit code, and the link opened
+a blank page because Site URL was never set. Nothing in this repository could have caught it,
+and nothing would have caught it again the day we point at production — with real parents on the
+other end.
+
+### The checklist, per environment
+
+Run `npm run check:config` (staging) rather than reading this by eye. The list is here so a
+human can see *what* is being asserted and *why*; the script is what actually asserts it.
+
+| # | Setting | Required value | Symptom when wrong |
+|---|---|---|---|
+| 1 | **Auth → Email templates → Magic Link** | Contains `{{ .Token }}`, **not** `{{ .ConfirmationURL }}` | A parent gets a link instead of a code; the app waits for a code that never arrives |
+| 2 | **Auth → Email OTP length** | **6** | The screen says "six-digit code" and the email carries eight |
+| 3 | **Auth → Email OTP expiry** | ≥ 600s. 3600s is fine | Too short and a parent who switches to Mail and back is already too late |
+| 4 | **Auth → URL Configuration → Site URL** | The real host. **Never `localhost`** | Every generated link opens a blank page on the recipient's phone |
+| 5 | **Auth → URL Configuration → Redirect allow-list** | Includes the app scheme for that environment — `graybag-dev://`, `graybag-staging://`, `graybag://` | Deep links and any future OAuth callback cannot return to the app |
+| 6 | **Auth → Rate limits → Emails sent** | ≥ 10/hour for staging; sized to the school roll for production | **Project-wide, not per user.** At 2/hour the third parent signing in at the school gate gets nothing and reports the app as broken |
+| 7 | **Auth → SMTP** | A real sender (Resend/SES/Postmark) with SPF and DKIM | Supabase's built-in sender is a handful of messages an hour with no delivery guarantee. For an OTP-only product that means **nobody can sign in**. Blocks production |
+| 8 | **Auth → Signup enabled** | On | First sign-in *is* registration (`AR4`); off, no parent can ever create an account |
+| 9 | **Auth → Email autoconfirm** | **Off** | On, an address is trusted without the code — anyone can sign in as any email they can spell |
+| 10 | **Auth → Providers** | Email only in v1. Google/Apple **off** until their client ids exist | A provider button that cannot work is a dead end on the one gated screen |
+
+### Current state — staging, 2026-08-10
+
+Items 1, 8 and 9 pass. **2, 4, 5 and 6 fail**, and 7 warns (fine for staging, blocks production).
+`npm run check:config` prints the live answer; do not trust this paragraph, which is a snapshot.
+
+### Why this is not in the smoke test
+
+Every failure here is fixed in a dashboard by Andy, not in a pull request. A red smoke test that
+no code change can turn green trains people to ignore the smoke test. It runs in
+`integration.yml`, and it is a gated step in the cutover runbook.
+
+## The Android upload keystore — 2026-08-12
+
+**Location: `~/.graybag-secrets/graybag-upload.keystore`** (`600`, in a `700` directory). It is
+**not in this repository and must never be**: a leaked upload keystore lets someone submit builds
+as us. The password is in Andy's password manager, deliberately *not* stored beside the key —
+a key and its password in one directory is one compromise, not two.
+
+| | |
+|---|---|
+| Alias | `graybag_app_keys` |
+| Type | PKCS12, `PrivateKeyEntry` |
+| SHA-256 | `58:12:81:6E:6A:02:9A:DB:68:E3:73:55:27:EB:68:FD:84:38:1C:BC:10:8D:FA:28:34:7E:34:CC:6B:E3:C8:DE` |
+| SHA-1 | `94:CD:13:95:C7:F4:C0:9F:7D:EC:4B:F3:08:67:7B:48:D4:E7:8E:DA` |
+| Subject | `CN=Andy Dial, OU=graybag, O=graycord, L=melbourne, ST=victoria, C=au` |
+| Valid | 2025-05-18 → **2052-10-03** |
+| Package | `com.Gracord.Graybag` — matches `app.config.js` |
+
+The fingerprints are recorded here **because they are not secret** — Play Console publishes them
+— and because the whole point of an upload key is being able to check that the thing you are
+about to sign with is the thing Google expects.
+
+**This is the UPLOAD key, not the app signing key.** Google holds the app signing key, so a
+compromise here is recoverable with an upload key reset. That is why registering it with EAS
+(which puts the private key on Expo's servers) is an acceptable trade for cloud builds, and why
+`credentials.json` local signing was rejected: it would mean no build without Andy's laptop.
+
+### Registering it with EAS
+
+`eas credentials` is **menu-driven only** — there is no flag to upload a keystore, and
+`credentials:configure-build` is interactive too. It therefore needs a human session, and it
+should be a human session rather than an automated one: the same menu offers **"Set up a new
+keystore"**, which generates a *fresh* upload key. Choosing it by accident is what forces the
+upload key reset this whole exercise exists to avoid.
+
+```
+npx eas-cli credentials --platform android
+  → Build Credentials
+  → production (or whichever profile)
+  → Keystore: Manage everything needed to build your project
+  → Set up a new keystore            ← NOT this one
+  → Upload a keystore                ← this one
+      path:        ~/.graybag-secrets/graybag-upload.keystore
+      alias:       graybag_app_keys
+      passwords:   from the password manager (keystore and key password are the same here)
+```
+
+Afterwards the fingerprint EAS reports must equal the SHA-256 above, and that must equal the
+**Upload key certificate** in Play Console → Test and release → Setup → App signing. Note that
+page shows the *App signing key* certificate too; they are different keys and comparing the wrong
+block is the easy mistake.

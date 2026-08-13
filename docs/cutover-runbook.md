@@ -49,6 +49,8 @@ weekend is postponed — a slipped date is cheaper than a failed cutover.
 | # | Precondition | Evidence | Owner |
 |---|---|---|---|
 | P1 | Closed beta exit criteria met (`E17-07`): ≥40 real orders / ≥8 users, zero unreconciled payments, ≥97% payment success, ≥99.5% crash-free, zero signature failures, ≥1 full + ≥1 partial refund end to end | Beta report | Andy |
+| P1a | **`npm run check:config production` is green.** The Supabase project settings the repo does not own — auth email templates, Site URL, redirect allow-list, OTP length, rate limits, SMTP — asserted against the **production** project, not staging | The script's own output, pasted into the cutover log | Operator |
+| P1b | **A real OTP has been received on a real phone from the production project**, and it is a **code, not a link**. One person, one address, one screenshot | Screenshot of the email plus the app accepting it | Andy |
 | P2 | **Both dress rehearsals passed** (`E16-09`, `E16-10`), timed, against pseudonymised data (`E16-13`); the validation suite (`E16-08`) was green on rehearsal #2 | Rehearsal reports with wall-clock timings | Operator |
 | P3 | Migration total wall-clock time from rehearsal #2 **fits inside the freeze window** with ≥50% headroom | Rehearsal #2 timing vs `[CO-01]` window | Operator |
 | P4 | **Point-in-time-restore of the new Supabase project rehearsed** (`E16-18`) and restore time is inside the rollback SLA | Restore rehearsal log | Operator |
@@ -191,6 +193,14 @@ Throughout: **all money is integer paise.** No float touches any total. **No rea
 into any log, Sentry, or this runbook** (non-negotiable #4).
 
 ### E. Validate (`T+8h` → `T+12h`)
+
+> **Re-run `npm run check:config production` here, not only in the preconditions.** It is the
+> cheapest step in this document and it catches the one class of failure that a database
+> migration cannot: a dashboard setting changed by hand at 2am to unblock something else. On
+> 2026-08-10 an unchecked template sent magic links to an app expecting codes, and staging's
+> email rate limit was **2 per hour** — which on cutover night is every parent after the second
+> being unable to sign in, with no error anybody can see from the logs.
+
 
 Run the **validation suite** (`E16-08`) and record every number in the timeline log:
 

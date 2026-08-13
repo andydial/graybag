@@ -66,3 +66,7 @@ export * as api from './api/index.js';
 // 7am, and their CSV form for the morning the network is down. Pure — no order table.
 export * as kitchen from './kitchen/index.js';
 
+
+// The three policy documents (`E20-38`), generated from `docs/` so the app and the lawyer read
+// one text. `E20-27`'s guard uses `hasPendingTokens` to keep a draft out of a production build.
+export { POLICY_DOCUMENTS, type PolicyDocument, type PolicyKey } from './policy/index.js';

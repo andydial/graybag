@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { menu as menuDomain } from '@graybag/shared';
 
+import { useConnectivity } from '../net/ConnectivityContext';
+
 /**
  * The screen's view of the menu cache (`E04-10`).
  *
@@ -13,6 +15,15 @@ import type { menu as menuDomain } from '@graybag/shared';
  * renderer. A hook that reimplemented any of them would be a second, untested copy.
  */
 
+/** Facts about the last menu read. Ids and counts only — never a dish, never a person (R6). */
+export interface MenuDiagnostic {
+  schoolId: string | null;
+  version: number | null;
+  /** Where this render's data came from, or how it failed. */
+  source: 'cache' | 'network' | 'failed' | 'no-cache' | null;
+  rows: number | null;
+}
+
 export interface CachedDish {
   id: string;
   /**
@@ -24,6 +35,22 @@ export interface CachedDish {
   name: string;
   description: string | null;
   categoryId: string;
+  /**
+   * Vegetarian / contains egg / non-vegetarian — `0023`, `E21-02`.
+   *
+   * Cached with the dish because the mark is drawn on every card in the grid, and a menu that
+   * could be browsed but not judged is no use to the large share of this audience for whom
+   * this is the first and sometimes only question.
+   */
+  foodType: 'veg' | 'non_veg' | 'egg' | null;
+  /**
+   * The calorie figure as written — "310-340" — or `null` for most dishes (`0028`).
+   *
+   * Cached with the dish rather than fetched per sheet: it comes from the same projection, and
+   * a second round trip on this audience's connection to render one line would be the slowest
+   * thing on the screen.
+   */
+  caloriesText: string | null;
   ingredientsText: string | null;
   pricePaise: number;
   imageUri: string | null;
@@ -58,48 +85,97 @@ export function useCachedMenu(schoolId: string | null): {
   payload: CachedMenuPayload | null;
   stale: boolean;
   retry: () => void;
+  /** Why this render looks the way it does. Non-production display only. */
+  diagnostic: MenuDiagnostic;
 } {
   const [state, setState] = useState<MenuState>('loading');
   const [payload, setPayload] = useState<CachedMenuPayload | null>(null);
   const [stale, setStale] = useState(false);
+  /**
+   * The four facts that settle "why is this screen empty" without another round trip to Andy.
+   * Rendered only in non-production builds — see `components/EmptyStateDiagnostic.tsx`.
+   */
+  const [diagnostic, setDiagnostic] = useState<MenuDiagnostic>({
+    schoolId: null,
+    version: null,
+    source: null,
+    rows: null,
+  });
   const [attempt, setAttempt] = useState(0);
+  const { report } = useConnectivity();
 
   useEffect(() => {
     // No school chosen yet is not an error and not a load — it is an empty menu. Treating it
     // as an error would put a retry button in front of someone who has nothing to retry.
-    if (schoolId === null || cache === null) {
+    if (schoolId === null) {
       setState('ready');
       setPayload(null);
       setStale(false);
       return;
     }
 
+    /**
+     * No cache installed is a **bug**, and it must not look like an empty menu.
+     *
+     * It used to share the branch above, and that is precisely how the Menu tab came to say
+     * "this school's menu has not been published" in every build ever shipped: nothing called
+     * `setMenuCache`, so `cache` was always `null`, and a missing wire rendered as a statement
+     * about the school's data (`docs/ux-spec.md` §5.21 — N2 must never render as N1).
+     *
+     * `installMenuCache()` runs before first render, so reaching this in the app is impossible.
+     * Reporting it as an error means that if it ever becomes possible again, it says so.
+     */
+    if (cache === null) {
+      setState('error');
+      setPayload(null);
+      setStale(false);
+      // The one failure with no school in it: the cache itself was never installed.
+      setDiagnostic({ schoolId, version: null, source: 'no-cache', rows: null });
+      return;
+    }
+
     let live = true;
     setState('loading');
+    setDiagnostic((d) => ({ ...d, schoolId, version: null, source: null, rows: null }));
 
     cache
       .get(schoolId)
       .then((result) => {
         if (!live) return;
+        // The menu read is the app's most frequent request, so it is the cheapest place to
+        // learn whether the backend is reachable — no extra round trip, and it answers on
+        // exactly the path a parent is waiting on. `result.stale` means the cache served an
+        // unconfirmed copy, which is itself evidence the network did not answer.
+        report(!result.stale);
         setPayload(result.menu);
         setStale(result.stale);
         setState('ready');
+        // What was asked for and what came back — see `components/EmptyStateDiagnostic.tsx`.
+        // A count, never the contents.
+        setDiagnostic({
+          schoolId,
+          version: result.version,
+          source: result.refetched ? 'network' : 'cache',
+          rows: result.menu.dishes.length,
+        });
       })
       .catch(() => {
         if (!live) return;
+        report(false);
         // The cache only rejects when there is nothing stored AND the fetch failed — every
         // other path serves something (`MC3`). So reaching here genuinely means there is
         // nothing to show.
         setState('error');
         setPayload(null);
+        setDiagnostic({ schoolId, version: null, source: 'failed', rows: null });
       });
 
     return () => {
       live = false;
     };
-  }, [schoolId, attempt]);
+  }, [schoolId, attempt, report]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  return { state, payload, stale, retry };
+  return { state, payload, stale, retry, diagnostic };
 }

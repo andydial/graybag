@@ -32,6 +32,19 @@ const SRC = join(ROOT, 'planning', 'backlog');
 //
 // To put something in v1 you must add its id here, on purpose.
 // Scope and reasoning: docs/mvp-scope.md
+//
+// **E21 was carried across the tooling migration, not newly admitted.** Those twenty ids were in
+// `scripts/tag-mvp.mjs` — the include list this file replaced — on the `ux-spec-and-prototype`
+// branch, which is where the screen-design epic was created. This file was written on `main`,
+// where E21 did not exist, so its list could not name them; the two lists then met at the merge.
+//
+// Called out because the rule is that nobody adds an id here on their own judgement. This is not
+// that: it is the same twenty ids, in the same v1, moved from a list that was deleted into the
+// list that replaced it. If they should not be in v1, that is a deliberate removal, taken here.
+//
+// **Nothing else may go in this list without Andy.** Note the comment must live out here rather
+// than inside the template literal below — that string is split on whitespace, so a comment
+// inside it becomes forty fast-follow "task ids" named `//`, `the` and `epic.`
 export const MVP = new Set(`
 E00-01 E00-02 E00-03 E00-04 E00-05 E00-12 E00-13 E00-14 E00-15 E00-18
 
@@ -75,6 +88,9 @@ E17-02 E17-03 E17-04 E17-06 E17-07 E17-08 E17-09 E17-10 E17-11 E17-12 E17-13
 E19-01 E19-02 E19-03 E19-04
 
 E20-02 E20-03 E20-04 E20-06 E20-07 E20-10
+
+E21-01 E21-02 E21-03 E21-04 E21-05 E21-06 E21-07 E21-08 E21-09 E21-10
+E21-11 E21-12 E21-13 E21-14 E21-15 E21-16 E21-17 E21-18 E21-19 E21-20
 `.trim().split(/\s+/));
 
 /**

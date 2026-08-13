@@ -1,6 +1,9 @@
 import { render, screen } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 
+import { CartProvider } from '../cart/CartContext';
+import { SessionProvider } from '../session/SessionContext';
+
 import { AccountScreen, HomeScreen, OrderDetailScreen, OrdersScreen } from './index';
 
 // `render` is async on RNTL v14 — see docs/learnings.md 2026-08-09.
@@ -55,11 +58,28 @@ const SCREENS: [string, () => React.JSX.Element, string][] = [
  * `useNavigation` and throws outside a container. Rendering these bare used to work and
  * quietly stopped being the right shape the moment a placeholder could do something.
  */
+/**
+ * `CartProvider` joined this wrapper with `E21`: these screens now draw the real `BrandHeader`,
+ * which reads the cart to put a count on the badge. `useCart` throws without a provider rather
+ * than returning an empty cart — deliberately, so a screen mounted outside one fails loudly
+ * instead of showing a badge stuck at zero — and mounting the real app always has one
+ * (`App.tsx` wraps the navigator).
+ */
+/**
+ * `SessionProvider` joined it in turn: these screens ask `useAccess()`, whose honest answer
+ * without a provider is `pending` — "we have not read the stored session yet" — and a screen
+ * given `pending` deliberately renders nothing rather than claiming a state it has not checked.
+ * The words under test are the ones a signed-in parent reads, so the session says so.
+ */
 const mount = (Screen: () => React.JSX.Element) =>
   render(
-    <NavigationContainer>
-      <Screen />
-    </NavigationContainer>,
+    <SessionProvider initial={{ status: 'signedIn', userId: 'u-1', email: null }}>
+      <CartProvider>
+        <NavigationContainer>
+          <Screen />
+        </NavigationContainer>
+      </CartProvider>
+    </SessionProvider>,
   );
 
 /** Every string the screen puts on the display, heading included. */

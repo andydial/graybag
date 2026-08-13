@@ -4,6 +4,106 @@ One thing at a time. Each block finishes green before the next starts.
 
 Filter the dashboard to **MVP (v1) only** + **Open only** to see just this work.
 
+---
+
+## Where we actually are — refreshed 2026-08-10
+
+**58 of 194 MVP tasks done. 30%. 136 remaining.** Re-baselined 2026-08-10 when Andy put
+E21's 20 screen-design tasks into v1 — not scope creep, scope that was always implied and
+never written down. Counted from `planning/backlog-state.json`
+against the ids in `scripts/tag-mvp.mjs`, not estimated.
+
+| Epic | MVP done | Remaining | Note |
+|---|---|---|---|
+| E00 lead time & security | 1/10 | 9 | Mostly `owner:andy` — accounts, keys, legal |
+| E01 foundations | 8/11 | 3 | |
+| E02 schema & authorization | **15/15** | 0 | Closed |
+| E03 identity & auth | 0/11 | 11 | Email OTP works; the epic's tasks are unticked |
+| E04 menu domain | 9/12 | 3 | |
+| E05 ordering & cart | 5/11 | 6 | In progress |
+| E06 payments & ledger | 0/15 | **15** | **The long pole. Not started.** |
+| E07 invoicing & GST | 0/9 | 9 | Blocked behind E06 |
+| E08 notifications (email) | 0/4 | 4 | |
+| E09 kitchen ops | 1/5 | 4 | The business stops without this |
+| E10 admin dashboard | 0/8 | 8 | |
+| E12 marketing website | 0/6 | 6 | |
+| E13 design system | 7/9 | 2 | Tokens done; **screens were never counted — now `E21`** |
+| E14 mobile app shell | 7/10 | 3 | |
+| E15 observability | 0/6 | 6 | |
+| E16 data migration | 1/11 | 10 | |
+| E17 release & cutover | 0/11 | 11 | |
+| E19 spikes | 3/4 | 1 | |
+| E20 compliance | 1/6 | 5 | |
+| **E11 school reporting** | **0/0** | — | **Not in the MVP list at all.** Fast-follow by omission — see below |
+| **E21 screen design** | 0/20 | 20 | **In v1 as of 2026-08-10.** A screen without its design was never done |
+
+### Two counting facts worth stating plainly
+
+1. **`E21` is now in the count** (Andy, 2026-08-10). The list was fixed before the ux-spec
+   existed, so making each screen look like the product had no id and could not be counted —
+   which is how E13 shipped tokens and the app stayed a wireframe. Baseline 174 → 194.
+2. **`E11` school reporting is fast-follow BY DECISION** (`P15`), not by omission. Andy is
+   confirming with the schools whether a monthly report is expected at launch. If one is, we
+   have chosen the gap rather than discovered it.
+
+---
+
+## The critical path to a launchable app
+
+In order. Everything else waits on these.
+
+| # | What | Why it is on the path |
+|---|---|---|
+| 1 | **E05 cart + E21-01/02/03** — cart, menu, dish detail | A parent cannot order without them, and `E05-32` currently walls the cart behind adding a child |
+| 2 | **E03 + E21-04/06/07** — sign-in, OTP, add child | The one gate. Email OTP works; the screens need building to the prototype |
+| 3 | **E06 payments** (15 tasks, none started) | **The longest single stretch left.** Nothing takes money without it, and `E07` invoicing sits behind it |
+| 4 | **E21-14/15** — checkout, payment waiting, confirmation | The `payment_pending` state is a correctness requirement (`R8`), not decoration |
+| 5 | **E15 observability** (6 tasks) | **Moved here from the end, 2026-08-10 (Andy).** Launching without it means the first production failure is reported by a parent whose child got no lunch, by phone. It goes in *before* the kitchen and the invoices because it is what tells us those are broken |
+| 6 | **E09 kitchen ops** | The kitchen cannot see an order except through a terminal command today. The business stops without it |
+| 7 | **E07 invoicing + E08 email** | A paid order with no invoice is a compliance problem |
+| 8 | **E20 compliance** (5 left) | Six named tasks; the store will not accept the app without the policy pages and account deletion |
+| 9 | **E17 cutover** | Store submission, which has its own external latency |
+
+**Off the critical path but not optional:** `E12` marketing site, `E16` migration (`E16-43` image
+upload is the exception; it blocks the app looking real).
+
+---
+
+## What is at risk of being forgotten
+
+| Epic | Still MVP? | Honest read |
+|---|---|---|
+| **E10 admin** | Yes, 8 tasks | At risk. Nothing depends on it day to day, so it will keep losing to whatever is on fire |
+| **E11 school reporting** | **No — fast-follow by decision (`P15`)** | Chosen, not discovered. Andy is confirming with the schools whether a monthly report is expected at launch |
+| **E12 marketing** | Yes, 6 tasks | At risk, and it is the thing a school looks at before signing |
+| **E15 observability** | Yes, 6 tasks | ~~The most dangerous omission~~ — **pulled onto the critical path immediately after payments, 2026-08-10.** No longer at risk of being forgotten |
+| **E16 migration** | Yes, 10 tasks | Partly at risk. `E16-43` (dish images into Storage) has moved onto the near-term path |
+| **E17 cutover** | Yes, 11 tasks | Has external latency — store review takes days that cannot be compressed |
+
+---
+
+## Honest read on time to launch
+
+At the current rate, **not weeks — a couple of months of build**, and the shape of the risk is
+not the count.
+
+- Roughly **116 MVP tasks plus 20 screen tasks** remain. The last week produced a spec, a
+  prototype, a security fix, the cart and several defect classes — call it 10–15 tasks of
+  throughput, against a week that was mostly finding out the ground was not where we thought.
+- **E06 payments is 15 untouched tasks** and it is the piece most likely to surprise: real
+  money, webhooks, a provider, and `[OL-02]`-shaped edge cases that only appear under load.
+- **The pace should now improve**, because the two things that cost most of the last week are
+  fixed: nothing rendered the real app (Maestro + dev client), and nothing said what a screen
+  should be (ux-spec + prototype).
+- **The biggest risk to the date is not build speed.** It is `owner:andy` work with external
+  latency — store accounts, Razorpay live keys, the font licence, legal review, store review.
+  Nine of E00's ten remaining tasks are that shape.
+
+**A realistic sequence**, assuming no new scope: cart/menu/dish → auth screens → payments →
+kitchen ops → invoicing → compliance → cutover. Payments is the one that decides the date.
+
+---
+
 ## Gate 0 — before any code (Andy, ~30 min)
 
 - [ ] `gh auth login` and `npx supabase login`

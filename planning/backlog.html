@@ -76,6 +76,14 @@
   .context p{margin:6px 0} .context ul{margin:6px 0;padding-left:18px}
   ul.tasks{list-style:none;margin:0;padding:0}
   .task{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13.5px}
+  /* Struck: decided against, and neither open nor done. Faded rather than hidden — whoever
+     follows a reference to a struck id must land on the reason, not on nothing. A tick here is
+     inert: build-backlog forces done:false for a struck task whatever backlog-state says, and
+     sync-state's line regex does not match the struck marker, so it can never rewrite the
+     markdown. (No backticks in this comment: it lives inside a template literal.) */
+  .task.struck{opacity:.55}
+  .task.struck .t{text-decoration:line-through;text-decoration-thickness:1px}
+  .task.struck .box{visibility:hidden}
   .box{flex:none;width:16px;height:16px;padding:0;border:1.5px solid var(--line);border-radius:4px;
     background:var(--surface);cursor:pointer;position:relative;top:3px}
   .box:hover{border-color:var(--meter)}
@@ -152,13 +160,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/19</span>
+          <span class="meter-num">0/22</span>
         </div>
       </header>
       <p class="summary">Things with real-world lead time or live security exposure. Nothing else is blocked by these, but they block launch if started late.</p>
       
       <details>
-        <summary>Context &amp; 19 tasks</summary>
+        <summary>Context &amp; 22 tasks</summary>
         <div class="context"><h4>Why first</h4>
 <p>Every item here is either a live security exposure or has a multi-week external dependency (government, accountant, telco). None of them require any code.</p></div>
         <ul class="tasks">
@@ -202,37 +210,37 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Tighten Bubble privacy rules as a stopgap on the live app: <code>Order</code> (currently everyone can search/view all), <code>Child</code>, <code>Dish_In_Order</code>, <code>Temp</code></span>
       </li>
-      <li class="task" data-id="E00-06" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
+      <li class="task" data-id="E00-06" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-06"></button>
         <code class="tid">E00-06</code>
-        <span class="badge r-high">high</span>
-        <span class="badge r-you">you</span>
+        
+        
         <span class="badge r-later">later</span>
-        <span class="ttext">Start <strong>TRAI DLT registration</strong>: Principal Entity on one operator portal (PAN, GST cert, CIN, signatory, letterhead; ~Rs 5,000)</span>
+        <span class="ttext">~~Start <strong>TRAI DLT registration</strong>~~ — <strong>OUT OF SCOPE 2026-08-10 (<code>P16</code>).</strong> v1 is email only; no SMS, no push. Not deferred — dropped. If SMS is ever wanted the approval chain restarts, knowingly</span>
       </li>
-      <li class="task" data-id="E00-07" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
+      <li class="task" data-id="E00-07" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-07"></button>
         <code class="tid">E00-07</code>
-        <span class="badge r-high">high</span>
-        <span class="badge r-you">you</span>
+        
+        
         <span class="badge r-later">later</span>
-        <span class="ttext">Register DLT <strong>Header / Sender ID</strong> <code>GRYBAG</code> as Transactional / Service Implicit</span>
+        <span class="ttext">~~Register DLT <strong>Header / Sender ID</strong>~~ — <strong>OUT OF SCOPE 2026-08-10 (<code>P16</code>).</strong> v1 is email only; no SMS, no push. Not deferred — dropped. If SMS is ever wanted the approval chain restarts, knowingly</span>
       </li>
-      <li class="task" data-id="E00-08" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
+      <li class="task" data-id="E00-08" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-08"></button>
         <code class="tid">E00-08</code>
-        <span class="badge r-high">high</span>
-        <span class="badge r-you">you</span>
+        
+        
         <span class="badge r-later">later</span>
-        <span class="ttext">Register 5 DLT <strong>content templates</strong>: OTP login, order confirmation, pickup code, refund confirmation, order cancelled</span>
+        <span class="ttext">~~Register 5 DLT <strong>content templates</strong>~~ — <strong>OUT OF SCOPE 2026-08-10 (<code>P16</code>).</strong> v1 is email only; no SMS, no push. Not deferred — dropped. If SMS is ever wanted the approval chain restarts, knowingly</span>
       </li>
-      <li class="task" data-id="E00-09" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+      <li class="task" data-id="E00-09" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-09"></button>
         <code class="tid">E00-09</code>
         
-        <span class="badge r-you">you</span>
+        
         <span class="badge r-later">later</span>
-        <span class="ttext">Open account with SMS provider (MSG91 or Gupshup); link DLT Entity ID, Header and Template IDs</span>
+        <span class="ttext">~~Open account with SMS provider~~ — <strong>OUT OF SCOPE 2026-08-10 (<code>P16</code>).</strong> v1 is email only; no SMS, no push. Not deferred — dropped. If SMS is ever wanted the approval chain restarts, knowingly</span>
       </li>
       <li class="task" data-id="E00-10" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-10"></button>
@@ -313,6 +321,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Implement the <strong>rotation logbook + a scheduled reminder</strong> (calendar or Better Stack heartbeat) driving the <code>docs/secret-rotation-policy.md</code> §1 cadences, so 180/90/365-day rotations are prompted, not remembered. The reminder mechanism only — the credentialed rotation itself stays Andy&#39;s</span>
+      </li>
+      <li class="task" data-id="E00-22" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-22"></button>
+        <code class="tid">E00-22</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:critical) <strong>Fix the two remaining Supabase auth settings on staging</strong> — re-checked 2026-08-11 and it is <strong>two, not four</strong>: the OTP length and the magic-link template have since been fixed, and the task text was never re-run against the project. (1) <strong>Auth → URL Configuration → Site URL</strong> is <code>http://localhost:3000</code>, so every link Supabase generates opens a blank page on a parent&#39;s phone. (2) <strong>Redirect allow-list</strong> is empty, so only Site URL is permitted and no app scheme can return to the app. Run <code>npm run check:config</code> for the live list rather than trusting this line</span>
+      </li>
+      <li class="task" data-id="E00-21" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-21"></button>
+        <code class="tid">E00-21</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:high) <strong>A real SMTP sender before production</strong> — Supabase&#39;s built-in email is a handful of messages an hour with no delivery guarantee, and for an OTP-only product that means nobody can sign in. Resend/SES/Postmark with SPF and DKIM</span>
+      </li>
+      <li class="task" data-id="E00-23" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E00-23"></button>
+        <code class="tid">E00-23</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Reconcile <code>backlog-state.json</code> against what is actually built.</strong> The per-epic MVP percentages under-report: <code>E03</code> reads 0/11 while sign-in, OTP, session persistence and the disclosure fixes are all shipped and demonstrable, and <code>E21</code> reads 0/20 while every screen it lists exists. Work was done and nobody ticked it. This matters beyond tidiness — the percentages are what a planning conversation will use to decide what is left before launch, and an epic that reads 0% when it is mostly done is the kind of number that moves a date for no reason. Walk each epic&#39;s MVP ids against the code and the git history, tick what is genuinely done, and where a task turns out to be partly done, say which half</span>
       </li></ul>
       </details>
     </article>
@@ -534,13 +566,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/8</span>
+          <span class="meter-num">0/10</span>
         </div>
       </header>
       <p class="summary">Short, throwaway experiments that answer the questions capable of invalidating later work. Each is timeboxed to a day or two and needs almost no infrastructure.</p>
       
       <details>
-        <summary>Context &amp; 8 tasks</summary>
+        <summary>Context &amp; 10 tasks</summary>
         <div class="context"><h4>Why these are first</h4>
 <p>Each of these can invalidate a large amount of downstream work if the answer is bad.</p>
 <p>Doing them in phase 1 costs days; discovering them in phase 4 costs weeks.</p></div>
@@ -561,13 +593,13 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Low-end Android performance spike</strong> — Expo + Reanimated + Skia on a <strong>mid-range Android</strong> typical of private-school families (not the cheapest tier). Measure cold start, 50-item list scroll with images, and a shared-element transition. Sets the thresholds used in <code>E14-07</code> and validates the framework choice before <code>E13-05</code> is finalised. <strong>CLOSED 2026-08-09 on a subjective verdict — &quot;performance acceptable&quot; — with no recorded figures.</strong> That is enough to validate <code>E13-05</code>&#39;s framework choice and to keep <code>M05</code>, which is what this spike was for. It is <strong>not</strong> enough for <code>E14-07</code>, whose thresholds Andy ruled must come from measured numbers: see <code>docs/spike-results.md</code> §D. <code>E14-07</code> stays blocked on one <code>adb</code> session, not on a decision</span>
       </li>
-      <li class="task" data-id="E19-03" data-seed="0" data-risk="high" data-owner="andy" data-mvp="1">
+      <li class="task" data-id="E19-03" data-seed="1" data-risk="high" data-owner="andy" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-03"></button>
         <code class="tid">E19-03</code>
         <span class="badge r-high">high</span>
         <span class="badge r-you">you</span>
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>VAG Rounded Next licence check</strong> — confirm the licence permits app embedding and webfont use. If not, the entire design system needs a different typeface before <code>E13-01</code></span>
+        <span class="ttext">~~VAG Rounded Next licence check~~ — <strong>CLOSED BY DECISION 2026-08-10 (<code>S35</code>), not by checking.</strong> Nunito is the typeface outright. No licence question remains to answer</span>
       </li>
       <li class="task" data-id="E19-04" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-04"></button>
@@ -608,6 +640,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Pin the Razorpay Android SDK version.</strong> <code>com.razorpay:checkout:1.6.41</code> declares its dependency on <code>com.razorpay:standard-core</code> as version <code>LATEST</code>, so two builds a week apart can embed different payment SDK code with nothing in our lockfile to show it — including a different <code>&lt;queries&gt;</code> block (see <code>docs/spike-runbook.md</code> §1.3). Add a Gradle <code>resolutionStrategy</code> force (or an explicit pinned <code>implementation</code>) via <code>expo-build-properties</code>, so we choose when the payment SDK changes. Found by <code>E19-04</code>&#39;s sibling static analysis during <code>E19-01</code> setup</span>
+      </li>
+      <li class="task" data-id="E19-09" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-09"></button>
+        <code class="tid">E19-09</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Build the instruments for the <code>E19-07</code> sitting</strong>, so Andy&#39;s part is three actions and ~45 minutes: a <code>webhook-probe</code> Edge Function deployed to <strong>staging</strong> that records the raw body, every header and the receipt time and always returns <code>200</code> (it verifies nothing and decides nothing — it is a tape recorder), plus <code>scripts/probe-razorpay.mjs</code> for the three rows that need only an API call and no payment (refund idempotency header, settlement recon report shape, payments-list <code>from</code>/<code>to</code> semantics and page cap). Deployed to staging rather than tunnelled from a laptop because a Supabase Edge Function is already a public HTTPS URL — nothing to install, nothing to keep open, nothing that breaks when the laptop sleeps. Neither instrument is payment code and neither posts to the ledger. Prep is written up in <code>docs/e19-07-webhook-sitting.md</code></span>
+      </li>
+      <li class="task" data-id="E19-10" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-10"></button>
+        <code class="tid">E19-10</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The <code>E19-07</code> sitting itself — ~45 minutes with the Razorpay dashboard in TEST mode.</strong> Three actions, listed in <code>docs/e19-07-webhook-sitting.md</code> §4: subscribe the probe URL and save the webhook secret; make one test UPI payment <strong>and let a second collect request expire unpaid</strong> (the only way to learn how long Razorpay holds a pending collect, which is <code>[OL-03]</code> and drives <code>S21</code>&#39;s no-timeout waiting screen); run one script and paste the output back. Needs: dashboard in test mode, test-mode API keys, a phone with a UPI app. Not scenario #40 — that is live-mode at release and must never be simulated. <strong>Blocks <code>E06</code> step 6 onward</strong>, not steps 1–4, so the ledger work proceeds meanwhile</span>
       </li></ul>
       </details>
     </article>
@@ -620,13 +668,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/34</span>
+          <span class="meter-num">0/50</span>
         </div>
       </header>
       <p class="summary">India&#39;s DPDP Act, children&#39;s data, consent records and policy versioning. The system stores minors&#39; names, class, section and allergies (health data), so this is not an app-store checkbox.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 34 tasks</summary>
+        <summary>Context &amp; 50 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>GrayBag stores personal data about <strong>children</strong>, including <strong>allergies</strong>, which is health</p>
 <p>data. India&#39;s Digital Personal Data Protection Act 2023 requires verifiable parental</p>
@@ -872,7 +920,7 @@
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Scoped erasure Edge Function (<code>recipient</code> vs <code>account</code>).</strong> <code>dpdp-compliance.md</code> §6.5 now takes a <code>scope</code> param so a single child&#39;s consent withdrawal no longer anonymises the parent or deletes siblings; <code>E20-18</code> must honour it. Build the function and a test that a <code>recipient</code>-scope run leaves the parent <code>app_user</code> and sibling <code>recipient</code> rows byte-for-byte unchanged (review finding #4)</span>
+        <span class="ttext"><strong>Scoped erasure Edge Function (<code>recipient</code> vs <code>account</code>).</strong> *(The <code>recipient</code> scope is DONE — <code>0026</code> erases inside <code>deactivate_recipient</code>, 18 pgTAP assertions. What remains is the <code>account</code> scope and the standalone Edge Function.)* <code>dpdp-compliance.md</code> §6.5 now takes a <code>scope</code> param so a single child&#39;s consent withdrawal no longer anonymises the parent or deletes siblings; <code>E20-18</code> must honour it. Build the function and a test that a <code>recipient</code>-scope run leaves the parent <code>app_user</code> and sibling <code>recipient</code> rows byte-for-byte unchanged (review finding #4)</span>
       </li>
       <li class="task" data-id="E20-31" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-31"></button>
@@ -905,6 +953,134 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Reconcile <code>product_analytics</code> across the three documents that disagree</strong> (privacy-policy collects it, dpdp §5.1 names a vendor but §9 register has no row, store-submission declares &quot;no Analytics&quot;). Pick a vendor + declare Analytics, OR cut analytics for v1 and remove the consent purpose/policy line/recipient. Decision + options are <code>[DP-09]</code>; rides with <code>[DP-05]</code> (review finding #19)</span>
+      </li>
+      <li class="task" data-id="E20-35" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-35"></button>
+        <code class="tid">E20-35</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>BLOCKS <code>E17-04</code> — no store form may be submitted until this is closed.</strong> Finish or disable <code>E20-10</code> (no PII in logs or Sentry). Every &quot;not collected&quot; answer in <code>docs/andy-prep/store-privacy-answers.md</code> assumes it, and answering a store form wrongly is a compliance problem rather than a paperwork one</span>
+      </li>
+      <li class="task" data-id="E20-36" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-36"></button>
+        <code class="tid">E20-36</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The policy acceptance gate is never mounted.</strong> <code>PolicyGateScreen</code> exists, is tested, and <code>onAccept</code>/<code>onNotNow</code>/<code>accepting</code> have no caller — so the version-acceptance gate that <code>E20-03</code> calls one of the six compliance tasks does not run. Found by the extended orphan guard, not by a person</span>
+      </li>
+      <li class="task" data-id="E20-37" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-37"></button>
+        <code class="tid">E20-37</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Account deletion has no route.</strong> <code>AccountScreen.onDeleteAccount</code> is never passed. One of the six compliance tasks; the screen renders a row that does nothing</span>
+      </li>
+      <li class="task" data-id="E20-38" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-38"></button>
+        <code class="tid">E20-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Privacy, terms and refund policies are published but unlinked.</strong> <code>AccountScreen.onPolicy</code> has no caller, so nothing in the app opens them</span>
+      </li>
+      <li class="task" data-id="E20-39" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-39"></button>
+        <code class="tid">E20-39</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Support and the grievance officer are unreachable.</strong> <code>AccountScreen.onSupport</code>, <code>SupportScreen.grievance</code> and <code>SupportScreen.supportEmail</code> all have no caller. DPDP requires a published contact point for data complaints. Per Andy 2026-08-11: keep the route, <strong>replace the exposed address with a contact form or a compose action that reaches andy@graybag.com without displaying it</strong></span>
+      </li>
+      <li class="task" data-id="E20-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-40"></button>
+        <code class="tid">E20-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Put the statutory deadline on the deletion screen</strong> once <code>E20-01</code> returns it and the original <code>E20-14</code> adds <code>dsr_ack_days</code>/<code>dsr_response_days</code> to <code>platform_config</code>. <code>DeleteAccountScreen</code> deliberately promises no timeline today — a confident number standing in for an unanswered legal question is the <code>ITMS-90062</code> defect with a parent on the other end</span>
+      </li>
+      <li class="task" data-id="E20-41" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-41"></button>
+        <code class="tid">E20-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Make account deletion actually delete, in the app.</strong> <code>E20-37</code> ships an honest manual path — a composed request a person acts on — because <code>E20-18</code> (the erasure Edge Function) and <code>E20-30</code> (its <code>recipient</code> vs <code>account</code> scoping) do not exist. Replace the compose action with a real in-app request the moment they do, and record it as a <code>data_subject_request</code> rather than an email</span>
+      </li>
+      <li class="task" data-id="E20-42" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-42"></button>
+        <code class="tid">E20-42</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>No analytics, telemetry or behavioural tracking may touch a child&#39;s record</strong> — <code>C16</code>. <code>child-data-telemetry.test.ts</code> scans the argument span of every telemetry sink call in <code>apps/mobile/src</code> and <code>packages/shared/src</code> for tier-P/S fields in both spellings, and fails the build. Proves itself on fixtures and on a violation injected into a real file. <code>E15</code> adds its vendor&#39;s call surface to <code>TELEMETRY_SINKS</code> in the same commit that introduces it</span>
+      </li>
+      <li class="task" data-id="E20-43" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-43"></button>
+        <code class="tid">E20-43</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The database half of <code>C16</code>.</strong> The source scan cannot see a warehouse export or a vendor reading Postgres directly. When <code>E20-34</code> picks an analytics vendor (or cuts analytics), add the pgTAP assertion that whatever role it uses cannot select from <code>recipient</code>, <code>recipient_allergen</code> or <code>guardian_link</code> — default-deny proved, not assumed</span>
+      </li>
+      <li class="task" data-id="E20-44" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-44"></button>
+        <code class="tid">E20-44</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Removing a child revokes the link but deletes none of the child&#39;s data — which contradicts the retention rule Andy settled on 2026-08-11.</strong> The rule is: a child&#39;s name, class, section and allergy details are deleted <strong>on request, or when the guardian link ends</strong>. <code>deactivate_recipient</code> (<code>0025</code>) sets <code>is_active = false</code> and revokes every <code>guardian_link</code>, and leaves <code>recipient.first_name</code>, <code>last_name</code>, <code>class_label</code>, <code>section_label</code>, <code>allergy_note</code> and every <code>recipient_allergen</code> row exactly as they were. So the guardian link ends and the tier-P/S data stays. Make deactivation null the tier-P/S fields and delete the <code>recipient_allergen</code> rows in the <strong>same transaction</strong>, keeping <code>order</code>, <code>invoice</code> and ledger references intact — this is <code>E20-30</code>&#39;s <code>recipient</code>-scope erasure, needed now rather than later because <code>E05-37</code> puts a Remove button in front of parents. <strong>Blocks <code>E05-37</code>&#39;s removal copy</strong>: until it lands, no screen may tell a parent that removing a child deletes their details</span>
+      </li>
+      <li class="task" data-id="E20-45" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-45"></button>
+        <code class="tid">E20-45</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The lawyer-drafted policies are the published baseline, with a tracked change log</strong> (<code>C17</code>). <code>docs/legal/*-baseline.md</code> verbatim and never edited; <code>docs/{privacy-policy,refund-policy}.md</code> are notice version 2 — baseline body plus a change log naming every alteration and its reason. Three changes: under-18, named grievance officer, split retention. Refund typo corrected. <code>E20-24</code>&#39;s template drafts superseded into <code>docs/legal/superseded/</code>, not deleted</span>
+      </li>
+      <li class="task" data-id="E20-46" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-46"></button>
+        <code class="tid">E20-46</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The published policy says we collect &quot;usage data&quot;; the store privacy answers say we collect no Analytics.</strong> <code>docs/privacy-policy.md</code> §1 carries the lawyer&#39;s &quot;Device ID, operating system, and usage data&quot; while <code>docs/andy-prep/store-privacy-answers.md</code> declares no Analytics collection, and <code>C16</code> now forbids any telemetry touching a child&#39;s record. Two published statements that disagree is the <code>[SS-02]</code> drift <code>E20-28</code> exists to catch. Rides with <code>E20-34</code>&#39;s vendor decision — and whichever way it goes, one of these two documents changes</span>
+      </li>
+      <li class="task" data-id="E20-47" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-47"></button>
+        <code class="tid">E20-47</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>npx supabase test db</code> finds zero test files locally</strong> (CLI 2.113.0) — <code>Files=0, Tests=0, Result: NOTESTS</code>, while the same command in CI runs eleven suites. So <code>npm run test:db</code> and therefore <code>npm run test:all</code> report success locally having asserted nothing. CI&#39;s <code>MIN_TESTS</code> guard catches it there; nothing catches it here, which is how a local run talks somebody out of a real failure. Until it is fixed, verify with <code>docker exec -i supabase_db_graybag psql -U postgres -d postgres -f - &lt; supabase/tests/&lt;file&gt;</code> <strong>Fixed 2026-08-11.</strong> Cause found: the CLI bind-mounts <code>supabase/tests</code> into a container and runs pg_prove inside it, and this checkout lives under <code>/Volumes/Data</code>, which is not on Docker Desktop&#39;s file-sharing list — so the mount is <strong>empty</strong> (<code>docker run --rm -v &quot;$PWD/supabase/tests:/t&quot; alpine ls /t</code> returns nothing). <code>scripts/test-db.sh</code> now runs each file through <code>psql</code> over TCP, so the host filesystem never has to cross into a container, and it carries the same floor guard CI has had since <code>E02-24</code>. 406 assertions across 13 files now run where the command reported success on 0. <code>E14-31</code> is Andy fixing the mount so the CLI behaves as documented; nothing depends on it</span>
+      </li>
+      <li class="task" data-id="E20-48" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-48"></button>
+        <code class="tid">E20-48</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The self notice no longer restates a retention period.</strong> <code>0032</code> publishes <code>self_data_notice</code> version 2. Version 1 said *&quot;Order history is kept for 24 months&quot;* while the privacy policy holds invoices, ledger entries <strong>and order history</strong> to a statutory floor that is certainly longer — the same rows, two incompatible promises, and the 24-month one is the one that cannot survive (<code>C19</code>). Version 2 defers to the privacy policy per <code>C18</code>. <strong>Done today because <code>requires_acceptance</code> re-prompts everyone who accepted the previous version, and today that is nobody</strong> — after ~150 Amity parents register it becomes a second consent interruption during onboarding, which is exactly the cost <code>0022</code> was written to avoid. The body was generated from version 1&#39;s own <code>content_md</code> with one paragraph replaced and asserted to differ in nothing else, because §11.2&#39;s immutability is only meaningful if a &quot;correction&quot; corrects one thing. <code>child_data_notice</code> needed no version 2 — checked, and it already states no period. Five pgTAP assertions, including that an adult added today consents against version 2</span>
+      </li>
+      <li class="task" data-id="E20-49" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-49"></button>
+        <code class="tid">E20-49</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Correct the retention comments in <code>0026</code>.</strong> Its header says financial records are kept &quot;seven years&quot; — the figure withdrawn by <code>C18</code>. Left in place deliberately: <code>0026</code> has been applied, and <code>MG6</code> defers migration-immutability enforcement rather than licensing edits to applied files. Correct it when the immutability rule is enforced and a mechanism for amending an applied migration&#39;s comments exists, or supersede the comment from a later migration. The code is unaffected — only the stated reason</span>
+      </li>
+      <li class="task" data-id="E20-50" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-50"></button>
+        <code class="tid">E20-50</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The notice lookup sorts versions numerically.</strong> <code>0033</code>. <code>policy_version.version</code> is TEXT and <code>create_recipient</code> sorted it as text, so from the tenth version of any notice onward <code>&#39;9&#39; &gt; &#39;10&#39;</code> and a consent would be recorded against superseded wording — <strong>invisibly</strong>: nothing errors, nothing is null, and the row is well-formed on the one record whose job is to answer &quot;which words did this person agree to?&quot;, which <code>C9</code> keeps after erasure as the evidence that holding the data was lawful. <code>effective_from desc</code> was saving it accidentally, and stops the first time anyone backdates a version, which is a legitimate thing to do when a wording is corrected. Now <code>policy_version_rank()</code> mirrors <code>compareVersions()</code> in <code>packages/shared</code> — the client and the database must not disagree about which wording is current — and <code>current_policy_version_id()</code> is the single place that decides. <code>create_recipient</code> was regenerated from <code>pg_get_functiondef()</code> with the five-line lookup swapped for one call and asserted to differ in nothing else. Three assertions, the last of which <strong>fails under the old ordering</strong>: versions 9 and 10 sharing an <code>effective_from</code>, so only the version comparison can break the tie (verified — old picks 9, new picks 10)</span>
       </li></ul>
       </details>
     </article>
@@ -921,13 +1097,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/27</span>
+          <span class="meter-num">0/30</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 27 tasks</summary>
+        <summary>Context &amp; 30 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -1155,6 +1331,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Make the PUBLIC-execute default impossible to reinherit.</strong> <code>E02-26</code> revoked what existed; a function added tomorrow still arrives executable by PUBLIC and is caught only by the authorization suite. <code>alter default privileges in schema public revoke execute on functions from public</code> would stop it at the source. Left out of <code>0010</code> deliberately — default privileges apply per creating role, so getting it right needs a check of which role the CLI, CI and the hosted project each run migrations as, and that is a separate piece of work from <code>[AUTH-01]</code></span>
+      </li>
+      <li class="task" data-id="E02-30" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-30"></button>
+        <code class="tid">E02-30</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>anon</code> can read <code>school.contact_name</code>, <code>contact_email</code> and <code>contact_phone</code> on staging</strong> — a named staff member&#39;s contact details, readable with the publishable key that ships in every APK. Verified 2026-08-10 by direct REST. Migration <code>0011</code> states these are withheld and creates <code>get_schools()</code> to enforce it server-side, but the client reads the <code>school</code> table directly and redacts in <code>SCHOOL_COLUMNS</code> — client-side redaction is not redaction (non-negotiable #2). Restrict the grant/policy to the columns a picker needs, and add an authorization-suite assertion pinning the readable column set</span>
+      </li>
+      <li class="task" data-id="E02-31" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-31"></button>
+        <code class="tid">E02-31</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><code>public.get_schools()</code> — <strong>already dropped by <code>0012</code> (verified: it does not exist).</strong> No migration needed. <code>0011</code>&#39;s header still reads as though the function is the authority, which is what sent people looking for it; the authorization suite now pins all three dropped SECURITY DEFINER readers as absent, because recreating one would be a bypass path no policy constrains</span>
+      </li>
+      <li class="task" data-id="E02-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-28"></button>
+        <code class="tid">E02-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Make <code>check-test-fixtures</code> column-aware for migration-seeded codes.</strong> Today it compares only *namespaced* (colon-bearing) codes a test inserts against those a migration seeds — a cheap, precise signal that closes the <code>ledger_account.code</code> hole found on 2026-08-11, when <code>0035</code> seeding the chart of accounts collided with fixtures in <code>ledger.test.sql</code> and <code>authorization.test.sql</code> and killed both files on the next clean reset. The general version — every code a migration seeds — <strong>was tried and reverted</strong>: an insert also carries enum values and foreign keys (<code>&#39;debit&#39;</code>, <code>&#39;platform&#39;</code>, <code>&#39;migration_opening_balance&#39;</code>), so it produced 31 false positives on one file. Distinguishing a <code>code</code> column&#39;s value from a <code>reason_code</code> foreign key needs the insert&#39;s column list parsed. Worth doing: the colon rule catches namespaced codes and would miss a flat one like <code>checkout_expired</code> being inserted twice</span>
       </li></ul>
       </details>
     </article>
@@ -1167,13 +1367,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/21</span>
+          <span class="meter-num">0/24</span>
         </div>
       </header>
       <p class="summary">Google / Apple / email-OTP sign-in for app users (phone OTP deferred to a fast-follow), email for back-office. No password migration is possible from Bubble. See decision U1 (revised).</p>
       <p class="deps">Depends on <code>E01</code> <code>E02</code> <code>E00</code></p>
       <details>
-        <summary>Context &amp; 21 tasks</summary>
+        <summary>Context &amp; 24 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Per decision <strong>U1</strong> (revised), v1 auth is Google Sign-In (primary), Sign in with Apple (iOS, required once Google is offered), and email OTP via Supabase <code>signInWithOtp</code> — no phone OTP and no passwords. Phone OTP + DLT SMS (see E00) become a fast-follow *addition*; DLT registration leaves the launch critical path but continues for future order-update SMS. Bubble does not export password hashes, so every existing user re-authenticates once regardless; migration now matches on <strong>email</strong> (<code>E03-16</code>), not the lossy legacy phone <code>number</code> field.</p></div>
         <ul class="tasks">
@@ -1344,6 +1544,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Decide whether Supabase identity linking on verified email is actually on</strong> for the staging and production projects, and assert it. <code>api/auth.ts</code>&#39;s <code>linkingPolicy</code> documents the requirement <code>E03-15</code> depends on: one <code>auth.users</code> row per verified address across Google, Apple and OTP. <strong>No client code can detect it being off</strong> — from the app, two accounts look exactly like one person signing in twice. The failure is two carts, two children lists and two order histories for one parent, discovered by them rather than by us. It is a project setting plus a test that signs in both ways and compares ids, which needs a real project and rides with <code>E03-12</code></span>
+      </li>
+      <li class="task" data-id="E03-24" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-24"></button>
+        <code class="tid">E03-24</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Wire clipboard auto-fill on the OTP screen. The behaviour is built and tested behind an optional <code>readClipboard</code> prop (<code>E21-07</code>); it needs <code>expo-clipboard</code> as a dependency and one line in <code>screens/index.tsx</code>. A native module, so it needs a new dev-client build</span>
+      </li>
+      <li class="task" data-id="E03-25" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-25"></button>
+        <code class="tid">E03-25</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Decide whether a pending OTP draft survives <strong>process death</strong>. It survives backgrounding and unmount today via an in-memory draft; persisting a live code to disk is a security call that should be made deliberately rather than by whoever touches the file next</span>
+      </li>
+      <li class="task" data-id="E03-26" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E03-26"></button>
+        <code class="tid">E03-26</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>One source of truth for &quot;am I signed in&quot;.</strong> <code>SessionContext</code> started <code>signedOut</code> and was never restored, while the Supabase client restored its own persisted session — so on every cold start the app held two answers and they disagreed. Home offered &quot;Add someone to place an order&quot;, the cart rendered a line for a named child, and Account offered Sign in, all at once. A minor&#39;s first name on screen with no session is a DPDP tier-P disclosure (non-negotiable #4), not a cosmetic bug. Fixed by deriving the session from the client&#39;s stored session, adding a third <code>unknown</code> state so no screen claims an answer it has not checked, deriving the order target from the session (cleared on sign-out, not merely left stale), and routing &quot;Add someone&quot; to sign-in first for a visitor. Guarded by <code>src/session/no-recipient-without-session.test.tsx</code>, whose structural half fails the build if any screen reads the recipient without proof of a session</span>
       </li></ul>
       </details>
     </article>
@@ -1356,13 +1580,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/28</span>
+          <span class="meter-num">0/29</span>
         </div>
       </header>
       <p class="summary">Written before any UI code exists. The motion catalogue is what produces &quot;fluid&quot; instead of &quot;flying bird&quot;.</p>
       
       <details>
-        <summary>Context &amp; 28 tasks</summary>
+        <summary>Context &amp; 29 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Source: <code>Graybag_Design Package</code> — VAG Rounded Next font family, primary <code>#00af52</code>, secondary <code>#145f48</code> / <code>#ffbb39</code>, accent <code>#b3cf3f</code> / <code>#e5ea98</code>, pattern assets, and the 06_App UI mocks.</p>
 <p>The motion system is a <strong>closed catalogue</strong>. New screens implement from it; it is only amended when a genuinely new kind of interaction appears, and that is a deliberate joint decision.</p></div>
@@ -1590,6 +1814,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Cutoff copy everywhere: full weekday, date and time; timezone shown only when it differs from the device&#39;s (ux-spec R7)</span>
+      </li>
+      <li class="task" data-id="E13-29" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-29"></button>
+        <code class="tid">E13-29</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Decide or delete five unused presentational options.</strong> <code>DishImage.aspectRatio</code>, <code>ListRow.leading</code>, <code>Lockup.children</code>, <code>RecipientListRow.last</code>, <code>SwipeRow.onHaptic</code> — each accepted by a component and passed by nothing outside a test. Either wanted and unwired, or dead. Surfaced by the extended orphan guard</span>
       </li></ul>
       </details>
     </article>
@@ -1602,13 +1834,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/13</span>
+          <span class="meter-num">0/14</span>
         </div>
       </header>
       <p class="summary">Because Andy is not a developer, the system has to be able to explain its own failures in plain English.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 13 tasks</summary>
+        <summary>Context &amp; 14 tasks</summary>
         <div class="context"><h4>Approach</h4>
 <p>Sentry for errors across app/web/backend, Supabase dashboard for query performance, Better Stack for uptime. The multiplier is that <strong>Sentry and Supabase both have MCP servers</strong> — wired into Claude Code, a plain-English question like &quot;orders from St. Xavier&#39;s stopped going through around 9pm yesterday, find out why&quot; can be answered by querying errors, logs and the database directly.</p></div>
         <ul class="tasks">
@@ -1715,6 +1947,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Job-liveness monitor.</strong> A silently-stopped cron produces silence, not a failed uptime probe (<code>E15-03</code> is uptime, not liveness). Emit a heartbeat per scheduled job — the webhook-retry sweep, the abandoned-checkout sweeper, the in-flight payment &amp; refund reconcilers, the daily reconciliation, the idempotency-key purge (<code>docs/order-lifecycle.md</code> §11) — and page when a heartbeat is overdue for its cadence. Distinct from <code>E15-03</code> uptime and from per-job error alerts. Named in <code>docs/payments-design.md</code> §6.6 / <code>PY2</code> (review finding #22)</span>
+      </li>
+      <li class="task" data-id="E15-14" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-14"></button>
+        <code class="tid">E15-14</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Run <code>check:config</code> against production on a schedule once that project exists, not only at cutover — a dashboard setting changed by hand at 2am to unblock something else is exactly the failure a one-time gate misses</span>
       </li></ul>
       </details>
     </article>
@@ -1860,7 +2100,7 @@
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Load the returned veg/egg/non-veg marking sheet (<code>tools/food-type-sheet/</code>) into <code>dish.food_type</code>, matching by name with the six duplicate names resolved per <code>docs/bubble-recon-findings.md</code> §9. Plan-then-apply like the menu importer; blank stays blank</span>
+        <span class="ttext">Swap the menu cache&#39;s in-memory store for AsyncStorage so it survives a restart. Needs the native dependency and therefore a new dev-client build, which is why <code>installMenuCache</code> ships with an in-memory store first</span>
       </li>
       <li class="task" data-id="E04-16" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-16"></button>
@@ -1868,7 +2108,7 @@
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Make <code>food_type</code> structurally required — add <code>not_stated</code> to the enum and set the column <code>not null</code> with <strong>no default</strong>, so a dish cannot be created without someone choosing. Two migrations: <code>ALTER TYPE … ADD VALUE</code> cannot run in the transaction that uses it (same constraint <code>M9</code> hit with <code>bank</code>). Depends on <code>E04-15</code></span>
+        <span class="ttext">Move <code>fetchMenuVersion</code> onto the <code>menu-version</code> Edge Function instead of reading <code>school_menu_version</code> directly. The function runs with <code>service_role</code>, so its answer cannot itself be filtered away by a grants problem — which is what the empty-menu-vs-refused-read distinction depends on</span>
       </li>
       <li class="task" data-id="E04-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-17"></button>
@@ -1894,13 +2134,13 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">No fixture anywhere contains a <code>non_veg</code> dish. <code>supabase/seed.sql</code> and <code>supabase/seeds/staging-menu.sql</code> seed four <code>veg</code> and one <code>egg</code>; the clickable prototype&#39;s dish data is 36 <code>veg</code> and 8 <code>egg</code>. The enum value, the shared TS union member and the prototype&#39;s mark renderer all exist and <strong>have never been exercised against data</strong>. <code>E04-17</code> cannot be tested without this, and <code>SD5</code> says fixtures exist for exactly the states that are otherwise untestable</span>
       </li>
-      <li class="task" data-id="E04-20" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E04-20" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-20"></button>
         <code class="tid">E04-20</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><code>supabase/tests/</code> has <strong>zero</strong> references to <code>food_type</code> — the pgTAP suite does not touch it at all. <code>E04-17</code> adds four server-side refusal paths that all key off it, and non-negotiable #2 requires an allow *and* a deny test for each</span>
+        <span class="ttext"><strong>&quot;My school is not listed&quot; has no handler.</strong> <code>SchoolPicker.onRequestSchool</code> is accepted and never passed, so a parent whose school is not on the list has no way to say so — and with three schools live, most visitors are in exactly that position</span>
       </li>
       <li class="task" data-id="E04-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E04-21"></button>
@@ -1908,7 +2148,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">The website&#39;s food-category copy names only vegetarian dishes (rajma, chana, dal makhni, paneer, quinoa) because that is the entire catalogue today. Honest now; it will read as vegetarian-only positioning the moment non-veg is served. Revisit <code>FOOD.categories</code> in <code>apps/web/src/content/site.ts</code> when the first non-veg dish is menued</span>
+        <span class="ttext"><strong>A school request should be a record, not an email.</strong> <code>E04-20</code> composes a message because there is no table, no Edge Function and no admin surface for &quot;please add my school&quot; — so demand is invisible unless somebody reads an inbox and counts. With three schools live this is the strongest signal we have about where to onboard next: give it a row, a count per school name, and a place on the admin screen</span>
       </li></ul>
       </details>
     </article>
@@ -1921,13 +2161,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/28</span>
+          <span class="meter-num">0/48</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 28 tasks</summary>
+        <summary>Context &amp; 48 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2050,13 +2290,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>calendar.test.sql</code> test 11 fails depending on the clock.</strong> &quot;inside <code>min_advance_order_days</code> the day is refused as <code>too_soon</code>&quot; gets <code>cutoff_passed</code> instead. Found 2026-08-10 and <strong>it is not a regression</strong> — it fails identically on <code>main</code> at <code>543415a</code>, before migrations <code>0012</code>/<code>0013</code>, so it has been failing since whenever the date last rolled onto a weekend. Two things are wrong and only one of them is the test: the fixture assumes a weekday, and <code>orderable_calendar</code> reports only the *first* reason a day is unorderable, so a day that is both too soon and past its cutoff reports whichever branch is checked first. <strong>Fixed 2026-08-10, and the precedence was not the problem.</strong> <code>orderable_calendar</code> reports <code>cutoff_passed</code> before <code>too_soon</code> deliberately — &quot;you have missed it&quot; is more actionable than &quot;wait&quot; — and that is correct and unchanged. The <strong>fixture</strong> was wrong: with a two-day lead the only <code>too_soon</code> days are today and tomorrow, and tomorrow&#39;s cutoff is 23:00 *today*, so from 23:00 onwards the day is both too soon and past its cutoff. The lead is now four days and the assertion uses <code>current_date + 3</code>, whose cutoff is in the future at every hour of every day. Precedence is still asserted, by the test that was already there. <strong>The suite had been green only because it rarely ran late enough in the day.</strong></span>
       </li>
-      <li class="task" data-id="E05-16" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
+      <li class="task" data-id="E05-16" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-16"></button>
         <code class="tid">E05-16</code>
-        <span class="badge r-critical">critical</span>
+        
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Nothing creates a <code>recipient</code> or a <code>guardian_link</code>, so no order can be placed by a real user.</strong> <code>create_checkout</code> correctly refuses every request from the app with <code>not_authorized</code> — there is no link. Found 2026-08-10 when the order path was finished and had nobody to run it for. <code>E05-01</code>/<code>E05-02</code> are the tasks, and the reason they are not simply &quot;next&quot; is that adding a child is where consent is captured (<code>E20-01</code>, <code>[DM-12]</code>), which is blocked on the DPDP legal question. <strong>Decide whether v1 captures consent at child creation or defers it</strong> — building the flow twice is the expensive outcome. Staging deliberately carries no children (<code>seeds/staging-menu.sql</code>), so this is not a seeding gap</span>
+        <span class="ttext">(risk:critical) <strong>Nothing creates a <code>recipient</code> or a <code>guardian_link</code>, so no order can be placed by a real user.</strong> <code>create_checkout</code> correctly refuses every request from the app with <code>not_authorized</code> — there is no link. Found 2026-08-10 when the order path was finished and had nobody to run it for. <code>E05-01</code>/<code>E05-02</code> are the tasks, and the reason they are not simply &quot;next&quot; is that adding a child is where consent is captured (<code>E20-01</code>, <code>[DM-12]</code>), which is blocked on the DPDP legal question. <strong>Decide whether v1 captures consent at child creation or defers it</strong> — building the flow twice is the expensive outcome. Staging deliberately carries no children (<code>seeds/staging-menu.sql</code>), so this is not a seeding gap</span>
       </li>
       <li class="task" data-id="E05-17" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-17"></button>
@@ -2082,21 +2322,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Nothing sets the order target</strong> — who a lunch is for and which day. <code>OrderTargetContext</code> is the seam the dish detail screen was built against and it is permanently <code>null</code> today, so add-to-cart offers &quot;add a child&quot; instead of a line. Filling it is <code>E05-01</code>/<code>E05-03</code> (who) and <code>E05-06</code>/<code>E05-08</code> (when). Found 2026-08-10 while building the dish detail screen</span>
       </li>
-      <li class="task" data-id="E05-20" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
+      <li class="task" data-id="E05-20" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-20"></button>
         <code class="tid">E05-20</code>
-        <span class="badge r-critical">critical</span>
+        
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Nothing ever created an <code>app_user</code> row, so signing in denied everything.</strong> <code>auth_is_live_user()</code> gates every authenticated policy and reads <code>app_user</code>; a real parent who signed in had no row, so the school picker emptied the moment they signed in and adding a child died on a foreign key. Found 2026-08-10 by <code>scripts/order-path-check.mjs</code> walking the whole path against staging. Migration <code>0018</code>: a trigger on <code>auth.users</code>, and <code>phone_e164</code> nullable because v1 has no phone OTP</span>
+        <span class="ttext">(risk:critical) <strong>Nothing ever created an <code>app_user</code> row, so signing in denied everything.</strong> <code>auth_is_live_user()</code> gates every authenticated policy and reads <code>app_user</code>; a real parent who signed in had no row, so the school picker emptied the moment they signed in and adding a child died on a foreign key. Found 2026-08-10 by <code>scripts/order-path-check.mjs</code> walking the whole path against staging. Migration <code>0018</code>: a trigger on <code>auth.users</code>, and <code>phone_e164</code> nullable because v1 has no phone OTP</span>
       </li>
-      <li class="task" data-id="E05-21" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
+      <li class="task" data-id="E05-21" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-21"></button>
         <code class="tid">E05-21</code>
-        <span class="badge r-critical">critical</span>
+        
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Every real order failed on staging with <code>21000: DELETE requires a WHERE clause</code>.</strong> <code>create_checkout</code> cleared its temp table with an unqualified DELETE; hosted Supabase loads <code>safeupdate</code> and a local <code>supabase start</code> does not, so 24 pgTAP assertions passed while no order could be placed through PostgREST. Migration <code>0019</code>. Found 2026-08-10 by <code>scripts/order-path-check.mjs</code></span>
+        <span class="ttext">(risk:critical) <strong>Every real order failed on staging with <code>21000: DELETE requires a WHERE clause</code>.</strong> <code>create_checkout</code> cleared its temp table with an unqualified DELETE; hosted Supabase loads <code>safeupdate</code> and a local <code>supabase start</code> does not, so 24 pgTAP assertions passed while no order could be placed through PostgREST. Migration <code>0019</code>. Found 2026-08-10 by <code>scripts/order-path-check.mjs</code></span>
       </li>
       <li class="task" data-id="E05-22" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-22"></button>
@@ -2144,7 +2384,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Per-line kitchen note with its stated contract and the allergy-language diversion to Edit child (ux-spec §5.6.1) — <strong>blocked on <code>E09-11</code></strong></span>
+        <span class="ttext">Per-line kitchen note — 140-char cap, best-effort copy, allergy-language diversion to Edit child (ux-spec §5.6.1, <code>P12</code>). <strong>Sequenced after <code>E13-27</code> Edit child</strong>, not blocked on it</span>
       </li>
       <li class="task" data-id="E05-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-28"></button>
@@ -2153,6 +2393,166 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Remove every co-guardian and read-only-child surface per <code>AR8</code>; <code>can_order</code> stays in the schema defaulted true</span>
+      </li>
+      <li class="task" data-id="E05-29" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-29"></button>
+        <code class="tid">E05-29</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Put the break time on the cart line so the cart can show it. ux-spec §5.7 requires the break to be visible before paying, and it is neither on <code>CartLineInput</code> nor returned by <code>fetchRecipients</code> — today the block says the break is confirmed with the kitchen rather than inventing one</span>
+      </li>
+      <li class="task" data-id="E05-30" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-30"></button>
+        <code class="tid">E05-30</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">An <code>api/</code> calendar read so the cart can show the real cutoff. Until it exists the cart shows no cutoff at all, because a cutoff we have not resolved is a promise about when ordering closes that we cannot keep (ux-spec §5.21)</span>
+      </li>
+      <li class="task" data-id="E05-31" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-31"></button>
+        <code class="tid">E05-31</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">A child-allergens read so the cart and menu can warn. <code>fetchRecipients</code> deliberately withholds them (tier S), so allergen warnings are absent everywhere today — and absent must never be rendered as &quot;safe&quot;</span>
+      </li>
+      <li class="task" data-id="E05-32" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-32"></button>
+        <code class="tid">E05-32</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Adding to cart requires a child, which breaks <code>R1</code>/<code>AR7</code>.</strong> <code>DishDetailScreen</code> renders &quot;Add a child&quot; instead of &quot;Add to cart&quot; when no recipient is selected — confirmed on <code>ux-spec-and-prototype</code>, not a stale-build artefact. The child belongs at checkout (§5.6). Requires moving <code>recipientId</code> and <code>serviceDate</code> off <code>CartLineInput</code> and onto the cart, which is the shape the one-recipient-one-date decision already implies</span>
+      </li>
+      <li class="task" data-id="E05-33" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-33"></button>
+        <code class="tid">E05-33</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">A test that fails if <strong>any</strong> pre-checkout action requires a session or a recipient — a structural guard over the menu, dish detail and cart, not a fix to one screen. Andy: &quot;I want it structurally impossible rather than fixed once&quot;</span>
+      </li>
+      <li class="task" data-id="E05-34" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-34"></button>
+        <code class="tid">E05-34</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Move <code>recipientId</code> and <code>serviceDate</code> off <code>CartLineInput</code> and onto the cart itself. <code>E05-32</code> made them nullable per line, which unblocks the wall and is honest, but one-recipient-one-date (<code>AR8</code>) means they are cart properties — two lines cannot legitimately disagree about who the order is for</span>
+      </li>
+      <li class="task" data-id="E05-35" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-35"></button>
+        <code class="tid">E05-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Put the break time on the recipient or the cart line so Home&#39;s &quot;Delivering to&quot; card and the cart can name it. Both say it is confirmed with the kitchen rather than inventing one — honest, but it is the one fact a parent checks to be sure the lunch reaches the right classroom</span>
+      </li>
+      <li class="task" data-id="E05-36" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-36"></button>
+        <code class="tid">E05-36</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Switching recipient must ask before discarding a non-empty cart (ux-spec F9). It switches silently today — a parent with four dishes in the cart who taps the wrong row loses them with no warning and no undo</span>
+      </li>
+      <li class="task" data-id="E05-37" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-37"></button>
+        <code class="tid">E05-37</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The edit-and-remove sheet.</strong> Wire <code>E05-33</code>/<code>E05-34</code> into <code>ChildrenScreen</code>&#39;s existing edit sheet: first name, class and section fields alongside the school picker, plus a Remove action with a confirmation that says what removal does and does not do (leaves the list; keeps past orders). Needs the <code>future_orders_exist</code> refusal rendered as guidance rather than an error</span>
+      </li>
+      <li class="task" data-id="E05-38" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-38"></button>
+        <code class="tid">E05-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Surface self-ordering</strong> (<code>P13</code>). &quot;Order for myself&quot; as a first-class entry in Who-to-order-for when the account has no <code>is_self</code> recipient, and Add-someone asking who it is for before anything else. <code>create_recipient</code> already takes <code>p_is_self</code> (<code>0022</code>) and <code>NewRecipient</code> needs an <code>isSelf</code> field to reach it. Removes the &quot;am I supposed to add myself as a child&quot; confusion</span>
+      </li>
+      <li class="task" data-id="E05-39" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-39"></button>
+        <code class="tid">E05-39</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Capture the account holder&#39;s own name on the ORDER CONFIRMED screen</strong> (<code>P18</code>). One optional field, &quot;What should we call you?&quot;, with a clear skip; also settable from Account; never asked twice. <code>app_user.first_name</code>/<code>last_name</code> exist and are never written. <strong>Order one must work with no name everywhere</strong> — invoice falls back to the email local-part, packing list to the child&#39;s name. Depends on <code>E06</code> for the confirmation screen</span>
+      </li>
+      <li class="task" data-id="E05-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-40"></button>
+        <code class="tid">E05-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Switch who a dish is for, from the dish sheet.</strong> <code>DishDetailScreen.onChangeTarget</code> and <code>ordering</code> are accepted and never passed</span>
+      </li>
+      <li class="task" data-id="E05-41" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-41"></button>
+        <code class="tid">E05-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Audit every surface that shows the account holder&#39;s name for the no-name case</strong> (<code>P18</code>). Invoice, packing list, support view, and every email. Andy&#39;s instruction: if any of them look broken without a name, report it rather than making the field required</span>
+      </li>
+      <li class="task" data-id="E05-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-42"></button>
+        <code class="tid">E05-42</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Cart lines show the dish photo and veg mark.</strong> The prop existed and nothing ever passed it, so every line rendered the placeholder and the cart read as a different app from the grid. <code>RootNavigator</code> now builds <code>dishInfo</code> from the cached menu — no extra request, since it is the read the Menu tab just did</span>
+      </li>
+      <li class="task" data-id="E05-43" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-43"></button>
+        <code class="tid">E05-43</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Edit a child&#39;s details</strong> — <code>update_recipient_details</code> (<code>0025</code>), a PATCH with no <code>school_id</code>, and <code>api.updateRecipientDetails</code>. Separate from a school move, which has a future-order guard and resets the class: a mistyped section should not have to pretend to be a transfer. Clearing a field is an explicit flag, because <code>null</code> already means &quot;leave alone&quot;. <strong>Server and client only — the edit sheet is <code>E05-37</code></strong></span>
+      </li>
+      <li class="task" data-id="E05-44" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-44"></button>
+        <code class="tid">E05-44</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Remove a child</strong> — <code>deactivate_recipient</code> (<code>0025</code>) and <code>api.removeRecipient</code>. Deactivates the row and revokes every guardian link, so the child leaves all guardians&#39; lists; refuses while undelivered orders exist. NOT DPDP erasure (<code>E20-06</code>) — order history, invoices and ledger entries are retained deliberately. <strong>Server and client only — the UI is <code>E05-37</code></strong></span>
+      </li>
+      <li class="task" data-id="E05-45" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-45"></button>
+        <code class="tid">E05-45</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Wire the cart&#39;s five dead props.</strong> Found comparing the built cart against the prototype for Andy&#39;s &quot;cart to prototype&quot;. <code>offline</code>, <code>signedOut</code>, <code>allergens</code>, <code>onChangeRecipient</code> and <code>onBrowseMenu</code> were all implemented in <code>CartScreen.tsx</code> with a passing test each, and <code>RootNavigator</code> passed none of them — so the offline band, <strong>every allergen warning on every cart line</strong>, the sign-in reassurance, the Change affordance and the empty cart&#39;s only exit could not appear on a phone. Same class as <code>dishInfo</code> (<code>E05-42</code>): <code>orphans.test.ts</code> covers contexts and required props, not optional ones. The allergen matcher moved out of <code>MenuScreen</code> to <code>useAllergenWatchlist</code> so the grid and the cart cannot disagree about which dish is dangerous. Two navigator-level tests now assert the wire rather than the screen</span>
+      </li>
+      <li class="task" data-id="E05-46" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-46"></button>
+        <code class="tid">E05-46</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The cutoff band has no data source, so it never renders.</strong> <code>CartScreen</code> implements all three states (open / closing soon / closed) and <code>RootNavigator</code> cannot pass <code>cutoff</code> because nothing in <code>api/</code> reads the orderable calendar — the <code>order-calendar</code> Edge Function exists with no client. Until this lands a parent sees no cutoff anywhere on the cart, and <code>closed</code> (which disables Place order and shows &quot;Choose another day&quot;) is unreachable. Needs the calendar read, the service-date the cart is for, and <code>onChooseAnotherDay</code> pointing somewhere real — there is no day picker yet either</span>
+      </li>
+      <li class="task" data-id="E05-47" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-47"></button>
+        <code class="tid">E05-47</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The price-changed notice has no producer.</strong> <code>priceChanged</code> is implemented and tested and nothing computes it: repricing at checkout is <code>E06</code>. Recorded so the notice is not mistaken for a wiring bug — it is a state waiting for the write that detects it</span>
+      </li>
+      <li class="task" data-id="E05-48" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-48"></button>
+        <code class="tid">E05-48</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Whole rupees or two decimals on customer-facing amounts?</strong> The prototype drops a trailing <code>.00</code> (<code>₹95</code>, <code>₹165</code>); <code>money.formatPaise</code> always renders two (<code>₹95.00</code>). It shows on every line, all four totals rows and the Place order button. Not changed unilaterally because the same formatter renders invoices, where two decimals are right, so this is a decision about where the two diverge rather than a formatting tweak</span>
       </li></ul>
       </details>
     </article>
@@ -2165,13 +2565,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/24</span>
+          <span class="meter-num">0/33</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 24 tasks</summary>
+        <summary>Context &amp; 33 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -2370,6 +2770,78 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Run the §6.1 Maestro flow a second time at the largest accessibility text size</span>
+      </li>
+      <li class="task" data-id="E14-26" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-26"></button>
+        <code class="tid">E14-26</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">A connectivity source (NetInfo or equivalent). Six screens now take a <code>stale</code>/<code>offline</code> prop that <strong>nothing supplies</strong>, so every offline state is unreachable in the real app — they can only infer it from a request that already failed, which is too late to pre-disable a button</span>
+      </li>
+      <li class="task" data-id="E14-27" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-27"></button>
+        <code class="tid">E14-27</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><code>ListRow</code> needs a <code>leading</code> slot, a <code>tone</code>, and an <code>accessibilityLabel</code> override. Three screens have now hand-rolled its geometry rather than use it: Orders (its merged label drops the status word), Children (no leading slot), Account (no danger tone)</span>
+      </li>
+      <li class="task" data-id="E14-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-28"></button>
+        <code class="tid">E14-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Swap the connectivity probe for a real link-layer signal (NetInfo or <code>expo-network</code>) when a new dev-client build is due. <code>ConnectivityContext</code> measures whether our backend is reachable, which is the more useful question but a weaker one — it can only learn from a request or a probe. Native module, so it cannot ship to an installed dev client</span>
+      </li>
+      <li class="task" data-id="E14-29" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-29"></button>
+        <code class="tid">E14-29</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Extend the orphan guard to catch defect 4: an exported module in <code>packages/shared</code> that nothing imports. The current guard covers contexts, providers, stores and injection seams in <code>apps/mobile/src</code> — E13&#39;s unconsumed design tokens were none of those, so it would not have caught them</span>
+      </li>
+      <li class="task" data-id="E14-30" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-30"></button>
+        <code class="tid">E14-30</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:high) <strong>Install Xcode or the Android SDK on the build machine so Maestro can run.</strong> <code>E14-24</code>&#39;s flow has still never executed: there is no simulator, no emulator and no Maestro binary on this machine, so the e2e net cannot be proven at all. Ten screens are now shipping behind a test suite that has never run once</span>
+      </li>
+      <li class="task" data-id="E14-31" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-31"></button>
+        <code class="tid">E14-31</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Add <code>/Volumes/Data</code> to Docker Desktop&#39;s file sharing</strong> (Settings → Resources → File Sharing). Without it <code>supabase test db</code> bind-mounts <code>supabase/tests</code> as an empty directory and pg_prove runs zero files while exiting 0 — <code>npm run test:all</code> was green on nothing until 2026-08-11. <code>scripts/test-db.sh</code> no longer depends on that mount (it runs the suite through <code>psql</code> over TCP), so this is not blocking anything; it is worth doing so <code>npx supabase test db</code> behaves as documented when reached for directly</span>
+      </li>
+      <li class="task" data-id="E14-33" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-33"></button>
+        <code class="tid">E14-33</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The orphan guard does not notice when a known orphan stops being one.</strong> <code>KNOWN_ORPHANS</code>&#39;s stale-key check asserts the key is still *produced by the scan*, not that the prop is still *unwired* — so an exemption for something since fixed sits there forever, silently exempting a prop that could become an orphan again with nobody told. Found wiring <code>E20-36</code>: deleting the three <code>PolicyGateScreen</code> entries by hand was the only thing that proved the gate now has a caller. Make a fixed orphan fail the guard and name itself</span>
+      </li>
+      <li class="task" data-id="E14-34" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-34"></button>
+        <code class="tid">E14-34</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Five dead navigations and a one-way school choice.</strong> <code>navigate(&#39;Tabs&#39;)</code> from a screen already inside the tabs is a no-op, so Home&#39;s &quot;Open the Menu&quot;, its choose-a-school prompt, its retry, the Orders empty state and Order detail&#39;s back-to-menu all did nothing — and all typechecked, because <code>Tabs</code> was <code>undefined</code> in the param list and the nested form was not expressible. <code>Tabs</code> is now <code>NavigatorScreenParams&lt;TabParamList&gt;</code>. Separately: <code>SchoolPicker</code> unmounts once a school is set, so the choice was invisible and permanent — the menu now names its school and offers Change</span>
+      </li>
+      <li class="task" data-id="E14-35" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-35"></button>
+        <code class="tid">E14-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A guard for the dead-navigation class.</strong> <code>reachability.test.ts</code> proves every route has a <code>navigate(&#39;X&#39;)</code> somewhere; it cannot see that <code>navigate(&#39;Tabs&#39;)</code> from inside <code>Tabs</code> moves nobody. Five buttons were dead for weeks with a green reachability suite. Assert that a tab route is only ever navigated to with a <code>screen</code> param, or find the general form</span>
       </li></ul>
       </details>
     </article>
@@ -2386,13 +2858,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/31</span>
+          <span class="meter-num">0/34</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 31 tasks</summary>
+        <summary>Context &amp; 34 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -2405,23 +2877,23 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Replace the hosted payment-link redirect with in-app checkout + <strong>native UPI intent</strong> (this is the &quot;clunky&quot; fix)</span>
       </li>
-      <li class="task" data-id="E06-03" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-03" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-03"></button>
         <code class="tid">E06-03</code>
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Server-side <strong>HMAC signature verification</strong> on every webhook and callback. Never trust client-reported status</span>
+        <span class="ttext"><strong>Signature verification</strong>, both signatures. <code>supabase/functions/_shared/signature.ts</code>: the webhook HMAC over the <strong>raw body</strong> (§5.2 — parsing and re-serialising changes key order, whitespace and escaping, so the HMAC never matches and the failure is total, uniform and indistinguishable from an attack), and the callback HMAC over <code>order_id|payment_id</code> with the <strong>key</strong> secret, the shape <code>E19-01</code> confirmed on a handset. Constant-time hex comparison. Fails <strong>closed</strong> on a missing secret or header. Pure Web Crypto and no Deno globals, so it is imported by the Edge Function and by a vitest suite — the one piece of cryptography in the product is not the one piece with no tests. 17 assertions including an RFC 4231 vector, so the test cannot agree with a broken implementation</span>
       </li>
-      <li class="task" data-id="E06-04" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-04" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-04"></button>
         <code class="tid">E06-04</code>
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Idempotent webhook handling — Razorpay retries; the same event must never double-credit</span>
+        <span class="ttext"><strong>The webhook endpoint</strong> — <code>supabase/functions/payments-webhook</code>. Raw bytes first, HMAC, then <code>JSON.parse</code> <strong>only after verifying</strong>, then insert <code>on conflict do nothing</code> (§7.1 layer 4). <strong>Always <code>200</code></strong>, including on a bad signature — a <code>4xx</code> makes Razorpay retry a request we will never accept and the storm buries the real events. The single exception is a failed INSERT: the event is then recorded nowhere and their retry is the only remaining copy, so that alone returns <code>500</code>. <strong>Records; does not settle</strong> — <code>settle_payment</code> (<code>E06-06</code>) runs from the recorded row, so an event storm cannot become a settlement storm. Unverified events are recorded <code>ignored</code> and never picked up</span>
       </li>
-      <li class="task" data-id="E06-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-05" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-05"></button>
         <code class="tid">E06-05</code>
         
@@ -2429,21 +2901,21 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Order state machine: <code>draft -&gt; pending_payment -&gt; paid -&gt; preparing -&gt; delivered</code>, plus <code>cancelled</code> and <code>refunded</code>, with legal transitions enforced</span>
       </li>
-      <li class="task" data-id="E06-06" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-06" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-06"></button>
         <code class="tid">E06-06</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Handle payment failure, timeout, app-kill-mid-payment, and duplicate payment</span>
+        <span class="ttext"><strong><code>settle_payment</code> — a verified capture becomes a confirmed order.</strong> <code>0046</code>. Payment to <code>captured</code>, orders to <code>paid</code> via T5 as <code>system</code>, a §9.4 four-digit pickup code per order allocated <strong>on capture</strong> (<code>OrderPlacedScreen</code> refuses to render without one, treating its absence as a second witness that money did not move), the sale posted to the ledger across revenue and the two tax accounts, <code>paid_at</code> stamped, all under the group lock. <strong>Idempotent without a flag</strong>: §7.1 layers 5-8 refuse every write of a repeat, so the test replays the whole function rather than checking a boolean — a duplicate delivery returns the same pickup code and does not double the money. Refuses an amount that is not what the customer was shown (<code>L7</code>) and a provider order we have no record of (§10.9, almost always the other environment). Does <strong>not</strong> decide that money moved (<code>R8</code>/§3.6): the caller fetches the payment from Razorpay and passes what the provider says. 14 assertions. Failure handling, the sweeper and the app-kill path remain — <code>E06-16</code>/<code>E06-17</code></span>
       </li>
-      <li class="task" data-id="E06-07" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-07" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-07"></button>
         <code class="tid">E06-07</code>
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Ledger</strong>: append-only credits/debits with reason codes. Every payment, refund, revenue share and future subscription writes here</span>
+        <span class="ttext"><strong>Ledger — the one way in.</strong> <code>0038</code>. The guarantees already existed (<code>0001</code>&#39;s append-only and deferred zero-sum triggers, <code>0013</code>&#39;s structural sign convention, <code>0035</code>&#39;s accounts); what was missing was a posting API, without which every caller assembles a transaction by hand and the zero-sum trigger is the only thing that notices — at COMMIT, with the statement long gone. <code>post_ledger_transaction()</code> refuses fewer than two entries, a non-positive amount (<strong>direction carries the sign and is the only thing that does — a negative credit balances</strong>), an unbalanced posting, an unknown or deactivated account, and a reason code that is not <code>category = &#39;ledger&#39;</code> (the foreign key alone accepts <code>customer_request</code>). Accounts are named by <strong>code</strong>, never uuid. Optional idempotency key: a repeat returns the existing transaction and writes nothing, and a repeat with *different* amounts still returns the first — a retry must never rewrite an append-only ledger. <code>reverse_ledger_transaction()</code> is the only correction: an equal and opposite posting linked by <code>reversal_of_transaction_id</code>, keeping the original reason code and stamping <code>occurred_at</code> with now. 19 pgTAP assertions, most of them about what it refuses</span>
       </li>
       <li class="task" data-id="E06-08" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-08"></button>
@@ -2501,7 +2973,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Environment-scoped Razorpay keys verified — staging can never reach live keys</span>
       </li>
-      <li class="task" data-id="E06-15" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E06-15" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-15"></button>
         <code class="tid">E06-15</code>
         <span class="badge r-critical">critical</span>
@@ -2541,21 +3013,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Wallet-leg reversal</strong> — a wallet hold taken at checkout is reversed by a <code>reversal_of_transaction_id</code> posting the moment the group closes, and a hold is never left outstanding against a dead checkout (§10.7). The nightly wallet-vs-ledger assertion in <code>E06-11</code> is what catches a missed one</span>
       </li>
-      <li class="task" data-id="E06-20" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-20" data-seed="1" data-risk="high" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-20"></button>
         <code class="tid">E06-20</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Migration <code>0003</code> — the schema, config and seed additions <code>docs/order-lifecycle.md</code> §15 requires: <code>[OL-05]</code>&#39;s duplicate-capture column and index change; the <code>pending_payment_ttl_minutes</code>, <code>payment_in_flight_grace_minutes</code> and <code>payment_retry_window_minutes</code> config settings on all three config tables; and the <code>checkout_expired</code> (and, if <code>[OL-02]</code> lands on auto-cancel, <code>cutoff_missed</code>) reason codes. Update <code>docs/data-model.md</code> §9.1 in the same PR</span>
+        <span class="ttext"><strong>Migration <code>0036</code>/<code>0037</code> — the schema, config and seed additions <code>docs/order-lifecycle.md</code> §15 requires.</strong> <code>[OL-05]</code>&#39;s duplicate-capture column and index change (<code>0036</code>): <code>payment.duplicate_of_payment_id</code>, and <code>uq_payment_one_capture_per_group</code> narrowed to <code>where status = &#39;captured&#39; and duplicate_of_payment_id is null</code>, so the invariant becomes &quot;one <strong>primary</strong> capture per group&quot; — which is what <code>D16</code> always meant, and which lets a real double charge be recorded, refunded and reconciled instead of being the one thing the schema forbids. The three timings on all three config tables plus the resolver (<code>0037</code>): <code>pending_payment_ttl_minutes</code> (30, <strong>provisional</strong>, floor pending <code>E19-07</code> row 3), <code>payment_in_flight_grace_minutes</code> (15, decided by <code>L9</code>) and <code>payment_retry_window_minutes</code> (30). The <code>checkout_expired</code> and <code>cutoff_missed</code> reason codes, both customer-visible. <code>docs/data-model.md</code> §9.1 updated in the same change. 15 pgTAP assertions in <code>payments_schema.test.sql</code></span>
       </li>
-      <li class="task" data-id="E06-21" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E06-21" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-21"></button>
         <code class="tid">E06-21</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Correct the over-refund guard (§7.3) — it must sum refunds at <code>pending</code>, <code>processing</code> <strong>and</strong> <code>completed</code>, and take the <code>order_group</code> row lock, so two admins refunding the same order concurrently cannot both pass. <code>docs/data-model.md</code> §8.3 states it wrongly in both directions</span>
+        <span class="ttext"><strong>The over-refund guard takes the row lock.</strong> <code>0043</code>. §7.3 called <code>docs/data-model.md</code> §8.3 wrong in both directions, and it was — <strong>but only the document.</strong> The implementation already summed <code>status &lt;&gt; &#39;failed&#39;</code>, which is the correct set, so the arithmetic defect existed on paper alone. <strong>The race was real</strong>: the trigger is deferred to COMMIT, which is necessary and not sufficient, because under <code>READ COMMITTED</code> two concurrent transactions cannot see each other&#39;s uncommitted refunds — both sum the same total, both pass, both commit, and the guard reports nothing. It now takes the <code>order_group</code> row lock first, which serialises them. The status list is spelled out rather than <code>&lt;&gt; &#39;failed&#39;</code> so a status added later is excluded until somebody decides. A capture marked duplicate (<code>[OL-05]</code>) counts toward the refundable amount deliberately — the customer really was charged twice. §8.3 corrected in the same change. Five assertions; the race itself is guarded structurally rather than demonstrated, and <code>E06-35</code> is the harness that would demonstrate it</span>
       </li>
       <li class="task" data-id="E06-22" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-22"></button>
@@ -2565,21 +3037,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Ledger reason codes</strong> (§10, §8.4 gap 2) — <code>ledger_transaction.reason_code</code> is <code>not null references reason_code(code)</code> and none of the eight seeded codes names a money movement, so no ledger posting can be written at all. Seed the <code>category = &#39;ledger&#39;</code> vocabulary: <code>sale</code>, <code>provider_fee</code>, <code>settlement</code>, <code>wallet_hold</code>, <code>wallet_hold_reversal</code>, <code>refund_to_wallet</code>, <code>refund_to_source</code>, <code>revenue_share</code>, <code>refund_mdr_recovery</code>, <code>payout</code>, plus <code>provider_initiated</code> for <code>[PAY-07]</code>. <strong>Blocks <code>E06-07</code> outright.</strong> Migration <code>0003</code>, with <code>E06-20</code>. Correct <code>docs/data-model.md</code> §8.4&#39;s worked example <strong>and <code>docs/order-lifecycle.md</code> §8.4 step 6</strong> in the same PR — both omit the MDR posting (<code>docs/payments-design.md</code> §10 row 3), so the clearing account is permanently overstated by the fee and tier-3 reconciliation can never balance</span>
       </li>
-      <li class="task" data-id="E06-23" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E06-23" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-23"></button>
         <code class="tid">E06-23</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Add <code>bank</code> to <code>ledger_account_type</code></strong> and seed <code>platform:bank</code> (§8.4 gap 1) — there is no cash account, so a settlement has nowhere to land and <code>provider:razorpay:clearing</code> never clears. Blocks tier-3 reconciliation *and* payouts (<code>E07-10</code>). Note <code>ALTER TYPE … ADD VALUE</code> cannot be *used* in the transaction that adds it, so the value lands in <code>0003</code> and its first use in <code>0004</code></span>
+        <span class="ttext"><strong><code>bank</code> on <code>ledger_account_type</code>, and the chart of accounts seeded.</strong> <code>0034</code> adds the enum value alone — <code>ALTER TYPE … ADD VALUE</code> cannot be used in the transaction that adds it, which is why <code>M9</code> deferred this — and <code>0035</code> makes its first use. <code>ledger_account</code> was <strong>empty</strong>: every account <code>docs/payments-design.md</code> §10 posts to was named nowhere, so the first <code>ledger_entry</code> would have failed on a foreign key, exactly as the first <code>ledger_transaction</code> would have before <code>0013</code> seeded the reason codes. Seven accounts now exist, each on the side <code>M9</code>&#39;s CHECK requires, and the CHECK is extended so a credit-normal cash account is refused. No IGST account: <code>SC1</code>, and <code>G4</code> is archived</span>
       </li>
-      <li class="task" data-id="E06-24" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E06-24" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-24"></button>
         <code class="tid">E06-24</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Add <code>CHECK (destination &lt;&gt; &#39;source&#39; or payment_id is not null)</code> to <code>refund</code> (§9.9) — nothing today prevents a refund to a source that does not exist. Migration <code>0003</code></span>
+        <span class="ttext"><strong><code>CHECK (destination &lt;&gt; &#39;source&#39; or payment_id is not null)</code> on <code>refund</code></strong> (§9.9), <code>0037</code>. Nothing prevented a refund row claiming to reverse the original payment method while naming no payment. <code>PY5</code> makes one logical refund possibly two rows — the wallet-funded portion to the wallet, the remainder to source — and that split is exactly where a source row would be written with nowhere to send the money</span>
       </li>
       <li class="task" data-id="E06-25" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-25"></button>
@@ -2605,13 +3077,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Tier-3 settlement reconciliation</strong> (§8.4) — ingest the Razorpay settlement recon report, backfill <code>provider_fee_paise</code> / <code>provider_tax_paise</code>, post the settlement to <code>platform:bank</code>, and assert <code>balance(provider:razorpay:clearing)</code> equals what Razorpay says is pending. Depends on <code>E06-23</code></span>
       </li>
-      <li class="task" data-id="E06-28" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E06-28" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-28"></button>
         <code class="tid">E06-28</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Distinguish a misconfigured webhook secret from an attack</strong> (§5.6) — a wrong secret fails 100% of webhooks, records them all, returns <code>200</code> and therefore produces no 5xx and no retries. Alert on ~100% signature failure since a deploy, <strong>and</strong> on zero verified events in a window in which orders were placed. Under <code>E15-05</code></span>
+        <span class="ttext"><strong>Alerting on the failure that makes no noise.</strong> <code>0042</code>, <code>assert_webhook_health()</code>. A wrong webhook secret fails 100% of webhooks, records every one and returns <code>200</code> — no 5xx, no retries, no error rate, no traffic gap, and every capture unprocessed until a customer complains. <strong>Two checks, because each is the other&#39;s blind spot:</strong> a signature-failure rate (which cannot see a deleted subscription — with no events its rate is 0%, reading as perfect health) and orders-placed-but-nothing-verified-arrived (which cannot see a wrong secret, since events are arriving). Reports rather than decides: the threshold and the schedule belong to the caller (<code>E15</code>), the same shape as <code>assert_ledger_integrity()</code>. 7 assertions, written as the two scenarios that produce the alert</span>
       </li>
       <li class="task" data-id="E06-29" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-29"></button>
@@ -2621,13 +3093,13 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Expo config plugin for UPI app visibility</strong> (§3.3) — Android 11+ <code>&lt;queries&gt;</code> for the UPI intent app chooser, plus iOS <code>LSApplicationQueriesSchemes</code>. Without it the app list is silently empty and checkout degrades to UPI collect/QR, which is the flow <code>E06-02</code> exists to replace. <strong>Android half shipped 2026-08-09</strong> — <code>apps/mobile/plugins/withUpiQueries.js</code>, permanently enabled, asserted in the built artefact by <code>E06-32</code>. <strong>Left open for the iOS half</strong>, which cannot be written or tested until the SDK is added to <code>apps/mobile</code> by <code>E06-02</code></span>
       </li>
-      <li class="task" data-id="E06-30" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E06-30" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-30"></button>
         <code class="tid">E06-30</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong><code>order_group_status = &#39;payment_failed&#39;</code> is currently unreachable.</strong> <code>docs/order-lifecycle.md</code> §5 rule G3 requires every member cancelled with <code>cancel_reason_code = &#39;payment_failed&#39;</code>, but §10.4 step 3 makes the sweeper write <code>checkout_expired</code> for <strong>both</strong> &quot;every attempt terminally failed&quot; and &quot;never started&quot;. Every failed checkout therefore falls through to G4 (<code>cancelled</code>) and G3 never fires — while §12.1 scenario 5 asserts the group reaches <code>payment_failed</code>. Split the reason code on whether any attempt reached <code>failed</code>, and fix §10.4 in the same PR</span>
+        <span class="ttext"><strong><code>payment_failed</code> is reachable, because the derivation now exists.</strong> <code>0044</code>. The investigation found something larger than the reported defect: <strong><code>order_group.status</code> was never derived at all.</strong> <code>L1</code> says it is maintained by trigger and never written directly, and no such trigger existed — so every group had read <code>draft</code> since <code>0001</code> regardless of its orders, and <code>payment_failed</code>, <code>partially_refunded</code> and <code>refunded</code> were unreachable at the group level entirely. §5&#39;s seven rules are now implemented, first match wins, with the two load-bearing orderings: <strong>G3 above G4</strong>, so an all-cancelled group whose members carry <code>payment_failed</code> derives to <code>payment_failed</code> rather than <code>cancelled</code> — which is the whole of this task — and <strong>G6 above G7</strong>, so a completed partial refund shows even while most of the group is still to be delivered. §10.4&#39;s sweeper split was already correct in the document; this is the half that reads it. Takes the group row lock, so a capture and a refund landing together resolve by rule rather than by which wrote last. 7 assertions</span>
       </li>
       <li class="task" data-id="E06-31" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-31"></button>
@@ -2644,6 +3116,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Assert the UPI <code>&lt;queries&gt;</code> block in the built artefact</strong>, rather than assuming our config plugin is what puts it there. Static analysis during <code>E19-01</code> setup found the block is also supplied by <code>com.razorpay:standard-core</code>, which <code>com.razorpay:checkout</code> pulls in at version <code>LATEST</code> — so the thing <code>E06-29</code> depends on is partly a floating third-party dependency we do not control. <code>scripts/verify-apk-upi-queries.mjs</code> decodes the binary <code>AndroidManifest.xml</code> out of an APK and asserts both the <code>upi</code> scheme query and the six explicit PSP packages, turning a silent degradation to UPI collect/QR into a failed check. Pairs with <code>E19-08</code> (pin the version). <strong>Was filed as a second <code>E06-30</code></strong> — a duplicate id, since <code>E06-30</code> was already taken by the <code>payment_failed</code> task above. Renumbered to the next free id rather than left colliding; nothing referenced it yet</span>
+      </li>
+      <li class="task" data-id="E06-33" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-33"></button>
+        <code class="tid">E06-33</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Replace the invented &quot;5–7 working days&quot; refund timing on Order detail with a figure somebody has confirmed, per instrument. It is a sentence a parent plans around; see <code>docs/open-questions.md</code></span>
+      </li>
+      <li class="task" data-id="E06-34" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-34"></button>
+        <code class="tid">E06-34</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Order detail is unreachable.</strong> <code>OrderDetailScreen.cancelling</code>, <code>imageUri</code> and <code>onContactSupport</code> have no caller. Expected until checkout ships, recorded so it is not mistaken for a wiring bug later</span>
+      </li>
+      <li class="task" data-id="E06-35" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-35"></button>
+        <code class="tid">E06-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A two-session concurrency harness for pgTAP.</strong> <code>E06-21</code>&#39;s over-refund race — two transactions that cannot see each other&#39;s uncommitted refunds — cannot be demonstrated with the tools this suite has: <code>dblink</code> commits each statement in its own transaction, so it cannot hold one open across the window where the defect lives. The fix (an <code>order_group</code> row lock) is reasoned and guarded by a structural assertion that the lock is still present, which catches somebody simplifying it away but does not prove it works. A harness — two backends, an advisory-lock handshake to line them up inside the window, then release — would let this and every future locking question be tested for real. Worth having before <code>E06-08</code>/<code>E06-18</code> add more concurrent refund paths</span>
       </li></ul>
       </details>
     </article>
@@ -2660,32 +3156,32 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/21</span>
+          <span class="meter-num">0/23</span>
         </div>
       </header>
       <p class="summary">Compliant GST invoices emailed as PDF on every purchase, plus the revenue-share and payout reporting that sits on the same numbers.</p>
       <p class="deps">Depends on <code>E06</code></p>
       <details>
-        <summary>Context &amp; 21 tasks</summary>
+        <summary>Context &amp; 23 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>GrayBag is the <strong>seller of record</strong> and pays kitchens monthly. Cart currently shows a single &quot;5% tax&quot; line; a compliant invoice needs the CGST/SGST split. Place of supply is Mohali / SAS Nagar (intra-state).</p>
 <p>Blocked on E00-10 / E00-11 for GSTIN, SAC code and the school-share GST treatment.</p></div>
         <ul class="tasks">
-      <li class="task" data-id="E07-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-01"></button>
         <code class="tid">E07-01</code>
-        <span class="badge r-high">high</span>
+        
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Gapless sequential invoice numbering</strong> per financial year — failed payments must not burn numbers</span>
+        <span class="ttext"><strong>Gapless invoice numbering.</strong> <code>0047</code>. From <code>invoice_sequence</code> under a row lock, taken <strong>last</strong> — after every check that could refuse has passed — because a Postgres sequence is non-transactional by design and a rolled-back transaction would burn a number and leave a hole nobody can explain to an auditor. Format <code>GB/26-27/000417</code>: <strong>15 characters</strong>, where the original schema comment&#39;s <code>GB/2026-27/000417</code> was seventeen and would have breached Rule 46&#39;s 16-character cap</span>
       </li>
-      <li class="task" data-id="E07-02" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-02" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-02"></button>
         <code class="tid">E07-02</code>
-        <span class="badge r-high">high</span>
+        
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Invoice PDF: GrayBag GSTIN, invoice no + date, customer, place of supply, SAC code, taxable value, <strong>CGST 2.5% + SGST 2.5%</strong>, total. <strong>Rounding rule fixed and unit-tested</strong> against worked examples — per line or per invoice, decided once</span>
+        <span class="ttext"><strong>The invoice itself.</strong> <code>0047</code>/<code>0048</code>, issued inside <code>settle_payment</code>&#39;s transaction (<code>D14</code>) so a paid order can never exist without a tax document, nor a burned number without a settlement. Seller identity <strong>snapshotted</strong> (§13.2 — a reprint must be byte-identical, so a wrong value cannot be quietly fixed in config), place of supply printed always per Rule 46, CGST and SGST as separate figures (<code>M2</code>), pickup codes carried onto the document (<code>P4</code>). Line descriptions carry the child&#39;s <strong>first name only</strong> (§4.3, <code>G7</code>) — asserted positively and negatively, since this is a document a parent forwards to an employer. Buyer name may be NULL and is never fabricated (<code>E07-22</code>, Rule 46(f)). 13 assertions</span>
       </li>
       <li class="task" data-id="E07-03" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-03"></button>
@@ -2791,13 +3287,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Guard triggers: an <code>invoice</code> row can never be <code>DELETE</code>d, and <code>invoice_sequence.last_sequence_no</code> may only increase, by exactly 1</span>
       </li>
-      <li class="task" data-id="E07-16" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-16" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-16"></button>
         <code class="tid">E07-16</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Financial year derived from <code>issued_at</code> in the platform timezone, with tests at 05:20 IST 1 Apr and 23:50 IST 31 Mar</span>
+        <span class="ttext"><strong>Financial year derived from <code>issued_at</code></strong> in the platform timezone — <code>financial_year_at()</code>, <code>0047</code>. April–March, so April 2026 and March 2027 both resolve to <code>2026-27</code>. Derived rather than stored, so an invoice cannot disagree with its own series</span>
       </li>
       <li class="task" data-id="E07-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-17"></button>
@@ -2805,7 +3301,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Derive the CGST/SGST vs IGST split per invoice from <code>left(seller_gstin, 2)</code> against <code>place_of_supply_state_code</code> — never hard-coded. See <code>[GST-02]</code></span>
+        <span class="ttext"><strong>Assert the seller&#39;s state rather than deriving a split</strong> (rewritten 2026-08-11; <code>G4</code> superseded by <code>SC1</code>). Invoicing must check <code>left(seller_gstin, 2) = &#39;03&#39;</code> and <strong>refuse to issue</strong> if it does not, with the same loudness as <code>E07-20</code>&#39;s placeholder guard. This is the half of the old &quot;derive the split&quot; rule that is genuinely still unknown — the place of supply is <code>03</code> for every invoice v1 will ever issue, but GrayBag&#39;s own registered state is one fact we do not yet have (<code>E00-10</code>, <code>[GST-02]</code>), and if the GSTIN turns out to be <code>04</code> then <strong>every</strong> invoice is IGST and nothing about the product is correct. An assertion that fails loudly is the right shape for that; a branch is not, because the branch silently does the right thing for a case that cannot arise while growing a pricing path non-negotiable #7 forbids. Test: a config whose GSTIN starts <code>04</code> refuses to issue and says why</span>
       </li>
       <li class="task" data-id="E07-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-18"></button>
@@ -2823,21 +3319,37 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Invoice-number renderer as a pure function of <code>(financial_year, sequence_no)</code>, asserting every rendered value is ≤ 16 characters and matches <code>^[A-Za-z0-9/-]+$</code></span>
       </li>
-      <li class="task" data-id="E07-20" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-20" data-seed="1" data-risk="critical" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-20"></button>
         <code class="tid">E07-20</code>
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Move the placeholder guard before the money moves.</strong> <code>E07-13</code> as specified refuses to allocate an invoice number inside <code>settle_payment()</code> — which <code>docs/gst-invoicing.md</code> §2 itself calls &quot;the checkout&#39;s <strong>post-capture</strong> step&quot;. Under auto-capture (<code>[OL-01]</code>) the customer is already charged, the settlement transaction rolls back, <code>PY2</code> returns <code>200</code> and our own 5-minute sweep retries the failure forever: every customer charged, no order created, no 5xx, no alert but a growing <code>payment_webhook_event</code> backlog. Refuse <code>POST /checkout</code> in production while <code>seller_gstin</code> or <code>sac_code</code> matches <code>^«.*»$</code>, <strong>and</strong> add a boot assertion on the payments Edge Functions in the same shape as <code>E06-14</code>&#39;s key-prefix check. Keep <code>E07-13</code> as defence in depth. Test: with a placeholder in config, checkout returns a typed refusal and no Razorpay order is created</span>
+        <span class="ttext"><strong>Production cannot take money it cannot invoice.</strong> <code>0045</code>. Building it found the reason it matters: <strong>the seller&#39;s identity had no home in configuration at all</strong> — <code>seller_gstin</code>, <code>seller_legal_name</code> and <code>seller_address</code> existed only as snapshot columns on <code>invoice</code>, so the invoice builder had nowhere to read them from. They are now on <code>platform_config</code> with <code>«ANGLE-BRACKET»</code> defaults, the convention <code>E20-22</code> already fails a production build on. <code>assert_seller_identity_configured()</code> is called by <code>create_checkout</code> <strong>before any money moves</strong>, because the sequence without it is the worst in the product: under auto-capture the customer is already charged, <code>settle_payment</code> then cannot allocate an invoice number, the settlement rolls back, <code>PY2</code> returns 200 and our own sweep retries for ever — every customer charged, no order created, no 5xx, no alert. <code>E07-13</code>&#39;s refusal inside <code>settle_payment</code> stays as defence in depth; it is the one that fires after the charge. A new <code>platform_config.environment</code> defaults to <strong><code>local</code></strong>, so the safe direction is the one you get by doing nothing and this cannot become a guard people switch off; <code>E06-14</code> has somewhere to key off now too. 10 assertions</span>
       </li>
-      <li class="task" data-id="E07-21" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task struck" data-id="E07-21" data-seed="0" data-risk="" data-owner="build" data-mvp="0" data-struck="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-21"></button>
         <code class="tid">E07-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>STRUCK 2026-08-11 — do not build.</strong> It required deriving the CGST/SGST-vs-IGST split in the cart and checkout pricing path, on the premise that &quot;the three launch cities span three state codes (Punjab <code>03</code>, Chandigarh <code>04</code>, Haryana <code>06</code>)&quot;. <strong>That premise was never true of v1 and is forbidden by non-negotiable #7.</strong> <code>SC1</code> (2026-08-07) confirmed Mohali only: one city, one state code, flat 5% as CGST 2.5% + SGST 2.5%. The three-city figure came from <code>docs/data-model.md</code> §1.7&#39;s *12-month planning* column read as a statement of today; the same misreading had put &quot;Chandigarh, SAS Nagar (Mohali) and Panchkula&quot; into the App Store listing, which is now corrected. The task also asserted the cart was already wrong for two of three cities — under <code>SC1</code> the cart is correct. What survives is <code>E07-17</code>, rewritten below as the one-time assertion it should always have been. Struck rather than deleted: <code>docs/overnight-review.md</code> finding 2 generated it, and a reader who finds that finding needs to land here</span>
+      </li>
+      <li class="task" data-id="E07-22" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-22"></button>
+        <code class="tid">E07-22</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Derive the CGST/SGST-vs-IGST split in the cart and checkout pricing path</strong>, not only on the invoice. <code>E07-17</code> fixes the invoice; <code>E07-06</code> and <code>docs/order-lifecycle.md</code> §8.2 step 7 compute the split &quot;per <code>M2</code>&quot;, i.e. hard-coded intra-state. The three launch cities span three state codes (Punjab <code>03</code>, Chandigarh <code>04</code>, Haryana <code>06</code> — <code>docs/data-model.md</code> §3.1), so at most one can be intra-state under a single GSTIN and a parent at a Panchkula school would be shown CGST+SGST and invoiced IGST. <code>L7</code> requires the charged total to equal the displayed total, so this is not cosmetic. Share one pricing function between checkout and the invoice builder. See <code>[GST-06]</code></span>
+        <span class="ttext"><strong><code>invoice.buyer_name_snapshot</code> is nullable, and the CHECK carries the real rule.</strong> <code>0031</code>. It was <code>not null</code> while every account in the system has a null name — nothing writes <code>app_user.first_name</code>, and <code>P18</code>&#39;s capture is optional, skippable and lands after payment — so the first invoice ever issued would have raised <code>23502</code> in production with money already taken. <strong>CGST Rule 46(f)</strong>: on a supply to an unregistered recipient below ₹50,000 the buyer&#39;s name is required only where the recipient asks for it, so the constraint was stricter than the law and would have been the thing stopping the order. Now nullable, with <code>check (buyer_name_snapshot is not null or total_paise &lt; 5000000)</code> — required exactly when Rule 46(e) requires it, and a loud failure at write time if we ever issue at ₹50,000 or more without one. <strong>Nothing is fabricated</strong>: not the email local-part (a username, and email is nullable too), not &quot;GrayBag customer&quot; (a label), and never the recipient&#39;s name (the child is not the buyer, and it would put a minor in the buyer field of a record kept after erasure). 6 pgTAP assertions including both sides of the threshold. CA sign-off is a follow-up, not a blocker (Andy) — <code>docs/andy-prep/professional-questions.md</code></span>
+      </li>
+      <li class="task" data-id="E07-23" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-23"></button>
+        <code class="tid">E07-23</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A parent can ask for their name on an invoice already issued.</strong> <code>Rule 46(f)</code>&#39;s condition is &quot;and the recipient requests that such details be recorded&quot; — so a name is not merely optional, it is optional *until asked for*. Fast-follow: a reissue path that re-renders the document with the name and supersedes the original (never edits it — <code>§13.2</code> requires a reprint to be byte-identical to what was issued). Not v1; recorded so the obligation is not discovered from a support ticket</span>
       </li></ul>
       </details>
     </article>
@@ -3104,21 +3616,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The packing list is tier P and needs a retention rule.</strong> <code>packingCsv</code> names children by design — staff hand food to a named child and there is no version of that job that does not. That makes a downloaded packing CSV regulated data sitting on a kitchen laptop indefinitely. Decide how long it may be kept and how it is destroyed, and put it in <code>docs/dpdp-compliance.md</code>. The file warns the reader in its first row, which is the most a file can do for itself; the rest is policy. Raised with <code>E09-11a</code></span>
       </li>
-      <li class="task" data-id="E09-15" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+      <li class="task" data-id="E09-15" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-15"></button>
         <code class="tid">E09-15</code>
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:high) Decide whether the kitchen packing list and per-class delivery sheet surface a parent&#39;s per-line note. If they don&#39;t, the note field is not built at all — a note nobody reads is a lie told to a parent trying to be careful (ux-spec §5.6.1) *(Renumbered from a second <code>E09-11</code> on 2026-08-11. Two different tasks carried that id, so <code>scripts/check-mvp.mjs</code> — which keys tasks by id — saw only the later one and reported the earlier, genuinely-MVP task as untagged. The tablet-legibility task keeps <code>E09-11</code> because it is the older assignment and the one the MVP list means; this is the accidental reuse and takes the next free id. <code>check-mvp.mjs</code> now fails on duplicates.)*</span>
+        <span class="ttext">(risk:high) Decide whether the kitchen packing list and per-class delivery sheet surface a parent&#39;s per-line note. <strong>Answered 2026-08-10: yes — <code>P12</code></strong></span>
       </li>
-      <li class="task" data-id="E09-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E09-16" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-16"></button>
         <code class="tid">E09-16</code>
-        
+        <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>The standalone printable packing list, as its own view.</strong> Grouped school → break → class → section, built on <code>packingList</code>, which is done. <strong>Fast-follow, deliberately</strong> (Andy, 2026-08-11): the MVP kitchen surface is one order list with status updates, and a separate packing screen is a second surface to build, test and teach before there is evidence anyone needs it. The capability already exists as CSV (<code>E09-11a</code>), so nothing is lost by waiting. <code>E09-14</code>&#39;s retention rule governs it whenever it is built, because it names children</span>
+        <span class="ttext">Render the per-line kitchen note on the packing list and the per-class delivery sheet, under the same retention rule as the rest of it (<code>P12</code>, <code>E09-14</code>)</span>
       </li>
       <li class="task" data-id="E09-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-17"></button>
@@ -3139,13 +3651,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/14</span>
+          <span class="meter-num">0/17</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 14 tasks</summary>
+        <summary>Context &amp; 17 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -3259,6 +3771,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">In-app support contact route (from the app to a queue Andy actually reads), with the order correlation ID attached automatically</span>
+      </li>
+      <li class="task" data-id="E10-15" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-15"></button>
+        <code class="tid">E10-15</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Get an enrolled-child count from each school</strong>, with the date it was given and who gave it. <code>docs/product-metrics.md</code> §3 option (a): one integer per school per academic year, asked during the onboarding conversation that already happens. Without it <strong>school penetration cannot be computed</strong> — and the proxy (children registered with GrayBag) reports a number that *rises when adoption stalls*, so it must not be substituted. A credentialed action: it is a conversation with the school, which only Andy has</span>
+      </li>
+      <li class="task" data-id="E10-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-16"></button>
+        <code class="tid">E10-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Hold the enrolled-child count.</strong> <code>school.enrolled_children_count int null</code>, <code>enrolled_count_as_of date null</code>, <code>enrolled_count_source text null</code> — nullable on purpose, so a school without one shows *absent* rather than zero. Admin field with the as-of date required whenever the count is set; a count older than one academic year renders with its date. Prepared for <code>E10-15</code>, and buildable before it</span>
+      </li>
+      <li class="task" data-id="E10-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-17"></button>
+        <code class="tid">E10-17</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Build the six metrics of <code>docs/product-metrics.md</code> (<code>P17</code>)</strong> as server-side queries: activated users, weekly active orderers, orders per active orderer per week, AOV in paise, school penetration, cohort retention at N+4/N+8/N+12. Constraints are part of the task, not decoration — no column of <code>recipient</code> selected or joined for filtering, <code>recipient_id</code> counted but never described, small-number suppression built into the query rather than the template, integer paise throughout, an immature cohort cell rendered *not yet* rather than 0%, and school penetration rendered &quot;no enrolled count&quot; where <code>E10-16</code>&#39;s column is null</span>
       </li></ul>
       </details>
     </article>
@@ -3529,13 +4065,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/43</span>
+          <span class="meter-num">0/49</span>
         </div>
       </header>
       <p class="summary">Move ~400 users, dependents and full order history off Bubble. Rehearsed at least twice before the real thing.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E04</code> <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 43 tasks</summary>
+        <summary>Context &amp; 49 tasks</summary>
         <div class="context"><h4>Known constraints</h4>
 <p>Verified against the real export on 2026-08-08 (<code>E19-04</code>). Full evidence in</p>
 <p><strong><code>docs/bubble-recon-findings.md</code></strong> — read it before writing <code>E16-01</code>. Several constraints below</p>
@@ -3973,6 +4509,54 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Upload the mirrored dish images into Supabase Storage and rewrite the dish records to point at them. The download half is done (<code>E16-28</code>), so this no longer depends on Bubble being alive and can run whenever the storage bucket exists</span>
+      </li>
+      <li class="task" data-id="E16-44" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-44"></button>
+        <code class="tid">E16-44</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Re-run <code>tools/upload-dish-images</code> WITHOUT <code>--fixture-aliases</code> once the menu import gives dishes their <code>legacy_bubble_id</code>, and delete the alias table rather than extending it. 78 of the 82 uploaded photographs are currently unused because staging has five seed fixtures rather than the real catalogue</span>
+      </li>
+      <li class="task" data-id="E16-48" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-48"></button>
+        <code class="tid">E16-48</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Seed every environment from the real Bubble catalogue.</strong> <code>tools/seed-catalogue/build.mjs</code> reads the sanitised export in <code>tools/seed-catalogue/data/</code> and generates <code>supabase/seeds/catalogue.sql</code>: 3 Mohali schools, 8 categories, 79 dishes, 2 menus, 83 prices. No <code>User</code>, <code>Child</code>, <code>Order</code> or <code>Dish_In_Order</code> — and <code>All-Schools.contact-email</code> / <code>Kitchens.owner-email</code> dropped at import rather than blanked. Applied to staging with photos serving; <code>supabase/migrations/0024_onboard_real_schools.sql</code> carries the <code>onboarded_at</code> correction a seed re-run cannot</span>
+      </li>
+      <li class="task" data-id="E16-45" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-45"></button>
+        <code class="tid">E16-45</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Settle four calorie conflicts.</strong> The legacy catalogue holds two rows for each of Blueberry Muffin (400-430 vs 240–340), Lemon Ice Tea (90-120 vs 80–140), Peach Ice Tea (100-130 vs 100–160) and Cold Coffee (160 vs 250–350). The import preserves both figures in <code>dish.nutrition</code> and leaves <code>calories_kcal</code> null rather than choosing — publishing a calorie count nobody measured is the same failure as guessing <code>food_type</code>. A validation: somebody has to say which is right, and only the kitchen knows</span>
+      </li>
+      <li class="task" data-id="E16-46" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-46"></button>
+        <code class="tid">E16-46</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Fold the real catalogue into the local and CI seed.</strong> <code>supabase/seed.sql</code> still carries the four synthetic dishes, because its fixed UUIDs are referenced by the pgTAP suite and the jest fixtures; swapping them blind would break tests that are asserting the right things. Decouple the fixtures from the ids first, then include <code>catalogue.sql</code> so local, CI and staging genuinely match</span>
+      </li>
+      <li class="task" data-id="E16-47" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-47"></button>
+        <code class="tid">E16-47</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Fill <code>food_type</code> for the 79 real dishes.</strong> <code>[DM-17]</code>: veg / non-veg / egg is not in the legacy export and the importer refuses to infer it from ingredients — in this market a wrong mark is a trust failure, not a cosmetic gap. The menu currently renders every dish with no food-type mark. Needs an admin column and someone from the kitchen going through the list</span>
+      </li>
+      <li class="task" data-id="E16-49" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-49"></button>
+        <code class="tid">E16-49</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The migration actor, and the narrowest exemption I could write.</strong> <code>0040</code>/<code>0041</code>, Andy&#39;s option (b). <code>0039</code> enforces §4.1, whose only entry points are <code>draft</code> and <code>pending_payment</code>, leaving <code>E16</code>&#39;s ~283 finished legacy orders nowhere to go. Walking each through the machine would write an <code>order_event</code> history that never happened onto the table <code>I2</code> exists to make trustworthy; disabling the trigger in the importer is the version that ends up in a script nobody reviews. So: a named <code>migration</code> actor with <strong>T14</strong>, and three properties that keep it narrow — only <code>paid</code> and <code>cancelled</code> (the recon counts 281 and 2; drafts are not migrated, and <code>delivered</code>/<code>refunded</code> are absent because no legacy order is in them), <strong>INSERT only</strong> (no UPDATE row exists for it anywhere, so it can create history and never move a live order), and <strong>the row must carry a <code>legacy_bubble_id</code></strong> (the actor and the data must agree, so a new order — which has no Bubble id and never will — cannot use this path). Four assertions, three of them about what it refuses. §4.1 updated with T14 and the reasoning</span>
       </li></ul>
       </details>
     </article>
@@ -3989,13 +4573,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/28</span>
+          <span class="meter-num">0/42</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 28 tasks</summary>
+        <summary>Context &amp; 42 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -4033,7 +4617,7 @@
         
         <span class="badge r-you">you</span>
         <span class="badge r-mvp">v1</span>
-        <span class="ttext"><strong>Submit</strong> the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from <code>E20</code>; you sign them off in the consoles</span>
+        <span class="ttext">(risk:critical) <strong>BLOCKED ON <code>E20-35</code>/<code>E20-10</code> — do not submit while an unscrubbed Sentry is wired up.</strong> Answering &quot;not collected&quot; then is a false statement to two app stores. <strong>Submit</strong> the Apple App Privacy questionnaire and Google Data Safety form — answers drafted for you from <code>E20</code>; you sign them off in the consoles</span>
       </li>
       <li class="task" data-id="E17-05" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-05"></button>
@@ -4226,6 +4810,118 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Split the non-production app identity</strong> — <code>com.gracord.graybag.staging</code> / <code>com.Gracord.Graybag.staging</code>, display name &quot;GrayBag Staging&quot;, its own URL scheme. An internal build must install *beside* the live store app, never over it</span>
+      </li>
+      <li class="task" data-id="E17-29" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-29"></button>
+        <code class="tid">E17-29</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Keep <code>docs/andy-prep/</code> matching reality — when Andy submits a form or gets an answer, fold it back into the repo so the drafts do not drift into fiction</span>
+      </li>
+      <li class="task" data-id="E17-30" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-30"></button>
+        <code class="tid">E17-30</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>App Store Connect app id wired into <code>eas.json</code>.</strong> *(Done, then corrected by <code>E17-32</code> — the preview half pointed at the wrong record.)* <code>ascAppId</code> 6749555467 alongside <code>appleTeamId</code> F247T8Y2NT, on both <code>submit.production</code> and a new <code>submit.preview</code>. <code>preview</code> also became an iOS store build — it extended <code>staging</code>&#39;s <code>distribution: &quot;internal&quot;</code>, which is ad-hoc and cannot reach TestFlight (<code>R9</code>)</span>
+      </li>
+      <li class="task" data-id="E17-32" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-32"></button>
+        <code class="tid">E17-32</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Staging gets its own App Store Connect record.</strong> <code>ITMS-90054</code>: <code>submit.preview</code> pointed at <code>6749555467</code>, the live app&#39;s record, while <code>preview</code> builds <code>com.gracord.graybag.staging</code> — one record accepts one bundle id, so every preview submission was rejected. Andy created record <code>6800175123</code> for the staging bundle id (2026-08-11); <code>submit.preview.ios.ascAppId</code> now points at it and <code>submit.production</code> keeps <code>6749555467</code>. Asserted as a <strong>pairing</strong> of record to bundle id, resolved through <code>applyIdentity</code>, not as two loose constants</span>
+      </li>
+      <li class="task" data-id="E17-31" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-31"></button>
+        <code class="tid">E17-31</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Create an App Store Connect API key</strong> so submissions do not need a 2FA prompt. App Store Connect → Users and Access → Integrations → App Store Connect API → Team Keys → generate a key named <code>graybag-eas-submit</code> with the <strong>App Manager</strong> role. The <code>.p8</code> downloads <strong>once and once only</strong>. See <code>docs/release-testflight.md</code> for exactly what to do with the three values. A credentialed action: it needs Account Holder or Admin on the Apple account</span>
+      </li>
+      <li class="task" data-id="E17-33" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-33"></button>
+        <code class="tid">E17-33</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:high) <strong>Read the live Google Play numbers off the Play Console</strong> — Production → Releases: the live <code>versionName</code> *and* the live <code>versionCode</code> (the integer). Play rejects on <code>versionCode</code>, and <code>appVersionSource: remote</code> mints ours from an EAS counter that started at 1, so the first Android submit fails the same way <code>ITMS-90062</code> did unless the floor is known. A validation: two numbers read off a screen only Andy can open. <strong>Half returned 2026-08-12: <code>versionCode</code> is <code>1777726914</code></strong> — a Unix timestamp Bubble minted from the clock — and it is now in <code>LIVE_PLAY</code>, which is what unblocked <code>E17-34</code>. <strong>The <code>versionName</code> is still unread</strong>, so its assertion stays dormant. Do not close this by copying the App Store&#39;s <code>3.7.0</code> across: two listings updated by hand over fourteen months drift, and a guessed floor is the thing this task exists to avoid</span>
+      </li>
+      <li class="task" data-id="E17-34" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-34"></button>
+        <code class="tid">E17-34</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The EAS Android version counter now clears the live <code>versionCode</code>.</strong> Set to <code>1786591932</code> on 2026-08-13 with <code>eas build:version:set -p android -e production</code> and read back with <code>build:version:get</code> to confirm it landed. It stood at <strong>1</strong> — the command said so itself — against a live floor of <code>1777726914</code>, so every production Android submission would have been rejected after the build was paid for and waited on. <code>LIVE_PLAY.versionCode</code> is filled in and <code>EAS_REMOTE_VERSION_CODE</code> records what was pushed, so the assertion is the *relationship* rather than two constants nobody can re-derive</span>
+      </li>
+      <li class="task" data-id="E17-35" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-35"></button>
+        <code class="tid">E17-35</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Confirm the live Android package is exactly <code>com.Gracord.Graybag</code>, capitals included</strong> — Play Console → App info. <code>R4</code> calls it owned by the live listing and <code>app-config.test.ts</code> asserts the capitals, but nobody has checked it against Play; it is the same shape of defect as the version floor, and the test&#39;s own comment names the consequence (a new listing with zero installs). iOS&#39;s bundle id was verified by accident this week when Apple&#39;s rejection named the record; Android&#39;s has had no such luck</span>
+      </li>
+      <li class="task" data-id="E17-36" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-36"></button>
+        <code class="tid">E17-36</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Confirm whether the live iOS listing supports iPad.</strong> <strong>Answered by Andy 2026-08-11: it does not, and we are not adding it.</strong> <code>supportsTablet: false</code> is now asserted as verified-against-App-Store-Connect rather than assumed. <code>app.json</code> sets <code>supportsTablet: false</code>. If the live app is iPad-enabled, this update drops a device family from under existing users. Cheap to check while in App Store Connect; low severity, unverified either way</span>
+      </li>
+      <li class="task" data-id="E17-37" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-37"></button>
+        <code class="tid">E17-37</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>No build profile named its EAS environment, so every build resolved <code>production</code> — which is empty.</strong> Caught by pre-flighting a TestFlight submit: <code>eas build:version:get</code> reported <code>Resolved &quot;production&quot; environment</code> and <code>No environment variables found</code>. The staging values live in the <code>preview</code> environment, so the build would have shipped with <code>EXPO_PUBLIC_SUPABASE_URL</code>/<code>_ANON_KEY</code>/<code>_APP_ENV</code> undefined and opened on <code>CantConnectScreen</code>. Every profile now declares <code>environment</code>, asserted in <code>app-config.test.ts</code></span>
+      </li>
+      <li class="task" data-id="E17-38" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-38"></button>
+        <code class="tid">E17-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>staging</code> and <code>preview</code> never incremented their build number.</strong> <code>appVersionSource: remote</code> without <code>autoIncrement</code> hands back the same integer for ever — <code>iOS buildNumber - 1</code> after a build had already been made. First submit to a fresh record succeeds, second is rejected as a duplicate binary. <code>production</code> had this right and the two internal profiles did not, which is backwards: internal builds are the ones made repeatedly</span>
+      </li>
+      <li class="task" data-id="E17-39" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-39"></button>
+        <code class="tid">E17-39</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The EAS <code>production</code> environment is empty.</strong> A production build today would ship with no Supabase URL, no anon key and no Razorpay key, and open on <code>CantConnectScreen</code>. Set the five <code>EXPO_PUBLIC_*</code> variables for <code>production</code> — with <strong>live</strong> Razorpay and the production Supabase project — before any production build. Blocked behind <code>E01-05</code> (the production project does not exist yet)</span>
+      </li>
+      <li class="task" data-id="E17-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-40"></button>
+        <code class="tid">E17-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The EAS <code>development</code> environment says <code>EXPO_PUBLIC_APP_ENV=staging</code> while the <code>development</code> build profile sets <code>APP_ENV=local</code>.</strong> So a dev build gets the <code>local</code> identity (GrayBag Dev, <code>.dev</code> bundle) and a runtime that reports itself as staging — including the Account footer, which exists precisely so a screenshot says which build it is. Make the two agree</span>
+      </li>
+      <li class="task" data-id="E17-41" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-41"></button>
+        <code class="tid">E17-41</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>E17-29</code> through <code>E17-32</code> mean two different things on two branches, and one set must be renumbered at merge.</strong> <code>main</code> ends at <code>E17-28</code>. <code>ux-spec-and-prototype</code> appended <code>E17-29</code>–<code>E17-40</code>; <code>kitchen-live</code> independently appended its own <code>E17-29</code>–<code>E17-32</code> (the app.json version floor, the Android <code>versionCode</code> floor, setting the EAS counter, and asserting the package name). Task ids are permanent and <code>backlog-state.json</code> is keyed on them, so merging as-is silently applies one branch&#39;s ticks to the other branch&#39;s tasks. <strong>Renumber the <code>kitchen-live</code> four to <code>E17-42</code>–<code>E17-45</code></strong>, not this branch&#39;s twelve: it is the smaller edit, they are all still open so no tick moves with them, and this branch is 96 commits and merges first. Three of the four are already done here — <code>E17-29</code>→ the strict floor in <code>app-config.test.ts</code>, <code>E17-30</code>/<code>E17-31</code>→ <code>E17-33</code>/<code>E17-34</code>, <code>E17-32</code>→ the <code>com.Gracord.Graybag</code> assertion that has existed since <code>E17-28</code> — so they should be renumbered and immediately closed as duplicates rather than carried forward as work</span>
+      </li>
+      <li class="task" data-id="E17-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-42"></button>
+        <code class="tid">E17-42</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Two threads appending to one epic file will collide again.</strong> <code>E17-41</code> is the symptom; the cause is that <code>planning/backlog/</code> is shared mutable state with no reservation, and the next-free-id is read from whatever the branch happens to have. Either give each thread an id band per epic, or make <code>build-backlog.mjs</code> fail on a duplicate id across <code>git branch -a</code> rather than only within the file it is building</span>
       </li></ul>
       </details>
     </article>
@@ -4442,6 +5138,215 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Chargeback / dispute handling</strong> — the <code>payment.dispute.*</code> webhook family is deliberately not subscribed in v1 (<code>docs/payments-design.md</code> §6.4). A dispute on a ₹200 lunch is rare and a half-built dispute flow is worse than none, so until this exists a dispute is an email from Razorpay handled in the dashboard, surfacing the next morning as reconciliation break class B6</span>
+      </li></ul>
+      </details>
+    </article>
+    <article class="epic" data-phase="9" data-risk="low" data-id="E21">
+      <header class="epic-head">
+        <div class="epic-title">
+          <code class="eid">E21</code>
+          <h3>E21-screen-design.md</h3>
+          <span class="badge r-low">low</span>
+        </div>
+        <div class="meter-wrap">
+          <div class="meter"><span style="width:0%"></span></div>
+          <span class="meter-num">0/20</span>
+        </div>
+      </header>
+      <p class="summary"></p>
+      
+      <details>
+        <summary>Context &amp; 20 tasks</summary>
+        <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
+<p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
+<p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
+<p>exactly how <code>E13</code> shipped tokens, we both ticked &quot;design done&quot;, and the app stayed a wireframe</p>
+<p>for weeks. This epic makes it countable.</p>
+<p><strong>One task per screen in the <code>docs/ux-spec.md</code> §5 catalogue.</strong> Each names the states it must be</p>
+<p>compared against, because the happy path is the one that always gets built and the empty, error</p>
+<p>and unreachable states are the ones that quietly do not.</p>
+<h4>Definition of done — the same for every task here</h4>
+<p>A screen is done when <strong>all</strong> of these are true:</p>
+<p>1. It is built to <code>docs/prototype/graybag-prototype.html</code> — the prototype <strong>is</strong> the acceptance</p>
+<p>   criteria, not a mood board. Deep-link each state and compare.</p>
+<p>2. <strong>Every state named in the task</strong> has been rendered and compared, not just the happy path.</p>
+<p>3. It has been seen <strong>on a device</strong>, over Metro or a build. Not a simulator screenshot alone.</p>
+<p>4. Its Maestro coverage ships in the <strong>same PR</strong> (<code>E14-24</code>), not afterwards.</p>
+<p>5. Recipient-neutral copy from one code path — &quot;For you&quot; / &quot;For Aarav&quot; (<code>0022</code>,</p>
+<p>   <code>docs/self-ordering-costing.md</code>). No screen says &quot;your child&quot; where an adult may be reading.</p>
+<p>6. Dynamic type checked at <code>AX5</code>, per ux-spec §3.5.</p>
+<p><strong>Not done</strong> means: built, but not compared against its states, or not seen on a device. Say so</p>
+<p>rather than ticking it.</p>
+<h4>Progress, 2026-08-10</h4>
+<p><strong>Ten screens are built and on a device. None is ticked</strong>, and that is the point: the definition</p>
+<p>of done above says *every* state compared, and calling a screen finished because its happy path</p>
+<p>looks right is the exact mistake <code>E13</code> made.</p>
+<p>They are tracked as open with a <strong>BUILT</strong> note rather than a third checkbox state — the build</p>
+<p>script understands <code>[ ]</code> and <code>[x]</code> only, and a <code>[~]</code> silently dropped all ten from the totals,</p>
+<p>which is precisely the quiet miscount this epic exists to prevent.</p>
+<p>Built this session: Menu, Dish detail, Add child, Sign in, Email OTP, Home, Choose school,</p>
+<p>Orders, Children, Account. Not started: Order detail, Checkout/payment, Order confirmed, Policy</p>
+<p>gate, Can&#39;t connect, Splash, Support.</p></div>
+        <ul class="tasks">
+      <li class="task" data-id="E21-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-01"></button>
+        <code class="tid">E21-01</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Cart</strong> — ux-spec §5.7. States: empty · loaded · signed-out · no</span>
+      </li>
+      <li class="task" data-id="E21-02" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-02"></button>
+        <code class="tid">E21-02</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Menu</strong> — §5.5. States: loading (six skeleton cards) · loaded ·</span>
+      </li>
+      <li class="task" data-id="E21-03" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-03"></button>
+        <code class="tid">E21-03</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Dish detail</strong> — §5.6. States: loading · loaded · no photo (pattern</span>
+      </li>
+      <li class="task" data-id="E21-04" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-04"></button>
+        <code class="tid">E21-04</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Add child / Add someone</strong> — §5.10. States: empty form · invalid ·</span>
+      </li>
+      <li class="task" data-id="E21-05" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-05"></button>
+        <code class="tid">E21-05</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Edit child</strong> — §5.10.1. States: loading · loaded · invalid · saving · saved ·</span>
+      </li>
+      <li class="task" data-id="E21-06" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-06"></button>
+        <code class="tid">E21-06</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Sign in</strong> — §5.8. States: default · email sent · cancelled · error · offline.</span>
+      </li>
+      <li class="task" data-id="E21-07" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-07"></button>
+        <code class="tid">E21-07</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Email OTP</strong> — §5.9 and §5.9.1. States: awaiting · verifying · wrong code ·</span>
+      </li>
+      <li class="task" data-id="E21-08" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-08"></button>
+        <code class="tid">E21-08</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Home</strong> — §5.4. States: signed out · signed in no recipient · one recipient ·</span>
+      </li>
+      <li class="task" data-id="E21-09" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-09"></button>
+        <code class="tid">E21-09</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Choose school</strong> — §5.3. States: loading · loaded · empty search · empty list ·</span>
+      </li>
+      <li class="task" data-id="E21-10" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-10"></button>
+        <code class="tid">E21-10</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Orders list</strong> — §5.14. States: loading · loaded · empty · signed out · offline ·</span>
+      </li>
+      <li class="task" data-id="E21-11" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-11"></button>
+        <code class="tid">E21-11</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Order detail</strong> — §5.15. States: loading · loaded · cancellable · not cancellable</span>
+      </li>
+      <li class="task" data-id="E21-12" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-12"></button>
+        <code class="tid">E21-12</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Your children / Who you order for</strong> — §5.16. States: loading · loaded · empty ·</span>
+      </li>
+      <li class="task" data-id="E21-13" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-13"></button>
+        <code class="tid">E21-13</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>BUILT 2026-08-10 — states not yet all compared.</strong> <strong>Account</strong> — §5.17. States: signed out · signed in. Keeps the build label</span>
+      </li>
+      <li class="task" data-id="E21-14" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-14"></button>
+        <code class="tid">E21-14</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Checkout and payment</strong> — §5.11, §5.12. States: preflight running · ready ·</span>
+      </li>
+      <li class="task" data-id="E21-15" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-15"></button>
+        <code class="tid">E21-15</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Order confirmed</strong> — §5.13. Single state, unreachable until settlement confirms</span>
+      </li>
+      <li class="task" data-id="E21-16" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-16"></button>
+        <code class="tid">E21-16</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Policy acceptance gate</strong> — §5.19. States: not required · required · accepting ·</span>
+      </li>
+      <li class="task" data-id="E21-17" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-17"></button>
+        <code class="tid">E21-17</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Can&#39;t connect</strong> — §5.20. The screen that separates &quot;we cannot reach</span>
+      </li>
+      <li class="task" data-id="E21-18" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-18"></button>
+        <code class="tid">E21-18</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Splash</strong> — §5.1. States: default · slow start · unconfigured → 5.20 · update</span>
+      </li>
+      <li class="task" data-id="E21-19" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-19"></button>
+        <code class="tid">E21-19</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Support</strong> — §5.18. Grievance officer contact (compliance). States: loaded · error</span>
+      </li>
+      <li class="task" data-id="E21-20" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-20"></button>
+        <code class="tid">E21-20</code>
+        
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">A count in <code>planning/backlog.html</code> of screens designed versus stubbed, so &quot;how</span>
       </li></ul>
       </details>
     </article>

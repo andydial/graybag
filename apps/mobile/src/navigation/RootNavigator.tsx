@@ -1,8 +1,11 @@
-import type { ComponentType } from 'react';
+import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { Platform } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import {
+  createNativeStackNavigator,
+  type NativeStackNavigationProp,
+} from '@react-navigation/native-stack';
 import { design } from '@graybag/shared';
 
 import {
@@ -15,7 +18,10 @@ import {
   MenuScreen,
   OrderDetailScreen,
   OrdersScreen,
+  DeleteAccountScreen,
+  PolicyScreen,
   SignInScreen,
+  SupportScreen,
 } from '../screens';
 import { House, ShoppingCart, User, UtensilsCrossed } from 'lucide-react-native';
 
@@ -26,8 +32,18 @@ import {
   TAB_SCREEN_EDGES,
   type ScreenEdge,
 } from '../components/Screen';
+import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
+import { useBreakTimes } from '../cart/useBreakTimes';
+import { clashingAllergens, useAllergenWatchlist } from '../menu/useAllergenWatchlist';
+import { PolicyGateContainer } from '../policy/PolicyGateContainer';
+import { usePolicyGate, useNextPendingPolicy } from '../policy/PolicyGateContext';
+import { useAudience, useOrderingTarget } from '../session/audience';
+import { useSelectedSchool } from '../session/SelectedSchoolContext';
+import { useCachedMenu } from '../menu/useCachedMenu';
+import { useConnectivity } from '../net/ConnectivityContext';
+
 import type { RootStackParamList, TabParamList } from './types';
 
 const { bg, border, nav, scale, borderWidth } = design;
@@ -108,10 +124,21 @@ export function cartTabLabel(itemCount: number): string {
 function withScreenFrame<P extends object>(
   Component: ComponentType<P>,
   edges: readonly ScreenEdge[],
+  /**
+   * Draw a back chevron above the screen. **True for every stack route**, false for tabs — a
+   * tab is not somewhere you came from.
+   *
+   * It is applied here, at registration, for exactly the reason the safe-area inset is: a
+   * route cannot then be added without a way back. Dish detail and Add someone both shipped
+   * with no visible exit because `headerShown: false` removed the only one and nothing put it
+   * back, and fixing those two screens would have left the next one waiting.
+   */
+  { back = false }: { back?: boolean } = {},
 ): ComponentType<P> {
   function Framed(props: P) {
     return (
       <Screen edges={edges}>
+        {back ? <BackBar /> : null}
         <Component {...props} />
       </Screen>
     );
@@ -122,20 +149,215 @@ function withScreenFrame<P extends object>(
 
 const HomeTab = withScreenFrame(HomeScreen, TAB_SCREEN_EDGES);
 const MenuTab = withScreenFrame(MenuScreen, TAB_SCREEN_EDGES);
-const CartTab = withScreenFrame(CartScreen, TAB_SCREEN_EDGES);
+/**
+ * "Place order" is the one gate (`AR7`, ux-spec F1).
+ *
+ * Signed out it opens Sign in, and **the cart is kept** — F1 calls losing it here the single
+ * most likely place to lose a first order. Signed in there is nowhere to go yet: checkout is
+ * `E06`, so the button is inert rather than routing somewhere that would look finished.
+ */
+function CartTabScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const audience = useAudience();
+
+  /**
+   * The photo and the veg mark for each line — `E05-42`.
+   *
+   * **A cart line cannot carry them.** `cart/line.ts` stores what identifies and prices a line
+   * (dish id, who, when, note); a photo is presentation and would go stale the moment the menu
+   * changed. So the cart looks them up from the menu it already has cached, which costs no
+   * request — `useCachedMenu` is the same read the Menu tab just did.
+   *
+   * The prop existed and nothing ever passed it, so every line rendered the placeholder and the
+   * cart read as a different app from the grid. Same shape as the four other "both sides
+   * written, wire missing" defects: `orphans.test.ts` covers contexts, not optional props.
+   *
+   * A dish that is no longer on the current school's menu simply has no entry and falls back to
+   * the food-type placeholder, which is correct — we do not have a picture for it any more.
+   */
+  const { schoolId } = useSelectedSchool();
+  const { payload } = useCachedMenu(schoolId);
+
+  /**
+   * `P19`. The windows decide whether this school can be ordered from at all, so they are read
+   * here rather than at the moment Place order is tapped — a parent should see "we're still
+   * setting up ordering for this school" while looking at their cart, not after committing.
+   */
+  const breakWindows = useBreakTimes(schoolId);
+  const [breakTimeId, setBreakTimeId] = useState<string | null>(null);
+  // A window belongs to a school. Switching school must drop the choice, or a parent could
+  // carry Amity's "Morning break" onto an order for somewhere else entirely.
+  useEffect(() => setBreakTimeId(null), [schoolId]);
+  const dishInfo = useMemo(() => {
+    const info: Record<string, { imageUri: string | null; foodType: 'veg' | 'non_veg' | 'egg' | null }> = {};
+    for (const dish of payload?.dishes ?? []) {
+      info[dish.id] = { imageUri: dish.imageUri, foodType: dish.foodType };
+    }
+    return info;
+  }, [payload]);
+
+  const { offline } = useConnectivity();
+
+  /**
+   * The allergen warnings on the cart lines — `E05-45`, `F5`/`F6`.
+   *
+   * The prop existed with a test and nothing passed it, so **no cart line has ever warned about
+   * anything** while the menu grid two taps away was flagging the same dish. That is the worst
+   * version of this bug class: the last screen before payment was the silent one.
+   *
+   * `clashingAllergens` is the menu's own function, moved somewhere both can reach it rather
+   * than reimplemented — two allergen matchers eventually disagree, and they would disagree
+   * about the same dish on two screens a parent sees in the same minute.
+   *
+   * **`undefined` when the answer is not `ready`, and that is the safety-critical part.** The
+   * prop's absence is what makes `CartLineRow` say nothing at all; passing `byDishId: {}`
+   * instead would render "no warnings" — a claim we did not check — for a recipient whose
+   * allergens we could not read. `[]` means we asked and there are none; `undefined` means we
+   * could not ask (§5.21, and `AddChildScreen`'s old `catch { return [] }`).
+   */
+  const watchlist = useAllergenWatchlist();
+  /**
+   * **`useOrderingTarget`, never `useOrderTarget`.** The first consults the app's session
+   * before it answers; the second is the raw context, and reading it from a screen is the
+   * disclosure `E03-26`/`E03-27` closed — a minor's name rendered for somebody with no
+   * session. `no-recipient-without-session.test.tsx` refuses the raw one here, and it refused
+   * this exact line when it was first written.
+   */
+  const target = useOrderingTarget();
+  const cartAllergens = useMemo(() => {
+    if (watchlist.status !== 'ready') return undefined;
+    const name = target?.displayName ?? null;
+    // The warning names the person — "Aarav is allergic". Without a name there is no honest
+    // sentence to write, so no warning is claimed either.
+    if (name === null) return undefined;
+
+    const byDishId: Record<string, string[]> = {};
+    for (const dish of payload?.dishes ?? []) {
+      const clashes = clashingAllergens(dish, watchlist);
+      if (clashes.length > 0) byDishId[dish.id] = clashes;
+    }
+    return { recipientName: name, byDishId };
+  }, [watchlist, target, payload]);
+
+  /**
+   * The gate, in the order `docs/ux-spec.md` §6.1 puts it.
+   *
+   * This used to be `navigate('SignIn')` unconditionally, which meant a parent who had
+   * *already* signed in was sent back to sign in again every time they tapped Place order —
+   * the gate firing on someone who had passed it.
+   *
+   * Signed in with nobody to order for goes to Add someone (`R2`), because the next thing
+   * needed is a recipient, not a payment. Signed in with a recipient has nowhere to go yet:
+   * checkout is `E06`, so the button stays inert rather than routing somewhere that would
+   * look finished.
+   */
+  /**
+   * The policy gate, read here rather than inside the handler — `E20-36`.
+   *
+   * It is checked **after** sign-in and recipient, because those two are prerequisites for
+   * having an acceptance at all: a visitor has no user id, so there is nothing to be pending.
+   * And it is checked **before** checkout, because that is the write it exists to block.
+   */
+  const nextPolicy = useNextPendingPolicy();
+
+  const placeOrder = () => {
+    switch (audience.kind) {
+      case 'unknown':
+        // One keychain read away from knowing. Routing now would guess, and guessing wrong
+        // sends a signed-in parent back through sign-in.
+        return;
+      case 'visitor':
+        navigation.navigate('SignIn');
+        return;
+      case 'needsRecipient':
+        navigation.navigate('AddChild');
+        return;
+      case 'ordering':
+        // The gate: one of the six compliance controls, and until `E20-36` it had no caller
+        // anywhere in the app. It sits here — on the write, not on open — because `AR7`
+        // forbids a wall in front of browsing, and because this is the point the acceptance
+        // requirement actually attaches to (`user_policy_acceptance`, `E20-03`).
+        if (nextPolicy !== null) {
+          navigation.navigate('PolicyGate');
+          return;
+        }
+        // Nowhere to go yet: checkout is `E06`. Inert beats routing somewhere that would look
+        // finished.
+        return;
+    }
+  };
+
+  return (
+    <CartScreen
+      onPlaceOrder={placeOrder}
+      dishInfo={dishInfo}
+      breakWindows={breakWindows}
+      breakTimeId={breakTimeId}
+      onSelectBreakTime={setBreakTimeId}
+      /*
+       * `E05-45`, and the reason "cart to prototype" was still open: **five of the prototype's
+       * cart states were built, tested, and never passed by this file.** The offline band, the
+       * allergen warnings, the signed-out reassurance, the Change affordance and the empty
+       * state's way out all existed in `CartScreen.tsx` with a test each, and none of them
+       * could appear on a phone. `orphans.test.ts` covers contexts and required props, not
+       * optional ones — which is the same gap that hid `dishInfo` until `E05-42`.
+       *
+       * Wired below in the order a parent meets them.
+       */
+      offline={offline}
+      /*
+       * `F1`. The reassurance that the cart survives sign-in, shown only to somebody who has
+       * not signed in — for whom the gate is otherwise a surprise at the last step. `visitor`
+       * rather than `!== 'ordering'`: a signed-in parent with no recipient has passed the gate
+       * this sentence is about.
+       */
+      signedOut={audience.kind === 'visitor'}
+      /* The empty cart pointed at the menu and had no button to get there. */
+      onBrowseMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+      onChangeRecipient={() => navigation.navigate('Children')}
+      {...(cartAllergens === undefined ? {} : { allergens: cartAllergens })}
+    />
+  );
+}
+
+const CartTab = withScreenFrame(CartTabScreen, TAB_SCREEN_EDGES);
 const AccountTab = withScreenFrame(AccountScreen, TAB_SCREEN_EDGES);
 
-const DishDetailStackScreen = withScreenFrame(DishDetailScreen, STACK_SCREEN_EDGES);
-const OrdersStackScreen = withScreenFrame(OrdersScreen, STACK_SCREEN_EDGES);
-const OrderDetailStackScreen = withScreenFrame(OrderDetailScreen, STACK_SCREEN_EDGES);
-const AddChildStackScreen = withScreenFrame(AddChildScreen, STACK_SCREEN_EDGES);
-const ChildrenStackScreen = withScreenFrame(ChildrenScreen, STACK_SCREEN_EDGES);
+const DishDetailStackScreen = withScreenFrame(DishDetailScreen, STACK_SCREEN_EDGES, { back: true });
+const OrdersStackScreen = withScreenFrame(OrdersScreen, STACK_SCREEN_EDGES, { back: true });
+const OrderDetailStackScreen = withScreenFrame(OrderDetailScreen, STACK_SCREEN_EDGES, { back: true });
+const AddChildStackScreen = withScreenFrame(AddChildScreen, STACK_SCREEN_EDGES, { back: true });
+const ChildrenStackScreen = withScreenFrame(ChildrenScreen, STACK_SCREEN_EDGES, { back: true });
+const SupportStackScreen = withScreenFrame(SupportScreen, STACK_SCREEN_EDGES, { back: true });
+const DeleteAccountStackScreen = withScreenFrame(DeleteAccountScreen, STACK_SCREEN_EDGES, {
+  back: true,
+});
+const PolicyStackScreen = withScreenFrame(PolicyScreen, STACK_SCREEN_EDGES, { back: true });
 // The modal takes the full set too. On iOS it is presented as a page sheet whose top already
 // clears the status bar, so the top inset buys a little unnecessary whitespace there; on
 // Android `presentation: 'modal'` is a full-screen route where the same inset is the
 // difference between a heading and a heading under the clock. Erring toward the whitespace
 // is the cheap mistake — this is the screen a parent reaches mid-checkout.
-const SignInStackScreen = withScreenFrame(SignInScreen, STACK_SCREEN_EDGES);
+const SignInStackScreen = withScreenFrame(SignInScreen, STACK_SCREEN_EDGES, { back: true });
+
+/**
+ * The policy gate (`E20-36`). Reads the version from the context the cart read it from, so
+ * accepting it removes it from both at once.
+ *
+ * **`back: true` even though the screen draws its own "Not now — keep browsing".** The two do
+ * the same thing, and the redundancy is the cheaper mistake: `reachability.test.ts` cannot see
+ * a button inside a screen, and teaching it to would open the exemption every future
+ * unreachable screen needs — "there is a button in there somewhere" is exactly the reasoning
+ * that let sign-in ship behind a wall. A duplicated exit costs a chevron.
+ */
+function PolicyGateRoute() {
+  const version = useNextPendingPolicy();
+  const { clear } = usePolicyGate();
+  return <PolicyGateContainer version={version} onAccepted={clear} />;
+}
+const PolicyGateStackScreen = withScreenFrame(PolicyGateRoute, STACK_SCREEN_EDGES, {
+  back: true,
+});
 
 function Tabs() {
   // The navigator itself reads the cart, which it did not before. The badge alone cannot
@@ -164,6 +386,10 @@ function Tabs() {
         name="Home"
         component={HomeTab}
         options={{
+          // A stable handle for the Maestro flow (`E14-24`). Without one, the suite that
+          // drives a real build has to tap by visible label — which breaks the first time
+          // a label is shortened or translated, and a flaky e2e suite gets disabled.
+          tabBarButtonTestID: 'tab-home',
           tabBarIcon: ({ focused, color }) => (
             <TabIcon glyph={House} focused={focused} color={color} testID="tab-icon-home" />
           ),
@@ -173,6 +399,10 @@ function Tabs() {
         name="Menu"
         component={MenuTab}
         options={{
+          // A stable handle for the Maestro flow (`E14-24`). Without one, the suite that
+          // drives a real build has to tap by visible label — which breaks the first time
+          // a label is shortened or translated, and a flaky e2e suite gets disabled.
+          tabBarButtonTestID: 'tab-menu',
           tabBarIcon: ({ focused, color }) => (
             <TabIcon
               glyph={UtensilsCrossed}
@@ -187,6 +417,10 @@ function Tabs() {
         name="Cart"
         component={CartTab}
         options={{
+          // A stable handle for the Maestro flow (`E14-24`). Without one, the suite that
+          // drives a real build has to tap by visible label — which breaks the first time
+          // a label is shortened or translated, and a flaky e2e suite gets disabled.
+          tabBarButtonTestID: 'tab-cart',
           // `M06`'s badge, on the tab bar rather than in the cart screen — the whole reason
           // it is the one spring in the product (`S4`) is that adding to cart confirms itself
           // somewhere other than where the user is looking. `animate` stays false here: this
@@ -214,6 +448,10 @@ function Tabs() {
         name="Account"
         component={AccountTab}
         options={{
+          // A stable handle for the Maestro flow (`E14-24`). Without one, the suite that
+          // drives a real build has to tap by visible label — which breaks the first time
+          // a label is shortened or translated, and a flaky e2e suite gets disabled.
+          tabBarButtonTestID: 'tab-account',
           tabBarIcon: ({ focused, color }) => (
             <TabIcon glyph={User} focused={focused} color={color} testID="tab-icon-account" />
           ),
@@ -249,9 +487,26 @@ export function RootNavigator() {
             `AddChild` is: the mock has four tabs and this is not one of them. It mounts
             with no session and shows its empty state rather than a gate (`AR7`). */}
         <Stack.Screen name="Children" component={ChildrenStackScreen} />
+        {/* `E20-39`. Reached from Account, and deliberately not behind a session: someone
+            whose complaint is that they cannot sign in must still be able to reach us. */}
+        <Stack.Screen name="Support" component={SupportStackScreen} />
+        {/* `E20-37`. A push, not a modal: this is somewhere you went deliberately from
+            Account, and backing out of it should read as returning, not as dismissing. */}
+        <Stack.Screen name="DeleteAccount" component={DeleteAccountStackScreen} />
+        {/* `E20-38`. No session required — a visitor deciding whether to sign up is exactly
+            who reads a privacy policy, and `[AZ-03]` requires it reachable without an account. */}
+        <Stack.Screen name="Policy" component={PolicyStackScreen} />
         <Stack.Screen
           name="SignIn"
           component={SignInStackScreen}
+          options={{ presentation: 'modal' }}
+        />
+        {/* Modal for the same reason `SignIn` is: it interrupts placing an order and then
+            returns you to it. A push would put it in the back stack as a destination, and
+            "Not now" would read as going back rather than resuming. */}
+        <Stack.Screen
+          name="PolicyGate"
+          component={PolicyGateStackScreen}
           options={{ presentation: 'modal' }}
         />
       </Stack.Navigator>

@@ -28,7 +28,7 @@
 export { color, logoOnColor, primary, forest, amber, lime, neutral, danger, scrim } from './color.js';
 export type { ColorRamps } from './color.js';
 
-export { semantic, bg, text, border, action, nav, badge, focus, status } from './semantic.js';
+export { semantic, bg, text, border, action, nav, badge, focus, status, foodType } from './semantic.js';
 export type { SemanticRoles } from './semantic.js';
 
 export {

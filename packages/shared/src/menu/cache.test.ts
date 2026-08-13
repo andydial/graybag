@@ -1,8 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { MenuUnavailableError, createMenuCache, type MenuStorage } from './cache.js';
+import {
+  MENU_CACHE_EPOCH,
+  MenuUnavailableError,
+  MenuUnreadableError,
+  createMenuCache,
+  type MenuStorage,
+} from './cache.js';
 
 type Menu = { items: string[] };
+
+/**
+ * The cache is generic, so it needs telling what "empty" means for this payload. Properties 5
+ * and 6 both hang off it, and both exist because a refused read arrives as `200 []`.
+ */
+const isEmpty = (menu: Menu) => menu.items.length === 0;
 
 function memoryStorage(): MenuStorage & { store: Map<string, string> } {
   const store = new Map<string, string>();
@@ -34,6 +46,7 @@ describe('createMenuCache', () => {
     const fetchMenu = vi.fn(async () => ({ menu: { items: ['a'] }, version: 5 }));
     const cache = createMenuCache<Menu>({
       storage,
+      isEmpty,
       fetchVersion: async () => 5,
       fetchMenu,
       now: NOW,
@@ -49,7 +62,9 @@ describe('createMenuCache', () => {
     // The entire point. One tiny request on open, and no menu body over the wire.
     const fetchMenu = vi.fn(async () => ({ menu: { items: ['a'] }, version: 5 }));
     const fetchVersion = vi.fn(async () => 5);
-    const cache = createMenuCache<Menu>({ storage, fetchVersion, fetchMenu, now: NOW });
+    const cache = createMenuCache<Menu>({
+      storage,
+      isEmpty, fetchVersion, fetchMenu, now: NOW });
 
     await cache.get(SCHOOL);
     expect(fetchMenu).toHaveBeenCalledTimes(1);
@@ -65,6 +80,7 @@ describe('createMenuCache', () => {
     const fetchMenu = vi.fn(async () => ({ menu: { items: [`v${version}`] }, version }));
     const cache = createMenuCache<Menu>({
       storage,
+      isEmpty,
       fetchVersion: async () => version,
       fetchMenu,
       now: NOW,
@@ -87,6 +103,7 @@ describe('createMenuCache', () => {
     let online = true;
     const cache = createMenuCache<Menu>({
       storage,
+      isEmpty,
       fetchVersion: async () => {
         if (!online) throw new Error('offline');
         return 5;
@@ -109,6 +126,7 @@ describe('createMenuCache', () => {
     let menuWorks = true;
     const cache = createMenuCache<Menu>({
       storage,
+      isEmpty,
       fetchVersion: async () => version,
       fetchMenu: async () => {
         if (!menuWorks) throw new Error('connection reset');
@@ -128,6 +146,7 @@ describe('createMenuCache', () => {
   it('throws only when there is nothing cached and the fetch fails', async () => {
     const cache = createMenuCache<Menu>({
       storage,
+      isEmpty,
       fetchVersion: async () => {
         throw new Error('offline');
       },
@@ -147,6 +166,7 @@ describe('createMenuCache', () => {
   it('stores the version that came with the menu, not the one from the version endpoint', async () => {
     const cache = createMenuCache<Menu>({
       storage,
+      isEmpty,
       fetchVersion: async () => 9,
       fetchMenu: async () => ({ menu: { items: ['a'] }, version: 10 }),
       now: NOW,
@@ -167,7 +187,9 @@ describe('createMenuCache', () => {
       return { menu: { items: ['a'] }, version: 1 };
     });
     const fetchVersion = vi.fn(async () => 1);
-    const cache = createMenuCache<Menu>({ storage, fetchVersion, fetchMenu, now: NOW });
+    const cache = createMenuCache<Menu>({
+      storage,
+      isEmpty, fetchVersion, fetchMenu, now: NOW });
 
     const results = await Promise.all([
       cache.get(SCHOOL),
@@ -190,6 +212,7 @@ describe('createMenuCache', () => {
     }));
     const cache = createMenuCache<Menu>({
       storage,
+      isEmpty,
       fetchVersion: async () => 1,
       fetchMenu,
       now: NOW,
@@ -205,6 +228,7 @@ describe('createMenuCache', () => {
     await storage.setItem('graybag.menu.v1.school-1', '{not json');
     const cache = createMenuCache<Menu>({
       storage,
+      isEmpty,
       fetchVersion: async () => 1,
       fetchMenu: async () => ({ menu: { items: ['a'] }, version: 1 }),
       now: NOW,
@@ -220,6 +244,7 @@ describe('createMenuCache', () => {
     await storage.setItem('graybag.menu.v1.school-1', JSON.stringify({ menu: { items: ['old'] } }));
     const cache = createMenuCache<Menu>({
       storage,
+      isEmpty,
       fetchVersion: async () => 1,
       fetchMenu: async () => ({ menu: { items: ['new'] }, version: 1 }),
       now: NOW,
@@ -240,6 +265,7 @@ describe('createMenuCache', () => {
     };
     const cache = createMenuCache<Menu>({
       storage: failing,
+      isEmpty,
       fetchVersion: async () => 1,
       fetchMenu: async () => ({ menu: { items: ['a'] }, version: 1 }),
       now: NOW,
@@ -253,6 +279,7 @@ describe('createMenuCache', () => {
     const fetchMenu = vi.fn(async () => ({ menu: { items: ['a'] }, version: 1 }));
     const cache = createMenuCache<Menu>({
       storage,
+      isEmpty,
       fetchVersion: async () => 1,
       fetchMenu,
       now: NOW,
@@ -263,5 +290,137 @@ describe('createMenuCache', () => {
     await cache.get(SCHOOL);
 
     expect(fetchMenu).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * The incident these exist for.
+ *
+ * `AUTH-01` left `anon` without a grant on `public_menu`. PostgREST answers a read that RLS or
+ * a missing grant filtered to nothing with `200 []` — so the app received an empty menu, cached
+ * it against a perfectly valid version, and from then on the version matched on every open. The
+ * cache short-circuited and served that morning's authorization failure back as data, on every
+ * device that had opened the app once, for ever.
+ *
+ * Three separate defences, because any one of them alone leaves a way back in.
+ */
+describe('createMenuCache — a refused read is not an empty menu', () => {
+  let storage: ReturnType<typeof memoryStorage>;
+  beforeEach(() => {
+    storage = memoryStorage();
+  });
+
+  it('refuses to treat an empty body as a menu when a version says one exists', async () => {
+    const cache = createMenuCache<Menu>({
+      storage,
+      isEmpty,
+      // A version row exists, so a menu has been published for this school...
+      fetchVersion: async () => 7,
+      // ...but the read came back with nothing, which can only mean we were not allowed to see it.
+      fetchMenu: async () => ({ menu: { items: [] }, version: 7 }),
+      now: NOW,
+    });
+
+    await expect(cache.get(SCHOOL)).rejects.toBeInstanceOf(MenuUnreadableError);
+  });
+
+  it('never writes an empty menu to disk', async () => {
+    const cache = createMenuCache<Menu>({
+      storage,
+      isEmpty,
+      fetchVersion: async () => 7,
+      fetchMenu: async () => ({ menu: { items: [] }, version: 7 }),
+      now: NOW,
+    });
+
+    await cache.get(SCHOOL).catch(() => undefined);
+
+    // Nothing persisted means nothing to be poisoned by on the next open.
+    expect(storage.store.size).toBe(0);
+  });
+
+  // The other half: a school that genuinely has no published menu has NO version row, and that
+  // is the only case allowed to render as "nothing on the menu yet" (ux-spec §5.21, N1 vs N2).
+  it('serves a genuinely unpublished menu as empty, without caching it', async () => {
+    const cache = createMenuCache<Menu>({
+      storage,
+      isEmpty,
+      fetchVersion: async () => null,
+      fetchMenu: async () => ({ menu: { items: [] }, version: 0 }),
+      now: NOW,
+    });
+
+    const result = await cache.get(SCHOOL);
+    expect(result.menu.items).toEqual([]);
+    // Not cached: a school publishes its first menu exactly once, and paying one small request
+    // per open until it does is the right price for making the poisoned state unreachable.
+    expect(storage.store.size).toBe(0);
+  });
+
+  it('never trusts a cached empty menu, even when the version matches', async () => {
+    // The poison escape. Property 5 should stop one ever being written; this is what stops a
+    // device stranded by an older build — or a path nobody has thought of — from staying stuck.
+    const key = `graybag.menu.v1.e${MENU_CACHE_EPOCH}.${SCHOOL}`;
+    storage.store.set(
+      key,
+      JSON.stringify({ version: 7, menu: { items: [] }, fetchedAt: '2026-08-09T00:00:00Z' }),
+    );
+
+    const fetchMenu = vi.fn(async () => ({ menu: { items: ['recovered'] }, version: 7 }));
+    const cache = createMenuCache<Menu>({
+      storage,
+      isEmpty,
+      // Unchanged version — the exact condition that used to short-circuit for ever.
+      fetchVersion: async () => 7,
+      fetchMenu,
+      now: NOW,
+    });
+
+    const result = await cache.get(SCHOOL);
+
+    expect(fetchMenu).toHaveBeenCalledTimes(1);
+    expect(result.menu.items).toEqual(['recovered']);
+  });
+});
+
+/**
+ * The property that reaches beyond this incident.
+ *
+ * A GRANT or an RLS change alters what the app may read without moving any menu's version, so
+ * a content version cannot express it. Without an epoch in the key, every installed app keeps
+ * the pre-change answer for ever — which is exactly what `AUTH-01` did to every device that had
+ * opened the app before it landed.
+ */
+describe('MENU_CACHE_EPOCH', () => {
+  it('orphans every entry written under a previous epoch', async () => {
+    const storage = memoryStorage();
+    const previousEpochKey = `graybag.menu.v1.e${MENU_CACHE_EPOCH - 1}.${SCHOOL}`;
+    storage.store.set(
+      previousEpochKey,
+      JSON.stringify({ version: 7, menu: { items: ['stale'] }, fetchedAt: '2026-08-09T00:00:00Z' }),
+    );
+
+    const fetchMenu = vi.fn(async () => ({ menu: { items: ['fresh'] }, version: 7 }));
+    const cache = createMenuCache<Menu>({
+      storage,
+      isEmpty,
+      fetchVersion: async () => 7,
+      fetchMenu,
+      now: NOW,
+    });
+
+    const result = await cache.get(SCHOOL);
+
+    // The old entry is unreachable rather than deleted — nothing has to enumerate keys, and a
+    // downgrade to a previous build still finds its own cache where it left it.
+    expect(fetchMenu).toHaveBeenCalledTimes(1);
+    expect(result.menu.items).toEqual(['fresh']);
+    expect(storage.store.get(previousEpochKey)).toBeDefined();
+  });
+
+  it('is a number that only ever goes up', () => {
+    // A downgrade would re-expose exactly the caches a bump was meant to orphan.
+    expect(Number.isInteger(MENU_CACHE_EPOCH)).toBe(true);
+    expect(MENU_CACHE_EPOCH).toBeGreaterThanOrEqual(2);
   });
 });

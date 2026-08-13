@@ -95,3 +95,62 @@ To close it: install a Docker daemon, run §2, then `npm run test:all`.
   the failure is in the first migration that is wrong, not necessarily the newest.
 - **`node` or `npm` dies with a dyld error about `libicui18n`** — a Homebrew install upgraded
   `icu4c` out from under the Node binary. `docs/learnings.md`, 2026-08-07 has the fix.
+
+## Colima: where the VM lives, and the one way it fails — 2026-08-12
+
+**Start the local runtime with `./scripts/colima-up.sh`, not `colima start`.**
+
+### The VM disk is not on the boot disk
+
+`~/.colima/_lima` is a **symlink** to
+`/Volumes/Data/AD/Projects/Claude/Installs/colima/_lima`. That directory holds ~10 GB and it
+filled the 204 GB system volume in August 2026.
+
+**`COLIMA_HOME` is deliberately NOT set**, and this is the part worth reading before you "tidy"
+it. Pointing `COLIMA_HOME` at the external volume was the obvious fix and it moves the docker
+**socket** there as well as the disk — and a unix socket on virtiofs cannot be bind-mounted into
+a container. `supabase start` then fails on `supabase_vector` with:
+
+```
+error while creating mount source path '.../colima/default/docker.sock':
+mkdir ...: operation not supported
+```
+
+followed by everything else failing to reach Postgres. So the split is: **sockets on APFS
+(12 KB, under `~/.colima`), disk on the external volume (10 GB).**
+
+Also: **`colima delete` does not delete the disk.** Lima tracks named disks separately from
+instances, so deleting the VM left an orphaned 11 GB `_disks/colima` behind. If you are
+reclaiming space, check `limactl disk list`, not just `du`.
+
+### The external volume must be mounted BEFORE Colima starts
+
+Colima fixes its mounts at start time. There is no settings pane and no later reconciliation.
+Start it without `/Volumes/Data` present and the VM comes up **healthy, with an empty directory
+where the project should be** — and then every tool reports something else:
+
+| What you see | What it means |
+|---|---|
+| `supabase test db` → `Files=0, Tests=0, NOTESTS`, **exit 0** | The mount is empty |
+| `supabase functions deploy` → `entrypoint path does not exist` about a file you can `ls` | The mount is empty |
+
+Both of those cost a day between them. `scripts/colima-up.sh` refuses to start and says so
+instead. To check by hand:
+
+```bash
+mount | grep /Volumes/Data
+docker run --rm -v "$PWD:/w" alpine ls /w    # must list the repo, not nothing
+```
+
+### Deploying Edge Functions does not need Docker at all
+
+```bash
+npx supabase functions deploy <name> --no-verify-jwt --use-api
+```
+
+`--use-api` bundles server-side through the Management API. Prefer it: it removes this whole
+class of failure from the deploy path, and it bundles `supabase/functions/_shared/**` correctly.
+
+### Anything else we install
+
+Under `/Volumes/Data/AD/Projects/Claude/Installs/`, for the same reason.

@@ -30,10 +30,28 @@ const { bg, radius, duration } = design;
  *
  * **The placeholder is a skeleton box, never a spinner** (`S5`) — and it is the *same* box
  * the image will occupy, so nothing shifts when it lands.
+ *
+ * ## Shape
+ *
+ * `size` sets the width. `aspectRatio` sets the height — **1 (square) by default**, so every
+ * existing caller is unchanged, and 16/10 for the cards and heroes the menu actually uses.
+ *
+ * It grew this prop because three screens had already hand-rolled a rectangular `expo-image`
+ * around it — Menu's cards, Dish detail's hero, Home's promoted dish — each re-deriving the
+ * same four settings (`memory-disk`, `recyclingKey`, `duration.fast`, cover). Three copies of a
+ * performance decision is three places for it to drift, on the component whose whole reason for
+ * existing is that the decision is made once.
+ *
+ * `fill` is the escape hatch for a caller whose parent already sizes the box — a grid cell with
+ * `flex: 1`, say. It sets no width at all and stretches to the container.
  */
 export function DishImage({
   uri,
   size,
+  /** Width ÷ height. 1 is square; the menu's cards and heroes are 16/10. */
+  aspectRatio = 1,
+  /** Ignore `size` and fill the parent, for a caller that already sizes the box. */
+  fill = false,
   /**
    * The dish id. Passed to `recyclingKey` — see above; without it a recycled row shows the
    * previous dish's photo against the new dish's name until the new image decodes.
@@ -50,16 +68,24 @@ export function DishImage({
 }: {
   uri: string | null;
   size: number;
+  aspectRatio?: number;
+  fill?: boolean;
   recyclingKey: string;
   contentFit?: ImageContentFit;
   accessibilityLabel?: string;
   testID?: string;
 }) {
+  // One shape, computed once, so the placeholder and the image can never disagree about the
+  // box — which is the whole point of the placeholder being the same box (`S5`).
+  const shape = fill
+    ? ({ width: '100%', height: '100%' } as const)
+    : ({ width: size, height: size / aspectRatio } as const);
+
   if (uri === null) {
     return (
       <View
         testID={testID}
-        style={[styles.placeholder, { width: size, height: size }]}
+        style={[styles.placeholder, shape]}
         accessibilityElementsHidden
         importantForAccessibility="no"
       />
@@ -71,7 +97,7 @@ export function DishImage({
       testID={testID}
       source={{ uri }}
       recyclingKey={recyclingKey}
-      style={[styles.image, { width: size, height: size }]}
+      style={[styles.image, shape]}
       contentFit={contentFit}
       // Disk, so a menu survives an app restart on a connection that may not come back.
       cachePolicy="memory-disk"
@@ -99,3 +125,13 @@ const styles = StyleSheet.create({
  * what keeps the rendered set at three. A fourth size is a pipeline change, not a prop.
  */
 export const IMAGE_SIZES = { thumb: 96, card: 160, hero: 640 } as const;
+
+/**
+ * The hero band's proportion, shared by Home's promoted dish and the dish sheet.
+ *
+ * It lives here, beside `IMAGE_SIZES`, because the two screens had **different** values — Home
+ * 16:9, the sheet 16:10 — and nobody chose that. The sheet's image dominated as a result
+ * (Andy, 2026-08-11): Home shows the same dish larger overall and reads better, because the
+ * proportion is right rather than the size being small. One constant so they cannot drift again.
+ */
+export const HERO_ASPECT = 16 / 9;

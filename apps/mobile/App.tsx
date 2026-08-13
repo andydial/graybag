@@ -2,9 +2,15 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { CartProvider } from './src/cart/CartContext';
-import { configureApiFromEnvironment } from './src/env/configure';
+import { configureApiFromEnvironment, missingClientEnvNames } from './src/env/configure';
 import { guardFromEnvironment } from './src/env/guard';
+import { installMenuCache } from './src/menu/installMenuCache';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { PolicyGateProvider } from './src/policy/PolicyGateContext';
+import { CantConnectScreen } from './src/status/CantConnectScreen';
+import { ConnectivityProvider } from './src/net/ConnectivityContext';
+import { OrderTargetProvider } from './src/session/OrderTargetContext';
+import { SchoolFollowsRecipient } from './src/session/SchoolFollowsRecipient';
 import { SelectedSchoolProvider } from './src/session/SelectedSchoolContext';
 import { SessionProvider } from './src/session/SessionContext';
 
@@ -37,13 +43,44 @@ guardFromEnvironment();
 // Deliberately not fatal: an app with no environment still opens, shows its empty states,
 // and names the problem at the call site rather than dying with a stack trace in front of
 // a parent (`AR7` — nothing should be a wall in front of browsing).
-configureApiFromEnvironment();
+const apiConfigured = configureApiFromEnvironment();
+
+// And install the menu cache, which nothing did until now — `setMenuCache` existed and was
+// exported and was called only from tests, so every real build ran with `cache === null` and
+// the Menu tab said "this school's menu has not been published" on every school, always.
+// See `installMenuCache` for why the unit suites could not see it.
+installMenuCache();
 
 export default function App() {
+  /**
+   * The one case where the app genuinely cannot work, said out loud.
+   *
+   * `configureApiFromEnvironment()` returns false when the environment is incomplete, and until
+   * now nothing acted on that: the app opened, every screen failed in its own way, and an
+   * unconfigured build read as an empty menu. That is what made a working staging environment
+   * look like a data problem for three hours on 2026-08-10.
+   *
+   * Diagnostics are shown outside production only, and they name the missing VARIABLES, never
+   * any value — so a screenshot of this screen is safe to paste anywhere (`R6`).
+   */
+  if (!apiConfigured) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <CantConnectScreen
+          showDiagnostics={process.env.EXPO_PUBLIC_APP_ENV !== 'production'}
+          appEnv={process.env.EXPO_PUBLIC_APP_ENV ?? 'unknown'}
+          missing={missingClientEnvNames()}
+        />
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      <SessionProvider>
+      <ConnectivityProvider>
+        <SessionProvider>
         <SelectedSchoolProvider>
           {/*
             The cart sits *inside* the school provider and *above* the navigator. Inside,
@@ -54,11 +91,39 @@ export default function App() {
             It is deliberately not inside any session gate: `AR7` — the cart fills signed
             out, and the only gate in the app is at checkout.
           */}
-          <CartProvider>
-            <RootNavigator />
-          </CartProvider>
+          {/*
+            `OrderTargetProvider` was written, exported, and **mounted nowhere** — so every
+            screen read the context's DEFAULT value, `target` was permanently null, and no
+            amount of fixing `setTarget` could have helped. The fifth instance this week of
+            "both sides written, the wire missing, every test green"; the orphan guard
+            (`src/architecture/orphans.test.ts`) exists to make the sixth impossible.
+
+            Inside the school provider, because `SchoolFollowsRecipient` below reads both and
+            makes the school follow whoever the order is for — one answer to "which school",
+            instead of two that drift.
+          */}
+          <OrderTargetProvider>
+            <SchoolFollowsRecipient>
+              <CartProvider>
+                {/*
+                  The policy-version acceptance gate (`E20-36`). Above the navigator because
+                  the cart decides whether to open it and the gate screen renders it — two
+                  screens that must agree on one answer, which is what `OrderTargetProvider`
+                  above did not have and why it silently read its own default for weeks.
+
+                  Inside the session provider, because it reads `useAudience`: a visitor has
+                  no user id and so can have nothing pending, and it must not fire a request
+                  in front of the menu for someone who has not signed in (`AR7`).
+                */}
+                <PolicyGateProvider>
+                  <RootNavigator />
+                </PolicyGateProvider>
+              </CartProvider>
+            </SchoolFollowsRecipient>
+          </OrderTargetProvider>
         </SelectedSchoolProvider>
-      </SessionProvider>
+        </SessionProvider>
+      </ConnectivityProvider>
     </SafeAreaProvider>
   );
 }

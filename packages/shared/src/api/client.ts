@@ -56,6 +56,18 @@ export interface SelectBuilder extends PromiseLike<QueryResult> {
    * never true — so a revoked `guardian_link` would have been filtered by nothing at all.
    */
   is(column: string, value: null | boolean): SelectBuilder;
+  /**
+   * `<=`. Added for `fetchPendingPolicies`, which must not gate anyone on a policy version
+   * that is published but whose `effective_from` has not arrived.
+   */
+  lte(column: string, value: unknown): SelectBuilder;
+  /**
+   * Negation of another operator — `not('published_at', 'is', null)` is `IS NOT NULL`.
+   *
+   * `is(column, null)` is the opposite query, and there is no `isNot`. Added for
+   * `fetchPendingPolicies`: an unpublished draft must never gate an order.
+   */
+  not(column: string, operator: string, value: unknown): SelectBuilder;
   order(column: string, options?: { ascending?: boolean }): SelectBuilder;
 }
 
@@ -85,6 +97,15 @@ export interface ApiTransport {
 }
 
 let transport: ApiTransport | null = null;
+
+/**
+ * The configured Supabase origin, kept so `storagePublicUrl` can build an absolute URL.
+ *
+ * The client itself does not expose the URL it was built with, and every alternative is worse:
+ * re-reading `process.env` here would bypass `loadClientEnv`'s validation, and threading the
+ * origin through every call site would put a copy of it in six screens.
+ */
+let origin: string | null = null;
 
 /** Thrown when the module is used before `configureApi()` has run. */
 export class ApiNotConfiguredError extends Error {
@@ -125,6 +146,7 @@ export function configureApi(env: ClientEnv, options: { sessionStore?: SessionSt
   // by decision `U3` (90-180 days), and the whole point of that decision is that a
   // returning parent does not see an OTP. `detectSessionInUrl` is off because there is no
   // URL — it is a browser concern and leaving it on makes the client look for one.
+  origin = env.supabaseUrl.replace(/\/+$/, '');
   transport = createClient(env.supabaseUrl, env.supabaseAnonKey, {
     auth: {
       storage: chunkedStore(options.sessionStore ?? memoryStore()),
@@ -205,5 +227,33 @@ export async function invokeFunction<T>(
   }
   throw new ApiError(error.message);
 }
+
+/**
+ * Turn a Storage key into an absolute public URL.
+ *
+ * `asset.path` — and therefore `public_menu.image_path` — holds a **key**, not a URL:
+ * `dishes/<file>.png`. That is the right thing to store. `asset` has its own `bucket` column
+ * and a `unique (bucket, path)`, both of which are meaningless if the path is a URL, and a URL
+ * would bake one project's hostname into data that gets promoted between environments.
+ *
+ * But React Native's `<Image source={{ uri }}>` needs an absolute URL, so something has to do
+ * the conversion. It belongs here, in the one module that knows which project is configured,
+ * rather than in each screen — which is how six screens would come to hold six copies of a
+ * hostname.
+ *
+ * Returns `null` for a null key or before `configureApi` has run: a bare key rendered as a URI
+ * fails silently as a broken image, and a null at least reaches the "no photo" branch that
+ * every dish surface already draws properly (`E21`'s pattern tile, never a grey box).
+ */
+export function storagePublicUrl(bucket: string, key: string | null): string | null {
+  if (key === null || key === '') return null;
+  if (origin === null) return null;
+  // Already absolute — a caller that has done this once must not have it done twice.
+  if (/^https?:\/\//i.test(key)) return key;
+  return `${origin}/storage/v1/object/public/${bucket}/${key.replace(/^\/+/, '')}`;
+}
+
+/** The bucket dish photography lives in — `0002` §15 creates it, `E16-43` fills it. */
+export const DISH_IMAGE_BUCKET = 'dish-images';
 
 export type { SupabaseClient };

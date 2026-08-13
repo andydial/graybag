@@ -14,6 +14,8 @@ export {
   ApiNotConfiguredError,
   configureApi,
   invokeFunction,
+  storagePublicUrl,
+  DISH_IMAGE_BUCKET,
   setApiTransport,
   type ApiTransport,
   type FunctionsRef,
@@ -85,12 +87,52 @@ export {
   RECIPIENT_COLUMNS,
   RecipientPayloadError,
   changeRecipientSchool,
+  updateRecipientDetails,
+  removeRecipient,
   createRecipient,
   fetchRecipients,
+  fetchRecipientAllergens,
   type ApiRecipient,
   type CreatedRecipient,
   type NewRecipient,
+  type RecipientEdit,
   type SchoolChange,
   type SchoolChangeResult,
 } from './recipients.js';
 
+
+// The policy-version acceptance gate (`E20-36`, `E20-03`). The read is a PostgREST query
+// under RLS; the acceptance is a write and so goes through the `policy` Edge Function, which
+// owns `source` and the evidence columns — evidence a client can author is not evidence.
+export {
+  POLICY_VERSION_COLUMNS,
+  PolicyPayloadError,
+  acceptPolicyVersion,
+  compareVersions,
+  fetchPendingPolicies,
+  type PendingPolicy,
+} from './policy.js';
+
+// The break windows a parent picks from (`E05-30`, `P19`). An empty list is the answer "this
+// school cannot take orders yet", not an empty state — `0027` makes it readable signed out so a
+// visitor learns that before building a cart rather than after signing in.
+export {
+  BREAK_TIME_COLUMNS,
+  BreakTimePayloadError,
+  fetchBreakTimes,
+  formatBreakWindow,
+  type BreakTime,
+} from './breakTimes.js';
+
+// The account holder's own name (`P18`, `E05-39`). Asked once, after payment, and never a
+// precondition for anything: order one has no name and that has to be fine everywhere.
+export {
+  PROFILE_COLUMNS,
+  ProfilePayloadError,
+  clearUserName,
+  fetchProfile,
+  setUserName,
+  shouldAskForName,
+  skipNamePrompt,
+  type Profile,
+} from './profile.js';

@@ -55,20 +55,30 @@ const json = (status: number, payload: unknown) =>
  * discarded would believe the kitchen knows.
  */
 const REFUSALS: Record<string, string> = {
-  first_name_required: 'Please enter your child’s first name.',
+  // Recipient-neutral, and **one entry, not two** (`E05-38`). This map had `first_name_required`
+  // twice — "Please enter your child's first name." and then "A first name is needed." — and
+  // an object literal keeps the last one, so the first was dead the day it was written. It is
+  // also the wrong sentence now: an adult adding themselves has no child to name.
+  first_name_required: 'A first name is needed.',
   school_unavailable: 'GrayBag is not serving that school yet.',
   allergen_consent_required:
     'To store allergy details we need your permission on the allergies question.',
-  no_notice_published: 'We cannot add a child just now. Please try again shortly.',
-  recipient_not_found: 'That child is no longer available.',
+  no_notice_published: 'We cannot add anyone just now. Please try again shortly.',
+  recipient_not_found: 'That person is no longer available.',
+  // `E05-38` / `0022`. One adult cannot be two self-recipients, and the app hides the entry
+  // point once one exists — so reaching this means two devices raced, or a stale screen. The
+  // sentence says it is already done rather than reporting a failure, because from where the
+  // person is standing it *is* already done.
+  self_recipient_exists:
+    'You’re already on your own list — you can order for yourself from there.',
   future_orders_exist:
     'There are orders for this child that have not been delivered yet. Cancel those days first, then change the school.',
 };
 
 Deno.serve(async (request: Request) => {
   const method = request.method;
-  if (method !== 'POST' && method !== 'PATCH') {
-    return json(405, { error: 'POST or PATCH only' });
+  if (method !== 'POST' && method !== 'PATCH' && method !== 'DELETE') {
+    return json(405, { error: 'POST, PATCH or DELETE only' });
   }
 
   const authorization = request.headers.get('Authorization') ?? '';
@@ -78,11 +88,14 @@ Deno.serve(async (request: Request) => {
     return json(401, { error: 'sign in to add a child' });
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return json(400, { error: 'body must be JSON' });
+  // DELETE carries no body — the id is in the path. Requiring one would be ceremony.
+  let body: Record<string, unknown> = {};
+  if (method !== 'DELETE') {
+    try {
+      body = await request.json();
+    } catch {
+      return json(400, { error: 'body must be JSON' });
+    }
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
@@ -113,13 +126,15 @@ Deno.serve(async (request: Request) => {
     // that read as agreement because the client sent the wrong type.
     const allergenConsent = body.allergen_consent === true;
     const consentGranted = body.consent_granted === true;
+    const isSelf = body.is_self === true;
     if (!consentGranted) {
       // The required purpose. There is no "add the child now and ask later" path: the row
       // and the consent are written in one transaction precisely so this cannot happen.
       return json(409, {
         code: 'consent_required',
-        message:
-          'We need your permission to use your child’s details before we can add them.',
+        message: isSelf
+          ? 'We need your permission to use your details before we can add you.'
+          : 'We need your permission to use your child’s details before we can add them.',
       });
     }
 
@@ -133,6 +148,12 @@ Deno.serve(async (request: Request) => {
       p_allergen_ids: Array.isArray(body.allergen_ids) ? body.allergen_ids : [],
       p_allergy_note: body.allergy_note ?? null,
       p_allergen_consent: allergenConsent,
+      // `E05-38`. Strictly `=== true`, like the consent flags above and for a stronger reason:
+      // this decides which privacy notice the consent record points at and which purposes it
+      // names, and `"false"` is a truthy string. An adult must not be recorded as having
+      // consented on behalf of a child, and a child must not be recorded as having consented
+      // for themselves — the second is the one DPDP cares about most.
+      p_is_self: isSelf,
       // Screen, app version and the id of the wording shown — never the child (§11.5).
       p_capture_context: {
         screen: String(body.screen ?? 'add-child'),
@@ -150,8 +171,43 @@ Deno.serve(async (request: Request) => {
     return json(400, { error: 'recipient id is required in the path' });
   }
 
+  /**
+   * Removal — `E05-44`. Deactivates the recipient and revokes every guardian link.
+   *
+   * Not a DPDP erasure: order history, invoices and ledger entries are retained deliberately
+   * (see `0025`). Erasure is `E20-06` and has its own process.
+   */
+  if (method === 'DELETE') {
+    const { data, error } = await asService.rpc('deactivate_recipient', {
+      p_guardian_user_id: userData.user.id,
+      p_recipient_id: recipientId,
+    });
+    return respond(error, () => json(200, data), 'deactivate_recipient');
+  }
+
+  /**
+   * PATCH does two different things, told apart by whether a school was named.
+   *
+   * With `school_id` it is a move, which has a future-order guard and a class reset. Without
+   * one it is a correction — a mistyped section, a new class in July — and those must not have
+   * to pretend to be a school move to get through, which is the only route that existed.
+   */
   const schoolId = String(body.school_id ?? '').trim();
-  if (!schoolId) return json(400, { error: 'school_id is required' });
+  if (!schoolId) {
+    const { data, error } = await asService.rpc('update_recipient_details', {
+      p_guardian_user_id: userData.user.id,
+      p_recipient_id: recipientId,
+      p_first_name: body.first_name ?? null,
+      p_last_name: body.last_name ?? null,
+      p_class_label: body.class_label ?? null,
+      p_section_label: body.section_label ?? null,
+      // Explicit, because null already means "leave alone" and a parent has to be able to
+      // remove a section they added by mistake.
+      p_clear_section: body.clear_section === true,
+      p_clear_last_name: body.clear_last_name === true,
+    });
+    return respond(error, () => json(200, data), 'update_recipient_details');
+  }
 
   const { data, error } = await asService.rpc('change_recipient_school', {
     p_guardian_user_id: userData.user.id,

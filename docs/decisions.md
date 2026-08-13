@@ -20,7 +20,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [The `api/` module rule](decisions/api-module.md) | `AP1`–`AP4` | How `A4` is enforced: the lint gate, the shared `no-restricted-syntax` slot, the write ban |
 | [Data model](decisions/data-model.md) | `D1`–`D18` | Roles, recipients, config chain, ledger, money types, RLS default-deny |
 | [Auth](decisions/auth.md) | `U1`–`U5` | Google / Apple / email-OTP, no passwords, sender identity, and how a signed-out user reads the menu |
-| [Product](decisions/product.md) | `P1`–`P11` | Attendance, delivery, reports, offline, device tier |
+| [Product](decisions/product.md) | `P1`–`P20` | Attendance, delivery, reports, offline, device tier, product metrics, name capture, break windows |
 | [Navigation and the app shell](decisions/navigation.md) | `NV1`–`NV9` | One graph, one gate reached by intent, four tabs, the AR7 assertion, the menu screen |
 | [Network resilience](decisions/network.md) | `NR1`–`NR4` | Per-attempt timeouts, full jitter, what is never retried, and why a write is not |
 | [Money](decisions/money.md) | `M1`–`M9` | Seller of record, GST split, invoice numbering, revenue share, refunds |
@@ -29,7 +29,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Payments integration](decisions/payments.md) | `PY1`–`PY9` | Razorpay secrets, webhook contract, refund arithmetic, reconciliation |
 | [Menu import and the cache token](decisions/menu-import.md) | `MI1`–`MI13`, `MC1`–`MC5` | Blank allergens mean unknown, plan-then-apply, and what bumps `school_menu_version` |
 | [GST and invoicing](decisions/gst-invoicing.md) | `G1`–`G10` | Per-line rounding, CGST/SGST computed independently, gapless series |
-| [Consent, retention and DPDP](decisions/dpdp.md) | `C1`–`C9` | Consent atomicity, purpose immutability, retention as data, breach clock |
+| [Consent, retention and DPDP](decisions/dpdp.md) | `C1`–`C19` | Consent atomicity, purpose immutability, retention as data, breach clock |
 | [Release](decisions/release.md) | `R1`–`R8` | Closed beta, cutover freeze window, rollback-by-default gates |
 | [Policy documents](decisions/policy-documents.md) | `PP1`–`PP4` | Cross-reference not duplicate, retention tokens, allergy disclaimer |
 | [Store submission](decisions/store-submission.md) | `SUB1`–`SUB3` | Declarations derived from the policy, no tracking, no ad ID |

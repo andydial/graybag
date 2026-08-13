@@ -10,7 +10,8 @@
       "channel": "development",
       "env": {
         "APP_ENV": "local"
-      }
+      },
+      "environment": "development"
     },
     "staging": {
       "distribution": "internal",
@@ -20,24 +21,45 @@
       },
       "env": {
         "APP_ENV": "staging"
-      }
+      },
+      "environment": "preview",
+      "autoIncrement": true
     },
     "preview": {
       "extends": "staging",
-      "channel": "staging"
+      "channel": "staging",
+      "ios": {
+        "distribution": "store"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "environment": "preview",
+      "autoIncrement": true
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
         "APP_ENV": "production"
-      }
+      },
+      "environment": "production"
     }
   },
   "submit": {
     "production": {
       "ios": {
-        "appleTeamId": "F247T8Y2NT"
+        "appleTeamId": "F247T8Y2NT",
+        "ascAppId": "6749555467"
+      },
+      "android": {
+        "track": "internal"
+      }
+    },
+    "preview": {
+      "ios": {
+        "appleTeamId": "F247T8Y2NT",
+        "ascAppId": "6800175123"
       },
       "android": {
         "track": "internal"

@@ -19,6 +19,168 @@ Format — newest first:
 
 ---
 
+## 2026-08-13 — A placeholder assertion must FAIL until it is real, never pass
+
+**Context:** `app-config.test.ts` held the live Google Play numbers as `null` — nobody had opened
+the Play Console — with the assertions written and dormant, so that filling a number in could not
+be done without the check coming with it. That much was right, and deliberate.
+
+**What happened:** Andy read the real `versionCode` (`1777726914`) off the Play Console and it
+went into `LIVE_PLAY`. The dormant assertion was:
+
+```js
+it('mints a versionCode above the live one once it is known', () => {
+  if (LIVE_PLAY.versionCode === null) return;   // dormant
+  expect(LIVE_PLAY.versionCode).toBeGreaterThan(0);
+});
+```
+
+The moment the real value arrived, the guard went from **inactive** to **tautologically true**.
+Green, in the suite, named as though it checks the version floor, asserting nothing whatsoever.
+The actual floor — is the number EAS will mint above the number Play rejects on — was never
+compared by anything.
+
+**Cause:** the placeholder body was written to *pass trivially* rather than to *fail loudly*. It
+is the natural thing to type: the value is not known, a real assertion cannot be written, so
+something harmless goes in as a stand-in. The `if (… === null) return` guard hides it, because
+while the value is null nobody ever sees the body run, and by the time it does run the person who
+wrote it has moved on. A `> 0` on an unsigned counter is not a weak check — it is not a check.
+
+**The class, which is the point of this entry.** *A dormant assertion is only safe while it stays
+dormant.* The transition from placeholder to real is exactly the moment the check starts
+mattering, and a placeholder that passes dies silently at that moment — it converts into a green
+test that is evidence of nothing. Every unresolved-value stand-in has this shape:
+
+- `expect(x).toBeGreaterThan(0)` on a counter, id or timestamp
+- `expect(thing).toBeDefined()` where the real question is what it equals
+- `expect(list.length).toBeGreaterThanOrEqual(0)`, which is true of every list
+- a `TODO` fixture returning `{}` that satisfies a shape check
+- an `if (value === null) return` early-exit whose body was never written to be run
+
+**Fix / rule:** **a placeholder assertion must fail, not pass, until it is real.** Write the
+stand-in as `expect.fail('E17-33: nobody has read the live Play versionCode')` — or keep the
+early-exit and make the body a genuine assertion of the relationship, so the day the value lands
+the test either passes for a reason or fails for one.
+
+And assert the **relationship**, not the constants. `EAS_REMOTE_VERSION_CODE >
+LIVE_PLAY.versionCode` stays meaningful when either number changes; `versionCode > 0` never did.
+
+The sibling rule from 2026-08-11 below is the same defect one step earlier: *a constant asserted
+against a guess is not an assertion.* Together — **a check must be able to fail, and the thing it
+compares against must be a fact.** Neither is worth anything without the other.
+
+---
+
+## 2026-08-11 — A constant asserted against a guess is not an assertion
+
+**Context:** first iOS submission to TestFlight. Four Apple errors, two causes, both ours.
+
+**What happened:** `ITMS-90062`, `ITMS-90186` and `ITMS-90478` — the uploaded build was
+`2.0.0` and the live App Store app is **3.7.0**, so the upload was a version *downgrade*.
+`app-config.test.ts` had a test named "starts above the live Bubble build" that asserted
+`major >= 2`. It passed. It had always passed.
+
+**Cause:** `2` was never checked against App Store Connect. Someone reasoned "the rebuild is
+version 2" and wrote a test around it, and from then on the repo contained a green,
+confidently-named assertion whose subject — *what is actually live* — no one had ever looked
+up. The test could not fail, because it was comparing the guess to itself.
+
+**Fix / rule:** the floor is now a named constant `LIVE_STORE_VERSION = '3.7.0'`, carrying
+**where and when it was read** (App Store Connect, 2026-08-11), compared with a strict
+numeric `>` rather than a major-version `>=`. Production is `4.0.0`. Proven by setting the
+version back to `2.0.0` and watching it fail.
+
+The general rule, which is the expensive part of this week: **a test that encodes an
+assumption about the outside world must record where the value came from, or it is
+documentation of a belief wearing the costume of a check.** Same shape as `ITMS-90054` (an
+app id and a bundle id each correct, nothing relating them) and the duplicate task ids below
+(a control that could not distinguish its subjects). Three green signals, three facts nobody
+had verified.
+
+The rest of the release config was swept for the same shape immediately afterwards — see the
+audit entry directly below.
+
+---
+
+## 2026-08-11 — Audit: what else in the release config is a belief about the live app
+
+**Context:** asked, after the two TestFlight causes, to sweep the release config for anything
+else derived from an unverified assumption about the live apps. The test is not "is this value
+wrong" — it is **"if this value were wrong, what would have told us?"**
+
+**What the sweep found.** Everything about *iOS* is now verified, largely by accident: this
+week's rejection named record `6749555467`, which incidentally confirmed the team id and the
+production bundle id along with it. **Android is verified nowhere**, and that is where the
+same defect is sitting.
+
+| Value | Status | If wrong |
+|---|---|---|
+| `version` `4.0.0` vs App Store `3.7.0` | **Verified** 2026-08-11 | — |
+| `ascAppId` / `appleTeamId` | **Verified** — Apple's own rejection referenced them | — |
+| `ios.bundleIdentifier` | **Verified** indirectly, same rejection | — |
+| **Live Play `versionCode`** | **Unknown — `E17-33`** | First Android submit rejected. `ITMS-90062` again, different error string |
+| **Live Play `versionName`** | **Unknown — `E17-33`** | Assumed equal to iOS `3.7.0`; two listings hand-updated for 14 months drift |
+| **`android.package` capitals** | **Unverified — `E17-35`** | New listing, zero installs. The test asserting it says so itself |
+| `supportsTablet: false` | **Unverified — `E17-36`** | An update silently drops a device family |
+| `ITSAppUsesNonExemptEncryption: false` | Correct — standard HTTPS is exempt | — |
+
+**The one that matters is the Play `versionCode`.** Play rejects on the integer, not on the
+marketing version, and `appVersionSource: remote` with `autoIncrement` mints ours from an EAS
+counter that began at 1 for this project. The live Bubble app's `versionCode` is some number
+nobody has read. **That is precisely `ITMS-90062`, already loaded, pointed at Android, and the
+iOS fix does not touch it** — worse, the now-real iOS floor reads as though it covers "the
+stores" and does not.
+
+**Cause, common to all of them:** the repo asserts what *it* controls and is silent on what
+the *outside world* controls. Both bugs this week lived in that silence.
+
+**Fix / rule:** `LIVE_PLAY` in `app-config.test.ts` holds both numbers as `null` — not
+guessed — with the assertions **already written and dormant**, so supplying a number turns the
+check on rather than requiring anyone to remember to write one. This copies
+`check-supabase-config.mjs`, which has always held `SUPABASE_PRODUCTION_REF` empty with the
+comment "a wrong ref here would assert a healthy config on a project nobody is using". That
+file had this right before either of this week's failures; the rest of the release config
+should have copied it then.
+
+A test also enforces that the two Play numbers arrive **together**, because the half-filled
+state — a `versionName` typed from memory, no `versionCode` — looks covered and is not.
+
+---
+
+## 2026-08-11 — Eighteen task ids were used twice, and two `owner:andy` tasks went green because of it
+
+**Context:** picking up the four compliance orphans the extended orphan guard found
+(`E14-32`). Before starting I looked up `E20-11` and got two different tasks.
+
+**What happened:** eighteen ids across eleven epic files were each defined twice —
+`E20-11`…`E20-14`, `E20-26`, `E05-33`, `E05-34`, `E05-36`, `E06-16`, `E06-20`, `E09-11`,
+`E09-12`, `E13-20`, `E15-07`, `E16-44`, `E17-27`, `E17-28`, `E00-20`. `E20-11` was both "the
+policy acceptance gate is never mounted" and "data-processing review of every third party".
+
+**Cause:** new work was appended by **reusing a number instead of continuing the sequence** —
+exactly what `planning/README.md` forbids. It went unnoticed because nothing in the tooling
+ever checked: `build-backlog.mjs` parsed both lines happily and emitted two rows with the same
+`data-id`.
+
+**The consequence that matters:** task ids are the primary key of `backlog-state.json`. A
+single `done` row cannot describe two tasks, so ticking one ticked both — and `E09-11` and
+`E17-28` were `(owner:andy)` tasks showing **complete** because an unrelated twin had been
+finished. `sync-state.mjs` refuses to close an `owner:andy` task, and that enforcement was
+defeated by an id it could not tell apart. A control that cannot distinguish its subjects is
+not a control.
+
+**Fix / rule:** the later copy of each duplicate was renumbered to the next free id in its
+epic (document order is assignment order, because the backlog is append-only); the original
+kept its id, so every existing cross-reference to the older meaning stayed correct.
+`build-backlog.mjs` now **refuses to build** on a duplicate id and names both users — proven
+by reintroducing a collision and watching it fail. Ticks were rebuilt from each line's own
+checkbox, so nothing was lost and nothing was invented.
+
+Related: [`E17-32`] and the version floor below. Three defects this week share one shape — a
+green signal standing in for a fact nobody checked.
+
+---
+
 ## 2026-08-10 — A git worktree with a symlinked `node_modules` silently tests the wrong workspace
 
 **Context:** building the recipients UI (`E05-17`, `E05-18`) in a `git worktree`, with
@@ -1721,6 +1883,237 @@ fails with `api.<newFunction> is not a function` — the two toolchains disagree
 copy of the package they are looking at. If a worktree needs to skip an install, make
 `node_modules` a real directory, symlink the individual entries, and point `@graybag/*` at the
 worktree's own `packages/` and `apps/`.
+
+## Two units tested in isolation prove nothing about the wire between them — 2026-08-10
+
+**This is a class, not an incident.** It has now produced three separate defects in one week,
+and it is the entire argument for `E14-24` and for the change to the definition of done.
+
+### The shape
+
+Take a seam — a function one side exports and the other side is supposed to call. Test each
+side thoroughly. Both suites go green. **Nothing tests that the call happens**, because each
+suite substitutes the other side: the consumer's tests inject a fake, and the producer's tests
+never construct a consumer. The seam is the one thing neither can see, and it is invisible in
+review precisely because both files look complete and well-tested.
+
+### What it produced here
+
+| Seam | The defect | What each side's tests proved |
+|---|---|---|
+| `createMenuCache` ↔ `setMenuCache` | **`setMenuCache` was never called from any build.** The Menu tab told every user "this school's menu has not been published", on every school, since the tab existed | `cache.test.ts` proved the cache. `MenuScreen.test.tsx` injected a fake cache and proved the screen. Neither constructed the real one |
+| `.maestro/cart.yaml` ↔ the app's testIDs | The flow tapped `tab-menu` and `tab-cart`, which did not exist — the tab bar had no testIDs at all | The flow was valid YAML. The app rendered correctly. Nothing compared the two |
+| `README.md` ↔ the prototype's routes | `#dish` was documented and silently fell back to the splash screen | The README was accurate prose. The prototype worked. Nothing resolved one against the other |
+
+The menu one is the worst of the three. It shipped in every build ever made, and the symptom —
+an empty menu — was indistinguishable from the honest answer, so it read as a data problem for
+a week. See also *"Emptiness is four different things"* (`docs/ux-spec.md` §5.21).
+
+### Why "more unit tests" is the wrong response
+
+Every one of these had thorough unit tests on both sides. Adding a fourth suite to either side
+would not have caught any of them. The missing test is always the one that **refuses to
+substitute** — that runs the real producer against the real consumer.
+
+### What to actually do
+
+1. **One test per seam that uses neither fake.** For the app that is the Maestro flow, which
+   drives a real build against a real backend. For a repository-internal seam it can be far
+   cheaper: `check-maestro-ids.mjs` resolves the flows against the source in about a second,
+   and the prototype's build fails on a README link that does not resolve.
+2. **Make "is it wired up?" a checkable property.** A registration that can be forgotten is one
+   that will be. Prefer a construction the compiler or a check can see over a `setX()` that
+   something is trusted to call at start-up.
+3. **Treat "both suites green, behaviour wrong" as a signal about the suites**, not as a
+   mystery. Ask which side's test is substituting the other, and go and look at that gap.
+4. **Verify on a device before calling a thing done.** All three defects were visible in ten
+   seconds of using the app, and invisible in a green CI run.
+
+## Two `render()` calls in one RNTL test detach the renderer for the whole file — 2026-08-10
+
+Calling `render()` twice inside a single test leaves the file's renderer detached. **Every
+subsequent test in that file** then fails at its first query with a one-second timeout, so the
+symptom appears in tests that are correct and nowhere near the cause. It cost an hour during
+`E21-09`.
+
+To remount inside a test, keep one `render()` and drive it: change the component's `key` and
+call the `rerender` the first render returned. Reach for a second `render()` only in a fresh
+test.
+
+The reason it is worth writing down is the shape rather than the API detail: **the failure is
+reported somewhere other than where it was caused**, which is the class of bug that eats an
+afternoon regardless of how good the person is.
+
+## `StyleSheet.absoluteFillObject` is not typed on RN 0.86, and spreading it fails silently — 2026-08-10
+
+`{...StyleSheet.absoluteFillObject}` contributes **nothing** — no error at runtime, no warning,
+just an element that is not positioned. Found in `E21-07` when an overlay `TextInput` sat
+wherever layout put it instead of over the boxes it was meant to cover; typecheck caught it only
+because `exactOptionalPropertyTypes` made the missing property visible.
+
+Write `position: 'absolute'`, `top`, `left`, `right`, `bottom` longhand.
+
+The general shape, which is the reusable part: **a spread of an undefined object is a silent
+no-op.** Any `{...Something.maybeMissing}` is a line that can stop working without failing.
+
+## RNTL v14: `unmount()` is async, and not awaiting it breaks a *later* test — 2026-08-10
+
+`render()` became async in RNTL v14 and is awaited everywhere. `unmount()` did too, and is easy
+to miss. Not awaiting it overlaps two `act` scopes, and React then renders the **next** tree as
+nothing — so the failure surfaces in a different, correct test as an empty tree.
+
+Same family as the two-`render()` trap above, and the same reason both are worth writing down:
+**the symptom appears somewhere other than the cause**, which is what makes them expensive
+rather than merely annoying.
+
+## RNTL v14: `fireEvent.press` must be awaited too — 2026-08-11
+
+The third member of the same family, after `render()` and `unmount()`. An unawaited
+`fireEvent.press` overlaps `act` scopes and React renders the **next test's** tree as nothing,
+so a correct test fails with an empty tree and the actual cause is in the test above it.
+
+`render`, `unmount`, `fireEvent.*` and `userEvent.*` are all async in v14. **Await every one.**
+
+Three separate people have now lost time to this family in two days, always the same way: the
+symptom is reported somewhere other than the cause. If a test that was passing starts returning
+an empty tree, look at the test *before* it, not at itself.
+
+## 2026-08-11 — `supabase db push --include-seed` does not re-apply a changed seed
+
+**Symptom.** `supabase/seeds/catalogue.sql` was applied to staging, then edited to set
+`school.onboarded_at`, then pushed again. The CLI printed `Updating seed hash to
+supabase/seeds/catalogue.sql...` and `Finished supabase db push`, exit 0, seed listed in the JSON
+result — and **the file was never executed**. Editing it again and re-pushing did the same.
+
+**Why it matters.** The first application had left `onboarded_at` null, and
+`anon_school_onboarded` is `is_active and onboarded_at is not null and offboarded_at is null`, so
+three real schools with 119 priced menu rows behind them were invisible to every signed-out
+visitor. The school picker returned `[]` and the app rendered as though the database were empty —
+`docs/ux-spec.md` §5.21 N2 wearing N1's clothes. And the fix appeared to deploy successfully each
+time.
+
+**The tell.** A run that actually executes prints `Seeding data from <file>...`. A run that only
+records the hash prints `Updating seed hash to <file>...`. If you do not see *Seeding data from*,
+nothing ran.
+
+**What to do instead.** A correction to already-seeded data belongs in a migration, which always
+applies — `supabase/migrations/0024_onboard_real_schools.sql` is the worked example: named ids,
+`and onboarded_at is null` so it is idempotent, and a no-op in an environment where the catalogue
+was never seeded. Seeds are for first application; migrations are for correction.
+
+## 2026-08-11 — three things the real Bubble catalogue does that fixtures never did
+
+Found while importing the real 85-dish catalogue (`E16-48`). All three were invisible against the
+four-dish fixture set, and each stopped the seed dead:
+
+1. **Six dishes exist twice** under the same name, violating `uq_dish_kitchen_name`
+   `(kitchen_id, lower(name))`. They are the same dish entered years apart and they are *not*
+   identical — one has marketing copy and no ingredients, the other a plain sentence and a full
+   list — and four pairs **disagree on calories** ("160" vs "250–350" for one Cold Coffee). The
+   merge keeps the row the live menu prices, fills blanks from the twin, and preserves the
+   conflicting figure in `nutrition` rather than picking a winner.
+2. **One dish is listed twice on one menu** (`menu_item_menu_dish_unique`), at the same price both
+   times — parents see it duplicated today. Collapsed, but the generator throws rather than
+   choosing if the two prices ever disagree.
+3. **The export is double-encoded**: UTF-8 bytes decoded as cp1252 and re-encoded, so every
+   en-dash arrives as `â€“`. `.encode('cp1252').decode('utf-8')` restores it — **not** latin-1,
+   which cannot represent `0x80` and silently drops the character with `errors='ignore'`.
+
+**And a fourth, in our own code:** the seed emitted `asset` rows for dish photos while
+`tools/upload-dish-images` also writes them, under a `dishes/` key prefix that only the uploader
+knows. Every seed-written path 404'd. Two writers for one relationship — the same shape as the two
+sources of truth for the session (`E03-26`). The uploader owns it; the seed no longer writes
+assets at all.
+
+## `npm run test:db` passed while running zero assertions — 2026-08-11
+
+`npm run test:all` was green. The database suite inside it printed
+`Files=0, Tests=0, Result: NOTESTS` and `supabase test db` **exited 0**. Default-deny
+authorization, consent atomicity, the ledger invariants and recipient erasure were all
+reporting success on nothing.
+
+**The cause is not in the repository.** `supabase test db` bind-mounts `supabase/tests` into a
+container and runs `pg_prove` inside it. This checkout lives under `/Volumes/Data`, which is not
+on Docker Desktop's file-sharing list, so the mount is empty. Reproduced in one line:
+
+```bash
+docker run --rm -v "$PWD/supabase/tests:/t" alpine ls /t   # → nothing
+```
+
+`supabase db reset` works regardless, which is what makes it convincing: migrations apply,
+seeds load, everything scrolls past looking healthy, and only the tests are missing.
+
+**Two fixes, and the second is the one that matters.** Adding `/Volumes/Data` under Docker
+Desktop → Settings → Resources → File Sharing repairs the mount (`E14-31`, Andy's machine).
+But `scripts/test-db.sh` now runs each file through `psql` over TCP instead, so the host
+filesystem never has to cross into a container at all — fewer moving parts, and it is how every
+suite in this repo was actually being verified by hand anyway.
+
+**The general lesson, which this project has now learned three times:** a tool that reports
+success having done nothing is worse than one that fails. `E02-24` was the same shape — a
+colliding fixture id killed the first insert and `authorization.test.sql` silently contributed
+zero assertions — and the guard written then lived only in CI. The floor guard is now in the
+local script too, because `CLAUDE.md` sends a human to `npm run test:all` at the end of every
+block, and that was the one place with nothing under it.
+
+## A pgTAP file can stop mid-way and report zero failures — 2026-08-11
+
+Adding assertions to `consent.test.sql` I used `isnt_imatching()`, which does not exist in this
+pgTAP build. What happened next is the point:
+
+```
+ok 31 - E20-48: version 2 of the self notice is the current one
+--- (and then nothing)
+psql:supabase/tests/consent.test.sql:333: ERROR:  function isnt_imatching(text, unknown, unknown) does not exist
+```
+
+**Thirty-one assertions passed, four never ran, and not one line said `not ok`.** The error
+aborted the transaction; every statement after it returned "current transaction is aborted", and
+`finish()` never printed a plan. Counting `ok` lines — the obvious way to check a suite —
+reports a healthy-looking 31 and no failures.
+
+This is the **same class** as `supabase test db` reporting green on zero files (`E20-47`): a
+suite that can go quiet without saying so. Both share a shape worth naming — *the absence of a
+failure is not the presence of a pass* — and both were invisible to the check that was supposed
+to cover them.
+
+**Why it is not a live problem:** `scripts/test-db.sh` greps each file's output for
+`^psql:.*ERROR` **as well as** counting `ok`/`not ok`, and fails the file on either. That grep
+looks redundant beside the `not ok` check and is not: it is the only thing that catches this,
+because this failure never produces a `not ok`. There is a comment saying so in the script, so
+nobody removes it as duplication.
+
+**The general rule:** when a runner reports a count, the count is only trustworthy if something
+independent asserts the run actually reached the end. For pgTAP that is the `ERROR` grep and the
+`MIN_TESTS` floor; for the suite as a whole it is CI's floor guard from `E02-24`.
+
+## A constraint and its backstop have to change together — 2026-08-11
+
+`0035` added `bank` to `ledger_account`'s `normal_balance` CHECK and **not** to
+`assert_ledger_integrity()`, whose `account_normal_balance` check exists precisely to catch that
+CHECK having been removed (`M9`). The two encode the same rule from opposite ends.
+
+Result: `platform:bank` satisfied the constraint and the nightly job would have reported it as a
+broken account. Not once — **every night, for ever, about a correct row.**
+
+That is worse than no alarm. An alarm that fires on healthy data trains everyone to ignore it,
+and it is still firing on the night it is right. `M9`'s whole design is that the constraint
+prevents the bad state and the nightly check notices if the constraint is gone; a false positive
+from the backstop attacks the only thing it was there to protect.
+
+**The rule: when a constraint and a monitoring check encode the same rule, they are one change,
+not two.** If they can disagree they will, and the disagreement is silent in the direction that
+matters — the check goes on passing when the constraint is dropped, and starts failing when it
+is extended.
+
+Caught by `ledger.test.sql`, which drops the constraint, flips a wallet to debit-normal, and
+asserts the nightly check notices. That test was written for `E06-31` to prove the backstop
+works; it earned its keep by failing when the backstop and the constraint drifted apart.
+
+**Related, same fortnight, same shape:** `check-test-fixtures` compared fixtures against
+`supabase/seed.sql` while migrations also seed data (`0013` reason codes, `0029` break windows,
+`0035` the chart of accounts) — a check consulting one source of truth for a fact that has two.
+Everything on this page this fortnight has been a version of that.
 
 ## The company's dish photography is 120 pixels, and no larger original exists — 2026-08-11
 

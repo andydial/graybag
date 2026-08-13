@@ -105,44 +105,98 @@ share is a separate transaction in the other direction (`E07-09`, `[DM-18]`, `[G
 The buyer is the **paying adult**, never the child. `invoice.buyer_name_snapshot` is the
 `app_user`, and §4.3 covers what may and may not be said about the recipient on a line.
 
-### 3.2 The CGST/SGST versus IGST split is derived, never assumed
+### 3.2 The split is asserted, not derived — `SC1`
 
-`M2` says 5% GST shown as CGST 2.5% + SGST 2.5%, on the basis that the place of supply is
-Mohali / SAS Nagar and the supply is therefore intra-state. **That conclusion depends on a fact
-we do not have**: GST is intra-state when the supplier's registered state equals the place of
-supply, and inter-state otherwise. We do not know GrayBag's registered state, because we do not
-have the GSTIN.
+**Revised 2026-08-11.** This section used to require the CGST/SGST-vs-IGST split to be computed
+per invoice from `left(seller_gstin, 2)` against `place_of_supply_state_code`, and `G4` recorded
+that as a decision. `SC1` supersedes it, and `G4` is archived.
 
-**The rule, therefore, is that the split is computed per invoice and never hard-coded:**
+The old reasoning was sound and half of its premise expired. GST is intra-state when the
+supplier's registered state equals the place of supply — that is still true. But a *derivation*
+needs two variables, and v1 has one:
+
+- **Place of supply is `03` for every invoice v1 will ever issue.** One city (`SC1`), one state
+  code, asserted by `seed.test.sql` (*"every city is Punjab — no IGST path is reachable"*).
+- **The seller's own registered state is unknown**, because we do not have the GSTIN
+  (`E00-10`, `[GST-02]`). That is one fact with one answer, not a per-invoice question.
+
+So the rule is:
 
 ```
-seller_state_code = left(seller_gstin, 2)
-
-if seller_state_code = place_of_supply_state_code
-    cgst_rate_bps = 250, sgst_rate_bps = 250, igst_rate_bps = 0
-else
-    cgst_rate_bps =   0, sgst_rate_bps =   0, igst_rate_bps = 500
+assert left(seller_gstin, 2) = '03'   -- else refuse to issue, loudly
+cgst_rate_bps = 250, sgst_rate_bps = 250, igst_rate_bps = 0
 ```
 
-`E07-17`. The schema already carries all six columns on `invoice` and defaults `igst` to zero,
-so nothing needs to change to support this — only the code that fills them in.
+**Why an assertion and not a branch.** A branch would silently do the right thing for a case
+that cannot arise, while growing the cart and checkout pricing path that non-negotiable #7
+forbids — which is exactly what `E07-21` had become before it was struck. An assertion does the
+one thing that actually matters: if the GSTIN turns out to start `04`, **every** invoice is
+IGST and nothing about the product's pricing is correct, and we find that out at the boot
+assertion rather than in a parent's inbox. It pairs with `E07-20`'s placeholder guard and fails
+the same way.
 
-`place_of_supply_state_code` comes from `city.gst_state_code` via the school. For a catering
-service the place of supply is where the service is performed, which is the school, not the
-kitchen and not the parent's home address. This is why `city` carries the code at all.
+`igst_rate_bps` and `igst_paise` stay on the schema, defaulted to zero and written by nothing.
+They cost nothing and `D9` expects a second city eventually; when there is one, `G4` comes back
+out of the archive.
 
-Two consequences worth stating before they surprise someone:
+**`docs/terms.md` still tells customers that an inter-state supply is IGST at the same total
+rate, and that sentence stays** — ruled by Andy 2026-08-11, recorded here rather than in the
+document so that nobody "tidies" it after reading `SC1`. It is a **statement of law to a
+customer**, not a description of our pricing engine, and it is accurate. Deleting it would make
+the section narrower than the law it summarises and it would have to come back the day a second
+city arrives. What was removed from that sentence is its citation of `G4`, which is superseded
+and archived: a customer-facing document must not cite a decision no longer in force, and `SC1`
+is what determines the answer today.
 
-- If GrayBag turns out to be registered in Chandigarh (`04`) while the schools are in Punjab
-  (`03`), **every invoice is IGST at 5%**, and `M2`'s CGST/SGST split — and `E07-06`'s cart
-  change — is wrong. `[GST-02]`.
-- `D9` anticipates other cities. A school in a state GrayBag is not registered in makes that
-  supply inter-state, or forces a registration in that state. That is a business decision for
-  whenever it happens, not a schema problem; the derivation above already handles it.
+Two corrections to what I told Andy when I first raised this, since both were wrong and the
+second is the one that would have cost something. **`terms.md` is not a `policy_version` and is
+not in the acceptance gate** — only `child_data_notice` and `self_data_notice` are — so editing
+it re-prompts nobody, and my caution about a new policy version interrupting every user
+mid-onboarding did not apply. It is also still headed *DRAFT FOR LEGAL REVIEW — DO NOT PUBLISH
+AS-IS*, with unresolved `«TOKEN»` placeholders throughout.
 
----
+### 3.3 The buyer's name is optional, exactly as far as the law says
 
-## 4. Invoice field list
+`E07-22`, migration `0031`, ruled by Andy 2026-08-11.
+
+`invoice.buyer_name_snapshot` was `not null`. Every `app_user` in the system has a **null**
+name — nothing writes `app_user.first_name`, and `P18` deliberately asks for it *after* payment
+with a clear skip — so the first invoice ever issued would have failed `23502` on its own
+constraint, in production, with the money already taken.
+
+**CGST Rule 46(f):** for a supply to an **unregistered** recipient where the value of the
+taxable supply is **less than ₹50,000**, the recipient's name and address are required *only
+where the recipient requests that such details be recorded in the tax invoice*. Clause (e) makes
+them mandatory at ₹50,000 or more. Every GrayBag invoice is a school lunch, and `P14` keeps bulk
+class ordering out of v1.
+
+So the column is nullable and the schema carries the rule instead:
+
+```sql
+check (buyer_name_snapshot is not null or total_paise < 5000000)   -- ₹50,000 in paise
+```
+
+**Nothing is ever fabricated into that field.** Omission is lawful; a placeholder is a false
+statement in a statutory record. Specifically rejected, each for its own reason:
+
+| Rejected | Why |
+|---|---|
+| The email local-part | `anuragdial` is a username, not a name — and `app_user.email` is nullable too (Apple private relay), so the chain needs a third tier and the third tier is the same problem |
+| `"GrayBag customer"` | A label in the buyer field. The law permits the field to be absent; it does not invite us to fill it with a category |
+| The **recipient's** name | Wrong twice. The child is not the buyer (`M1`: GrayBag → the paying adult), and it would put a minor's name in the buyer field of a document retained under §13.4 long after any erasure request — the opposite of non-negotiable #4 |
+
+**Rendering.** Where there is no name, the buyer block omits the name line entirely. Never
+`Name: —`, and never an empty labelled row: a blank where a legal party belongs reads as a
+defect in the document rather than as a field that was not required.
+
+**The other half of clause (f) is an obligation, not a courtesy.** The name is optional *until
+the recipient asks for it*. `E07-23` covers the reissue path — a superseding document, never an
+edit, because §13.2 requires a reprint to be byte-identical to what was issued.
+
+A CA sign-off is queued on `docs/andy-prep/professional-questions.md` and is a follow-up rather
+than a blocker (Andy, 2026-08-11). What is written here is the rule text, not tax advice.
+
+## 4. What the invoice must contain
 
 ### 4.1 Statutory fields
 
@@ -694,9 +748,10 @@ Notes on the layout that are requirements, not taste:
 2. **`Round off` prints even when it is `0.00`.** A field that only appears when non-zero is a
    field nobody notices is missing.
 3. **CGST and SGST are separate columns and separate summary lines.** Never a combined "GST 5%"
-   or "Tax". `M2`, `E07-06`. If §3.2 resolves to inter-state, the two columns collapse to one
-   `IGST 5%` column — the renderer switches on which rate is non-zero, it does not print empty
-   columns.
+   or "Tax". `M2`, `E07-06`. **Two columns, always** — §3.2 asserts intra-state rather than
+   resolving it, so there is no inter-state rendering to build and no IGST column in v1. The
+   renderer must not grow a branch for a case that cannot reach it; if `D9`'s second city ever
+   arrives, the branch arrives with it.
 4. **Line descriptions carry a first name only** (§4.3).
 5. **The phone is masked, the email is not.** The invoice goes to that email, so masking it is
    theatre; the phone appears only for identification.

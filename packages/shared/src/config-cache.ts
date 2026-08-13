@@ -44,6 +44,30 @@ export interface EffectiveConfig {
   allergenWarningEnabled: boolean;
   customerCancellationAllowed: boolean;
   customerCancellationCutoffMinutes: number;
+  /**
+   * How long a `pending_payment` checkout is held before the sweeper cancels it (`[OL-03]`).
+   *
+   * **Provisional at 30.** Its floor is how long Razorpay lets a UPI collect stay pending, which
+   * is `E19-07` row 3 — config rather than a constant so that answer costs an UPDATE. The
+   * sweeper reconciles against Razorpay before cancelling rather than trusting this clock
+   * (`E06-17`): it decides when to go and ask, not what the answer is.
+   */
+  pendingPaymentTtlMinutes: number;
+  /**
+   * `L9`. A settlement landing within `cutoff_at + this` is honoured; after it the capture is
+   * refused and auto-refunded. Default 15.
+   *
+   * **Never render this, and never count it down at anyone.** It is a server tolerance, not a
+   * deadline a parent can act on, and putting it on screen invites racing it. A kitchen that
+   * cannot absorb late orders sets it to 0 and gets a hard cutoff.
+   */
+  paymentInFlightGraceMinutes: number;
+  /**
+   * How long a failed attempt may be retried against the same `order_group`. Matched to the TTL
+   * deliberately — a longer window lets a retry succeed against a checkout the sweeper already
+   * cancelled, which is the late-capture path by another door.
+   */
+  paymentRetryWindowMinutes: number;
 }
 
 export class ConfigUnavailableError extends Error {

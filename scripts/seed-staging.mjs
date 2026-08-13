@@ -27,10 +27,24 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CONFIG = join(ROOT, 'supabase', 'config.toml');
-const SEED = './seeds/staging-menu.sql';
+/**
+ * Which seed file to apply. Defaults to the real catalogue (`E16-48`); the old synthetic
+ * `staging-menu.sql` is still selectable by name for a from-scratch project that wants
+ * obviously-fake schools.
+ *
+ *   node scripts/seed-staging.mjs                    # catalogue.sql — the real Sky Bites menu
+ *   node scripts/seed-staging.mjs staging-menu.sql   # the synthetic fixture set
+ */
+const SEED_FILE = process.argv[2] ?? 'catalogue.sql';
+const SEED = `./seeds/${SEED_FILE}`;
 
-if (!existsSync(join(ROOT, 'supabase', 'seeds', 'staging-menu.sql'))) {
-  console.error(`Cannot find supabase/seeds/staging-menu.sql. Nothing to seed.`);
+if (SEED_FILE.includes('/') || SEED_FILE.includes('..')) {
+  console.error(`Seed file must be a bare name inside supabase/seeds/, not a path: ${SEED_FILE}`);
+  process.exit(1);
+}
+
+if (!existsSync(join(ROOT, 'supabase', 'seeds', SEED_FILE))) {
+  console.error(`Cannot find supabase/seeds/${SEED_FILE}. Nothing to seed.`);
   process.exit(1);
 }
 
@@ -68,7 +82,7 @@ process.on('SIGTERM', () => {
 try {
   writeFileSync(CONFIG, original.replace(SQL_PATHS, `sql_paths = ["${SEED}"]`));
 
-  console.log(`Seeding the LINKED remote project from supabase/seeds/staging-menu.sql`);
+  console.log(`Seeding the LINKED remote project from supabase/seeds/${SEED_FILE}`);
   console.log('This file carries no users, no children and no orders — see its header.\n');
 
   // `supabase@latest` on purpose: 2.112.0 cannot parse the API's api-keys response and

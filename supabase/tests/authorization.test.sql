@@ -109,6 +109,11 @@ $$;
 -- assertion below report as an error rather than a failure.
 select * from no_plan();
 
+-- `0039` enforces the §4.1 transition table and refuses any status write with no actor. A
+-- fixture that inserts an order IS acting as somebody — this suite's orders are the system's,
+-- the same as a real checkout's. Transaction-local, so it cannot leak into another test.
+set local app.actor_type = 'system';
+
 -- -----------------------------------------------------------------------------
 -- A NOTE ON throws_ok, because getting it wrong is silent and this suite did.
 --
@@ -298,11 +303,18 @@ insert into "order" (id, order_group_id, order_ref, correlation_id, customer_use
                      school_id, kitchen_id, city_id, service_date, break_time_id, delivery_mode, status,
                      subtotal_paise, tax_cgst_paise, tax_sgst_paise, total_paise,
                      cutoff_at, config_snapshot, school_name_snapshot, recipient_name_snapshot) values
-  ('e2000000-7e57-0000-0000-000000000001', 'e1000000-7e57-0000-0000-000000000001', 'GB-A0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, 'c5000000-7e57-0000-0000-000000000001', 'classroom', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Aarav'),
-  ('e2000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000002', 'GB-B0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000002', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'paid', 20000, 500, 500, 21000, now(), '{}'::jsonb, 'School A1', 'Bela'),
-  ('e2000000-7e57-0000-0000-000000000003', 'e1000000-7e57-0000-0000-000000000003', 'GB-B1001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000003', 'c3000000-7e57-0000-0000-000000000003', 'c2000000-7e57-0000-0000-000000000002', 'c1000000-7e57-0000-0000-000000000002', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School B1', 'Chetan'),
-  ('e2000000-7e57-0000-0000-000000000004', 'e1000000-7e57-0000-0000-000000000004', 'GB-A2001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000007', 'c3000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A2', 'Gopal'),
-  ('e2000000-7e57-0000-0000-000000000005', 'e1000000-7e57-0000-0000-000000000005', 'GB-D0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000004', 'd1000000-7e57-0000-0000-000000000004', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'paid', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Divya');
+  ('e2000000-7e57-0000-0000-000000000001', 'e1000000-7e57-0000-0000-000000000001', 'GB-A0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, 'c5000000-7e57-0000-0000-000000000001', 'classroom', 'pending_payment', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Aarav'),
+  ('e2000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000002', 'GB-B0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000002', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'pending_payment', 20000, 500, 500, 21000, now(), '{}'::jsonb, 'School A1', 'Bela'),
+  ('e2000000-7e57-0000-0000-000000000003', 'e1000000-7e57-0000-0000-000000000003', 'GB-B1001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000003', 'c3000000-7e57-0000-0000-000000000003', 'c2000000-7e57-0000-0000-000000000002', 'c1000000-7e57-0000-0000-000000000002', current_date, null, 'counter', 'pending_payment', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School B1', 'Chetan'),
+  ('e2000000-7e57-0000-0000-000000000004', 'e1000000-7e57-0000-0000-000000000004', 'GB-A2001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000007', 'c3000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'pending_payment', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A2', 'Gopal'),
+  ('e2000000-7e57-0000-0000-000000000005', 'e1000000-7e57-0000-0000-000000000005', 'GB-D0001', gen_random_uuid(), 'a0000000-7e57-0000-0000-000000000004', 'd1000000-7e57-0000-0000-000000000004', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', current_date, null, 'counter', 'pending_payment', 10000, 250, 250, 10500, now(), '{}'::jsonb, 'School A1', 'Divya');
+-- `0039`: `paid` is not a legal INSERT state — §4.1 allows only `draft` (admin) and
+-- `pending_payment` (system) as entry points, and everything else is reached by moving. So the
+-- fixture walks the same path a real order does. Cheap here, and it means these fixtures now
+-- exercise the T2 -> T5 transition rather than side-stepping the machine that guards it.
+update "order" set status = 'paid'
+ where status = 'pending_payment' and id in ('e1000000-7e57-0000-0000-000000000001', 'a0000000-7e57-0000-0000-000000000001', 'd1000000-7e57-0000-0000-000000000001', 'c3000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'c1000000-7e57-0000-0000-000000000001', 'c5000000-7e57-0000-0000-000000000001', 'e1000000-7e57-0000-0000-000000000002', 'a0000000-7e57-0000-0000-000000000002', 'd1000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000003', 'd1000000-7e57-0000-0000-000000000003', 'c3000000-7e57-0000-0000-000000000003', 'c2000000-7e57-0000-0000-000000000002', 'c1000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000004', 'd1000000-7e57-0000-0000-000000000007', 'c3000000-7e57-0000-0000-000000000002', 'e1000000-7e57-0000-0000-000000000005', 'a0000000-7e57-0000-0000-000000000004', 'd1000000-7e57-0000-0000-000000000004');
+
 
 insert into order_line (order_id, line_no, menu_item_id, dish_id, quantity, unit_price_paise,
                         line_subtotal_paise, tax_cgst_paise, tax_sgst_paise, line_total_paise, dish_name_snapshot) values
@@ -337,9 +349,11 @@ select 'e4000000-7e57-0000-0000-000000000002', ol.id, 1, 1000
   from order_line ol
  where ol.order_id = 'e2000000-7e57-0000-0000-000000000002' and ol.line_no = 1;
 
+-- Fixture codes, not the real ones: `0035` seeds `provider:razorpay:clearing` and
+-- `platform:revenue` as data and `code` is unique, so reusing them collides and kills the file.
 insert into ledger_account (id, code, owner_type, owner_id, account_type, normal_balance) values
-  ('e6000000-7e57-0000-0000-000000000001', 'provider:razorpay:clearing', 'provider', null, 'provider_clearing', 'debit'),
-  ('e6000000-7e57-0000-0000-000000000002', 'platform:revenue',           'platform', null, 'revenue',           'credit');
+  ('e6000000-7e57-0000-0000-000000000001', 'provider:7e57:clearing', 'provider', null, 'provider_clearing', 'debit'),
+  ('e6000000-7e57-0000-0000-000000000002', 'platform:7e57:revenue',  'platform', null, 'revenue',           'credit');
 
 insert into ledger_transaction (id, reason_code, source_type, source_id, occurred_at) values
   ('e7000000-7e57-0000-0000-000000000001', 'migration_opening_balance', 'payment', 'e3000000-7e57-0000-0000-000000000001', now());
@@ -914,9 +928,16 @@ select set_eq(
     ('dish_allergen.anon_dish_allergen_of_visible_dish'),
     ('dish_category.anon_dish_category_active'),
     ('allergen.anon_allergen_active'),
-    ('asset.anon_asset_of_visible_dish')
+    ('asset.anon_asset_of_visible_dish'),
+    -- `0027` / `P19`. The thirteenth, and the first that is NOT a menu table. A parent
+    -- picks the break window at checkout, and a school with no windows cannot be ordered
+    -- from at all — so "does this school have any" decides whether browsing can lead
+    -- anywhere. Withholding it until sign-in would mean a visitor identifies themselves in
+    -- order to be turned away. Break times are not personal data; `0002`'s own comment on
+    -- `break_time_read_all` says so.
+    ('break_time.anon_break_time_of_visible_school')
   $$,
-  '§12 item 5: the set of permissive policies in public is EXACTLY the 152 in §7 of the authorization model plus [AUTH-01]''s twelve');
+  '§12 item 5: the set of permissive policies in public is EXACTLY the 152 in §7 of the authorization model plus [AUTH-01]''s twelve and 0027''s break_time');
 
 -- §5 Rule 5. Restrictive, so it ANDs with everything else and cannot be defeated by
 -- adding a permissive policy later. This is what makes "account deletion stops
@@ -944,8 +965,8 @@ select is_empty($$ select tablename || '.' || policyname from pg_policies
                       and policyname <> 'deny_dead_accounts' $$,
                 '§5 Rule 5: deny_dead_accounts is the only restrictive policy in the schema');
 
-select is((select count(*)::int from pg_policies where schemaname = 'public'), 191,
-          '§12 item 5: 191 policies in public — 152 permissive (140 from §7 + [AUTH-01]''s 12) + 39 restrictive');
+select is((select count(*)::int from pg_policies where schemaname = 'public'), 192,
+          '§12 item 5: 192 policies in public — 153 permissive (140 from §7 + [AUTH-01]''s 12 + 0027''s break_time) + 39 restrictive');
 
 -- Catches a table added to the schema without being classified in §8 at all.
 select set_eq(
@@ -999,8 +1020,10 @@ select set_eq(
   $$ select tbl from tests_seen where persona = 'anon' $$,
   $$ values ('school'),('city'),('school_menu_version'),('menu_assignment'),('menu'),
             ('menu_item'),('menu_item_price_override'),('dish'),('dish_allergen'),
-            ('dish_category'),('allergen'),('asset') $$,
-  '§9 items 1-2 / [AUTH-01]: anon selects rows from the menu tables and NOTHING else — not "order", recipient, recipient_allergen, app_user, payment or invoice');
+            ('dish_category'),('allergen'),('asset'),
+            -- `0027`. A time of day and a name for it, for an already-public school.
+            ('break_time') $$,
+  '§9 items 1-2 / [AUTH-01]: anon selects rows from the menu tables and break_time, and NOTHING else — not "order", recipient, recipient_allergen, app_user, payment or invoice');
 
 -- Stated separately and in the other direction, because the set above is the one that
 -- would be quietly widened. These are the names that must never appear in it.
@@ -1687,17 +1710,109 @@ select is_empty(
 -- 6.1 The reachable surface is exactly the menu, enumerated.
 -- -----------------------------------------------------------------------------
 
+-- `has_column_privilege`, NOT `has_table_privilege`. Since `0020` narrowed `school` to a
+-- column-level grant, `has_table_privilege('anon', 'school', 'SELECT')` is FALSE while anon
+-- can still read three of its columns — so the table-level form would have quietly dropped
+-- `school` out of this set and reported the surface as smaller than it is. A privilege check
+-- that under-reports is the worst kind in a file like this.
 select set_eq(
-  $$ select c.relname::text
+  $$ select distinct c.relname::text
        from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+       join pg_attribute a on a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+      where n.nspname = 'public'
+        and c.relkind in ('r','p','v','m','f')
+        and has_column_privilege('anon', c.oid, a.attnum, 'SELECT') $$,
+  $$ values ('school'),('city'),('school_menu_version'),('menu_assignment'),('menu'),
+            ('menu_item'),('menu_item_price_override'),('dish'),('dish_allergen'),
+            ('dish_category'),('allergen'),('asset'),('public_menu'),
+            -- `0027`, and it is the thirteenth — this line is the decision the assertion
+            -- text demanded. Six columns of `break_time`: a time of day and a name for it,
+            -- for a school anon can already see. `legacy_option_value` is withheld, because
+            -- its own column comment says never to trust it.
+            ('break_time') $$,
+  '[AUTH-01]: anon may SELECT exactly the twelve menu tables, the one menu view and break_time. A fourteenth table is a decision, not an accident');
+
+-- -----------------------------------------------------------------------------
+-- `E02-31` — the dropped SECURITY DEFINER readers stay dropped.
+--
+-- `0011` created `get_schools()` to enforce a column projection server-side. `0012` dropped
+-- it and replaced it with grants and policies — "one way in" — which was right, but the
+-- header of `0011` still reads as though the function is the authority, and that is what sent
+-- somebody looking for `public_school` / `get_schools` as a REST resource. Neither exists.
+--
+-- The risk if one were ever recreated is not confusion, it is bypass: a SECURITY DEFINER
+-- reader over these tables is a second path to the same data that no policy constrains, so a
+-- policy tightened later would not actually tighten anything.
+-- -----------------------------------------------------------------------------
+select is_empty(
+  $$ select p.proname::text from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.proname in ('get_schools', 'get_school_menu', 'get_school_menu_version') $$,
+  'E02-31: the SECURITY DEFINER menu readers dropped by 0012 stay dropped — one way in');
+
+-- -----------------------------------------------------------------------------
+-- 6.1a `E02-30` — WHICH COLUMNS, not just which tables.
+--
+-- The hole this closes: `0011` documented that `school.contact_name`, `contact_email` and
+-- `contact_phone` are withheld and built `get_schools()` to withhold them. `0012` dropped
+-- that function and granted the whole table, and **nothing here noticed**, because every
+-- assertion in this file reasoned about tables. RLS filters rows; GRANTs filter columns;
+-- only the row half was being tested. A named staff member's contact details were readable
+-- on staging with the publishable key that ships in every APK.
+--
+-- Pinned exactly, so adding a column to `school` does not expose it and removing one from
+-- this list is a deliberate act with a review attached.
+-- -----------------------------------------------------------------------------
+select set_eq(
+  $$ select a.attname::text
+       from pg_attribute a
+       join pg_class c on c.oid = a.attrelid
+       join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname = 'school'
+        and a.attnum > 0 and not a.attisdropped
+        and has_column_privilege('anon', c.oid, a.attnum, 'SELECT') $$,
+  $$ values ('id'),('name'),('city_id') $$,
+  'E02-30: anon reads exactly id, name and city_id from school — never a staff member''s contact details');
+
+-- A `select *` as anon must be a permission error, not a payload. This is the behavioural
+-- half: the grant above could be correct while some future view or default re-widened it.
+select is_empty(
+  $$ select a.attname::text
+       from pg_attribute a
+       join pg_class c on c.oid = a.attrelid
+       join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relname = 'school'
+        and a.attnum > 0 and not a.attisdropped
+        and a.attname in ('contact_name','contact_email','contact_phone',
+                          'address_line1','address_line2','postcode','legacy_bubble_id')
+        and has_column_privilege('anon', c.oid, a.attnum, 'SELECT') $$,
+  'E02-30: the withheld columns of school are named individually, so the assertion says what it protects');
+
+-- -----------------------------------------------------------------------------
+-- 6.1b The same class, everywhere anon can read.
+--
+-- `school` was found by hand. This is what finds the next one: any anon-readable column
+-- whose name says it carries a person's contact details or a legacy identifier, across the
+-- whole reachable surface rather than the one table somebody thought to check.
+--
+-- Name-based, and therefore not a proof — a column called `notes` holding an email address
+-- passes. It is a tripwire for the obvious case, which is the case that keeps happening.
+-- -----------------------------------------------------------------------------
+select is_empty(
+  $$ select c.relname || '.' || a.attname
+       from pg_attribute a
+       join pg_class c on c.oid = a.attrelid
        join pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'public'
         and c.relkind in ('r','p','v','m','f')
-        and has_table_privilege('anon', c.oid, 'SELECT') $$,
-  $$ values ('school'),('city'),('school_menu_version'),('menu_assignment'),('menu'),
-            ('menu_item'),('menu_item_price_override'),('dish'),('dish_allergen'),
-            ('dish_category'),('allergen'),('asset'),('public_menu') $$,
-  '[AUTH-01]: anon may SELECT exactly the twelve menu tables and the one menu view. A thirteenth table is a decision, not an accident');
+        and a.attnum > 0 and not a.attisdropped
+        and (a.attname like 'contact%' or a.attname like '%email%'
+          or a.attname like '%phone%'   or a.attname like 'address%'
+          or a.attname like 'legacy_%')
+        and has_column_privilege('anon', c.oid, a.attnum, 'SELECT') $$,
+  'E02-30: no anon-readable column anywhere in public looks like a person''s contact details');
 
 select is_empty(
   $$ select c.relname || ':' || pv.priv
@@ -1709,15 +1824,21 @@ select is_empty(
         and has_table_privilege('anon', c.oid, pv.priv) $$,
   '[AUTH-01]: anon holds SELECT and nothing else — no INSERT, UPDATE or DELETE anywhere in public, views included');
 
--- Every policy naming anon is on a menu table. `[AZ-03]`'s "no policy names anon" is gone
--- by decision; this is what replaces it, and it is an exact list rather than a maximum.
+-- Every policy naming anon is on a menu table, or on `break_time`. `[AZ-03]`'s "no policy
+-- names anon" is gone by decision; this is what replaces it, and it is an exact list rather
+-- than a maximum.
+--
+-- `break_time` is the first entry here that is not a menu table, so the sentence changed as
+-- well as the list — "on a menu table" would have become a description that no longer matched
+-- what it was asserting, which is how a pin stops being read.
 select is_empty(
   $$ select tablename || '.' || policyname from pg_policies
       where schemaname = 'public' and 'anon' = any(roles)
         and tablename not in ('school','city','school_menu_version','menu_assignment',
                               'menu','menu_item','menu_item_price_override','dish',
-                              'dish_allergen','dish_category','allergen','asset') $$,
-  '[AUTH-01]: every policy that names anon is on a menu table');
+                              'dish_allergen','dish_category','allergen','asset',
+                              'break_time') $$,
+  '[AUTH-01]: every policy that names anon is on a menu table or on break_time');
 
 -- PUBLIC is still never named. A policy with `roles = {public}` reaches anon by another
 -- name, and that is the missing-TO-clause trap `[AZ-03]` was really about.

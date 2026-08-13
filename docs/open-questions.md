@@ -312,7 +312,7 @@ change — is correct at all.
 | **`GST-03`** | **Round the grand total to the nearest rupee, or charge exact paise?** The conventional Indian invoice carries a "Round Off ₹0.40" line bringing the payable to a whole rupee. **Options:** (a) exact paise — Razorpay charges exact paise, the arithmetic is already correct, and the customer is charged precisely what the invoice says; (b) round to the rupee, using `invoice.round_off_paise`, which the column supports. **Recommended: (a)**, which is what is written (`G6`). Listed because it is a convention question an accountant may have a firm view on, and because it **changes the amount charged** — so it cannot be added later as a rendering change, it needs a dated cutover. | (a) | `E07-02` |
 | **`GST-04`** | **Is catering supplied *to a school* exempt, where the same catering supplied to a parent is taxable?** Notification 12/2017 exempts certain services provided **to an educational institution** by way of catering. Today the supply is GrayBag → parent, so the exemption plainly does not arise. But `E18-01` asks whether a school might buy in bulk and bill through fees — and that is a supply **to the institution**, which may land in a different tax position entirely (and, being B2B, may also pull in the e-invoicing question in §9). **This is a question, not a finding — do not build anything on it either way.** Not needed for launch. Worth asking at the same time as `E00-10` because it may decide whether `E18-01`'s school-bulk model is viable before anyone designs it. | Not modelled; v1 is parent-only | `E18-01`, `E07-09` |
 | **`GST-05`** | **Does the invoice PDF need a digital signature?** Rule 46 requires a signature or digital signature of the supplier. Electronically issued invoices are commonly served with "This is a computer-generated invoice and does not require a signature". **Options:** (a) the computer-generated wording, which is what the layout in §8 assumes; (b) a digital signature certificate applied to every PDF, which is a key, a renewal, a signing step in the PDF pipeline and a place for the pipeline to fail silently. **Recommended: ask.** The answer changes the PDF pipeline, not the data, so it is cheap to defer — but it should be answered before `E07-04` starts emailing documents. | (a), as `«SIGNATURE-TREATMENT-PENDING-E00-10»` | `E07-02`, `E07-04` |
-| **`GST-06`** | **Three launch cities, three GST state codes — so `M2`'s flat CGST+SGST is already wrong for two of them.** The cities span Punjab (`03`), Chandigarh (`04`) and Haryana (`06`), so the place of supply takes three distinct values (`data-model.md` §3.1). Under a **single GSTIN** at most one can be intra-state; the other two are **IGST at 5%**, whatever the accountant says about registration. This is arithmetic on facts already in the schema, not contingent on `[GST-02]`. **Options:** (a) register a GSTIN in **each** of the three states → CGST+SGST everywhere, but three registrations, three sets of returns, more compliance overhead; (b) a **single GSTIN**, accept IGST for the two out-of-state cities, and derive the split per `place_of_supply_state_code` the same way `E07-17` already does on the invoice (`E07-21` carries it into the checkout pricing path so the customer is not shown CGST+SGST and then invoiced IGST — under `L7` the charged total must equal the displayed total). **Recommended: (b) for launch, revisit if a city's volume justifies its own registration.** Note: once decided, `M2` in `decisions.md` must be reworded from a statement of fact ("intra-state") to a statement about **one** city. | (b) assumed; `M2` needs rewording | `E07-06`, `E07-17`, `E07-21` |
+| **`GST-06`** | **CLOSED 2026-08-11 — the premise is gone.** It asked how to handle "three launch cities, three GST state codes", concluding `M2`'s flat CGST+SGST was already wrong for two of them. `SC1` (2026-08-07) confirms **Mohali only**: one city, one state code, and non-negotiable #7 forbids the IGST path outright. The three-city figure was `docs/data-model.md` §1.7's *12-month planning* column read as a statement of today — the same misreading that put two cities we do not serve into the App Store listing. `G4` is superseded, `E07-21` struck, `E07-17` rewritten as an assertion. What remains genuinely open is `GST-02` alone: GrayBag's own registered state, which is one fact and not a per-invoice derivation | Closed | `SC1`, `G4` (archived), `E07-17` |
 
 ### Confirmations rather than decisions
 
@@ -570,6 +570,76 @@ weekend (`E17-09`) rather than the build.
 | **Is anyone relying on legacy allergy data?** | `Child.allergies` is empty on all 1,115 rows, so nothing migrates and every record starts blank. The kitchen may believe otherwise. `E16-39`. Owner: Andy |
 | **Does anything need doing about email verification?** | **No — closed 2026-08-08 (`AR4`).** Google verifies the address; an email OTP cannot succeed on an unreadable one. Verification is a property of the two chosen mechanisms, not a step to add |
 | **When exactly does Amity's email domain change land, and are the old addresses deleted or aliased?** | Determines how tight the re-export-to-cutover window must be, and whether `E16-41`'s reconciliation is a rename or a re-identification. Aliased is recoverable; deleted is not. Owner: Andy, from the school |
+
+## Ordering for yourself — v1 or fast-follow? — raised 2026-08-10
+
+School staff and university students order their own lunch. The business includes them, the
+legacy data has 13 `recipient_type = Staff` orders and a `CollegeStudent` role, and
+`docs/ux-spec.md` is written end to end as a parent ordering for a child — so they cannot use
+the app at all. **Excluded by omission, not by decision.**
+
+Fully costed in **`docs/self-ordering-costing.md`**. The short version: the data model already
+supports it (`recipient.is_self`, `is_minor`, and a `guardian_relationship` of `'self'`, all
+from `0001`), the consent path gets *simpler* rather than harder, and the only genuine unknown
+is a question for the kitchen — **where does a staff lunch physically go?** A child's goes to a
+classroom at a break; a teacher's and a university student's do not.
+
+Two decisions needed from Andy: v1 or fast-follow, and the kitchen question.
+
+
+## The legacy dish photographs are 120px thumbnails — raised 2026-08-11
+
+`E16-43` uploaded all 82 mirrored images to Storage and they render. But **72 of the 82 are
+exactly 120×120, and the largest is 213×120** — 1.7 MB for the entire catalogue. The upload
+agent probed the Bubble CDN with `?w=800` and with its `cdn-cgi/image` resizer; both return the
+same 180×120 pixels, so **there is no higher-resolution source**. What we mirrored is all there
+ever was.
+
+They are fine as list tiles. A full-bleed hero on Dish detail at 390pt wide is upscaling a
+120px image more than threefold, and it will look soft on any modern phone.
+
+This widens `E16-29` from "re-shoot the 3 that 403" to **"the catalogue needs real photography
+before launch"**, which is a cost and a scheduling item rather than a bug.
+
+**Recommendation:** ship with them. They are honest photographs of the real food, they are a
+large improvement on the pattern placeholder, and Dish detail can cap the hero's height so the
+softness is less obvious. Then shoot the catalogue properly as a fast-follow — one session, one
+day, and the images swap in without a code change because the path already resolves through
+`asset`.
+
+**[NEEDS ANDY]** Confirm ship-with-these, and decide when the shoot happens.
+
+## Staging has no real menu — raised 2026-08-11
+
+Staging carries the five fixtures from `supabase/seed.sql`, not the legacy catalogue, and
+**none of them has a `legacy_bubble_id`**. So `E16-43` could only match photographs to dishes by
+name: 4 of 5 matched, and **78 of the 82 uploaded images sit unused**.
+
+That is not a defect in the upload — it is the menu import (`E16`) not having run against
+staging. Once dishes carry their `legacy_bubble_id`, re-running the tool without its
+`--fixture-aliases` flag joins all 82 on the id exactly, and the alias table gets deleted
+rather than extended.
+
+**[NEEDS ANDY]** Nothing to decide, but worth knowing: **the app on staging is showing four real
+photographs against five fixture dishes.** It is not showing the real menu, and it will not
+until the import runs.
+
+## The refund timing we tell people — raised 2026-08-11
+
+`OrderDetailScreen` tells a parent a refund "reaches your account in 5–7 working days". **Nobody
+confirmed that number.** It was a plausible default chosen while building the screen, and it is
+the kind of sentence a person plans around and complains about when it slips.
+
+Razorpay's own published windows vary by instrument — UPI is usually far faster than a card,
+and a netbanking reversal can be slower than either. `E19-01`'s spike results may already
+contain the real figures.
+
+**Recommendation:** replace it with the instrument-specific figure where we know it, and
+otherwise say "usually within a week" rather than a range that reads as a commitment. Do not
+ship the invented number.
+
+**[NEEDS ANDY]** Confirm the wording, ideally with whatever Razorpay states for the instruments
+we accept.
 
 ## Raised by the public website (`apps/web`, `E12`) — 2026-08-11
 

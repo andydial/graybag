@@ -36,7 +36,7 @@ These are settled. They are not re-litigated per screen.
 |---|---|---|---|
 | R1 | **Browsing never requires a session. The only gate is checkout.** | `AR7`, `docs/mvp-scope.md` | Splash → school picker → menu → dish → cart all work signed out. Sign-in appears once, at "Place order". No screen may show a sign-in wall before that. |
 | R2 | **Adding a child is not a wall in front of the menu.** | `AR7` | Add Child is reachable from checkout and from Profile, never as a forced step after sign-in. |
-| R3 | **No passwords.** Google, Apple, email OTP. No phone OTP in v1. | non-negotiable #7 | Reference screen `03.png` — email + password + "Forgot Password?" — **is not built.** See §4.1. |
+| R3 | **No passwords, and in v1 no OAuth either — email OTP only.** No phone OTP. | non-negotiable #7 | Reference screen `03.png` — email + password + "Forgot Password?" — **is not built.** Google and Apple sign-in need client ids that **do not exist**, so until they do, offering the buttons is offering a dead end. This rule was previously written as "Google, Apple, email OTP", which is what led Andy to believe he was blocked on OAuth when the screen was working. **First sign-in IS registration (`AR4`)** — the screen must say so, or it reads as broken to a new user. See §4.1. |
 | R4 | **Menu prices are GST-exclusive.** 5% added at checkout as CGST 2.5% + SGST 2.5%. | `docs/mvp-scope.md`, confirmed 2026-08-07 | Dish cards and dish detail show the ex-GST price. The tax lines appear once, in the cart/checkout total block. A dish card price and the cart line price are the same number. |
 | R5 | **All money is integer paise.** | non-negotiable #3 | Display formats at the edge only. Never a float in state. |
 | R6 | **Children's data is regulated.** Names, class, section, allergies are tier P/S. | DPDP, non-negotiable #4 | Never in logs, Sentry, analytics, or any error string. Failure messages carry an index, never a name. Screenshots for the store must not contain a real child. |
@@ -74,18 +74,20 @@ fill; the "Delivery to school" card therefore uses large/semibold text only.
 
 ### 3.2 Type
 
-**VAG Rounded Next** (11 weights supplied, `00_Assests/Font/`). The rounded geometry is most of
-what makes the reference screens feel like GrayBag rather than a generic delivery app.
+**Nunito.** Settled 2026-08-10 (`S35`) — not a fallback, the typeface.
 
-> **DECIDED 2026-08-10 (Andy): ship the rounded fallback everywhere; do not block on the
-> licence.** VAG Rounded Next is a licensed commercial typeface and embedding it in a shipped
-> binary is redistribution, which we cannot evidence today. So the app and the prototype both
-> use a rounded system stack.
->
-> **The constraint that makes this reversible:** the family is expressed as *one* token —
-> `--font` / `typography.family` — referenced everywhere and hard-coded nowhere. If the licence
-> later permits embedding, swapping in VAG Rounded Next is a one-line change. A lint rule
-> should fail any `fontFamily` literal outside the token definition, so this cannot rot.
+VAG Rounded Next is the brand face in the design package and we hold no evidence of a licence
+permitting it in a shipped binary. Rather than carry that through the build with every screen
+provisional, Nunito is the family outright: SIL Open Font Licence, free to embed in an app and
+on the web, and the rounded geometry the brand is actually reaching for.
+
+Three weights — Regular 400, Medium 500, SemiBold 600 — from the brand guideline's own
+hierarchy (`docs/design-tokens.md` §3.1). Every extra weight is bundle size on the connection
+that is the real constraint.
+
+`font.fallback` has been **deleted** from the token, not repointed. A `family`/`fallback` pair
+invites somebody to restore the brand face later without checking the licence again, and a
+settled question that still looks unsettled gets reopened.
 
 ### 3.3 Pattern
 
@@ -299,13 +301,31 @@ So the field exists, and it is designed rather than inherited:
 - **Never used to compute a warning**, and never treated as allergen data.
 - **Tier P, so it is never logged** (R6).
 
-> **The field is only honest if the kitchen sees it.** A note the packing list drops is a lie
-> told to a parent at the moment they are trying to be careful. **Decision required and recorded
-> before this ships:** either the kitchen packing list and the per-class delivery sheet render
-> the note against its line — in which case build it — **or the field is not built at all**.
-> There is no acceptable middle. Raised as its own task against `E09`, and until it is answered
-> the field stays out of the React Native build. *(The prototype includes it so the interaction
-> can be judged.)*
+> **RESOLVED 2026-08-10 (Andy) — `P12`, settling `E09-15`. The packing list surfaces the note,
+> so the field is built.** The packing list is the only *per-child* artefact we produce; the
+> production list is aggregated, so a note about one portion has nowhere to live on it. If the
+> note does not reach the packing list it reaches nobody.
+>
+> **Why it is built rather than cut:** 127 of roughly 282 non-draft legacy orders used
+> `special-comments` — close to half. Dropping it is a visible regression from Bubble on a
+> feature parents actually use.
+
+Three conditions, all of them load-bearing:
+
+1. **140 characters, hard.** A parent writing an essay is a parent whose request will not be read
+   in a busy kitchen at 7am. The counter appears from 120 and the field stops accepting input at
+   140 — it does not silently truncate on save.
+2. **The copy promises only what a kitchen can deliver at volume.** "We'll pass this to the
+   kitchen. It's a request, not a guarantee — and not the place for allergies." No "we will",
+   no "the kitchen will ensure".
+3. **It carries the packing list's retention rule** (`E09-14`, option c): generated fresh per
+   service date, destroyed at end of day, **nothing retained server-side**. The moment a parent
+   types something about their child into it, it is regulated data (R6).
+
+**Sequencing.** The allergy-language diversion routes to Edit child (5.10.1), so **the note ships
+after Edit child exists** — a diversion to a screen that does not exist is worse than no
+diversion. Build order: cart → menu/dish *without* the note → add child + edit child → the note
+lands in the dish sheet. *(The prototype carries it now so the interaction can be judged.)*
 
 ### 5.7 Cart
 
@@ -356,12 +376,19 @@ Therefore:
 ### 5.8 Sign-in
 
 - **Purpose.** The single gate, at checkout only (R1).
-- **Elements.** Ref `03` **rebuilt without passwords**: "Welcome back 👋", Continue with Google,
-  Continue with Apple (iOS), divider, email field → "Email me a code", and a line explaining
-  why we are asking *now*: "We need an account to place your order."
-- **States.** *Default* · *Google in progress* · *Apple in progress* · *Email entered, code
-  sent* (moves to 5.9) · *Cancelled by user* (returns to cart, nothing lost) · *Error* ·
-  *Offline* (disabled + explanation).
+- **Elements.** Ref `03` **rebuilt without passwords and without OAuth**: "Welcome 👋", a line
+  saying why we are asking *now* ("We need an account to place your order"), the email field →
+  "Email me a code", and — load-bearing — **"New here? Enter your email and we'll send a code —
+  that is all it takes to create your account."**
+- **No Google or Apple buttons in v1.** They need client ids that do not exist, and a button
+  that cannot work is a dead end on the one gated screen in the product. When the ids exist they
+  go above the divider; until then the screen must not imply they are the way in.
+- **Why the "New here?" line is not decoration.** `AR4` makes first sign-in the whole of
+  registration. A screen headed "Sign in" offering no visible way to create an account reads as
+  broken even when it is working perfectly — Andy hit exactly that and concluded he was blocked
+  on OAuth. 150 Amity parents will meet this screen cold.
+- **States.** *Default* · *Email entered, code sent* (moves to 5.9) · *Cancelled by user*
+  (returns to cart, nothing lost) · *Error* · *Offline* (disabled + explanation).
 
 ### 5.9 Email OTP
 

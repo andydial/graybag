@@ -55,6 +55,18 @@ export interface NewRecipient {
   allergenConsent?: boolean;
   allergenIds?: string[];
   allergyNote?: string | null;
+  /**
+   * The adult is adding **themselves** — `P13`, `E05-38`. Changes what the server writes in
+   * ways a client cannot patch up afterwards: `self_data_notice` instead of `child_data_notice`,
+   * the `self_*` consent purposes, `guardian_relationship = 'self'`, `is_minor = false`, and
+   * `self_declared` verification instead of `parental_verification_method()` — there is no
+   * third party to have verified (`0022`).
+   *
+   * Absent means a child, and that default is deliberate: a screen that forgets to send this
+   * records a *parental* consent, which is the direction that over-describes rather than
+   * under-describes what was agreed to.
+   */
+  isSelf?: boolean;
   /** Recorded on the consent row. Screen and app version only — never the child (§11.5). */
   screen?: string;
   appVersion?: string;
@@ -78,6 +90,16 @@ export interface ApiRecipient {
   schoolId: string;
   /** Empty when the school row is unreadable, never a reason to hide the child. */
   schoolName: string;
+  /**
+   * This recipient is the signed-in adult themself — `P13`, `E05-38`.
+   *
+   * **Not optional, and false rather than absent when the column does not come back.** The
+   * screens read it to decide whether to say "You" or a person's name, whether to draw a class,
+   * and — the one that matters — whether to offer "Order for myself" at all. An `undefined`
+   * that meant "we did not ask" would end up offering an adult a second self row, which the
+   * server then refuses with `self_recipient_exists`: a wasted round trip and a dead end.
+   */
+  isSelf: boolean;
   /** From the link, not the child: a co-guardian may be able to see but not to edit. */
   canOrder: boolean;
   canManage: boolean;
@@ -104,10 +126,16 @@ export class RecipientPayloadError extends Error {
  * `created_by_user_id` is absent for the same reason it is absent from every policy: naming
  * it here would put a second parent-to-child link in front of the app, which is the defect
  * `D10` exists to prevent.
+ *
+ * `is_self` is here since `E05-38` and is the one addition that is not a name or a place: it
+ * decides whether a row says "You", whether it draws a class, and whether the list offers to
+ * add the adult themself. **`is_minor` stays withheld** — it is the same fact stated backwards
+ * for every row this app can read, and a second field that answers the same question is a
+ * second field that can disagree with the first.
  */
 export const RECIPIENT_COLUMNS =
   'can_order,can_manage,' +
-  'recipient:recipient_id(id,first_name,last_name,class_label,section_label,is_active,' +
+  'recipient:recipient_id(id,first_name,last_name,class_label,section_label,is_active,is_self,' +
   'school:school_id(id,name))';
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -182,6 +210,9 @@ export async function fetchRecipients(): Promise<ApiRecipient[]> {
       // Absent means no. A link that did not say `can_manage` must not open the edit path.
       canOrder: row.can_order === true,
       canManage: row.can_manage === true,
+      // Strict, and false when absent, for the reason on the field. A row that quietly became
+      // "not myself" would put a class label on an adult and offer them a second self row.
+      isSelf: child.is_self === true,
     });
   });
 
@@ -189,7 +220,15 @@ export async function fetchRecipients(): Promise<ApiRecipient[]> {
   // *within* the embed, not the parent rows, so asking the database for this would silently
   // return them in insertion order. `localeCompare` because the audience types Indian names
   // in both scripts.
-  return children.sort((a, b) => a.firstName.localeCompare(b.firstName));
+  //
+  // **The adult's own row comes first** (`E05-38`), ahead of the alphabet. It reads as "You",
+  // so sorting it by the first name nobody sees would put it in a position with no visible
+  // explanation — a row labelled You sitting between two children looks like a bug. There is
+  // at most one: `create_recipient` refuses a second with `self_recipient_exists`.
+  return children.sort((a, b) => {
+    if (a.isSelf !== b.isSelf) return a.isSelf ? -1 : 1;
+    return a.firstName.localeCompare(b.firstName);
+  });
 }
 
 export interface SchoolChange {
@@ -208,22 +247,32 @@ export interface SchoolChangeResult {
 }
 
 /**
- * Add a child.
+ * Add a recipient — a child, or the adult themself (`isSelf`, `P13`/`E05-38`).
  *
  * Allergy details are only sent when `allergenConsent` is true. That is not a second
  * enforcement of the server's rule — the server still refuses the inconsistent combination,
  * and must — it is that a client which held the details back from the *request* leaves
  * nothing to be dropped.
+ *
+ * `isSelf` is sent on every call rather than only when true. The server defaults `p_is_self`
+ * to false, so omitting it would work — until the day the default changes, which is exactly
+ * the class of silent flip this call cannot afford: it decides which privacy notice the
+ * consent record points at.
  */
 export async function createRecipient(input: NewRecipient): Promise<CreatedRecipient> {
   const allergenConsent = input.allergenConsent === true;
+  const isSelf = input.isSelf === true;
 
   const data = await invokeFunction<Record<string, unknown>>('recipients', {
     first_name: input.firstName,
     last_name: input.lastName ?? null,
     school_id: input.schoolId,
-    class_label: input.classLabel ?? null,
-    section_label: input.sectionLabel ?? null,
+    // An adult has neither, and `0022` says so outright: "No class or section is required. A
+    // staff member has neither." Dropped here as well as on the screen, so a stale field left
+    // in a form's state cannot put "Class 5" on a member of staff.
+    class_label: isSelf ? null : (input.classLabel ?? null),
+    section_label: isSelf ? null : (input.sectionLabel ?? null),
+    is_self: isSelf,
     consent_granted: input.consentGranted === true,
     allergen_consent: allergenConsent,
     allergen_ids: allergenConsent ? (input.allergenIds ?? []) : [],
@@ -268,4 +317,122 @@ export async function changeRecipientSchool(input: SchoolChange): Promise<School
     changedSchool: data.changed_school === true,
     fromSchoolId: String(data.from_school_id ?? ''),
   };
+}
+
+/**
+ * Correct a recipient's details — `E05-43`.
+ *
+ * **Separate from `changeRecipientSchool`, deliberately.** A move between schools has a
+ * future-order guard and resets the class, because a class at the old school means nothing at
+ * the new one. A typo in a section label has none of that weight, and the only route to fixing
+ * one used to be pretending to move the child to the school they were already at.
+ *
+ * `null` means "leave it alone". Clearing a field is an explicit flag, because a parent has to
+ * be able to remove a section they added by mistake, and null cannot mean both.
+ */
+export interface RecipientEdit {
+  recipientId: string;
+  firstName?: string;
+  lastName?: string | null;
+  classLabel?: string | null;
+  sectionLabel?: string | null;
+  clearSection?: boolean;
+  clearLastName?: boolean;
+}
+
+export async function updateRecipientDetails(input: RecipientEdit): Promise<{ recipientId: string }> {
+  const data = await invokeFunction<Record<string, unknown>>(
+    `recipients/${input.recipientId}`,
+    {
+      // No `school_id`: its absence is what tells the function this is a correction rather
+      // than a move.
+      first_name: input.firstName ?? null,
+      last_name: input.lastName ?? null,
+      class_label: input.classLabel ?? null,
+      section_label: input.sectionLabel ?? null,
+      clear_section: input.clearSection === true,
+      clear_last_name: input.clearLastName === true,
+    },
+    'PATCH',
+  );
+  return { recipientId: String(data.recipient_id ?? '') };
+}
+
+/**
+ * Remove a recipient — `E05-44`, and since migration `0026` also `E20-30`. Children leave school.
+ *
+ * **This erases the child.** The comment here used to say the opposite — "deactivation, not
+ * deletion, and not erasure" — and that was true until 2026-08-11. It is not now, and a stale
+ * description of a destructive call is worse than none: `deactivate_recipient` deletes every
+ * `recipient_allergen` row, clears `allergy_note`, and empties the name, class and section.
+ *
+ * **The row still survives**, and that half is unchanged: `order` and `invoice` reference it,
+ * and `D15` forbids breaking a statutory record. So it is anonymise-in-place — the row is a
+ * live financial reference with nothing identifying left in it.
+ *
+ * Why the change: the published privacy policy (notice version 2, §4) says a child's name,
+ * class, section and allergy details are deleted **when the guardian link ends**. Removal is
+ * what ends the link, so removal is what has to honour the sentence.
+ *
+ * A parent asking to have their *own account* erased is still a different request with its own
+ * process — `E20-41`, `data_subject_request`. This is the `recipient` scope of that erasure,
+ * not a replacement for it.
+ */
+export async function removeRecipient(recipientId: string): Promise<{ recipientId: string }> {
+  const data = await invokeFunction<Record<string, unknown>>(
+    `recipients/${recipientId}`,
+    undefined,
+    'DELETE',
+  );
+  return { recipientId: String(data.recipient_id ?? '') };
+}
+
+/**
+ * The declared allergens of one recipient — `E05-31`.
+ *
+ * ## Why this is its own call, and narrow
+ *
+ * `recipient_allergen` is **tier S: special-category health data about a minor** (§13.3), and
+ * it is the most sensitive table in the system. `fetchRecipients` deliberately does not return
+ * it — the column list there is the redaction, and pulling every child's health record on app
+ * start to warn about a dish nobody has opened would be exactly the over-collection the
+ * classification exists to prevent.
+ *
+ * So it is read **one recipient at a time, when there is a reason to** — the reason being that
+ * this is the person the order is for, and the app is about to check dishes against them.
+ *
+ * ## Why it had to exist at all
+ *
+ * Without it `OrderTarget.allergenIds` was permanently `null`, which meant **no allergen
+ * warning could fire anywhere in the app**. Menu drew no flags, and Dish detail said "we can't
+ * check this against their allergies" for every dish and every child — honest, and useless.
+ * `docs/ux-spec.md` F5 is the only §6 divergence with a safety consequence, which is why this
+ * came before the rest.
+ *
+ * ## What it returns, and what it must never do
+ *
+ * Allergen **ids** only. Not `severity`, not `note` — `allergy_note` is free text a parent
+ * typed about their child and nothing on the ordering path needs it; the kitchen reads it
+ * through the fulfilment policy, not through here.
+ *
+ * **Nothing here logs.** An error carries the recipient id, and an id about a child stays out
+ * of logs, Sentry and analytics (non-negotiable #4). The caller gets an empty result and the
+ * screens say they cannot check — which is the honest answer and the one they already draw.
+ */
+export async function fetchRecipientAllergens(recipientId: string): Promise<string[]> {
+  const user = await currentUser();
+  // Signed out there is no policy that admits this read, and asking anyway would be a request
+  // we know will return nothing.
+  if (user === null) return [];
+
+  const rows = await runQuery<unknown>((t) =>
+    t.from('recipient_allergen').select('allergen_id').eq('recipient_id', recipientId),
+  );
+
+  const ids: string[] = [];
+  rows.forEach((row) => {
+    if (!isRecord(row)) return;
+    if (typeof row.allergen_id === 'string') ids.push(row.allergen_id);
+  });
+  return ids;
 }

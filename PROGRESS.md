@@ -1,8 +1,359 @@
+# Report — 2026-08-13, the version guard and the invoice
+
+## The epic view
+
+**A parent paying and getting a receipt is now half built and green.** `settle_payment` turns a
+recorded capture into a paid order, and it issues the tax invoice **in the same transaction** —
+so a paid order without a document, or a burned invoice number without a settlement, are both
+unreachable rather than merely unlikely. What remains is client-side: the checkout screen, the
+status endpoint, and the confirmation email.
+
+**The version guard the web thread flagged was real, but not where they looked.** Both threads
+read correctly and read different branches. The fix has been on `ux-spec-and-prototype` for days;
+`main` still has the broken rule. The Android half was genuinely unfixed and is now fixed.
+
+**The finding underneath both: this branch has never been merged, and is 96 commits ahead.**
+Every payments migration, the ledger, the state machine, the deployed webhook and all of
+invoicing exist only here. That is the risk worth acting on this week, and it needs Andy's word
+before I open the PR.
+
+---
+
+## SHIPPED
+
+- **`E07-01`/`E07-02`/`E07-16` — the invoice.** Issued inside `settle_payment` (`D14`). The
+  number is allocated **last**, under a row lock, after every check that could refuse has passed,
+  because a Postgres sequence is non-transactional and a rollback leaves a hole nobody can
+  explain to an auditor. Format `GB/26-27/000417` — fifteen characters; the format in the
+  original schema comment was seventeen and would have breached Rule 46's cap. Line descriptions
+  carry the child's **first name only**, asserted both ways. 13 assertions.
+- **`E17-34` — the Android version counter.** EAS's remote counter stood at **1** against a live
+  floor of `1777726914`. Set to `1786591932`, read back to confirm. Every production Android
+  submission would have been rejected.
+
+## FINDINGS
+
+- **The two threads' version reports do not contradict each other.** `main` has `2.0.0` and the
+  old `major >= 2` rule; this branch has `4.0.0` and a strict numeric floor against
+  `LIVE_STORE_VERSION = '3.7.0'`. The web thread read `main`. Nothing was wrong except that the
+  fix is unmerged.
+- **A guard woke up tautologically true.** `LIVE_PLAY.versionCode`'s assertion was a placeholder
+  `> 0`, dormant while the value was null. The real number arriving turned it from inactive into
+  trivially passing — green, and asserting nothing. Fixed. This is a shape worth watching for:
+  a dormant assertion is only safe while it stays dormant.
+- **`E17-29`–`E17-32` mean two different things on two branches.** `main` ends at `E17-28`; both
+  branches appended from 29 independently. `backlog-state.json` is keyed on ids, so merging
+  as-is applies one branch's ticks to the other's tasks. Filed as `E17-41` (which side moves)
+  and `E17-42` (the cause: shared mutable planning state with no id reservation). Not fixed —
+  ids are permanent and renumbering another thread's branch is not mine to do unilaterally.
+- **My own `0047` broke settlement everywhere, and the suite caught it.** The invoice issuer
+  refused unconditionally while the seller identity was a placeholder — which is the ordinary
+  state of a development database. Now production-only, via the same function the checkout guard
+  uses so the two cannot drift.
+- **A test that would fail every Thursday.** `checkout.test.sql` used `current_date + 3`; today
+  that is a Sunday, which `create_checkout` correctly refuses. It now asks `orderable_calendar`
+  for the Nth orderable day — the same source the app's date picker reads.
+
+## BLOCKED
+
+Nothing.
+
+## NEEDS ANDY
+
+1. **Merge `ux-spec-and-prototype` to `main`?** 96 commits. Say go and I open the PR and merge
+   on green.
+2. **`E17-33` — the live Play `versionName`.** The `versionCode` came back and unblocked the
+   Android floor; the name is still unread. One glance at the same Play Console screen. I have
+   deliberately **not** copied the App Store's `3.7.0` across — the two listings have been
+   updated by hand for fourteen months and may well differ.
+3. **EAS keystore registration** — the exact menu sequence is with you, unchanged.
+4. **`E19-07` sitting** — ready when you are.
+
+## NEXT
+
+Client checkout (`E06-02`), then `GET /checkout/:group/status` (`E06-16`), then the confirmation
+email (E08). That completes "a parent pays and gets a receipt".
 # Progress
 
 Newest handover at the top. Assume the reader has forgotten everything.
 
 ---
+
+## 2026-08-12 — infrastructure unblocked, and the capture path closed
+
+### THIRTY SECONDS
+
+**What moved.** Edge Function deploys no longer need Docker at all; the webhook endpoint is
+**live on staging and verified against real HTTP**. Colima is off the boot disk (11 GB
+reclaimed). `supabase test db` — the command CI runs — was silently running **zero files** for
+weeks; it now runs 20 files and 500 assertions, and fixing it exposed three faults that were
+headed for CI. `settle_payment` exists, so a verified capture now becomes a paid order with a
+pickup code and a ledger posting.
+
+**Epics complete: E02** (data model & authorization, 15/15) and **E19** (spikes, 4/4 — bar the
+45-minute sitting, which is yours).
+
+**Before we can go live**, in rough order of risk:
+
+| Epic | | Why it blocks |
+|---|---|---|
+| **E07** invoicing | 1/9 | **The biggest gap.** No invoice has ever been generated. Money can now be taken, recorded, reconciled and alarmed — and still not lawfully receipted |
+| **E06** payments | 7/15 | Capture path done. Client checkout, status endpoint and recovery remain; most need the sitting |
+| **E08** notifications | 0/4 | Nothing sends email. "Gets a receipt" ends here |
+| **E03** identity | 0/11 ⚠ | **Almost certainly mis-stated — sign-in works.** Nobody ticked it. `E00-23` |
+| **E09** kitchen ops | 1/5 | The kitchen cannot see an order it must cook |
+| **E17** release | 0/11 | Mostly yours — consoles, credentials, cutover |
+
+**Fast-follow, not blocking:** E10 admin, E11 reporting (`P15`), E12 marketing, E15 observability,
+E18, E21 (screens exist; the epic is a review list).
+
+**Blocked on you:** the `E19-07` sitting (~45 min, I'm ready), registering the upload keystore
+with EAS (menu-driven, and the same menu can destroy the key), and `E00-23`'s backlog
+reconciliation before these percentages steer a date.
+
+**MVP overall: 67/194 ticked (35%)** — read with `E00-23` in mind.
+
+---
+
+### SHIPPED
+
+- **Edge Function deploys without Docker.** `--use-api` bundles server-side. The webhook is
+  deployed to staging and verified live: `405` on GET, `200 recorded_unverified` on an unsigned
+  POST, `already_seen` on a replay — which proves the insert and §7.1 layer 4 against a real
+  database, not a fixture.
+- **Colima relocated.** 11 GB reclaimed. `COLIMA_HOME` wholesale **does not work** — it moves the
+  docker socket to virtiofs and `supabase start` dies on `supabase_vector`. Sockets stay on APFS,
+  disk moves. `scripts/colima-up.sh` refuses to start without the volume and prints the symptoms
+  it would otherwise cause.
+- **`supabase test db` works for the first time.** It exposed three real faults: a file emitting
+  two TAP plans, three of my suites committing `tests_tmp`/`pgtap` **outside a transaction**
+  (which put `tap_funky` into `public` and was correctly caught by the authorization pin), and a
+  lint gap on generated files. All were headed for CI.
+- **`settle_payment` (`E06-06`)** — capture → paid order, pickup code, ledger posting. Idempotent
+  without a flag; the test replays the whole function and asserts the money is not doubled.
+- **Upload keystore** secured at `~/.graybag-secrets/` (600 in a 700 dir), fingerprints recorded
+  in `docs/environments.md`.
+
+### FINDINGS
+
+- **Every Docker failure in this project has been the same failure**: a mount the runtime could
+  not see, presenting as something else entirely — `NOTESTS` and exit 0, or "entrypoint does not
+  exist" about a file you can `ls`. Both are now impossible to reach silently.
+- **Test tooling had contaminated the schema the authorization pin protects.** Committing pgTAP
+  into `public` added two anon-readable relations. The pin caught it, which is exactly its job.
+
+### NEEDS ANDY
+
+1. **`E19-07` sitting** — I'm ready, ~45 min.
+2. **EAS keystore registration** — interactive only; exact path in `docs/environments.md`, with
+   the destructive menu option called out.
+3. **`E00-23`** — reconcile the backlog before the percentages above are trusted.
+
+### NEXT
+
+Invoice generation inside `settle_payment`'s transaction (`M3` gapless numbering, `D14`), then
+the client checkout, the status endpoint, and the confirmation email.
+
+
+---
+
+## 2026-08-11 (overnight) — E06 steps 1–4, and the first invoicing guard
+
+### WHERE WE ARE, BY EPIC — read this bit only
+
+**Live-blocking epics still substantially open: E03, E06, E07, E08, E09, E17.** Everything else
+is either done, nearly done, or fast-follow.
+
+| | Epic | MVP ticked | State |
+|---|---|---|---|
+| ✅ | **E02** data model & authorization | 15/15 | Done. Default-deny proven by 194 pgTAP assertions |
+| ✅ | **E19** de-risking spikes | 4/4 | Done bar the `E19-07` sitting, which is yours and ~45 min |
+| 🟢 | **E13** design system · **E04** menu · **E14** app shell · **E01** foundations | 78% · 75% · 70% · 73% | Close. Remainder is polish and wiring, not unknowns |
+| 🟡 | **E05** ordering & cart | 5/11 | Cart, menu, recipients, break windows all work. Checkout is the gap, and it is E06's |
+| 🟡 | **E06** payments & ledger | 6/15 | **Steps 1–4 of the build plan are done tonight.** Ledger, state machine, webhook, alerting. Steps 5–9 need your `E19-07` sitting |
+| 🔴 | **E07** invoicing & GST | 1/9 | First guard landed tonight. No invoice has ever been generated — this is the biggest untouched MVP epic |
+| 🔴 | **E08** notifications · **E09** kitchen ops · **E10** admin · **E15** observability | 0–20% | Untouched or barely started. E08 and E09 are live-blocking; E10 and E15 are not |
+| 🔴 | **E17** release & cutover | 0/11 | Mostly yours — store consoles, credentials, the cutover itself |
+| ⏭ | **E11** school reporting · **E12** marketing site · **E18** deferred · **E21** screen design | — | Fast-follow (`P15` for E11). E21's screens are built; the epic is a design-review list |
+
+**Two caveats on those numbers.** They count *ticked* state, and older epics under-report:
+**E03 shows 0/11 while sign-in demonstrably works**, and E21 shows 0/20 while every screen it
+lists is built. Nobody ticked them at the time. Filed as `E00-23`; do not read E03 as "not
+started".
+
+**The single largest remaining risk is not code.** It is that no invoice has ever been generated,
+and `E07` is 1/9. Payments can now be taken, recorded and reconciled long before anything can
+lawfully be issued for them.
+
+---
+
+### SHIPPED
+
+Ten commits, each green from a clean database, each pushed.
+
+- **E06 step 1** (`0034`–`0037`) — the chart of accounts (`ledger_account` was **empty**, so the
+  first posting would have failed on a foreign key), `duplicate_of_payment_id` so a real double
+  charge can be recorded, the three payment timings on all three config tables, the two
+  cancellation reason codes, and the refund-to-source guard.
+- **E06 step 2** (`0038`) — the ledger's one way in. Refuses fewer than two entries, a
+  non-positive amount (**a negative amount balances**, so the zero-sum trigger cannot catch it),
+  an unbalanced posting, an unknown or deactivated account, and a non-ledger reason code.
+  Idempotency at the point of harm; corrections are reversals.
+- **E06 step 3** (`0039`) — §4.1's transition table enforced literally, the actor as part of the
+  transition, a missing actor as a refusal. `L3`: payments only move up the capture rank, so a
+  late `authorized` cannot downgrade a capture.
+- **E16-49** (`0040`/`0041`) — the migration actor, narrowed three ways: two states, INSERT only,
+  and the row must carry a `legacy_bubble_id`.
+- **E06 step 4** (`0042`) — **signature verification, the webhook endpoint, and the alerting.**
+  Raw-body rule, constant-time comparison, fail closed, always `200`, idempotency at §7.1 layer 4.
+  17 vitest assertions including an RFC 4231 vector.
+- **E06-21** (`0043`) — the over-refund guard takes the `order_group` row lock.
+- **E06-30** (`0044`) — `order_group.status` is now **derived at all**; it never was.
+- **E07-20** (`0045`) — production refuses to take money it cannot invoice.
+
+`test:all` green from clean: **856 mobile, 612 shared, 500 pgTAP.**
+
+### FINDINGS
+
+- **`order_group.status` was never derived.** `L1` says it is maintained by trigger; no trigger
+  existed. Every group has read `draft` since `0001`, and three statuses were unreachable.
+- **The seller's identity had no home in configuration.** It existed only as snapshot columns on
+  `invoice`, so the invoice builder had nowhere to read from.
+- **`E06-21`'s documented defect was in the document, not the code.** The arithmetic was always
+  right; the *race* was real, and deferring the trigger to COMMIT does not close it.
+- **A wrong webhook secret is silent** — that is what `E06-28` now alarms, with two checks
+  because each is the other's blind spot.
+- **I committed on a failing `build-backlog`**, which clobbered `E07-17`. Restored, and smoke now
+  runs the check that would have caught it.
+
+### BLOCKED
+
+- **Everything from E06 step 5 onward** — client checkout, recovery paths, reconciliation —
+  needs the `E19-07` answers. Not stalled on: I moved to E07.
+
+### NEEDS ANDY
+
+1. **`E19-07`, ~45 minutes.** Step 4's alerting is green, which was your cue.
+   `docs/e19-07-webhook-sitting.md` has the three actions.
+2. **`E20-48` is done but `E07-22`'s CA sign-off is not** — follow-up, not a blocker, as ruled.
+3. **`E00-23`** — the backlog under-reports older epics. Worth an hour of reconciling before you
+   use these percentages for planning.
+
+### NEXT
+
+E07 invoicing is the largest untouched MVP epic and the biggest non-code risk. Then E15.
+
+
+
+## 2026-08-11 — overnight run: flow fixes, dish photographs, the orphan guard
+
+Branch **`ux-spec-and-prototype`**. Smoke green throughout. Reload Metro and walk it.
+
+### SHIPPED
+
+| | |
+|---|---|
+| **Flow fixes** | `OrderTargetProvider` was mounted nowhere; the school was asked twice and lost; no stack screen had a way back |
+| **Dish photographs** | 82 uploaded to Storage, `image_path` populated, and the app can now resolve a storage key to a URL |
+| **The orphan guard** | `src/architecture/orphans.test.ts` — every context, provider and store must have a reader, a writer and a mount |
+| **Connectivity** | `E14-26`. Six screens took an `offline` prop that nothing supplied |
+| **Children's copy** | Now says what *we* have not read, not what the parent failed to share |
+| **`ListRow`** | `E14-27`. Leading slot, danger tone, label override |
+| **Can't connect + Policy gate** | `E21-17`, `E21-16`. An unconfigured build now says so instead of looking like an empty menu |
+| **`DishImage`** | Draws rectangles; three hand-rolled copies folded back |
+| **`food_type`** | End to end, live on staging — veg/egg marks render |
+| **Cart** | Rebuilt to the prototype — photo, veg mark, allergen line, stepper pill, eleven states |
+| **Order detail** | Timeline, pickup code, five distinct cancel-refusal reasons |
+| **Payment + Order placed** | `R8` made structural: a premature confirmation now needs a cast |
+| **Support** | Grievance officer, or an honest "coming" |
+| **`PlaceholderScreen` deleted** | No caller left. Every screen in the app is a real screen |
+
+### FINDINGS
+
+**The same defect, a fifth time.** `OrderTargetProvider` was written, exported, and **mounted
+nowhere** — so every screen read the context's *default*, `target` was permanently null, and
+yesterday's work on `setTarget` could never have helped. Found independently by me and by the
+orphan-guard agent within minutes of each other. That is now: menu cache never installed,
+sign-in behind a wall, target never set, E13 tokens unconsumed, and this.
+
+**The orphan guard caught its first, and it was mine.** I wrote `report()` into
+`ConnectivityContext` and never called it. Caught minutes after the code was written, which is
+the entire point. Its agent proved every rule by mutation rather than asserting them — including
+that a doc comment naming `setMenuCache` does not count as a call, which matters because four
+comments named it during the whole period nothing did.
+
+**The Maestro flow had a wrong testID.** It tapped `screen-dish-detail-button`; the real handle
+is `screen-dish-detail-add-button`. `check-maestro-ids.mjs` reported success because both halves
+are real in that one file. I tightened it to compose two levels, and **documented that it still
+cannot catch this class** — deciding it needs to know which testID prop reaches which component,
+which is runtime behaviour. Only a real run can. That is the argument for the item below.
+
+**Dish photographs are 120px thumbnails.** No higher-resolution source exists on the CDN. Fine
+as list tiles, soft as a hero. See `docs/open-questions.md`.
+
+### BLOCKED
+
+**Maestro's first green run — not done, and not deferrable by me.** This machine has **no
+Xcode, no Android SDK, no simulator, no emulator and no Maestro binary**. There is nothing to
+run the flow against. I fixed the flow's wrong id and its stale first step so it is correct when
+it does run, and filed `E14-30` (`owner:andy`) for the toolchain. **Ten screens are shipping
+behind a suite that has never executed once.**
+
+### NEEDS ANDY
+
+1. **Install Xcode or the Android SDK** so Maestro can run (`E14-30`).
+2. **Dish photography** — ship with the 120px thumbnails and shoot the catalogue as a
+   fast-follow? Recommendation and reasoning in `docs/open-questions.md`.
+3. **Staging has no real menu** — five seed fixtures, so 78 of 82 photographs are unused. The
+   app is showing four real photographs against five fixture dishes.
+4. `E20-10` still blocks the store privacy forms.
+
+### §6 RE-WALK — what is still divergent
+
+Fixed tonight: **F1** (sign-in returns to the cart, and the gate no longer fires on people who
+have passed it), **F9** (switching recipient now switches school and menu), **F10** (gone with
+`AR8`), the back affordance, and the school being asked twice.
+
+Still divergent, all for the same reason — **the data does not exist in the client yet**, and in
+every case the app says so rather than inventing it:
+
+| Flow | Divergence | Blocked on |
+|---|---|---|
+| **F2** cutoff passes with the cart open | The cart shows no cutoff at all | `E05-30` — no calendar read in `api/` |
+| **F5** dish contains the recipient's allergen | **No allergen warning can ever fire.** `fetchRecipients` does not return allergies, so `allergenIds` is null everywhere | `E05-31` |
+| **F7/F8/F11/F12** payment paths | The waiting and confirmation screens exist but nothing routes to them | `E06` |
+| **F14** policy version changed | The gate screen exists; nothing routes to it | needs a policy-version read |
+| **F9** cart discard on switching recipient | Switching does **not** ask before discarding a non-empty cart | small, unbuilt — filed below |
+
+### NEXT
+
+1. Maestro, the moment a toolchain exists.
+2. `E05-31` allergens — F5 is the one divergence with a safety consequence.
+3. `E05-30` cutoff read — unblocks F2 and the cart's cutoff line.
+4. Cart discard prompt on switching recipient.
+5. Splash (`E21-18`) is the one screen from the list I did not reach.
+
+### Final state
+
+**30 suites, 602 tests, smoke green.** `PlaceholderScreen` is deleted — there was no caller
+left, which is the clearest single measure of the night: every screen in the app is now a real
+screen rather than a note to ourselves.
+
+Two things the agents pushed back on and were right about, both recorded in the commits: the
+cutoff prop cannot be a three-valued enum without inventing a time (§5.21), and there must be no
+retry button while a payment is `pending`, because a retry during an unsettled capture is an
+invitation to §10.6 duplicate payment.
+
+One judgement call I want checked in the morning: the cart's signed-out footer now carries the
+prototype's "we'll ask you to sign in — your order is kept" caption. `AR7`'s code note says the
+words appear nowhere on this screen; the caption sits under the button, gated behind
+`signedOut`, and reads as reassurance rather than a gate. The existing assertion still passes
+because it defaults off. **If you disagree, it is one line.**
+
+---
+
+
+## 2026-08-10 (afternoon) — the order path exists and works; nobody can run it yet
 
 # WEB thread — 2026-08-11 (written from the `GrayBag-web` worktree, branch `kitchen-seed`)
 

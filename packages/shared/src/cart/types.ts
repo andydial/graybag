@@ -15,8 +15,19 @@ import type { ServiceDate } from '../menu/types.js';
 
 /** What a caller supplies to put something in the cart. */
 export interface CartLineInput {
-  recipientId: string;
-  serviceDate: ServiceDate;
+  /**
+   * **Null until checkout.** `R1`/`AR7`: the cart fills signed out, and the recipient is chosen
+   * at the gate — so a line added by someone with no children yet genuinely has no recipient,
+   * and saying so is more honest than inventing one.
+   *
+   * Requiring it here is what put a wall in front of the cart: `DishDetailScreen` could not
+   * build a `CartLineInput` without a recipient, so it offered "Add a child" instead of "Add to
+   * cart", and a signed-out visitor could not fill a cart at all — which made the one sign-in
+   * route in the app unreachable, because that route is the cart's own Place order button.
+   */
+  recipientId: string | null;
+  /** Null until checkout, for the same reason. */
+  serviceDate: ServiceDate | null;
   menuItemId: string;
   dishId: string;
   /**

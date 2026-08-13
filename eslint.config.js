@@ -46,6 +46,11 @@ export default tseslint.config(
       '**/.expo/**',
       'planning/backlog.html',
       'Legacy-Application/**',
+      // Written by `supabase start` — the local stack's own runtime bundle, minified vendor
+      // code that is already in .gitignore. It only began failing lint when a Colima rebuild
+      // made the CLI emit a different set of temp artefacts, which is a good reminder that
+      // "gitignored" and "lint-ignored" are two different lists.
+      'supabase/.temp/**',
       // Astro's generated type shims. Globbed rather than pinned to `apps/web/`: running
       // `astro build` from the wrong directory writes a `.astro/` wherever it was run, and the
       // failure then looks like six lint errors in code nobody wrote.

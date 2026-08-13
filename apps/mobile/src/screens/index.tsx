@@ -1,8 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import Constants from 'expo-constants';
+import { Linking } from 'react-native';
 
-import { PlaceholderScreen } from './PlaceholderScreen';
+import { api } from '@graybag/shared';
+
+import { schoolRequestMailto } from '../support/contact';
+
+
+import { AccountScreen as AccountScreenImpl } from '../account/AccountScreen';
+import { OrderDetailScreen as OrderDetailScreenImpl } from '../orders/OrderDetailScreen';
+import { OrdersScreen as OrdersScreenImpl } from '../orders/OrdersScreen';
+import { HomeScreen as HomeScreenImpl, type HomeDish } from '../home/HomeScreen';
+import { useAllergenWatchlist } from '../menu/useAllergenWatchlist';
+import { useCachedMenu } from '../menu/useCachedMenu';
+
+
 import { AddChildScreen as AddChildScreenImpl } from '../recipients/AddChildScreen';
 import { DishDetailScreen as DishDetailScreenImpl } from '../menu/DishDetailScreen';
 import { ChildrenScreen as ChildrenScreenImpl } from '../recipients/ChildrenScreen';
@@ -10,7 +23,15 @@ import { MenuScreen as MenuScreenImpl } from '../menu/MenuScreen';
 import type { RootStackParamList } from '../navigation/types';
 import { SchoolPicker } from '../menu/SchoolPicker';
 import { SignInScreen as SignInScreenImpl } from '../session/SignInScreen';
-import { useOrderTarget } from '../session/OrderTargetContext';
+import { SupportScreen as SupportScreenImpl } from '../status/SupportScreen';
+import { DeleteAccountScreen as DeleteAccountScreenImpl } from '../account/DeleteAccountScreen';
+import { EditNameSheet } from '../account/EditNameSheet';
+import { Sheet } from '../components';
+import { PolicyDocumentScreen as PolicyDocumentScreenImpl } from '../account/PolicyDocumentScreen';
+import { useConnectivity } from '../net/ConnectivityContext';
+import { useAccess, useOrderingTarget, useRefreshRecipients } from '../session/audience';
+import { useSignOut } from '../session/useRecipients';
+import { useSession } from '../session/SessionContext';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 /**
@@ -34,13 +55,65 @@ import { useSelectedSchool } from '../session/SelectedSchoolContext';
 
 // `AR7`: Home opens with no session and always will. Today's specials are the hook, and a
 // hook behind a sign-in wall is not a hook.
-export const HomeScreen = () => (
-  <PlaceholderScreen
-    testID="screen-home"
-    title="Welcome to GrayBag"
-    body="Today's specials and the week ahead will show up here. For now, tap Menu to see the food and start an order."
-  />
-);
+/**
+ * Home (`E21-08`), wired.
+ *
+ * The promoted dish and the rail come from the **cached menu** rather than a new request: the
+ * menu is already held by the time this renders, and a second round trip on this audience's
+ * connection would be the slowest thing on the screen (`E04-10`).
+ *
+ * The recipient's name, class, school and break time are **not wired yet** — `OrderTarget`
+ * carries only an id, an allergen list and a date. The card degrades honestly rather than
+ * inventing them, and `E05-29`/`E05-35` fill them in.
+ */
+export const HomeScreen = () => {
+  const navigation = useNavigation();
+  const access = useAccess();
+  const { schoolId } = useSelectedSchool();
+  const { state, payload, stale } = useCachedMenu(schoolId);
+  const { offline } = useConnectivity();
+  // Real now: `OrderTargetProvider` reads the account's recipients and picks one. Before
+  // today nothing wrote the target, so this card could never say who it was ordering for.
+  const target = useOrderingTarget();
+
+  const dishes = payload?.dishes ?? [];
+  const toHomeDish = (dish: (typeof dishes)[number]): HomeDish => ({
+    id: dish.id,
+    name: dish.name,
+    pricePaise: dish.pricePaise,
+    imageUri: dish.imageUri,
+    foodType: dish.foodType,
+  });
+
+  return (
+    <HomeScreenImpl
+      state={state === 'loading' ? 'loading' : state === 'error' ? 'error' : 'ready'}
+      access={access}
+      stale={stale || offline}
+      // A school with a published menu and nothing in it is `menuUnpublished`; no school
+      // chosen is not, because the card's job in that case is to offer the picker.
+      menuUnpublished={schoolId !== null && state === 'ready' && dishes.length === 0}
+      recipientName={target?.displayName ?? null}
+      recipientClass={target?.classLabel ?? null}
+      schoolName={target?.schoolName ?? null}
+      // Still absent, and still said rather than invented: the break is not on the recipient
+      // and not in `fetchRecipients` (`E05-29`).
+      breakLabel={target?.breakLabel ?? null}
+      serviceDate={target?.serviceDate ?? null}
+      featured={dishes[0] ? toHomeDish(dishes[0]) : null}
+      popular={dishes.slice(1, 6).map(toHomeDish)}
+      // `E14-34`. These were `navigate('Tabs')` from a screen that is *already* inside Tabs,
+      // which React Navigation treats as "you are here" and does nothing. Naming the tab is
+      // what actually moves. "Open the Menu" was the most-tapped dead button in the app.
+      onBrowseMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+      onChooseSchool={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+      onAddRecipient={() => navigation.navigate('AddChild')}
+      onSelectDish={(dishId) => navigation.navigate('DishDetail', { dishId })}
+      onSwitchRecipient={() => navigation.navigate('Children')}
+      onRetry={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+    />
+  );
+};
 
 /**
  * The one placeholder that is now real (`E04-12`).
@@ -57,15 +130,41 @@ export const HomeScreen = () => (
  */
 export const MenuScreen = () => {
   const navigation = useNavigation();
-  const { schoolId, setSchool } = useSelectedSchool();
+  const { schoolId, schoolName, setSchool } = useSelectedSchool();
+  // `E05-31`. Before this the menu drew no allergen flags at all, because nothing could tell it
+  // what to warn about — F5 was the only §6 divergence with a safety consequence.
+  const watchlist = useAllergenWatchlist();
 
   if (schoolId === null) {
-    return <SchoolPicker onSelect={(next) => setSchool(next)} />;
+    // The picker carries the welcome now (§6.1.1 cut 1), so this is the first screen a cold
+    // visitor sees — and the "Sign in" link on it is the door for a returning parent on a new
+    // device, who has no cart to place and would otherwise have to build one to reach the gate.
+    return (
+      <SchoolPicker
+        onSelect={(next) => setSchool(next)}
+        onSignIn={() => navigation.navigate('SignIn')}
+        /*
+         * `E04-20`. The prop was accepted and never passed, so a parent whose school is not on
+         * the list had nothing to do — and with three schools live that is most people opening
+         * the app. There is no backend for a school request (`E04-21`), so it composes a
+         * message carrying whatever they typed.
+         */
+        onRequestSchool={(query) => void Linking.openURL(schoolRequestMailto(query))}
+      />
+    );
   }
 
   return (
     <MenuScreenImpl
+      allergens={watchlist}
       schoolId={schoolId}
+      schoolName={schoolName}
+      /*
+       * `E14-34`. Choosing a school was a one-way door — the picker unmounts the moment a
+       * school is set, so the choice was both invisible and permanent. Clearing it brings the
+       * picker back, which is the screen that already knows how to choose one.
+       */
+      onChangeSchool={() => setSchool({ schoolId: null, schoolName: null })}
       onSelectDish={(dishId) => navigation.navigate('DishDetail', { dishId })}
     />
   );
@@ -88,27 +187,208 @@ export { CartScreen } from '../cart/CartScreen';
 // child was a one-way door: the child disappeared on save and there was nothing that could
 // show a parent what they had entered or let them correct it. "Add a child" is still one tap
 // away — it is what the empty list offers, and the only thing on it when there is nobody yet.
+/**
+ * Account — the real screen (`E21-13`), wired to the navigator here.
+ *
+ * The screen itself is presentational and takes handlers: it knows what the rows are, this
+ * knows where they go. That split is why it can be tested in every state without a navigator.
+ *
+ * `exactOptionalPropertyTypes` is on, so an optional handler is spread conditionally rather
+ * than passed as possibly-undefined.
+ */
 export const AccountScreen = () => {
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
+  const access = useAccess();
+  const { email } = useSession();
+  const signOut = useSignOut();
+
+  /**
+   * The account holder's own name — `P18`, `E05-39`.
+   *
+   * Held here rather than on `AccountScreenImpl`, which fetches nothing and decides nothing by
+   * design. Re-read on focus for the same reason the children list is: the confirmation screen
+   * may have captured a name since this screen was last drawn, and a stack screen stays mounted
+   * underneath whatever was pushed over it.
+   */
+  const [profile, setProfile] = useState<api.Profile | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isFocused || access !== 'signedIn') return;
+    let live = true;
+    api
+      .fetchProfile()
+      .then((next) => {
+        if (live) setProfile(next);
+      })
+      // No name is what the row already renders, and it is the honest answer to a failed read
+      // here: the row invites rather than warns, so a wrong guess costs nothing and a spinner
+      // on a settings row costs attention.
+      .catch(() => {
+        if (live) setProfile(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [isFocused, access]);
+
+  const saveName = async (name: { firstName: string; lastName: string | null }) => {
+    setSavingName(true);
+    setNameError(null);
+    try {
+      // An empty field is a removal, not a refusal (`P18`: order one has no name and that must
+      // be fine everywhere). `setUserName` would be refused with `first_name_required`, which
+      // is the right guard for a blank save and the wrong answer to "take it back".
+      if (name.firstName === '') {
+        await api.clearUserName();
+        setProfile((current) =>
+          current === null ? null : { ...current, firstName: null, lastName: null },
+        );
+      } else {
+        const saved = await api.setUserName(name);
+        setProfile((current) =>
+          current === null
+            ? { firstName: saved.firstName, lastName: saved.lastName, namePromptedAt: null }
+            : { ...current, firstName: saved.firstName, lastName: saved.lastName },
+        );
+      }
+      setEditingName(false);
+    } catch {
+      // Ours, not the server's: a backend message can quote the value it refused, and the
+      // value here is somebody's name (§13.3 tier A).
+      setNameError('We couldn’t save that just now. Please try again.');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   return (
-    <PlaceholderScreen
-      testID="screen-account"
-      title="Your account"
-      body="Sign in to add your children, see your orders and manage payment. You can browse the menu and fill your cart without signing in."
-      actionLabel="Your children"
-      onAction={() => navigation.navigate('Children')}
+    <>
+    <AccountScreenImpl
+      access={access}
+      email={email}
+      yourName={
+        profile === null || profile.firstName === null
+          ? null
+          : [profile.firstName, profile.lastName].filter((part) => part !== null).join(' ')
+      }
+      onEditName={() => {
+        setNameError(null);
+        setEditingName(true);
+      }}
+      onSignIn={() => navigation.navigate('SignIn')}
+      onRecipients={() => navigation.navigate('Children')}
+      onSignOut={() => {
+        // Both sessions, Supabase first — see `session/useRecipients.ts`. This prop was never
+        // passed before, so the Sign out row did nothing at all while looking like it worked.
+        void signOut();
+      }}
+      onOrders={() => navigation.navigate('Orders')}
+      // `E20-39`. This had no caller, so the Grievance officer row rendered and did nothing —
+      // one of the six compliance controls, unreachable, on a screen that looked complete.
+      onSupport={() => navigation.navigate('Support')}
+      // `E20-37`. The danger row rendered in red and did nothing — a store reviewer taps this
+      // during submission, and one of the six compliance controls was inert behind it.
+      onDeleteAccount={() => navigation.navigate('DeleteAccount')}
+      // `E20-38`. Three rows rendered and did nothing; nothing in the app opened the policies.
+      onPolicy={(which) => navigation.navigate('Policy', { which })}
     />
+
+    {/*
+      Mounted only while it is open, not merely `visible={false}`. `Sheet` calls
+      `useSafeAreaInsets()`, so an always-mounted one makes every test that renders this
+      container need a `SafeAreaProvider` — which is how `PlaceholderScreen.test.tsx` started
+      failing on a change to a settings row. Cheaper at run time too: no Modal in the tree
+      until somebody asks for one.
+    */}
+    {!editingName ? null : (
+    <Sheet
+      visible
+      onDismiss={() => setEditingName(false)}
+      title="Your name"
+      testID="account-name-sheet"
+    >
+      <EditNameSheet
+        // Keyed on what it starts from, so reopening after a save does not show the old value
+        // in the field state.
+        key={`${profile?.firstName ?? ''}|${profile?.lastName ?? ''}`}
+        initialFirstName={profile?.firstName ?? null}
+        initialLastName={profile?.lastName ?? null}
+        onSave={(name) => void saveName(name)}
+        onCancel={() => setEditingName(false)}
+        saving={savingName}
+        error={nameError}
+      />
+    </Sheet>
+    )}
+    </>
   );
 };
 
-// Reached from Account and Home rather than being a fifth tab — the mock has four.
-export const OrdersScreen = () => (
-  <PlaceholderScreen
-    testID="screen-orders"
-    title="Your orders"
-    body="Once you have placed an order it will appear here, with what was ordered, for whom, and when it will be delivered."
-  />
+/** A policy document (`E20-38`). The text is generated from `docs/`, never a second copy. */
+export const PolicyScreen = () => {
+  const { params } = useRoute<RouteProp<RootStackParamList, 'Policy'>>();
+  return <PolicyDocumentScreenImpl which={params.which} />;
+};
+
+/**
+ * Account deletion (`E20-37`), wired.
+ *
+ * Takes no props: the screen composes a request to `SUPPORT_EMAIL` itself. There is no erasure
+ * pipeline to call yet (`E20-18`, `E20-30`), and a "Delete my account" button that quietly does
+ * nothing is worse than one that says plainly it is handled by a person.
+ */
+export const DeleteAccountScreen = () => <DeleteAccountScreenImpl />;
+
+/**
+ * Support and the grievance officer (`E20-39`), wired.
+ *
+ * Takes no props. `grievance` stays `null` until `E20-21` supplies the name, designation and
+ * published address — the screen already says so plainly rather than inventing a contact, and
+ * a published contact that goes nowhere is a commitment on record that we are failing.
+ *
+ * There is no `supportEmail` to pass any more: the address lives in `support/contact.ts` and
+ * reaches the screen only as the target of a `mailto:`, never as text (Andy, 2026-08-11).
+ */
+export const SupportScreen = () => (
+  /*
+   * The officer, published in privacy policy §7A (`C17`, Andy 2026-08-11). No `address`: he
+   * supplied the name, designation and email and not a postal one, so `E20-21` stays open for
+   * that and the screen shows the two facts it has rather than inventing a third.
+   */
+  <SupportScreenImpl grievance={{ name: 'Vivek', designation: 'Grievance Officer' }} />
 );
+
+// Reached from Account. `navigation/types.ts` used to say "and from Home" as well; Home has no
+// such link, and saying so was how nobody noticed this screen had no door at all.
+/**
+ * Orders (`E21-10`), wired.
+ *
+ * **It is passed no orders, and that is honest rather than lazy.** There is no `fetchOrders` in
+ * the `api/` module — `E06` brings it — so the screen renders its empty state, which is the true
+ * answer for a build that cannot ask. Inventing a fetch, or worse a fixture, would make an
+ * unbuilt feature look finished.
+ *
+ * Signed out it prompts rather than walls (`AR7`).
+ */
+export const OrdersScreen = () => {
+  const navigation = useNavigation();
+  const access = useAccess();
+
+  return (
+    <OrdersScreenImpl
+      access={access}
+      onSignIn={() => navigation.navigate('SignIn')}
+      // The param list has grown, so this can now say where it means: the Menu tab, not
+      // "whichever tab you were on last", which for anyone arriving from Account was Account.
+      onBrowseMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+      onSelectOrder={(orderGroupId) => navigation.navigate('OrderDetail', { orderGroupId })}
+    />
+  );
+};
 
 /**
  * Real as of `E04-12` / `E14-14`. `D7`: the allergen warning belongs at add-to-cart, on this
@@ -119,30 +399,50 @@ export const OrdersScreen = () => (
  * connection would be the slowest thing on the screen (`E04-10`, `MC3`).
  */
 export const DishDetailScreen = () => {
+  /**
+   * `useNavigation` is back, for one reason only: **adding dismisses** (Andy, 2026-08-11 item
+   * 8). It is not the old routing that made this screen a wall — that sent people to AddChild
+   * *before* they could add to the cart (`E05-32`), and it stays gone. This fires only after a
+   * line has been added, and it goes back rather than forward.
+   */
   const navigation = useNavigation();
   const { params } = useRoute<RouteProp<RootStackParamList, 'DishDetail'>>();
   const { schoolId } = useSelectedSchool();
-  const { target } = useOrderTarget();
+  // Through the audience, so the target is `null` for anyone without a session — a dish sheet
+  // must not name a child on an unauthenticated phone any more than the cart may.
+  const target = useOrderingTarget();
 
   return (
     <DishDetailScreenImpl
       dishId={params.dishId}
       schoolId={schoolId}
       target={target}
+      // The cart badge is the confirmation (`M06`, `S4`) — adding confirms itself somewhere
+      // other than where the parent is looking, which is the whole reason it is the one spring
+      // in the product. Staying on a finished sheet made the next dish cost a back tap.
+      onAdded={() => navigation.goBack()}
       // `null` is the ordinary state today: nothing can name a child yet (`E05-16`), so the
       // one honest thing to offer is the screen that creates one.
-      onNeedsTarget={() => navigation.navigate('AddChild')}
     />
   );
 };
 
-export const OrderDetailScreen = () => (
-  <PlaceholderScreen
-    testID="screen-order-detail"
-    title="Order details"
-    body="This is where you will find what was ordered, its delivery status and your invoice."
-  />
-);
+/**
+ * Order detail (`E21-11`), wired.
+ *
+ * Passed no order, for the same reason Orders is passed none: there is no `fetchOrder` until
+ * `E06`, so it renders its "nothing to show" state — the true answer for a build that cannot
+ * ask. It is the only route still in `KNOWN_DOORLESS`, because the list it would be tapped
+ * from is itself empty.
+ */
+export const OrderDetailScreen = () => {
+  const navigation = useNavigation();
+  return (
+    <OrderDetailScreenImpl
+      onBackToMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+    />
+  );
+};
 
 /**
  * Real as of `E03-14`. Email OTP only for now — Google (`E03-12`) and Apple (`E03-13`) need
@@ -154,7 +454,20 @@ export const OrderDetailScreen = () => (
  */
 export const SignInScreen = () => {
   const navigation = useNavigation();
-  return <SignInScreenImpl onSignedIn={() => navigation.goBack()} />;
+  const refresh = useRefreshRecipients();
+
+  return (
+    <SignInScreenImpl
+      onSignedIn={() => {
+        // A signed-out visitor could not read their recipients, so the provider's first pass
+        // found none. Without this the app knows who you are and still cannot say who you
+        // order for, which reads as the sign-in not having worked.
+        void refresh();
+        // F1: back to whatever sent us here — the cart, keeping its contents. Never to Home.
+        navigation.goBack();
+      }}
+    />
+  );
 };
 
 /**
@@ -167,15 +480,45 @@ export const SignInScreen = () => {
  * `app_version` goes onto the consent record as evidence of *which build* showed the wording.
  * It comes from `expo-constants` rather than a literal, so it cannot drift from the binary.
  */
+/**
+ * Add someone (`E21-04`), wired.
+ *
+ * ## The flow defect this closes
+ *
+ * Choose a school → add a child → save → back on Home with **no school selected** and nobody
+ * to order for. Three separate causes, all of them "the same fact is held in two places":
+ *
+ * 1. `OrderTargetProvider` read the recipients **once, at mount**. Someone added at 9am was
+ *    invisible until the app restarted.
+ * 2. Nothing selected the person who had just been added — the whole point of adding them.
+ * 3. `SelectedSchoolContext` and the order target were independent answers to "which school",
+ *    so picking one and then adding a child at it left the two disagreeing.
+ *
+ * So on save: re-read, select the new recipient, and let the school follow from them
+ * (`useSchoolFollowsRecipient` below). The school is now **derived**, which is why it cannot
+ * drift again.
+ */
 export const AddChildScreen = () => {
   const navigation = useNavigation();
+  const { params } = useRoute<RouteProp<RootStackParamList, 'AddChild'>>();
   const { schoolId, schoolName } = useSelectedSchool();
+  const refresh = useRefreshRecipients();
+  const { offline } = useConnectivity();
 
   return (
     <AddChildScreenImpl
+      offline={offline}
+      // Absent unless a caller has already asked. "Order for myself" has (`E05-38`); Account's
+      // "Add someone" has not, and the screen asks.
+      initialAudience={params?.audience ?? null}
       initialSchool={{ schoolId, schoolName }}
       appVersion={Constants.expoConfig?.version ?? 'unknown'}
-      onAdded={() => navigation.goBack()}
+      onAdded={(recipient) => {
+        // Await nothing: the screen returns immediately and the list catches up. Blocking the
+        // back navigation on a network read would make a successful save feel like a hang.
+        void refresh(recipient.recipientId);
+        navigation.goBack();
+      }}
       onCancel={() => navigation.goBack()}
     />
   );
@@ -198,14 +541,34 @@ export const ChildrenScreen = () => {
   const isFocused = useIsFocused();
   const [visit, setVisit] = useState(0);
 
+  const refresh = useRefreshRecipients();
+
   useEffect(() => {
     if (isFocused) setVisit((n) => n + 1);
   }, [isFocused]);
 
   return (
     <ChildrenScreenImpl
+      onSignIn={() => navigation.navigate('SignIn')}
       reloadToken={visit}
       onAddChild={() => navigation.navigate('AddChild')}
+      // `E05-38`. The same form, arriving with its first question already answered — a member
+      // of staff who tapped "Order for myself" has said who it is for by tapping it.
+      onOrderForSelf={() => navigation.navigate('AddChild', { audience: 'self' })}
+      /*
+       * Selecting a row now actually switches who the order is for. The screen deliberately
+       * refused to write the target itself: `OrderTarget` needs the allergen list, and passing
+       * `[]` would silently claim "no allergies" for that person — which F5/F6 forbid. The
+       * provider owns that decision and sets `allergenIds: null`, meaning "not read".
+       */
+      /*
+       * `refresh(id)` rather than `setTarget(next)`: the choices list carries
+       * `allergenIds: null`, and selecting from it directly would leave the app unable to warn
+       * about the person just chosen. `refresh` re-reads and resolves their allergens
+       * (`E05-31`). One round trip per switch, which is the right price for a warning that
+       * works.
+       */
+      onSelectRecipient={(recipientId) => void refresh(recipientId)}
     />
   );
 };

@@ -60,3 +60,24 @@ export function configureApiFromEnvironment(): boolean {
     return false;
   }
 }
+
+/**
+ * Which `EXPO_PUBLIC_*` variables are absent, by name.
+ *
+ * For the Can't-connect screen's diagnostics (§5.20). **Names only — never values.** A
+ * screenshot of that screen is going to be pasted into a chat, and an anon key in it would be
+ * a key in a chat log for ever.
+ *
+ * Each name is read as a literal `process.env.EXPO_PUBLIC_X`, exactly as `readExpoClientEnv`
+ * does, because Metro inlines these by static analysis and a computed lookup inlines to
+ * nothing — working perfectly in development and reporting everything missing in a release
+ * build, which would be a diagnostic that lies.
+ */
+export function missingClientEnvNames(): string[] {
+  const present: [string, string | undefined][] = [
+    ['EXPO_PUBLIC_APP_ENV', process.env.EXPO_PUBLIC_APP_ENV],
+    ['EXPO_PUBLIC_SUPABASE_URL', process.env.EXPO_PUBLIC_SUPABASE_URL],
+    ['EXPO_PUBLIC_SUPABASE_ANON_KEY', process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY],
+  ];
+  return present.filter(([, value]) => value === undefined || value === '').map(([name]) => name);
+}
