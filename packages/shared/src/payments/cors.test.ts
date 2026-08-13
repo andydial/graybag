@@ -79,7 +79,18 @@ describe('every browser-callable Edge Function', () => {
    * raw body, not CORS — but "no browser client" is a fact worth keeping true rather than merely
    * untested.
    */
-  const BROWSER_CALLABLE = ['account', 'checkout', 'menu-version', 'order-calendar', 'policy', 'recipients'];
+  const BROWSER_CALLABLE = [
+    'account',
+    'checkout',
+    'menu-version',
+    'order-calendar',
+    // Added by `E06-02`. This list failing on a new function is the point of the last test in
+    // this block, and it worked: the function was written, the suite went red, and the choice
+    // between the two lists had to be made rather than defaulted.
+    'payments-create-order',
+    'policy',
+    'recipients',
+  ];
   const NOT_BROWSER_CALLABLE = ['payments-webhook'];
 
   const source = (name: string) => readFileSync(join(FUNCTIONS, name, 'index.ts'), 'utf8');
