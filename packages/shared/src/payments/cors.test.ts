@@ -80,6 +80,7 @@ describe('every browser-callable Edge Function', () => {
    * untested.
    */
   const BROWSER_CALLABLE = [
+<<<<<<< HEAD
     'account',
     'checkout',
     'menu-version',
@@ -89,6 +90,9 @@ describe('every browser-callable Edge Function', () => {
     // between the two lists had to be made rather than defaulted.
     'payments-create-order',
     'policy',
+=======
+    'account', 'checkout', 'kitchen-order-status', 'menu-version', 'order-calendar', 'policy',
+>>>>>>> bfcf16e (E09-20: adopt the payments thread's shared CORS helper)
     'recipients',
   ];
   const NOT_BROWSER_CALLABLE = ['payments-webhook'];
