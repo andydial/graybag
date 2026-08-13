@@ -45,13 +45,24 @@
   padding: var(--gb-space-4);
 }
 
+/**
+ * A grid, not a wrapping flex row: the day and Refresh on the first line, the filters spanning
+ * the second.
+ *
+ * As flex, Refresh was a third wrapped item on a tablet, so it took a whole empty row to itself
+ * below the chips. Pinning it to the day's row costs nothing at desktop width and gives back a
+ * row of a screen that is mostly list.
+ */
 .kitchen__bar-inner {
   max-width: var(--gb-layout-container-max-width);
   margin-inline: auto;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  /* `minmax(0, 1fr)`, not `1fr`: a bare `1fr` floors at min-content, and the day nav's
+     min-content is wider than a phone — so the whole bar overflowed to the right and the chips
+     sat on the canvas rather than on the green. Caught by the contrast check, at 390px. */
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--gb-space-4);
+  gap: var(--gb-space-4) var(--gb-space-3);
 }
 
 .kitchen__title {
@@ -61,12 +72,130 @@
   margin-right: auto;
 }
 
+/* ------------------------------------------------------------------- the date */
+
+/**
+ * The date is the largest thing on the screen, and it moves one tap at a time.
+ *
+ * This replaced a native date picker sitting among three other dropdowns of equal weight. At 7am
+ * the question is almost always "today" or "tomorrow", and a picker is three interactions to
+ * answer it — open, navigate, choose — on a tablet, with wet hands.
+ */
+.daynav {
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-3);
+  margin-right: auto;
+}
+
+.daynav__step {
+  min-width: 3.5rem;
+  min-height: 3.5rem;
+  border: var(--gb-border-width-default) solid var(--gb-ramp-forest-600);
+  border-radius: var(--gb-radius-full);
+  background: transparent;
+  color: var(--gb-text-on-brand);
+  font-family: inherit;
+  font-size: var(--gb-font-size-h2);
+  line-height: 1;
+  cursor: pointer;
+}
+.daynav__step:hover { background: var(--gb-ramp-forest-600); }
+
+/**
+ * Wide enough that stepping between days does not reflow the arrows, and able to shrink below
+ * that when there is not room.
+ *
+ * `min-width: 15rem` on its own is what overflowed the bar on a phone. Letting the daynav wrap
+ * instead was worse: it stranded `‹` on one line and `›` two lines below, either side of
+ * nothing. The date wraps inside its own box; the arrows stay flanking it.
+ */
+.daynav__label { flex: 1 1 15rem; min-width: 0; }
+
+.daynav__date {
+  font-size: var(--gb-font-size-h2);
+  line-height: var(--gb-line-height-h2);
+  font-weight: var(--gb-font-semibold);
+  color: var(--gb-text-on-brand);
+}
+
+/** "24 orders · 3 classes · 2 breaks" — does today look right, before reading a single name. */
+.daynav__count {
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+  color: var(--gb-ramp-lime-200);
+  font-variant-numeric: tabular-nums;
+}
+
+.daynav__today { min-height: 3rem; padding-inline: var(--gb-space-5); }
+
+/**
+ * On a phone the bar becomes one column and Refresh takes a full-width row of its own.
+ *
+ * That is the layout deliberately avoided at tablet width, where it wasted a row of a screen
+ * that is mostly list. Here there is no second column to put it in without squeezing the date
+ * to about 100px, and the date is the most important thing on the screen.
+ */
+@media (max-width: 40rem) {
+  .kitchen__bar-inner { grid-template-columns: minmax(0, 1fr); }
+  .kitchen__filters { order: 1; }
+  .kitchen__refresh { order: 2; }
+}
+
 /* -------------------------------------------------------------------- filters */
 
+/**
+ * Secondary filters as chips, not dropdowns.
+ *
+ * A chip shows its state without being opened, which is the whole complaint about a row of
+ * selects all reading "All": you cannot tell what you are looking at. It is also one tap at
+ * 56px, where a dropdown is two interactions and a scrolling list.
+ *
+ * `aria-pressed` carries the selection for a screen reader, so the state is not only a colour.
+ */
+.chips { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); }
+
+.chip {
+  min-height: 3rem;
+  padding: var(--gb-space-2) var(--gb-space-4);
+  border-radius: var(--gb-radius-full);
+  border: var(--gb-border-width-default) solid var(--gb-ramp-forest-600);
+  background: transparent;
+  color: var(--gb-text-on-brand);
+  font-family: inherit;
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-medium);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover { background: var(--gb-ramp-forest-600); }
+
+/* The selected chip inverts, so it reads as chosen at a glance and not only by its border. */
+.chip[aria-pressed='true'] {
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+  border-color: var(--gb-bg-surface);
+  font-weight: var(--gb-font-semibold);
+}
+
+/**
+ * Space between one group of chips and the next, rather than a rule between them.
+ *
+ * Without any separation "All breaks · Morning break · Lunch break · Any status · To make" is
+ * one undifferentiated run of eight chips, and the eye has to read every label to find where
+ * break-filtering stops and status-filtering starts.
+ *
+ * A border was the first attempt and was wrong: the groups wrap independently, so on a tablet
+ * it became a stray vertical tick floating to the left of a row. A column gap degrades — when a
+ * group wraps to its own line the separation is simply the line. The leading chip of each group
+ * names its category ("All breaks", "Any status"), which is what actually disambiguates them.
+ */
 .kitchen__filters {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--gb-space-3);
+  row-gap: var(--gb-space-3);
+  column-gap: var(--gb-space-8);
 }
 
 .kitchen__field { display: grid; gap: var(--gb-space-1); }

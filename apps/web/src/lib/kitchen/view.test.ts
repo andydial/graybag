@@ -6,10 +6,15 @@ import {
   allowedActions,
   applyFilters,
   boardState,
+  countLine,
+  describeDate,
+  filterOptions,
   groupByClass,
   groupProgress,
   groupState,
   productionTotals,
+  relativeDay,
+  shiftDate,
   summarise,
 } from './view.js';
 
@@ -323,5 +328,83 @@ describe('the fixture transport', () => {
     transport.failNext();
     await transport.updateStatus({ orderIds: ['x'], to: 'delivered' }).catch(() => {});
     await expect(transport.updateStatus({ orderIds: ['x'], to: 'delivered' })).resolves.toBeDefined();
+  });
+});
+
+describe('filterOptions — an inert control is worse than none', () => {
+  const day = (schools: string[], breaks: string[]) => ({
+    ...fixtureDay(DATE),
+    schools: schools.map((s) => ({ id: s, name: s })),
+    breaks: breaks.map((b) => ({ id: b, label: b })),
+  });
+
+  it('hides the school filter when only one school is in scope', () => {
+    // A dropdown whose every option returns the same list takes the same room as a real
+    // control, invites the same tap, and teaches the operator that controls here do nothing.
+    expect(filterOptions(day(['Alpha'], ['am', 'pm'])).showSchools).toBe(false);
+  });
+
+  it('shows the school filter when there is a choice to make', () => {
+    expect(filterOptions(day(['Alpha', 'Bravo'], ['am'])).showSchools).toBe(true);
+  });
+
+  it('hides the break filter for a school with one break', () => {
+    expect(filterOptions(day(['Alpha'], ['am'])).showBreaks).toBe(false);
+  });
+
+  it('hides both when there is nothing loaded at all', () => {
+    const options = filterOptions(null);
+    expect(options.showSchools).toBe(false);
+    expect(options.showBreaks).toBe(false);
+  });
+});
+
+describe('countLine — does today look right', () => {
+  it('counts orders, classes and breaks over what is visible', () => {
+    const orders = applyFilters(day.orders, filters());
+    expect(countLine(orders, groupByClass(orders))).toBe('24 orders · 3 classes · 2 breaks');
+  });
+
+  it('agrees with the list underneath once a filter is applied', () => {
+    const f = filters({ breakId: day.breaks[0]!.id });
+    const orders = applyFilters(day.orders, f);
+    expect(countLine(orders, groupByClass(orders))).toContain('1 break');
+  });
+
+  it('says so plainly when there is nothing', () => {
+    expect(countLine([], [])).toBe('No orders');
+  });
+
+  it('singularises rather than printing "1 orders"', () => {
+    const one = [order()];
+    expect(countLine(one, groupByClass(one))).toBe('1 order · 1 class · 1 break');
+  });
+
+  it('omits breaks entirely for a school that has none', () => {
+    // `break_label_snapshot` is nullable. "1 break" for a school with none is an invented fact.
+    const none = [order({ breakId: null, breakLabel: null })];
+    expect(countLine(none, groupByClass(none))).toBe('1 order · 1 class');
+  });
+});
+
+describe('the date, as a kitchen reads it', () => {
+  it('names today, tomorrow and yesterday', () => {
+    expect(relativeDay('2026-08-13', '2026-08-13')).toBe('Today');
+    expect(relativeDay('2026-08-14', '2026-08-13')).toBe('Tomorrow');
+    expect(relativeDay('2026-08-12', '2026-08-13')).toBe('Yesterday');
+  });
+
+  it('returns null for a date that is none of them', () => {
+    expect(relativeDay('2026-08-20', '2026-08-13')).toBeNull();
+  });
+
+  it('leads with the weekday, which answers "is this today" faster than a number', () => {
+    expect(describeDate('2026-08-13', '2026-08-13')).toBe('Today · Thursday 13 August');
+    expect(describeDate('2026-08-20', '2026-08-13')).toBe('Thursday 20 August');
+  });
+
+  it('shifts across a month boundary', () => {
+    expect(shiftDate('2026-08-31', 1)).toBe('2026-09-01');
+    expect(shiftDate('2026-09-01', -1)).toBe('2026-08-31');
   });
 });

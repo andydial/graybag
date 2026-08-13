@@ -231,3 +231,102 @@ export function boardState(input: {
   if (visible.length === 0) return { kind: 'empty-filter' };
   return { kind: 'data', groups };
 }
+
+/**
+ * Which secondary filters are worth drawing.
+ *
+ * **A control that cannot change the answer is worse than no control.** With one school in
+ * scope, a school filter is a dropdown whose every option returns the same list — it takes up
+ * the same room as a real control, invites the same tap, and teaches the operator that the
+ * controls here do nothing. Same for a school with a single break.
+ *
+ * So the bar is built from what is actually on the day, and a kitchen serving one school sees
+ * date, status, and nothing else.
+ */
+export interface FilterOptions {
+  schools: { id: string; name: string }[];
+  breaks: { id: string; label: string }[];
+  showSchools: boolean;
+  showBreaks: boolean;
+}
+
+export function filterOptions(day: KitchenDay | null): FilterOptions {
+  const schools = day?.schools ?? [];
+  const breaks = day?.breaks ?? [];
+  return {
+    schools,
+    breaks,
+    showSchools: schools.length > 1,
+    showBreaks: breaks.length > 1,
+  };
+}
+
+/**
+ * The line above the list: "24 orders · 3 classes · 2 breaks".
+ *
+ * It answers "does today look right" before anyone reads a single name, which is the question
+ * somebody actually has at 7am. An empty screen with four dropdowns answers nothing — it cannot
+ * even distinguish "no orders" from "wrong date".
+ *
+ * Counted over what is *visible*, so it agrees with the list underneath rather than describing a
+ * day the filters have hidden.
+ */
+export function countLine(orders: KitchenOrder[], groups: ClassGroup[]): string {
+  if (orders.length === 0) return 'No orders';
+
+  const classes = new Set(groups.map((g) => `${g.schoolId}|${g.classLabel}`)).size;
+  const breaks = new Set(orders.map((o) => o.breakId ?? '')).size;
+
+  const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+  const parts = [plural(orders.length, 'order'), plural(classes, 'class', 'classes')];
+  // A school with no break times is a real case (`break_label_snapshot` is nullable), and
+  // "1 break" for a school that has none would be an invented fact.
+  if (orders.some((o) => o.breakId)) parts.push(plural(breaks, 'break'));
+
+  return parts.join(' · ');
+}
+
+/**
+ * The date, as a kitchen reads it.
+ *
+ * Weekday first, because "is this today's list" is answered by the day name faster than by the
+ * number — and `R7`'s reasoning for the app's cutoff line is the same: a bare date is ambiguous
+ * in a way a weekday is not.
+ */
+export function describeDate(iso: string, today: string): string {
+  const relative = relativeDay(iso, today);
+  const formatted = new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    // Formatted in UTC because the value was *constructed* in UTC. Mixing the two renders
+    // "Wednesday" for a Thursday anywhere east of Greenwich — which is everywhere we operate.
+    timeZone: 'UTC',
+  });
+  return relative ? `${relative} · ${formatted}` : formatted;
+}
+
+/** `Today` / `Tomorrow` / `Yesterday`, or null when it is none of them. */
+export function relativeDay(iso: string, today: string): string | null {
+  if (iso === today) return 'Today';
+  if (iso === shiftDate(today, 1)) return 'Tomorrow';
+  if (iso === shiftDate(today, -1)) return 'Yesterday';
+  return null;
+}
+
+/**
+ * Move a service date by whole days, staying on `YYYY-MM-DD`.
+ *
+ * **Built and read entirely in UTC**, and that is not pedantry. The obvious version —
+ * `new Date(`${iso}T00:00:00`)`, `setDate(+1)`, `toISOString()` — parses as *local* midnight and
+ * then serialises as UTC, so anywhere east of Greenwich the day goes backwards across the
+ * conversion. In IST, `shiftDate('2026-08-31', 1)` returned `'2026-08-31'`.
+ *
+ * A service date is a calendar label, not an instant. It never needs a timezone and must never
+ * acquire one — `packages/shared/src/menu/dates.ts` reaches the same conclusion for the menu.
+ */
+export function shiftDate(iso: string, days: number): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  return new Date(Date.UTC(year!, month! - 1, day! + days)).toISOString().slice(0, 10);
+}
