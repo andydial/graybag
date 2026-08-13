@@ -136,6 +136,16 @@ const jsonLd = {
               {FOOTER.legal.map((item) => (
                 <li><a href={item.href}>{item.label}</a></li>
               ))}
+              <!--
+                The back office needs a door somebody can find. `/signin` existed and was
+                reachable only by knowing the path, which is the same defect as a sign-in screen
+                behind a wall: a route nobody can reach is a route nobody can test either.
+
+                The footer, not the header: a principal reading this page is not the audience,
+                and one line under Legal is where staff links live on every site of this kind
+                without competing with the one action the page is for.
+              -->
+              <li><a href="/signin">Staff sign-in</a></li>
             </ul>
           </nav>
         </div>

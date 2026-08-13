@@ -85,6 +85,8 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
     <script>
       import { fixtureTransport } from '../lib/kitchen/fixture.js';
+      import { liveTransport } from '../lib/kitchen/live.js';
+      import { currentUser } from '../lib/backoffice/session.js';
       import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       import type { KitchenAction, KitchenDay, KitchenFilters, KitchenStatus } from '../lib/kitchen/types.js';
       import {
@@ -132,8 +134,18 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         : forced === 'readonly' ? PERMISSION_SETS.readonly
         : undefined;
 
-      const transport = fixtureTransport(today, permissions);
-      if (forced === 'fail') transport.failNext();
+      /**
+       * Fixtures or the real server, chosen once.
+       *
+       * `PUBLIC_KITCHEN_TRANSPORT=live` points at staging through the `api/` module; anything
+       * else uses generated data, which is what keeps every `?state=` reachable and what lets a
+       * clean checkout run with no server at all. A forced state always implies fixtures — you
+       * cannot ask the real server for a failure on demand.
+       */
+      const useLive = import.meta.env.PUBLIC_KITCHEN_TRANSPORT === 'live' && !forced;
+      const fixture = fixtureTransport(today, permissions);
+      if (forced === 'fail') fixture.failNext();
+      const transport = useLive ? liveTransport() : fixture;
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = { date: $<HTMLInputElement>('k-date'), school: $<HTMLSelectElement>('k-school'),
@@ -414,6 +426,12 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
       el.date.value = today;
       void (async () => {
+        // Signed out against the real server is not an empty kitchen — it is a locked door, and
+        // §5.21's N3 says the two must never look alike. Fixtures need no session.
+        if (useLive && !(await currentUser().catch(() => null))) {
+          location.assign(`/signin?next=${encodeURIComponent(location.pathname + location.search)}`);
+          return;
+        }
         // Populate the filter options from the first load rather than from `day`: TypeScript
         // cannot see an assignment made inside `load()` from out here, and narrowing a
         // module-level `let` across an await is exactly where that analysis gives up.
