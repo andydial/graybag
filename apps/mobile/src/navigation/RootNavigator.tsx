@@ -6,7 +6,7 @@ import {
   createNativeStackNavigator,
   type NativeStackNavigationProp,
 } from '@react-navigation/native-stack';
-import { design } from '@graybag/shared';
+import { api, design } from '@graybag/shared';
 
 import {
   AccountScreen,
@@ -35,6 +35,9 @@ import {
 import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
+import { OrderPlacedScreen, placedOrder } from '../checkout/OrderPlacedScreen';
+import { PaymentWaitingScreen } from '../checkout/PaymentWaitingScreen';
+import { useCheckout } from '../checkout/useCheckout';
 import { useBreakTimes } from '../cart/useBreakTimes';
 import { clashingAllergens, useAllergenWatchlist } from '../menu/useAllergenWatchlist';
 import { PolicyGateContainer } from '../policy/PolicyGateContainer';
@@ -159,6 +162,16 @@ const MenuTab = withScreenFrame(MenuScreen, TAB_SCREEN_EDGES);
 function CartTabScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const audience = useAudience();
+  const { cart, clear: clearCart, subtotalPaise } = useCart();
+  const checkout = useCheckout();
+  /**
+   * `E06-16`'s clock, owned here because `PaymentWaitingScreen` deliberately starts no timer of
+   * its own — it takes `elapsedMs` and renders, so a test never has to advance a fake clock.
+   */
+  const [waitingSince, setWaitingSince] = useState<number | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [settled, setSettled] = useState<api.CheckoutStatus | null>(null);
+  const [placed, setPlaced] = useState<api.SettledOrderSummary | null>(null);
 
   /**
    * The photo and the veg mark for each line — `E05-42`.
@@ -281,11 +294,140 @@ function CartTabScreen() {
           navigation.navigate('PolicyGate');
           return;
         }
-        // Nowhere to go yet: checkout is `E06`. Inert beats routing somewhere that would look
-        // finished.
+        void beginCheckout();
         return;
     }
   };
+
+  /**
+   * `E06-02`. The lines the server prices, built from the cart at the moment Pay is tapped.
+   *
+   * `recipientId` and `serviceDate` come off each line — they are set when the line is added,
+   * and a line missing either cannot be ordered, so those are filtered rather than defaulted.
+   * Defaulting would silently order somebody else's lunch on a day nobody chose.
+   */
+  const beginCheckout = async () => {
+    const lines = cart.lines
+      .filter((line) => line.recipientId !== null && line.serviceDate !== null)
+      .map((line) => ({
+        recipientId: line.recipientId as string,
+        serviceDate: line.serviceDate as string,
+        menuItemId: line.menuItemId,
+        quantity: line.quantity,
+        breakTimeId,
+      }));
+
+    if (lines.length === 0) return;
+
+    setSettled(null);
+    setWaitingSince(Date.now());
+    const outcome = await checkout.start({
+      lines,
+      // What the parent was shown. The server refuses if its own answer differs (`L7`) — this
+      // is sent so it CAN refuse, never so it can be believed.
+      expectedTotalPaise: subtotalPaise,
+    });
+
+    // Only a sheet that reported success starts polling. A dismissal or a decline leaves the
+    // order unpaid and the cart intact, and there is nothing to reconcile against.
+    if (outcome.kind !== 'sheet_reported_success') setWaitingSince(null);
+  };
+
+  /**
+   * `E06-16`. Poll until the server says something terminal.
+   *
+   * **Every two seconds, and it keeps going.** There is no give-up timeout, deliberately: a
+   * `pending` answer means money may have moved, and a screen that gave up would leave a parent
+   * who has paid looking at a cart. `§10.3` — the app being killed mid-payment is the ordinary
+   * path here, which is why the endpoint reconciles against Razorpay rather than reading our own
+   * row.
+   *
+   * The tick also drives `elapsedMs`, which is how the copy changes to "still confirming" at ten
+   * seconds without the screen owning a clock.
+   */
+  useEffect(() => {
+    if (waitingSince === null) return;
+    const groupId = checkout.phase.kind === 'sheet_reported_success' ? checkout.phase.orderGroupId : null;
+    if (groupId === null) return;
+
+    let cancelled = false;
+    const tick = async () => {
+      setElapsedMs(Date.now() - waitingSince);
+      try {
+        const result = await api.fetchCheckoutStatus(groupId);
+        if (cancelled) return;
+        if (result.status === 'paid' || result.status === 'failed' || result.status === 'cancelled') {
+          setSettled(result.status);
+          setWaitingSince(null);
+          // The cart has become an order. Emptying it any earlier would lose it on a decline.
+          if (result.status === 'paid') {
+            setPlaced(result.order ?? null);
+            clearCart();
+            checkout.reset();
+          }
+        }
+      } catch {
+        // A failed poll is not a failed payment. Keep asking — the next tick may reach the server,
+        // and treating a dropped request as a verdict is how a paid parent is told otherwise.
+      }
+    };
+
+    void tick();
+    const timer = setInterval(() => void tick(), 2_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [waitingSince, checkout.phase, checkout, clearCart]);
+
+  /**
+   * While a payment is in flight the cart is replaced rather than navigated away from, so the
+   * cart's own state survives a dismissal untouched and "try again" is genuinely the same cart.
+   */
+  const paying =
+    waitingSince !== null ||
+    checkout.phase.kind === 'placing' ||
+    checkout.phase.kind === 'opening' ||
+    settled === 'failed';
+
+  if (settled === 'paid' && placed !== null) {
+    return (
+      <OrderPlacedScreen
+        order={placedOrder({
+          status: 'paid',
+          pickupCode: placed.pickupCode,
+          recipientName: placed.recipientFirstName,
+          serviceDate: placed.serviceDate,
+          breakLabel: placed.breakLabel,
+          itemCount: placed.itemCount,
+          totalPaise: placed.totalPaise,
+        })}
+        onViewOrder={() => navigation.navigate('Orders')}
+        onBackToMenu={() => {
+          setSettled(null);
+          setPlaced(null);
+          navigation.navigate('Tabs', { screen: 'Menu' });
+        }}
+      />
+    );
+  }
+
+  if (paying) {
+    return (
+      <PaymentWaitingScreen
+        elapsedMs={elapsedMs}
+        pending={waitingSince !== null}
+        failed={settled === 'failed' || checkout.phase.kind === 'failed'}
+        dismissed={checkout.phase.kind === 'dismissed'}
+        onSeeOrders={() => navigation.navigate('Orders')}
+        onRetry={() => {
+          setSettled(null);
+          setWaitingSince(null);
+          void beginCheckout();
+        }}
+      />
+    );
+  }
 
   return (
     <CartScreen

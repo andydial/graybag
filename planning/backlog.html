@@ -2890,13 +2890,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/35</span>
+          <span class="meter-num">0/36</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 35 tasks</summary>
+        <summary>Context &amp; 36 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -3180,6 +3180,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:critical) (mvp) <strong>Razorpay TEST keys are not set on staging, and nothing can take a payment without them.</strong> <code>supabase secrets list</code> shows only the seven Supabase-managed values: <code>RAZORPAY_KEY_ID</code>, <code>RAZORPAY_KEY_SECRET</code> and <code>RAZORPAY_WEBHOOK_SECRET</code> are all absent. This is why the deployed webhook answers <code>recorded_unverified</code> — with no secret it records the event and cannot verify the signature, which is the correct fail-safe and not a working state. <code>packages/shared/src/env.ts</code> already enforces that a key beginning <code>rzp_live_</code> cannot load under <code>APP_ENV=staging</code> (<code>EN2</code>), so the test keys cannot leak into production by accident. A credentialed action: the values come from Andy&#39;s Razorpay dashboard, Settings → API Keys, in <strong>test mode</strong>. Hand them over and I set the secrets. Blocks <code>E06-02</code>, <code>E06-16</code> and every end-to-end payment test. <strong>Done 2026-08-13 (Andy), all three verified</strong>: the webhook now answers <code>recorded_unverified</code> rather than the new <code>recorded_no_secret</code>, and <code>payments-create-order</code> created a real test order <code>order_TPBr7ydDNITdB3</code> against key <code>rzp_test_…</code>, which exercises the id and the secret together. The webhook is <strong>not yet subscribed in Razorpay</strong> — that is the <code>E19-07</code> sitting, where Andy enters the same string</span>
+      </li>
+      <li class="task" data-id="E06-37" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-37"></button>
+        <code class="tid">E06-37</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Nothing consumes the webhook queue.</strong> <code>payments-webhook</code> verifies an event and records it with <code>processing_status = &#39;pending&#39;</code>, and no function ever reads those rows — so <code>settle_payment</code> is reached only by <code>checkout-status</code> when the app polls (<code>E06-16</code>). A parent who pays and never reopens the app has a captured payment and an unsettled order until they do. Found while wiring <code>E06-16</code> on 2026-08-14; the design (§3.6) always called for the webhook to be the primary route and polling the recovery one, and today it is the other way round</span>
       </li></ul>
       </details>
     </article>

@@ -82,6 +82,8 @@ describe('every browser-callable Edge Function', () => {
   const BROWSER_CALLABLE = [
     'account',
     'checkout',
+    // `E06-16`. Browser-callable like the rest — the back office will read order status too.
+    'checkout-status',
     'menu-version',
     'order-calendar',
     // Added by `E06-02`. This list failing on a new function is the point of the last test in

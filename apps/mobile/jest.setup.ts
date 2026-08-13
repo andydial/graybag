@@ -38,3 +38,29 @@ jest.mock('expo-image', () => {
   const { View } = jest.requireActual('react-native');
   return { __esModule: true, Image: View };
 });
+
+/**
+ * `react-native-razorpay` builds a `NativeEventEmitter` **at import time**, and under Jest the
+ * native module behind it is `null` — so merely importing it throws
+ * `Invariant Violation: new NativeEventEmitter() requires a non-null argument`.
+ *
+ * That is not a failure in the file importing it. It took down `RootNavigator.test.tsx` and the
+ * whole a11y audit the moment checkout was wired, because both render the navigator and the
+ * navigator now reaches the SDK three imports away. **Thirty-six tests stopped running and the
+ * suite still said "844 passed"** — a suite that fails to load reports no failures of its own.
+ *
+ * Mocked globally rather than per-file for exactly that reason: any screen that ends up on a path
+ * to checkout would otherwise fail on import, and the failure names the SDK rather than the
+ * change that caused it. `src/checkout/razorpay.test.ts` overrides this with its own mock to
+ * assert what is actually sent.
+ */
+jest.mock('react-native-razorpay', () => ({
+  __esModule: true,
+  default: {
+    open: jest.fn(() =>
+      Promise.reject(
+        new Error('react-native-razorpay is mocked in jest.setup.ts — mock it in the test instead'),
+      ),
+    ),
+  },
+}));
