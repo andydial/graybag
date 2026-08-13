@@ -277,6 +277,9 @@ const halfTax = (subtotalPaise) => Math.round((subtotalPaise * HALF_RATE_BPS) / 
 
 // --------------------------------------------------------------------------- build the day
 
+/** Realistic parent requests. Requests only — never allergy language. See `special_comments`. */
+const NOTES = ['Less spicy', 'No coriander', 'Cut into halves', 'No onion, please'];
+
 const rows = { users: [], recipients: [], links: [], groups: [], orders: [], lines: [] };
 
 /**
@@ -333,6 +336,16 @@ for (const [index, [firstName, lastName]] of CHILDREN.entries()) {
       tax_sgst_paise: lineSgst,
       line_total_paise: lineSubtotal + lineCgst + lineSgst,
       status: status === 'cancelled' ? 'cancelled' : 'ordered',
+      /**
+       * The parent's per-line request, on roughly one line in four.
+       *
+       * A day with no notes at all cannot exercise the kitchen board's note block (`E09-21`), so
+       * the feature was invisible on staging while being fully built. Deliberately **none of
+       * these is allergy language** — the app routes that out of this field and into the child's
+       * profile (`ux-spec` §5.6.1), and seeding an allergy here would model the exact thing the
+       * product refuses to accept.
+       */
+      special_comments: (n + lineIndex) % 4 === 0 ? NOTES[(n + lineIndex) % NOTES.length] : null,
       dish_name_snapshot: item.dish?.name ?? 'Unknown dish',
       portion_snapshot: item.dish?.portion_text ?? null,
       category_code_snapshot: item.dish?.dish_category?.code ?? null,
