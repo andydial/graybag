@@ -2320,3 +2320,65 @@ permanence claim happens to hold, but nothing checks it either and it is one car
 from the same failure. Still open: the menu importer matches dishes **by name** (`MI`-series,
 already known to be ambiguous for 6 names), and `sync-state.mjs` keys by task id, so it inherits
 whatever `check-mvp.mjs` now catches.
+
+## An Edge Function can be correct for the app and unreachable from a browser (2026-08-13)
+
+`kitchen-order-status` passed every check I could make from a terminal — auth, grants, the
+transaction, the row lock, idempotency — and then returned **405 on the first real click** in the
+back office.
+
+The cause is CORS. A POST carrying `content-type: application/json` and an `Authorization` header
+is not a CORS-simple request, so the browser sends `OPTIONS` first. The function answered
+`method_not_allowed`, and the actual POST was never sent.
+
+**Why nobody had hit it before**: `apps/mobile` is React Native, and its `fetch` issues no
+preflight at all. Every function in `supabase/functions/` is written for that client, and **none
+of them handles `OPTIONS`**. The web back office is the first browser client in the project, so
+this is not a bug in one function so much as an assumption baked into all five (`E09-20`).
+
+`*` is the correct origin for these: authorisation is a bearer token, no cookie is set, so there
+is no CSRF for an origin allowlist to prevent.
+
+**What to take from it**: a `curl` from a terminal proves the function; it does not prove the
+browser can reach it. Test an Edge Function from the page that calls it, or not at all.
+
+## Two silent failures found only by running the thing end to end (2026-08-13)
+
+Both were in code that looked right and behaved right on the happy path.
+
+**`set_config('app.actor_id', ...)` when the trigger reads `app.actor_user_id`.** The status
+change succeeded, `order.delivered_by_user_id` was stamped correctly from the JWT, and the
+`order_event` row was written with a **null actor**. Nothing errored. The order knew who
+delivered it and the audit trail did not — and the audit trail is the half that cannot be
+reconstructed afterwards. A GUC that is not set reads as empty, never as an error, so a typo in a
+setting name is invisible until someone queries the column.
+
+**`items[(index + 4) % items.length]` where `items.length` is 4.** `tools/seed-kitchen-day`
+picked a "second dish" that was always the first one, so every two-line order was two lines of
+the same dish, and the dashboard read "1 × Cold Coffee · 1 × Cold Coffee". It looked exactly like
+a rendering bug in the screen, and the screen was faithful. Any offset sharing a factor with the
+length can land back on the start; a step in `[1, length - 1]` cannot.
+
+## `supabase functions deploy` cannot bundle `deno.land/x` (2026-08-13)
+
+`import postgres from 'https://deno.land/x/postgresjs@v3.4.4/mod.js'` fails with
+`failed to create the graph / brotli error`. `npm:postgres@3.4.4` bundles and is what Supabase's
+own Edge Function docs use. Worth assuming for any `deno.land/x` import.
+
+## A service-role key missing one character fails as "Invalid API key" (2026-08-13)
+
+`.secrets.staging.env` held a service-role JWT beginning `yJhbGciOi…`. A JWT begins `eyJ`; a
+single leading `e` had been lost in transit. Everything using it returned 401 "Invalid API key",
+which reads like a wrong or revoked key rather than a truncated one. **A JWT that does not start
+with `eyJ` is truncated, not wrong** — check that before reissuing anything.
+
+## The a11y gate was auditing a 404 (2026-08-13)
+
+`check-a11y.mjs` reported `html-has-lang` and `document-title` failures on `/kitchen`, and both
+were present and correct in `dist/kitchen.html`. The page redirects a signed-out visitor to
+`/signin`; the gate's static server did not resolve extensionless paths, so the redirect landed
+on a 404 whose empty document failed both rules.
+
+**When a gate contradicts the built output, suspect the gate's navigation before the output.** It
+resolves `/x` to `x.html` now, as Netlify does, and audits `/kitchen?state=…` so it measures the
+board rather than the redirect.
