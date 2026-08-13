@@ -359,10 +359,35 @@ describe('filterOptions — an inert control is worse than none', () => {
   });
 });
 
+describe('countLine — naming the school when only one has orders', () => {
+  it('names it, because a board silently scoped to one school reads as the whole day', () => {
+    const orders = [order({ id: 'a' })];
+    expect(countLine(orders, groupByClass(orders), 'Alpha Public School')).toBe(
+      'Alpha Public School · 1 order · 1 class · 1 break',
+    );
+  });
+
+  it('omits it when several schools have orders — the chips already say which', () => {
+    const orders = [order({ id: 'a' })];
+    expect(countLine(orders, groupByClass(orders), null)).toBe('1 order · 1 class · 1 break');
+    expect(countLine(orders, groupByClass(orders))).toBe('1 order · 1 class · 1 break');
+  });
+});
+
 describe('countLine — does today look right', () => {
   it('counts orders, classes and breaks over what is visible', () => {
     const orders = applyFilters(day.orders, filters());
-    expect(countLine(orders, groupByClass(orders))).toBe('24 orders · 3 classes · 2 breaks');
+    // Six, not three: the fixture now spans two schools, and `groupByClass` keys by school — so
+    // class 5-A at Alpha and class 5-A at Bravo are two classes, two trays and two handovers.
+    // Counting them as one would under-report the work by half.
+    expect(countLine(orders, groupByClass(orders))).toBe('24 orders · 6 classes · 2 breaks');
+  });
+
+  it('counts a class per school, not per label', () => {
+    const orders = applyFilters(day.orders, filters());
+    const schools = new Set(orders.map((o) => o.schoolId));
+    expect(schools.size).toBe(2);
+    expect(groupByClass(orders).every((g) => g.schoolId)).toBe(true);
   });
 
   it('agrees with the list underneath once a filter is applied', () => {

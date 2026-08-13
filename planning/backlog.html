@@ -3502,13 +3502,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/24</span>
+          <span class="meter-num">0/25</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 24 tasks</summary>
+        <summary>Context &amp; 25 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3655,6 +3655,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Two reverse transitions, so a status a human sets by hand can be unset.</strong> <code>preparing -&gt; paid</code> for <code>kitchen</code> (a mis-tapped Start costs nothing to reverse — nothing downstream depends on <code>preparing</code>, no money moves, no parent is told) and <code>delivered -&gt; preparing</code> for <strong><code>admin</code> only</strong>, because <code>delivered</code> is the record that answers &quot;my child says they got nothing&quot; and an operator who can silently un-deliver can rewrite that answer. Both clear their forward stamps and both append an <code>order_event</code> — a correction is a fact, never an erasure. Needs a <strong>migration</strong>: <code>docs/kitchen-write-contract.md</code> §1 has the tuples and the endpoint changes</span>
+      </li>
+      <li class="task" data-id="E09-25" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-25"></button>
+        <code class="tid">E09-25</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The school filter follows the day&#39;s data, not the seed&#39;s.</strong> It was hidden whenever one school had orders, which was right in principle and wrong in effect: the fixture had one school, so the control that matters most once three schools are live was the one nobody could look at. The fixture now spans two schools unevenly, and when exactly one school has orders the board <strong>names it in the count line</strong> — &quot;Alpha Public School · 24 orders · 3 classes&quot; — rather than going silently unlabelled, because &quot;24 orders&quot; means something different if you did not know you were seeing one school out of three (Andy, 2026-08-13)</span>
       </li>
       <li class="task" data-id="E09-18" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-18"></button>
