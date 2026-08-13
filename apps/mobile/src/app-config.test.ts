@@ -447,18 +447,52 @@ describe('the store version floor', () => {
    * `SUPABASE_PRODUCTION_REF` empty rather than inventing a project ref. **The assertions
    * below are already written and activate the moment the numbers are filled in** — the gap is
    * the missing fact, not missing code, and filling one in cannot be done without the check.
+   *
+   * **`versionCode` filled in 2026-08-12**: Andy read `1777726914` off the Play Console. It is a
+   * Unix timestamp — Bubble minted the build number from the clock — which is why it is nine
+   * digits and why the obvious "start at 1" default is nowhere near it.
+   *
+   * `versionName` is **still null**, and deliberately: nobody has relayed it. The number that
+   * arrived is the one Play actually rejects on, and 3.7.0 is the *App Store's* version. Copying
+   * it across is precisely the guess the paragraph above exists to forbid.
    */
   const LIVE_PLAY: { versionName: string | null; versionCode: number | null } = {
     versionName: null,
-    versionCode: null,
+    versionCode: 1_777_726_914,
   };
 
-  it('takes both Play numbers or neither', () => {
-    // The half-filled state is the dangerous one: a `versionName` typed in from memory, no
-    // `versionCode`, and a floor that looks covered while the number Play actually rejects on
-    // is still unknown. Both live on the same Play Console screen; there is no honest reason
-    // to have read one and not the other.
-    expect(LIVE_PLAY.versionName === null).toBe(LIVE_PLAY.versionCode === null);
+  /**
+   * The value pushed to EAS's remote counter on **2026-08-13** with `eas build:version:set
+   * -p android -e production`, read back with `build:version:get` to confirm it landed.
+   *
+   * It is recorded here because `appVersionSource: remote` puts the live number **on EAS's
+   * servers**, where no test can see it and no commit can change it. Before this, the counter
+   * stood at **1** — `build:version:set` said so itself — so every production submission would
+   * have been rejected against a floor nine digits higher.
+   *
+   * Also a Unix timestamp, continuing Bubble's convention: it clears the floor by construction,
+   * and `autoIncrement` only ever moves it further up. Android's ceiling is 2100000000, which
+   * this leaves 313 million builds of headroom below.
+   */
+  const EAS_REMOTE_VERSION_CODE = 1_786_591_932;
+
+  it('may know the Play versionCode without the versionName, but never the reverse', () => {
+    // This was symmetric — "both numbers or neither" — and that was wrong in one direction.
+    //
+    // The dangerous half-filled state is a `versionName` typed in from memory with no
+    // `versionCode`: a floor that *looks* covered while the number Play actually rejects on is
+    // still unknown. The reverse is the safe half, and it is the state we are now in. A rule
+    // that also blocked the safe direction would have meant either leaving the real number out
+    // or inventing the other one, and the second is what this whole block exists to prevent.
+    if (LIVE_PLAY.versionName !== null) expect(LIVE_PLAY.versionCode).not.toBeNull();
+  });
+
+  it('pushed a remote versionCode above the live one', () => {
+    // `E17-30`. The relationship, not the constants: whatever was set had to clear the floor.
+    expect(EAS_REMOTE_VERSION_CODE).toBeGreaterThan(LIVE_PLAY.versionCode as number);
+    // Android's hard ceiling. A fat-fingered extra digit sails past the floor and is rejected
+    // by Play for the opposite reason, which is a confusing morning.
+    expect(EAS_REMOTE_VERSION_CODE).toBeLessThan(2_100_000_000);
   });
 
   it('clears the live Play versionName once it is known', () => {
@@ -466,10 +500,11 @@ describe('the store version floor', () => {
     expect(compare(app.expo.version, LIVE_PLAY.versionName)).toBeGreaterThan(0);
   });
 
-  it('mints a versionCode above the live one once it is known', () => {
-    if (LIVE_PLAY.versionCode === null) return; // E17-33
-    // EAS owns the value at build time, so what is assertable here is the floor it must clear.
-    // `eas build:version:set` is how the remote counter is moved above it, once.
-    expect(LIVE_PLAY.versionCode).toBeGreaterThan(0);
+  it('holds the live Play versionCode as the number Play rejects on, not a guess', () => {
+    // Superseded the placeholder `> 0`, which went from "inactive" to "tautologically true" the
+    // moment the real number arrived — the worst state for a guard to be in, because the suite
+    // turns green on it. The floor's own shape is what is assertable here: nine digits, a Unix
+    // timestamp, and nowhere near a counter that starts at 1.
+    expect(LIVE_PLAY.versionCode).toBe(1_777_726_914);
   });
 });

@@ -4453,13 +4453,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/40</span>
+          <span class="meter-num">0/42</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 40 tasks</summary>
+        <summary>Context &amp; 42 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -4729,15 +4729,15 @@
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:high) <strong>Read the live Google Play numbers off the Play Console</strong> — Production → Releases: the live <code>versionName</code> *and* the live <code>versionCode</code> (the integer). Play rejects on <code>versionCode</code>, and <code>appVersionSource: remote</code> mints ours from an EAS counter that started at 1, so the first Android submit fails the same way <code>ITMS-90062</code> did unless the floor is known. A validation: two numbers read off a screen only Andy can open. <code>app-config.test.ts</code> already holds <code>LIVE_PLAY</code> with the assertions written and dormant</span>
+        <span class="ttext">(risk:high) <strong>Read the live Google Play numbers off the Play Console</strong> — Production → Releases: the live <code>versionName</code> *and* the live <code>versionCode</code> (the integer). Play rejects on <code>versionCode</code>, and <code>appVersionSource: remote</code> mints ours from an EAS counter that started at 1, so the first Android submit fails the same way <code>ITMS-90062</code> did unless the floor is known. A validation: two numbers read off a screen only Andy can open. <strong>Half returned 2026-08-12: <code>versionCode</code> is <code>1777726914</code></strong> — a Unix timestamp Bubble minted from the clock — and it is now in <code>LIVE_PLAY</code>, which is what unblocked <code>E17-34</code>. <strong>The <code>versionName</code> is still unread</strong>, so its assertion stays dormant. Do not close this by copying the App Store&#39;s <code>3.7.0</code> across: two listings updated by hand over fourteen months drift, and a guessed floor is the thing this task exists to avoid</span>
       </li>
-      <li class="task" data-id="E17-34" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E17-34" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-34"></button>
         <code class="tid">E17-34</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Move the EAS Android version counter above the live <code>versionCode</code></strong> once <code>E17-33</code> returns — <code>eas build:version:set --platform android</code>. Fill <code>LIVE_PLAY</code> in <code>app-config.test.ts</code>, which activates the two dormant assertions. Do this *before* paying for an Android production build, not after Play rejects one</span>
+        <span class="ttext"><strong>The EAS Android version counter now clears the live <code>versionCode</code>.</strong> Set to <code>1786591932</code> on 2026-08-13 with <code>eas build:version:set -p android -e production</code> and read back with <code>build:version:get</code> to confirm it landed. It stood at <strong>1</strong> — the command said so itself — against a live floor of <code>1777726914</code>, so every production Android submission would have been rejected after the build was paid for and waited on. <code>LIVE_PLAY.versionCode</code> is filled in and <code>EAS_REMOTE_VERSION_CODE</code> records what was pushed, so the assertion is the *relationship* rather than two constants nobody can re-derive</span>
       </li>
       <li class="task" data-id="E17-35" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-35"></button>
@@ -4786,6 +4786,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The EAS <code>development</code> environment says <code>EXPO_PUBLIC_APP_ENV=staging</code> while the <code>development</code> build profile sets <code>APP_ENV=local</code>.</strong> So a dev build gets the <code>local</code> identity (GrayBag Dev, <code>.dev</code> bundle) and a runtime that reports itself as staging — including the Account footer, which exists precisely so a screenshot says which build it is. Make the two agree</span>
+      </li>
+      <li class="task" data-id="E17-41" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-41"></button>
+        <code class="tid">E17-41</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>E17-29</code> through <code>E17-32</code> mean two different things on two branches, and one set must be renumbered at merge.</strong> <code>main</code> ends at <code>E17-28</code>. <code>ux-spec-and-prototype</code> appended <code>E17-29</code>–<code>E17-40</code>; <code>kitchen-live</code> independently appended its own <code>E17-29</code>–<code>E17-32</code> (the app.json version floor, the Android <code>versionCode</code> floor, setting the EAS counter, and asserting the package name). Task ids are permanent and <code>backlog-state.json</code> is keyed on them, so merging as-is silently applies one branch&#39;s ticks to the other branch&#39;s tasks. <strong>Renumber the <code>kitchen-live</code> four to <code>E17-42</code>–<code>E17-45</code></strong>, not this branch&#39;s twelve: it is the smaller edit, they are all still open so no tick moves with them, and this branch is 96 commits and merges first. Three of the four are already done here — <code>E17-29</code>→ the strict floor in <code>app-config.test.ts</code>, <code>E17-30</code>/<code>E17-31</code>→ <code>E17-33</code>/<code>E17-34</code>, <code>E17-32</code>→ the <code>com.Gracord.Graybag</code> assertion that has existed since <code>E17-28</code> — so they should be renumbered and immediately closed as duplicates rather than carried forward as work</span>
+      </li>
+      <li class="task" data-id="E17-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-42"></button>
+        <code class="tid">E17-42</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Two threads appending to one epic file will collide again.</strong> <code>E17-41</code> is the symptom; the cause is that <code>planning/backlog/</code> is shared mutable state with no reservation, and the next-free-id is read from whatever the branch happens to have. Either give each thread an id band per epic, or make <code>build-backlog.mjs</code> fail on a duplicate id across <code>git branch -a</code> rather than only within the file it is building</span>
       </li></ul>
       </details>
     </article>
