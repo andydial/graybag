@@ -271,7 +271,20 @@ export function filterOptions(day: KitchenDay | null): FilterOptions {
  * Counted over what is *visible*, so it agrees with the list underneath rather than describing a
  * day the filters have hidden.
  */
-export function countLine(orders: KitchenOrder[], groups: ClassGroup[]): string {
+export function countLine(
+  orders: KitchenOrder[],
+  groups: ClassGroup[],
+  /**
+   * Named when exactly one school has orders today, and omitted when several do.
+   *
+   * The school filter is hidden in that case because an inert control is worse than none — but
+   * hiding it silently leaves the board unlabelled, and "24 orders" means something different if
+   * you did not know you were looking at one school out of three. So the scope moves from a
+   * control into the sentence. When several schools have orders the chips are drawn instead, and
+   * they say which one is selected, so repeating it here would be noise.
+   */
+  onlySchoolName?: string | null,
+): string {
   if (orders.length === 0) return 'No orders';
 
   const classes = new Set(groups.map((g) => `${g.schoolId}|${g.classLabel}`)).size;
@@ -284,7 +297,7 @@ export function countLine(orders: KitchenOrder[], groups: ClassGroup[]): string 
   // "1 break" for a school that has none would be an invented fact.
   if (orders.some((o) => o.breakId)) parts.push(plural(breaks, 'break'));
 
-  return parts.join(' · ');
+  return [onlySchoolName, ...parts].filter(Boolean).join(' · ');
 }
 
 /**

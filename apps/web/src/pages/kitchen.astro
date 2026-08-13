@@ -426,6 +426,18 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
        *
        * Anything with fewer than two options is not drawn — an inert control is worse than none.
        */
+      /**
+       * The school's name when exactly one has orders today, else `null`.
+       *
+       * `filterOptions` hides the school chips in that case, and a board that is silently scoped
+       * to one school out of three is a board where "24 orders" means the wrong thing. The name
+       * moves into the count line rather than becoming a chip nobody can press.
+       */
+      const soleSchoolName = (): string | null => {
+        const { schools, showSchools } = filterOptions(day);
+        return !showSchools && schools.length === 1 ? (schools[0]?.name ?? null) : null;
+      };
+
       function renderFilters() {
         const options = filterOptions(day);
         const group = (
@@ -469,7 +481,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         el.count.textContent =
           board.kind === 'loading' ? 'Loading…'
           : board.kind === 'unreachable' || board.kind === 'forbidden' ? '—'
-          : countLine(visible, groupByClass(visible));
+          : countLine(visible, groupByClass(visible), soleSchoolName());
       }
 
       function render() {
