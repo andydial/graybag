@@ -80,9 +80,11 @@ describe('every browser-callable Edge Function', () => {
    * untested.
    */
   const BROWSER_CALLABLE = [
-<<<<<<< HEAD
     'account',
     'checkout',
+    // Added by `E09-20`. The back office is the first browser client in the project, and this
+    // function is where the missing preflight was found.
+    'kitchen-order-status',
     'menu-version',
     'order-calendar',
     // Added by `E06-02`. This list failing on a new function is the point of the last test in
@@ -90,9 +92,6 @@ describe('every browser-callable Edge Function', () => {
     // between the two lists had to be made rather than defaulted.
     'payments-create-order',
     'policy',
-=======
-    'account', 'checkout', 'kitchen-order-status', 'menu-version', 'order-calendar', 'policy',
->>>>>>> bfcf16e (E09-20: adopt the payments thread's shared CORS helper)
     'recipients',
   ];
   const NOT_BROWSER_CALLABLE = ['payments-webhook'];

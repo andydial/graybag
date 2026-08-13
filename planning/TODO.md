@@ -1,45 +1,6 @@
 # Andy's TODO
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 Your tasks only — 51 open of 60.
-=======
-=======
->>>>>>> 7124af8 (E17-43..46: renumbered off main's ids and closed as duplicates)
-=======
->>>>>>> 1ec1ba9 (backlog: reconcile E09 ticks and add E09-21 after the rebase onto main)
-<<<<<<< HEAD
-Your tasks only — 52 open of 60.
-=======
-=======
->>>>>>> 2b13a7f (E17-43..46: renumbered off main's ids and closed as duplicates)
-<<<<<<< HEAD
-Your tasks only — 51 open of 59.
-=======
-Your tasks only — 47 open of 51.
->>>>>>> 069b440 (E17: record the Android version-code floor findings — not fixed, wrong thread)
-<<<<<<< HEAD
->>>>>>> 4a01e76 (E17: record the Android version-code floor findings — not fixed, wrong thread)
-<<<<<<< HEAD
->>>>>>> 7dc86d5 (E17: record the Android version-code floor findings — not fixed, wrong thread)
-=======
-=======
-=======
-Your tasks only — 46 open of 50.
->>>>>>> c4d4974 (E17-43..46: renumbered off main's ids and closed as duplicates)
->>>>>>> 2b13a7f (E17-43..46: renumbered off main's ids and closed as duplicates)
-<<<<<<< HEAD
->>>>>>> 7124af8 (E17-43..46: renumbered off main's ids and closed as duplicates)
-=======
-=======
-Your tasks only — 51 open of 59.
->>>>>>> 3e7f1c5 (backlog: reconcile E09 ticks and add E09-21 after the rebase onto main)
->>>>>>> 1ec1ba9 (backlog: reconcile E09 ticks and add E09-21 after the rebase onto main)
-=======
-Your tasks only — 52 open of 60.
->>>>>>> bfcf16e (E09-20: adopt the payments thread's shared CORS helper)
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
