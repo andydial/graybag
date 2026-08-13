@@ -179,7 +179,15 @@ jobs:
   maestro:
     name: Maestro (cart)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # 45 was never enough, and that was the second half of `E14-36`. Measured on 2026-08-13 with
+    # the metaspace fix in place: 24m34s to build the APK, then **13 minutes for the emulator to
+    # boot** ("Boot completed in 781426 ms"), leaving `adb install` to be killed by the job
+    # timeout rather than by any failure of its own. The work exceeded the budget, so fixing the
+    # OOM only moved the wall.
+    #
+    # KVM and the AVD cache below are what make the number honest; this is headroom for the
+    # uncached first run on a new cache key, not an expectation.
+    timeout-minutes: 75
     # Android only for now: an iOS runner needs macOS, and the flow asserts no
     # platform-specific behaviour. Add the macOS matrix leg when one does.
     steps:
@@ -207,6 +215,41 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      # **The single biggest win in this job.** GitHub's ubuntu runners have KVM, but /dev/kvm is
+      # not world-accessible, so the emulator silently falls back to full software emulation —
+      # no error, just a boot that took 781 SECONDS. With hardware acceleration it is a minute or
+      # two. The failure mode is exactly the kind this repo keeps writing down: nothing reports a
+      # problem, the thing is merely thirteen times slower than it should be.
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -w /dev/kvm && echo "/dev/kvm is writable — hardware acceleration available"
+
+      # Boot once, snapshot, reuse. Without this every run pays the cold-boot cost even with KVM.
+      - name: Cache the AVD
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-34-google_apis-x86_64
+
+      - name: Create the AVD snapshot on a cache miss
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "AVD created and snapshotted"
+
       - name: Install Maestro
         run: |
           curl -Ls https://get.maestro.mobile.dev | bash
@@ -226,6 +269,10 @@ jobs:
           api-level: 34
           arch: x86_64
           target: google_apis
+          # Must match the snapshot step above, or the cache is a miss and the boot cost returns.
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
           script: |
             adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
             maestro test apps/mobile/.maestro/cart.yaml --format junit --output maestro-report.xml
