@@ -566,13 +566,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/11</span>
+          <span class="meter-num">0/13</span>
         </div>
       </header>
       <p class="summary">Short, throwaway experiments that answer the questions capable of invalidating later work. Each is timeboxed to a day or two and needs almost no infrastructure.</p>
       
       <details>
-        <summary>Context &amp; 11 tasks</summary>
+        <summary>Context &amp; 13 tasks</summary>
         <div class="context"><h4>Why these are first</h4>
 <p>Each of these can invalidate a large amount of downstream work if the answer is bad.</p>
 <p>Doing them in phase 1 costs days; discovering them in phase 4 costs weeks.</p></div>
@@ -625,7 +625,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Write up each spike&#39;s result as a short note in <code>docs/</code>, including anything that changes a decision in <code>docs/decisions.md</code></span>
       </li>
-      <li class="task" data-id="E19-07" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E19-07" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-07"></button>
         <code class="tid">E19-07</code>
         <span class="badge r-critical">critical</span>
@@ -664,6 +664,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Scenario 40 needs an owner who is not Andy.</strong> The UPI *intent* happy path — the app-switch, the chooser, <code>LSApplicationQueriesSchemes</code> and the Android <code>&lt;queries&gt;</code> block (<code>E06-29</code>), and the process being killed while another app holds the foreground (<code>E06-16</code>) — is the one thing test VPAs and test cards cannot exercise, because it is a property of the handset rather than of our server. <code>E19-01</code> proved it once on a real handset; <strong>Andy is in Australia with no working UPI and cannot repeat it.</strong> Everything downstream of the provider is covered by scenarios 41–43 (<code>docs/payments-design.md</code> §14.1), so this is not a blocker for building — it is a release gate with nobody assigned. Needs a real Indian handset with a working UPI app, in Mohali, before launch</span>
+      </li>
+      <li class="task" data-id="E19-12" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-12"></button>
+        <code class="tid">E19-12</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Webhook retry policy and response timeout are still assumed, not measured</strong> (<code>E19-07</code> rows 10/11). Our handler always answers <code>200</code>, so Razorpay has never retried and there is nothing to observe. Measuring it needs a deliberate non-<code>200</code> from a disposable endpoint — an experiment, not a sitting, and one nobody need attend. Until it is done, §2.4&#39;s <code>_PREVIOUS</code> secret-rotation window and §6.6&#39;s &quot;we own retry&quot; boundary rest on an assumed ~24 hours</span>
+      </li>
+      <li class="task" data-id="E19-13" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-13"></button>
+        <code class="tid">E19-13</code>
+        <span class="badge r-high">high</span>
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>How long Razorpay holds an unpaid UPI collect — ask Razorpay support.</strong> <code>E19-07</code> row 12, and <strong>not answerable with any instrument we have</strong>: test VPAs resolve immediately by design so no pending collect can exist to time, and a payment link created without <code>expire_by</code> never expires (one sat at <code>status: created</code> for 9.1 hours). <code>[OL-03]</code>&#39;s TTL, the <code>pending_payment</code> hold and <code>S21</code>&#39;s Ending B all resolve on this number, and a hold shorter than the real expiry manufactures exactly the late-capture path <code>L9</code>&#39;s grace window exists to absorb. A support ticket, or a real Indian handset (<code>E19-11</code>). <strong>Do not guess it</strong></span>
       </li></ul>
       </details>
     </article>

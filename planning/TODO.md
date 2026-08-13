@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 51 open of 60.
+Your tasks only — 52 open of 61.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -20,6 +20,7 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E00-10` **[high]** _(fast-follow)_ Accountant: obtain GSTIN, confirm SAC code (996331 assumed), confirm CGST/SGST split for Mohali / SAS Nagar
 - [ ] `E00-11` **[high]** _(fast-follow)_ Accountant: confirm whether the school's 10% revenue share attracts 18% GST on the school's invoice to GrayBag
 - [x] `E19-03` **[high]** ~~VAG Rounded Next licence check~~ — CLOSED BY DECISION 2026-08-10 (S35), not by checking. Nunito is the typeface outright. No licence question remains to answer
+- [ ] `E19-13` **[high]** _(fast-follow)_ How long Razorpay holds an unpaid UPI collect — ask Razorpay support. E19-07 row 12, and not answerable with any instrument we have: test VPAs resolve immediately by design so no pending collect can exist to time, and a payment link created without expire_by never expires (one sat at status: created for 9.1 hours). [OL-03]'s TTL, the pending_payment hold and S21's Ending B all resolve on this number, and a hold shorter than the real expiry manufactures exactly the late-capture path L9's grace window exists to absorb. A support ticket, or a real Indian handset (E19-11). Do not guess it
 - [ ] `E20-01` **[critical]** _(fast-follow)_ Confirm DPDP obligations that apply to GrayBag with a lawyer or the accountant — children's data, verifiable parental consent, grievance officer, breach reporting timelines
 - [ ] `E20-25` **[high]** _(fast-follow)_ Lawyer to review and approve the allergy liability ([PP-03]) and liability cap ([PP-04]) wording in docs/terms.md §8 and §10 — health-and-safety language, must not ship unreviewed. Rides with E20-01
 

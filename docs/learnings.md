@@ -19,6 +19,46 @@ Format — newest first:
 
 ---
 
+## 2026-08-13 — "Not yet" and "never" are the same query result, and I read one as the other
+
+**Context:** the `E19-07` sitting. I POSTed two test refunds through Razorpay's API and then
+queried `payment_webhook_event` to see whether `refund.created` had arrived.
+
+**What happened:** zero rows. I told Andy no refund webhook had fired, and framed it as a real
+constraint on how `E06-08` could ever be tested — while asking him to check his subscription to
+distinguish "not subscribed" from "test mode does not emit".
+
+Both events had fired. They landed at 13:39:11 and 13:39:12, seconds after I looked. The
+subscription was right, test mode emits them, and the only thing wrong was that I queried
+immediately after triggering an asynchronous delivery and treated an empty result as final.
+
+**Cause:** `where received_at > now() - interval '20 minutes'` returning zero rows has two
+meanings — *it never happened*, and *it has not happened yet* — and nothing in the result
+distinguishes them. This is the entry directly below, one day old, and I walked into it while
+explaining it. I had even written the right next step (ask which of two causes it is) without
+noticing that a third possibility, "too early", was the actual one and was not on my list.
+
+**Fix / rule:** **an absence is only evidence after the deadline it was measured against.** For
+anything asynchronous — a webhook, a queue, a job — a query proves nothing unless it either
+polls until a stated timeout, or is run after one.
+
+Concretely, and it is one line:
+
+```sql
+-- worthless immediately after the trigger; meaningful after a stated wait
+select count(*) from payment_webhook_event where event_type like 'refund%';
+```
+
+Say what the deadline is *before* looking, so the empty result has a meaning agreed in advance:
+"if nothing after five minutes, it does not fire." Without that, an empty result is a Rorschach
+test and the reader supplies the conclusion they already suspected — which is exactly what I did,
+and I stated it to Andy with more confidence than a single query could support.
+
+The sibling rule below asks what *else* produces this result. This one is the same question in
+the time dimension: **what else produces this result — including "nothing yet"?**
+
+---
+
 ## 2026-08-13 — If both outcomes can be produced by the fault you are looking for, it is not a check
 
 **Context:** verifying that `RAZORPAY_WEBHOOK_SECRET` had actually been set on staging. I POSTed
