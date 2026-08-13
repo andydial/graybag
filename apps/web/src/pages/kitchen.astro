@@ -35,38 +35,31 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
   <body>
     <div class="kitchen">
+      <!--
+        The date is the question; everything else is a refinement.
+
+        This was four dropdowns of equal weight all reading "All", which told nobody what they
+        were looking at. At 7am the only thing anyone needs to know is which day this is, so the
+        date is the largest thing on the screen and moves one tap at a time — a picker is three
+        interactions to answer a question that is almost always "today" or "tomorrow".
+      -->
       <header class="kitchen__bar">
         <div class="kitchen__bar-inner">
-          <h1 class="kitchen__title">Kitchen</h1>
-
-          <div class="kitchen__filters">
-            <div class="kitchen__field">
-              <label for="k-date">Date</label>
-              <input id="k-date" type="date" />
+          <div class="daynav">
+            <button class="daynav__step" id="k-prev" type="button" aria-label="Previous day">‹</button>
+            <div class="daynav__label">
+              <p class="daynav__date" id="k-date-label">—</p>
+              <p class="daynav__count" id="k-count">—</p>
             </div>
-            <div class="kitchen__field">
-              <label for="k-school">School</label>
-              <select id="k-school"><option value="">All schools</option></select>
-            </div>
-            <div class="kitchen__field">
-              <label for="k-break">Break</label>
-              <select id="k-break"><option value="">All breaks</option></select>
-            </div>
-            <div class="kitchen__field">
-              <label for="k-status">Status</label>
-              <select id="k-status">
-                <option value="">All</option>
-                <option value="paid">To make</option>
-                <option value="preparing">Making</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div class="kitchen__field">
-              <label for="k-reload">&nbsp;</label>
-              <button id="k-reload" class="kitchen__btn" type="button">Refresh</button>
-            </div>
+            <button class="daynav__step" id="k-next" type="button" aria-label="Next day">›</button>
+            <button class="kitchen__btn daynav__today" id="k-today" type="button" hidden>Today</button>
           </div>
+
+          <!-- Before the filters in the DOM because the grid places in source order: this puts
+               Refresh on the date's row rather than in a row of its own below the chips. -->
+          <button id="k-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+
+          <div class="kitchen__filters" id="k-filters"></div>
         </div>
       </header>
 
@@ -94,6 +87,11 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         allowedActions,
         applyFilters,
         boardState,
+        countLine,
+        describeDate,
+        filterOptions,
+        groupByClass,
+        shiftDate,
         groupProgress,
         groupState,
         productionTotals,
@@ -148,10 +146,22 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       const transport = useLive ? liveTransport() : fixture;
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-      const el = { date: $<HTMLInputElement>('k-date'), school: $<HTMLSelectElement>('k-school'),
-        brk: $<HTMLSelectElement>('k-break'), status: $<HTMLSelectElement>('k-status'),
-        reload: $<HTMLButtonElement>('k-reload'), banner: $('k-banner'), summary: $('k-summary'),
-        board: $('k-board'), live: $('k-status-line') };
+      const el = {
+        prev: $<HTMLButtonElement>('k-prev'), next: $<HTMLButtonElement>('k-next'),
+        todayBtn: $<HTMLButtonElement>('k-today'), dateLabel: $('k-date-label'),
+        count: $('k-count'), filters: $('k-filters'), reload: $<HTMLButtonElement>('k-reload'),
+        banner: $('k-banner'), summary: $('k-summary'), board: $('k-board'), live: $('k-status-line'),
+      };
+
+      /**
+       * The current selection, as state rather than as DOM.
+       *
+       * Named `sel` and not `state` on purpose: the render functions already carry a `state`
+       * from `boardState`, and shadowing it made `state.breakId` typecheck against the board
+       * union — which is the kind of collision that compiles in a dynamic language and does not
+       * here, gratefully.
+       */
+      const sel = { serviceDate: today, schoolId: '', breakId: '', status: '' };
 
       let day: KitchenDay | null = null;
       let loading = true;
@@ -160,10 +170,10 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       const busy = new Set<string>();
 
       const filters = (): KitchenFilters => ({
-        serviceDate: el.date.value || today,
-        schoolId: el.school.value || null,
-        breakId: el.brk.value || null,
-        status: (el.status.value || null) as KitchenStatus | null,
+        serviceDate: sel.serviceDate,
+        schoolId: sel.schoolId || null,
+        breakId: sel.breakId || null,
+        status: (sel.status || null) as KitchenStatus | null,
       });
 
       const esc = (s: string) =>
@@ -261,7 +271,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
         el.summary.innerHTML =
           `<section class="kitchen__summary" aria-labelledby="k-cook">` +
-            `<h2 id="k-cook">To cook${el.brk.value ? ` · ${esc(el.brk.selectedOptions[0]!.text)}` : ''}</h2>` +
+            `<h2 id="k-cook">To cook${
+              sel.breakId ? ` · ${esc(day?.breaks.find((b) => b.id === sel.breakId)?.label ?? '')}` : ''
+            }</h2>` +
             `<div class="kitchen__totals">` +
               totals.map((t) => `<div class="kitchen__total"><b>${t.quantity}</b><span>${esc(t.dishName)}</span></div>`).join('') +
             `</div>` +
@@ -301,7 +313,8 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         if (state.kind === 'empty-day') {
           el.board.innerHTML =
             `<div class="kitchen__state"><h2>No orders for this day</h2>` +
-            `<p>Nobody has ordered for ${esc(el.date.value || today)}. That is a real answer, not a failure — ` +
+            `<p>Nobody has ordered for ${esc(describeDate(sel.serviceDate, today))}. That is a real answer, ` +
+            `not a failure — ` +
             `check the date if you were expecting some.</p></div>`;
           return;
         }
@@ -363,6 +376,62 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         );
       };
 
+      /**
+       * The secondary filters, drawn as chips rather than dropdowns.
+       *
+       * A chip shows its state without being opened, which is the whole complaint about a row of
+       * selects reading "All": you cannot tell what you are looking at. They are also a single
+       * tap at 56px, and a dropdown on a tablet with wet hands is two interactions and a
+       * scrolling list.
+       *
+       * Anything with fewer than two options is not drawn — an inert control is worse than none.
+       */
+      function renderFilters() {
+        const options = filterOptions(day);
+        const group = (
+          label: string,
+          key: 'schoolId' | 'breakId' | 'status',
+          items: { id: string; label: string }[],
+          allLabel: string,
+        ) =>
+          `<div class="chips" role="group" aria-label="${esc(label)}">` +
+            [{ id: '', label: allLabel }, ...items]
+              .map((item) =>
+                `<button class="chip" type="button" data-filter="${key}" data-value="${esc(item.id)}" ` +
+                `aria-pressed="${sel[key] === item.id}">${esc(item.label)}</button>`,
+              )
+              .join('') +
+          `</div>`;
+
+        const parts: string[] = [];
+        if (options.showSchools) {
+          parts.push(group('School', 'schoolId', options.schools.map((s2) => ({ id: s2.id, label: s2.name })), 'All schools'));
+        }
+        if (options.showBreaks) {
+          parts.push(group('Break', 'breakId', options.breaks.map((b) => ({ id: b.id, label: b.label })), 'All breaks'));
+        }
+        parts.push(
+          group('Status', 'status', [
+            { id: 'paid', label: STATUS_LABEL.paid },
+            { id: 'preparing', label: STATUS_LABEL.preparing },
+            { id: 'delivered', label: STATUS_LABEL.delivered },
+            { id: 'cancelled', label: STATUS_LABEL.cancelled },
+          ], 'Any status'),
+        );
+        el.filters.innerHTML = parts.join('');
+      }
+
+      function renderDay(board: ReturnType<typeof boardState>) {
+        el.dateLabel.textContent = describeDate(sel.serviceDate, today);
+        el.todayBtn.hidden = sel.serviceDate === today;
+
+        const visible = day ? applyFilters(day.orders, filters()) : [];
+        el.count.textContent =
+          board.kind === 'loading' ? 'Loading…'
+          : board.kind === 'unreachable' || board.kind === 'forbidden' ? '—'
+          : countLine(visible, groupByClass(visible));
+      }
+
       function render() {
         const offline = forced === 'offline' || !navigator.onLine;
         const state = boardState({
@@ -372,6 +441,8 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           offline,
           error: forced === 'unreachable' ? 'Simulated: the server did not respond.' : error,
         });
+        renderDay(state);
+        renderFilters();
         renderBanner(offline, state);
         renderSummary(state);
         renderBoard(state, offline);
@@ -385,7 +456,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
         if (target.hasAttribute('data-retry')) return load();
         if (target.hasAttribute('data-clear')) {
-          el.school.value = ''; el.brk.value = ''; el.status.value = '';
+          sel.schoolId = ''; sel.breakId = ''; sel.status = '';
           return render();
         }
 
@@ -415,16 +486,27 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         await update([orderId], action);
       });
 
-      for (const control of [el.date, el.school, el.brk, el.status]) {
-        control.addEventListener('change', () => (control === el.date ? load() : render()));
-      }
+      el.filters.addEventListener('click', (event) => {
+        const chip = (event.target as HTMLElement).closest<HTMLElement>('[data-filter]');
+        if (!chip) return;
+        const key = chip.dataset.filter as 'schoolId' | 'breakId' | 'status';
+        sel[key] = chip.dataset.value ?? '';
+        render();
+      });
+
+      const goToDate = (iso: string) => {
+        sel.serviceDate = iso;
+        void load();
+      };
+      el.prev.addEventListener('click', () => goToDate(shiftDate(sel.serviceDate, -1)));
+      el.next.addEventListener('click', () => goToDate(shiftDate(sel.serviceDate, 1)));
+      el.todayBtn.addEventListener('click', () => goToDate(today));
       el.reload.addEventListener('click', load);
       window.addEventListener('online', render);
       window.addEventListener('offline', render);
 
       // ------------------------------------------------------------------ start
 
-      el.date.value = today;
       void (async () => {
         // Signed out against the real server is not an empty kitchen — it is a locked door, and
         // §5.21's N3 says the two must never look alike. Fixtures need no session.
@@ -435,10 +517,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         // Populate the filter options from the first load rather than from `day`: TypeScript
         // cannot see an assignment made inside `load()` from out here, and narrowing a
         // module-level `let` across an await is exactly where that analysis gives up.
-        const first = await load();
-        if (!first) return;
-        for (const s of first.schools) el.school.add(new Option(s.name, s.id));
-        for (const b of first.breaks) el.brk.add(new Option(b.label, b.id));
+        // The bar renders itself from whatever the day contains, so there is nothing to
+        // populate here — which is also why a school appearing tomorrow needs no code change.
+        await load();
       })();
     </script>
   </body>
