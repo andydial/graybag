@@ -208,18 +208,43 @@ describe('fetchKitchenSchools', () => {
 
   it('returns them in name order', async () => {
     install([
-      { id: 's1', name: 'Alpha Public School' },
-      { id: 's2', name: 'Bravo International School' },
+      { id: 's1', name: 'Alpha Public School', is_active: true },
+      { id: 's2', name: 'Bravo International School', is_active: true },
     ]);
-    expect(await fetchKitchenSchools()).toEqual([
-      { id: 's1', name: 'Alpha Public School' },
-      { id: 's2', name: 'Bravo International School' },
+    expect((await fetchKitchenSchools()).map((s) => s.name)).toEqual([
+      'Alpha Public School',
+      'Bravo International School',
     ]);
   });
 
   it('drops a school it cannot name rather than drawing a blank chip', async () => {
     install([{ id: 's1', name: null }, { id: 's2', name: 'Bravo International School' }]);
-    expect(await fetchKitchenSchools()).toEqual([{ id: 's2', name: 'Bravo International School' }]);
+    expect((await fetchKitchenSchools()).map((s) => s.id)).toEqual(['s2']);
+  });
+
+  describe('is_active is reported, not applied', () => {
+    // The caller needs both halves: active schools, plus any school with orders on the day being
+    // viewed. Filtering here would make the second half impossible.
+    it('carries the flag through', async () => {
+      install([
+        { id: 's1', name: 'Retired School', is_active: false },
+        { id: 's2', name: 'Serving School', is_active: true },
+      ]);
+      expect(await fetchKitchenSchools()).toEqual([
+        { id: 's1', name: 'Retired School', isActive: false },
+        { id: 's2', name: 'Serving School', isActive: true },
+      ]);
+    });
+
+    it('never filters an inactive school out of the read', async () => {
+      install([{ id: 's1', name: 'Retired School', is_active: false }]);
+      expect(await fetchKitchenSchools()).toHaveLength(1);
+    });
+
+    it('treats a missing column as active, because hiding a school is the worse way to be wrong', async () => {
+      install([{ id: 's1', name: 'Alpha Public School' }]);
+      expect((await fetchKitchenSchools())[0]?.isActive).toBe(true);
+    });
   });
 
   it('scopes by RLS rather than by a filter written here', async () => {

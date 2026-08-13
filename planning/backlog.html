@@ -361,13 +361,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/23</span>
+          <span class="meter-num">0/24</span>
         </div>
       </header>
       <p class="summary">Repo, two real environments, secrets management, and the test harness that every later task depends on.</p>
       <p class="deps">Depends on <code>E00</code></p>
       <details>
-        <summary>Context &amp; 23 tasks</summary>
+        <summary>Context &amp; 24 tasks</summary>
         <div class="context"><h4>Why early</h4>
 <p>Everything after this inherits the quality bar set here. Getting tests and environments right on day one is what stops &quot;manually swapping Razorpay keys&quot; happening again.</p></div>
         <ul class="tasks">
@@ -554,6 +554,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>scripts/tag-mvp.mjs</code> rewrote the backlog markdown from its include list, so a disagreement resolved as &quot;whoever ran it last wins&quot;.</strong> <code>E03-20</code>, <code>E05-16</code>, <code>E05-20</code> and <code>E05-21</code> carried <code>(mvp)</code> in markdown and were absent from the list — a run would have <strong>stripped all four from v1</strong> silently. <code>E09-11</code> was the mirror case. <strong>Closed 2026-08-11</strong>: Andy ruled all five are MVP and they are reconciled; the script is replaced by <code>scripts/check-mvp.mjs</code>, which <strong>verifies and never writes</strong>, names both sides of any disagreement, and runs in <code>npm run smoke</code> so CI fails on drift</span>
+      </li>
+      <li class="task" data-id="E01-26" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-26"></button>
+        <code class="tid">E01-26</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>Maestro (cart)</code> has timed out at the 45-minute job limit on every pull request today</strong>, including the payments thread&#39;s <code>e06-02-create-order</code>. The step that hangs is *Build the staging APK*; the last Integration run to pass was a scheduled one on 2026-08-12 at 4m12s. <code>#43</code> and <code>#45</code> were both merged around it after confirming neither diff touched a mobile, Android, Gradle or Maestro file. <strong>That is twice, and Andy&#39;s ruling stands: a required check that times out on every PR is a gate switched off by accident, and merging around it is how it stays off.</strong> Find the cause — a Gradle distribution fetch was seen failing with <code>Unexpected end of file from server</code>, so a pinned/cached distribution is the first thing to try — and either fix it or raise the timeout deliberately. Do not merge around it a third time</span>
       </li></ul>
       </details>
     </article>
@@ -3502,13 +3510,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/29</span>
+          <span class="meter-num">0/30</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 29 tasks</summary>
+        <summary>Context &amp; 30 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3695,6 +3703,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>An undo window on every status tap — the Gmail pattern, and it needs no server change.</strong> Gmail&#39;s &quot;Undo Send&quot; does not recall a sent mail; it holds the send and cancels it. That distinction is the whole design, because the lifecycle has no reverse tuple and a write that has happened cannot be taken back from the client at all. Deferring the request by ten seconds needs no migration and leaves nothing in the audit trail to explain. One pending batch at a time — a second action flushes the first — and the pending write is flushed on <code>visibilitychange</code>, <code>pagehide</code> and any reload, because a deferred write that never happens is the silent no-op this screen exists to avoid. <strong>Layer (a) of three</strong>; (b) and (c) are corrections after the window and genuinely need the server — <code>E09-24</code>, and <code>docs/kitchen-write-contract.md</code> §1</span>
+      </li>
+      <li class="task" data-id="E09-30" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-30"></button>
+        <code class="tid">E09-30</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The school filter offers active schools PLUS any school with orders on the selected day.</strong> Neither half works alone: active-only hides a school we have stopped serving whose orders from last week are on the board — a filter that cannot name something on screen — and orders-only was <code>E09-28</code>&#39;s bug. Not hypothetical: <code>supabase/seeds/catalogue.sql</code> <strong>deliberately</strong> deactivates the three synthetic fixture schools once the real Bubble-imported ones exist, so that &quot;Alpha Public School sitting next to Amity International School&quot; cannot confuse the parent-facing picker. Alpha and Bravo are therefore inactive *and* carry every seeded order, so an active-only filter would have listed neither. <code>is_active</code> is read and returned by the <code>api/</code> module and applied by the caller, never filtered in the query, because the caller needs both halves. A missing column reads as active — hiding a school because a column did not come back is the wrong way to be wrong (Andy, 2026-08-13)</span>
       </li>
       <li class="task" data-id="E09-18" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-18"></button>
