@@ -18,15 +18,20 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
-## Open — 1 item
+## Open — 2 items
 
 | # | Ask | Asked | Status |
 |---|---|---|---|
-| 1 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine) |
+| 1 | **"A parent pays and gets a receipt"**, test mode only | 2026-08-12 | In progress. `settle_payment` and the invoice are done and green; client checkout (`E06-02`), the status endpoint (`E06-16`) and the confirmation email (E08) remain |
+| 2 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine) |
 
-**The queue is otherwise empty.** Everything else Andy has asked for directly is done and
-pushed. Next up by his instruction: `E06` payments, starting with the `docs/e06-build-plan.md`
-delta report — not with code.
+**Added 2026-08-13, and cleared the same day:** the two version items the web thread raised.
+Andy's words — *"Both are yours. Do them before the next build, not before the next submit."*
+The app.json floor was already fixed on this branch and the web thread had read `main`; the
+Android counter genuinely was at 1 and is now above the live floor. `E17-34`. The finding
+underneath both is that **this branch has never been merged**, which is item 3 below.
+
+| 3 | **Merge `ux-spec-and-prototype` into `main`** | found 2026-08-13 | **Needs Andy's go-ahead.** 96 commits — every payments migration, the ledger, the state machine, the webhook, invoicing. Not something to merge unattended |
 
 ---
 

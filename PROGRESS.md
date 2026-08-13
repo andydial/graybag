@@ -1,3 +1,78 @@
+# Report — 2026-08-13, the version guard and the invoice
+
+## The epic view
+
+**A parent paying and getting a receipt is now half built and green.** `settle_payment` turns a
+recorded capture into a paid order, and it issues the tax invoice **in the same transaction** —
+so a paid order without a document, or a burned invoice number without a settlement, are both
+unreachable rather than merely unlikely. What remains is client-side: the checkout screen, the
+status endpoint, and the confirmation email.
+
+**The version guard the web thread flagged was real, but not where they looked.** Both threads
+read correctly and read different branches. The fix has been on `ux-spec-and-prototype` for days;
+`main` still has the broken rule. The Android half was genuinely unfixed and is now fixed.
+
+**The finding underneath both: this branch has never been merged, and is 96 commits ahead.**
+Every payments migration, the ledger, the state machine, the deployed webhook and all of
+invoicing exist only here. That is the risk worth acting on this week, and it needs Andy's word
+before I open the PR.
+
+---
+
+## SHIPPED
+
+- **`E07-01`/`E07-02`/`E07-16` — the invoice.** Issued inside `settle_payment` (`D14`). The
+  number is allocated **last**, under a row lock, after every check that could refuse has passed,
+  because a Postgres sequence is non-transactional and a rollback leaves a hole nobody can
+  explain to an auditor. Format `GB/26-27/000417` — fifteen characters; the format in the
+  original schema comment was seventeen and would have breached Rule 46's cap. Line descriptions
+  carry the child's **first name only**, asserted both ways. 13 assertions.
+- **`E17-34` — the Android version counter.** EAS's remote counter stood at **1** against a live
+  floor of `1777726914`. Set to `1786591932`, read back to confirm. Every production Android
+  submission would have been rejected.
+
+## FINDINGS
+
+- **The two threads' version reports do not contradict each other.** `main` has `2.0.0` and the
+  old `major >= 2` rule; this branch has `4.0.0` and a strict numeric floor against
+  `LIVE_STORE_VERSION = '3.7.0'`. The web thread read `main`. Nothing was wrong except that the
+  fix is unmerged.
+- **A guard woke up tautologically true.** `LIVE_PLAY.versionCode`'s assertion was a placeholder
+  `> 0`, dormant while the value was null. The real number arriving turned it from inactive into
+  trivially passing — green, and asserting nothing. Fixed. This is a shape worth watching for:
+  a dormant assertion is only safe while it stays dormant.
+- **`E17-29`–`E17-32` mean two different things on two branches.** `main` ends at `E17-28`; both
+  branches appended from 29 independently. `backlog-state.json` is keyed on ids, so merging
+  as-is applies one branch's ticks to the other's tasks. Filed as `E17-41` (which side moves)
+  and `E17-42` (the cause: shared mutable planning state with no id reservation). Not fixed —
+  ids are permanent and renumbering another thread's branch is not mine to do unilaterally.
+- **My own `0047` broke settlement everywhere, and the suite caught it.** The invoice issuer
+  refused unconditionally while the seller identity was a placeholder — which is the ordinary
+  state of a development database. Now production-only, via the same function the checkout guard
+  uses so the two cannot drift.
+- **A test that would fail every Thursday.** `checkout.test.sql` used `current_date + 3`; today
+  that is a Sunday, which `create_checkout` correctly refuses. It now asks `orderable_calendar`
+  for the Nth orderable day — the same source the app's date picker reads.
+
+## BLOCKED
+
+Nothing.
+
+## NEEDS ANDY
+
+1. **Merge `ux-spec-and-prototype` to `main`?** 96 commits. Say go and I open the PR and merge
+   on green.
+2. **`E17-33` — the live Play `versionName`.** The `versionCode` came back and unblocked the
+   Android floor; the name is still unread. One glance at the same Play Console screen. I have
+   deliberately **not** copied the App Store's `3.7.0` across — the two listings have been
+   updated by hand for fourteen months and may well differ.
+3. **EAS keystore registration** — the exact menu sequence is with you, unchanged.
+4. **`E19-07` sitting** — ready when you are.
+
+## NEXT
+
+Client checkout (`E06-02`), then `GET /checkout/:group/status` (`E06-16`), then the confirmation
+email (E08). That completes "a parent pays and gets a receipt".
 # Progress
 
 Newest handover at the top. Assume the reader has forgotten everything.
