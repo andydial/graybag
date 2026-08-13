@@ -149,7 +149,6 @@ Newest handover at the top. Assume the reader has forgotten everything.
 
 ---
 
-<<<<<<< HEAD
 ## 2026-08-12 — infrastructure unblocked, and the capture path closed
 
 ### THIRTY SECONDS
@@ -225,6 +224,98 @@ reconciliation before these percentages steer a date.
 Invoice generation inside `settle_payment`'s transaction (`M3` gapless numbering, `D14`), then
 the client checkout, the status endpoint, and the confirmation email.
 
+
+---
+
+# WEB thread — 2026-08-12 (this file is in the `GrayBag-web` worktree; branch `kitchen-live`)
+
+## Epic level — thirty seconds
+
+**What moved today:** `E12` marketing website 4/6 (sign-in landed), `E09` kitchen ops 3/6 with
+the server halves written, `E10` navigation model built.
+
+**MVP-complete epics:** still only **E02** (data model and authorization), 15/15.
+
+**Before we can go live**, in dependency order: **E03** identity 1/12 → **E06** payments 0/15
+→ **E07** invoicing 0/9 and **E08** notifications 0/4 → **E17** release 0/11. **E20** compliance
+1/6 runs alongside and independently gates the website, because `E20-01` (the lawyer) is what
+stops the policy pages publishing.
+
+Also outstanding: **E16** migration 1/11, **E15** observability 0/6, **E10** admin 0/8,
+**E00** lead-time 1/10, **E04** menu 9/18 (the `food_type` chain).
+
+**Fast-follow, no MVP tasks at all:** E11 school reporting, E18.
+
+**Blocked on Andy:** the staging `SUPABASE_DB_URL` is wrong, which stops the kitchen day being
+seeded — the one thing standing between today's work and "it works for real". Details below.
+
+---
+
+## SHIPPED
+
+- **`E12-06` back-office sign-in.** Nobody could log into the web app at all before this.
+  `/signin`, email OTP, no passwords (`U1`). Session in **`sessionStorage`, not
+  `localStorage`** — a kitchen tablet is shared and never locked, and that session can read every
+  child's name in the school.
+- **`packages/shared/src/api/kitchen.ts`** — reads under RLS, grants, and the write. The column
+  list is the redaction: no `total_paise`, no `customer_user_id`.
+- **`supabase/functions/kitchen-order-status/`** — idempotent, partial-safe, sets
+  `app.actor_type`, locks rows, logs no row or Postgres message.
+- **`E12-08`** — `/signin` added to the accessibility gate, which immediately failed it and
+  found labels at **1.26:1** on white. Fixed.
+- **`E17-29`…`E17-32`** — the Android/store version findings, recorded not fixed (wrong thread).
+
+## FILES TOUCHED OUTSIDE `apps/web` — for the payments thread
+
+| | |
+|---|---|
+| NEW | `packages/shared/src/api/kitchen.ts` |
+| NEW | `packages/shared/src/api/kitchen.test.ts` (19 tests) |
+| NEW | `supabase/functions/kitchen-order-status/index.ts` |
+| EDIT | `packages/shared/src/api/index.ts` — **six export lines, append-only** |
+
+The export edit is outside the letter of the handover and unavoidable: the package exposes only
+`.`, so without it `kitchen.ts` is unreachable. Flagged in a comment in the file itself.
+**No migration touched. Nothing else in either directory.**
+
+## FINDINGS
+
+- **`SUPABASE_DB_URL` in `.secrets.staging.env` is the https project URL, not a Postgres
+  connection string.** It is byte-identical to `SUPABASE_URL`. Everything needing a transaction
+  is blocked by this.
+- **`apps/mobile/app.json` is `version: "2.0.0"` while the live Play build is 3.7.0** — every
+  store upload would be rejected today, and the guard that should catch it asserts `major >= 2`,
+  which passes. `E17-29`, risk:critical.
+- **Half the Android version-code request is not a file edit.** `appVersionSource: remote` puts
+  the counter on EAS's servers. `E17-31`, `owner:andy`.
+- **The one order in staging is `pending_payment`**, which the kitchen correctly filters out
+  (`L5`). So the dashboard against staging today is a legitimately empty day.
+- **The Edge Function departs from the house pattern.** `checkout` and `recipients` are thin
+  shells over SQL functions; this holds its own transaction because a SQL function is a
+  migration. A guard in SQL binds every caller; a guard in a function body binds only callers
+  who come through it. `E09-18`.
+
+## BLOCKED
+
+- **Seeding staging.** Needs the real Postgres connection string — Supabase dashboard →
+  Project Settings → Database → Connection string (or the pooler URI). The service role key is
+  not the database password and the string cannot be derived from what I have.
+- **`E09-17` end-to-end verification.** The wiring is small and the pieces exist, but "see a real
+  day's orders and mark a class delivered" needs data, which needs the above.
+- **Deploying the Edge Function** — never deployed or invoked. Written, not proven.
+
+## NEEDS ANDY
+
+1. **The staging `SUPABASE_DB_URL`.** One line in `.secrets.staging.env`. Everything else about
+   the objective is ready and waiting on it.
+2. **`E17-29`** — the 2.0.0 version floor. I did not touch `apps/mobile`; say the word and I will.
+3. **`E17-31`** — `eas build:version:set --platform android`, above 1777726914.
+4. Still open from before: `E12-11` school naming, `E12-13` photography, `E12-14` FSSAI.
+
+## NEXT
+
+1. Seed, then wire `liveTransport` and verify end to end — one file plus a switch.
+2. `E10-08` all-kitchens order dashboard, then `E10-06` config with visible inheritance.
 
 ---
 
@@ -426,100 +517,6 @@ because it defaults off. **If you disagree, it is one line.**
 
 ## 2026-08-10 (afternoon) — the order path exists and works; nobody can run it yet
 
-=======
-# WEB thread — 2026-08-12 (this file is in the `GrayBag-web` worktree; branch `kitchen-live`)
-
-## Epic level — thirty seconds
-
-**What moved today:** `E12` marketing website 4/6 (sign-in landed), `E09` kitchen ops 3/6 with
-the server halves written, `E10` navigation model built.
-
-**MVP-complete epics:** still only **E02** (data model and authorization), 15/15.
-
-**Before we can go live**, in dependency order: **E03** identity 1/12 → **E06** payments 0/15
-→ **E07** invoicing 0/9 and **E08** notifications 0/4 → **E17** release 0/11. **E20** compliance
-1/6 runs alongside and independently gates the website, because `E20-01` (the lawyer) is what
-stops the policy pages publishing.
-
-Also outstanding: **E16** migration 1/11, **E15** observability 0/6, **E10** admin 0/8,
-**E00** lead-time 1/10, **E04** menu 9/18 (the `food_type` chain).
-
-**Fast-follow, no MVP tasks at all:** E11 school reporting, E18.
-
-**Blocked on Andy:** the staging `SUPABASE_DB_URL` is wrong, which stops the kitchen day being
-seeded — the one thing standing between today's work and "it works for real". Details below.
-
----
-
-## SHIPPED
-
-- **`E12-06` back-office sign-in.** Nobody could log into the web app at all before this.
-  `/signin`, email OTP, no passwords (`U1`). Session in **`sessionStorage`, not
-  `localStorage`** — a kitchen tablet is shared and never locked, and that session can read every
-  child's name in the school.
-- **`packages/shared/src/api/kitchen.ts`** — reads under RLS, grants, and the write. The column
-  list is the redaction: no `total_paise`, no `customer_user_id`.
-- **`supabase/functions/kitchen-order-status/`** — idempotent, partial-safe, sets
-  `app.actor_type`, locks rows, logs no row or Postgres message.
-- **`E12-08`** — `/signin` added to the accessibility gate, which immediately failed it and
-  found labels at **1.26:1** on white. Fixed.
-- **`E17-29`…`E17-32`** — the Android/store version findings, recorded not fixed (wrong thread).
-
-## FILES TOUCHED OUTSIDE `apps/web` — for the payments thread
-
-| | |
-|---|---|
-| NEW | `packages/shared/src/api/kitchen.ts` |
-| NEW | `packages/shared/src/api/kitchen.test.ts` (19 tests) |
-| NEW | `supabase/functions/kitchen-order-status/index.ts` |
-| EDIT | `packages/shared/src/api/index.ts` — **six export lines, append-only** |
-
-The export edit is outside the letter of the handover and unavoidable: the package exposes only
-`.`, so without it `kitchen.ts` is unreachable. Flagged in a comment in the file itself.
-**No migration touched. Nothing else in either directory.**
-
-## FINDINGS
-
-- **`SUPABASE_DB_URL` in `.secrets.staging.env` is the https project URL, not a Postgres
-  connection string.** It is byte-identical to `SUPABASE_URL`. Everything needing a transaction
-  is blocked by this.
-- **`apps/mobile/app.json` is `version: "2.0.0"` while the live Play build is 3.7.0** — every
-  store upload would be rejected today, and the guard that should catch it asserts `major >= 2`,
-  which passes. `E17-29`, risk:critical.
-- **Half the Android version-code request is not a file edit.** `appVersionSource: remote` puts
-  the counter on EAS's servers. `E17-31`, `owner:andy`.
-- **The one order in staging is `pending_payment`**, which the kitchen correctly filters out
-  (`L5`). So the dashboard against staging today is a legitimately empty day.
-- **The Edge Function departs from the house pattern.** `checkout` and `recipients` are thin
-  shells over SQL functions; this holds its own transaction because a SQL function is a
-  migration. A guard in SQL binds every caller; a guard in a function body binds only callers
-  who come through it. `E09-18`.
-
-## BLOCKED
-
-- **Seeding staging.** Needs the real Postgres connection string — Supabase dashboard →
-  Project Settings → Database → Connection string (or the pooler URI). The service role key is
-  not the database password and the string cannot be derived from what I have.
-- **`E09-17` end-to-end verification.** The wiring is small and the pieces exist, but "see a real
-  day's orders and mark a class delivered" needs data, which needs the above.
-- **Deploying the Edge Function** — never deployed or invoked. Written, not proven.
-
-## NEEDS ANDY
-
-1. **The staging `SUPABASE_DB_URL`.** One line in `.secrets.staging.env`. Everything else about
-   the objective is ready and waiting on it.
-2. **`E17-29`** — the 2.0.0 version floor. I did not touch `apps/mobile`; say the word and I will.
-3. **`E17-31`** — `eas build:version:set --platform android`, above 1777726914.
-4. Still open from before: `E12-11` school naming, `E12-13` photography, `E12-14` FSSAI.
-
-## NEXT
-
-1. Seed, then wire `liveTransport` and verify end to end — one file plus a switch.
-2. `E10-08` all-kitchens order dashboard, then `E10-06` config with visible inheritance.
-
----
-
->>>>>>> a420910 (docs: WEB handover for 2026-08-12, epic level first)
 # WEB thread — 2026-08-11 (written from the `GrayBag-web` worktree, branch `kitchen-seed`)
 
 ## Where the project stands, by epic
