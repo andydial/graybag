@@ -295,9 +295,20 @@ for (const [index, [firstName, lastName]] of CHILDREN.entries()) {
   const brk = breaks[index % breaks.length];
   const status = STATUS_MIX[index % STATUS_MIX.length];
 
-  // One or two dishes per child, walking the menu so the production totals are varied but stable.
+  /**
+   * One or two dishes per child, walking the menu so the production totals are varied but stable.
+   *
+   * The step must not share a factor with the menu length or the "second dish" lands back on the
+   * first. This said `+ 4`, and Alpha's menu has four dishes — so every two-line order was two
+   * lines of the same dish, which rendered as "1 × Cold Coffee · 1 × Cold Coffee" and read on
+   * the dashboard like a display bug. A step in `[1, length - 1]` can never be a multiple of the
+   * length, so the two are always different.
+   */
   const chosen = [items[index % items.length]];
-  if (index % 3 === 0) chosen.push(items[(index + 4) % items.length]);
+  if (index % 3 === 0 && items.length > 1) {
+    const step = 1 + (index % (items.length - 1));
+    chosen.push(items[(index + step) % items.length]);
+  }
 
   let subtotal = 0;
   let cgst = 0;
