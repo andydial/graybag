@@ -1,4 +1,9 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// The session the read scopes itself to. Mocked rather than stubbed through the transport,
+// because `currentUser` goes through the auth client and not through a query.
+let mockUser: { userId: string; email: string | null } | null = { userId: 'user-1', email: null };
+vi.mock('./auth.js', () => ({ currentUser: async () => mockUser }));
 
 import { setApiTransport } from './client.js';
 import { fetchOrders } from './orders.js';
@@ -12,6 +17,7 @@ import { fakeTransport } from './test-support.js';
  * would produce the same list on a healthy day and hide a policy failure on a bad one — and the
  * point of default-deny is that the database refuses, not that the client remembers to ask nicely.
  */
+beforeEach(() => { mockUser = { userId: 'user-1', email: null }; });
 afterEach(() => setApiTransport(null));
 
 const install = (rows: unknown, error: { message: string; code?: string } | null = null) => {
@@ -67,11 +73,31 @@ describe('fetchOrders', () => {
     expect(order?.invoiceNumber).toBeNull();
   });
 
-  it('does NOT filter by user id — RLS is the authorisation', async () => {
+  /**
+   * **This test asserted the opposite, and the opposite was wrong.** `E06-43`.
+   *
+   * It required `fetchOrders` NOT to filter by user id, on the reasoning that RLS is the
+   * authorisation and a client-side filter would mask a policy failure. Andy opened "My Orders"
+   * on an account holding `orders.view` at kitchen scope and saw **65 orders, 5 of them his** —
+   * sixty other families' children, names and classes included.
+   *
+   * The error was treating scope as an authorisation question. `order` has two SELECT policies:
+   * `order_read_customer` and `order_read_backoffice`. "Every order I may read" is a strictly
+   * larger set than "my orders", and for a back-office account it is dramatically larger. **The
+   * scope is part of what the screen means.** RLS remains defence in depth — it is what stops the
+   * filter being able to widen the result — but it was never going to narrow it to *mine*.
+   */
+  it('scopes to the signed-in customer, because "My Orders" means mine', async () => {
     const { queries } = install([]);
     await fetchOrders();
-    const filtered = queries[0]?.filters.map((f) => f.column) ?? [];
-    expect(filtered).not.toContain('customer_user_id');
+    const filter = queries[0]?.filters.find((f) => f.column === 'customer_user_id');
+    expect(filter?.value).toBe('user-1');
+  });
+
+  it('refuses rather than returning an empty list when nobody is signed in', async () => {
+    // An empty list would render as "no orders yet" for a caller that should never have asked.
+    mockUser = null;
+    await expect(fetchOrders()).rejects.toThrow(/signed in/i);
   });
 
   it('selects named columns, never a glob', async () => {

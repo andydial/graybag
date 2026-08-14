@@ -12,19 +12,30 @@
  * That is the seventh instance of both-sides-built-wire-missing in this codebase, and the first
  * where the missing wire made an outbound email into a false promise.
  *
- * # A read, so the Supabase client is correct here
+ * # Scoped to the signed-in customer, explicitly
  *
- * Non-negotiable #1: reads may use the Supabase client, writes always go through Edge Functions.
- * RLS is the authorisation — `order_read_customer` admits `customer_user_id = auth.uid()` — so
- * this deliberately does **not** filter by user id in the query. Doing so would hide a policy
- * failure behind a client-side filter, and the point of default-deny is that the database refuses,
- * not that the client remembers to ask nicely.
+ * This first shipped without a `customer_user_id` filter, on the reasoning that RLS is the
+ * authorisation and a client-side filter would hide a policy failure. **That reasoning was wrong
+ * for this screen**, and Andy caught it by opening "My Orders" and seeing sixty other families'
+ * children.
+ *
+ * `order_read_customer` is not the only SELECT policy on `order`. `order_read_backoffice` admits
+ * anyone holding `orders.view` for the school — which is correct, and is how the kitchen screen
+ * works. So "every order I am authorised to read" is a strictly larger set than "my orders", and
+ * for an account with a back-office grant it is dramatically larger.
+ *
+ * **The scope is part of the screen's meaning, not an authorisation shortcut.** "My Orders" means
+ * mine. The back-office view is a different screen with different semantics and its own query.
+ * RLS stays as defence in depth: it is what makes the filter unable to *widen* the result.
+ *
+ * Non-negotiable #1 holds — reads may use the Supabase client; writes go through Edge Functions.
  *
  * **The column list is the redaction**, as in `schools.ts`. `order` carries
  * `recipient_name_snapshot`, `config_snapshot` and the school and kitchen ids; a policy filters
  * rows and never columns. Only what a list row renders is selected.
  */
-import { runQuery } from './client.js';
+import { currentUser } from './auth.js';
+import { ApiError, runQuery } from './client.js';
 
 export type ApiOrderStatus =
   | 'draft'
@@ -59,6 +70,13 @@ export interface ApiOrderSummary {
  * is exactly what the caller must be able to tell apart, so this refuses to make that impossible.
  */
 export async function fetchOrders(): Promise<ApiOrderSummary[]> {
+  const user = await currentUser();
+  if (user === null) {
+    // Not "return []": a signed-out caller asking for *my* orders is a bug in the caller, and an
+    // empty list would let it look like a parent with no orders. §5.21 again.
+    throw new ApiError('Not signed in.', 'not_signed_in');
+  }
+
   const rows = await runQuery<Record<string, unknown>>((client) =>
     client
       .from('order')
@@ -70,6 +88,9 @@ export async function fetchOrders(): Promise<ApiOrderSummary[]> {
         'id, order_group_id, order_ref, service_date, recipient_name_snapshot, status, total_paise, ' +
           'order_line(id), order_group(invoice(invoice_number))',
       )
+      // **The scope, stated.** See the header: RLS admits more than "mine" for any account with a
+      // back-office grant, and this screen means mine.
+      .eq('customer_user_id', user.userId)
       .order('service_date', { ascending: false })
       .limit(100),
   );
@@ -130,6 +151,9 @@ export interface ApiOrderDetail extends ApiOrderSummary {
  * detail screen must only be renderable over a read that succeeded (§5.21).
  */
 export async function fetchOrderDetail(orderGroupId: string): Promise<ApiOrderDetail | null> {
+  const user = await currentUser();
+  if (user === null) throw new ApiError('Not signed in.', 'not_signed_in');
+
   const rows = await runQuery<Record<string, unknown>>((client) =>
     client
       .from('order')
@@ -142,6 +166,9 @@ export async function fetchOrderDetail(orderGroupId: string): Promise<ApiOrderDe
           'order_group(invoice(invoice_number))',
       )
       .eq('order_group_id', orderGroupId)
+      // Scoped for the same reason as the list: a back-office grant would otherwise open any
+      // order's detail — including a child's name, class and section — from the customer screen.
+      .eq('customer_user_id', user.userId)
       .limit(1),
   );
 
