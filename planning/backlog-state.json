@@ -85,6 +85,7 @@
     "E06-31": true,
     "E06-32": true,
     "E06-36": true,
+    "E06-37": true,
     "E07-01": true,
     "E07-02": true,
     "E07-16": true,
@@ -131,6 +132,7 @@
     "E14-18": true,
     "E14-34": true,
     "E14-36": true,
+    "E14-37": true,
     "E16-03": true,
     "E16-20": true,
     "E16-21": true,
@@ -163,7 +165,6 @@
     "E20-45": true,
     "E20-47": true,
     "E20-48": true,
-    "E20-50": true,
-    "E14-37": true
+    "E20-50": true
   }
 }

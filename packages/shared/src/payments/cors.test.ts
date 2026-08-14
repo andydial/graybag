@@ -93,7 +93,12 @@ describe('every browser-callable Edge Function', () => {
     'policy',
     'recipients',
   ];
-  const NOT_BROWSER_CALLABLE = ['payments-webhook'];
+  const NOT_BROWSER_CALLABLE = [
+    'payments-webhook',
+    // `E06-37`. Settles orders, authenticated by the service-role key. Nothing in a browser may
+    // call it, so advertising a preflight would describe a surface that must not exist.
+    'payments-drain',
+  ];
 
   const source = (name: string) => readFileSync(join(FUNCTIONS, name, 'index.ts'), 'utf8');
 
