@@ -47,7 +47,8 @@
     "check:claims": "node scripts/check-outbound-claims.mjs",
     "check:backlog": "node scripts/build-backlog.mjs",
     "check:a11y": "npm --prefix apps/web run check:a11y",
-    "check:mvp": "node scripts/check-mvp.mjs"
+    "check:mvp": "node scripts/check-mvp.mjs",
+    "eas-build-pre-install": "npm config set ignore-scripts true"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
