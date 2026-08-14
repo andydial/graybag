@@ -149,7 +149,10 @@ import '../../styles/admin.css';
         const canOverride = r.spec.scopes.includes('school');
 
         return (
-          `<div class="setting${r.isOverridden ? ' setting--overridden' : ''}">` +
+          // Keyed on the SOURCE, not on `isOverridden`. "Set for this school" and "inherited from
+          // the kitchen" are different facts leading to different actions, and styling them alike
+          // made four rows look marked while the heading counted three.
+          `<div class="setting setting--${r.source}">` +
             `<p class="setting__label">${esc(r.spec.label)}</p>` +
             `<p class="setting__value">${esc(value)}</p>` +
             `<p class="setting__source">${esc(source)}</p>` +

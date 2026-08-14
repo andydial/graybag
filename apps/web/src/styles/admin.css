@@ -82,9 +82,28 @@
   margin-bottom: var(--gb-space-2);
 }
 
-.setting--overridden {
+/*
+ * **Three states, not two.** A setting overridden *for this school* is a different fact from one
+ * inherited *from the kitchen*, and they lead to different actions — one you clear here, the other
+ * you change on the kitchen and every school it serves moves with it.
+ *
+ * The first version styled both with `isOverridden`, so four rows were marked while the heading
+ * counted three. A screen whose highlighting disagrees with its own count teaches the reader to
+ * trust neither.
+ */
+.setting--school {
   border-left-color: var(--gb-border-brand);
-  background: var(--gb-bg-surface-brand-flat);
+  /*
+   * A tint, not the brand fill. `--gb-bg-surface-brand-flat` is a saturated green meant for
+   * buttons; behind a whole row it reads as an alert — "something is wrong here" — when the
+   * message is only "somebody chose this". Three of nine rows shouted at once.
+   */
+  background: var(--gb-bg-surface-muted);
+}
+
+.setting--kitchen {
+  /* Marked, but quieter than a school override, and with no fill at all. */
+  border-left-color: var(--gb-border-accent);
 }
 
 .setting__label {
@@ -115,7 +134,7 @@
   color: var(--gb-text-muted);
 }
 
-.setting--overridden .setting__source {
+.setting--school .setting__source {
   color: var(--gb-text-brand);
   font-weight: var(--gb-font-weight-semibold);
 }

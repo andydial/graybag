@@ -4216,13 +4216,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/29</span>
+          <span class="meter-num">0/31</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 29 tasks</summary>
+        <summary>Context &amp; 31 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4457,6 +4457,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Re-shoot or re-frame the food section once real photography exists (<code>E12-13</code>) — the five category cards are laid out to take a proper photograph, and the 96px cap comes off the moment there is one worth showing</span>
+      </li>
+      <li class="task" data-id="E12-30" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-30"></button>
+        <code class="tid">E12-30</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Netlify deploy gating</strong> — every PR gets a preview; production never auto-publishes from <code>main</code>. The <code>ignore</code> hook in <code>apps/web/netlify.toml</code> skips the production build unless the tip commit&#39;s subject carries <code>[promote]</code> or <code>PROMOTE_TO_PRODUCTION=true</code> is set on a manual deploy. The decision is <code>scripts/lib/netlify-gate.mjs</code> (pure, tested) and <code>scripts/netlify-should-build.sh</code> only translates it, because Netlify&#39;s exit codes are <strong>inverted</strong> — 0 skips, 1 builds — and reversing them fails OPEN. <code>docs/netlify-deploys.md</code> has the one-paragraph promotion procedure</span>
+      </li>
+      <li class="task" data-id="E12-31" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-31"></button>
+        <code class="tid">E12-31</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Turn off auto-publishing in the Netlify dashboard</strong> — Site configuration → Build &amp; deploy → Continuous deployment → Stop auto publishing. <code>E12-30</code> stops production being *built*; this stops anything that reaches the build stage another way being *published*. Both halves are worth having and this one needs the Netlify account. See <code>docs/netlify-deploys.md</code></span>
       </li></ul>
       </details>
     </article>
