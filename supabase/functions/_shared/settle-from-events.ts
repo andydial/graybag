@@ -27,6 +27,7 @@
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
 import { sendOrderConfirmation } from './order-confirmation.ts';
+import { sendRefundNotice } from './refund-notice.ts';
 
 export interface DrainResult {
   considered: number;
@@ -44,16 +45,35 @@ export interface DrainResult {
    * Real alerting is `E06-28`/`E15-05` and is not built.
    */
   stuck: number;
+  /** Refunds issued in the Razorpay dashboard and recorded here for the first time. `E06-46`. */
+  refunded: number;
 }
 
 /** Only these move money. Anything else recorded `pending` is marked processed and left alone. */
 const SETTLES = new Set(['payment.captured']);
 
+/**
+ * Refunds issued by hand in the Razorpay dashboard. `E06-46`.
+ *
+ * **Both event types, deliberately.** `refund.created` fires when the refund is accepted and
+ * `refund.processed` when it has actually gone; for an instant refund they arrive together, and
+ * for a normal one they are minutes apart. Consuming only `processed` would leave a refunded
+ * order reading `cancelled` for that gap; consuming only `created` would tell a parent their
+ * money was sent before it was.
+ *
+ * We take **both** and let `record_refund` dedupe on `provider_refund_id`, which is the same id
+ * on both events. The second one to arrive is a no-op. That is the whole reason the dedupe is on
+ * the provider's id rather than on the event.
+ */
+const REFUNDS = new Set(['refund.created', 'refund.processed']);
+
 export async function drainPendingEvents(
   admin: SupabaseClient,
   options: { limit?: number; keyId: string; keySecret: string },
 ): Promise<DrainResult> {
-  const result: DrainResult = { considered: 0, settled: 0, failed: 0, skipped: 0, stuck: 0 };
+  const result: DrainResult = {
+    considered: 0, settled: 0, failed: 0, skipped: 0, stuck: 0, refunded: 0,
+  };
 
   const { data: rows, error } = await admin
     .from('payment_webhook_event')
@@ -84,10 +104,18 @@ export async function drainPendingEvents(
     result.considered += 1;
     const id = row.id as number;
 
+    if (REFUNDS.has(String(row.event_type))) {
+      const outcome = await consumeRefund(admin, row, auth);
+      if (outcome === 'recorded') result.refunded += 1;
+      else if (outcome === 'failed') result.failed += 1;
+      else result.skipped += 1;
+      continue;
+    }
+
     if (!SETTLES.has(String(row.event_type))) {
-      // Recorded, acknowledged, and not a money movement we act on yet. `refund.processed` and
-      // `settlement.processed` land here until `E06-08` and `E06-27` consume them; marking them
-      // processed keeps the queue honest about what is actually outstanding.
+      // Recorded, acknowledged, and not a money movement we act on yet. `settlement.processed`
+      // lands here until `E06-27` consumes it; marking them processed keeps the queue honest
+      // about what is actually outstanding.
       await mark(admin, id, 'processed');
       result.skipped += 1;
       continue;
@@ -184,6 +212,133 @@ export async function drainPendingEvents(
   }
 
   return result;
+}
+
+/**
+ * One `refund.created` / `refund.processed` event. `E06-46`.
+ *
+ * **The authoritative read, again.** Same rule as a capture (§3.6, `R8`): a verified signature
+ * proves the bytes are ours, not that money moved. The amount and status come from an
+ * authenticated GET, never from the body — otherwise anybody who obtained a signed payload could
+ * reverse a sale in our ledger and issue a credit note withdrawing a real tax invoice.
+ */
+async function consumeRefund(
+  admin: SupabaseClient,
+  row: Record<string, unknown>,
+  auth: string,
+): Promise<'recorded' | 'skipped' | 'failed'> {
+  const id = row.id as number;
+  const entity = extractRefundEntity(row.payload);
+
+  if (!entity) {
+    await mark(admin, id, 'failed', 'no refund entity in payload');
+    return 'failed';
+  }
+
+  try {
+    const res = await fetch(`https://api.razorpay.com/v1/refunds/${entity.refundId}`, {
+      headers: { Authorization: auth },
+    });
+    if (!res.ok) {
+      console.error(`settle-from-events: razorpay ${res.status} for refund ${entity.refundId}`);
+      await bumpAttempt(admin, id, row.attempt_count as number);
+      return 'failed';
+    }
+
+    const refund = (await res.json()) as {
+      status?: string;
+      payment_id?: string;
+      amount?: number;
+      notes?: Record<string, unknown>;
+    };
+
+    // `created` is not `processed`. Razorpay's refund statuses are `pending`, `processed` and
+    // `failed`; only the middle one means the money has gone. A `refund.created` event whose
+    // refund is still `pending` is left ALONE — not marked processed — so the later
+    // `refund.processed` delivery finds a queue that still knows about it.
+    if (refund.status !== 'processed') {
+      if (refund.status === 'failed') {
+        // The provider tried and did not send it. Nothing to record; the pending `refund` row
+        // stays pending, which is true.
+        await mark(admin, id, 'processed', `refund ${entity.refundId} failed at the provider`);
+        return 'skipped';
+      }
+      await mark(admin, id, 'processed', `refund ${entity.refundId} not yet processed`);
+      return 'skipped';
+    }
+
+    const { data, error } = await admin.rpc('record_refund', {
+      p_provider_refund_id: entity.refundId,
+      p_provider_payment_id: String(refund.payment_id ?? entity.paymentId),
+      p_amount_paise: Number(refund.amount),
+      // Razorpay's `notes` are free text somebody typed in the dashboard. Passed through as a
+      // memo and **never** rendered to a parent: nothing guarantees it is free of PII, and
+      // non-negotiable #4 is not satisfied by "it probably won't be".
+      p_notes: typeof refund.notes?.reason === 'string' ? refund.notes.reason : null,
+    });
+
+    if (error) {
+      const hint = String((error as { hint?: string }).hint ?? '');
+      if (hint === 'payment_not_found') {
+        // §10.9 again: one test-mode account serves several things, and a refund can arrive for
+        // a charge this system never took. Terminal, exactly as it is for a capture.
+        await mark(admin, id, 'ignored', 'no payment row: a charge this system did not take');
+        return 'skipped';
+      }
+      if (hint === 'partial_refund_unsupported') {
+        // Deliberately terminal AND loud. Retrying cannot help — the amount will not change —
+        // and money has genuinely left the account without being recorded, which is the one
+        // thing nobody may find out about later.
+        console.error(
+          `settle-from-events: PARTIAL REFUND ${entity.refundId} was issued in the dashboard and ` +
+            'is NOT recorded. The ledger and the order are unchanged and no credit note exists. ' +
+            'E06-08 is the task; until then a partial refund must be reversed by hand.',
+        );
+        await mark(admin, id, 'failed', 'partial refund: unsupported, see E06-08');
+        return 'failed';
+      }
+      console.error(`settle-from-events: record_refund failed for ${entity.refundId}`, error.message);
+      await bumpAttempt(admin, id, row.attempt_count as number, error.message);
+      return 'failed';
+    }
+
+    await mark(admin, id, 'processed');
+
+    const recorded = (data ?? {}) as Record<string, unknown>;
+    if (recorded.already_recorded === true) {
+      // A redelivery. The whole point of the dedupe — and worth a `skipped` rather than a
+      // `refunded`, so the count means "refunds newly recorded" and not "events seen".
+      return 'skipped';
+    }
+
+    // Best effort, and never allowed to fail the recording: the money is already back, and a
+    // mail server being down must not make the ledger wrong.
+    await sendRefundNotice(admin, {
+      orderGroupId: String(recorded.order_group_id ?? ''),
+      amountPaise: Number(recorded.amount_paise ?? 0),
+      creditNoteId: (recorded.credit_note_id as string | null) ?? null,
+    });
+
+    return 'recorded';
+  } catch (thrown) {
+    console.error('settle-from-events: refund threw', String(thrown));
+    await bumpAttempt(admin, id, row.attempt_count as number, String(thrown));
+    return 'failed';
+  }
+}
+
+/** `payload.payload.refund.entity` — Razorpay's envelope, defensively. */
+function extractRefundEntity(
+  payload: unknown,
+): { refundId: string; paymentId: string } | null {
+  const root = payload as Record<string, unknown> | null;
+  const inner = (root?.payload ?? {}) as Record<string, unknown>;
+  const refund = (inner.refund ?? {}) as Record<string, unknown>;
+  const entity = (refund.entity ?? {}) as Record<string, unknown>;
+  const refundId = typeof entity.id === 'string' ? entity.id : '';
+  const paymentId = typeof entity.payment_id === 'string' ? entity.payment_id : '';
+  if (!refundId) return null;
+  return { refundId, paymentId };
 }
 
 /** `payload.payload.payment.entity` — Razorpay's envelope, defensively. */

@@ -19,6 +19,53 @@ Format — newest first:
 
 ---
 
+## 2026-08-15 — A fixture simpler than production is a fixture testing something else (twice in one day)
+
+**Context:** `E06-45` and `E06-46`, back to back. Both times the fixture was the thing at fault,
+and both times the defect it hid was in shipped code.
+
+**What happened, first:** `cancel_order`'s fixture walked an order to `paid` without writing a
+`payment` row. `refund_source_requires_payment` (`E06-24`) rejected the refund insert. The
+constraint was right — `settle_payment` writes the capture and the `paid` status together, so a
+`paid` order with no payment is a state production cannot reach.
+
+**What happened, second, and it is much worse:** `reverse_ledger_transaction` **could not reverse
+any real settlement, and never could have.** `0001` has
+`unique (source_type, source_id, reason_code)` on `ledger_transaction`; `0038`'s reversal
+deliberately copies all three from the original. So every reversal of a real posting raises
+`23505`.
+
+`ledger_posting.test.sql` exercises a reversal and has been green since 2026-08-10. Its fixture
+posts `('sale', 'payment', null)` — and **NULLs are distinct under a unique constraint**, so the
+constraint never applied to the only transaction anybody had ever tried to reverse.
+`settle_payment` posts a real `payment.id`. Every settled order in the system was unrefundable,
+and the test that should have said so was structurally incapable of it.
+
+**Cause:** a fixture reaches for the least data that makes the assertion pass. `null` is less
+than a uuid, "skip the payment row" is less than writing one — and both are *invisible*
+simplifications, because the assertion under them is about something else entirely. Nothing in
+either test mentioned uniqueness or foreign keys; they were about balances and status.
+
+**Fix / rule:** **a fixture must be able to reach only states production can reach, and must not
+be able to avoid the constraints production carries.** Concretely: no `null` in a column
+production always fills, and build state by walking the same path — `cancel_order`'s fixture now
+writes the capture alongside the `paid` status, and `ledger_posting.test.sql` now has a case with
+a real `source_id` next to the null one.
+
+The uniqueness itself was resolved by narrowing the rule to what it was for rather than by
+renaming the reversal's reason code: it is now a partial unique index
+`where reversal_of_transaction_id is null`. **One *posting* per source event** is the idempotency
+guarantee that matters (a redelivered webhook must not post a sale twice); a reversal is a
+correction, not a second posting. Giving reversals their own reason code would have satisfied the
+constraint by breaking what `0038` says the reason code is for — finding both halves of one
+correction together.
+
+**The general shape, which is now three-for-three this week:** every one of these was a *guard
+that was correct* meeting a *fixture that was convenient*, and in each case the guard was
+blamed first. Check the fixture against production before touching the constraint.
+
+---
+
 ## 2026-08-15 — `sync-state.mjs pull` reopened a closed task, and the documented workflow is what did it
 
 **Context:** finishing `E06-42`. `CLAUDE.md` prescribes exactly this sequence:
