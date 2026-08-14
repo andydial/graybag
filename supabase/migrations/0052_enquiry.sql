@@ -4,15 +4,19 @@
 -- are deliberately dropped: survey questions answered by nobody in a hurry, and a longer form on
 -- a patchy connection converts worse.
 --
--- **The payments thread's unmerged branch also has a `0050`** — `0050_one_confirmation_email.sql`
--- on `e06-02-e06-16-e08`, already applied to staging by hand. Whichever of the two merges second
--- renumbers, and `check-migrations` catches the clash as `duplicate-version` rather than letting
--- it through: versions are permanent and unique.
+-- **Renumbered 0050 -> 0052 on 2026-08-15**, after the payments thread merged. `main` took 0050
+-- (`one_confirmation_email`) and 0051 (`post_ledger_transaction_safeupdate`) while this branch was
+-- in flight, exactly as `check-migrations` predicted it would: versions are permanent and unique,
+-- and whichever branch merges second renumbers.
 --
--- 0051 was the first attempt, to sidestep that. It is worse. `check-migrations` requires
--- consecutive versions with no gaps, and its reasoning is right — a gap means a migration was
--- dropped or renumbered, so the applied order no longer matches the committed order on some
--- database somewhere. A loud duplicate at merge beats a silent gap for ever.
+-- The alternative — leaving a gap to dodge the clash — is worse. `check-migrations` requires
+-- consecutive versions, and its reasoning is right: a gap means a migration was dropped or
+-- renumbered, so the applied order no longer matches the committed order on some database
+-- somewhere.
+--
+-- **Staging already has this table**, applied by hand as 0050 on 2026-08-14. Whoever runs
+-- `supabase db push` against staging will need `supabase migration repair` for the old version
+-- before 0052 applies cleanly. See `docs/handover-web.md`.
 
 create type enquiry_role as enum (
   'principal',

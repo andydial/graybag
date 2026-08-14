@@ -7,46 +7,19 @@
     "null means genuinely unknown. It is never substituted, so its «TOKEN» survives into the",
     "rendered document and a production build refuses to publish it."
   ],
-<<<<<<< HEAD
-<<<<<<< HEAD
   "legalName": "GRAYBAG SOLUTIONS PRIVATE LIMITED",
   "registeredAddress": "SCO-461-462, Top Floor, Sector 35-C, Chandigarh, 160022",
   "gstin": "03AAMCG3438M1ZD",
-=======
-
-  "legalName": "Graybag Pty Ltd",
-  "registeredAddress": null,
-  "gstin": null,
->>>>>>> dd65115 (E12-25: one source for the company identity, and Andy's five values)
-=======
-  "legalName": "GRAYBAG SOLUTIONS PRIVATE LIMITED",
-  "registeredAddress": "SCO-461-462, Top Floor, Sector 35-C, Chandigarh, 160022",
-  "gstin": "03AAMCG3438M1ZD",
->>>>>>> 8517a30 (E12-27: the entity facts, the liability cap removed, the allergy clause rewritten)
   "sacCode": null,
   "signatureTreatment": null,
   "supportEmail": "info@graybag.com",
   "jurisdictionCity": "SAS Nagar (Mohali), India",
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-
->>>>>>> dd65115 (E12-25: one source for the company identity, and Andy's five values)
-=======
->>>>>>> 8517a30 (E12-27: the entity facts, the liability cap removed, the allergy clause rewritten)
   "grievanceOfficer": {
     "name": "Vivek",
     "title": "Grievance Officer, GrayBag",
     "email": "vivek@graybag.com",
     "address": null
   },
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-
->>>>>>> dd65115 (E12-25: one source for the company identity, and Andy's five values)
-=======
->>>>>>> 8517a30 (E12-27: the entity facts, the liability cap removed, the allergy clause rewritten)
   "_effectiveDates": "Fixed, never computed. An effective date that moves with each build is not an effective date.",
   "termsEffectiveDate": "2026-08-14"
 }

@@ -2610,35 +2610,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Whole rupees or two decimals on customer-facing amounts?</strong> The prototype drops a trailing <code>.00</code> (<code>₹95</code>, <code>₹165</code>); <code>money.formatPaise</code> always renders two (<code>₹95.00</code>). It shows on every line, all four totals rows and the Place order button. Not changed unilaterally because the same formatter renders invoices, where two decimals are right, so this is a decision about where the two diverge rather than a formatting tweak</span>
       </li>
-<<<<<<< HEAD
       <li class="task" data-id="E05-49" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
-=======
-      <li class="task" data-id="E05-49" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
->>>>>>> d1acb57 (E12-24: the placeholder register, and the IST audit)
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-49"></button>
         <code class="tid">E05-49</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-<<<<<<< HEAD
         <span class="ttext">**<code>defaultServiceDate()</code> read the UTC date, so between 00:00 and 05:30 IST it offered *today* — a day whose cutoff passed at midnight.** A parent opening the app at 5am was shown a date they could not order for, and discovered it at the end of the cart. Found by the web thread, which had the same defect in its own code, proved at 05:24 IST. Fixed in <code>packages/shared/src/time/india.ts</code>, and the correct IST calculation that already existed in <code>OrdersScreen</code> now delegates to it — one implementation, because the reason this shipped is that the only right version lived in a screen module the call site never imported. Every function takes the instant: a helper that reads the clock itself is only testable at whatever time the suite runs, and the broken window is 5½ hours in 24 — 77% green, which reads as flakiness and gets retried. 8 assertions, each naming its instant</span>
       </li>
       <li class="task struck" data-id="E05-50" data-seed="0" data-risk="" data-owner="build" data-mvp="0" data-struck="1">
-=======
-        <span class="ttext"><strong><code>defaultServiceDate()</code> offers a day that is already past its cutoff, for five and a half hours every morning.</strong> <code>apps/mobile/src/session/OrderTargetContext.tsx</code> computes tomorrow as <code>new Date(Date.now() + 24h).toISOString().slice(0, 10)</code> — <strong>UTC</strong>. IST is UTC+5:30, so between 00:00 and 05:30 IST it returns *today*, whose 00:00 cutoff (<code>D5</code>, <code>C5</code>) has already passed. A parent opening the app at 5am is put in front of a day they cannot order for, which is exactly what that default exists to avoid. <strong>The fix is already in the codebase</strong> — <code>todayInIndia()</code> in <code>apps/mobile/src/orders/OrdersScreen.tsx</code> shifts by +330 minutes and explains why it does the arithmetic rather than trusting Hermes&#39; <code>Intl</code> on Android. Found by the IST audit after the same bug was fixed on the kitchen board (<code>E09-32</code>). Not fixed here: the web thread is not to touch <code>apps/mobile</code></span>
-      </li>
-      <li class="task" data-id="E05-50" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
->>>>>>> d1acb57 (E12-24: the placeholder register, and the IST audit)
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-50"></button>
         <code class="tid">E05-50</code>
         
         
         <span class="badge r-later">later</span>
-<<<<<<< HEAD
         <span class="ttext"><strong>Five <code>toLocaleDateString</code> calls render in the device timezone</strong> — *struck 2026-08-14: does not apply to <code>apps/mobile</code>.* All six such calls here already pass an explicit <code>timeZone</code>. Four format a <code>YYYY-MM-DD</code> service date parsed as UTC midnight and formatted in UTC, which renders the calendar date exactly as written and is correct. The remaining one, <code>formatCutoffAt</code>, takes the school&#39;s zone and falls back to the device&#39;s <strong>deliberately</strong> (<code>C4</code>): it names the zone only when the two differ, so a Mohali parent gets the short form and a parent in London gets <code>11:59 PM GMT+5:30</code>. The defect was real in <code>apps/web</code>; changing these would have broken working code</span>
-=======
-        <span class="ttext"><strong>Five <code>toLocaleDateString</code> calls render in the device&#39;s timezone, not the kitchen&#39;s.</strong> <code>CartScreen</code> (×2), <code>OrderDetailScreen</code> (×2) and <code>OrdersScreen</code> format service dates with <code>&#39;en-IN&#39;</code> and no <code>timeZone</code>, so a device set to another zone shows the wrong day for a date that is a calendar label. <code>apps/web</code>&#39;s <code>describeDate</code> pins <code>timeZone: &#39;UTC&#39;</code> for the same reason and says so in place. Same audit as <code>E05-49</code></span>
->>>>>>> d1acb57 (E12-24: the placeholder register, and the IST audit)
       </li></ul>
       </details>
     </article>

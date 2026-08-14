@@ -1,4 +1,4 @@
--- Rollback for `0050_enquiry.sql`.
+-- Rollback for `0052_enquiry.sql`.
 --
 -- Safe to run: the enquiry table is written only by the `enquiry-submit` Edge Function and read
 -- by nothing yet, so dropping it breaks no foreign key and no policy elsewhere.
