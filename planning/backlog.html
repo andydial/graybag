@@ -4222,13 +4222,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/26</span>
+          <span class="meter-num">0/28</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 26 tasks</summary>
+        <summary>Context &amp; 28 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4392,13 +4392,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The placeholder register</strong> — <code>docs/placeholder-register.md</code>, one checklist of every <code>«…-PENDING-…»</code> token on a surface we publish, each with what it is, what it needs and who can supply it, plus <code>npm run check:placeholders</code> so it cannot go stale. <strong>10 block a production build, all in <code>docs/terms.md</code>; 12 more sit on documents that will publish but are not built yet.</strong> The privacy and refund policies have none — both are the lawyer-drafted text already published for the legacy app. A bare grep returns 33 and is useless: most are the convention described in prose, superseded drafts, or test fixtures, so the register counts published surfaces only. <strong>The production guard stays</strong> (Andy, 2026-08-14)</span>
       </li>
-      <li class="task" data-id="E12-25" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E12-25" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-25"></button>
         <code class="tid">E12-25</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>The legal name, registered address and GSTIN are separate tokens in two documents.</strong> Filling them means answering the same question twice and hoping the copies match — and an invoice whose GSTIN disagrees with the terms is worse than either being blank. They should come from one source that both documents cite. Not folded into <code>E12-24</code> deliberately: it changes how two published documents are assembled, which is worth doing on purpose rather than in the same pass as writing the list</span>
+        <span class="ttext"><strong>One source for the company&#39;s published identity</strong> — <code>docs/legal/company.json</code>, read by the website renderer, the app&#39;s generated policy documents and the placeholder register. The legal name, registered address and GSTIN each had a <strong>separate token in two documents with different task ids</strong>; filling them meant answering twice and hoping the copies matched, and an invoice whose GSTIN disagrees with the terms is worse than either being blank (Andy, 2026-08-14). Documents keep their <code>«…»</code> tokens and are substituted at render time, so they stay readable as documents. <strong>A <code>null</code> is never substituted</strong> — its token survives and <code>assertPublishable</code> refuses it, so the file cannot turn an unanswered question into a published claim by defaulting to <code>&#39;&#39;</code>. Andy&#39;s five values applied: legal name, support email, jurisdiction, grievance officer (copied from privacy §7A, not re-decided) and effective date. <strong>Blocking tokens 10 → 5</strong></span>
       </li>
       <li class="task" data-id="E12-26" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-26"></button>
@@ -4407,6 +4407,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>docs/gst-invoicing.md</code>&#39;s placeholders must block a build once <code>E07</code> renders invoices from it.</strong> An invoice is a published document and its five tokens include the GSTIN and the SAC code. Today nothing fails, only because the invoice path is not wired to the file yet — which is the weakest possible reason for a guard not to exist</span>
+      </li>
+      <li class="task" data-id="E12-27" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-27"></button>
+        <code class="tid">E12-27</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Decide the two liability clauses in <code>docs/terms.md</code>.</strong> There is nothing to lift: <code>graybag.com</code> serves a placeholder page with no terms, no privacy and no links, and <code>docs/legal/</code> holds baselines for the privacy and refund policies only — <strong>the legacy application never published terms.</strong> So the reuse that makes the other two documents fine does not exist here. Three options, all defensible: have the two clauses reviewed (<code>E20-25</code>); publish terms with no liability cap, so the cap is whatever the law gives rather than what we asked for; or adapt from the privacy policy&#39;s approved text, which is cheapest and weakest because that lawyer approved a privacy notice, not an allergy disclaimer. Everything else in the document is publishable without this</span>
+      </li>
+      <li class="task" data-id="E12-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-28"></button>
+        <code class="tid">E12-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Confirm <code>Graybag Pty Ltd</code> before it reaches a tax document.</strong> <code>Pty Ltd</code> is an Australian suffix and everything around it is Indian — a GSTIN, SAS Nagar jurisdiction, DPDP, 5% GST as CGST + SGST. An Australian entity can hold an Indian GST registration through a branch, so it is not necessarily wrong; it is the combination most likely to be a slip, and an invoice is the worst place to find out. One check against the incorporation certificate settles it</span>
       </li>
       <li class="task" data-id="E12-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-16"></button>

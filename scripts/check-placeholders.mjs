@@ -22,6 +22,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { resolveTokens } from './lib/legal-tokens.mjs';
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** `«ANYTHING-PENDING-E20-01»`. The `…` forms are prose describing the convention. */
@@ -69,7 +71,9 @@ let pendingElsewhere = 0;
 console.log('Placeholders on surfaces we publish — docs/placeholder-register.md\n');
 
 for (const surface of SURFACES) {
-  const text = readFileSync(join(ROOT, surface.file), 'utf8');
+  // Resolved against `docs/legal/company.json` first, so a token that has an answer is not
+  // reported as outstanding. What remains is genuinely unanswered.
+  const text = resolveTokens(readFileSync(join(ROOT, surface.file), 'utf8'));
   const tokens = [...new Set(text.match(TOKEN) ?? [])].sort();
 
   if (surface.blocking) blocking += tokens.length;

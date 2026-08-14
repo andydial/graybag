@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 
+import { legal } from '@graybag/shared';
 import { marked } from 'marked';
 
 /**
@@ -196,9 +197,14 @@ function wrapTables(html: string): string {
 
 export function renderPolicy(key: PolicyKey, repoRoot: URL): RenderedPolicy {
   const meta = POLICIES[key];
-  const markdown = rewriteCrossReferences(
-    stripLeadingNote(stripFrontmatter(readFileSync(new URL(meta.source, repoRoot), 'utf8'))),
-    meta.source,
+  // Tokens are substituted from `legal.COMPANY` before anything else looks at the text, so the
+  // published document and the placeholder guard both see the resolved version. A value that is
+  // still unknown is left as its token and `assertPublishable` refuses it (`E12-25`).
+  const markdown = legal.resolveTokens(
+    rewriteCrossReferences(
+      stripLeadingNote(stripFrontmatter(readFileSync(new URL(meta.source, repoRoot), 'utf8'))),
+      meta.source,
+    ),
   );
 
   return {

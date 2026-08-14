@@ -41,11 +41,13 @@ const PENDING = /«[^»]*PENDING[^»]*»/g;
  * Strip the YAML frontmatter. It is repo metadata (`title:`, `status:`) and means nothing to a
  * parent; leaving it in would render three lines of `---` at the top of a legal document.
  */
+import { resolveTokens } from './lib/legal-tokens.mjs';
+
 function body(text) {
   const withoutFrontmatter = text.startsWith('---')
     ? text.replace(/^---[\s\S]*?\n---\n/, '').trimStart()
     : text;
-  return stripLeadingNote(withoutFrontmatter);
+  return resolveTokens(stripLeadingNote(withoutFrontmatter));
 }
 
 /**

@@ -10,6 +10,14 @@ audience: Andy, filling these in; and whoever adds the next one
 One list, because scattered findings do not get finished. Each row says **what it is**, **what it
 needs**, and **who can supply it**.
 
+> **Updated 2026-08-14.** Andy supplied the legal name, support email, jurisdiction, grievance
+> officer and effective date, and `E12-25` landed — the values now live in
+> **`docs/legal/company.json`**, one file, read by the website renderer, the app's generated
+> policy documents and this register. The documents keep their `«…»` tokens and are substituted
+> at render time, so the same fact cannot differ between the terms and an invoice.
+>
+> **5 tokens block a build, down from 10. 8 more on surfaces not yet built, down from 12.**
+
 A `«…-PENDING-…»` token is the repo-wide convention for a value nobody has committed to yet. A
 production build containing one fails, by design — `apps/web/src/lib/policy.ts`'s
 `assertPublishable`, triggered by `PUBLIC_SITE_STAGE=production`. **That guard stays.** Publishing
@@ -46,52 +54,57 @@ So the whole blocking set is **`docs/terms.md`**, which is the one genuinely new
 
 ---
 
-## 2. `docs/terms.md` — 10 tokens, and these block the build
+## 2. `docs/terms.md` — 5 answered, 5 outstanding
 
-### Facts you already have (7)
+### Answered 2026-08-14 (5, from `docs/legal/company.json`)
 
-| Token | Line | What it needs |
+| Token | Value |
+|---|---|
+| `«GRAYBAG-LEGAL-ENTITY-NAME-PENDING-E20-01»` | Graybag Pty Ltd |
+| `«GRAYBAG-SUPPORT-EMAIL-PENDING-E20-01»` | info@graybag.com |
+| `«JURISDICTION-CITY-PENDING-E20-01»` | SAS Nagar (Mohali), India |
+| `«GRIEVANCE-OFFICER-EMAIL-PENDING-E20-21»` | vivek@graybag.com — copied from privacy §7A |
+| `«TERMS-EFFECTIVE-DATE-PENDING-E20-12»` | 2026-08-14 |
+
+**`Graybag Pty Ltd` is worth one look before it reaches a tax document.** `Pty Ltd` is an
+Australian suffix and everything around it is Indian — a GSTIN, SAS Nagar jurisdiction, DPDP, 5%
+GST as CGST + SGST. An Australian entity can hold an Indian GST registration through a branch, so
+it is not necessarily wrong; it is the combination most likely to be a slip, and an invoice is the
+worst place to find out.
+
+### Still outstanding (5)
+
+| Token | Who | Note |
 |---|---|---|
-| `«GRAYBAG-LEGAL-ENTITY-NAME-PENDING-E20-01»` | 28 | Registered company name, exactly as on the incorporation certificate |
-| `«GRAYBAG-REGISTERED-ADDRESS-PENDING-E20-01»` | 28 | Registered office address |
-| `«GRAYBAG-GSTIN-PENDING-E00-10»` | 29 | The 15-character GSTIN |
-| `«GRAYBAG-SUPPORT-EMAIL-PENDING-E20-01»` | 173 | Support address. `U4` forbids a `no-reply@` anywhere |
-| `«GRIEVANCE-OFFICER-EMAIL-PENDING-E20-21»` | 174 | **Already answered elsewhere** — the published privacy policy §7A names Vivek, `vivek@graybag.com`. Copy it here rather than deciding again |
-| `«JURISDICTION-CITY-PENDING-E20-01»` | 165 | The city whose courts hear disputes. Mohali or Chandigarh |
-| `«TERMS-EFFECTIVE-DATE-PENDING-E20-12»` | 18 | The "Last updated" date. Today, when you publish |
+| `«GRAYBAG-REGISTERED-ADDRESS-PENDING-E20-01»` | Andy | Checking the filed details rather than typing from memory |
+| `«GRAYBAG-GSTIN-PENDING-E00-10»` | Andy | Same |
+| `«SIGNATURE-TREATMENT-PENDING-E00-10»` | Accountant | On the accountant list, not blocking |
+| `«ALLERGY-LIABILITY-WORDING-PENDING-E20-01»` | Andy — **decision** | See below |
+| `«LIABILITY-CAP-WORDING-PENDING-E20-01»` | Andy — **decision** | See below |
 
-**Who:** Andy, today. Six are company facts; the seventh is already published in the privacy
-policy and only needs copying across so the two documents agree.
+### The two liability clauses: there is nothing to lift
 
-### The accountant's answer (1)
+Checked 2026-08-14. **`graybag.com` serves a placeholder page** — no terms, no privacy, no links
+of any kind. And `docs/legal/` holds a baseline for the privacy policy and the refund policy only:
+both were supplied by Andy on 2026-08-11 as the lawyer-drafted texts published for the legacy
+Bubble application. **There is no terms baseline, because the legacy application never published
+terms.**
 
-| Token | Line | What it needs |
-|---|---|---|
-| `«SIGNATURE-TREATMENT-PENDING-E00-10»` | 77 | One sentence on whether invoices carry a digital signature or state that none is required. The same answer fills `docs/gst-invoicing.md` line 224 |
+So the reuse that makes the other two documents fine does not exist here. The options are a real
+choice rather than an oversight:
 
-**Who:** the accountant (`E00-10`). One question, and it settles two documents.
+1. **Have the two clauses reviewed** (`E20-25`, already `risk:high`). Slowest, and the only one
+   that ends with language somebody has stood behind.
+2. **Publish terms without a liability cap.** Lawful, and it means the cap is whatever the law
+   gives us rather than what we asked for.
+3. **Adapt the clauses from the privacy policy's approved register.** Cheapest, and the weakest:
+   the privacy policy's lawyer approved a privacy notice, not an allergy disclaimer.
 
-### Wording, not values (2)
-
-| Token | Line | What it needs |
-|---|---|---|
-| `«ALLERGY-LIABILITY-WORDING-PENDING-E20-01»` | 130 | The allergy-liability clause |
-| `«LIABILITY-CAP-WORDING-PENDING-E20-01»` | 150 | The liability-cap clause |
-
-**These two are different in kind from the other eight, and worth pausing on.** They are not
-values to paste; they are legal language about health and safety and about how much we owe when
-something goes wrong. `E20-25` is a `risk:high` task for exactly these two, and the document says
-in place that each must be reviewed by a lawyer.
-
-If the legacy application published terms, lift both clauses from there — that is the same "reuse
-what is already approved" move that makes the privacy and refund policies fine, and it needs no
-lawyer. **If the legacy app had no terms of service, these two are the genuine gap**, and the
-honest options are to have them reviewed or to publish terms without a liability cap at all,
-which is a decision rather than an oversight.
+Andy's call. The rest of the document is publishable without it.
 
 ---
 
-## 3. `docs/dpdp-compliance.md` — 6 tokens, none of them blocking
+## 3. `docs/dpdp-compliance.md` — 3 left, none blocking
 
 This is the internal compliance record. It feeds the app's grievance block, which is why it
 matters, but nothing publishes it directly.
@@ -111,7 +124,7 @@ you would be judged against.
 
 ---
 
-## 4. `docs/gst-invoicing.md` — 5 tokens, on a document parents receive
+## 4. `docs/gst-invoicing.md` — 4 left, on a document parents receive
 
 An invoice is a published document. These are not blocking a build only because invoice rendering
 (`E07`) is not wired to this file yet — the moment it is, they must block. Raised as `E12-24`.
@@ -136,23 +149,29 @@ Three of these repeat facts from §2. **They should not be three separate answer
 
 ---
 
-## 6. The shape problem underneath this
+## 6. One source — `E12-25`, done 2026-08-14
 
-The legal name, the registered address and the GSTIN each appear as a **separate token in two
-different documents**, with two different task ids on them. Filling them means answering the same
-question twice and hoping both copies match — and an invoice whose GSTIN disagrees with the terms
-is a worse outcome than either being blank.
+The legal name, the registered address and the GSTIN each appeared as a **separate token in two
+documents**, with different task ids on them. Filling them meant answering the same question twice
+and hoping the copies matched.
 
-They should come from one place. `packages/shared/src/config` or a small `docs/legal/company.md`
-that both documents cite. Raised as `E12-25`, deliberately **not** done as part of this register:
-it changes how two published documents are assembled, and that is worth doing deliberately rather
-than in the same pass as writing the list.
+They now come from **`docs/legal/company.json`**. The documents keep their `«…»` tokens — they
+stay readable as documents — and substitution happens at render time, in three places that all
+read that one file:
 
-Until then, fill them in this order so the copies cannot drift:
+| Reader | For |
+|---|---|
+| `apps/web/src/lib/policy.ts` | `/privacy`, `/terms`, `/refunds` |
+| `scripts/build-policy-docs.mjs` | the app's policy gate |
+| `scripts/check-placeholders.mjs` | this register |
 
-1. `docs/terms.md` — the legal name, address and GSTIN.
-2. `docs/gst-invoicing.md` — paste the same three, verbatim.
-3. `docs/dpdp-compliance.md` — the grievance block, copied from the published privacy policy.
+**A `null` is never substituted.** Its token survives into the rendered document and
+`assertPublishable` refuses to publish it, so this file cannot quietly turn an unanswered question
+into a published claim by defaulting it to an empty string. `company.test.ts` asserts that the
+same fact resolves identically in both documents, and that an unanswered one passes through
+untouched.
+
+Fill a value once, in `company.json`, and every document that states it changes together.
 
 ---
 
