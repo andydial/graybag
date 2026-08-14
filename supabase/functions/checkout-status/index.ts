@@ -103,7 +103,21 @@ Deno.serve(async (request: Request) => {
     return json(404, { error: 'we could not find that order' });
   }
 
-  if (row.status === 'paid') return json(200, { status: 'paid' satisfies Status, group, order: await summarise(admin, group) });
+  if (row.status === 'paid') {
+    /**
+     * **The confirmation must not depend on which route settled the order.**
+     *
+     * This branch used to return without sending, so an order settled by the drain — or by hand
+     * during an incident — never told the parent anything. `0050`'s unique index means calling
+     * this on every poll is safe: the first caller claims the send and the rest read `23505` as
+     * already done, so the invariant is "exactly one email per order", not "one email if the
+     * settlement happened in the right function".
+     *
+     * Telling a parent late is a nuisance. Never telling them is the failure.
+     */
+    await sendOrderConfirmation(admin, { orderGroupId: group, correlationId: null });
+    return json(200, { status: 'paid' satisfies Status, group, order: await summarise(admin, group) });
+  }
   if (row.status === 'cancelled') return json(200, { status: 'cancelled' satisfies Status, group });
 
   // ------------------------------------------------------------------ our row says unpaid

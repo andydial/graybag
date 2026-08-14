@@ -3271,13 +3271,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Include the 4-digit <strong>pickup code</strong> on the invoice</span>
       </li>
-      <li class="task" data-id="E07-04" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E07-04" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-04"></button>
         <code class="tid">E07-04</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Email the invoice automatically on each successful purchase</span>
+        <span class="ttext"><strong>Email the invoice automatically on each successful purchase — as the email body, not an attachment.</strong> Confirmed by Andy 2026-08-14: <code>E07-18</code>&#39;s stored PDF stays fast-follow, because a GST invoice may be issued electronically and Rule 46 prescribes particulars rather than a file format — blocking the one MVP requirement on a rendering pipeline nobody put in v1 is the wrong trade. <code>_shared/invoice-email.ts</code> renders HTML and plain text from the issued <code>invoice</code> row, never from the cart, so the email and the statutory record cannot disagree. Every §4.1 particular asserted present, and the lawfully-absent ones asserted absent for their stated reason. Readable on a phone: no table, one column at 480px, pickup code and total above the statutory apparatus. 29 assertions</span>
       </li>
       <li class="task" data-id="E07-05" data-seed="0" data-risk="critical" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-05"></button>

@@ -22,6 +22,8 @@
  */
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
+import { renderInvoiceHtml, renderInvoiceText, type InvoiceEmailInput } from './invoice-email.ts';
+
 export const TEMPLATE_ORDER_CONFIRMED = 'order_confirmed';
 
 export interface ConfirmationInput {
@@ -117,22 +119,46 @@ export async function sendOrderConfirmation(
       return 'suppressed';
     }
 
+    /**
+     * `E07-04`. **The invoice is the email**, not an attachment — `E07-18`'s stored PDF is
+     * fast-follow, and Rule 46 prescribes particulars rather than a file format.
+     *
+     * If the invoice row is missing the email is still sent, as a plain confirmation: an order
+     * that settled and could not be described is still an order the parent must be told about.
+     * That case is loud in the log, because it means `issue_invoice` did not run.
+     */
+    const invoice = await loadInvoice(admin, input.orderGroupId);
+    if (!invoice) {
+      console.error(
+        `order-confirmation: no invoice for ${input.orderGroupId} — sending a bare confirmation. ` +
+          'issue_invoice should have run inside settle_payment (D14).',
+      );
+    }
+
+    const subject = invoice
+      ? `Your GrayBag tax invoice ${invoice.invoiceNumber} — pickup code ${pickupCode}`
+      : `Your GrayBag order is confirmed — pickup code ${pickupCode}`;
+
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
       body: JSON.stringify({
         from,
         to: [address],
-        subject: `Your GrayBag order is confirmed — pickup code ${pickupCode}`,
-        text: renderText({
-          greetingName: typeof user?.first_name === 'string' ? user.first_name : null,
-          firstName,
-          pickupCode,
-          serviceDate: String(first.service_date ?? ''),
-          breakLabel: String(first.break_label_snapshot ?? 'break'),
-          itemCount: rows.length,
-          totalPaise,
-        }),
+        subject,
+        ...(invoice
+          ? { html: renderInvoiceHtml(invoice), text: renderInvoiceText(invoice) }
+          : {
+              text: renderText({
+                greetingName: typeof user?.first_name === 'string' ? user.first_name : null,
+                firstName,
+                pickupCode,
+                serviceDate: String(first.service_date ?? ''),
+                breakLabel: String(first.break_label_snapshot ?? 'break'),
+                itemCount: rows.length,
+                totalPaise,
+              }),
+            }),
       }),
     });
 
@@ -140,7 +166,22 @@ export async function sendOrderConfirmation(
       const body = await response.text();
       console.error(`order-confirmation: resend ${response.status}: ${body.slice(0, 200)}`);
       // `failed` rather than `suppressed`, and the partial index lets it be retried.
-      await finish('failed', { failed_at: new Date().toISOString(), error_text: `resend_${response.status}` });
+      /**
+       * **The provider's own message, not just the status code.**
+       *
+       * A bare `resend_403` says a send failed and nothing about why — unverified domain, wrong
+       * key scope, and a rejected from-address are three different problems with three different
+       * owners, and they are indistinguishable from the number alone. Diagnosing one meant
+       * reproducing the call by hand, which is exactly the round trip instrumentation exists to
+       * remove.
+       *
+       * Safe to store: Resend's errors describe the account and the domain, not the recipient.
+       * Truncated, and `notification_delivery` still never holds the rendered body (`E20-10`).
+       */
+      await finish('failed', {
+        failed_at: new Date().toISOString(),
+        error_text: `resend_${response.status}: ${body.slice(0, 300)}`,
+      });
       return 'failed';
     }
 
@@ -192,4 +233,73 @@ function renderText(o: {
     '',
     'GrayBag',
   ].join('\n');
+}
+
+/**
+ * The issued invoice and its lines, shaped for the renderer.
+ *
+ * Read after settlement, never assembled from the cart: the invoice is the statutory record and
+ * the email must agree with it exactly. A total computed a second way here is a second total.
+ */
+async function loadInvoice(
+  admin: SupabaseClient,
+  orderGroupId: string,
+): Promise<InvoiceEmailInput | null> {
+  const { data: inv } = await admin
+    .from('invoice')
+    .select(
+      'id, invoice_number, issued_at, seller_legal_name, seller_address, seller_gstin, sac_code, ' +
+        'place_of_supply_state_code, buyer_name_snapshot, buyer_gstin, taxable_value_paise, ' +
+        'cgst_rate_bps, cgst_paise, sgst_rate_bps, sgst_paise, round_off_paise, total_paise, pickup_codes',
+    )
+    .eq('order_group_id', orderGroupId)
+    .eq('document_type', 'invoice')
+    .maybeSingle();
+  if (!inv) return null;
+
+  const { data: lines } = await admin
+    .from('invoice_line')
+    .select('description, sac_code, quantity, taxable_value_paise, cgst_paise, sgst_paise, total_paise')
+    .eq('invoice_id', inv.id)
+    .order('line_no', { ascending: true });
+
+  const { data: orders } = await admin
+    .from('order')
+    .select('order_ref')
+    .eq('order_group_id', orderGroupId)
+    .order('service_date', { ascending: true });
+
+  return {
+    invoiceNumber: String(inv.invoice_number),
+    issuedAt: String(inv.issued_at),
+    sellerLegalName: String(inv.seller_legal_name),
+    sellerAddress: String(inv.seller_address),
+    sellerGstin: String(inv.seller_gstin),
+    sacCode: String(inv.sac_code),
+    placeOfSupplyStateCode: String(inv.place_of_supply_state_code),
+    // Never fabricated — `E07-22`, Rule 46(f). Absent is lawful below ₹50,000.
+    buyerName: (inv.buyer_name_snapshot as string | null) ?? null,
+    buyerGstin: (inv.buyer_gstin as string | null) ?? null,
+    taxableValuePaise: Number(inv.taxable_value_paise),
+    cgstRateBps: Number(inv.cgst_rate_bps),
+    cgstPaise: Number(inv.cgst_paise),
+    sgstRateBps: Number(inv.sgst_rate_bps),
+    sgstPaise: Number(inv.sgst_paise),
+    roundOffPaise: Number(inv.round_off_paise ?? 0),
+    totalPaise: Number(inv.total_paise),
+    pickupCodes: (inv.pickup_codes as string[] | null) ?? [],
+    orderRefs: (orders ?? []).map((o) => String((o as Record<string, unknown>).order_ref)),
+    lines: (lines ?? []).map((l) => {
+      const r = l as Record<string, unknown>;
+      return {
+        description: String(r.description),
+        sacCode: String(r.sac_code),
+        quantity: Number(r.quantity),
+        taxableValuePaise: Number(r.taxable_value_paise),
+        cgstPaise: Number(r.cgst_paise),
+        sgstPaise: Number(r.sgst_paise),
+        totalPaise: Number(r.total_paise),
+      };
+    }),
+  };
 }
