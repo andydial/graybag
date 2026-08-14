@@ -43,13 +43,39 @@ describe('PolicyDocumentScreen', () => {
     },
   );
 
-  it('carries the three tracked changes into the app, not just into docs/', async () => {
+  it('carries the four tracked changes into the app, not just into docs/', async () => {
     // The whole point of generating from `docs/`: what a parent reads and what the lawyer
     // approved are one string. If the change log ever stops reaching the app, this fails.
     const { markdown } = POLICY_DOCUMENTS.privacy;
     expect(markdown).toContain('under 18');
-    expect(markdown).toContain('vivek@graybag.com');
     expect(markdown).toContain('when the guardian link ends');
+
+    /**
+     * **Version 3 (`E20-52`): the grievance contact is an office, not a person.**
+     *
+     * This line asserted `vivek@graybag.com` — the version-2 contact. It now asserts the
+     * version-3 one, and additionally that no individual's name reaches a parent's screen.
+     *
+     * The **change log still names Vivek**, and that is correct and deliberate: it is the
+     * record of what version 2 did, and a change log that gets rewritten when the thing it
+     * describes changes is not a change log.
+     *
+     * So the "no individual" assertion is scoped to **§7A's own body** — the block a parent
+     * reads as the current contact — rather than to the whole document. The first version of
+     * this test asserted over the whole string and failed on the change log, which is the
+     * assertion being too blunt rather than the document being wrong.
+     */
+    expect(markdown).toContain('support@graybag.com');
+
+    const section = markdown.slice(
+      markdown.indexOf('## 7A.'),
+      markdown.indexOf('## 8.'),
+    );
+    expect(section).toContain('**Grievance Officer**');
+    expect(section).toContain('GrayBag Solutions Private Limited');
+    expect(section).toContain('support@graybag.com');
+    expect(section).not.toContain('Vivek');
+    expect(section).not.toContain('vivek@graybag.com');
 
     /**
      * Retention defers to the law and **names no period** — corrected 2026-08-11.
