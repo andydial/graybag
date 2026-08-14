@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
   createNativeStackNavigator,
   type NativeStackNavigationProp,
+  type NativeStackScreenProps,
 } from '@react-navigation/native-stack';
 import { api, design, money } from '@graybag/shared';
 
@@ -16,7 +17,6 @@ import {
   DishDetailScreen,
   HomeScreen,
   MenuScreen,
-  OrderDetailScreen,
   DeleteAccountScreen,
   PolicyScreen,
   SignInScreen,
@@ -33,6 +33,7 @@ import {
 } from '../components/Screen';
 import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
+import { OrderDetailTabScreen } from '../orders/OrderDetailTabScreen';
 import { OrdersTabScreen } from '../orders/OrdersTabScreen';
 import { useCart } from '../cart/CartContext';
 import { OrderPlacedScreen, placedOrder } from '../checkout/OrderPlacedScreen';
@@ -539,7 +540,23 @@ function ConnectedOrdersScreen() {
     />
   );
 }
-const OrderDetailStackScreen = withScreenFrame(OrderDetailScreen, STACK_SCREEN_EDGES, { back: true });
+/** `E06-34`. The connected screen — see `ConnectedOrdersScreen` for why bare routing was the bug. */
+const OrderDetailStackScreen = withScreenFrame(ConnectedOrderDetailScreen, STACK_SCREEN_EDGES, {
+  back: true,
+});
+
+function ConnectedOrderDetailScreen({
+  route,
+}: NativeStackScreenProps<RootStackParamList, 'OrderDetail'>) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <OrderDetailTabScreen
+      orderGroupId={route.params.orderGroupId}
+      onBackToMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+      onContactSupport={() => navigation.navigate('Support')}
+    />
+  );
+}
 const AddChildStackScreen = withScreenFrame(AddChildScreen, STACK_SCREEN_EDGES, { back: true });
 const ChildrenStackScreen = withScreenFrame(ChildrenScreen, STACK_SCREEN_EDGES, { back: true });
 const SupportStackScreen = withScreenFrame(SupportScreen, STACK_SCREEN_EDGES, { back: true });

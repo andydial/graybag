@@ -4,6 +4,7 @@ import {
   amountInWords,
   renderInvoiceHtml,
   renderInvoiceText,
+  unresolvedTokens,
   type InvoiceEmailInput,
 } from '../../../../supabase/functions/_shared/invoice-email.js';
 
@@ -115,11 +116,67 @@ describe('Rule 46 particulars, in both renderings', () => {
     for (const body of bodies()) expect(body).toContain('GB-FC17KH');
   });
 
-  it('renders a placeholder seller identity literally, so staging cannot pass for real', () => {
-    // §2. Unmissable on purpose; `assert_seller_identity_configured()` stops it reaching prod.
+  it('renders a placeholder seller identity literally, so it cannot be mistaken for real', () => {
+    // §2. Unmissable on purpose — and `unresolvedTokens` below is what stops it being SENT.
     const staging = { ...INVOICE, sellerGstin: '«GRAYBAG-GSTIN-PENDING-E00-10»' };
     expect(renderInvoiceText(staging)).toContain('«GRAYBAG-GSTIN-PENDING-E00-10»');
     expect(renderInvoiceHtml(staging)).toContain('PENDING-E00-10');
+  });
+});
+
+/**
+ * `E07-24`. **The assertion is on the rendered output, not on the configuration.**
+ *
+ * `GB/26-27/000002` was delivered to a real inbox stating the supplier as
+ * `«GRAYBAG-LEGAL-ENTITY-NAME-PENDING-E20-01»`. `assert_seller_identity_configured()` did not stop
+ * it, because it guards production only — and a staging exemption is why a human found this by
+ * reading his own email instead of a test finding it.
+ *
+ * A config check asks whether the fields we thought to name are filled. This asks whether the
+ * document a parent actually receives says something we do not know, which is the question that
+ * matters and the only one that catches a field nobody remembered to guard.
+ */
+describe('unresolvedTokens — the guard that was missing', () => {
+  it('finds the exact tokens that reached a real inbox', () => {
+    const broken = {
+      ...INVOICE,
+      sellerLegalName: '«GRAYBAG-LEGAL-ENTITY-NAME-PENDING-E20-01»',
+      sellerAddress: '«GRAYBAG-REGISTERED-ADDRESS-PENDING-E20-01»',
+      sellerGstin: '«GRAYBAG-GSTIN-PENDING-E00-10»',
+    };
+    const found = unresolvedTokens(renderInvoiceText(broken));
+    expect(found).toHaveLength(3);
+    expect(found).toContain('«GRAYBAG-GSTIN-PENDING-E00-10»');
+  });
+
+  it('catches a token in ANY field, not just the three that were wrong', () => {
+    // The config guard names fields; this one does not need to know which field is unfinished.
+    expect(unresolvedTokens(renderInvoiceText({ ...INVOICE, sacCode: '«SAC-PENDING-E00-10»' })))
+      .toContain('«SAC-PENDING-E00-10»');
+  });
+
+  it('finds them in the HTML rendering too, since that is what most parents see', () => {
+    const broken = { ...INVOICE, sellerGstin: '«GRAYBAG-GSTIN-PENDING-E00-10»' };
+    expect(unresolvedTokens(renderInvoiceHtml(broken))).toHaveLength(1);
+  });
+
+  it('passes a fully resolved invoice', () => {
+    // The published facts, from `docs/legal/company.json` — the one source the renderer now reads
+    // through `platform_config`.
+    const real = {
+      ...INVOICE,
+      sellerLegalName: 'GRAYBAG SOLUTIONS PRIVATE LIMITED',
+      sellerAddress: 'SCO-461-462, Top Floor, Sector 35-C, Chandigarh, 160022',
+      sellerGstin: '03AAMCG3438M1ZD',
+    };
+    expect(unresolvedTokens(renderInvoiceText(real))).toEqual([]);
+    expect(unresolvedTokens(renderInvoiceHtml(real))).toEqual([]);
+  });
+
+  it('does not mistake ordinary punctuation for a token', () => {
+    // « » are the register's convention. A dish called "Chef«s special" would be odd, but a
+    // guard that fires on stray punctuation gets turned off.
+    expect(unresolvedTokens('Total ₹145.96 — CGST 2.5% · SGST 2.5%')).toEqual([]);
   });
 });
 

@@ -22,7 +22,12 @@
  */
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
-import { renderInvoiceHtml, renderInvoiceText, type InvoiceEmailInput } from './invoice-email.ts';
+import {
+  renderInvoiceHtml,
+  renderInvoiceText,
+  unresolvedTokens,
+  type InvoiceEmailInput,
+} from './invoice-email.ts';
 
 export const TEMPLATE_ORDER_CONFIRMED = 'order_confirmed';
 
@@ -133,6 +138,36 @@ export async function sendOrderConfirmation(
         `order-confirmation: no invoice for ${input.orderGroupId} — sending a bare confirmation. ` +
           'issue_invoice should have run inside settle_payment (D14).',
       );
+    }
+
+    /**
+     * **A tax invoice carrying an unresolved token is not sent. Any environment.** `E07-24`.
+     *
+     * `GB/26-27/000002` was delivered to a real inbox with three `«…-PENDING-…»` tokens in the
+     * supplier block. `assert_seller_identity_configured()` did not stop it because it guards
+     * production only — and that exemption is precisely why a human found this by reading his own
+     * email rather than a test finding it.
+     *
+     * So the check is here, on the rendered body, and it **refuses** rather than warning. A
+     * parent receiving no invoice is a support conversation; a parent receiving a document that
+     * states our GSTIN as a placeholder is a non-compliant tax invoice in someone's records, and
+     * it cannot be recalled.
+     *
+     * Recorded as `suppressed` with the offending tokens, so the reason is in the row rather than
+     * only in a log nobody reads.
+     */
+    if (invoice) {
+      const tokens = unresolvedTokens(renderInvoiceText(invoice));
+      if (tokens.length > 0) {
+        console.error(
+          `order-confirmation: REFUSING to send invoice ${invoice.invoiceNumber} — unresolved ` +
+            `token(s): ${tokens.join(', ')}. The order IS paid and the parent has NOT been told.`,
+        );
+        await finish('suppressed', {
+          suppressed_reason: `unresolved_tokens: ${tokens.join(' ').slice(0, 200)}`,
+        });
+        return 'suppressed';
+      }
     }
 
     const subject = invoice

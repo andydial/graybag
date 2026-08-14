@@ -222,3 +222,38 @@ Afterwards the fingerprint EAS reports must equal the SHA-256 above, and that mu
 **Upload key certificate** in Play Console → Test and release → Setup → App signing. Note that
 page shows the *App signing key* certificate too; they are different keys and comparing the wrong
 block is the easy mistake.
+
+## 7. The tap-through parent account
+
+**`parent.tapthrough@graybag.com`** — staging, user id `e17005eb-f2bb-421a-9954-f5e378fa7f38`.
+
+**There is no password.** v1 is email-OTP only, so signing in means receiving a six-digit code at
+that address. That is the whole credential, and it is why nothing is stored in a secrets file.
+
+### Why it exists
+
+Andy's own account holds **`orders.view` at kitchen scope** from the back-office work, and
+`order_read_backoffice` therefore admits it to every school's orders. Every parent-scope read
+performed with it passes — **for the wrong reason**. A tap-through with that account cannot
+validate parent RLS at all, and the empty-Orders-screen defect (`E06-40`) was diagnosed against an
+account that would have shown rows even if the policy had been broken.
+
+This account holds **zero** `permission_grant` rows, verified at creation and asserted since:
+`authorization.test.sql` now fails if its customer persona acquires one, so the suite cannot start
+passing for the wrong reason either.
+
+### Using it
+
+Sign in with the OTP. If the address does not deliver — `graybag.com` mail routing is Andy's, and
+a catch-all is not something this repository can verify — use a plus-addressed alias of an inbox
+you *know* receives, e.g. `anuragdial+parent@gmail.com`, and create it the same way:
+
+```bash
+curl -s "$SUPABASE_URL/auth/v1/admin/users" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H 'content-type: application/json' \
+  -d '{"email":"anuragdial+parent@gmail.com","email_confirm":true}'
+```
+
+**Grant it nothing.** The moment it holds a back-office permission it stops being able to answer
+the question it exists for, and the answer it gives instead looks identical.

@@ -133,6 +133,31 @@ export function amountInWords(paise: number): string {
   return paisePart > 0 ? `${head} and ${twoDigits(paisePart)} Paise Only` : `${head} Only`;
 }
 
+/**
+ * A placeholder that survived into a rendered document. `E07-24`.
+ *
+ * The register's own convention: an unresolved value is written `«NAME-PENDING-E00-10»` in angle
+ * quotes, so it is unmissable in prose. This finds one anywhere in a rendered body.
+ */
+const UNRESOLVED_TOKEN = /«[^»]*»/g;
+
+/**
+ * Every unresolved token in a rendered invoice.
+ *
+ * **Checked on the OUTPUT, not on the config**, which is the whole point. A configuration guard
+ * asks whether the fields we thought to name are filled; this asks whether the document a parent
+ * actually receives says something we do not know. `GB/26-27/000002` reached a real inbox reading
+ * `Supplier: «GRAYBAG-LEGAL-ENTITY-NAME-PENDING-E20-01»` while
+ * `assert_seller_identity_configured()` was satisfied — because it only ran in production, and a
+ * staging exemption is why this was found by a human reading his own email.
+ *
+ * A token in a tax invoice is not an environment-specific concern. Rule 46 does not have a
+ * staging mode.
+ */
+export function unresolvedTokens(rendered: string): string[] {
+  return [...new Set(rendered.match(UNRESOLVED_TOKEN) ?? [])];
+}
+
 const escape = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 

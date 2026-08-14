@@ -1,0 +1,25 @@
+{
+  "_comment": [
+    "The company's published identity — ONE source, read by every document that states it (E12-25).",
+    "JSON rather than TypeScript so a plain .mjs script can read it too: the website renderer, the",
+    "app's generated policy documents and the placeholder register all substitute from this file,",
+    "and a value that lives in only one of them is the drift this file exists to prevent.",
+    "null means genuinely unknown. It is never substituted, so its «TOKEN» survives into the",
+    "rendered document and a production build refuses to publish it."
+  ],
+  "legalName": "GRAYBAG SOLUTIONS PRIVATE LIMITED",
+  "registeredAddress": "SCO-461-462, Top Floor, Sector 35-C, Chandigarh, 160022",
+  "gstin": "03AAMCG3438M1ZD",
+  "sacCode": null,
+  "signatureTreatment": null,
+  "supportEmail": "info@graybag.com",
+  "jurisdictionCity": "SAS Nagar (Mohali), India",
+  "grievanceOfficer": {
+    "name": "Vivek",
+    "title": "Grievance Officer, GrayBag",
+    "email": "vivek@graybag.com",
+    "address": null
+  },
+  "_effectiveDates": "Fixed, never computed. An effective date that moves with each build is not an effective date.",
+  "termsEffectiveDate": "2026-08-14"
+}

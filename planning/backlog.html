@@ -1129,13 +1129,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/30</span>
+          <span class="meter-num">0/31</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 30 tasks</summary>
+        <summary>Context &amp; 31 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -1387,6 +1387,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Make <code>check-test-fixtures</code> column-aware for migration-seeded codes.</strong> Today it compares only *namespaced* (colon-bearing) codes a test inserts against those a migration seeds — a cheap, precise signal that closes the <code>ledger_account.code</code> hole found on 2026-08-11, when <code>0035</code> seeding the chart of accounts collided with fixtures in <code>ledger.test.sql</code> and <code>authorization.test.sql</code> and killed both files on the next clean reset. The general version — every code a migration seeds — <strong>was tried and reverted</strong>: an insert also carries enum values and foreign keys (<code>&#39;debit&#39;</code>, <code>&#39;platform&#39;</code>, <code>&#39;migration_opening_balance&#39;</code>), so it produced 31 false positives on one file. Distinguishing a <code>code</code> column&#39;s value from a <code>reason_code</code> foreign key needs the insert&#39;s column list parsed. Worth doing: the colon rule catches namespaced codes and would miss a flat one like <code>checkout_expired</code> being inserted twice</span>
+      </li>
+      <li class="task" data-id="E02-32" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-32"></button>
+        <code class="tid">E02-32</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The authorization suite&#39;s customer persona is now asserted to hold no <code>permission_grant</code>.</strong> Andy&#39;s staging account holds <code>orders.view</code> at kitchen scope from the back-office work, so <code>order_read_backoffice</code> admits it to every school&#39;s orders and every parent-scope read he performs passes for the wrong reason — which is how <code>E06-40</code> was diagnosed against an account that would have shown rows even had the policy been broken. A clean tap-through parent (<code>parent.tapthrough@graybag.com</code>, zero grants, <code>docs/environments.md</code> §7) exists for that, and the suite now fails if its own customer persona ever acquires a grant, so it cannot start passing for the wrong reason either</span>
       </li></ul>
       </details>
     </article>
@@ -2922,13 +2930,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/40</span>
+          <span class="meter-num">0/41</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 40 tasks</summary>
+        <summary>Context &amp; 41 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -3189,7 +3197,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Replace the invented &quot;5–7 working days&quot; refund timing on Order detail with a figure somebody has confirmed, per instrument. It is a sentence a parent plans around; see <code>docs/open-questions.md</code></span>
       </li>
-      <li class="task" data-id="E06-34" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E06-34" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-34"></button>
         <code class="tid">E06-34</code>
         
@@ -3252,6 +3260,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The invoice email was never sent to anybody.</strong> <code>loadInvoice</code> filtered <code>document_type = &#39;invoice&#39;</code>; the enum is <code>(&#39;tax_invoice&#39;, &#39;credit_note&#39;)</code>, so it matched nothing, returned null, and every confirmation silently fell back to a bare text message. The 29 renderer assertions stayed green because they render rather than query. Verified fixed against a real delivered message, not the code: HTML present, invoice number in the subject, CGST/SGST, reverse charge, pickup code. <code>issue_invoice.test.sql</code> now asserts the enum&#39;s exact labels</span>
+      </li>
+      <li class="task" data-id="E06-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-42"></button>
+        <code class="tid">E06-42</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Order detail cannot say whether an order is still cancellable.</strong> <code>cancellationClosesAt</code> is <code>cutoff_at − customer_cancellation_cutoff_minutes</code> resolved from the order&#39;s own <code>config_snapshot</code> (<code>C9</code>), and deriving it on the client would let a kitchen changing its cutoff tonight retroactively move an order&#39;s boundary. Both fields are the server&#39;s to compute and are currently <code>null</code>/<code>false</code>, which renders as &quot;we can&#39;t tell&quot; rather than &quot;you can&quot; — the safe direction, and not the right one</span>
       </li></ul>
       </details>
     </article>
@@ -3268,13 +3284,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/23</span>
+          <span class="meter-num">0/25</span>
         </div>
       </header>
       <p class="summary">Compliant GST invoices emailed as PDF on every purchase, plus the revenue-share and payout reporting that sits on the same numbers.</p>
       <p class="deps">Depends on <code>E06</code></p>
       <details>
-        <summary>Context &amp; 23 tasks</summary>
+        <summary>Context &amp; 25 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>GrayBag is the <strong>seller of record</strong> and pays kitchens monthly. Cart currently shows a single &quot;5% tax&quot; line; a compliant invoice needs the CGST/SGST split. Place of supply is Mohali / SAS Nagar (intra-state).</p>
 <p>Blocked on E00-10 / E00-11 for GSTIN, SAC code and the school-share GST treatment.</p></div>
@@ -3462,6 +3478,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A parent can ask for their name on an invoice already issued.</strong> <code>Rule 46(f)</code>&#39;s condition is &quot;and the recipient requests that such details be recorded&quot; — so a name is not merely optional, it is optional *until asked for*. Fast-follow: a reissue path that re-renders the document with the name and supersedes the original (never edits it — <code>§13.2</code> requires a reprint to be byte-identical to what was issued). Not v1; recorded so the obligation is not discovered from a support ticket</span>
+      </li>
+      <li class="task" data-id="E07-24" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-24"></button>
+        <code class="tid">E07-24</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A tax invoice reached a real inbox with three unresolved seller-identity tokens.</strong> <code>GB/26-27/000002</code> stated the supplier as <code>«GRAYBAG-LEGAL-ENTITY-NAME-PENDING-E20-01»</code> and the GSTIN as <code>«GRAYBAG-GSTIN-PENDING-E00-10»</code>, while the published facts sat in <code>docs/legal/company.json</code> — the entity facts lived in two places and only one was maintained. <code>scripts/sync-seller-identity.mjs</code> makes <code>platform_config</code> a <strong>derivative</strong> of that file (<code>--check</code> fails when they disagree), and <code>unresolvedTokens()</code> asserts on the <strong>rendered output</strong>: a body containing <code>«…»</code> is <strong>refused, not warned about, in every environment</strong>. The production-only exemption on <code>assert_seller_identity_configured()</code> is why a human found this by reading his own email. Rule 46 has no staging mode</span>
+      </li>
+      <li class="task" data-id="E07-25" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E07-25"></button>
+        <code class="tid">E07-25</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:high) <strong><code>sac_code</code> disagrees between the two sources.</strong> <code>platform_config</code> holds <code>996331</code> and <code>docs/legal/company.json</code> holds <code>null</code> — genuinely unknown. A SAC is a statutory particular (Rule 46(f)) and an invented one is worse than a token: a token is visibly unfinished, a plausible number is not. <code>sync-seller-identity.mjs</code> warns on every run rather than choosing. An accountant question — <code>E00-10</code></span>
       </li></ul>
       </details>
     </article>

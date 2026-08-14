@@ -98,3 +98,92 @@ export async function fetchOrders(): Promise<ApiOrderSummary[]> {
     };
   });
 }
+
+export interface ApiOrderDetail extends ApiOrderSummary {
+  schoolName: string;
+  classLabel: string | null;
+  sectionLabel: string | null;
+  breakLabel: string | null;
+  /** The server's own figures. This is a settled order; the receipt reports, it does not compute. */
+  subtotalPaise: number;
+  cgstPaise: number;
+  sgstPaise: number;
+  pickupCode: string | null;
+  placedAt: string | null;
+  paidAt: string | null;
+  preparingAt: string | null;
+  deliveredAt: string | null;
+  lines: { key: string; name: string; quantity: number; unitPricePaise: number }[];
+}
+
+/**
+ * One order, for Order detail. `E06-34`.
+ *
+ * The screen was routed bare for a fortnight — every state it can render was unreachable, and
+ * tapping a row showed an empty screen with the invoice number it is supposed to surface nowhere
+ * in the app. `reachability.test.ts` caught it the day that guard was written.
+ *
+ * **Keyed on `order_group_id`, not `order.id`**, because that is what `OrdersScreen` hands over
+ * and what `E06-16` polls. One group is one payment, one recipient, one service date (`AR8`).
+ *
+ * Throws rather than returning `null` for a failed read, exactly as `fetchOrders` does: a blank
+ * detail screen must only be renderable over a read that succeeded (§5.21).
+ */
+export async function fetchOrderDetail(orderGroupId: string): Promise<ApiOrderDetail | null> {
+  const rows = await runQuery<Record<string, unknown>>((client) =>
+    client
+      .from('order')
+      .select(
+        'id, order_group_id, order_ref, service_date, recipient_name_snapshot, status, total_paise, ' +
+          'subtotal_paise, tax_cgst_paise, tax_sgst_paise, school_name_snapshot, class_label_snapshot, ' +
+          'section_label_snapshot, break_label_snapshot, pickup_code, placed_at, confirmed_at, ' +
+          'preparing_at, delivered_at, ' +
+          'order_line(id, dish_name_snapshot, quantity, unit_price_paise), ' +
+          'order_group(invoice(invoice_number))',
+      )
+      .eq('order_group_id', orderGroupId)
+      .limit(1),
+  );
+
+  const row = rows[0];
+  // Not found is a legitimate answer and distinct from a failed read, which threw above.
+  if (!row) return null;
+
+  const full = typeof row.recipient_name_snapshot === 'string' ? row.recipient_name_snapshot.trim() : '';
+  const group = row.order_group as { invoice?: { invoice_number?: unknown }[] } | null | undefined;
+  const lines = Array.isArray(row.order_line) ? (row.order_line as Record<string, unknown>[]) : [];
+
+  return {
+    orderGroupId: String(row.order_group_id ?? ''),
+    orderId: String(row.id ?? ''),
+    orderRef: String(row.order_ref ?? ''),
+    serviceDate: String(row.service_date ?? ''),
+    recipientName: full === '' ? null : (full.split(/\s+/)[0] ?? null),
+    itemCount: lines.length,
+    totalPaise: Number(row.total_paise ?? 0),
+    status: String(row.status ?? 'draft') as ApiOrderStatus,
+    invoiceNumber:
+      typeof group?.invoice?.[0]?.invoice_number === 'string' ? group.invoice[0].invoice_number : null,
+    schoolName: String(row.school_name_snapshot ?? ''),
+    classLabel: (row.class_label_snapshot as string | null) ?? null,
+    sectionLabel: (row.section_label_snapshot as string | null) ?? null,
+    breakLabel: (row.break_label_snapshot as string | null) ?? null,
+    subtotalPaise: Number(row.subtotal_paise ?? 0),
+    cgstPaise: Number(row.tax_cgst_paise ?? 0),
+    sgstPaise: Number(row.tax_sgst_paise ?? 0),
+    pickupCode: (row.pickup_code as string | null) ?? null,
+    placedAt: (row.placed_at as string | null) ?? null,
+    // **`confirmed_at`, not `paid_at`.** `order` has no `paid_at` — the settlement instant is
+    // `confirmed_at` (§4.1's T5). `order_group` is what carries `paid_at`, and reaching for the
+    // familiar name here would have been a 400 at the first tap.
+    paidAt: (row.confirmed_at as string | null) ?? null,
+    preparingAt: (row.preparing_at as string | null) ?? null,
+    deliveredAt: (row.delivered_at as string | null) ?? null,
+    lines: lines.map((l) => ({
+      key: String(l.id),
+      name: String(l.dish_name_snapshot ?? ''),
+      quantity: Number(l.quantity ?? 0),
+      unitPricePaise: Number(l.unit_price_paise ?? 0),
+    })),
+  };
+}

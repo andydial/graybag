@@ -627,6 +627,29 @@ select is((select auth.uid())::text, 'a0000000-7e57-0000-0000-000000000001',
           'harness: auth.uid() reads the impersonated subject from request.jwt.claims');
 select isnt_empty($$ select 1 from "order" where id = 'e2000000-7e57-0000-0000-000000000001' $$,
                   'harness: an impersonated customer really does see their own order (so a later is_empty means something)');
+
+/**
+ * **The customer persona must hold NO back-office grant.** `E02-26`.
+ *
+ * Andy's own staging account holds `orders.view` at kitchen scope from the dashboard work, and
+ * `order_read_backoffice` therefore admits it to every school's orders. Every parent-scope read he
+ * performed was passing — for the wrong reason. A tap-through with that account cannot validate
+ * parent RLS at all, and neither can a suite whose "customer" quietly acquires a grant.
+ *
+ * So this asserts the property the whole customer half of this file depends on. Without it, a
+ * future fixture that grants `…001` something would turn every `is_empty` below into a test of
+ * nothing, silently, and the file would stay green.
+ */
+select is(
+  (select count(*)::int from permission_grant
+    where user_id = 'a0000000-7e57-0000-0000-000000000001' and revoked_at is null),
+  0,
+  'harness: the customer persona holds no permission_grant — so a customer-scope result is about RLS, not about a grant');
+
+select is_empty(
+  $$ select 1 from "order" where customer_user_id <> 'a0000000-7e57-0000-0000-000000000001'
+      and id in (select id from "order") limit 1 $$,
+  'a customer sees no order but their own — the property Andy''s account cannot demonstrate');
 reset role;
 
 
