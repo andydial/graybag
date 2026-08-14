@@ -4208,13 +4208,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/19</span>
+          <span class="meter-num">0/21</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 19 tasks</summary>
+        <summary>Context &amp; 21 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4330,13 +4330,29 @@
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:medium) Confirm what may be stated about food safety and the FSSAI registration (<code>[WEB-04]</code>)</span>
       </li>
-      <li class="task" data-id="E12-15" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E12-15" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-15"></button>
         <code class="tid">E12-15</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Build the <code>enquiry</code> table, RLS and the <code>enquiry-submit</code> Edge Function to <code>docs/enquiry-submission-contract.md</code> — owned by the <code>supabase/</code> thread, not by <code>apps/web</code></span>
+        <span class="ttext">Build the <code>enquiry</code> table, RLS and the <code>enquiry-submit</code> Edge Function to <code>docs/enquiry-submission-contract.md</code> — <strong>taken by the web thread on 2026-08-14</strong> on Andy&#39;s instruction, after the <code>supabase/</code> thread did not pick it up. Only <code>supabase/migrations/0050_enquiry.sql</code>, <code>supabase/down/0050_enquiry.down.sql</code>, <code>supabase/functions/enquiry-submit/</code> and one line of <code>packages/shared/src/payments/cors.test.ts</code> were touched. Deployed and verified against staging on every path: 204 preflight, 201 stored, 202 honeypot (stored nowhere), 422 validation, 303 for the no-JavaScript form post, and an open redirect refused. Email lowercased, phone normalised, message trimmed to <code>null</code>. <strong>The notification email is <code>E12-20</code></strong> — §6 makes it best-effort and forbids it failing the request, and <code>E08</code> owns the mail infrastructure</span>
+      </li>
+      <li class="task" data-id="E12-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-20"></button>
+        <code class="tid">E12-20</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>One email per stored enquiry</strong> — <code>docs/enquiry-submission-contract.md</code> §6. From <code>GrayBag &lt;orders@graybag.com&gt;</code>, Reply-To <code>support@graybag.com</code>, to <code>ENQUIRY_NOTIFY_EMAIL</code> Cc <code>ENQUIRY_NOTIFY_CC</code> (seed to andy@ and vivek@), subject <code>New school enquiry — &lt;school&gt;, &lt;city&gt;</code>, body every field plus a <code>mailto:</code> so replying is one tap. <strong>Best-effort: it must never fail the request</strong> — the row is the record, and an enquiry lost because a mail provider had a bad minute is the worst thing this endpoint can do. Blocked on <code>E08</code>&#39;s transactional mail, or reuse the provider <code>E07-05</code> needs for GST invoices</span>
+      </li>
+      <li class="task" data-id="E12-21" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-21"></button>
+        <code class="tid">E12-21</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Set <code>PUBLIC_ENQUIRY_ENDPOINT</code> in Netlify</strong> to the deployed function URL. Until then the live form posts to the dev mock and production submissions go nowhere — <code>docs/enquiry-submission-contract.md</code> §8 item 1, the one genuinely blocking handover</span>
       </li>
       <li class="task" data-id="E12-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-16"></button>

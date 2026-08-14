@@ -88,6 +88,9 @@ describe('every browser-callable Edge Function', () => {
     'checkout',
     // `E06-16`. Browser-callable like the rest — the back office will read order status too.
     'checkout-status',
+    // `E12-15`. Unlike the others its origin is an allowlist rather than `*`, because it takes
+    // unauthenticated writes — see the function's own comment.
+    'enquiry-submit',
     // Added by `E09-20`. The back office is the first browser client in the project, and this
     // function is where the missing preflight was found.
     'kitchen-order-status',
@@ -109,14 +112,21 @@ describe('every browser-callable Edge Function', () => {
 
   const source = (name: string) => readFileSync(join(FUNCTIONS, name, 'index.ts'), 'utf8');
 
+  // Any identifier, not the literal name `CORS`. `enquiry-submit` builds its headers **per
+  // request** — its origin is an allowlist rather than `*`, because it takes unauthenticated
+  // writes — so a module-level constant would be the wrong shape and naming it `CORS` would be a
+  // lie about that. The guarantee this test exists for is "a preflight is answered, before
+  // authentication and before the method guard", which is unchanged.
+  const PREFLIGHT = /preflight\(request, \w+\)/;
+
   it.each(BROWSER_CALLABLE)('%s answers a preflight before authenticating', (name) => {
     const text = source(name);
-    expect(text).toContain('preflight(request, CORS)');
+    expect(text).toMatch(PREFLIGHT);
 
     // Order matters more than presence. A preflight carries no credentials — the browser strips
     // them — so a function that authenticates first returns 401 to the OPTIONS and the real
     // request is never sent. Same outage as the 405, different status code.
-    const pre = text.indexOf('preflight(request, CORS)');
+    const pre = text.search(PREFLIGHT);
     const auth = text.indexOf("headers.get('Authorization')");
     if (auth !== -1) expect(pre).toBeLessThan(auth);
 
