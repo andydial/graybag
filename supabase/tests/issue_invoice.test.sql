@@ -169,5 +169,27 @@ select is((select pickup_codes[1]::text from invoice where order_group_id = (sel
   'P4: the pickup code is on the invoice as well as in the email, so a child with no phone can '
   'still collect');
 
+-- ---------------------------------------------------------------- the value the mailer filters on
+--
+-- `E07-04`'s `loadInvoice` selects `document_type = 'tax_invoice'`. It shipped with `'invoice'`,
+-- which is not in the enum, so it matched nothing and every confirmation fell back to a bare
+-- text message — the compliant invoice body was never sent to anybody, and 29 renderer assertions
+-- stayed green because they render rather than query.
+--
+-- Asserted here rather than in the mailer's own tests because this is the fact the mailer depends
+-- on: rename the enum label and this fails, which is the only place that can see both sides.
+-- **This block was appended after `finish(); rollback;` first**, so it ran outside the
+-- transaction — where the `set local search_path` no longer applied and NO pgTAP function
+-- resolved at all. The error said `set_eq does not exist`, then `is`, then `ok`, and each cast I
+-- added chased the wrong thing: the arguments were never the problem, the location was.
+--
+-- `ok(... = ...)` rather than `is(...)`: the `is` overload trap is already in
+-- `docs/learnings.md`, and `ok` takes a plain boolean so it cannot be tripped by it.
+select ok(
+  (select string_agg(e.enumlabel::text, ',' order by e.enumlabel)
+     from pg_enum e join pg_type t on t.oid = e.enumtypid
+    where t.typname = 'invoice_document_type') = 'credit_note,tax_invoice',
+  'invoice_document_type is exactly (tax_invoice, credit_note) — the mailer filters on the first');
+
 select * from finish();
 rollback;

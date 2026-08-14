@@ -208,3 +208,83 @@ describe('every screen has a door', () => {
     expect(tabs).toEqual(expect.arrayContaining(['Home', 'Menu', 'Cart', 'Account']));
   });
 });
+
+/**
+ * **A screen that shows server data must be connected to something that fetches it.** `E06-40`.
+ *
+ * The seventh instance of this codebase's most persistent defect, and the most expensive so far:
+ * `OrdersScreen` was built with every state it needs — loading, ready, error, stale, signed out —
+ * and was routed **directly**, with no props. So `state` was always its default, the error branch
+ * was unreachable, and a parent with three settled orders, three invoices and a balanced ledger
+ * saw "no orders yet".
+ *
+ * Every existing test was green. `OrdersScreen.test.tsx` mounts it with fixtures — which is the
+ * situation a real user is never in — and the pgTAP suite proved the RLS policy admits the paying
+ * parent, which it does. Neither could see that nothing ever asked.
+ *
+ * The rule this encodes: **a route rendered as a bare presentational component is a screen with
+ * no data.** It is a static check, like the door check above, and it costs milliseconds.
+ */
+describe('every data screen is connected', () => {
+  const navigator = sources.find((s) => s.path.endsWith('RootNavigator.tsx'));
+
+  /**
+   * Screens whose entire purpose is to render something the server holds. A route that renders
+   * one of these directly is the bug; it must render a connected wrapper instead.
+   *
+   * Deliberately a short, hand-kept list rather than a heuristic. "Does this component need
+   * data" is not decidable from its name, and a wrong guess here either blocks a presentational
+   * screen or waves through the next `OrdersScreen`.
+   */
+  const NEEDS_DATA = ['OrdersScreen', 'OrderDetailScreen'];
+
+  /**
+   * **Found by this check on the day it was written**, which is the argument for it.
+   *
+   * `OrderDetailScreen` is routed bare too — the same defect as `OrdersScreen`, one screen
+   * along, and it is already filed as `E06-34`. Listed rather than fixed here because the fix is
+   * a read this task does not build, and listed rather than silently excluded because a check
+   * that quietly skips its own findings is not a check.
+   *
+   * Removing this entry is part of closing `E06-34`.
+   */
+  const KNOWN_UNCONNECTED: Record<string, string> = {
+    OrderDetailScreen: 'E06-34 — Order detail has no read yet',
+  };
+
+  it.each(NEEDS_DATA)('%s is not routed as a bare presentational component', (screen) => {
+    if (KNOWN_UNCONNECTED[screen]) return;
+    const text = navigator?.text ?? '';
+    // `withScreenFrame(OrdersScreen, …)` — the exact shape that shipped the defect.
+    const bare = new RegExp(`withScreenFrame\\(\\s*${screen}\\s*,`);
+    expect(text).not.toMatch(bare);
+  });
+
+  it('the connected Orders screen actually calls the api read', () => {
+    // The other half: a wrapper that exists and fetches nothing is the same defect with an extra
+    // file. Asserted against the source rather than by mounting, because mounting is what missed
+    // it the first time.
+    // `expect(value, message)` is Vitest, not Jest — this file runs under Jest, and passing a
+    // second argument throws inside `expect` itself rather than failing the assertion.
+    const tab = sources.find((s) => s.path.endsWith('OrdersTabScreen.tsx'));
+    expect(tab).toBeDefined();
+    expect(tab?.text).toMatch(/api\.fetchOrders\(/);
+  });
+
+  it('it distinguishes a failed read from an empty list', () => {
+    // §5.21, and the reason `fetchOrders` throws rather than returning `[]`. "No orders yet"
+    // rendered over an outage is an unknown presented as a known.
+    const tab = sources.find((s) => s.path.endsWith('OrdersTabScreen.tsx'));
+    expect(tab?.text).toMatch(/setState\('error'\)/);
+
+    // **Comments stripped first.** The first version of this matched the file's own comment —
+    // which reads "Deliberately not `setOrders([])`" — and failed the very file it was written
+    // to approve. A guard that its own documentation can trip is a guard people delete.
+    const code = (tab?.text ?? '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .map((line) => line.replace(/\/\/.*$/, ''))
+      .join('\n');
+    expect(code).not.toMatch(/catch[\s\S]{0,160}setOrders\(\[\]\)/);
+  });
+});

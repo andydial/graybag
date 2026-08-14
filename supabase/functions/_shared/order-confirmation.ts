@@ -266,7 +266,11 @@ async function loadInvoice(
         'cgst_rate_bps, cgst_paise, sgst_rate_bps, sgst_paise, round_off_paise, total_paise, pickup_codes',
     )
     .eq('order_group_id', orderGroupId)
-    .eq('document_type', 'invoice')
+    // **`tax_invoice`, not `invoice`.** The enum is `('tax_invoice', 'credit_note')`, and the
+    // wrong value matched nothing, returned null, and fell back to a bare confirmation — so the
+    // compliant invoice body was built, tested with 29 assertions, and never sent to anyone.
+    // The renderer tests could not catch it: they test rendering, and this is the query.
+    .eq('document_type', 'tax_invoice')
     .maybeSingle();
   if (!inv) return null;
 

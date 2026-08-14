@@ -69,6 +69,15 @@ export interface SelectBuilder extends PromiseLike<QueryResult> {
    */
   not(column: string, operator: string, value: unknown): SelectBuilder;
   order(column: string, options?: { ascending?: boolean }): SelectBuilder;
+  /**
+   * A row cap. Added for `fetchOrders` (`E06-40`), and widening this interface is deliberately a
+   * visible diff rather than a method appearing at a call site.
+   *
+   * The orders list is unbounded by nature — a family ordering daily accrues hundreds of rows a
+   * year — and an uncapped read on a school-gate connection is the performance priority this
+   * project names first. The screen shows upcoming and recent; it has never needed everything.
+   */
+  limit(count: number): SelectBuilder;
 }
 
 export interface TableRef {
