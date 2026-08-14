@@ -134,6 +134,17 @@ export interface ApiOrderDetail extends ApiOrderSummary {
   paidAt: string | null;
   preparingAt: string | null;
   deliveredAt: string | null;
+  /**
+   * `cutoff_at − customer_cancellation_cutoff_minutes` as an ISO instant, **computed by the
+   * server from this order's own `config_snapshot`** (`E06-42`, `C9`).
+   *
+   * `null` means the snapshot could not answer — a backfilled order, or one written before the
+   * keys existed. It renders as "we can't tell", never as "you can", and it must not be
+   * coalesced to the cutoff on the way through.
+   */
+  cancellationClosesAt: string | null;
+  /** The other half of T10's guard, from the same snapshot. */
+  cancellationAllowed: boolean;
   lines: { key: string; name: string; quantity: number; unitPricePaise: number }[];
 }
 
@@ -162,6 +173,11 @@ export async function fetchOrderDetail(orderGroupId: string): Promise<ApiOrderDe
           'subtotal_paise, tax_cgst_paise, tax_sgst_paise, school_name_snapshot, class_label_snapshot, ' +
           'section_label_snapshot, break_label_snapshot, pickup_code, placed_at, confirmed_at, ' +
           'preparing_at, delivered_at, ' +
+          // **PostgREST computed columns** (`0052`), not real columns — the two derived scalars
+          // of `E06-42`. They exist so `config_snapshot` itself never leaves the server: it is
+          // `to_jsonb(effective_config)` and carries `revenue_share_bps`, the commercial term
+          // between GrayBag and the school. The column list is the redaction, as above.
+          'cancellation_closes_at, cancellation_allowed, ' +
           'order_line(id, dish_name_snapshot, quantity, unit_price_paise), ' +
           'order_group(invoice(invoice_number))',
       )
@@ -206,6 +222,10 @@ export async function fetchOrderDetail(orderGroupId: string): Promise<ApiOrderDe
     paidAt: (row.confirmed_at as string | null) ?? null,
     preparingAt: (row.preparing_at as string | null) ?? null,
     deliveredAt: (row.delivered_at as string | null) ?? null,
+    // `?? null` and **not** a fallback to `cutoff_at`: null and "right up to the cutoff" are
+    // different facts, and only one of them is safe to guess (`0052`'s header).
+    cancellationClosesAt: (row.cancellation_closes_at as string | null) ?? null,
+    cancellationAllowed: row.cancellation_allowed === true,
     lines: lines.map((l) => ({
       key: String(l.id),
       name: String(l.dish_name_snapshot ?? ''),

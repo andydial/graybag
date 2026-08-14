@@ -19,6 +19,84 @@ Format — newest first:
 
 ---
 
+## 2026-08-15 — `sync-state.mjs pull` reopened a closed task, and the documented workflow is what did it
+
+**Context:** finishing `E06-42`. `CLAUDE.md` prescribes exactly this sequence:
+
+```bash
+node scripts/sync-state.mjs pull   # picks up anything Andy ticked in the browser
+# ...mark your finished task ids
+node scripts/sync-state.mjs        # reconciles both directions
+```
+
+**What happened:** the `pull` step rewrote `E02-26` from `[x]` to `[ ]` in
+`E02-data-model-and-authorization.md`. A `risk:high` task, closed on 2026-08-09 by migration
+`0010`, silently reopened — and its own description still read "Closed in migration `0010`",
+so the file now contradicted itself.
+
+**Cause:** `pull` is **state → markdown, and it is destructive in one direction only**. It
+writes `done[id] ? 'x' : ' '` over every checkbox, so a task ticked in the markdown but absent
+from `backlog-state.json` is not merged — it is erased. `E02-26` was in exactly that state on
+`main`: `[x]` in the markdown, missing from the JSON.
+
+The trap is that the *second* command cannot undo it. `both` runs push-then-pull and the union
+wins, which is why it looks safe — but by then the markdown `[x]` that `push` would have read
+is already gone. **The prescribed `pull` destroys the input the later `push` depends on.**
+Running only `node scripts/sync-state.mjs` would have preserved it.
+
+**Fix / rule:** `git diff planning/` after any sync, before committing. A sync that reports
+"1 markdown lines updated" when you ticked nothing is a task being reopened, and the number is
+the only warning you get. Prefer the bare `sync-state.mjs` (both) over `pull` unless you
+specifically need state to win.
+
+The deeper point: **the two files are not symmetric, and neither is the authority.** The
+markdown is where a task's *evidence* lives — `E02-26` named the migration that closed it — and
+that evidence is what made the reopening detectable at all. If the JSON had been treated as the
+record, a completed security fix would now be sitting in the backlog waiting to be done twice.
+
+---
+
+## 2026-08-15 — A permission model bounds a query; it cannot narrow one (`E06-42` corollary)
+
+**Context:** wiring the cancellation window into order detail, one screen after `E06-43`/`E06-44`.
+
+**What happened:** nothing broke. This is the entry for the near-miss.
+
+The obvious implementation of `E06-42` is to add `cutoff_at, config_snapshot` to the existing
+`fetchOrderDetail` select and subtract in TypeScript. It is fewer moving parts, needs no
+migration, and it satisfies the literal ticket — `config_snapshot` is frozen at checkout, so a
+kitchen editing its cutoff tonight still cannot move an existing order's boundary.
+
+**It is also a data leak.** `config_snapshot` is `to_jsonb(effective_config)`, and
+`effective_config` carries `revenue_share_bps` — the commercial term between GrayBag and the
+school. RLS would have permitted every byte of it: the parent is authorised to read *that row*,
+and a policy filters rows, never columns.
+
+**Cause:** the same shape as `E06-43`, one level down. There, RLS admitted rows the screen did
+not mean; here it would admit columns the screen does not mean. "The caller is allowed to read
+this" and "this should be sent to the caller" are different questions, and only the first has
+an enforcement mechanism.
+
+**Fix / rule:** **the column list is the redaction** — already the rule in `schools.ts` and
+`orders.ts`, and it now has a second class of violation. When a derived value needs a sensitive
+input, derive it where the input already lives: `0052` puts the subtraction in a PostgREST
+computed column, so the snapshot is read server-side and only the resulting instant crosses the
+wire. The test that guards it asserts `queries[0].columns` does **not** contain
+`config_snapshot`, because the leak is invisible in the returned object — the extra field is
+simply there, and every assertion about the fields you *do* use still passes.
+
+Two smaller things worth keeping:
+
+- **A computed column must be `STABLE`.** PostgREST will not expose a `VOLATILE` function as
+  one, and the failure is a *missing column*, not an error anybody would connect to volatility.
+- **pgTAP cannot prove a computed column is reachable.** It proves the function exists and is
+  granted; whether PostgREST exposes it is a property of the schema cache, which is the
+  `notify pgrst, 'reload schema'` trap from 2026-08-12 wearing a different hat. Verified with a
+  real REST round trip against the local stack, plus a bogus-column negative control — without
+  that control, an empty `[]` looks identical to acceptance.
+
+---
+
 ## 2026-08-13 — "Not yet" and "never" are the same query result, and I read one as the other
 
 **Context:** the `E19-07` sitting. I POSTed two test refunds through Razorpay's API and then
