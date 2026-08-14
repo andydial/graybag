@@ -78,6 +78,9 @@ export const FULL_PERMISSIONS: KitchenPermissions = {
 /** Realistic parent requests. Deliberately none of them allergy language — see §5.6.1. */
 const NOTES = ['Less spicy', 'No coriander', 'Cut into halves', 'No onion, please'];
 
+/** The enumerated codes, exactly as the `allergen` table spells them. Nothing invented. */
+const ALLERGENS = ['milk', 'gluten', 'tree_nut', 'soy'];
+
 export function fixtureDay(
   serviceDate: string,
   loadedAt = '2026-08-13T01:42:00.000Z',
@@ -103,6 +106,9 @@ export function fixtureDay(
       sectionLabel: klass.section,
       status: STATUS_MIX[index % STATUS_MIX.length]!,
       pickupCode: null,
+      // Roughly one child in five, so both states are on screen. `[]` for the rest, which renders
+      // "No allergies provided" — never blank.
+      allergenCodes: index % 5 === 0 ? [ALLERGENS[index % ALLERGENS.length]!] : [],
       lines: lines.map((l, lineIndex) => ({
         dishId: l.id,
         dishName: l.name,

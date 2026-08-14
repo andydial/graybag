@@ -65,26 +65,12 @@ So the whole blocking set is **`docs/terms.md`**, which is the one genuinely new
 | `«GRAYBAG-LEGAL-ENTITY-NAME-PENDING-E20-01»` | GRAYBAG SOLUTIONS PRIVATE LIMITED |
 | `«GRAYBAG-GSTIN-PENDING-E00-10»` | 03AAMCG3438M1ZD |
 | `«GRAYBAG-REGISTERED-ADDRESS-PENDING-E20-01»` | SCO-461-462, Top Floor, Sector 35-C, Chandigarh, 160022 |
+| `«ALLERGY-LIABILITY-WORDING-PENDING-E20-01»` | replaced by a description of the system |
+| `«LIABILITY-CAP-WORDING-PENDING-E20-01»` | removed — published without a cap |
 | `«GRAYBAG-SUPPORT-EMAIL-PENDING-E20-01»` | info@graybag.com |
 | `«JURISDICTION-CITY-PENDING-E20-01»` | SAS Nagar (Mohali), India |
 | `«GRIEVANCE-OFFICER-EMAIL-PENDING-E20-21»` | vivek@graybag.com — copied from privacy §7A |
 | `«TERMS-EFFECTIVE-DATE-PENDING-E20-12»` | 2026-08-14 |
-
-> ### Open question for Andy — the GSTIN and the address name different states
->
-> **Recorded exactly as supplied, and deliberately not resolved.**
->
-> - The GSTIN `03AAMCG3438M1ZD` begins **03**, which is the GST state code for **Punjab**.
-> - The registered address is **Chandigarh**, whose GST state code is **04**.
->
-> One of the two is not what it appears to be, or the company is registered in Punjab while its
-> registered office is in Chandigarh — which happens, and is not itself a problem. It matters
-> because both appear on a tax invoice and because place of supply is derived from state.
->
-> **Place-of-supply logic stays keyed off the GSTIN**, unchanged. Nothing has been guessed. The
-> earlier note about `Pty Ltd` is resolved: the final name is
-> `GRAYBAG SOLUTIONS PRIVATE LIMITED`, an Indian private limited company, and the Australian
-> suffix was a first-pass value. Tracked as `E12-29`.
 
 ### Still outstanding (1)
 

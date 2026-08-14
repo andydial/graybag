@@ -6,6 +6,7 @@ import {
   allowedActions,
   applyFilters,
   boardState,
+  allergenBadges,
   countLine,
   filterSummary,
   groupByDish,
@@ -46,6 +47,7 @@ const order = (over: Partial<KitchenOrder> = {}): KitchenOrder => ({
   status: 'paid',
   pickupCode: null,
   lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1, note: null }],
+  allergenCodes: [],
   ...over,
 });
 
@@ -448,6 +450,26 @@ describe('serviceDateToday — the kitchen’s day, not UTC and not the device�
       if (original === undefined) delete process.env.TZ;
       else process.env.TZ = original;
     }
+  });
+});
+
+describe('allergenBadges — E09-33', () => {
+  it('shortens the enumerated code without renaming it', () => {
+    // `tree_nut` becomes `TREE NUT`, not `NUT`. Mapping our taxonomy onto a friendlier one would
+    // create a second vocabulary that then has to be kept in step with the first.
+    expect(allergenBadges(['tree_nut', 'milk'])).toEqual(['TREE NUT', 'MILK']);
+  });
+
+  it('returns null for no allergens recorded, so the caller can say so out loud', () => {
+    // Not an empty array the caller might render as nothing. Blank space beside a child's name
+    // reads as "no allergies" — the one thing this must never say by accident (§5.21).
+    expect(allergenBadges([])).toBeNull();
+  });
+
+  it('returns null when the record is not readable, the same as none recorded', () => {
+    // From the kitchen's point of view both mean "you have not been told", and the screen must
+    // not distinguish a permissions failure from a clean record by showing less.
+    expect(allergenBadges(null)).toBeNull();
   });
 });
 

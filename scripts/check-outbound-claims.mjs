@@ -74,8 +74,7 @@ const ALLOWED = new Map([
   ['Mumbai', 'AWS ap-south-1, the data region (A2) — a storage location, not a service area'],
   // Added 2026-08-14 with the real entity facts. The registered office is in Chandigarh and we
   // do not serve schools there — the guard was right to stop it, and this is the reason rather
-  // than a loosening. Note the open question in `E12-29`: the GSTIN's state code is Punjab (03)
-  // while this address is Chandigarh (04), which is Andy's to resolve.
+  // than a loosening.
   ['Chandigarh', 'the registered office address of GRAYBAG SOLUTIONS PRIVATE LIMITED — not a service area'],
 ]);
 

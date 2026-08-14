@@ -148,14 +148,20 @@ goes to the kitchen as a request — "less spicy", "cut in half". It is not read
 information, and the app will direct you to the child's profile if you type allergy language into
 it.
 
+**What the kitchen sees.** The staff who pack and hand over the bag see, beside the child's name,
+the allergens you recorded — as short labels such as MILK or TREE NUT. If you have recorded none,
+their screen says "No allergies provided" rather than leaving the space blank.
+
+**What the kitchen does not see.** Not your free-text allergy note, not the severity you recorded,
+and no other medical detail. Only the labels.
+
 **What the system does not do.**
 
 - It does not prevent you from ordering a dish after you confirm the warning.
-- It does not show a child's allergies to kitchen staff. The kitchen's screen shows the dish, the
-  quantity, the child's name and any request you attached — not the child's allergy record.
 - It does not check the food as actually prepared. Kitchens handle many ingredients, and a dish
   can pick up traces of one that was not declared.
-- It does not know about an allergy you have not recorded.
+- It does not know about an allergy you have not recorded. Where you have recorded none, the
+  kitchen is told that you have recorded none — not that there are none.
 
 **If a child has a serious or life-threatening allergy, do not rely on this app alone.** The
 warning is a comparison between two lists we were given. It is not an inspection of the food.

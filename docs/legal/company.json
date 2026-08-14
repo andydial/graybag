@@ -48,6 +48,5 @@
 =======
 >>>>>>> 8517a30 (E12-27: the entity facts, the liability cap removed, the allergy clause rewritten)
   "_effectiveDates": "Fixed, never computed. An effective date that moves with each build is not an effective date.",
-  "termsEffectiveDate": "2026-08-14",
-  "_stateCodeDiscrepancy": "OPEN QUESTION FOR ANDY, deliberately unresolved. The GSTIN begins 03 (Punjab); the registered address is Chandigarh, whose state code is 04. Both are recorded exactly as supplied. Place-of-supply logic stays keyed off the GSTIN — see docs/placeholder-register.md and E12-29. Do not guess which is correct."
+  "termsEffectiveDate": "2026-08-14"
 }

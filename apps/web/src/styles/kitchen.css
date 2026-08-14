@@ -776,3 +776,40 @@
   border-radius: var(--gb-radius-sm);
   font-size: var(--gb-font-size-body-sm);
 }
+
+/* ------------------------------------------------- allergen badges (E09-33) */
+
+/**
+ * Beside the child's name, because that is the moment the bag changes hands.
+ *
+ * Amber, not red: this is information the person handing over needs, not an error state, and the
+ * board already uses red for cancellation. Colour carries none of the meaning on its own — the
+ * code is written out (§2.10), which matters here more than anywhere else on the screen.
+ */
+.kallergen {
+  display: inline-block;
+  margin-left: var(--gb-space-2);
+  padding: 0 var(--gb-space-2);
+  border-radius: var(--gb-radius-sm);
+  background: var(--gb-ramp-amber-200);
+  color: var(--gb-text-on-amber);
+  font-size: var(--gb-font-size-caption);
+  font-weight: var(--gb-font-bold);
+  letter-spacing: var(--gb-tracking-overline);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/**
+ * "No allergies provided" is deliberately quiet, and deliberately present.
+ *
+ * It must not compete with a real badge — most rows will carry it — but blank space beside a name
+ * reads as "no allergies", and that is the one thing this feature must never say by accident.
+ */
+.kallergen--none {
+  background: none;
+  color: var(--gb-text-tertiary);
+  font-weight: var(--gb-font-medium);
+  letter-spacing: normal;
+  text-transform: none;
+}

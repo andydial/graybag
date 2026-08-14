@@ -32,6 +32,16 @@ export interface ApiKitchenOrderLine {
   note: string | null;
 }
 
+/**
+ * What the kitchen may see about a child's allergies.
+ *
+ * `null` means **not readable** — no recipient row came back, which is what RLS returns for a
+ * child outside this kitchen's scope. `[]` means the child has **no allergens recorded**, which
+ * is a different fact and must render as "not provided" rather than as blank space (`ux-spec`
+ * §5.21: an unknown must never render as a known).
+ */
+export type AllergenFlags = string[] | null;
+
 export interface ApiKitchenOrder {
   id: string;
   orderRef: string;
@@ -46,6 +56,8 @@ export interface ApiKitchenOrder {
   status: KitchenOrderStatus;
   pickupCode: string | null;
   lines: ApiKitchenOrderLine[];
+  /** Enumerated allergen codes for this child. `[]` = none recorded; `null` = not readable. */
+  allergenCodes: AllergenFlags;
 }
 
 /**
@@ -57,7 +69,19 @@ export interface ApiKitchenOrder {
 export const KITCHEN_ORDER_COLUMNS =
   'id,order_ref,school_id,school_name_snapshot,break_time_id,break_label_snapshot,' +
   'recipient_name_snapshot,class_label_snapshot,section_label_snapshot,status,pickup_code,' +
-  'order_line(dish_id,dish_name_snapshot,quantity,special_comments)';
+  'order_line(dish_id,dish_name_snapshot,quantity,special_comments),' +
+  // The child's recorded allergens, as an embed rather than a `recipient_id` on the row — the
+  // kitchen never needs the id, only the badges (`E09-33`).
+  //
+  // **Structured only.** `allergen.code` comes from an enumerated table; `recipient.allergy_note`
+  // and `recipient_allergen.note` are free text a parent typed and are deliberately *not*
+  // selected. Severity is not selected either: a badge says which allergen, never how bad, and
+  // "anaphylaxis" on a pick list is medical detail the kitchen cannot act on differently.
+  //
+  // RLS does the scoping. `recipient_allergen_read_fulfilment` requires `orders.view_pii` granted
+  // at the order's own school or the kitchen serving it, so a kitchen at school A gets nothing
+  // for school B. There is no filter here that could disagree with it.
+  'recipient(recipient_allergen(allergen(code)))';
 
 /** The statuses a kitchen list may contain, filtered client-side. See `fetchKitchenOrders`. */
 const KITCHEN_STATUSES: readonly string[] = ['paid', 'preparing', 'delivered', 'cancelled'];
@@ -73,6 +97,29 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
+
+/**
+ * Pull the enumerated codes out of the embed, distinguishing "none recorded" from "not readable".
+ *
+ * PostgREST returns `recipient: null` when the row is filtered out by RLS, and
+ * `recipient: { recipient_allergen: [] }` when the child simply has no allergens. Collapsing
+ * those two into one empty array would let a permissions failure render as a clean bill of
+ * health, which is the single worst way for this feature to be wrong.
+ */
+function readAllergenCodes(recipient: unknown): AllergenFlags {
+  if (!isRecord(recipient)) return null;
+  const rows = Array.isArray(recipient.recipient_allergen) ? recipient.recipient_allergen : [];
+
+  const codes: string[] = [];
+  for (const row of rows) {
+    if (!isRecord(row) || !isRecord(row.allergen)) continue;
+    const code = str(row.allergen.code);
+    // A code we cannot read is dropped rather than rendered blank — an empty badge beside a
+    // child's name is worse than one badge fewer, because it looks like a rendering fault.
+    if (code) codes.push(code);
+  }
+  return [...new Set(codes)].sort();
+}
 
 /**
  * Every order for one service date, as the kitchen sees it.
@@ -155,6 +202,7 @@ export async function fetchKitchenOrders(serviceDate: string): Promise<ApiKitche
       status: status as KitchenOrderStatus,
       pickupCode: str(row.pickup_code),
       lines,
+      allergenCodes: readAllergenCodes(row.recipient),
     });
   }
 

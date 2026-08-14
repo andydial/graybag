@@ -149,6 +149,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         allowedActions,
         applyFilters,
         boardState,
+        allergenBadges,
         countLine,
         filterSummary,
         serviceDateToday,
@@ -608,6 +609,23 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
             : '') +
         `</li>`;
 
+      /**
+       * Allergen badges beside the child's name — `E09-33`.
+       *
+       * The kitchen is the last human in the chain: they hand a physical bag to a named child,
+       * and until now they were told nothing. Codes only, from the enumerated table. No parent
+       * note, no severity, no medical detail.
+       *
+       * **"Not provided" is rendered, never nothing.** Blank space beside a name reads as "no
+       * allergies" to anyone who has not read this comment, and that is the one thing this must
+       * never say by accident (`ux-spec` §5.21).
+       */
+      const renderAllergens = (codes: string[] | null) => {
+        const badges = allergenBadges(codes);
+        if (!badges) return `<span class="kallergen kallergen--none">No allergies provided</span>`;
+        return badges.map((b) => `<span class="kallergen">${esc(b)}</span>`).join('');
+      };
+
       const renderOrder = (offline: boolean) => (o: KitchenDay['orders'][number]) => {
         const actions = allowedActions(o.status, day?.permissions);
         const label = { preparing: 'Start', delivered: 'Delivered', cancelled: 'Cancel' } as const;
@@ -615,7 +633,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           `<div class="kitchen__order" data-busy="${busy.has(o.id)}">` +
             `<div class="kitchen__child">` +
               `<ul class="kline-list">${o.lines.map(renderLine).join('')}</ul>` +
-              `<p class="kitchen__name">${esc(o.recipientName)}</p>` +
+              `<p class="kitchen__name">${esc(o.recipientName)}` +
+                renderAllergens(o.allergenCodes) +
+              `</p>` +
             `</div>` +
             `<span class="kitchen__pill" data-status="${o.status}">` +
               `<span aria-hidden="true">${({ paid: '○', preparing: '◐', delivered: '✓', cancelled: '✕' })[o.status]}</span>` +

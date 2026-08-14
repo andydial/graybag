@@ -383,6 +383,23 @@ export function filterSummary(
   return parts.length === 0 ? 'All orders' : parts.join(' · ');
 }
 
+/**
+ * The badges to draw beside a child's name, and the word to use when there are none.
+ *
+ * Codes come from the enumerated `allergen` table and are shortened for a badge by upper-casing
+ * and replacing the underscore — `tree_nut` becomes `TREE NUT`. **Nothing is renamed.** Andy's
+ * example said "NUT, DAIRY"; our taxonomy says `tree_nut` and `milk`, and mapping one onto the
+ * other would be inventing a second vocabulary that then has to be kept in step with the first.
+ *
+ * An empty or unreadable record returns `null`, and the caller renders "not provided" — never
+ * blank. §5.21: an unknown must not render as a known, and on this screen the known would be
+ * "this child has no allergies", which is the one thing we must not say by accident.
+ */
+export function allergenBadges(codes: string[] | null): string[] | null {
+  if (codes === null || codes.length === 0) return null;
+  return codes.map((code) => code.replace(/_/g, ' ').toUpperCase());
+}
+
 export function countLine(
   orders: KitchenOrder[],
   groups: ClassGroup[],
