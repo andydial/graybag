@@ -115,6 +115,40 @@ function stripFrontmatter(markdown: string): string {
   return markdown.slice(markdown.indexOf('\n', end + 1) + 1);
 }
 
+/**
+ * Strip the leading blockquote, which is a note to ourselves and not part of the document.
+ *
+ * All three policies open with one — provenance for the two the lawyer already approved, and for
+ * `terms.md` a drafting warning. **Every word of it was being published.** A parent opening
+ * `/terms` read "⚠ DRAFT FOR LEGAL REVIEW — DO NOT PUBLISH AS-IS", "Nothing here has been checked
+ * by a lawyer", two internal task ids and an instruction about CI — on a live URL.
+ *
+ * That is worse than an unresolved token. A token looks like a mistake; this reads as a statement
+ * about the document's standing, and it is the first thing on the page.
+ *
+ * Only the *leading* blockquote goes. A blockquote further down is authored content — the policies
+ * use them for emphasis — and the note is always first because it is written for whoever opens the
+ * file.
+ */
+function stripLeadingNote(markdown: string): string {
+  const lines = markdown.split('\n');
+
+  // Only the preamble — everything before the first `##` section. The policies use blockquotes
+  // inside their sections for emphasis, and those are authored content that must survive.
+  const firstSection = lines.findIndex((l) => l.startsWith('## '));
+  const limit = firstSection === -1 ? lines.length : firstSection;
+
+  const start = lines.findIndex((l, i) => i < limit && l.startsWith('>'));
+  if (start === -1) return markdown;
+
+  let end = start;
+  while (end < lines.length && lines[end]!.startsWith('>')) end += 1;
+
+  const kept = [...lines.slice(0, start), ...lines.slice(end)];
+  // Collapse the blank line the note left behind, so the page does not open with a gap.
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trimStart();
+}
+
 export function findPlaceholders(markdown: string): string[] {
   return [...new Set(markdown.match(PLACEHOLDER) ?? [])].sort();
 }
@@ -163,7 +197,7 @@ function wrapTables(html: string): string {
 export function renderPolicy(key: PolicyKey, repoRoot: URL): RenderedPolicy {
   const meta = POLICIES[key];
   const markdown = rewriteCrossReferences(
-    stripFrontmatter(readFileSync(new URL(meta.source, repoRoot), 'utf8')),
+    stripLeadingNote(stripFrontmatter(readFileSync(new URL(meta.source, repoRoot), 'utf8'))),
     meta.source,
   );
 

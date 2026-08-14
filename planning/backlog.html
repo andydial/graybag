@@ -4208,13 +4208,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/21</span>
+          <span class="meter-num">0/23</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 21 tasks</summary>
+        <summary>Context &amp; 23 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4353,6 +4353,22 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Set <code>PUBLIC_ENQUIRY_ENDPOINT</code> in Netlify</strong> to the deployed function URL. Until then the live form posts to the dev mock and production submissions go nowhere — <code>docs/enquiry-submission-contract.md</code> §8 item 1, the one genuinely blocking handover</span>
+      </li>
+      <li class="task" data-id="E12-22" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-22"></button>
+        <code class="tid">E12-22</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The internal drafting note was being published on all three policy pages.</strong> A parent opening <code>/terms</code> read &quot;⚠ DRAFT FOR LEGAL REVIEW — DO NOT PUBLISH AS-IS&quot;, &quot;Nothing here has been checked by a lawyer&quot;, two internal task ids and an instruction about CI — live on the Netlify deploy. Worse than an unresolved token: a token reads as a mistake, this reads as a statement about the document&#39;s standing, and it was the first thing on the page. The renderer now strips the preamble blockquote — the one before the first <code>##</code>, where a note lives and no authored quote does — in both <code>apps/web/src/lib/policy.ts</code> and <code>scripts/build-policy-docs.mjs</code>, so the website and the app agree. Covered by <code>policy.test.ts</code>. Fixing it also removed the <code>«ANGLE-BRACKET»</code> false positive that would have blocked a production build for ever, since that token existed only inside the note</span>
+      </li>
+      <li class="task" data-id="E12-23" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-23"></button>
+        <code class="tid">E12-23</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Internal task ids remain in the published policy bodies</strong> — <code>E06-33</code> in the refund policy&#39;s change log, <code>E00-10</code> in the privacy policy&#39;s, and six in <code>terms.md</code>. These are authored body content rather than a preamble note, and deleting text from a legal document is a decision, not a rendering fix: some change-log entries are legitimately public (&quot;what changed in version 2&quot;) and the citation is not. Decide per line whether to cut the id, reword it, or keep it</span>
       </li>
       <li class="task" data-id="E12-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-16"></button>
