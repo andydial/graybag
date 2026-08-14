@@ -252,3 +252,40 @@ Everything downstream of them is one command each; nothing else is in the way.
 `REQUIRED_RAZORPAY_PREFIX.production = 'rzp_live_'` in `packages/shared/src/env.ts`, exercised by
 `env.test.ts` ("refuses a test key in production"). The check runs at build config load, at Edge
 Function boot, and in the unit suite. No new work was needed; I verified rather than assumed.
+
+---
+
+## D10 — The force-update gate, verified live on staging
+
+Not just unit-tested. The full cycle, against the deployed function, through the anon key the app
+actually uses:
+
+| Step | Result |
+|---|---|
+| Floor raised to `99.0.0` with a message | accepted |
+| `app_version_support('4.0.0')` | `supported: false`, **with the configured sentence** |
+| `app_version_support('4.0.0-rc1')` against the same raised floor | `supported: true`, `reason: version_not_stated` |
+| Floor restored to `0.0.0`, message nulled | accepted |
+| `app_version_support('4.0.0')` | `supported: true` |
+
+The third row is the one worth having done live: it proves the admit-on-unknown direction holds
+under a *raised* floor, which is the only condition where getting it wrong locks anybody out. A
+unit test asserts the same thing, but not against the deployed function, the real grants and the
+real anon role.
+
+**Staging is back to `min_supported_app_version = '0.0.0'`.** Confirmed by reading it back, not by
+assuming the write landed. On the 19th it goes to `4.0.0` — one UPDATE, no deploy.
+
+Also verified live: `app_version_support` is callable by **anon** (a parent must be told before
+signing in), and `ops_alert` refuses anon with `42501` at the privilege layer rather than
+returning an empty list.
+
+---
+
+## D11 — The parked partial-refund work is on a branch, not in a stash
+
+`git stash` is local-only and one `git stash drop` from gone. Moved to
+`origin/parked/e06-08-partial-refunds`, renumbered `0055` → `0057` (its old number is now the
+force-update gate), with a commit message that leads on **"do not merge without reading the
+header"** — because it changes behaviour that has already shipped, and two assertions in
+`record_refund.test.sql` fail against it by design.
