@@ -384,19 +384,18 @@ export function cancelAvailability(order: OrderDetail, now: Date): CancelAvailab
     };
   }
 
-  if (!order.cancellationAllowed) {
-    return {
-      kind: 'closed',
-      reason:
-        "This kitchen doesn't take cancellations through the app. Get in touch and we will " +
-        'sort it out with them.',
-    };
-  }
-
   /**
    * Unknown is not "yes". §5.21 again: offering a cancel we cannot evaluate is a promise we
    * may not be able to keep, and the server would refuse it anyway (E5 is re-checked in the
    * transaction). Saying we cannot tell, and routing to a human, is the truthful version.
+   *
+   * **Checked before `cancellationAllowed`, and the order is the point** — `E06-45`.
+   * `cancellation_allowed` coalesces a missing key to `false` (`0052`), which collapses "the
+   * snapshot says no" and "the snapshot does not say" into one value, and they deserve
+   * different sentences. The other way round, an order with an empty `config_snapshot` was
+   * told "this kitchen doesn't take cancellations" — a claim about a kitchen that nothing in
+   * the data supports. `cancel_order` checks them in this same order, so the sentence a
+   * parent gets from the server matches the one the screen already showed them.
    */
   if (order.cancellationClosesAt === null) {
     return {
@@ -404,6 +403,15 @@ export function cancelAvailability(order: OrderDetail, now: Date): CancelAvailab
       reason:
         "We can't tell when cancelling closes for this order, so we are not going to guess. " +
         'Get in touch and we will check.',
+    };
+  }
+
+  if (!order.cancellationAllowed) {
+    return {
+      kind: 'closed',
+      reason:
+        "This kitchen doesn't take cancellations through the app. Get in touch and we will " +
+        'sort it out with them.',
     };
   }
 

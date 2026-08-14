@@ -100,9 +100,12 @@ export { createCheckout, type CheckoutLine, type CheckoutResult } from './checko
 export {
   fetchOrders,
   fetchOrderDetail,
+  // A write, so it goes through an Edge Function (`A4`) — see `cancelOrder`'s header.
+  cancelOrder,
   type ApiOrderSummary,
   type ApiOrderDetail,
   type ApiOrderStatus,
+  type ApiCancelResult,
 } from './orders.js';
 export {
   createPaymentOrder,

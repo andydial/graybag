@@ -81,6 +81,10 @@ describe('every browser-callable Edge Function', () => {
    */
   const BROWSER_CALLABLE = [
     'account',
+    // `E06-45`. Browser-callable for the same reason `checkout` is: the back office will
+    // cancel orders too (T11/T12), and a parent past their window is routed to a human who
+    // works in one.
+    'cancel-order',
     'checkout',
     // `E06-16`. Browser-callable like the rest — the back office will read order status too.
     'checkout-status',
