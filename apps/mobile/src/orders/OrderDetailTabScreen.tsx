@@ -85,17 +85,19 @@ function toScreen(d: api.ApiOrderDetail): OrderDetail {
     preparingAt: d.preparingAt,
     deliveredAt: d.deliveredAt,
     /**
-     * **Not known from this read, and therefore null rather than a guess.**
+     * **The server's, passed through untouched.** `E06-42`.
      *
      * `cancellationClosesAt` is `cutoff_at − customer_cancellation_cutoff_minutes` resolved from
-     * the order's own `config_snapshot` (`C9`), and `cancellationAllowed` is the other half of
-     * T10's guard. Deriving either on the client would let a kitchen's change tonight retroactively
-     * move an order's boundary — so they are the server's to compute (`E06-42`).
+     * the order's own `config_snapshot` (`C9`) by a computed column in `0052`, so a kitchen
+     * changing its cutoff tonight cannot move an order placed last week. `null` still means the
+     * snapshot could not answer, and still renders as "we can't tell" rather than "you can".
      *
-     * `null` renders as "we can't tell", never as "you can", which is the safe direction.
+     * The `now` comparison in `cancelAvailability` is **advisory**, exactly as
+     * `is_service_date_orderable` is: a device clock is not evidence, and the authoritative
+     * check is `assert_cutoff_open` inside the cancellation transaction.
      */
-    cancellationClosesAt: null,
-    cancellationAllowed: false,
+    cancellationClosesAt: d.cancellationClosesAt,
+    cancellationAllowed: d.cancellationAllowed,
     refund: 'none',
     invoiceNumber: d.invoiceNumber,
   };
