@@ -6,7 +6,7 @@ import {
   createNativeStackNavigator,
   type NativeStackNavigationProp,
 } from '@react-navigation/native-stack';
-import { api, design } from '@graybag/shared';
+import { api, design, money } from '@graybag/shared';
 
 import {
   AccountScreen,
@@ -162,7 +162,7 @@ const MenuTab = withScreenFrame(MenuScreen, TAB_SCREEN_EDGES);
 function CartTabScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const audience = useAudience();
-  const { cart, clear: clearCart, subtotalPaise } = useCart();
+  const { cart, clear: clearCart } = useCart();
   const checkout = useCheckout();
   /**
    * `E06-16`'s clock, owned here because `PaymentWaitingScreen` deliberately starts no timer of
@@ -172,6 +172,8 @@ function CartTabScreen() {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [settled, setSettled] = useState<api.CheckoutStatus | null>(null);
   const [placed, setPlaced] = useState<api.SettledOrderSummary | null>(null);
+  /** The last refusal, in the parent's words. Rendered on the cart, not swallowed. */
+  const [failure, setFailure] = useState<string | null>(null);
 
   /**
    * The photo and the veg mark for each line — `E05-42`.
@@ -320,17 +322,48 @@ function CartTabScreen() {
     if (lines.length === 0) return;
 
     setSettled(null);
-    setWaitingSince(Date.now());
+    setFailure(null);
+
+    /**
+     * **What the parent was actually shown — GST-INCLUSIVE, and rounded per line.**
+     *
+     * This was `subtotalPaise`, and it made every single checkout fail with `price_changed`
+     * before anything reached Razorpay. `cart.subtotalPaise` is documented GST-**exclusive**
+     * (`SC2`); the server prices the payable including tax, so the two could never agree.
+     *
+     * Nor is it subtotal × 1.05. `money.gstBreakdown` computes each component from **each
+     * line's** taxable value and rounds half-up (§6.2), which on one ₹69 line gives 7246 where
+     * a naive 5% gives 7245 — a one-paise disagreement that reads as a price change and stops
+     * the order. It is the same function the totals block renders from, so the number sent is
+     * by construction the number on screen.
+     */
+    const expected = money.gstBreakdown(
+      cart.lines.map((line) => ({ unitPricePaise: line.unitPricePaise, quantity: line.quantity })),
+    ).totalPaise;
+
     const outcome = await checkout.start({
       lines,
-      // What the parent was shown. The server refuses if its own answer differs (`L7`) — this
-      // is sent so it CAN refuse, never so it can be believed.
-      expectedTotalPaise: subtotalPaise,
+      // Sent so the server CAN refuse (`L7`), never so it can be believed.
+      expectedTotalPaise: expected,
     });
 
-    // Only a sheet that reported success starts polling. A dismissal or a decline leaves the
-    // order unpaid and the cart intact, and there is nothing to reconcile against.
-    if (outcome.kind !== 'sheet_reported_success') setWaitingSince(null);
+    /**
+     * **Only a sheet that reported success starts the waiting screen.**
+     *
+     * It used to be set before `start()` was even called, so "Still confirming" appeared the
+     * instant Pay was tapped — including when the order was refused and no sheet ever opened.
+     * That is the worst sentence in the product shown at the worst moment: a screen implying
+     * money is in flight when none moved. Same class as treating `reported_success` as paid,
+     * one screen further on.
+     *
+     * A failure now surfaces as a failure, with the server's own reason.
+     */
+    if (outcome.kind === 'sheet_reported_success') {
+      setWaitingSince(Date.now());
+      return;
+    }
+    setWaitingSince(null);
+    if (outcome.kind === 'failed') setFailure(outcome.message);
   };
 
   /**
@@ -384,11 +417,9 @@ function CartTabScreen() {
    * While a payment is in flight the cart is replaced rather than navigated away from, so the
    * cart's own state survives a dismissal untouched and "try again" is genuinely the same cart.
    */
-  const paying =
-    waitingSince !== null ||
-    checkout.phase.kind === 'placing' ||
-    checkout.phase.kind === 'opening' ||
-    settled === 'failed';
+  // `placing` and `opening` are NOT here: during those the sheet has not opened and there is
+  // nothing to confirm, so the cart stays on screen with its button in a loading state.
+  const paying = waitingSince !== null || settled === 'failed';
 
   if (settled === 'paid' && placed !== null) {
     return (
@@ -432,6 +463,7 @@ function CartTabScreen() {
   return (
     <CartScreen
       onPlaceOrder={placeOrder}
+      checkoutError={failure}
       dishInfo={dishInfo}
       breakWindows={breakWindows}
       breakTimeId={breakTimeId}

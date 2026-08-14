@@ -167,3 +167,27 @@ describe('failures say different things', () => {
     });
   });
 });
+
+describe('the total sent for the server to check', () => {
+  /**
+   * The regression for the first real tap, which failed on every attempt before anything reached
+   * Razorpay.
+   *
+   * The navigator sent `cart.subtotalPaise`, which is **GST-exclusive** (`SC2`), against a server
+   * that prices the payable including tax. `create_checkout` answered `price_changed` every time,
+   * and the app returned to the cart saying nothing.
+   *
+   * The number is not subtotal × 1.05 either: `money.gstBreakdown` rounds each component from
+   * each line's taxable value (§6.2), so one ₹69 line is **7246**, where a naive 5% gives 7245.
+   * Verified against staging — 7245 was refused, 7246 is the payable.
+   */
+  it('passes the caller’s figure through untouched, so a wrong one cannot be hidden here', async () => {
+    await runCheckout(session, { ...INPUT, expectedTotalPaise: 7246 });
+    expect(mockCreateCheckout.mock.calls[0][0].expectedTotalPaise).toBe(7246);
+  });
+
+  it('allows null, which is how a caller says "price it yourself"', async () => {
+    await runCheckout(session, { ...INPUT, expectedTotalPaise: null });
+    expect(mockCreateCheckout.mock.calls[0][0].expectedTotalPaise).toBeNull();
+  });
+});

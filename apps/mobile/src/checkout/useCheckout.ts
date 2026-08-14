@@ -21,6 +21,22 @@ import { api } from '@graybag/shared';
 import { openRazorpayCheckout, type RazorpaySheetResult } from './razorpay';
 
 /**
+ * One line per step, so a tap on a handset tells us which of three calls failed and why.
+ *
+ * Written because the first real tap produced no sheet, no order, nothing at Razorpay and no
+ * message — and the only way to tell "the server refused" from "the SDK never opened" was to
+ * reproduce the call by hand from a laptop. That is three rounds of hypotheses; this is one tap.
+ *
+ * **`[checkout]` prefix, and NO personal data**: no recipient id, no dish, no name, no email
+ * (non-negotiable #4). Ids of our own rows and the server's own error codes only — which is
+ * exactly what is needed to find the failure, and nothing that would matter if a log were shared.
+ */
+const log = (step: string, detail: Record<string, unknown> = {}) => {
+  // eslint-disable-next-line no-console
+  console.log(`[checkout] ${step}`, JSON.stringify(detail));
+};
+
+/**
  * Where the flow is, for the screen to render.
  *
  * `sheet_reported_success` is deliberately not called `paid`. It is the last thing this hook
@@ -99,6 +115,11 @@ export async function runCheckout(
   const setPhase = (p: CheckoutPhase) => onPhase(p);
   {
     setPhase({ kind: 'placing' });
+    log('start', {
+      lines: input.lines.length,
+      expectedTotalPaise: input.expectedTotalPaise,
+      reusingGroup: session.placedGroupId !== null,
+    });
 
     let orderGroupId = session.placedGroupId;
 
@@ -115,8 +136,10 @@ export async function runCheckout(
         });
         orderGroupId = result.orderGroupId;
         session.placedGroupId = orderGroupId;
+        log('createCheckout ok', { orderGroupId, payablePaise: result.payablePaise });
       } catch (error) {
         const next = failure(error, null);
+        log('createCheckout FAILED', { code: next.code ?? null, message: next.message });
         setPhase(next);
         return next;
       }
@@ -126,14 +149,21 @@ export async function runCheckout(
     let providerOrder;
     try {
       providerOrder = await api.createPaymentOrder(orderGroupId);
+      log('createPaymentOrder ok', {
+        providerOrderId: providerOrder.providerOrderId,
+        amountPaise: providerOrder.amountPaise,
+        attemptNo: providerOrder.attemptNo,
+      });
     } catch (error) {
       const next = failure(error, orderGroupId);
+      log('createPaymentOrder FAILED', { code: next.code ?? null, message: next.message });
       setPhase(next);
       return next;
     }
 
     // ------------------------------------------------------------------------- 3. the sheet
     setPhase({ kind: 'opening', orderGroupId });
+    log('opening sheet', { providerOrderId: providerOrder.providerOrderId });
 
     const sheet: RazorpaySheetResult = await openRazorpayCheckout({
       keyId: providerOrder.keyId,
@@ -142,6 +172,8 @@ export async function runCheckout(
       currency: providerOrder.currency,
       ...(input.accountEmail === undefined ? {} : { accountEmail: input.accountEmail }),
     });
+
+    log('sheet closed', { outcome: sheet.outcome });
 
     if (sheet.outcome === 'cancelled') {
       // §10.2. The order stays unpaid and the cart is intact — tapping Pay again is attempt 2
@@ -187,8 +219,11 @@ export function useCheckout() {
   return { phase, start, reset };
 }
 
+/** The failed variant, so callers can read `message` and `code` without re-narrowing. */
+type CheckoutFailure = Extract<CheckoutPhase, { kind: 'failed' }>;
+
 /** `ApiError`'s code, mapped; anything else is the generic sentence. */
-function failure(error: unknown, orderGroupId: string | null): CheckoutPhase {
+function failure(error: unknown, orderGroupId: string | null): CheckoutFailure {
   const code = error instanceof api.ApiError ? error.code : undefined;
   const message = (code && MESSAGES[code]) || GENERIC;
   return {
