@@ -249,7 +249,8 @@ describe('every data screen is connected', () => {
    * Removing this entry is part of closing `E06-34`.
    */
   const KNOWN_UNCONNECTED: Record<string, string> = {
-    OrderDetailScreen: 'E06-34 — Order detail has no read yet',
+    // Emptied when `E06-34` was closed. Kept as a mechanism: the next data screen that arrives
+    // unconnected gets an entry with its task id rather than a deleted assertion.
   };
 
   it.each(NEEDS_DATA)('%s is not routed as a bare presentational component', (screen) => {
