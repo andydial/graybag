@@ -63,16 +63,27 @@ select
   (select id from allergen where code = 'milk')    as milk,
   (select id from allergen where code = 'tree_nut') as tree_nut;
 
-insert into kitchen (id, city_id, name, is_active)
-select kitchen_a, city_id, 'Test kitchen A', true from k_ctx
-union all select kitchen_b, city_id, 'Test kitchen B', true from k_ctx;
+-- The assertions below read `k_ctx` while impersonating an operator, and `authenticated` has no
+-- privilege on a table it did not create. Without this the first assertion fails with
+-- "permission denied for table k_ctx", the transaction aborts, and the rest of the file reports
+-- errors rather than failures — the shape `scripts/test-db.sh` warns about.
+grant select on k_ctx to authenticated;
+
+-- `code` is NOT NULL UNIQUE on `kitchen` and was omitted here, so this file aborted on its
+-- first insert and every assertion after it reported "current transaction is aborted" — the
+-- shape `scripts/test-db.sh` warns about in its header, where a file contributes nothing and
+-- no `not ok` appears. The codes are prefixed `7e57_` like the school codes below, so they
+-- cannot collide with a real kitchen.
+insert into kitchen (id, code, city_id, name, is_active)
+select kitchen_a, '7e57_kitchen_a', city_id, 'Test kitchen A', true from k_ctx
+union all select kitchen_b, '7e57_kitchen_b', city_id, 'Test kitchen B', true from k_ctx;
 
 insert into school (id, code, name, city_id, kitchen_id, institution_type,
                     address_line1, postcode, contact_name, contact_email, contact_phone, onboarded_at)
-select school_a, '7e57_a', 'Test School A', city_id, kitchen_a, 'school',
+select school_a, '7e57_a', 'Test School A', city_id, kitchen_a, 'school'::institution_type,
        'Addr', '160001', 'A Admin', 'a@test.invalid', '+917000000001', now() from k_ctx
 union all
-select school_b, '7e57_b', 'Test School B', city_id, kitchen_b, 'school',
+select school_b, '7e57_b', 'Test School B', city_id, kitchen_b, 'school'::institution_type,
        'Addr', '160002', 'B Admin', 'b@test.invalid', '+917000000002', now() from k_ctx;
 
 -- The guardian and the operator are real `app_user` rows: the policy joins `app_user` and
@@ -87,10 +98,18 @@ union all
 select operator_a, 'operator.7e57@test.invalid',
        (select instance_id from auth.users limit 1), 'authenticated', 'authenticated' from k_ctx;
 
-insert into app_user (id, email, full_name, is_disabled)
-select guardian, 'guardian.7e57@test.invalid', 'Test Guardian', false from k_ctx
+-- `app_user` has `first_name` and `last_name`, never a `full_name` — and `0018`'s trigger on
+-- `auth.users` has already created both rows by the time we get here, so this describes them
+-- rather than creating them. Written as an insert with `full_name` it aborted the transaction,
+-- which is why this file never contributed an assertion.
+insert into app_user (id, email, first_name, last_name, is_disabled)
+select guardian, 'guardian.7e57@test.invalid', 'Test', 'Guardian', false from k_ctx
 union all
-select operator_a, 'operator.7e57@test.invalid', 'Test Operator A', false from k_ctx;
+select operator_a, 'operator.7e57@test.invalid', 'Test', 'Operator A', false from k_ctx
+on conflict (id) do update
+  set email      = excluded.email,
+      first_name = excluded.first_name,
+      last_name  = excluded.last_name;
 
 insert into recipient (id, first_name, last_name, school_id, created_by_user_id)
 select child_a, 'Child', 'A', school_a, guardian from k_ctx
@@ -98,25 +117,50 @@ union all
 select child_b, 'Child', 'B', school_b, guardian from k_ctx;
 
 insert into recipient_allergen (recipient_id, allergen_id, severity, recorded_by_user_id, recorded_at)
-select child_a, milk, 'allergy', guardian, now() from k_ctx
+select child_a, milk, 'allergy'::allergy_severity, guardian, now() from k_ctx
 union all
-select child_b, tree_nut, 'allergy', guardian, now() from k_ctx;
+select child_b, tree_nut, 'allergy'::allergy_severity, guardian, now() from k_ctx;
+
+-- `0040`'s trigger refuses an order status change with no `app.actor_type` set, and `0039`
+-- refuses one that is not in the §4.1 table. An order cannot be INSERTed as `paid`: the only
+-- legal way in is T2 (`(new) -> pending_payment` as `system`) followed by T5
+-- (`pending_payment -> paid` as `system`). Both steps are `system`, which is also the honest
+-- actor for seeded state — no operator and no customer performed it.
+set local app.actor_type = 'system';
 
 -- One paid order each, which is what the policy scopes through.
-insert into "order" (id, order_ref, customer_user_id, recipient_id, school_id, kitchen_id, city_id,
-                     service_date, status, school_name_snapshot, recipient_name_snapshot,
-                     subtotal_paise, tax_cgst_paise, tax_sgst_paise, total_paise)
-select order_a, '7E57-A', guardian, child_a, school_a, kitchen_a, city_id,
-       current_date, 'paid', 'Test School A', 'Child A', 10000, 250, 250, 10500 from k_ctx
+-- `order.order_group_id` is NOT NULL — the group is the checkout and payment unit ([DM-01]),
+-- and an order without one has no path to a payment. One group per order here, which is what a
+-- single-child checkout produces anyway.
+insert into order_group (id, customer_user_id, idempotency_key, city_id)
+select '00000000-7e57-0000-0000-0000000000a7'::uuid, guardian, '7e57-group-a', city_id from k_ctx
 union all
-select order_b, '7E57-B', guardian, child_b, school_b, kitchen_b, city_id,
-       current_date, 'paid', 'Test School B', 'Child B', 10000, 250, 250, 10500 from k_ctx;
+select '00000000-7e57-0000-0000-0000000000b7'::uuid, guardian, '7e57-group-b', city_id from k_ctx;
+
+insert into "order" (id, order_group_id, order_ref, correlation_id, customer_user_id, recipient_id,
+                     school_id, kitchen_id, city_id, service_date, delivery_mode, cutoff_at,
+                     config_snapshot, status, school_name_snapshot, recipient_name_snapshot,
+                     subtotal_paise, tax_cgst_paise, tax_sgst_paise, total_paise)
+select order_a, '00000000-7e57-0000-0000-0000000000a7'::uuid, '7E57-A', gen_random_uuid(),
+       guardian, child_a, school_a, kitchen_a, city_id,
+       current_date, 'classroom'::delivery_mode, now() + interval '1 day',
+       '{}'::jsonb, 'pending_payment'::order_status, 'Test School A', 'Child A', 10000, 250, 250, 10500 from k_ctx
+union all
+select order_b, '00000000-7e57-0000-0000-0000000000b7'::uuid, '7E57-B', gen_random_uuid(),
+       guardian, child_b, school_b, kitchen_b, city_id,
+       current_date, 'classroom'::delivery_mode, now() + interval '1 day',
+       '{}'::jsonb, 'pending_payment'::order_status, 'Test School B', 'Child B', 10000, 250, 250, 10500 from k_ctx;
+
+-- T5. The policy under test scopes through a *paid* order, so the fixture has to reach `paid`
+-- by the route the state machine allows rather than by starting there.
+update "order" set status = 'paid'
+ where id in (select order_a from k_ctx union all select order_b from k_ctx);
 
 -- Operator A is granted at KITCHEN A only. Not platform, not school B.
 insert into permission_grant (user_id, permission_code, scope_type, scope_id, granted_by_user_id, granted_at)
-select operator_a, 'orders.view_pii', 'kitchen', kitchen_a, operator_a, now() from k_ctx
+select operator_a, 'orders.view_pii', 'kitchen'::scope_type, kitchen_a, operator_a, now() from k_ctx
 union all
-select operator_a, 'orders.view', 'kitchen', kitchen_a, operator_a, now() from k_ctx;
+select operator_a, 'orders.view', 'kitchen'::scope_type, kitchen_a, operator_a, now() from k_ctx;
 
 -- =============================================================================
 -- Part 0. The harness itself. Nothing below is trustworthy until this passes.

@@ -1,0 +1,180 @@
+/*
+ * The admin screens — `E10-06` and the school/menu/report surfaces that follow it.
+ *
+ * Loaded alongside `kitchen.css` rather than replacing it: the bar, the buttons, the empty
+ * states and the skeletons are already there and already audited, and a second set of them
+ * would drift. What is here is only what the admin screens add.
+ *
+ * ## Showing inheritance without relying on colour
+ *
+ * `E10-06`'s requirement is that a school-level override is **visibly distinct** from an
+ * inherited default. Three things carry that here, and each works alone:
+ *
+ *   1. the words — "overridden for this school" against "platform default", written out
+ *   2. weight and colour on the value itself
+ *   3. a solid left edge on the row, which survives greyscale and a colour-blind reader
+ *
+ * Colour alone would fail `check:a11y` under WCAG 1.4.1, and it would fail a kitchen tablet
+ * in daylight, which is the harder test of the two.
+ */
+
+.admin__wrap {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: var(--gb-space-4) var(--gb-space-4) var(--gb-space-8);
+}
+
+.admin__intro {
+  color: var(--gb-text-muted);
+  margin: 0 0 var(--gb-space-4);
+  max-width: 46rem;
+}
+
+.admin__picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gb-space-2);
+  align-items: flex-end;
+  margin-bottom: var(--gb-space-4);
+}
+
+.admin__label {
+  display: block;
+  font-size: var(--gb-font-size-sm);
+  font-weight: var(--gb-font-weight-semibold);
+  margin-bottom: var(--gb-space-1);
+}
+
+.admin__select,
+.admin__input {
+  font: inherit;
+  padding: var(--gb-space-2) var(--gb-space-3);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-md);
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-default);
+  min-height: 2.75rem;
+}
+
+.admin__select:focus-visible,
+.admin__input:focus-visible {
+  outline: var(--gb-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ settings */
+
+.setting {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--gb-space-1) var(--gb-space-4);
+  align-items: start;
+  padding: var(--gb-space-3) var(--gb-space-4);
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  /*
+   * The left edge is the part that is not colour. An inherited row gets a transparent edge of
+   * the same width rather than no edge, so the two states line up and the difference reads as
+   * a mark rather than as a shifted layout.
+   */
+  border-left: 4px solid transparent;
+  border-radius: var(--gb-radius-md);
+  margin-bottom: var(--gb-space-2);
+}
+
+.setting--overridden {
+  border-left-color: var(--gb-border-brand);
+  background: var(--gb-bg-surface-brand-flat);
+}
+
+.setting__label {
+  font-weight: var(--gb-font-weight-semibold);
+  margin: 0;
+}
+
+.setting__help {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--gb-text-muted);
+  font-size: var(--gb-font-size-sm);
+  max-width: 44rem;
+}
+
+.setting__value {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--gb-font-weight-semibold);
+}
+
+.setting__source {
+  grid-column: 2;
+  margin: 0;
+  text-align: right;
+  font-size: var(--gb-font-size-sm);
+  color: var(--gb-text-muted);
+}
+
+.setting--overridden .setting__source {
+  color: var(--gb-text-brand);
+  font-weight: var(--gb-font-weight-semibold);
+}
+
+/*
+ * What the value would revert to, shown on an overridden row only.
+ *
+ * Present before "Remove override" is clicked rather than in a dialog after it, because the
+ * answer is not always the platform default — a school override on top of a kitchen override
+ * reverts to the kitchen's value.
+ */
+.setting__reverts {
+  grid-column: 1 / -1;
+  margin: var(--gb-space-1) 0 0;
+  font-size: var(--gb-font-size-sm);
+  color: var(--gb-text-muted);
+}
+
+.setting__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: var(--gb-space-2);
+  margin-top: var(--gb-space-2);
+}
+
+/* ------------------------------------------------------------------ break times */
+
+.breaks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.breaks__item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--gb-space-3);
+  padding: var(--gb-space-3) var(--gb-space-4);
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-md);
+  margin-bottom: var(--gb-space-2);
+}
+
+.breaks__label { font-weight: var(--gb-font-weight-semibold); }
+.breaks__time { color: var(--gb-text-muted); font-variant-numeric: tabular-nums; }
+
+.admin__section {
+  margin-top: var(--gb-space-6);
+}
+
+.admin__section > h2 {
+  font-size: var(--gb-font-size-lg);
+  margin: 0 0 var(--gb-space-1);
+}
+
+.admin__section-note {
+  color: var(--gb-text-muted);
+  font-size: var(--gb-font-size-sm);
+  margin: 0 0 var(--gb-space-3);
+  max-width: 44rem;
+}

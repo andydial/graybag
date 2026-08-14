@@ -78,7 +78,7 @@ begin;
 
 -- The harness's own tables and functions live in their own schema, never in public:
 -- a helper table in public would show up in tests_visible_counts() and in the
--- "public contains exactly these 61 tables" assertion, and a suite that has to make
+-- "public contains exactly these 63 tables" assertion, and a suite that has to make
 -- exceptions for itself is a suite that can be fooled. Rolled back with everything
 -- else at the end.
 create schema tests_tmp;
@@ -603,7 +603,12 @@ insert into tests_tmp.tests_class3 values
   ('policy_document'), ('policy_version'), ('consent_purpose'),
   ('retention_policy'), ('purge_run'), ('idempotency_key'),
   ('audit_log'), ('school_report'), ('notification_delivery'),
-  ('school_menu_version'), ('menu_item_capacity'), ('reason_code');
+  ('school_menu_version'), ('menu_item_capacity'), ('reason_code'),
+  -- `0055`. Class 3 by the §5 Rule 4 definition — writes are service_role only, performed by
+  -- the `enquiry-submit` Edge Function. An enquiry carries a named member of staff at a school
+  -- and their direct line, so `authenticated` holding INSERT on it would let any signed-in
+  -- parent write one, and holding SELECT would let them read every school we are talking to.
+  ('enquiry'), ('enquiry_rate');
 grant all on tests_tmp.tests_class3 to public;
 
 
@@ -1010,9 +1015,11 @@ select set_eq(
     ('purge_run'),('reason_code'),('recipient'),('recipient_allergen'),('refund'),('refund_line'),
     ('retention_policy'),('role_template'),('role_template_permission'),('school'),('school_class'),
     ('school_config'),('school_menu_version'),('school_report'),('user_policy_acceptance'),
-    ('wallet_balance')
+    ('wallet_balance'),
+    -- Added by `0055` (E12-15). Both are class 3 — see tests_class3 above.
+    ('enquiry'),('enquiry_rate')
   $$,
-  '§8: public contains exactly the 61 tables the matrix classifies — a new table must be added to the matrix');
+  '§8: public contains exactly the 63 tables the matrix classifies — a new table must be added to the matrix');
 
 
 -- =============================================================================

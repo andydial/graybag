@@ -58,6 +58,28 @@ export {
   type AdminOrderTotals,
 } from './admin-orders.js';
 
+// Per-school configuration with visible inheritance (`E10-06`). Deliberately does NOT call
+// `resolve_effective_config`: that returns one scalar per setting, and a scalar cannot tell an
+// operator whether somebody chose this school's cutoff or whether it is the default every school
+// gets. Those two facts lead to opposite actions, so the losing values are kept.
+export {
+  AdminConfigError,
+  KITCHEN_CONFIG_COLUMNS,
+  PLATFORM_CONFIG_COLUMNS,
+  SCHOOL_CONFIG_COLUMNS,
+  SETTINGS,
+  fetchSchoolConfig,
+  formatSettingValue,
+  resolveAll,
+  resolveSetting,
+  sourceLabel,
+  type ConfigRows,
+  type ConfigScope,
+  type SchoolConfigView,
+  type SettingResolution,
+  type SettingSpec,
+} from './admin-config.js';
+
 export {
   KITCHEN_ORDER_COLUMNS,
   KitchenPayloadError,
