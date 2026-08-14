@@ -187,3 +187,68 @@ Config prepared; submission blocked on B1/B2.
   already refuses a `rzp_live_` key outside production (`EN2`); the reverse — a `rzp_test_` key
   *inside* production — is now asserted too, because that is the direction that takes real money
   against a test account and it was not covered.
+
+---
+
+## D7 — `company.json` disagreed with the notice I had just published
+
+`docs/legal/company.json` calls itself the single source for entity facts, and after `E20-53` it
+held `grievanceOfficer: { name: "Vivek", email: "vivek@graybag.com" }` and
+`supportEmail: "info@graybag.com"` — two facts the app and the published notice had both moved on
+from.
+
+**Nothing reads either field today**, which is exactly why it was worth fixing now rather than
+later: the obvious way to wire the grievance block properly is to read it from this file, and
+doing so would have silently reintroduced the name Andy asked to remove.
+
+`grievanceOfficer.name` is now `null` and the title names the **office at the company**. The
+`_comment` records that whether DPDP requires a natural person is open (`E20-52`), so a future
+reader does not take the null as settled law.
+
+**`info@graybag.com` still appears in privacy policy §7 and §8 and I did not touch it.** That is
+lawyer-approved baseline text; changing it is a notice version, and it belongs with `E20-01`
+rather than being folded into a config edit.
+
+---
+
+## D8 — `sacCode` is still `null` here and `996331` in `platform_config`
+
+Untouched. This is `E07-25` — a statutory particular with two disagreeing sources, and it is
+Andy's, not a call I may make. **An invented SAC is worse than a token**: a token is visibly
+unfinished and a plausible number is not, and it goes on every invoice.
+
+Flagged in `docs/prod-smoke.md` §1.4 so it is checked before production issues its first invoice
+rather than after.
+
+---
+
+## D9 — What actually shipped, and what did not
+
+**Shipped (PR on `e20-53-policy-v3`):**
+
+| Item | State |
+|---|---|
+| Staging deploy of `0052`–`0054` + `cancel-order`, schema cache | **Done before this run; verified**, incl. a negative control (D1) |
+| `E20-52` grievance block → office + `support@graybag.com` | **Done** (`E20-53`), notice version 3 |
+| Prove the re-acceptance gate fires on a version bump | **Done** (`E20-54`), 15 assertions through real RLS |
+| Force-update gate, server-side | **Done** (`E17-46`), 21 + 8 + 6 assertions |
+| One alert to `support@graybag.com` | **Done** (`E06-39`), 10 assertions |
+| `docs/prod-smoke.md` | **Written**, and marked not-yet-runnable at the top |
+| Version 4.0.0 config | Already correct in `app.json`; Android counter cleared by `E17-34` |
+
+**Not shipped, and why:**
+
+| Item | Why |
+|---|---|
+| Stand up production, apply migrations, set secrets, sync seller identity | **B2** — no production project exists; **B1** — no credentials |
+| Razorpay live: webhook, signature verification against a real delivery, live keys | **B1** |
+| iOS to TestFlight + App Store review; Android to Play internal, both pointing at prod | **B1/B2.** A build pointing at staging would take real money against a test-mode account — worse than a late submission |
+| Partial refunds (`E06-08`) | Out of scope per instruction; already built when the instruction arrived, parked unmerged (D2) |
+
+**The 16 Aug iOS deadline will be missed** unless the production project and `prod.env` appear.
+Everything downstream of them is one command each; nothing else is in the way.
+
+**Test-mode keys in a production build**: already impossible and already asserted —
+`REQUIRED_RAZORPAY_PREFIX.production = 'rzp_live_'` in `packages/shared/src/env.ts`, exercised by
+`env.test.ts` ("refuses a test key in production"). The check runs at build config load, at Edge
+Function boot, and in the unit suite. No new work was needed; I verified rather than assumed.
