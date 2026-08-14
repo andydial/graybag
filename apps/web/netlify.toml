@@ -5,11 +5,13 @@
 # Netlify Functions out for API work (no India region) and `A4` requires writes to go through
 # an Edge Function.
 #
-# `base` is this directory, so Netlify's build runs from `apps/web` inside the monorepo. The
-# workspace install still happens at the repository root, which is why the command reaches up.
+# **The base directory is set on the site, not here.** This file lives in `apps/web`, and Netlify
+# resolves a `base` key relative to the file it is reading — so `base = "apps/web"` here resolved
+# to `apps/web/apps/web` and the deploy failed with "Base directory does not exist". The
+# repository root is kept clean of config (`CLAUDE.md`), so the site's build settings carry the
+# base and the paths below are relative to it.
 
 [build]
-  base    = "apps/web"
   command = "npm run build"
   publish = "dist"
 
@@ -35,6 +37,16 @@
     # Nothing on this site needs a camera, a microphone or a location.
     Permissions-Policy     = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
     X-Frame-Options        = "DENY"
+
+    # **Delete this line at the DNS cutover (`E12-10`), and not before.**
+    #
+    # The back office has to be reachable from a phone, which means deploying — and the
+    # marketing pages ride along on the same build while still waiting on legal review. A
+    # Netlify subdomain is a public URL, so the whole site is held out of search at the header
+    # level as well as in `robots.txt`. Two mechanisms because they fail differently: a header
+    # covers a crawler that ignores `robots.txt`, and `robots.txt` covers one that never
+    # requests the page.
+    X-Robots-Tag           = "noindex, nofollow"
 
 # Fingerprinted build output can be cached forever; nothing else can, because the HTML is how a
 # visitor discovers that anything changed.

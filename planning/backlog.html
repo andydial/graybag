@@ -4282,13 +4282,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Lighthouse performance <strong>and accessibility</strong> budgets enforced in CI, with actual threshold numbers</span>
       </li>
-      <li class="task" data-id="E12-09" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-09" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-09"></button>
         <code class="tid">E12-09</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Deploy to Netlify and prepare the graybag.com DNS cutover plan</span>
+        <span class="ttext">Deploy to Netlify and prepare the graybag.com DNS cutover plan — <strong>deployed 2026-08-14 to <code>https://graybag-web.netlify.app</code>.</strong> <code>/signin</code>, <code>/kitchen</code> and <code>/orders</code> are reachable from any device and verified against staging: signed out, <code>/kitchen</code> redirects to sign-in; signed in it reads 34 orders across 5 classes, and <code>/orders</code> reads 35 across 2 schools. <strong>The marketing pages ride along on the same build and are held out of search</strong>, because they carry claims still waiting on legal review: <code>robots.txt</code> now defaults to <code>Disallow: /</code> unless <code>PUBLIC_SITE_PUBLISHED=true</code>, and <code>X-Robots-Tag: noindex, nofollow</code> is set on every response. Both are removed at the cutover, not before. DNS cutover itself is <code>E12-10</code> and is Andy&#39;s. <strong>Continuous deploy is not connected</strong> — that needs the GitHub repo authorised to Netlify, which only Andy can do; today&#39;s deploy was a manual upload of <code>dist</code></span>
       </li>
       <li class="task" data-id="E12-10" data-seed="0" data-risk="" data-owner="andy" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-10"></button>
