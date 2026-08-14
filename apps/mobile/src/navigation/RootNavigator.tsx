@@ -17,7 +17,6 @@ import {
   HomeScreen,
   MenuScreen,
   OrderDetailScreen,
-  OrdersScreen,
   DeleteAccountScreen,
   PolicyScreen,
   SignInScreen,
@@ -34,6 +33,7 @@ import {
 } from '../components/Screen';
 import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
+import { OrdersTabScreen } from '../orders/OrdersTabScreen';
 import { useCart } from '../cart/CartContext';
 import { OrderPlacedScreen, placedOrder } from '../checkout/OrderPlacedScreen';
 import { PENDING_AFTER_MS, PaymentWaitingScreen } from '../checkout/PaymentWaitingScreen';
@@ -521,7 +521,24 @@ const CartTab = withScreenFrame(CartTabScreen, TAB_SCREEN_EDGES);
 const AccountTab = withScreenFrame(AccountScreen, TAB_SCREEN_EDGES);
 
 const DishDetailStackScreen = withScreenFrame(DishDetailScreen, STACK_SCREEN_EDGES, { back: true });
-const OrdersStackScreen = withScreenFrame(OrdersScreen, STACK_SCREEN_EDGES, { back: true });
+/**
+ * `E06-40`. The connected screen, not the presentational one.
+ *
+ * `OrdersScreen` was routed directly and given no props, so every state it can render — including
+ * the error state — was unreachable and a parent with settled orders saw "no orders yet".
+ */
+const OrdersStackScreen = withScreenFrame(ConnectedOrdersScreen, STACK_SCREEN_EDGES, { back: true });
+
+function ConnectedOrdersScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <OrdersTabScreen
+      onSelectOrder={(orderGroupId) => navigation.navigate('OrderDetail', { orderGroupId })}
+      onSignIn={() => navigation.navigate('SignIn')}
+      onBrowseMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+    />
+  );
+}
 const OrderDetailStackScreen = withScreenFrame(OrderDetailScreen, STACK_SCREEN_EDGES, { back: true });
 const AddChildStackScreen = withScreenFrame(AddChildScreen, STACK_SCREEN_EDGES, { back: true });
 const ChildrenStackScreen = withScreenFrame(ChildrenScreen, STACK_SCREEN_EDGES, { back: true });

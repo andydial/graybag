@@ -23,6 +23,8 @@ export interface RecordedQuery {
   /** Negated filters — `not('published_at', 'is', null)`. The operator is part of the assertion. */
   notFilters: { column: string; operator: string; value: unknown }[];
   orders: { column: string; ascending: boolean }[];
+  /** Row caps asked for, in order. */
+  limits: number[];
 }
 
 export interface FakeTransport {
@@ -55,6 +57,7 @@ export function fakeTransport(
             lteFilters: [],
             notFilters: [],
             orders: [],
+            limits: [],
           };
           queries.push(record);
 
@@ -73,6 +76,12 @@ export function fakeTransport(
             },
             not(column, operator, value) {
               record.notFilters.push({ column, operator, value });
+              return builder;
+            },
+            limit(count) {
+              // Recorded, not ignored: `fetchOrders` caps the list and a test must be able to
+              // assert that the cap is actually asked for.
+              record.limits.push(count);
               return builder;
             },
             order(column, options) {

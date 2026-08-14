@@ -2922,13 +2922,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/38</span>
+          <span class="meter-num">0/40</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 38 tasks</summary>
+        <summary>Context &amp; 40 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -3236,6 +3236,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A settlement that fails on every attempt raises nothing anybody sees.</strong> <code>E06-38</code> was invisible for a day: the only trace was a <code>console.error</code> in a function log Andy read by hand. <code>payments-drain</code> now reports a <code>stuck</code> count and logs at error when verified events have failed twice, which a scheduled caller can act on — but that is a number in a response, not an alert. Real alerting is <code>E06-28</code>/<code>E15-05</code> and is not built. Until it is, nothing tells anyone that money has been captured and not recorded</span>
+      </li>
+      <li class="task" data-id="E06-40" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-40"></button>
+        <code class="tid">E06-40</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A parent&#39;s settled orders never appeared in the app, because nothing ever fetched them.</strong> <code>OrdersScreen</code> was built with loading, ready, error, stale and signed-out states and routed <strong>directly</strong>, with no props — so <code>state</code> was always its default, the error branch was unreachable, and three settled orders with three invoices and a balanced ledger rendered as &quot;no orders yet&quot; while the confirmation email told the parent their invoice was waiting in the app. Diagnosed before touching a query: RLS was correct (the parent&#39;s own JWT reads <code>order</code>, <code>order_group</code>, <code>order_line</code> and <code>invoice</code>, and <code>authorization.test.sql</code> already tests that path as <code>authenticated</code> rather than service_role, so that was never the hole). <code>api.fetchOrders</code> + <code>OrdersTabScreen</code>, and <code>reachability.test.ts</code> now fails when a data screen is routed as a bare presentational component — which found <code>OrderDetailScreen</code> in the same state on the day it was written (<code>E06-34</code>)</span>
+      </li>
+      <li class="task" data-id="E06-41" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-41"></button>
+        <code class="tid">E06-41</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The invoice email was never sent to anybody.</strong> <code>loadInvoice</code> filtered <code>document_type = &#39;invoice&#39;</code>; the enum is <code>(&#39;tax_invoice&#39;, &#39;credit_note&#39;)</code>, so it matched nothing, returned null, and every confirmation silently fell back to a bare text message. The 29 renderer assertions stayed green because they render rather than query. Verified fixed against a real delivered message, not the code: HTML present, invoice number in the subject, CGST/SGST, reverse charge, pickup code. <code>issue_invoice.test.sql</code> now asserts the enum&#39;s exact labels</span>
       </li></ul>
       </details>
     </article>

@@ -97,6 +97,7 @@ export {
 
 // The first write (E05-09). Writes always go through an Edge Function (A4).
 export { createCheckout, type CheckoutLine, type CheckoutResult } from './checkout.js';
+export { fetchOrders, type ApiOrderSummary, type ApiOrderStatus } from './orders.js';
 export {
   createPaymentOrder,
   fetchCheckoutStatus,
