@@ -35,7 +35,7 @@
  * rows and never columns. Only what a list row renders is selected.
  */
 import { currentUser } from './auth.js';
-import { ApiError, runQuery } from './client.js';
+import { ApiError, invokeFunction, runQuery } from './client.js';
 
 export type ApiOrderStatus =
   | 'draft'
@@ -232,5 +232,63 @@ export async function fetchOrderDetail(orderGroupId: string): Promise<ApiOrderDe
       quantity: Number(l.quantity ?? 0),
       unitPricePaise: Number(l.unit_price_paise ?? 0),
     })),
+  };
+}
+
+/* ---------------------------------------------------------------------------- cancellation */
+
+export interface ApiCancelResult {
+  orderGroupId: string;
+  /** Always `'cancelled'` on success — the server refuses rather than returning another state. */
+  status: string;
+  ordersCancelled: number;
+  /** `null` only for a zero-value group, which checkout cannot produce. */
+  refundId: string | null;
+  refundAmountPaise: number;
+  /**
+   * `'pending'` — and it stays pending until a human issues the money in the Razorpay
+   * dashboard and `E06-46` sees it come back. **Never render this as "refunded".**
+   */
+  refundStatus: 'none' | 'pending';
+}
+
+/**
+ * Cancel this parent's own order before the cancellation cutoff. `E06-45`, T10.
+ *
+ * **A write, so it goes through an Edge Function** — non-negotiable #1, `A4`. The lint rule
+ * enforces it; the reason is that `cancel_order` runs as `service_role` and the caller's
+ * identity has to be proved from a JWT before it is trusted, which cannot happen on a device.
+ *
+ * ## The screen's answer is advisory; this one is authoritative
+ *
+ * `cancelAvailability` decides whether to *offer* the button, from a device clock and a
+ * server-computed deadline. This call decides whether it *happens*, from Postgres's clock and
+ * the order's own snapshot. They can disagree by exactly the seconds around the boundary, which
+ * is why the refusals carry the same sentences the screen would have shown — see `REFUSALS` in
+ * `supabase/functions/cancel-order/index.ts`. A parent who taps at the wrong second gets the
+ * explanation they would have got a moment later, not a different one that reads like a bug.
+ *
+ * Throws `ApiError` with the server's `code` on a 409, so the caller can tell "closed" from
+ * "already cancelled" without parsing prose.
+ */
+export async function cancelOrder(orderGroupId: string): Promise<ApiCancelResult> {
+  const user = await currentUser();
+  // Not a silent no-op: a signed-out caller asking to cancel is a bug in the caller, and the
+  // Edge Function would answer 401 anyway. Failing here says so without a round trip.
+  if (user === null) throw new ApiError('Not signed in.', 'not_signed_in');
+
+  const data = await invokeFunction<Record<string, unknown>>('cancel-order', {
+    order_group_id: orderGroupId,
+    // Deliberately no customer id. The server takes it from the verified JWT and ignores a
+    // body field named for it — sending one would imply it is trusted.
+  });
+
+  return {
+    orderGroupId: String(data.order_group_id ?? orderGroupId),
+    status: String(data.status ?? ''),
+    ordersCancelled: Number(data.orders_cancelled ?? 0),
+    refundId: (data.refund_id as string | null) ?? null,
+    refundAmountPaise: Number(data.refund_amount_paise ?? 0),
+    refundStatus: data.refund_status === 'pending' ? 'pending' : 'none',
   };
 }

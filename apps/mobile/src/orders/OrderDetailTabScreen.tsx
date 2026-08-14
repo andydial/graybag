@@ -10,8 +10,10 @@
  * different facts and stay different — `null` is the first, a throw is the second.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { api, money } from '@graybag/shared';
+import { Text, StyleSheet } from 'react-native';
+import { api, design, money } from '@graybag/shared';
 
+import { Button, Sheet } from '../components';
 import { OrderDetailScreen, type OrderDetail } from './OrderDetailScreen';
 
 export function OrderDetailTabScreen({
@@ -25,6 +27,15 @@ export function OrderDetailTabScreen({
 }) {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [confirming, setConfirming] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  /**
+   * The server's refusal, in the server's words. **Not a generic "something went wrong"** —
+   * `cancel-order` returns the same sentence the screen would have shown for that condition,
+   * and the whole point of carrying it is that a parent who taps at the wrong second reads an
+   * explanation rather than an error.
+   */
+  const [refusal, setRefusal] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setState('loading');
@@ -41,16 +52,149 @@ export function OrderDetailTabScreen({
     void load();
   }, [load]);
 
+  /**
+   * `E06-45`. Confirm, then cancel, then **re-read**.
+   *
+   * The refetch is not a nicety. `cancel_order` also writes a refund row, and the screen shows
+   * a refund notice keyed on it; reconstructing the new state on the client from the response
+   * would be a second implementation of the status derivation that `0044` deliberately put in
+   * one place. Re-reading costs one round trip on an action a parent takes once.
+   */
+  const cancel = useCallback(async () => {
+    setCancelling(true);
+    setRefusal(null);
+    try {
+      await api.cancelOrder(orderGroupId);
+      setConfirming(false);
+      await load();
+    } catch (error) {
+      setConfirming(false);
+      // `ApiError.message` is the server's sentence for a 409. Anything else — an outage, a
+      // 500 — has no sentence worth showing, so it falls back to one that does not blame the
+      // parent or claim to know what happened.
+      setRefusal(
+        error instanceof Error && error.message
+          ? error.message
+          : 'We could not cancel this order. Please try again.',
+      );
+    } finally {
+      setCancelling(false);
+    }
+  }, [orderGroupId, load]);
+
   return (
-    <OrderDetailScreen
-      order={order}
-      state={state}
-      onRetry={() => void load()}
-      {...(onBackToMenu ? { onBackToMenu } : {})}
-      {...(onContactSupport ? { onContactSupport } : {})}
-    />
+    <>
+      <OrderDetailScreen
+        order={order}
+        state={state}
+        cancelling={cancelling}
+        // The button opens the confirmation; it does not cancel. Cancelling is irreversible
+        // for the parent — the kitchen's cutoff will have passed by the time they change
+        // their mind — so it takes a deliberate second press (`M07`, and the same reasoning
+        // as `AllergenConfirmation`).
+        onCancel={() => setConfirming(true)}
+        onRetry={() => void load()}
+        {...(onBackToMenu ? { onBackToMenu } : {})}
+        {...(onContactSupport ? { onContactSupport } : {})}
+      />
+
+      {refusal === null ? null : (
+        <Text
+          style={styles.refusal}
+          accessibilityLiveRegion="polite"
+          testID="order-detail-cancel-refusal"
+        >
+          {refusal}
+        </Text>
+      )}
+
+      <CancelConfirmation
+        visible={confirming}
+        cancelling={cancelling}
+        amountPaise={order?.totals.totalPaise ?? 0}
+        onDismiss={() => setConfirming(false)}
+        onConfirm={() => void cancel()}
+      />
+    </>
   );
 }
+
+/**
+ * The second press. `E06-45`.
+ *
+ * **Dismissing is the safe outcome**, exactly as in `AllergenConfirmation`: the scrim, the back
+ * gesture and "Keep my order" all do the same nothing, and cancelling needs a deliberate press
+ * on a control that says what happens to the money.
+ *
+ * It states the refund **amount** and that it is a request, and it deliberately **does not state
+ * a date**. The disbursement is manual in the Razorpay dashboard today, and `E06-33` is the open
+ * task for a figure somebody has actually confirmed — the invented "5–7 working days" it exists
+ * to replace is a sentence a parent plans around.
+ */
+export function CancelConfirmation({
+  visible,
+  cancelling,
+  amountPaise,
+  onDismiss,
+  onConfirm,
+  testID = 'order-detail-cancel-confirm',
+}: {
+  visible: boolean;
+  cancelling: boolean;
+  amountPaise: number;
+  onDismiss: () => void;
+  onConfirm: () => void;
+  testID?: string;
+}) {
+  return (
+    <Sheet visible={visible} onDismiss={onDismiss} title="Cancel this order?" testID={testID}>
+      <Text style={styles.body} testID={`${testID}-body`}>
+        {`We will cancel this order and start a refund of ${money.formatPaise(amountPaise)}. ` +
+          'This cannot be undone — if you change your mind you will need to order again, and ' +
+          'the kitchen may have closed for that day by then.'}
+      </Text>
+      <Text style={styles.note} testID={`${testID}-note`}>
+        We will email you when the refund has been sent.
+      </Text>
+      <Button
+        label="Cancel my order"
+        onPress={onConfirm}
+        loading={cancelling}
+        testID={`${testID}-confirm`}
+      />
+      <Button
+        label="Keep my order"
+        variant="secondary"
+        onPress={onDismiss}
+        testID={`${testID}-dismiss`}
+      />
+    </Sheet>
+  );
+}
+
+const { text, scale, space, layout } = design;
+
+const styles = StyleSheet.create({
+  body: {
+    color: text.primary,
+    fontSize: scale.body.size,
+    lineHeight: scale.body.lineHeight,
+    marginBottom: space[2],
+  },
+  note: {
+    color: text.secondary,
+    fontSize: scale.caption.size,
+    lineHeight: scale.caption.lineHeight,
+    marginBottom: space[3],
+  },
+  refusal: {
+    color: text.secondary,
+    fontSize: scale.caption.size,
+    lineHeight: scale.caption.lineHeight,
+    paddingHorizontal: layout.gutter,
+    paddingBottom: space[3],
+  },
+});
 
 /**
  * The server's shape into the screen's.

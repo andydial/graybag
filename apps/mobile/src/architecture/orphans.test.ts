@@ -383,7 +383,10 @@ const KNOWN_ORPHANS: Record<string, string> = {
   // Ordering paths with both halves built.
   'prop:DishDetailScreen.onChangeTarget': 'E05-40 — switch who a dish is for, from the sheet',
   'prop:DishDetailScreen.ordering': 'E05-40 — same sheet',
-  'prop:OrderDetailScreen.cancelling': 'E06-34 — order detail is unreachable until checkout ships',
+  // `prop:OrderDetailScreen.cancelling` and `.onCancel` left this list in `E06-45`:
+  // `OrderDetailTabScreen` now drives both. An allowlist entry that has quietly become false
+  // is the same two-contradictory-records problem as a stale comment, and it is worse here
+  // because this file's whole job is to be the record.
   'prop:OrderDetailScreen.imageUri': 'E06-34 — same screen',
   'prop:OrderDetailScreen.onContactSupport': 'E06-34 — same screen',
 
@@ -652,6 +655,9 @@ describe('nothing is half-wired', () => {
     // 15 -> 14: `E20-37` gave the Delete my account row a screen.
     // 14 -> 13: `E20-38` gave the three policy rows a document to open.
     // 13 -> 12: `E04-20` wired "my school is not listed".
-    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(12);
+    // 12 -> 11: `E06-45` wired cancelling — `OrderDetailTabScreen` drives `cancelling` and
+    // `onCancel`, so the parent can actually cancel an order rather than press a control that
+    // was disabled for want of a handler.
+    expect(Object.keys(KNOWN_ORPHANS)).toHaveLength(11);
   });
 });
