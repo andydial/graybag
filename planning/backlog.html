@@ -2922,13 +2922,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/36</span>
+          <span class="meter-num">0/38</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 36 tasks</summary>
+        <summary>Context &amp; 38 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -3220,6 +3220,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Nothing consumes the webhook queue.</strong> <code>payments-webhook</code> verifies an event and records it with <code>processing_status = &#39;pending&#39;</code>, and no function ever reads those rows — so <code>settle_payment</code> is reached only by <code>checkout-status</code> when the app polls (<code>E06-16</code>). A parent who pays and never reopens the app has a captured payment and an unsettled order until they do. Found while wiring <code>E06-16</code> on 2026-08-14; the design (§3.6) always called for the webhook to be the primary route and polling the recovery one, and today it is the other way round. <strong>Built 2026-08-14</strong>: <code>_shared/settle-from-events.ts</code>, called inline by the webhook after it records and by a new <code>payments-drain</code> endpoint for retries and cron. It never trusts the event body — §3.6 requires fetching the payment from Razorpay before settling — and honours <code>0046</code>&#39;s <code>payment_not_found</code> hint as terminal rather than retrying an order this system never created (§10.9). Proven on the real queue: 8 events considered, 1 genuinely settled</span>
+      </li>
+      <li class="task" data-id="E06-38" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-38"></button>
+        <code class="tid">E06-38</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Every settlement through an Edge Function failed with <code>21000: DELETE requires a WHERE clause</code>.</strong> <code>post_ledger_transaction</code> cleared its temp table with an unqualified <code>delete from tmp_posting;</code>, and hosted Supabase loads <code>safeupdate</code> while a local <code>supabase start</code> does not — so pgTAP was green throughout and every real payment captured without becoming an order. <strong>The second occurrence of this exact class</strong>; <code>E05-21</code>/<code>0019</code> was the first, and <code>0019</code> had already named it: a check that exists only in the deployed environment. Introduced in <code>0038</code> on 2026-08-12, not <code>0050</code>. Fixed by <code>0051</code> with <code>where true</code>, and by <code>scripts/check-unqualified-writes.mjs</code> in the smoke test — the real fix, because a pgTAP test runs where the guard is absent and cannot fail</span>
+      </li>
+      <li class="task" data-id="E06-39" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-39"></button>
+        <code class="tid">E06-39</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A settlement that fails on every attempt raises nothing anybody sees.</strong> <code>E06-38</code> was invisible for a day: the only trace was a <code>console.error</code> in a function log Andy read by hand. <code>payments-drain</code> now reports a <code>stuck</code> count and logs at error when verified events have failed twice, which a scheduled caller can act on — but that is a number in a response, not an alert. Real alerting is <code>E06-28</code>/<code>E15-05</code> and is not built. Until it is, nothing tells anyone that money has been captured and not recorded</span>
       </li></ul>
       </details>
     </article>
