@@ -16,10 +16,15 @@ describe('one source for the company identity', () => {
   });
 
   it('leaves an unanswered token exactly as it is', () => {
-    // Never an empty string. A blank where a GSTIN belongs reads as a formatting bug; the token
+    // Never an empty string. A blank where a value belongs reads as a formatting bug; the token
     // reads as an unanswered question, and `assertPublishable` refuses to publish it.
-    const before = 'GSTIN «GRAYBAG-GSTIN-PENDING-E00-10» filed at «GRAYBAG-REGISTERED-ADDRESS-PENDING-E20-01».';
-    expect(resolveTokens(before)).toBe(before);
+    //
+    // Written against whatever is *currently* unanswered rather than a hardcoded token — an
+    // earlier version pinned the GSTIN and broke the day Andy supplied it, which tested the data
+    // rather than the behaviour.
+    const [stillOpen] = unresolvedTokens();
+    expect(stillOpen, 'nothing is unanswered — see the note below').toBeDefined();
+    expect(resolveTokens(`before ${stillOpen} after`)).toBe(`before ${stillOpen} after`);
   });
 
   it('substitutes an answered one', () => {
@@ -44,10 +49,19 @@ describe('one source for the company identity', () => {
     expect(COMPANY.supportEmail).not.toMatch(/no-?reply/i);
   });
 
-  it('still knows what it does not know', () => {
-    // If this list empties, every published document is answerable — and if something is quietly
-    // defaulted to `''` one day, this test is what notices.
-    expect(unresolvedTokens()).toContain('«GRAYBAG-GSTIN-PENDING-E00-10»');
-    expect(unresolvedTokens()).toContain('«GRAYBAG-REGISTERED-ADDRESS-PENDING-E20-01»');
+  it('never answers a question with an empty string', () => {
+    // The failure this guards against is a value being "filled in" as `''` — which resolves the
+    // token, passes the build, and publishes a blank where a GSTIN belongs. Unknown must stay
+    // `null`, which stays a token, which fails the build.
+    for (const [token, value] of Object.entries(RESOLVED)) {
+      expect(value, `${token} is an empty string — use null for unknown`).not.toBe('');
+    }
+  });
+
+  it('has answered the entity facts Andy supplied on 2026-08-14', () => {
+    // These three are what `E12-25` was about: one answer, two documents.
+    expect(COMPANY.legalName).toBe('GRAYBAG SOLUTIONS PRIVATE LIMITED');
+    expect(COMPANY.gstin).toBe('03AAMCG3438M1ZD');
+    expect(COMPANY.registeredAddress).toContain('Chandigarh');
   });
 });

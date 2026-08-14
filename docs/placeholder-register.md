@@ -16,7 +16,9 @@ needs**, and **who can supply it**.
 > policy documents and this register. The documents keep their `«…»` tokens and are substituted
 > at render time, so the same fact cannot differ between the terms and an invoice.
 >
-> **5 tokens block a build, down from 10. 8 more on surfaces not yet built, down from 12.**
+> **Updated again 2026-08-14** with the final entity facts, and both liability clauses settled.
+> **1 token blocks a build, down from 10** — the accountant's, which Andy has said not to block
+> on. 6 more on surfaces not yet built.
 
 A `«…-PENDING-…»` token is the repo-wide convention for a value nobody has committed to yet. A
 production build containing one fails, by design — `apps/web/src/lib/policy.ts`'s
@@ -60,47 +62,60 @@ So the whole blocking set is **`docs/terms.md`**, which is the one genuinely new
 
 | Token | Value |
 |---|---|
-| `«GRAYBAG-LEGAL-ENTITY-NAME-PENDING-E20-01»` | Graybag Pty Ltd |
+| `«GRAYBAG-LEGAL-ENTITY-NAME-PENDING-E20-01»` | GRAYBAG SOLUTIONS PRIVATE LIMITED |
+| `«GRAYBAG-GSTIN-PENDING-E00-10»` | 03AAMCG3438M1ZD |
+| `«GRAYBAG-REGISTERED-ADDRESS-PENDING-E20-01»` | SCO-461-462, Top Floor, Sector 35-C, Chandigarh, 160022 |
 | `«GRAYBAG-SUPPORT-EMAIL-PENDING-E20-01»` | info@graybag.com |
 | `«JURISDICTION-CITY-PENDING-E20-01»` | SAS Nagar (Mohali), India |
 | `«GRIEVANCE-OFFICER-EMAIL-PENDING-E20-21»` | vivek@graybag.com — copied from privacy §7A |
 | `«TERMS-EFFECTIVE-DATE-PENDING-E20-12»` | 2026-08-14 |
 
-**`Graybag Pty Ltd` is worth one look before it reaches a tax document.** `Pty Ltd` is an
-Australian suffix and everything around it is Indian — a GSTIN, SAS Nagar jurisdiction, DPDP, 5%
-GST as CGST + SGST. An Australian entity can hold an Indian GST registration through a branch, so
-it is not necessarily wrong; it is the combination most likely to be a slip, and an invoice is the
-worst place to find out.
+> ### Open question for Andy — the GSTIN and the address name different states
+>
+> **Recorded exactly as supplied, and deliberately not resolved.**
+>
+> - The GSTIN `03AAMCG3438M1ZD` begins **03**, which is the GST state code for **Punjab**.
+> - The registered address is **Chandigarh**, whose GST state code is **04**.
+>
+> One of the two is not what it appears to be, or the company is registered in Punjab while its
+> registered office is in Chandigarh — which happens, and is not itself a problem. It matters
+> because both appear on a tax invoice and because place of supply is derived from state.
+>
+> **Place-of-supply logic stays keyed off the GSTIN**, unchanged. Nothing has been guessed. The
+> earlier note about `Pty Ltd` is resolved: the final name is
+> `GRAYBAG SOLUTIONS PRIVATE LIMITED`, an Indian private limited company, and the Australian
+> suffix was a first-pass value. Tracked as `E12-29`.
 
-### Still outstanding (5)
+### Still outstanding (1)
 
 | Token | Who | Note |
 |---|---|---|
-| `«GRAYBAG-REGISTERED-ADDRESS-PENDING-E20-01»` | Andy | Checking the filed details rather than typing from memory |
-| `«GRAYBAG-GSTIN-PENDING-E00-10»` | Andy | Same |
-| `«SIGNATURE-TREATMENT-PENDING-E00-10»` | Accountant | On the accountant list, not blocking |
-| `«ALLERGY-LIABILITY-WORDING-PENDING-E20-01»` | Andy — **decision** | See below |
-| `«LIABILITY-CAP-WORDING-PENDING-E20-01»` | Andy — **decision** | See below |
+| `«SIGNATURE-TREATMENT-PENDING-E00-10»` | Accountant | On the accountant list. Andy: do not block on it |
 
-### The two liability clauses: there is nothing to lift
+### The two liability clauses — settled 2026-08-14
 
-Checked 2026-08-14. **`graybag.com` serves a placeholder page** — no terms, no privacy, no links
-of any kind. And `docs/legal/` holds a baseline for the privacy policy and the refund policy only:
-both were supplied by Andy on 2026-08-11 as the lawyer-drafted texts published for the legacy
-Bubble application. **There is no terms baseline, because the legacy application never published
-terms.**
+There was nothing to lift: `graybag.com` serves a placeholder page, and `docs/legal/` holds
+baselines for the privacy and refund policies only. The legacy application never published terms.
+Andy split the two rather than treating them as one problem.
 
-So the reuse that makes the other two documents fine does not exist here. The options are a real
-choice rather than an oversight:
+**The liability cap: published without one.** The cap sentence is gone, and no token replaced it —
+the section now says only that nothing in the Terms limits liability which cannot be limited by
+law. That is a deliberate position, not an omission: our liability is whatever the law gives,
+rather than a number we asked for and never had reviewed.
 
-1. **Have the two clauses reviewed** (`E20-25`, already `risk:high`). Slowest, and the only one
-   that ends with language somebody has stood behind.
-2. **Publish terms without a liability cap.** Lawful, and it means the cap is whatever the law
-   gives us rather than what we asked for.
-3. **Adapt the clauses from the privacy policy's approved register.** Cheapest, and the weakest:
-   the privacy policy's lawyer approved a privacy notice, not an allergy disclaimer.
+**The allergy clause: rewritten as a description of the system, not a disclaimer.** Andy: *"what
+the parent enters, where it is stored, who sees it in the kitchen, and what the system does not
+do. No warranty language, no disclaimers dressed as facts."*
 
-Andy's call. The rest of the document is publishable without it.
+Every statement in it was checked against the code first, and two are worth knowing because they
+are not what a reader would assume:
+
+- **A dish nobody has described warns every time, for every child** — `allergenWarning` returns
+  `{ warn: true, reason: 'unknown' }` rather than treating silence as safety.
+- **The kitchen's screen does not show a child's allergies.** `KITCHEN_ORDER_COLUMNS` selects no
+  allergen field. Staff see the dish, the quantity, the child's name and the parent's request. The
+  clause says so plainly rather than implying otherwise, and the gap itself is raised as
+  `E09-33`.
 
 ---
 

@@ -8,6 +8,7 @@
     "rendered document and a production build refuses to publish it."
   ],
 <<<<<<< HEAD
+<<<<<<< HEAD
   "legalName": "GRAYBAG SOLUTIONS PRIVATE LIMITED",
   "registeredAddress": "SCO-461-462, Top Floor, Sector 35-C, Chandigarh, 160022",
   "gstin": "03AAMCG3438M1ZD",
@@ -17,14 +18,22 @@
   "registeredAddress": null,
   "gstin": null,
 >>>>>>> dd65115 (E12-25: one source for the company identity, and Andy's five values)
+=======
+  "legalName": "GRAYBAG SOLUTIONS PRIVATE LIMITED",
+  "registeredAddress": "SCO-461-462, Top Floor, Sector 35-C, Chandigarh, 160022",
+  "gstin": "03AAMCG3438M1ZD",
+>>>>>>> 8517a30 (E12-27: the entity facts, the liability cap removed, the allergy clause rewritten)
   "sacCode": null,
   "signatureTreatment": null,
   "supportEmail": "info@graybag.com",
   "jurisdictionCity": "SAS Nagar (Mohali), India",
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> dd65115 (E12-25: one source for the company identity, and Andy's five values)
+=======
+>>>>>>> 8517a30 (E12-27: the entity facts, the liability cap removed, the allergy clause rewritten)
   "grievanceOfficer": {
     "name": "Vivek",
     "title": "Grievance Officer, GrayBag",
@@ -32,9 +41,13 @@
     "address": null
   },
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> dd65115 (E12-25: one source for the company identity, and Andy's five values)
+=======
+>>>>>>> 8517a30 (E12-27: the entity facts, the liability cap removed, the allergy clause rewritten)
   "_effectiveDates": "Fixed, never computed. An effective date that moves with each build is not an effective date.",
-  "termsEffectiveDate": "2026-08-14"
+  "termsEffectiveDate": "2026-08-14",
+  "_stateCodeDiscrepancy": "OPEN QUESTION FOR ANDY, deliberately unresolved. The GSTIN begins 03 (Punjab); the registered address is Chandigarh, whose state code is 04. Both are recorded exactly as supplied. Place-of-supply logic stays keyed off the GSTIN — see docs/placeholder-register.md and E12-29. Do not guess which is correct."
 }

@@ -3700,13 +3700,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/32</span>
+          <span class="meter-num">0/33</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 32 tasks</summary>
+        <summary>Context &amp; 33 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3965,6 +3965,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>No Edge Function handled a CORS preflight</strong>, so every one of them was correct for the app and unreachable from any web page. React Native&#39;s <code>fetch</code> sends no <code>OPTIONS</code>, which is why nothing failed and nothing was logged for months. A <code>POST</code> with <code>content-type: application/json</code> and an <code>Authorization</code> header is not a simple request, so a browser sends <code>OPTIONS</code> first — and <code>OPTIONS</code> was answered <code>405</code>. Found by the web thread on the back office&#39;s first real click. Fixed once in <code>_shared/cors.ts</code> for all six browser-callable functions rather than six times as six bugs; <code>payments-webhook</code> is deliberately excluded and the exclusion is asserted, because Razorpay calls it server to server and advertising a preflight would describe a browser surface that should not exist. 20 assertions, including one that fails when a seventh function appears unclassified</span>
+      </li>
+      <li class="task" data-id="E09-33" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-33"></button>
+        <code class="tid">E09-33</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The kitchen screen shows no allergy information at all.</strong> <code>KITCHEN_ORDER_COLUMNS</code> selects no allergen field, so staff handing a bag to a named child see the dish, the quantity, the name and the parent&#39;s request — and nothing about that child&#39;s recorded allergies. Surfaced while writing the terms&#39; allergy clause as a factual description (<code>E12-27</code>), which now states this plainly rather than implying otherwise. Whether the kitchen *should* see it is a real decision, not an obvious yes: allergy data is tier S about a child, the kitchen does not choose the food, and <code>data-model.md</code> §13.3 deliberately keeps tier A out of the kitchen. But a parent reading that clause may reasonably expect otherwise, and the answer should be deliberate</span>
       </li></ul>
       </details>
     </article>
@@ -4222,13 +4230,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/28</span>
+          <span class="meter-num">0/29</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 28 tasks</summary>
+        <summary>Context &amp; 29 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4408,21 +4416,29 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>docs/gst-invoicing.md</code>&#39;s placeholders must block a build once <code>E07</code> renders invoices from it.</strong> An invoice is a published document and its five tokens include the GSTIN and the SAC code. Today nothing fails, only because the invoice path is not wired to the file yet — which is the weakest possible reason for a guard not to exist</span>
       </li>
-      <li class="task" data-id="E12-27" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+      <li class="task" data-id="E12-27" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-27"></button>
         <code class="tid">E12-27</code>
         
-        <span class="badge r-you">you</span>
+        
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Decide the two liability clauses in <code>docs/terms.md</code>.</strong> There is nothing to lift: <code>graybag.com</code> serves a placeholder page with no terms, no privacy and no links, and <code>docs/legal/</code> holds baselines for the privacy and refund policies only — <strong>the legacy application never published terms.</strong> So the reuse that makes the other two documents fine does not exist here. Three options, all defensible: have the two clauses reviewed (<code>E20-25</code>); publish terms with no liability cap, so the cap is whatever the law gives rather than what we asked for; or adapt from the privacy policy&#39;s approved text, which is cheapest and weakest because that lawyer approved a privacy notice, not an allergy disclaimer. Everything else in the document is publishable without this</span>
+        <span class="ttext"><strong>The two liability clauses, settled 2026-08-14.</strong> There was nothing to lift — <code>graybag.com</code> is a placeholder page and the legacy app never published terms. Andy split them rather than treating them as one problem. <strong>Liability cap: published without one</strong>, no value and no token; the section now says only that nothing limits liability which cannot be limited by law, which is a position rather than an omission. <strong>Allergy clause: rewritten as a description of how the system actually works</strong> — what the parent enters, where it is stored, what the app compares, what the kitchen sees, and what the system does not do — with no warranty language. Every statement checked against the code first</span>
       </li>
-      <li class="task" data-id="E12-28" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E12-28" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-28"></button>
         <code class="tid">E12-28</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Confirm <code>Graybag Pty Ltd</code> before it reaches a tax document.</strong> <code>Pty Ltd</code> is an Australian suffix and everything around it is Indian — a GSTIN, SAS Nagar jurisdiction, DPDP, 5% GST as CGST + SGST. An Australian entity can hold an Indian GST registration through a branch, so it is not necessarily wrong; it is the combination most likely to be a slip, and an invoice is the worst place to find out. One check against the incorporation certificate settles it</span>
+        <span class="ttext"><strong><code>Graybag Pty Ltd</code> was a first-pass value and is resolved.</strong> The final name is <code>GRAYBAG SOLUTIONS PRIVATE LIMITED</code>, an Indian private limited company, so the Australian-suffix concern is closed</span>
+      </li>
+      <li class="task" data-id="E12-29" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-29"></button>
+        <code class="tid">E12-29</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:medium) <strong>The GSTIN and the registered address name different states.</strong> <code>03AAMCG3438M1ZD</code> begins <strong>03</strong> — Punjab. The registered address is <strong>Chandigarh</strong>, state code <strong>04</strong>. Recorded exactly as supplied and deliberately not resolved (Andy, 2026-08-14). It may be legitimate — a company can be GST-registered in one state with its registered office in another — but both appear on a tax invoice and place of supply is derived from state. <strong>Place-of-supply logic stays keyed off the GSTIN, unchanged. Nothing guessed.</strong> One check against the GST registration certificate settles it</span>
       </li>
       <li class="task" data-id="E12-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-16"></button>

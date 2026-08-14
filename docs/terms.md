@@ -118,17 +118,47 @@ The full rules — who can cancel when, where the money goes, and how long it ta
 
 ---
 
-## 8. Allergies and food information — important
+## 8. Allergies and food information
 
-- The app can show an **allergy warning** when you add a dish, but **only if you have told us your
-  child's allergies** and turned that feature on. If you have not, there is **no warning**, and the
-  app says so.
-- Allergen and ingredient information comes from the kitchens. We show it in good faith, but **food is
-  prepared in kitchens that handle many ingredients, and cross-contamination is possible.** An allergy
-  warning is an aid, not a guarantee of safety.
-- **If a child has a serious or life-threatening allergy, do not rely solely on the app.** You are
-  responsible for deciding what is safe for your child to eat. «ALLERGY-LIABILITY-WORDING-PENDING-E20-01»
-  — this clause in particular must be reviewed by a lawyer, because it concerns health and safety.
+This section describes what the system does, so you can judge what to rely on. It is a
+description, not a promise.
+
+**What you enter.** Allergies belong to a child, not to an order. On a child's profile you can
+record allergens from a list, each with a severity, and add a free-text note. You enter this once
+and it applies to every order for that child.
+
+**Where it is stored.** On that child's record. It is treated as sensitive personal data about a
+child under the Digital Personal Data Protection Act, 2023 — see our Privacy Policy.
+
+**What the app does with it.** When you add a dish for a child, the app compares the allergens the
+kitchen has declared for that dish against the ones recorded for that child:
+
+- If they overlap, the app stops and asks you to confirm a second time, naming the allergen, the
+  dish and the child.
+- If nobody has described the dish's allergens, the app says "not provided" on the dish, every
+  time, for every child. It does not treat an undescribed dish as safe.
+- If you have not recorded any allergens for that child, there is nothing to compare and no
+  warning appears.
+
+**Where allergen information comes from.** The kitchens supply it. We publish what they give us.
+We do not test food, inspect kitchens, or verify the declarations independently.
+
+**The per-dish note is not an allergy record.** The note you can attach to a dish when ordering
+goes to the kitchen as a request — "less spicy", "cut in half". It is not read as allergy
+information, and the app will direct you to the child's profile if you type allergy language into
+it.
+
+**What the system does not do.**
+
+- It does not prevent you from ordering a dish after you confirm the warning.
+- It does not show a child's allergies to kitchen staff. The kitchen's screen shows the dish, the
+  quantity, the child's name and any request you attached — not the child's allergy record.
+- It does not check the food as actually prepared. Kitchens handle many ingredients, and a dish
+  can pick up traces of one that was not declared.
+- It does not know about an allergy you have not recorded.
+
+**If a child has a serious or life-threatening allergy, do not rely on this app alone.** The
+warning is a comparison between two lists we were given. It is not an inspection of the food.
 
 ---
 
@@ -144,10 +174,8 @@ anything unlawful. We may suspend or close an account that breaks these Terms.
 
 - We aim to deliver the right meal to the right child on the right day. If we fail to deliver an order
   you paid for, and it is our or the kitchen's fault, you are entitled to a **refund of that order**.
-- To the extent the law allows, our liability for any order is **limited to the amount you paid for
-  that order**, and we are not liable for indirect or consequential loss. **Nothing in these Terms
-  limits liability that cannot be limited by law** — in particular, liability for death or personal
-  injury caused by negligence. «LIABILITY-CAP-WORDING-PENDING-E20-01» must be confirmed by a lawyer.
+- **Nothing in these Terms limits liability that cannot be limited by law** — in particular,
+  liability for death or personal injury caused by negligence.
 - The service is provided on a best-efforts basis. Menus, prices and availability change.
 
 ---
