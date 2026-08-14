@@ -1,14 +1,14 @@
 ---
 title: Privacy Policy — GrayBag
-status: PUBLISHED. Notice version 2 — the lawyer-approved baseline plus three tracked changes.
+status: PUBLISHED. Notice version 3 — the lawyer-approved baseline plus four tracked changes.
 baseline: docs/legal/privacy-policy-baseline.md (verbatim, unedited)
-notice_version: 2
+notice_version: 3
 covers: E20-06, E20-38
 ---
 
 # GrayBag Privacy Policy
 
-**Notice version 2** · Effective 2026-08-11
+**Notice version 3** · Effective 2026-08-15
 
 > **What this document is.** Sections 1–8 are the privacy policy drafted by GrayBag's Indian
 > lawyer and published for the legacy application, held verbatim in
@@ -22,6 +22,18 @@ covers: E20-06, E20-38
 > wording they were shown.
 
 ## Change log
+
+### Version 3 — 2026-08-15
+
+| # | Section | Change | Why |
+|---|---|---|---|
+| 4 | §7A Grievance Officer | The named individual and their personal address are replaced by the **role** at the named company: **Grievance Officer, GrayBag Solutions Private Limited, `support@graybag.com`** | Andy's decision, 2026-08-15. A published contact that is one person's name and one person's mailbox is unanswerable when that person is away, cannot be handed over without republishing the notice, and makes an individual the public face of every data complaint. The office is what the Act makes responsible; naming the office and the company identifies the responsible party without pinning it to one employee. **The legal question is open and is `E20-01`'s**: whether the DPDP Act requires a natural person's name here, or whether a titled office at a named company satisfies it. Version 2 asserted the former without a lawyer having said so. If the lawyer says a name is required, that is version 4 and the name goes back — this change does not foreclose it |
+
+**Why this was safe to make today, and would not have been next month.** A published version is
+immutable and `requires_acceptance` re-prompts everyone who accepted the previous one. Today that
+is **nobody** — `user_policy_acceptance` holds zero rows, because no parent has registered. After
+cutover the same correction becomes a consent interruption for every family. This is the same
+reasoning, and the same window, that `0032` used for the self notice on 2026-08-11.
 
 ### Version 2 — 2026-08-11
 
@@ -100,14 +112,14 @@ info@graybag.com
 
 ## 7A. Grievance Officer
 
-*Added in version 2 — see the change log.*
+*Added in version 2, changed in version 3 — see the change log.*
 
-In accordance with the Digital Personal Data Protection Act 2023, the following person is
-responsible for answering questions and complaints about how we handle personal data:
+In accordance with the Digital Personal Data Protection Act 2023, the following is responsible
+for answering questions and complaints about how we handle personal data:
 
-**Vivek**
-Grievance Officer, GrayBag
-vivek@graybag.com
+**Grievance Officer**
+GrayBag Solutions Private Limited
+support@graybag.com
 
 You may write to the Grievance Officer about anything we hold about you or your child — to see
 it, correct it, or have it deleted.
