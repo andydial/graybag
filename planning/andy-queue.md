@@ -18,29 +18,30 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
-## Open — 2 items
+## Open — 1 item
 
 | # | Ask | Asked | Status |
 |---|---|---|---|
-| 1 | **"A parent pays and gets a receipt"**, test mode only | 2026-08-12 | **Blocked on `E06-36`** — no Razorpay test keys on staging. `settle_payment` and the invoice are done; `E06-02` client checkout is next and cannot be exercised without keys |
-| 2 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine) |
+| 1 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine). The job has **still never been observed green**; its last run was cancelled. `E14-36` fixed the Gradle metaspace OOM and the 781-second emulator boot and is on `main` |
 
-**Closed 2026-08-13:** merging `ux-spec-and-prototype` to `main` (100 commits, PR #36), the two
-version items (`E17-34`), and `E09-20` CORS (PR #42). Both rules Andy asked for are recorded —
-the one-day branch limit and the second half he added the same hour, *check the other branch, not
-just `main`*.
+---
 
----|---|---|---|
-| 1 | **"A parent pays and gets a receipt"**, test mode only | 2026-08-12 | In progress. `settle_payment` and the invoice are done and green; client checkout (`E06-02`), the status endpoint (`E06-16`) and the confirmation email (E08) remain |
-| 2 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine) |
+## Closed 2026-08-15 — the six-item list
 
-**Added 2026-08-13, and cleared the same day:** the two version items the web thread raised.
-Andy's words — *"Both are yours. Do them before the next build, not before the next submit."*
-The app.json floor was already fixed on this branch and the web thread had read `main`; the
-Android counter genuinely was at 1 and is now above the live floor. `E17-34`. The finding
-underneath both is that **this branch has never been merged**, which is item 3 below.
+Andy gave six items in order and all six are done. PRs #60 and #61.
 
-| 3 | **Merge `ux-spec-and-prototype` into `main`** | found 2026-08-13 | **Needs Andy's go-ahead.** 96 commits — every payments migration, the ledger, the state machine, the webhook, invoicing. Not something to merge unattended |
+| # | Ask | Done |
+|---|---|---|
+| 1 | Scope **"My Orders"** to the signed-in customer, asserting the count | **Already shipped** as `E06-43` before this session. Verified rather than redone: `my_orders_scope.test.sql` seeds three parents with 2/1/3 orders and asserts the count through an authenticated client, with a third party present |
+| 2 | Sweep every parent-facing screen for the same assumption | **Already shipped** as `E06-44`. Verified: `fetchRecipients`, `fetchProfile` and both order reads scope explicitly; `fetchRecipientAllergens` was the one gap and now checks `guardian_link` first. **Every** table behind a "mine" screen carries a widening policy, so RLS narrows to "mine" for none of them |
+| 3 | `E06-42` — cancellable resolved server-side from `config_snapshot` | Done. `0052`, two PostgREST computed columns. The snapshot, never `resolve_effective_config()` — the test edits the kitchen's config mid-run, which is the only assertion that can tell the two apart |
+| 4 | Parent-initiated cancel before cutoff | Done. `E06-45`, `0053` + `cancel-order`. Records a pending refund and **posts nothing to the ledger** — the money has not moved |
+| 5 | Refund awareness, deduped on refund id | Done. `E06-46`, `0054`. Dedupes on `provider_refund_id`; ledger reversal, order state, credit note, parent email. **Found that `reverse_ledger_transaction` could not reverse any real settlement** and never could have |
+| 6 | Support address — `support@graybag.com`, no individual named | Done. `E20-51`. `GrievanceOfficer.name` removed from the type, not just the value. **The published privacy policy still names Vivek and I did not touch it** — that is a new notice version and a legal question, filed as `E20-52` |
+
+**Not added to this queue, because they are Andy's:** `E20-52` (does DPDP require the grievance
+officer to be a named natural person?) and the `E06-33` refund-timing figure, which item 4's
+confirmation copy deliberately works around by promising no date.
 
 ---
 
