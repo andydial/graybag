@@ -59,6 +59,49 @@ the time dimension: **what else produces this result — including "nothing yet"
 
 ---
 
+## 2026-08-14 — Authorisation is not scope, and RLS will never narrow a query to "mine"
+
+**Context:** "My Orders" listed 65 orders — 5 belonging to the signed-in parent and 60 to other
+families, with children's names, schools and classes.
+
+**What happened:** `fetchOrders` had no `customer_user_id` filter. I had written that deliberately,
+and defended it in a comment: *RLS is the authorisation, and a client-side filter would produce the
+same list on a healthy day while hiding a policy failure on a bad one.*
+
+**The policy was fine.** A clean parent account saw zero orders. What I had missed is that `order`
+carries **two** SELECT policies — `order_read_customer` and `order_read_backoffice` — so the set a
+caller may read is the *union*, and for anyone holding `orders.view` at kitchen scope that union is
+every order in the school. RLS was answering the question it exists for, correctly. It was simply
+not the question the screen was asking.
+
+**Cause, and the generalisation:** I collapsed two different questions into one.
+
+| Question | Answered by | Example |
+|---|---|---|
+| *May I read this row?* | RLS, server-side, default-deny | a kitchen operator may read the school's orders |
+| *Which rows does this screen mean?* | the query | "My Orders" means mine |
+
+**A permission model can only ever be a ceiling.** It bounds what a query may return; it cannot
+express what a particular screen is *about*. Leaning on it for scope means the screen shows the
+widest set its caller happens to be entitled to — which is invisible for an ordinary user and
+dramatic for a privileged one. The bug is therefore **least likely to be seen by the people most
+likely to have it**, which is why it survived a tap-through, a code review and a green suite.
+
+**Fix / rule:** **scope belongs in the query; authorisation belongs in the policy; ship both.**
+The filter says what the screen means, and RLS remains defence in depth — it is what stops the
+filter being able to *widen* a result, which is the direction that would actually be a breach.
+
+Where they overlap, the redundancy is the point, not a smell.
+
+**And the test that would have caught it, which is a class of its own.** The original assertion was
+"my order appears in the list". **That passes on a leak.** Any test of a scoped list must assert
+the **count**, and its fixture needs a *third* party — with two, a filter that scopes to the wrong
+single person still shows one foreign row and a two-party fixture calls that a pass. The suite now
+seeds three parents with two, one and three orders: distinct counts, so no assertion can be right
+by coincidence.
+
+---
+
 ## 2026-08-14 — A function that reads the clock is only testable at the hour the suite runs
 
 **Context:** `defaultServiceDate()` offered a cart its default day. It computed
