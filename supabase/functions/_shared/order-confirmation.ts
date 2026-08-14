@@ -145,6 +145,19 @@ export async function sendOrderConfirmation(
       body: JSON.stringify({
         from,
         to: [address],
+        /**
+         * **Replies must reach a human, and `from` cannot.**
+         *
+         * The sending domain `mail.graybag.com` is a subdomain with no inbox — it carries the
+         * SES bounce MX and nothing else — so a parent who hits Reply on their invoice would be
+         * writing to an address that silently discards it. Which is worse than no reply address:
+         * they would believe they had told us something.
+         *
+         * `from` stays on the verified sending domain because deliverability depends on it
+         * (SPF/DKIM are published there); `reply_to` routes the conversation to the aliased
+         * mailbox that reaches Andy. Overridable per environment, defaulted so it is never absent.
+         */
+        reply_to: Deno.env.get('ORDER_EMAIL_REPLY_TO') ?? 'info@graybag.com',
         subject,
         ...(invoice
           ? { html: renderInvoiceHtml(invoice), text: renderInvoiceText(invoice) }

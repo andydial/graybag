@@ -10,7 +10,7 @@
     "packages/*"
   ],
   "scripts": {
-    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm run check:maestro && npm run check:policy-docs && npm run check:claims && npm run check:backlog && npm run check:mvp && npm test && npm run build:web",
+    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm run check:maestro && npm run check:policy-docs && npm run check:claims && npm run check:backlog && npm run check:writes && npm run check:mvp && npm test && npm run build:web",
     "test:all": "npm run smoke && npm run check:a11y && npm run test:db",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
@@ -46,8 +46,10 @@
     "check:config": "node scripts/check-supabase-config.mjs",
     "check:claims": "node scripts/check-outbound-claims.mjs",
     "check:backlog": "node scripts/build-backlog.mjs",
+    "check:writes": "node scripts/check-unqualified-writes.mjs",
     "check:a11y": "npm --prefix apps/web run check:a11y",
-    "check:mvp": "node scripts/check-mvp.mjs"
+    "check:mvp": "node scripts/check-mvp.mjs",
+    "eas-build-pre-install": "npm config set ignore-scripts true"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -59,5 +61,9 @@
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.66.0",
     "vitest": "^4.1.10"
+  },
+  "optionalDependencies": {
+    "@img/sharp-darwin-arm64": "^0.34.5",
+    "@img/sharp-libvips-darwin-arm64": "^1.2.4"
   }
 }

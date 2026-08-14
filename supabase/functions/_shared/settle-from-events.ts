@@ -33,6 +33,17 @@ export interface DrainResult {
   settled: number;
   failed: number;
   skipped: number;
+  /**
+   * Events that have failed repeatedly and are still pending — money captured and not recorded.
+   *
+   * **Reported because `E06-38` was invisible for a day.** Every settlement was failing with
+   * `21000`, and the only trace was a `console.error` in a function log that Andy happened to
+   * read by hand. A count in the response is not an alert, but it is a number a scheduled caller
+   * can act on, and it turns "the drain ran" into "the drain ran and two payments are stuck".
+   *
+   * Real alerting is `E06-28`/`E15-05` and is not built.
+   */
+  stuck: number;
 }
 
 /** Only these move money. Anything else recorded `pending` is marked processed and left alone. */
@@ -42,7 +53,7 @@ export async function drainPendingEvents(
   admin: SupabaseClient,
   options: { limit?: number; keyId: string; keySecret: string },
 ): Promise<DrainResult> {
-  const result: DrainResult = { considered: 0, settled: 0, failed: 0, skipped: 0 };
+  const result: DrainResult = { considered: 0, settled: 0, failed: 0, skipped: 0, stuck: 0 };
 
   const { data: rows, error } = await admin
     .from('payment_webhook_event')
@@ -153,6 +164,23 @@ export async function drainPendingEvents(
       await bumpAttempt(admin, id, row.attempt_count as number, String(thrown));
       result.failed += 1;
     }
+  }
+
+  // Counted after the pass, over the whole queue rather than this batch: an event that has failed
+  // three times is the signal, and it may well be outside the `limit` window of a busy drain.
+  const { count } = await admin
+    .from('payment_webhook_event')
+    .select('id', { count: 'exact', head: true })
+    .eq('processing_status', 'pending')
+    .eq('signature_verified', true)
+    .gte('attempt_count', 2);
+  result.stuck = count ?? 0;
+
+  if (result.stuck > 0) {
+    console.error(
+      `settle-from-events: ${result.stuck} verified event(s) have failed 2+ times and are still ` +
+        'pending. Money has been captured and not recorded against an order.',
+    );
   }
 
   return result;
