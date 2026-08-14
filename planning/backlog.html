@@ -3686,13 +3686,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/31</span>
+          <span class="meter-num">0/32</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 31 tasks</summary>
+        <summary>Context &amp; 32 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3895,6 +3895,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The controls were eating a third of the screen.</strong> Eleven chips wrapped to two rows in a 212px sticky bar, with a 178px &quot;to cook&quot; card under it, so the first order began at 531px of a 1080px tablet — <strong>51% of the screen showing orders</strong>. The chips now sit behind one line that names the selection (&quot;Lunch break · Amity · Any status&quot;, &quot;All orders&quot; when nothing is set) and opens on tap; the date stays large and always visible because it is the one thing that changes. &quot;To cook&quot; became a single sideways-scrolling row with the counts inline, and is <strong>dropped entirely in the dish grouping</strong>, where the group headers already say the same thing in bigger type. Measured on a 1440×1080 viewport against live staging data: <strong>51% → 77% by class, 83% by dish</strong> (Andy, 2026-08-14)</span>
+      </li>
+      <li class="task" data-id="E09-32" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-32"></button>
+        <code class="tid">E09-32</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The board opened on yesterday for the first five and a half hours of every day.</strong> <code>today</code> was <code>new Date().toISOString().slice(0, 10)</code>, which is <strong>UTC</strong> — and IST is UTC+5:30, so between midnight and 05:30 IST it returns the previous date. A kitchen preparing a morning break starts inside exactly that window, so the first person to open the board each day saw the wrong one, with &quot;Today&quot; labelling it. Found by looking at a screenshot whose header read 13 August when IST had been on the 14th for five hours. <code>serviceDateToday</code> formats in <code>Asia/Kolkata</code> via <code>Intl</code>, takes the instant as an argument so it is testable, and ignores the device clock — a tablet with the wrong timezone must still show the day the kitchen is cooking. Mohali-only makes one fixed zone correct rather than a simplification</span>
       </li>
       <li class="task" data-id="E09-18" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-18"></button>

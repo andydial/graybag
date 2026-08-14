@@ -9,6 +9,7 @@ import {
   countLine,
   filterSummary,
   groupByDish,
+  serviceDateToday,
   describeDate,
   filterOptions,
   groupByClass,
@@ -412,6 +413,41 @@ describe('groupByDish — the cooking unit, not the handover unit', () => {
 
   it('returns nothing for a day with no orders rather than an empty dish', () => {
     expect(groupByDish([])).toEqual([]);
+  });
+});
+
+describe('serviceDateToday — the kitchen’s day, not UTC and not the device’s', () => {
+  it('is already tomorrow in Mohali when UTC still says today', () => {
+    // 23:54 UTC on the 13th is 05:24 on the 14th in IST — and a kitchen preparing a morning
+    // break is awake inside exactly that window. UTC would open the board on yesterday.
+    expect(serviceDateToday(new Date('2026-08-13T23:54:00Z'))).toBe('2026-08-14');
+  });
+
+  it('does not roll over early', () => {
+    // 18:29 UTC is 23:59 IST — still the 13th.
+    expect(serviceDateToday(new Date('2026-08-13T18:29:00Z'))).toBe('2026-08-13');
+  });
+
+  it('rolls at 18:30 UTC, which is midnight IST', () => {
+    expect(serviceDateToday(new Date('2026-08-13T18:30:00Z'))).toBe('2026-08-14');
+  });
+
+  it('ignores the device timezone entirely', () => {
+    // The same instant, asked from three places, is one service date. A tablet with its clock
+    // set to the wrong zone must still show the day the kitchen is cooking.
+    const instant = new Date('2026-08-13T23:54:00Z');
+    const original = process.env.TZ;
+    try {
+      const answers = new Set<string>();
+      for (const tz of ['UTC', 'America/Los_Angeles', 'Pacific/Kiritimati', 'Asia/Kolkata']) {
+        process.env.TZ = tz;
+        answers.add(serviceDateToday(instant));
+      }
+      expect([...answers]).toEqual(['2026-08-14']);
+    } finally {
+      if (original === undefined) delete process.env.TZ;
+      else process.env.TZ = original;
+    }
   });
 });
 

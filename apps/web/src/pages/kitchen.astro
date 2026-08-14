@@ -151,6 +151,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         boardState,
         countLine,
         filterSummary,
+        serviceDateToday,
         describeDate,
         filterOptions,
         groupByClass,
@@ -169,7 +170,8 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
        * `mark-delivered` and `E12-06`'s sign-in are built. Until then everything below runs
        * against fixtures, which is what makes every state reachable in review.
        */
-      const today = new Date().toISOString().slice(0, 10);
+      // The kitchen's date, never UTC and never the device's — see `serviceDateToday`.
+      const today = serviceDateToday(new Date());
 
       /**
        * Every state is reachable deliberately, via `?state=`.

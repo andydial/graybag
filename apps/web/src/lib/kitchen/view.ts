@@ -441,6 +441,29 @@ export function relativeDay(iso: string, today: string): string | null {
 }
 
 /**
+ * Today's service date **in the kitchen's timezone**, not the device's and not UTC.
+ *
+ * `new Date().toISOString().slice(0, 10)` is UTC, and IST is UTC+5:30 — so between midnight and
+ * 05:30 IST it returns *yesterday*. That is not a rare edge: a kitchen preparing a morning break
+ * starts inside that window, so the board would open on the previous day's orders precisely when
+ * somebody first looks at it.
+ *
+ * The device clock is not the answer either. A tablet with the wrong timezone, or an operator
+ * checking from elsewhere, must still see the day the kitchen is cooking. Mohali-only
+ * (non-negotiable #7) means one fixed zone is correct rather than a simplification.
+ *
+ * `en-CA` because it formats as `YYYY-MM-DD`, which is what a service date is.
+ */
+export function serviceDateToday(at: Date, timeZone = 'Asia/Kolkata'): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(at);
+}
+
+/**
  * Move a service date by whole days, staying on `YYYY-MM-DD`.
  *
  * **Built and read entirely in UTC**, and that is not pedantry. The obvious version —
