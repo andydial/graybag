@@ -726,3 +726,53 @@
   min-width: 8rem;
   font-variant-numeric: tabular-nums;
 }
+
+/* ------------------------------------------------------- the order table (E10-08) */
+
+/**
+ * A table, not cards: this screen is read across rows — "what did this school take today" — and
+ * a card grid makes you compare numbers that are not in a column. Money is right-aligned and
+ * tabular so the digits line up, which is the whole reason to use a table here.
+ */
+.otable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--gb-font-size-body-sm);
+}
+
+.otable th,
+.otable td {
+  text-align: left;
+  padding: var(--gb-space-2) var(--gb-space-4);
+  border-bottom: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+}
+
+.otable th {
+  font-size: var(--gb-font-size-caption);
+  letter-spacing: var(--gb-tracking-overline);
+  text-transform: uppercase;
+  color: var(--gb-text-secondary);
+  font-weight: var(--gb-font-semibold);
+}
+
+.otable__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.otable__ref {
+  font-variant-numeric: tabular-nums;
+  color: var(--gb-text-secondary);
+}
+
+/* The refund note, once at the foot of the board rather than on every row. */
+.kitchen__oneway--block {
+  max-width: none;
+  text-align: left;
+  margin-top: var(--gb-space-5);
+  padding: var(--gb-space-3) var(--gb-space-4);
+  background: var(--gb-ramp-amber-100);
+  border-left: var(--gb-space-1) solid var(--gb-ramp-amber-700);
+  border-radius: var(--gb-radius-sm);
+  font-size: var(--gb-font-size-body-sm);
+}

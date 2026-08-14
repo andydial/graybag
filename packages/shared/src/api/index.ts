@@ -46,6 +46,18 @@ export {
 // on Andy's instruction while this thread was on `E06`. These six lines are the only edit
 // made to any file outside those two — without the export, nothing there is reachable from
 // `apps/web`, because this package exposes only `.`.
+// The all-kitchens order dashboard (`E10-08`). Its own module and its own column list rather
+// than a flag on `kitchen.ts`: money is a separate grant (`D3`), and a redaction behind a boolean
+// is one careless caller away from not being a redaction.
+export {
+  ADMIN_ORDER_COLUMNS,
+  AdminOrderPayloadError,
+  fetchAdminOrders,
+  totalsFor,
+  type AdminOrder,
+  type AdminOrderTotals,
+} from './admin-orders.js';
+
 export {
   KITCHEN_ORDER_COLUMNS,
   KitchenPayloadError,

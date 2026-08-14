@@ -3963,13 +3963,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/17</span>
+          <span class="meter-num">0/18</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 17 tasks</summary>
+        <summary>Context &amp; 18 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -4028,13 +4028,21 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">User management: search, view, disable, assign back-office grants</span>
       </li>
-      <li class="task" data-id="E10-08" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E10-08" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-08"></button>
         <code class="tid">E10-08</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Order dashboard across all kitchens with refund capability</span>
+        <span class="ttext">Order dashboard across all kitchens with refund capability — <strong>the view is done, the refund is not and cannot be.</strong> <code>/orders</code> lists every order on a service date across every kitchen the caller&#39;s grants reach, with totals, refunds and per-school subtotals, gated on <code>orders.view_financials</code>. Its own <code>api/</code> module and its own column list rather than a flag on <code>kitchen.ts</code>: money is a separate grant (<code>D3</code>) and a redaction behind a boolean is one careless caller away from not being one. Scope is RLS, never a client-side kitchen filter. Unpaid and draft orders are <strong>kept</strong> here, unlike the kitchen board — <code>L5</code> keeps them off the cooking list, not out of the record, and an order that never got paid for is exactly what somebody opens this to investigate. <strong>Refunds are blocked</strong>: <code>order-lifecycle</code> §4.1 performs <code>cancelled -&gt; refunded</code> as <code>system</code> only and no endpoint performs it, so the page says so once at the foot rather than drawing a disabled button on every row. Refund UI tracked as <code>E10-18</code></span>
+      </li>
+      <li class="task" data-id="E10-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-18"></button>
+        <code class="tid">E10-18</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Issue a refund from <code>/orders</code>.</strong> The other half of <code>E10-08</code>. Blocked on the refund endpoint (<code>E06</code>, <code>docs/kitchen-write-contract.md</code> §2.2): <code>cancelled -&gt; refunded</code> is a <code>system</code> transition and nothing performs it, so there is nothing for a button to call. Needs <code>orders.refund</code>, which exists as a permission and is granted to nobody. When it is built: idempotent per order, integer paise, and it must decide to-source vs to-wallet itself — the person clicking has no view on that and must not be asked</span>
       </li>
       <li class="task" data-id="E10-09" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-09"></button>
