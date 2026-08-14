@@ -1,7 +1,8 @@
 // `/payments-webhook` — Razorpay's events, verified and recorded. `E06-04`, `E06-03`.
 //
-// **This endpoint records. It does not settle.** Turning a captured event into a paid order is
-// `settle_payment()` (`E06-06`), which runs from the recorded row — because §3.6 says a verified
+// **This endpoint records, then hands the recorded row to the consumer.** Turning a captured
+// event into a paid order is `settle_payment()` (`E06-06`), which runs from the recorded row via
+// `drainPendingEvents` (`E06-37`) — because §3.6 says a verified
 // signature proves the body was not tampered with, not that money moved, and the server fetches
 // the payment from Razorpay before settling either way. Splitting them means a storm of events
 // cannot become a storm of settlements, and a replayed event is a no-op at the database rather
@@ -35,6 +36,7 @@
 // flag; this layer makes the *recording* idempotent, and they are different jobs.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { drainPendingEvents } from '../_shared/settle-from-events.ts';
 import { verifyWebhookSignature } from '../_shared/signature.ts';
 
 const json = (status: number, payload: unknown) =>
@@ -152,6 +154,26 @@ Deno.serve(async (request: Request) => {
   }
 
   // Everything else is 200, including a bad signature. See the header.
+  /**
+   * `E06-37`. The row is written; now something reads it.
+   *
+   * **Awaited, and its result ignored.** Awaited because an Edge Function's process can be torn
+   * down the moment it responds, so a floating promise here is a settlement that sometimes
+   * happens. Ignored because the reply to Razorpay is about whether we *recorded* the event —
+   * §6.3's "always 200" — and a settlement failure must not become a retry storm on an event we
+   * already hold. The queue keeps it `pending` and the next drain tries again.
+   */
+  if (verified) {
+    const drained = await drainPendingEvents(asService, {
+      limit: 5,
+      keyId: Deno.env.get('RAZORPAY_KEY_ID') ?? '',
+      keySecret: Deno.env.get('RAZORPAY_KEY_SECRET') ?? '',
+    });
+    if (drained.settled > 0 || drained.failed > 0) {
+      console.log(`payments-webhook: drained ${JSON.stringify(drained)}`);
+    }
+  }
+
   return json(200, {
     status: verified ? 'recorded' : configured ? 'recorded_unverified' : 'recorded_no_secret',
   });

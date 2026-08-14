@@ -58,14 +58,28 @@ select gl.user_id      as customer_id,
 -- below want deliberately invalid dates (yesterday, or beyond the advance-order horizon) and
 -- asking the calendar for one would defeat the point.
 create function t_service_date(p_nth int default 3) returns date language sql stable as $$
+  -- The Nth day this cart could ACTUALLY be ordered for.
+  --
+  -- **Two conditions, because `create_checkout` asks two questions**, and an earlier version of
+  -- this helper asked only the first. `orderable_calendar` says the school is open; the menu item
+  -- separately declares which weekdays it is offered on (`mi.available_days`, matched against
+  -- `isodow`). A day can satisfy the calendar and not the menu — and it did: the suite picked
+  -- 2026-08-16, a Sunday the fixture school's calendar allowed and the fixture dish was not sold
+  -- on, so the failure read as "menu item is not available" and looked like a data problem.
+  --
+  -- This is the same date trap as before in a second disguise: the first fix asked the calendar
+  -- instead of assuming, and was still asking a narrower question than the code under test. The
+  -- rule is to ask *every* question the subject asks, not the first one that was wrong.
   select case
            when p_nth <= 0 then current_date + p_nth
            else coalesce(
-             (select service_date
+             (select c.service_date
                 from orderable_calendar((select school_id from t_ctx), current_date,
-                                        current_date + 60)
-               where is_orderable
-               order by service_date
+                                        current_date + 60) c
+                join menu_item mi on mi.id = (select menu_item_id from t_ctx)
+               where c.is_orderable
+                 and extract(isodow from c.service_date)::smallint = any (mi.available_days)
+               order by c.service_date
               offset (p_nth - 1) limit 1),
              current_date + p_nth)
          end;

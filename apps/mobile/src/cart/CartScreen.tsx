@@ -4,6 +4,7 @@ import { api, cart as cartDomain, design, money } from '@graybag/shared';
 
 import { AllergenFlag, BrandHeader, FoodTypeMark, PatternTile } from '../components';
 import { Button } from '../components/Button';
+import { InlineError } from '../components/motion/InlineError';
 import { DishImage } from '../components/DishImage';
 import { Card, EmptyState } from '../components/Surfaces';
 import { useCart } from './CartContext';
@@ -92,6 +93,16 @@ export interface CartLinePresentation {
 export interface CartScreenProps {
   onPlaceOrder?: () => void;
   /**
+   * Why the last Place order attempt did not proceed, in the parent's words.
+   *
+   * Added after the first real tap **failed silently**: the order was refused, no sheet opened,
+   * and the screen returned to the cart with nothing said. A refusal a parent cannot see is a
+   * parent tapping the same button again — and `create_checkout`'s refusals are all actionable
+   * ("the price changed", "ordering has closed"), so saying nothing throws away the one piece of
+   * information they need.
+   */
+  checkoutError?: string | null;
+  /**
    * The school's orderable break windows — `E05-30`, `P19`.
    *
    * `undefined` means not read yet. **`[]` means the school cannot take orders**, which is a
@@ -162,6 +173,7 @@ export interface CartScreenProps {
  */
 export function CartScreen({
   onPlaceOrder,
+  checkoutError = null,
   breakWindows,
   breakTimeId = null,
   onSelectBreakTime,
@@ -354,6 +366,8 @@ export function CartScreen({
         itself — §5.7 — so the amount and the commitment are never on separate screens.
       */}
       <View style={styles.footer}>
+        {/* Above the button, because it explains why the button did not work. */}
+        <InlineError message={checkoutError} testID="cart-checkout-error" />
         <Button
           {...placeOrderState({
             totalPaise: breakdown.totalPaise,

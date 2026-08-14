@@ -97,7 +97,14 @@ export {
 
 // The first write (E05-09). Writes always go through an Edge Function (A4).
 export { createCheckout, type CheckoutLine, type CheckoutResult } from './checkout.js';
-export { createPaymentOrder, type PaymentOrder } from './payments.js';
+export {
+  createPaymentOrder,
+  fetchCheckoutStatus,
+  type PaymentOrder,
+  type CheckoutStatus,
+  type CheckoutStatusResult,
+  type SettledOrderSummary,
+} from './payments.js';
 
 // Adding a child and moving one (E05-01, E05-02, E20-02). Consent is a field on the create
 // call rather than a call of its own — the server writes the child, the guardian link and

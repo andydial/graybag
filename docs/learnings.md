@@ -19,6 +19,95 @@ Format — newest first:
 
 ---
 
+## 2026-08-13 — "Not yet" and "never" are the same query result, and I read one as the other
+
+**Context:** the `E19-07` sitting. I POSTed two test refunds through Razorpay's API and then
+queried `payment_webhook_event` to see whether `refund.created` had arrived.
+
+**What happened:** zero rows. I told Andy no refund webhook had fired, and framed it as a real
+constraint on how `E06-08` could ever be tested — while asking him to check his subscription to
+distinguish "not subscribed" from "test mode does not emit".
+
+Both events had fired. They landed at 13:39:11 and 13:39:12, seconds after I looked. The
+subscription was right, test mode emits them, and the only thing wrong was that I queried
+immediately after triggering an asynchronous delivery and treated an empty result as final.
+
+**Cause:** `where received_at > now() - interval '20 minutes'` returning zero rows has two
+meanings — *it never happened*, and *it has not happened yet* — and nothing in the result
+distinguishes them. This is the entry directly below, one day old, and I walked into it while
+explaining it. I had even written the right next step (ask which of two causes it is) without
+noticing that a third possibility, "too early", was the actual one and was not on my list.
+
+**Fix / rule:** **an absence is only evidence after the deadline it was measured against.** For
+anything asynchronous — a webhook, a queue, a job — a query proves nothing unless it either
+polls until a stated timeout, or is run after one.
+
+Concretely, and it is one line:
+
+```sql
+-- worthless immediately after the trigger; meaningful after a stated wait
+select count(*) from payment_webhook_event where event_type like 'refund%';
+```
+
+Say what the deadline is *before* looking, so the empty result has a meaning agreed in advance:
+"if nothing after five minutes, it does not fire." Without that, an empty result is a Rorschach
+test and the reader supplies the conclusion they already suspected — which is exactly what I did,
+and I stated it to Andy with more confidence than a single query could support.
+
+The sibling rule below asks what *else* produces this result. This one is the same question in
+the time dimension: **what else produces this result — including "nothing yet"?**
+
+---
+
+## 2026-08-14 — An elapsed-time counter in render state is a loop waiting for a dependency
+
+**Context:** the first real payment through the rebuild. Razorpay captured ₹145.96, and the app
+then died on the waiting screen with `Maximum update depth exceeded`.
+
+**What happened:** a poller ran every two seconds and did two things — asked the server for the
+order's status, and updated an `elapsedMs` state so the copy could change to "still confirming"
+after ten seconds. The effect's dependency array contained `checkout`, the object returned by a
+custom hook.
+
+That object is **rebuilt on every render**. So: tick → `setElapsedMs` → render → new `checkout`
+object → effect re-subscribes → tick. The interval was never the clock; the render was.
+
+**Cause, and the part worth generalising.** The unstable dependency is the proximate bug and the
+easy fix — destructure the stable `useCallback` out, depend on primitives. But the shape that
+*created* the opportunity is **a clock in render state**:
+
+- an elapsed counter guarantees a state write per tick, so any unstable dependency anywhere in
+  that effect becomes an infinite loop rather than a slow leak;
+- it re-renders a subtree once per tick forever, to change nothing at all in the common case;
+- and it fails at the worst moment, because the timer only runs while something important is in
+  flight — here, while a parent's money was already gone.
+
+**It also starved the thing that mattered.** The order captured at Razorpay and never settled: the
+loop consumed the render loop while the poll it existed to drive never completed. A cosmetic
+counter took down a payment confirmation.
+
+**Fix / rule:** **keep the clock out of render state.** Ask what the UI actually needs from the
+timer, and it is almost never "the current elapsed milliseconds" — it is *one threshold crossing*.
+That is a single boolean set by a single `setTimeout`: one state change for the whole wait
+instead of one every two seconds.
+
+```js
+// was: a render per tick, forever
+setElapsedMs(Date.now() - startedAt)
+
+// now: one state change, at the only moment the copy changes
+const t = setTimeout(() => setStillConfirming(true), PENDING_AFTER_MS)
+```
+
+If a genuinely continuous readout is ever needed — a countdown — it belongs in an animated value
+or a ref read by a non-rendering subscriber, not in `useState`.
+
+And a companion rule the same bug earned: **never put an object returned by a hook in a dependency
+array.** `useCheckout()` returns `{phase, start, reset}` fresh each render. Destructure what is
+stable and depend on that; the array should hold primitives and `useCallback`s and nothing else.
+
+---
+
 ## 2026-08-13 — If both outcomes can be produced by the fault you are looking for, it is not a check
 
 **Context:** verifying that `RAZORPAY_WEBHOOK_SECRET` had actually been set on staging. I POSTed

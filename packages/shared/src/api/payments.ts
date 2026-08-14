@@ -60,3 +60,72 @@ export async function createPaymentOrder(orderGroupId: string): Promise<PaymentO
     attemptNo: Number(data.attempt_no ?? 1),
   };
 }
+
+/**
+ * What the server says happened to a checkout — `E06-16`.
+ *
+ * `pending` is the important one and the reason this is not a boolean: it means **money may have
+ * moved and we cannot yet say**. It is never a failure and must never be rendered as one. A UPI
+ * intent payment app-switches away by construction, so this is the ordinary path, not the sad one.
+ */
+export type CheckoutStatus = 'paid' | 'pending' | 'unpaid' | 'failed' | 'cancelled';
+
+/**
+ * The settled order, present only when `status === 'paid'`.
+ *
+ * Assembled by the server from settled rows, never by the client — `OrderPlacedScreen` takes a
+ * branded type that only a four-digit pickup code can satisfy, which is `R8` in the type system.
+ * The recipient's **first name only** (§4.3, `G7`).
+ */
+export interface SettledOrderSummary {
+  pickupCode: string;
+  serviceDate: string;
+  recipientFirstName: string | null;
+  breakLabel: string;
+  itemCount: number;
+  totalPaise: number;
+}
+
+export interface CheckoutStatusResult {
+  status: CheckoutStatus;
+  order?: SettledOrderSummary;
+  /**
+   * True when the server reached Razorpay to answer. False means it fell back to our own row —
+   * an answer worth less, and worth knowing is worth less.
+   */
+  reconciled: boolean;
+}
+
+/**
+ * Ask whether a checkout settled.
+ *
+ * Safe to call repeatedly: the server reconciles against Razorpay and settles idempotently, so
+ * polling cannot double-settle. That is what makes this the recovery path for a process killed
+ * mid-payment (§10.3) rather than merely a status read.
+ */
+export async function fetchCheckoutStatus(orderGroupId: string): Promise<CheckoutStatusResult> {
+  // The group id rides in the query string because this is a GET — the function reads it from
+  // the URL, and identity comes from the JWT, never from either.
+  const data = await invokeFunction<Record<string, unknown>>(
+    `checkout-status?group=${encodeURIComponent(orderGroupId)}`,
+    undefined,
+    'GET',
+  );
+  const raw = data.order as Record<string, unknown> | null | undefined;
+  return {
+    status: (data.status as CheckoutStatus) ?? 'pending',
+    reconciled: data.reconciled === true,
+    ...(raw
+      ? {
+          order: {
+            pickupCode: String(raw.pickup_code ?? ''),
+            serviceDate: String(raw.service_date ?? ''),
+            recipientFirstName: raw.recipient_first_name == null ? null : String(raw.recipient_first_name),
+            breakLabel: String(raw.break_label ?? 'Break'),
+            itemCount: Number(raw.item_count ?? 0),
+            totalPaise: Number(raw.total_paise ?? 0),
+          },
+        }
+      : {}),
+  };
+}

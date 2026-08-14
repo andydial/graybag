@@ -6,7 +6,7 @@ import {
   createNativeStackNavigator,
   type NativeStackNavigationProp,
 } from '@react-navigation/native-stack';
-import { design } from '@graybag/shared';
+import { api, design, money } from '@graybag/shared';
 
 import {
   AccountScreen,
@@ -35,6 +35,9 @@ import {
 import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
+import { OrderPlacedScreen, placedOrder } from '../checkout/OrderPlacedScreen';
+import { PENDING_AFTER_MS, PaymentWaitingScreen } from '../checkout/PaymentWaitingScreen';
+import { useCheckout } from '../checkout/useCheckout';
 import { useBreakTimes } from '../cart/useBreakTimes';
 import { clashingAllergens, useAllergenWatchlist } from '../menu/useAllergenWatchlist';
 import { PolicyGateContainer } from '../policy/PolicyGateContainer';
@@ -159,6 +162,37 @@ const MenuTab = withScreenFrame(MenuScreen, TAB_SCREEN_EDGES);
 function CartTabScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const audience = useAudience();
+  const { cart, clear: clearCart } = useCart();
+  const checkout = useCheckout();
+  // Destructured so the effect depends on a stable `useCallback`, never on the object.
+  const { reset: resetCheckout } = checkout;
+  /**
+   * `E06-16`'s clock, owned here because `PaymentWaitingScreen` deliberately starts no timer of
+   * its own — it takes `elapsedMs` and renders, so a test never has to advance a fake clock.
+   */
+  /**
+   * The group being polled. A **string**, deliberately — the effect below used to depend on
+   * `checkout.phase` and on `checkout` itself, and `useCheckout` returns a fresh object every
+   * render, so the effect re-subscribed on every render.
+   */
+  const [pollGroupId, setPollGroupId] = useState<string | null>(null);
+  /**
+   * **One state change, not one per tick** — `E14-37`.
+   *
+   * This was `elapsedMs`, updated every two seconds, and it caused `Maximum update depth
+   * exceeded` on the first real payment: the tick set state, the state re-rendered, the render
+   * made a new `checkout` object, the new object re-ran the effect, and the effect ticked again.
+   *
+   * The screen only needs to know one thing — whether ten seconds have passed (`PENDING_AFTER_MS`,
+   * §5.12) — so that is a single boolean set by a single timeout. **An elapsed-time counter that
+   * drives a render on every tick is a loop waiting for an unstable dependency**, and the fix is
+   * not a better dependency array; it is not putting the clock in render state.
+   */
+  const [stillConfirming, setStillConfirming] = useState(false);
+  const [settled, setSettled] = useState<api.CheckoutStatus | null>(null);
+  const [placed, setPlaced] = useState<api.SettledOrderSummary | null>(null);
+  /** The last refusal, in the parent's words. Rendered on the cart, not swallowed. */
+  const [failure, setFailure] = useState<string | null>(null);
 
   /**
    * The photo and the veg mark for each line — `E05-42`.
@@ -281,15 +315,178 @@ function CartTabScreen() {
           navigation.navigate('PolicyGate');
           return;
         }
-        // Nowhere to go yet: checkout is `E06`. Inert beats routing somewhere that would look
-        // finished.
+        void beginCheckout();
         return;
     }
   };
 
+  /**
+   * `E06-02`. The lines the server prices, built from the cart at the moment Pay is tapped.
+   *
+   * `recipientId` and `serviceDate` come off each line — they are set when the line is added,
+   * and a line missing either cannot be ordered, so those are filtered rather than defaulted.
+   * Defaulting would silently order somebody else's lunch on a day nobody chose.
+   */
+  const beginCheckout = async () => {
+    const lines = cart.lines
+      .filter((line) => line.recipientId !== null && line.serviceDate !== null)
+      .map((line) => ({
+        recipientId: line.recipientId as string,
+        serviceDate: line.serviceDate as string,
+        menuItemId: line.menuItemId,
+        quantity: line.quantity,
+        breakTimeId,
+      }));
+
+    if (lines.length === 0) return;
+
+    setSettled(null);
+    setFailure(null);
+
+    /**
+     * **What the parent was actually shown — GST-INCLUSIVE, and rounded per line.**
+     *
+     * This was `subtotalPaise`, and it made every single checkout fail with `price_changed`
+     * before anything reached Razorpay. `cart.subtotalPaise` is documented GST-**exclusive**
+     * (`SC2`); the server prices the payable including tax, so the two could never agree.
+     *
+     * Nor is it subtotal × 1.05. `money.gstBreakdown` computes each component from **each
+     * line's** taxable value and rounds half-up (§6.2), which on one ₹69 line gives 7246 where
+     * a naive 5% gives 7245 — a one-paise disagreement that reads as a price change and stops
+     * the order. It is the same function the totals block renders from, so the number sent is
+     * by construction the number on screen.
+     */
+    const expected = money.gstBreakdown(
+      cart.lines.map((line) => ({ unitPricePaise: line.unitPricePaise, quantity: line.quantity })),
+    ).totalPaise;
+
+    const outcome = await checkout.start({
+      lines,
+      // Sent so the server CAN refuse (`L7`), never so it can be believed.
+      expectedTotalPaise: expected,
+    });
+
+    /**
+     * **Only a sheet that reported success starts the waiting screen.**
+     *
+     * It used to be set before `start()` was even called, so "Still confirming" appeared the
+     * instant Pay was tapped — including when the order was refused and no sheet ever opened.
+     * That is the worst sentence in the product shown at the worst moment: a screen implying
+     * money is in flight when none moved. Same class as treating `reported_success` as paid,
+     * one screen further on.
+     *
+     * A failure now surfaces as a failure, with the server's own reason.
+     */
+    if (outcome.kind === 'sheet_reported_success') {
+      setStillConfirming(false);
+      setPollGroupId(outcome.orderGroupId);
+      return;
+    }
+    setPollGroupId(null);
+    if (outcome.kind === 'failed') setFailure(outcome.message);
+  };
+
+  /**
+   * `E06-16`. Poll until the server says something terminal.
+   *
+   * **Every two seconds, and it keeps going.** There is no give-up timeout, deliberately: a
+   * `pending` answer means money may have moved, and a screen that gave up would leave a parent
+   * who has paid looking at a cart. `§10.3` — the app being killed mid-payment is the ordinary
+   * path here, which is why the endpoint reconciles against Razorpay rather than reading our own
+   * row.
+   *
+   * The tick also drives `elapsedMs`, which is how the copy changes to "still confirming" at ten
+   * seconds without the screen owning a clock.
+   */
+  useEffect(() => {
+    if (pollGroupId === null) return;
+
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const result = await api.fetchCheckoutStatus(pollGroupId);
+        if (cancelled) return;
+        if (result.status === 'paid' || result.status === 'failed' || result.status === 'cancelled') {
+          setSettled(result.status);
+          setPollGroupId(null);
+          // The cart has become an order. Emptying it any earlier would lose it on a decline.
+          if (result.status === 'paid') {
+            setPlaced(result.order ?? null);
+            clearCart();
+            resetCheckout();
+          }
+        }
+      } catch {
+        // A failed poll is not a failed payment. Keep asking — the next tick may reach the server,
+        // and treating a dropped request as a verdict is how a paid parent is told otherwise.
+      }
+    };
+
+    void tick();
+    const poll = setInterval(() => void tick(), 2_000);
+    // Fires once. See `stillConfirming`.
+    const copyChange = setTimeout(() => setStillConfirming(true), PENDING_AFTER_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+      clearTimeout(copyChange);
+    };
+    // Every dependency is a primitive or a stable callback. `checkout` itself must NEVER appear
+    // here: it is a new object each render, and that is what produced the infinite loop.
+  }, [pollGroupId, clearCart, resetCheckout]);
+
+  /**
+   * While a payment is in flight the cart is replaced rather than navigated away from, so the
+   * cart's own state survives a dismissal untouched and "try again" is genuinely the same cart.
+   */
+  // `placing` and `opening` are NOT here: during those the sheet has not opened and there is
+  // nothing to confirm, so the cart stays on screen with its button in a loading state.
+  const paying = pollGroupId !== null || settled === 'failed';
+
+  if (settled === 'paid' && placed !== null) {
+    return (
+      <OrderPlacedScreen
+        order={placedOrder({
+          status: 'paid',
+          pickupCode: placed.pickupCode,
+          recipientName: placed.recipientFirstName,
+          serviceDate: placed.serviceDate,
+          breakLabel: placed.breakLabel,
+          itemCount: placed.itemCount,
+          totalPaise: placed.totalPaise,
+        })}
+        onViewOrder={() => navigation.navigate('Orders')}
+        onBackToMenu={() => {
+          setSettled(null);
+          setPlaced(null);
+          navigation.navigate('Tabs', { screen: 'Menu' });
+        }}
+      />
+    );
+  }
+
+  if (paying) {
+    return (
+      <PaymentWaitingScreen
+        elapsedMs={stillConfirming ? PENDING_AFTER_MS : 0}
+        pending={pollGroupId !== null}
+        failed={settled === 'failed' || checkout.phase.kind === 'failed'}
+        dismissed={checkout.phase.kind === 'dismissed'}
+        onSeeOrders={() => navigation.navigate('Orders')}
+        onRetry={() => {
+          setSettled(null);
+          setPollGroupId(null);
+          setStillConfirming(false);
+          void beginCheckout();
+        }}
+      />
+    );
+  }
+
   return (
     <CartScreen
       onPlaceOrder={placeOrder}
+      checkoutError={failure}
       dishInfo={dishInfo}
       breakWindows={breakWindows}
       breakTimeId={breakTimeId}

@@ -574,13 +574,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/10</span>
+          <span class="meter-num">0/13</span>
         </div>
       </header>
       <p class="summary">Short, throwaway experiments that answer the questions capable of invalidating later work. Each is timeboxed to a day or two and needs almost no infrastructure.</p>
       
       <details>
-        <summary>Context &amp; 10 tasks</summary>
+        <summary>Context &amp; 13 tasks</summary>
         <div class="context"><h4>Why these are first</h4>
 <p>Each of these can invalidate a large amount of downstream work if the answer is bad.</p>
 <p>Doing them in phase 1 costs days; discovering them in phase 4 costs weeks.</p></div>
@@ -633,7 +633,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Write up each spike&#39;s result as a short note in <code>docs/</code>, including anything that changes a decision in <code>docs/decisions.md</code></span>
       </li>
-      <li class="task" data-id="E19-07" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E19-07" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-07"></button>
         <code class="tid">E19-07</code>
         <span class="badge r-critical">critical</span>
@@ -664,6 +664,30 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The <code>E19-07</code> sitting itself — ~45 minutes with the Razorpay dashboard in TEST mode.</strong> Three actions, listed in <code>docs/e19-07-webhook-sitting.md</code> §4: subscribe the probe URL and save the webhook secret; make one test UPI payment <strong>and let a second collect request expire unpaid</strong> (the only way to learn how long Razorpay holds a pending collect, which is <code>[OL-03]</code> and drives <code>S21</code>&#39;s no-timeout waiting screen); run one script and paste the output back. Needs: dashboard in test mode, test-mode API keys, a phone with a UPI app. Not scenario #40 — that is live-mode at release and must never be simulated. <strong>Blocks <code>E06</code> step 6 onward</strong>, not steps 1–4, so the ledger work proceeds meanwhile</span>
+      </li>
+      <li class="task" data-id="E19-11" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-11"></button>
+        <code class="tid">E19-11</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Scenario 40 needs an owner who is not Andy.</strong> The UPI *intent* happy path — the app-switch, the chooser, <code>LSApplicationQueriesSchemes</code> and the Android <code>&lt;queries&gt;</code> block (<code>E06-29</code>), and the process being killed while another app holds the foreground (<code>E06-16</code>) — is the one thing test VPAs and test cards cannot exercise, because it is a property of the handset rather than of our server. <code>E19-01</code> proved it once on a real handset; <strong>Andy is in Australia with no working UPI and cannot repeat it.</strong> Everything downstream of the provider is covered by scenarios 41–43 (<code>docs/payments-design.md</code> §14.1), so this is not a blocker for building — it is a release gate with nobody assigned. Needs a real Indian handset with a working UPI app, in Mohali, before launch</span>
+      </li>
+      <li class="task" data-id="E19-12" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-12"></button>
+        <code class="tid">E19-12</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Webhook retry policy and response timeout are still assumed, not measured</strong> (<code>E19-07</code> rows 10/11). Our handler always answers <code>200</code>, so Razorpay has never retried and there is nothing to observe. Measuring it needs a deliberate non-<code>200</code> from a disposable endpoint — an experiment, not a sitting, and one nobody need attend. Until it is done, §2.4&#39;s <code>_PREVIOUS</code> secret-rotation window and §6.6&#39;s &quot;we own retry&quot; boundary rest on an assumed ~24 hours</span>
+      </li>
+      <li class="task" data-id="E19-13" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E19-13"></button>
+        <code class="tid">E19-13</code>
+        <span class="badge r-high">high</span>
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>How long Razorpay holds an unpaid UPI collect — ask Razorpay support.</strong> <code>E19-07</code> row 12, and <strong>not answerable with any instrument we have</strong>: test VPAs resolve immediately by design so no pending collect can exist to time, and a payment link created without <code>expire_by</code> never expires (one sat at <code>status: created</code> for 9.1 hours). <code>[OL-03]</code>&#39;s TTL, the <code>pending_payment</code> hold and <code>S21</code>&#39;s Ending B all resolve on this number, and a hold shorter than the real expiry manufactures exactly the late-capture path <code>L9</code>&#39;s grace window exists to absorb. A support ticket, or a real Indian handset (<code>E19-11</code>). <strong>Do not guess it</strong></span>
       </li></ul>
       </details>
     </article>
@@ -2573,13 +2597,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/33</span>
+          <span class="meter-num">0/35</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 33 tasks</summary>
+        <summary>Context &amp; 35 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -2850,6 +2874,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A guard for the dead-navigation class.</strong> <code>reachability.test.ts</code> proves every route has a <code>navigate(&#39;X&#39;)</code> somewhere; it cannot see that <code>navigate(&#39;Tabs&#39;)</code> from inside <code>Tabs</code> moves nobody. Five buttons were dead for weeks with a green reachability suite. Assert that a tab route is only ever navigated to with a <code>screen</code> param, or find the general form</span>
+      </li>
+      <li class="task" data-id="E14-36" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-36"></button>
+        <code class="tid">E14-36</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The <code>Maestro (cart)</code> CI job timed out at 45 minutes on every pull request, and had never once passed.</strong> Not slow — the Gradle daemon exhausted its metaspace and then neither finished nor died, throwing <code>OutOfMemoryError: Metaspace</code> in a loop until the job&#39;s own timeout killed it. Expo&#39;s template ships <code>-Xmx2048m -XX:MaxMetaspaceSize=512m</code> (verified by running <code>prebuild</code> with the plugin removed, not read from docs); metaspace holds class metadata and is a separate region, so the usual &quot;raise <code>-Xmx</code>&quot; advice would have changed nothing. Fixed as a config plugin rather than a CI line because <code>android/</code> is generated by <code>prebuild</code> and not committed, so a <code>gradle.properties</code> edit is erased every build — and because EAS runs the same Gradle, and the two must not disagree. <code>ExitOnOutOfMemoryError</code> is the half that bounds the damage: the same exhaustion now kills the JVM in minutes with the reason in the log. 7 assertions. <strong>Second half, found by fixing the first:</strong> with the APK building (24m34s), the job still hit 45 minutes — the emulator took <strong>781 seconds to boot</strong> because <code>/dev/kvm</code> is not world-writable on a GitHub runner, so it silently fell back to software emulation. The job&#39;s total work had always exceeded its own timeout, so the OOM fix only moved the wall. A udev rule, an AVD snapshot cache and a 75-minute ceiling</span>
+      </li>
+      <li class="task" data-id="E14-37" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-37"></button>
+        <code class="tid">E14-37</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>Maximum update depth exceeded</code> on the waiting screen, during the first real payment.</strong> The poller updated an <code>elapsedMs</code> state every two seconds and its effect depended on the object <code>useCheckout()</code> returns — which is rebuilt every render, so each tick re-subscribed the effect. <strong>It starved the poll it existed to drive</strong>: the payment captured at Razorpay and the order never settled. Fixed by taking the clock out of render state entirely — the screen needs one threshold crossing (§5.12&#39;s ten seconds), so that is one boolean set by one <code>setTimeout</code> instead of a state write per tick — and by depending only on primitives and stable callbacks</span>
       </li></ul>
       </details>
     </article>
@@ -2866,13 +2906,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/35</span>
+          <span class="meter-num">0/36</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 35 tasks</summary>
+        <summary>Context &amp; 36 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -3156,6 +3196,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:critical) (mvp) <strong>Razorpay TEST keys are not set on staging, and nothing can take a payment without them.</strong> <code>supabase secrets list</code> shows only the seven Supabase-managed values: <code>RAZORPAY_KEY_ID</code>, <code>RAZORPAY_KEY_SECRET</code> and <code>RAZORPAY_WEBHOOK_SECRET</code> are all absent. This is why the deployed webhook answers <code>recorded_unverified</code> — with no secret it records the event and cannot verify the signature, which is the correct fail-safe and not a working state. <code>packages/shared/src/env.ts</code> already enforces that a key beginning <code>rzp_live_</code> cannot load under <code>APP_ENV=staging</code> (<code>EN2</code>), so the test keys cannot leak into production by accident. A credentialed action: the values come from Andy&#39;s Razorpay dashboard, Settings → API Keys, in <strong>test mode</strong>. Hand them over and I set the secrets. Blocks <code>E06-02</code>, <code>E06-16</code> and every end-to-end payment test. <strong>Done 2026-08-13 (Andy), all three verified</strong>: the webhook now answers <code>recorded_unverified</code> rather than the new <code>recorded_no_secret</code>, and <code>payments-create-order</code> created a real test order <code>order_TPBr7ydDNITdB3</code> against key <code>rzp_test_…</code>, which exercises the id and the secret together. The webhook is <strong>not yet subscribed in Razorpay</strong> — that is the <code>E19-07</code> sitting, where Andy enters the same string</span>
+      </li>
+      <li class="task" data-id="E06-37" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-37"></button>
+        <code class="tid">E06-37</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Nothing consumes the webhook queue.</strong> <code>payments-webhook</code> verifies an event and records it with <code>processing_status = &#39;pending&#39;</code>, and no function ever reads those rows — so <code>settle_payment</code> is reached only by <code>checkout-status</code> when the app polls (<code>E06-16</code>). A parent who pays and never reopens the app has a captured payment and an unsettled order until they do. Found while wiring <code>E06-16</code> on 2026-08-14; the design (§3.6) always called for the webhook to be the primary route and polling the recovery one, and today it is the other way round. <strong>Built 2026-08-14</strong>: <code>_shared/settle-from-events.ts</code>, called inline by the webhook after it records and by a new <code>payments-drain</code> endpoint for retries and cron. It never trusts the event body — §3.6 requires fetching the payment from Razorpay before settling — and honours <code>0046</code>&#39;s <code>payment_not_found</code> hint as terminal rather than retrying an order this system never created (§10.9). Proven on the real queue: 8 events considered, 1 genuinely settled</span>
       </li></ul>
       </details>
     </article>

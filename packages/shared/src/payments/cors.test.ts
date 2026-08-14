@@ -82,6 +82,8 @@ describe('every browser-callable Edge Function', () => {
   const BROWSER_CALLABLE = [
     'account',
     'checkout',
+    // `E06-16`. Browser-callable like the rest — the back office will read order status too.
+    'checkout-status',
     // Added by `E09-20`. The back office is the first browser client in the project, and this
     // function is where the missing preflight was found.
     'kitchen-order-status',
@@ -94,7 +96,12 @@ describe('every browser-callable Edge Function', () => {
     'policy',
     'recipients',
   ];
-  const NOT_BROWSER_CALLABLE = ['payments-webhook'];
+  const NOT_BROWSER_CALLABLE = [
+    'payments-webhook',
+    // `E06-37`. Settles orders, authenticated by the service-role key. Nothing in a browser may
+    // call it, so advertising a preflight would describe a surface that must not exist.
+    'payments-drain',
+  ];
 
   const source = (name: string) => readFileSync(join(FUNCTIONS, name, 'index.ts'), 'utf8');
 

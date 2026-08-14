@@ -1167,6 +1167,41 @@ breaks if the answer is different. `E19-06` writes up the answers; `E19-07` is t
 | 19 | The settlement recon report endpoint, its shape and its retention window | Tier 3 (§8.4) and `E06-27` depend on it entirely |
 | 20 | The payments list API's `from`/`to` semantics and page-size cap | Tier 2's windowing (§8.1). Getting it wrong produces false B1/B2 breaks, which page |
 
+### 12.1 The `E19-07` sitting — answered 2026-08-13, against a live test account
+
+Andy subscribed the real `payments-webhook` (not a throwaway probe — the deployed function, so
+what was measured is what ships), paid a Standard Payment Link by netbanking, and ran
+`scripts/probe-razorpay.mjs`. **Five of seven answered; two are recorded as open with reasons.**
+
+Every line below is an observation from a recorded event or an API response, never a reading of
+documentation — the distinction that matters, because the docs implied `authorized` where a real
+capture gives `captured`.
+
+| Row | Answer | What it settles |
+|---|---|---|
+| **7 — event id** | **`X-Razorpay-Event-Id` IS sent.** Values like `TPGqpLt6Q25DR5`, not the 64-hex body-hash fallback | §7.1 layer 1 dedupes on the real id. §6.2's weaker fallback stays as a guard, unexercised |
+| **5/6 — event set** | Observed: `payment.failed`, `payment.authorized`, `order.paid`, `payment.captured`, `refund.created`, `refund.processed`. **`order.paid` fires ~1s after `payment.captured`** | Both describe one capture. `order.paid` is NOT in `HANDLED` and was recorded `ignored` — had it been handled, one payment would have settled twice |
+| **18 — `fee`/`tax`** | **PRESENT and non-zero at capture.** `fee: 546, tax: 84` on a ₹210 netbanking payment | **The expensive one, and it went our way.** `E07-11` computes MDR at refund time; `M5` stands; `E07-10` and `E11-01` are unaffected. §4.3's contingency does not fire |
+| **15 — refund idempotency** | **NOT idempotent.** `Idempotency-Key` was accepted, returned 200, and **created a second refund**: `rfnd_TPH0fuCG3IDjgs` and `rfnd_TPH0iHly5Eza3G`, identical bodies | §7.4's `notes.graybag_refund_id` adopt-or-create is **mandatory**, not an optimisation. `E06-08` must reconcile before every retry |
+| **17 — refunds listable** | Yes, `GET /v1/refunds` returns them with `status` and `speed_processed` | §7.4 step 2 is possible |
+| **19 — settlements** | `GET /settlements` → `id, entity, amount, status, fees, tax, utr, created_at, currency`. `settlements/recon/combined` → 200, 0 rows on a test account | `E06-27` has a shape to build against; row counts need a live account |
+| **20 — payments list** | **Both ends INCLUSIVE** (proved both ways: `from=to=created_at` returns the payment; `from=created_at+1` excludes it). `created_at` is **epoch seconds, UTC**. `count` capped at **100**, with an explicit `400` above it | Tier 2's window must be half-open in our own code, and converted from IST. Inclusive-inclusive plus UTC seconds is how a daily recon double-counts the boundary second and still looks correct |
+
+**Still open, and why — neither is a guess we may quietly fill in later:**
+
+| Row | Why it is still open |
+|---|---|
+| **10/11 — retry policy and response timeout** | Our webhook always answers `200`, so Razorpay has never retried. Measuring it needs a deliberate non-`200` — a separate experiment, not a sitting. Until then §2.4's `_PREVIOUS` window and §6.6's "we own retry" boundary rest on the assumed ~24h |
+| **12 — UPI collect expiry** | **Not answerable with the instruments available.** Test VPAs resolve immediately by design, so no pending collect can exist to time; and a payment link created without `expire_by` never expires — one sat at `status: created` for 9.1 hours with `expire_by: 0`. This must come from Razorpay support or a real Indian handset (§14.1, `E19-11`). `[OL-03]`, the `pending_payment` hold and `S21`'s Ending B all resolve on it, and a hold shorter than the real expiry manufactures the late-capture path `L9`'s grace window exists to absorb |
+
+**Two things learned by accident, both worth keeping.** Andy's two failed card attempts —
+`4111 1111 1111 1111` is rejected as *international* on a default test account — were recorded as
+verified `payment.failed`, so the decline path is evidenced without anyone writing a test for it.
+And the hosted payment-link page shows a **UPI QR with no UPI-ID field** on desktop, so the
+test-VPA path needs netbanking or a card instead; netbanking turned out to be the better
+instrument anyway, because UPI's zero MDR would have made `fee: 0` indistinguishable from
+"not populated yet".
+
 Two further things the spike should measure while it has a handset in hand, because they are
 free at that point and expensive later: **the wall-clock time from tapping Pay to the callback
 firing on UPI intent** (it sets the app's waiting-state design under `S5`), and **whether the
@@ -1223,7 +1258,41 @@ noted.
 | 37 | Ledger transaction with unbalanced entries | Refused at commit (I10) |
 | 38 | `rzp_live_` key id with `APP_ENV != production` | Function refuses to start (`E06-14`) |
 | 39 | A `refund.created` for a provider refund with no local row | Draft record, `200`, page (`[PAY-07]`) |
-| 40 | UPI intent happy path on a real handset | **Live only** — `E19-01`, then `E06-13` scenario 2 |
+| 40 | UPI intent happy path on a real handset | **Live only, and NOT runnable by Andy** — see §14.1 |
+| 41 | UPI **collect** success, test VPA `success@razorpay` | `payment.captured`. The reachable substitute for 40 |
+| 42 | UPI **collect** failure, test VPA `failure@razorpay` | `payment.failed`, and the app shows a decline rather than a cancellation |
+| 43 | Card fallback, `4111 1111 1111 1111` | `payment.captured` on a non-UPI method — proves the settlement path is not UPI-shaped |
+
+### 14.1 Who can run scenario 40, and why it is not Andy
+
+**Andy is in Australia and has no working UPI.** Not temporarily — this is the standing condition
+of every payment test this project runs, so it belongs in the specification rather than in a
+message.
+
+`E19-01` was validated on a real Android handset with a real test-mode UPI **intent** payment
+(`docs/spike-results.md` B6, B7). That evidence stands — it is what closed `[PAY-01]` — but **it
+cannot be reproduced by the person who now runs the tests.** A design that assumes it can is a
+design whose verification plan has no owner.
+
+So the split, explicitly:
+
+| | Runnable by Andy, from anywhere | Needs a real Indian handset with UPI |
+|---|---|---|
+| **Scenarios 41–43** | Yes — test VPAs and test cards, laptop browser | — |
+| **Scenario 40** | No | Yes, at release, in India |
+
+**What the substitutes do and do not cover.** The webhook, the signature, `settle_payment`, the
+invoice and the ledger see an identical `payment.captured` whichever instrument produced it — so
+everything downstream of the provider is fully covered by 41–43. What they cannot exercise is the
+**app-switch itself**: `LSApplicationQueriesSchemes` and the Android `<queries>` block (`E06-29`),
+the chooser, and the process being killed while another app has the foreground (`E06-16`). Those
+are properties of the handset, not of our server, and they need scenario 40.
+
+**Open the checkout on a laptop.** The intent chooser only appears where the OS can resolve an
+installed UPI app; a desktop browser has nothing to resolve, so checkout renders the collect path
+with the "Enter UPI ID" field that accepts a test VPA. On a phone with any UPI app installed,
+checkout may launch straight into intent and never offer the field — which looks like the test
+being impossible rather than like the wrong device.
 
 ---
 

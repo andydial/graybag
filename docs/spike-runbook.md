@@ -3,6 +3,14 @@ title: E19-01 / E19-02 spike runbook
 status: PARKED 2026-08-08 — setup complete, waiting only on Andy's handset (expected 2026-08-09 morning)
 ---
 
+> **Not repeatable by Andy, 2026-08-13.** This runbook was executed once on a real Android
+> handset with a real test-mode UPI intent payment, and that evidence stands (`spike-results.md`
+> B6, B7). It cannot be run again by the person who now runs the tests: **Andy is in Australia and
+> has no working UPI.** Anything here that says "on the handset" is a record of what happened, not
+> an instruction anyone can follow today. The reachable substitutes are in
+> `docs/payments-design.md` §14.1 — test VPAs and test cards, in a laptop browser.
+>
+
 > **Parked, pick-up-and-go.** Everything that can be done without an Android handset is done and
 > merged. **§2 is the whole remaining job** and needs no preparation beyond plugging the phone
 > in — the APK is built, `adb` is installed, and the two laptop-side scripts are tested.
