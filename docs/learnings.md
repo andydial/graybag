@@ -59,6 +59,55 @@ the time dimension: **what else produces this result — including "nothing yet"
 
 ---
 
+## 2026-08-14 — An elapsed-time counter in render state is a loop waiting for a dependency
+
+**Context:** the first real payment through the rebuild. Razorpay captured ₹145.96, and the app
+then died on the waiting screen with `Maximum update depth exceeded`.
+
+**What happened:** a poller ran every two seconds and did two things — asked the server for the
+order's status, and updated an `elapsedMs` state so the copy could change to "still confirming"
+after ten seconds. The effect's dependency array contained `checkout`, the object returned by a
+custom hook.
+
+That object is **rebuilt on every render**. So: tick → `setElapsedMs` → render → new `checkout`
+object → effect re-subscribes → tick. The interval was never the clock; the render was.
+
+**Cause, and the part worth generalising.** The unstable dependency is the proximate bug and the
+easy fix — destructure the stable `useCallback` out, depend on primitives. But the shape that
+*created* the opportunity is **a clock in render state**:
+
+- an elapsed counter guarantees a state write per tick, so any unstable dependency anywhere in
+  that effect becomes an infinite loop rather than a slow leak;
+- it re-renders a subtree once per tick forever, to change nothing at all in the common case;
+- and it fails at the worst moment, because the timer only runs while something important is in
+  flight — here, while a parent's money was already gone.
+
+**It also starved the thing that mattered.** The order captured at Razorpay and never settled: the
+loop consumed the render loop while the poll it existed to drive never completed. A cosmetic
+counter took down a payment confirmation.
+
+**Fix / rule:** **keep the clock out of render state.** Ask what the UI actually needs from the
+timer, and it is almost never "the current elapsed milliseconds" — it is *one threshold crossing*.
+That is a single boolean set by a single `setTimeout`: one state change for the whole wait
+instead of one every two seconds.
+
+```js
+// was: a render per tick, forever
+setElapsedMs(Date.now() - startedAt)
+
+// now: one state change, at the only moment the copy changes
+const t = setTimeout(() => setStillConfirming(true), PENDING_AFTER_MS)
+```
+
+If a genuinely continuous readout is ever needed — a countdown — it belongs in an animated value
+or a ref read by a non-rendering subscriber, not in `useState`.
+
+And a companion rule the same bug earned: **never put an object returned by a hook in a dependency
+array.** `useCheckout()` returns `{phase, start, reset}` fresh each render. Destructure what is
+stable and depend on that; the array should hold primitives and `useCallback`s and nothing else.
+
+---
+
 ## 2026-08-13 — If both outcomes can be produced by the fault you are looking for, it is not a check
 
 **Context:** verifying that `RAZORPAY_WEBHOOK_SECRET` had actually been set on staging. I POSTed

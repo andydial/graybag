@@ -36,7 +36,7 @@ import { BackBar } from '../components/BackBar';
 import { TabIcon } from '../components/TabIcon';
 import { useCart } from '../cart/CartContext';
 import { OrderPlacedScreen, placedOrder } from '../checkout/OrderPlacedScreen';
-import { PaymentWaitingScreen } from '../checkout/PaymentWaitingScreen';
+import { PENDING_AFTER_MS, PaymentWaitingScreen } from '../checkout/PaymentWaitingScreen';
 import { useCheckout } from '../checkout/useCheckout';
 import { useBreakTimes } from '../cart/useBreakTimes';
 import { clashingAllergens, useAllergenWatchlist } from '../menu/useAllergenWatchlist';
@@ -164,12 +164,31 @@ function CartTabScreen() {
   const audience = useAudience();
   const { cart, clear: clearCart } = useCart();
   const checkout = useCheckout();
+  // Destructured so the effect depends on a stable `useCallback`, never on the object.
+  const { reset: resetCheckout } = checkout;
   /**
    * `E06-16`'s clock, owned here because `PaymentWaitingScreen` deliberately starts no timer of
    * its own — it takes `elapsedMs` and renders, so a test never has to advance a fake clock.
    */
-  const [waitingSince, setWaitingSince] = useState<number | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
+  /**
+   * The group being polled. A **string**, deliberately — the effect below used to depend on
+   * `checkout.phase` and on `checkout` itself, and `useCheckout` returns a fresh object every
+   * render, so the effect re-subscribed on every render.
+   */
+  const [pollGroupId, setPollGroupId] = useState<string | null>(null);
+  /**
+   * **One state change, not one per tick** — `E14-37`.
+   *
+   * This was `elapsedMs`, updated every two seconds, and it caused `Maximum update depth
+   * exceeded` on the first real payment: the tick set state, the state re-rendered, the render
+   * made a new `checkout` object, the new object re-ran the effect, and the effect ticked again.
+   *
+   * The screen only needs to know one thing — whether ten seconds have passed (`PENDING_AFTER_MS`,
+   * §5.12) — so that is a single boolean set by a single timeout. **An elapsed-time counter that
+   * drives a render on every tick is a loop waiting for an unstable dependency**, and the fix is
+   * not a better dependency array; it is not putting the clock in render state.
+   */
+  const [stillConfirming, setStillConfirming] = useState(false);
   const [settled, setSettled] = useState<api.CheckoutStatus | null>(null);
   const [placed, setPlaced] = useState<api.SettledOrderSummary | null>(null);
   /** The last refusal, in the parent's words. Rendered on the cart, not swallowed. */
@@ -359,10 +378,11 @@ function CartTabScreen() {
      * A failure now surfaces as a failure, with the server's own reason.
      */
     if (outcome.kind === 'sheet_reported_success') {
-      setWaitingSince(Date.now());
+      setStillConfirming(false);
+      setPollGroupId(outcome.orderGroupId);
       return;
     }
-    setWaitingSince(null);
+    setPollGroupId(null);
     if (outcome.kind === 'failed') setFailure(outcome.message);
   };
 
@@ -379,24 +399,21 @@ function CartTabScreen() {
    * seconds without the screen owning a clock.
    */
   useEffect(() => {
-    if (waitingSince === null) return;
-    const groupId = checkout.phase.kind === 'sheet_reported_success' ? checkout.phase.orderGroupId : null;
-    if (groupId === null) return;
+    if (pollGroupId === null) return;
 
     let cancelled = false;
     const tick = async () => {
-      setElapsedMs(Date.now() - waitingSince);
       try {
-        const result = await api.fetchCheckoutStatus(groupId);
+        const result = await api.fetchCheckoutStatus(pollGroupId);
         if (cancelled) return;
         if (result.status === 'paid' || result.status === 'failed' || result.status === 'cancelled') {
           setSettled(result.status);
-          setWaitingSince(null);
+          setPollGroupId(null);
           // The cart has become an order. Emptying it any earlier would lose it on a decline.
           if (result.status === 'paid') {
             setPlaced(result.order ?? null);
             clearCart();
-            checkout.reset();
+            resetCheckout();
           }
         }
       } catch {
@@ -406,12 +423,17 @@ function CartTabScreen() {
     };
 
     void tick();
-    const timer = setInterval(() => void tick(), 2_000);
+    const poll = setInterval(() => void tick(), 2_000);
+    // Fires once. See `stillConfirming`.
+    const copyChange = setTimeout(() => setStillConfirming(true), PENDING_AFTER_MS);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      clearInterval(poll);
+      clearTimeout(copyChange);
     };
-  }, [waitingSince, checkout.phase, checkout, clearCart]);
+    // Every dependency is a primitive or a stable callback. `checkout` itself must NEVER appear
+    // here: it is a new object each render, and that is what produced the infinite loop.
+  }, [pollGroupId, clearCart, resetCheckout]);
 
   /**
    * While a payment is in flight the cart is replaced rather than navigated away from, so the
@@ -419,7 +441,7 @@ function CartTabScreen() {
    */
   // `placing` and `opening` are NOT here: during those the sheet has not opened and there is
   // nothing to confirm, so the cart stays on screen with its button in a loading state.
-  const paying = waitingSince !== null || settled === 'failed';
+  const paying = pollGroupId !== null || settled === 'failed';
 
   if (settled === 'paid' && placed !== null) {
     return (
@@ -446,14 +468,15 @@ function CartTabScreen() {
   if (paying) {
     return (
       <PaymentWaitingScreen
-        elapsedMs={elapsedMs}
-        pending={waitingSince !== null}
+        elapsedMs={stillConfirming ? PENDING_AFTER_MS : 0}
+        pending={pollGroupId !== null}
         failed={settled === 'failed' || checkout.phase.kind === 'failed'}
         dismissed={checkout.phase.kind === 'dismissed'}
         onSeeOrders={() => navigation.navigate('Orders')}
         onRetry={() => {
           setSettled(null);
-          setWaitingSince(null);
+          setPollGroupId(null);
+          setStillConfirming(false);
           void beginCheckout();
         }}
       />
