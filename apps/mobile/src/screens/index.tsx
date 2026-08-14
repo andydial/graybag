@@ -355,11 +355,18 @@ export const DeleteAccountScreen = () => <DeleteAccountScreenImpl />;
  */
 export const SupportScreen = () => (
   /*
-   * The officer, published in privacy policy §7A (`C17`, Andy 2026-08-11). No `address`: he
-   * supplied the name, designation and email and not a postal one, so `E20-21` stays open for
-   * that and the screen shows the two facts it has rather than inventing a third.
+   * **The role, not the person.** Andy, 2026-08-15: no individual's name in the app, and every
+   * route to a person goes to `support@graybag.com`. This said "Vivek · Grievance Officer".
+   *
+   * The block still renders rather than falling back to the "we're publishing these details
+   * before launch" notice: that notice means "we do not have this yet", and we do — a parent
+   * with a data-protection question has a titled contact and a button that reaches them. Showing
+   * "coming before launch" instead would be a false statement about our own readiness.
+   *
+   * No `address`: `E20-21` is still open for a postal one, and the screen shows the fact it has
+   * rather than inventing a second.
    */
-  <SupportScreenImpl grievance={{ name: 'Vivek', designation: 'Grievance Officer' }} />
+  <SupportScreenImpl grievance={{ designation: 'Grievance Officer' }} />
 );
 
 // Reached from Account. `navigation/types.ts` used to say "and from Home" as well; Home has no

@@ -700,13 +700,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/50</span>
+          <span class="meter-num">0/52</span>
         </div>
       </header>
       <p class="summary">India&#39;s DPDP Act, children&#39;s data, consent records and policy versioning. The system stores minors&#39; names, class, section and allergies (health data), so this is not an app-store checkbox.</p>
       <p class="deps">Depends on <code>E02</code></p>
       <details>
-        <summary>Context &amp; 50 tasks</summary>
+        <summary>Context &amp; 52 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>GrayBag stores personal data about <strong>children</strong>, including <strong>allergies</strong>, which is health</p>
 <p>data. India&#39;s Digital Personal Data Protection Act 2023 requires verifiable parental</p>
@@ -1113,6 +1113,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The notice lookup sorts versions numerically.</strong> <code>0033</code>. <code>policy_version.version</code> is TEXT and <code>create_recipient</code> sorted it as text, so from the tenth version of any notice onward <code>&#39;9&#39; &gt; &#39;10&#39;</code> and a consent would be recorded against superseded wording — <strong>invisibly</strong>: nothing errors, nothing is null, and the row is well-formed on the one record whose job is to answer &quot;which words did this person agree to?&quot;, which <code>C9</code> keeps after erasure as the evidence that holding the data was lawful. <code>effective_from desc</code> was saving it accidentally, and stops the first time anyone backdates a version, which is a legitimate thing to do when a wording is corrected. Now <code>policy_version_rank()</code> mirrors <code>compareVersions()</code> in <code>packages/shared</code> — the client and the database must not disagree about which wording is current — and <code>current_policy_version_id()</code> is the single place that decides. <code>create_recipient</code> was regenerated from <code>pg_get_functiondef()</code> with the five-line lookup swapped for one call and asserted to differ in nothing else. Three assertions, the last of which <strong>fails under the old ordering</strong>: versions 9 and 10 sharing an <code>effective_from</code>, so only the version comparison can break the tie (verified — old picks 9, new picks 10)</span>
+      </li>
+      <li class="task" data-id="E20-51" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-51"></button>
+        <code class="tid">E20-51</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Every route to a person in the app pointed at an individual&#39;s mailbox.</strong> <code>SUPPORT_EMAIL</code> was <code>andy@graybag.com</code> and <code>GRIEVANCE_EMAIL</code> was <code>vivek@graybag.com</code>, and the Support screen rendered &quot;Vivek · Grievance Officer&quot;. A personal mailbox behind a support route is three problems at once: unanswerable when that person is away, unchangeable without every shipped build pointing at the wrong place, and it makes one individual the public face of every complaint in an app-store listing. Andy, 2026-08-15: <strong><code>support@graybag.com</code>, and no individual&#39;s name in the app.</strong> Done: both constants point there, and <code>GrievanceOfficer.name</code> is <strong>removed from the type</strong> rather than left optional — an optional field that must never be filled is an invitation, and the compiler now refuses a name where a comment would only have asked. The two constants stay separate even though the address is identical, because the *routing* distinction is real and load-bearing: <code>SUPPORT_SUBJECTS.grievance</code> is what lets a DPDP matter be filtered out of the order-query pile, and those are on a statutory clock. The grievance card still renders the role rather than falling back to the &quot;publishing these details before launch&quot; notice, which would be a false statement about our own readiness. A test asserts no individual&#39;s name appears anywhere in the rendered tree, because a name could equally arrive baked into a <code>designation</code> string</span>
+      </li>
+      <li class="task" data-id="E20-52" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E20-52"></button>
+        <code class="tid">E20-52</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:high) <strong>The published privacy policy names Vivek as grievance officer, and the app renders it in full.</strong> <code>E20-51</code> removed every individual&#39;s name from the app&#39;s own screens; it deliberately <strong>did not touch the policy document</strong>, and that is not an oversight. Two reasons it is Andy&#39;s: (1) <code>policy_version</code> rows are <strong>immutable once published</strong> — &quot;a parent&#39;s consent points at the wording they were shown&quot; — so changing §7A is a <strong>new notice version</strong>, which re-triggers the acceptance gate for every existing parent; and (2) notice version 2 added the name *specifically because* DPDP requires a published named person, and the change log says so in as many words: &quot;The baseline had a general <code>info@</code> address, which does not satisfy a named-officer requirement.&quot; <strong>Replacing the name with <code>support@graybag.com</code> may therefore undo the compliance the change was made to achieve.</strong> Needs a lawyer&#39;s answer to one question — does the DPDP grievance-officer contact have to name a natural person, or does a titled role with a monitored address satisfy it? — and then either a new notice version or a deliberate decision to leave the document as it stands while the app shows only the role. <strong>Do not edit the published wording to match the app.</strong> Ties to <code>E20-01</code> and <code>E20-21</code></span>
       </li></ul>
       </details>
     </article>

@@ -19,20 +19,32 @@
  * ships a support screen whose button goes nowhere. A wrong address fails loudly at review; a
  * missing one fails silently in a parent's hands.
  */
-export const SUPPORT_EMAIL = 'andy@graybag.com';
+export const SUPPORT_EMAIL = 'support@graybag.com';
 
 /**
- * The **published** grievance contact — `C17`, privacy policy §7A.
+ * The grievance route. Andy, 2026-08-15: **`support@graybag.com`, and no individual's name in
+ * the app.**
  *
- * Separate from `SUPPORT_EMAIL` because the DPDP Act requires a *named person* who answers
- * questions about personal data, and routing a data complaint into the general support inbox
- * is how a statutory deadline gets missed behind an order query. Vivek is that person.
+ * This was `vivek@graybag.com`, and `SUPPORT_EMAIL` was `andy@graybag.com`. Both were personal
+ * mailboxes, and a personal mailbox behind a support route is three separate problems: it is
+ * unanswerable when that person is away, it cannot be handed over without every shipped build
+ * pointing at the wrong place, and an app store listing that routes users to a named individual
+ * makes that individual the public face of every complaint.
  *
- * Unlike `SUPPORT_EMAIL` this address **is published** — it is in the privacy policy, which
- * the app renders in full. It is still not drawn on the Support screen, because a screen is
- * scraped more readily than a policy document and the compose button reaches him either way.
+ * **It is the same address as `SUPPORT_EMAIL`, and the constant stays separate anyway.** The
+ * distinction is real even when the destination is not: `SUPPORT_SUBJECTS.grievance` puts a
+ * data-protection matter on a subject line an inbox can filter, and DPDP puts those on a
+ * statutory clock. Collapsing the two constants would make the *routing* untraceable the day
+ * somebody splits the inbox — which is the likely next step, not a hypothetical.
+ *
+ * ## What this does not settle, and must not be read as settling
+ *
+ * DPDP requires a grievance officer to be **published**, and the published document is
+ * `docs/privacy-policy.md`, not this file. Whether that document must name a natural person, and
+ * who it names, is `E20-21` and it is Andy's. Removing the name from the app is a decision about
+ * the app; it is not a finding that no name is required anywhere.
  */
-export const GRIEVANCE_EMAIL = 'vivek@graybag.com';
+export const GRIEVANCE_EMAIL = SUPPORT_EMAIL;
 
 /**
  * A `mailto:` with the subject pre-filled.
