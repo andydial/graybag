@@ -47,9 +47,12 @@ added this week and each one cost hours. Read it before writing a test.
 | Orders list + detail (`E06-40`, `E06-34`) | Wired and scoped to the signed-in customer |
 | Ledger | Balancing. `0051` fixed the bug that stopped it posting at all |
 
-**Staging is at migration `0051`, which matches `main`.** Edge Functions deployed:
+**`main` is at migration `0054`. Staging was at `0051` when this was written and `0052`–`0054` have
+not been pushed to it** — do that before testing cancellation or refunds against staging, or the
+computed columns 404 and `cancel_order` does not exist. Edge Functions deployed:
 `account`, `checkout`, `checkout-status`, `kitchen-order-status`, `menu-version`, `order-calendar`,
-`payments-create-order`, `payments-drain`, `payments-webhook`, `policy`, `recipients`.
+`payments-create-order`, `payments-drain`, `payments-webhook`, `policy`, `recipients` — **`cancel-order`
+is on `main` and NOT yet deployed.**
 
 ---
 
@@ -79,10 +82,15 @@ gitignored. If you find one on disk it is a local artefact — delete it rather 
 
 ### Real gaps, not blockers
 
-- **`E06-42`** — order detail cannot say whether an order is still cancellable.
-  `cancellationClosesAt` must be resolved server-side from the order's own `config_snapshot`
-  (`C9`), or a kitchen changing its cutoff tonight moves an order's boundary retroactively. It
-  currently renders "we can't tell", which is the safe direction and not the right one.
+- ~~**`E06-42`**~~ — **done 2026-08-15**, migration `0052`, two PostgREST computed columns.
+  `E06-45` (parent cancel) and `E06-46` (refund awareness) followed. Three things found doing them
+  are worth more than the features: **`reverse_ledger_transaction` could not reverse any real
+  settlement** and never could have (`0001`'s unique constraint vs `0038`'s deliberate copying of
+  the source triple — green only because the one test that exercises it posts a NULL `source_id`);
+  **`set_config('app.actor_type', …, true)` is transaction-local, not function-local**, so a
+  function that sets it leaks the actor to everything after it in the caller's transaction; and
+  **`sync-state.mjs pull` is destructive** — it erased a closed task's tick. All three are in
+  `docs/learnings.md`.
 - **`E19-11`** — scenario 40, the UPI *intent* app-switch, **needs an owner who is not Andy** (see
   §6). Everything downstream of the provider is covered by scenarios 41–43.
 - **`E19-12`** — webhook retry policy and response timeout are assumed (~24h), never measured. Our
@@ -118,10 +126,11 @@ Consequence: **every parent-scope read performed with that account passes for th
 `order_read_backoffice` admits it to every order in both kitchens. `E06-43` — "My Orders" showing
 65 orders, 5 of them his — was invisible for a fortnight because of exactly this.
 
-**Use `parent.tapthrough@graybag.com`** (zero grants, `docs/environments.md` §7) for anything
-parent-facing. It has no password: v1 is email-OTP only, so the credential is the code sent to
-that address. I could not verify that `graybag.com` delivers to that alias — if it does not, use a
-plus-address of an inbox you know receives.
+**Use a clean parent account with zero grants** for anything parent-facing. `docs/environments.md`
+§7 names `parent.tapthrough@graybag.com`; Andy's instruction on 2026-08-15 was
+`anuragdial+parent@gmail.com`, which sidesteps the open question of whether `graybag.com` delivers
+to that alias. Either is fine — what matters is **zero grants**. No password: v1 is email-OTP only,
+so the credential is the code sent to that address.
 
 ### Authorisation is not scope
 
