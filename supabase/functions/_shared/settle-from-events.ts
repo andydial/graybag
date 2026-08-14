@@ -28,6 +28,7 @@ import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
 import { sendOrderConfirmation } from './order-confirmation.ts';
 import { sendRefundNotice } from './refund-notice.ts';
+import { sendMoneyAlert } from './money-alert.ts';
 
 export interface DrainResult {
   considered: number;
@@ -209,6 +210,21 @@ export async function drainPendingEvents(
       `settle-from-events: ${result.stuck} verified event(s) have failed 2+ times and are still ` +
         'pending. Money has been captured and not recorded against an order.',
     );
+    // `E06-39`. The count was already here and nothing read it — `E06-38` was invisible for a
+    // day because the only trace was a line in a function log somebody happened to open.
+    // `stuck` is already "failed at least twice", which is the threshold Andy named.
+    await sendMoneyAlert(admin, {
+      kind: 'settlement_stuck',
+      summary:
+        `${result.stuck} verified payment event(s) have failed twice or more and are still ` +
+        'pending — money captured, no order recorded.',
+      detail: {
+        stuck: result.stuck,
+        considered: result.considered,
+        settled: result.settled,
+        failed: result.failed,
+      },
+    });
   }
 
   return result;
@@ -294,10 +310,34 @@ async function consumeRefund(
             'is NOT recorded. The ledger and the order are unchanged and no credit note exists. ' +
             'E06-08 is the task; until then a partial refund must be reversed by hand.',
         );
+        // `E06-39`. Money has left the account with nothing written down, and retrying cannot
+        // help — this is the single most important thing in this file to be told about.
+        await sendMoneyAlert(admin, {
+          kind: 'partial_refund_refused',
+          summary:
+            'A PARTIAL refund was issued in the Razorpay dashboard and could not be recorded. ' +
+            'The money has gone; the ledger, the order and the credit note are unchanged.',
+          detail: { refund_id: entity.refundId, payment_id: entity.paymentId, task: 'E06-08' },
+        });
         await mark(admin, id, 'failed', 'partial refund: unsupported, see E06-08');
         return 'failed';
       }
       console.error(`settle-from-events: record_refund failed for ${entity.refundId}`, error.message);
+      // `E06-39`, "a money path fails twice". `attempt_count` is the count BEFORE this failure,
+      // so `>= 1` means this is the second — the same threshold `stuck` uses for settlements.
+      if ((Number(row.attempt_count) || 0) >= 1) {
+        await sendMoneyAlert(admin, {
+          kind: 'refund_unrecordable',
+          summary:
+            'A refund issued in the Razorpay dashboard has failed to record twice. The money ' +
+            'may have gone; the ledger and the order are unchanged.',
+          detail: {
+            refund_id: entity.refundId,
+            attempts: (Number(row.attempt_count) || 0) + 1,
+            hint: hint || null,
+          },
+        });
+      }
       await bumpAttempt(admin, id, row.attempt_count as number, error.message);
       return 'failed';
     }

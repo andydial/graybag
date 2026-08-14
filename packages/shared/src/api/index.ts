@@ -95,6 +95,9 @@ export {
   type SessionStore,
 } from './session-storage.js';
 
+// `E17-46`. The force-update gate: a read, and the one that never throws — see its header.
+export { fetchVersionSupport, type VersionSupport } from './app-version.js';
+
 // The first write (E05-09). Writes always go through an Edge Function (A4).
 export { createCheckout, type CheckoutLine, type CheckoutResult } from './checkout.js';
 export {

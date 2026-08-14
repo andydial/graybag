@@ -103,6 +103,17 @@ export interface FunctionsRef {
 export interface ApiTransport {
   from(table: string): TableRef;
   functions?: FunctionsRef;
+  /**
+   * A read-only RPC. Optional, so every existing test double stays valid.
+   *
+   * **Added for `E17-46`, and reads only.** A write goes through an Edge Function (`A4`,
+   * non-negotiable #1) and that is not negotiable by adding a method here — this exists because
+   * `app_version_support` is a *decision the server owns* rather than a table, and the
+   * alternative was to publish `platform_config` to `anon` and re-implement the version
+   * comparison on the device. Two comparators that must agree is `E20-50`'s bug waiting to
+   * happen; one server-side answer is not.
+   */
+  rpc?<T>(fn: string, args?: Record<string, unknown>): PromiseLike<{ data: T; error: ProviderError | null }>;
 }
 
 let transport: ApiTransport | null = null;
@@ -193,6 +204,32 @@ export async function runQuery<T>(build: (t: ApiTransport) => SelectBuilder): Pr
   if (data === null || data === undefined) return [];
   if (!Array.isArray(data)) throw new ApiError('Expected a list of rows from the backend.');
   return data as T[];
+}
+
+/**
+ * Run a read-only RPC and unwrap PostgREST's `{ data, error }` envelope. `E17-46`.
+ *
+ * **Reads only.** Every write goes through an Edge Function (`A4`, non-negotiable #1) so the
+ * caller's identity is proved from a JWT before anything with consequences happens, and this
+ * helper does not change that — the lint rule that enforces it looks for table writes, so the
+ * discipline here is a review one. If a write ever needs an RPC, it needs an Edge Function.
+ *
+ * Throws rather than returning a default, for the same reason `runQuery` does: a failed read and
+ * a legitimate answer are different facts (§5.21), and a caller that cannot tell them apart will
+ * eventually render one as the other.
+ */
+export async function runRpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
+  const rpc = getTransport().rpc;
+  if (!rpc) {
+    throw new ApiError(
+      `The configured transport cannot call RPCs. configureApi() installs a real client; a test ` +
+        `stub must provide \`rpc\` to exercise ${fn}.`,
+    );
+  }
+
+  const { data, error } = await rpc.call(getTransport(), fn, args);
+  if (error) throw new ApiError(error.message, error.code);
+  return data as T;
 }
 
 /**
