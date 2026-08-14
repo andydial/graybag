@@ -58,6 +58,28 @@ export {
   type AdminOrderTotals,
 } from './admin-orders.js';
 
+// School onboarding and editing (`E10-01`). Its own module and its own column list rather than
+// widening `schools.ts`: that one is the parent-facing picker, readable signed out under `0012`,
+// and its narrow column list is the only thing keeping a named member of staff and their direct
+// line off a public surface. Two lists means the parent path cannot leak a contact by mistake.
+export {
+  ADMIN_SCHOOL_COLUMNS,
+  AdminSchoolError,
+  createSchool,
+  fetchAdminSchools,
+  fetchCities,
+  fetchKitchens,
+  updateSchool,
+  type AdminSchool,
+  type City,
+  type CreatedSchool,
+  type Kitchen,
+  type NewSchool,
+  type SchoolConfigInput,
+  type SchoolEdit,
+  type SchoolUpdateResult,
+} from './admin-schools.js';
+
 // Per-school configuration with visible inheritance (`E10-06`). Deliberately does NOT call
 // `resolve_effective_config`: that returns one scalar per setting, and a scalar cannot tell an
 // operator whether somebody chose this school's cutoff or whether it is the default every school

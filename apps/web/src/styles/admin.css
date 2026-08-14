@@ -197,3 +197,98 @@
   margin: 0 0 var(--gb-space-3);
   max-width: 44rem;
 }
+
+/* ------------------------------------------------------------------ the school list */
+
+.srow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gb-space-3);
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--gb-space-3) var(--gb-space-4);
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-left: 4px solid transparent;
+  border-radius: var(--gb-radius-md);
+  margin-bottom: var(--gb-space-2);
+}
+
+/*
+ * A school parents cannot see.
+ *
+ * Marked rather than hidden or greyed out: the reason somebody opens this screen is usually
+ * "why can nobody at Gem order", and the answer needs to be the most visible thing on the row,
+ * not the least. Greying it out would make the one row that matters the hardest to read.
+ */
+.srow--hidden { border-left-color: var(--gb-border-danger); }
+
+.srow__main { min-width: 16rem; flex: 1 1 20rem; }
+.srow__side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--gb-space-2); }
+
+.srow__name { margin: 0; font-weight: var(--gb-font-weight-semibold); }
+.srow__meta { margin: 0; font-size: var(--gb-font-size-sm); color: var(--gb-text-muted); }
+.srow__why  { margin: 0; font-size: var(--gb-font-size-sm); font-weight: var(--gb-font-weight-semibold); text-align: right; }
+.srow__ok   { margin: 0; font-size: var(--gb-font-size-sm); color: var(--gb-text-muted); }
+
+/* ------------------------------------------------------------------ forms */
+
+.admin__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--gb-space-3);
+  align-items: start;
+  padding: var(--gb-space-4);
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-md);
+}
+
+.admin__field { display: flex; flex-direction: column; }
+.admin__field .admin__input, .admin__field .admin__select { width: 100%; }
+
+.admin__hint {
+  margin: var(--gb-space-1) 0 0;
+  font-size: var(--gb-font-size-sm);
+  color: var(--gb-text-muted);
+}
+
+.admin__actions { grid-column: 1 / -1; display: flex; gap: var(--gb-space-2); }
+
+.admin__error {
+  grid-column: 1 / -1;
+  margin: var(--gb-space-2) 0 0;
+  padding: var(--gb-space-3);
+  background: var(--gb-bg-surface-danger);
+  border-radius: var(--gb-radius-md);
+  font-weight: var(--gb-font-weight-semibold);
+}
+
+/* ------------------------------------------------------------------ the top bar */
+
+/*
+ * `kitchen.css` lays the bar out as a three-column grid — title, then two controls — which is
+ * exactly right for `/kitchen`. The admin screens carry a title plus three or four controls, and
+ * the extra one wrapped onto a second row where it stretched the full width and read as a broken
+ * layout.
+ *
+ * A modifier rather than a change to `.kitchen__bar-inner`: the kitchen board's grid solves a
+ * real problem there — a `1fr` floored at min-content overflowed a 390px phone — and widening it
+ * for a screen with different needs is how that regression comes back.
+ */
+.kitchen__bar-inner--admin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gb-space-2) var(--gb-space-3);
+}
+
+.kitchen__bar-inner--admin .kitchen__title {
+  /* Takes the slack so the controls sit together at the right rather than being spread out. */
+  flex: 1 1 auto;
+  margin-right: auto;
+}
+
+.kitchen__bar-inner--admin .kitchen__btn {
+  flex: 0 0 auto;
+}

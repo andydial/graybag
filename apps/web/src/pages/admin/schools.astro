@@ -1,0 +1,306 @@
+---
+/**
+ * Schools — the list, and onboarding a new one. `E10-01`.
+ *
+ * ## What this screen is careful to distinguish
+ *
+ * A school can be in three states that look identical in a list of names, and all three happen:
+ *
+ *   - **onboarded and active** — parents can see it and order from it
+ *   - **created but never onboarded** — `onboarded_at` is null, so it is invisible in the app's
+ *     picker (`P1`). This is what a school looks like between being set up and being opened.
+ *   - **deactivated** — `is_active` false. `supabase/seeds/catalogue.sql` does this deliberately
+ *     to the synthetic schools so they cannot appear beside real ones.
+ *
+ * Every one of those is a *reason a parent cannot order*, and an operator investigating "why can
+ * nobody at Gem order" needs to be told which. So the list labels the state rather than showing a
+ * name and leaving it to be inferred.
+ *
+ * `?state=demo` renders fixtures instead of reaching the backend, so `check:a11y` can audit this.
+ */
+import '../../styles/tokens.css';
+import '../../styles/site.css';
+import '../../styles/kitchen.css';
+import '../../styles/admin.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Schools — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
+          <h1 class="kitchen__title">Schools</h1>
+          <a class="kitchen__btn" href="/admin/config">Configuration</a>
+          <a class="kitchen__btn" href="/kitchen">Kitchen board</a>
+          <button id="s-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <main class="kitchen__wrap admin__wrap">
+        <div id="s-status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <p class="admin__intro">
+          A school appears in the app only when it is <b>onboarded</b>, <b>active</b>, and has at
+          least one break window. All three are listed below, because any one of them missing looks
+          the same to a parent: the school is not there.
+        </p>
+
+        <div id="s-banner"></div>
+
+        <section class="admin__section" aria-labelledby="s-new-h">
+          <h2 id="s-new-h">Onboard a school</h2>
+          <p class="admin__section-note">
+            For more than a handful, use <code>tools/bulk-import</code> — it takes a CSV and tells
+            you what it would do before it does it. See <code>docs/import-format.md</code>.
+          </p>
+          <form id="s-form" class="admin__form">
+            <div class="admin__field">
+              <label class="admin__label" for="s-code">Code</label>
+              <input class="admin__input" id="s-code" name="code" required
+                     pattern="[a-z0-9][a-z0-9_\-]*"
+                     aria-describedby="s-code-help" autocomplete="off" />
+              <p class="admin__hint" id="s-code-help">
+                Lower-case letters, digits, <code>-</code> and <code>_</code>.
+                <b>Permanent</b> — the importer matches on it, and changing it later would create a
+                second school rather than update this one.
+              </p>
+            </div>
+
+            <div class="admin__field">
+              <label class="admin__label" for="s-name">Name</label>
+              <input class="admin__input" id="s-name" name="name" required autocomplete="off" />
+              <p class="admin__hint">What parents see in the picker.</p>
+            </div>
+
+            <div class="admin__field">
+              <label class="admin__label" for="s-city">City</label>
+              <select class="admin__select" id="s-city" name="cityCode" required></select>
+            </div>
+
+            <div class="admin__field">
+              <label class="admin__label" for="s-kitchen">Kitchen</label>
+              <select class="admin__select" id="s-kitchen" name="kitchenCode" required></select>
+            </div>
+
+            <div class="admin__field">
+              <label class="admin__label" for="s-type">Type</label>
+              <select class="admin__select" id="s-type" name="institutionType">
+                <option value="school">School</option>
+                <option value="college">College</option>
+              </select>
+            </div>
+
+            <div class="admin__field">
+              <label class="admin__label" for="s-contact">Contact name</label>
+              <input class="admin__input" id="s-contact" name="contactName" autocomplete="off" />
+            </div>
+
+            <div class="admin__field">
+              <label class="admin__label" for="s-email">Contact email</label>
+              <input class="admin__input" id="s-email" name="contactEmail" type="email" autocomplete="off" />
+              <p class="admin__hint">Where the monthly report goes.</p>
+            </div>
+
+            <div class="admin__field">
+              <label class="admin__label" for="s-phone">Contact phone</label>
+              <input class="admin__input" id="s-phone" name="contactPhone" autocomplete="off" />
+            </div>
+
+            <div class="admin__actions">
+              <button class="kitchen__btn kitchen__btn--primary" id="s-submit" type="submit">
+                Onboard school
+              </button>
+            </div>
+            <div id="s-form-error" role="alert"></div>
+          </form>
+        </section>
+
+        <section class="admin__section" aria-labelledby="s-list-h">
+          <h2 id="s-list-h">All schools</h2>
+          <div id="s-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      import { api } from '@graybag/shared';
+      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { SCHOOLS_FIXTURE } from '../../lib/admin/schools-fixture.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = {
+        list: $('s-list'), banner: $('s-banner'), status: $('s-status'),
+        form: $<HTMLFormElement>('s-form'), formError: $('s-form-error'),
+        submit: $<HTMLButtonElement>('s-submit'), reload: $<HTMLButtonElement>('s-reload'),
+        city: $<HTMLSelectElement>('s-city'), kitchen: $<HTMLSelectElement>('s-kitchen'),
+      };
+
+      const esc = (s: string) =>
+        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const demo = new URLSearchParams(location.search).has('state');
+
+      let schools: api.AdminSchool[] = [];
+      let loading = true;
+      let error: string | null = null;
+
+      /**
+       * Why a parent cannot see this school, when they cannot.
+       *
+       * Returns null when it is fully open. Three separate causes with one symptom — the school is
+       * absent from the picker — and the operator's fix is different for each.
+       */
+      function whyHidden(s: api.AdminSchool): string | null {
+        if (!s.isActive) return 'Deactivated — hidden from parents and from the kitchen filter';
+        if (s.onboardedAt === null) return 'Not onboarded — created, but invisible in the app';
+        return null;
+      }
+
+      async function load() {
+        loading = true; error = null; render();
+        try {
+          if (demo) {
+            schools = SCHOOLS_FIXTURE.schools;
+            fillPickers(SCHOOLS_FIXTURE.cities, SCHOOLS_FIXTURE.kitchens);
+          } else {
+            configureBackofficeApi();
+            const [list, cities, kitchens] = await Promise.all([
+              api.fetchAdminSchools(), api.fetchCities(), api.fetchKitchens(),
+            ]);
+            schools = list;
+            fillPickers(cities, kitchens);
+          }
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The school list did not load.';
+          schools = [];
+        } finally {
+          loading = false; render();
+        }
+      }
+
+      function fillPickers(cities: api.City[], kitchens: api.Kitchen[]) {
+        el.city.innerHTML = cities
+          .map((c) => `<option value="${esc(c.code)}">${esc(c.name)}</option>`).join('');
+        el.kitchen.innerHTML = kitchens
+          .map((k) => `<option value="${esc(k.code)}">${esc(k.name)}</option>`).join('');
+      }
+
+      function render() {
+        if (loading) {
+          el.list.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
+          return;
+        }
+        if (error) {
+          el.list.innerHTML =
+            `<div class="kitchen__state"><h2>We can't show the schools</h2>` +
+            `<p>${esc(error)}</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+        if (schools.length === 0) {
+          el.list.innerHTML =
+            `<div class="kitchen__state"><h2>No schools yet</h2>` +
+            `<p>Onboard one above, or import a list with <code>tools/bulk-import</code>.</p></div>`;
+          return;
+        }
+
+        const hidden = schools.filter((s) => whyHidden(s) !== null).length;
+        el.status.textContent =
+          `${schools.length} schools, ${hidden} not currently visible to parents.`;
+
+        el.list.innerHTML = schools.map((s) => {
+          const why = whyHidden(s);
+          return (
+            `<div class="srow${why ? ' srow--hidden' : ''}">` +
+              `<div class="srow__main">` +
+                `<p class="srow__name">${esc(s.name)}</p>` +
+                `<p class="srow__meta">` +
+                  `<code>${esc(s.code)}</code> · ${esc(s.cityName)} · ${esc(s.kitchenName)}` +
+                  (s.institutionType === 'college' ? ' · College' : '') +
+                `</p>` +
+                (s.contactName || s.contactEmail
+                  ? `<p class="srow__meta">${esc([s.contactName, s.contactEmail].filter(Boolean).join(' · '))}</p>`
+                  : `<p class="srow__meta">No contact recorded — the monthly report has nowhere to go</p>`) +
+              `</div>` +
+              `<div class="srow__side">` +
+                (why
+                  ? `<p class="srow__why">${esc(why)}</p>`
+                  : `<p class="srow__ok">Open to parents</p>`) +
+                `<a class="kitchen__btn" href="/admin/config?school=${encodeURIComponent(s.id)}">Configure</a>` +
+              `</div>` +
+            `</div>`
+          );
+        }).join('');
+      }
+
+      /**
+       * Only the fields the operator actually filled in are sent.
+       *
+       * An empty text input is `''`, and sending that as a value would write an empty string where
+       * the column means "not recorded". `null` and `''` are different facts and the second one is
+       * never what somebody meant by leaving a box alone.
+       */
+      function formBody(): Record<string, unknown> {
+        const data = new FormData(el.form);
+        const body: Record<string, unknown> = {};
+        for (const [key, value] of data.entries()) {
+          const text = String(value).trim();
+          if (text !== '') body[key] = text;
+        }
+        return body;
+      }
+
+      el.form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        el.formError.innerHTML = '';
+        el.submit.disabled = true;
+
+        try {
+          if (demo) {
+            el.formError.innerHTML =
+              `<p class="admin__error">This is the demo view — nothing is written. ` +
+              `Sign in to onboard a school.</p>`;
+            return;
+          }
+          const created = await api.createSchool(formBody() as unknown as api.NewSchool);
+          el.form.reset();
+          el.status.textContent = `Onboarded ${created.code}.`;
+          await load();
+        } catch (cause) {
+          // The server's own refusal, not a generic one. `admin-school` answers `code_taken` with
+          // the code named and `validation_failed` with the field named, and both are things the
+          // operator can act on without opening a log.
+          const message = cause instanceof Error ? cause.message : 'The school was not created.';
+          el.formError.innerHTML = `<p class="admin__error">${esc(message)}</p>`;
+        } finally {
+          el.submit.disabled = false;
+        }
+      });
+
+      el.list.addEventListener('click', (event) => {
+        if ((event.target as HTMLElement).closest('[data-retry]')) void load();
+      });
+      el.reload.addEventListener('click', () => void load());
+
+      void (async () => {
+        try {
+          if (!demo && !(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent('/admin/schools')}`);
+            return;
+          }
+        } catch { /* an unconfigured build falls through to the error state */ }
+        await load();
+      })();
+    </script>
+  </body>
+</html>
