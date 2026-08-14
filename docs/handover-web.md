@@ -103,7 +103,7 @@ A single whole-value key is invisible to the reader and the page bounces straigh
 shared and never locked, and a back-office session can read every child's name in the school.
 
 **Migrations: staging drifts from the repo.** The enquiry table was applied to staging by hand as
-`0050` on 2026-08-14 and is committed as `0052`. A `supabase db push` will need
+`0050` on 2026-08-14 and is committed as `0055`. A `supabase db push` will need
 `supabase migration repair` for the old version first. More generally, `Deploy to staging` has
 **never once succeeded** — `E01-20`.
 
