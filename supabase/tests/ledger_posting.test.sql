@@ -203,6 +203,29 @@ select throws_ok(
   'and a reversal cannot itself be reversed: that is a re-posting, and should be written as one '
   'so the intent is legible');
 
+-- ---------------------------------------------------------------------------------------------
+-- A sale with a REAL source id, reversed. `E06-46`.
+--
+-- Everything above posts `('sale', 'payment', null)`, and that null is why this file was green
+-- while `reverse_ledger_transaction` could not reverse a single production settlement:
+-- `ledger_transaction_source_unique` covered `(source_type, source_id, reason_code)`, the
+-- reversal copies all three by design, and NULLs are distinct under a unique constraint — so the
+-- constraint never applied to the only transaction anybody had ever tried to reverse.
+--
+-- `settle_payment` posts a real `payment.id`. This asserts the case that actually ships.
+-- ---------------------------------------------------------------------------------------------
+create temporary table lp_sourced as
+select post_ledger_transaction(
+  'sale', 'payment', gen_random_uuid(),
+  '[{"account": "provider:razorpay:clearing", "direction": "debit",  "amount_paise": 21000},
+    {"account": "platform:revenue",           "direction": "credit", "amount_paise": 21000}]'::jsonb
+) as id;
+
+select lives_ok(
+  format($$ select reverse_ledger_transaction(%L::uuid) $$, (select id from lp_sourced)),
+  'a sale posted with a REAL source id can be reversed — which it could not until E06-46, '
+  'because the reversal collided with the transaction it reverses on 23505');
+
 -- =============================================================================
 -- 5. The nightly checks still pass over everything this file wrote.
 -- =============================================================================
