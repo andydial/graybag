@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api, type menu as menuDomain } from '@graybag/shared';
+import { api, time, type menu as menuDomain } from '@graybag/shared';
 
 import { useSession } from './SessionContext';
 
@@ -113,14 +113,21 @@ const OrderTargetContext = createContext<OrderTargetValue>({
 /**
  * The service date a cart line defaults to.
  *
- * **Tomorrow, not today.** The cutoff for a given day is 00:00 that morning (`D5`, `C5`), so
- * today is never orderable under the default configuration — offering it would put every
- * first-time visitor in front of a refusal. `E05-30`'s calendar read replaces this with the
- * real next orderable day, including school holidays and per-kitchen cutoffs.
+ * **Tomorrow in India, not today** (`E05-49`). The cutoff for a given day is 00:00 that morning
+ * (`D5`, `C5`), so today is never orderable under the default configuration — offering it would
+ * put every first-time visitor in front of a refusal. `E05-30`'s calendar read replaces this with
+ * the real next orderable day, including school holidays and per-kitchen cutoffs.
+ *
+ * This used to add 24 hours to `Date.now()` and read the **UTC** date, so between 00:00 and 05:30
+ * IST it returned *today* — a day whose cutoff had already passed. A parent opening the app at 5am
+ * was offered a date they could not order for, and found out at the end of the cart.
+ *
+ * `now` is a parameter because a function that reads the clock itself is only testable at
+ * whatever time the suite happens to run, and the broken window is five and a half hours out of
+ * twenty-four.
  */
-function defaultServiceDate(): menuDomain.ServiceDate {
-  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  return tomorrow.toISOString().slice(0, 10) as menuDomain.ServiceDate;
+function defaultServiceDate(now: Date = new Date()): menuDomain.ServiceDate {
+  return time.defaultServiceDateInIndia(now) as menuDomain.ServiceDate;
 }
 
 export function OrderTargetProvider({
