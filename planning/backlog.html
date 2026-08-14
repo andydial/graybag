@@ -2610,21 +2610,35 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Whole rupees or two decimals on customer-facing amounts?</strong> The prototype drops a trailing <code>.00</code> (<code>₹95</code>, <code>₹165</code>); <code>money.formatPaise</code> always renders two (<code>₹95.00</code>). It shows on every line, all four totals rows and the Place order button. Not changed unilaterally because the same formatter renders invoices, where two decimals are right, so this is a decision about where the two diverge rather than a formatting tweak</span>
       </li>
+<<<<<<< HEAD
       <li class="task" data-id="E05-49" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+=======
+      <li class="task" data-id="E05-49" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+>>>>>>> d1acb57 (E12-24: the placeholder register, and the IST audit)
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-49"></button>
         <code class="tid">E05-49</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
+<<<<<<< HEAD
         <span class="ttext">**<code>defaultServiceDate()</code> read the UTC date, so between 00:00 and 05:30 IST it offered *today* — a day whose cutoff passed at midnight.** A parent opening the app at 5am was shown a date they could not order for, and discovered it at the end of the cart. Found by the web thread, which had the same defect in its own code, proved at 05:24 IST. Fixed in <code>packages/shared/src/time/india.ts</code>, and the correct IST calculation that already existed in <code>OrdersScreen</code> now delegates to it — one implementation, because the reason this shipped is that the only right version lived in a screen module the call site never imported. Every function takes the instant: a helper that reads the clock itself is only testable at whatever time the suite runs, and the broken window is 5½ hours in 24 — 77% green, which reads as flakiness and gets retried. 8 assertions, each naming its instant</span>
       </li>
       <li class="task struck" data-id="E05-50" data-seed="0" data-risk="" data-owner="build" data-mvp="0" data-struck="1">
+=======
+        <span class="ttext"><strong><code>defaultServiceDate()</code> offers a day that is already past its cutoff, for five and a half hours every morning.</strong> <code>apps/mobile/src/session/OrderTargetContext.tsx</code> computes tomorrow as <code>new Date(Date.now() + 24h).toISOString().slice(0, 10)</code> — <strong>UTC</strong>. IST is UTC+5:30, so between 00:00 and 05:30 IST it returns *today*, whose 00:00 cutoff (<code>D5</code>, <code>C5</code>) has already passed. A parent opening the app at 5am is put in front of a day they cannot order for, which is exactly what that default exists to avoid. <strong>The fix is already in the codebase</strong> — <code>todayInIndia()</code> in <code>apps/mobile/src/orders/OrdersScreen.tsx</code> shifts by +330 minutes and explains why it does the arithmetic rather than trusting Hermes&#39; <code>Intl</code> on Android. Found by the IST audit after the same bug was fixed on the kitchen board (<code>E09-32</code>). Not fixed here: the web thread is not to touch <code>apps/mobile</code></span>
+      </li>
+      <li class="task" data-id="E05-50" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+>>>>>>> d1acb57 (E12-24: the placeholder register, and the IST audit)
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-50"></button>
         <code class="tid">E05-50</code>
         
         
         <span class="badge r-later">later</span>
+<<<<<<< HEAD
         <span class="ttext"><strong>Five <code>toLocaleDateString</code> calls render in the device timezone</strong> — *struck 2026-08-14: does not apply to <code>apps/mobile</code>.* All six such calls here already pass an explicit <code>timeZone</code>. Four format a <code>YYYY-MM-DD</code> service date parsed as UTC midnight and formatted in UTC, which renders the calendar date exactly as written and is correct. The remaining one, <code>formatCutoffAt</code>, takes the school&#39;s zone and falls back to the device&#39;s <strong>deliberately</strong> (<code>C4</code>): it names the zone only when the two differ, so a Mohali parent gets the short form and a parent in London gets <code>11:59 PM GMT+5:30</code>. The defect was real in <code>apps/web</code>; changing these would have broken working code</span>
+=======
+        <span class="ttext"><strong>Five <code>toLocaleDateString</code> calls render in the device&#39;s timezone, not the kitchen&#39;s.</strong> <code>CartScreen</code> (×2), <code>OrderDetailScreen</code> (×2) and <code>OrdersScreen</code> format service dates with <code>&#39;en-IN&#39;</code> and no <code>timeZone</code>, so a device set to another zone shows the wrong day for a date that is a calendar label. <code>apps/web</code>&#39;s <code>describeDate</code> pins <code>timeZone: &#39;UTC&#39;</code> for the same reason and says so in place. Same audit as <code>E05-49</code></span>
+>>>>>>> d1acb57 (E12-24: the placeholder register, and the IST audit)
       </li></ul>
       </details>
     </article>
@@ -4208,13 +4222,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/23</span>
+          <span class="meter-num">0/26</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 23 tasks</summary>
+        <summary>Context &amp; 26 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4369,6 +4383,30 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Internal task ids remain in the published policy bodies</strong> — <code>E06-33</code> in the refund policy&#39;s change log, <code>E00-10</code> in the privacy policy&#39;s, and six in <code>terms.md</code>. These are authored body content rather than a preamble note, and deleting text from a legal document is a decision, not a rendering fix: some change-log entries are legitimately public (&quot;what changed in version 2&quot;) and the citation is not. Decide per line whether to cut the id, reword it, or keep it</span>
+      </li>
+      <li class="task" data-id="E12-24" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-24"></button>
+        <code class="tid">E12-24</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The placeholder register</strong> — <code>docs/placeholder-register.md</code>, one checklist of every <code>«…-PENDING-…»</code> token on a surface we publish, each with what it is, what it needs and who can supply it, plus <code>npm run check:placeholders</code> so it cannot go stale. <strong>10 block a production build, all in <code>docs/terms.md</code>; 12 more sit on documents that will publish but are not built yet.</strong> The privacy and refund policies have none — both are the lawyer-drafted text already published for the legacy app. A bare grep returns 33 and is useless: most are the convention described in prose, superseded drafts, or test fixtures, so the register counts published surfaces only. <strong>The production guard stays</strong> (Andy, 2026-08-14)</span>
+      </li>
+      <li class="task" data-id="E12-25" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-25"></button>
+        <code class="tid">E12-25</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The legal name, registered address and GSTIN are separate tokens in two documents.</strong> Filling them means answering the same question twice and hoping the copies match — and an invoice whose GSTIN disagrees with the terms is worse than either being blank. They should come from one source that both documents cite. Not folded into <code>E12-24</code> deliberately: it changes how two published documents are assembled, which is worth doing on purpose rather than in the same pass as writing the list</span>
+      </li>
+      <li class="task" data-id="E12-26" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-26"></button>
+        <code class="tid">E12-26</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>docs/gst-invoicing.md</code>&#39;s placeholders must block a build once <code>E07</code> renders invoices from it.</strong> An invoice is a published document and its five tokens include the GSTIN and the SAC code. Today nothing fails, only because the invoice path is not wired to the file yet — which is the weakest possible reason for a guard not to exist</span>
       </li>
       <li class="task" data-id="E12-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-16"></button>

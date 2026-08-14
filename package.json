@@ -49,7 +49,11 @@
     "check:writes": "node scripts/check-unqualified-writes.mjs",
     "check:a11y": "npm --prefix apps/web run check:a11y",
     "check:mvp": "node scripts/check-mvp.mjs",
+<<<<<<< HEAD
     "eas-build-pre-install": "npm config set ignore-scripts true"
+=======
+    "check:placeholders": "node scripts/check-placeholders.mjs"
+>>>>>>> d1acb57 (E12-24: the placeholder register, and the IST audit)
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
