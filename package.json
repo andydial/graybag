@@ -17,7 +17,7 @@
     "test": "npm run test:scripts && npm run test:plugins && npm run test:tools && npm run test --workspaces --if-present",
     "test:scripts": "node --test scripts/test/*.test.mjs",
     "test:plugins": "node --test apps/mobile/plugins/*.test.mjs",
-    "test:tools": "npm --prefix tools/menu-import test && npm --prefix tools/mirror-dish-images test && npm --prefix tools/upload-dish-images test",
+    "test:tools": "npm --prefix tools/bulk-import test && npm --prefix tools/menu-import test && npm --prefix tools/mirror-dish-images test && npm --prefix tools/upload-dish-images test",
     "test:db": "bash scripts/test-db.sh",
     "dev:db": "npx supabase start",
     "dev:db:stop": "npx supabase stop",
