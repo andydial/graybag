@@ -4909,13 +4909,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/46</span>
+          <span class="meter-num">0/47</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 46 tasks</summary>
+        <summary>Context &amp; 47 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -5290,6 +5290,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Closed as a duplicate when <code>kitchen-live</code> merged, 2026-08-13.</strong> Superseded by <code>E17-35</code> on <code>main</code> — the com.Gracord.Graybag package assertion. Renumbered from <code>E17-32</code>, which <code>main</code> had independently assigned to something else; <code>E17-41</code> predicted exactly this collision. Kept rather than deleted because task ids are permanent. <strong><code>(owner:andy)</code> dropped deliberately</strong>: the tag marks work only Andy can do, and a closed duplicate carries no work — the action lives on <code>E17-35</code>. Original text follows. Confirm the Android package name is asserted, not just present. <code>app.json</code> already reads <code>com.Gracord.Graybag</code>, which matches the Play Console exactly including the capitals (Andy, 2026-08-12) — but nothing tests it, and an <code>applicationId</code> cannot be changed after publication. Note the iOS bundle id is lowercase <code>com.gracord.graybag</code>: separate namespaces, deliberately different, and exactly the asymmetry somebody later &quot;fixes&quot;</span>
+      </li>
+      <li class="task" data-id="E17-47" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-47"></button>
+        <code class="tid">E17-47</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A web-only dependency was breaking every mobile build.</strong> EAS runs <code>npm ci</code> at the workspace root, so it installed <code>apps/web</code>&#39;s dependencies into an iOS build — including <code>sharp</code>, Astro&#39;s image library, which is native. The build died in *Install dependencies* with <code>sharp: Attempting to build from source via node-gyp / Please add node-addon-api</code> (build <code>5e32af14-69af-4b69-85b9-4394b635a52a</code>, 2026-08-14). <strong>Adding <code>node-addon-api</code> would have fixed that build and left the next web-only native package to do the same thing</strong>, so <code>apps/web/</code> is excluded from <code>.easignore</code> instead: the <code>apps/*</code> glob then resolves to <code>apps/mobile</code> alone and neither <code>sharp</code> nor <code>astro</code> is installed at all. Verified by running <code>npm ci --include=dev</code> against a tree with <code>apps/web</code> removed — it succeeds, keeps <code>expo</code>, and drops both. <code>scripts/test/easignore.test.mjs</code> asserts the exclusion, and that <code>packages/</code>, <code>config/</code> and <code>apps/mobile/</code> stay included, because nothing about editing <code>.easignore</code> looks like it could break an iOS build</span>
       </li></ul>
       </details>
     </article>
