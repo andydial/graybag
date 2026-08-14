@@ -8,6 +8,7 @@ import { installMenuCache } from './src/menu/installMenuCache';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { PolicyGateProvider } from './src/policy/PolicyGateContext';
 import { CantConnectScreen } from './src/status/CantConnectScreen';
+import { VersionGate } from './src/status/VersionGate';
 import { ConnectivityProvider } from './src/net/ConnectivityContext';
 import { OrderTargetProvider } from './src/session/OrderTargetContext';
 import { SchoolFollowsRecipient } from './src/session/SchoolFollowsRecipient';
@@ -79,6 +80,17 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
+      {/*
+        `E17-46`. Outermost of the real providers, because a build below the floor must not be
+        able to reach anything — not the menu, not the cart, not a checkout that would fail
+        against a schema it does not know about.
+
+        Above `SessionProvider` on purpose: a parent does not have to be signed in to be told
+        their build is too old, and the oldest builds are the ones most likely to fail at the
+        auth call itself. Children render while the answer is unknown, so this is not a wall in
+        front of browsing (`AR7`) — see `VersionGate`.
+      */}
+      <VersionGate>
       <ConnectivityProvider>
         <SessionProvider>
         <SelectedSchoolProvider>
@@ -124,6 +136,7 @@ export default function App() {
         </SelectedSchoolProvider>
         </SessionProvider>
       </ConnectivityProvider>
+      </VersionGate>
     </SafeAreaProvider>
   );
 }
