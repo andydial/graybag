@@ -425,6 +425,32 @@ export async function fetchRecipientAllergens(recipientId: string): Promise<stri
   // we know will return nothing.
   if (user === null) return [];
 
+  /**
+   * **The child must be the caller's, and that is checked here rather than left to RLS.**
+   * `E06-44`, the sweep after `E06-43`.
+   *
+   * `recipient_allergen` carries `recipient_allergen_read_guardian` **and**
+   * `recipient_allergen_read_fulfilment`. The set a caller may read is the union, so for an
+   * account holding a kitchen grant this function would return **any** child's allergens for any
+   * id passed to it — and an allergen is tier-S data about a named minor.
+   *
+   * In practice the app only ever passes an id from its own scoped list, so this was not
+   * reachable from the product. That is exactly the reasoning that made `fetchOrders` wrong: the
+   * function's meaning is "this child's allergens, and this child is mine", and a caller's good
+   * behaviour is not a scope.
+   *
+   * One extra round trip, only on this read. Tier-S data is worth a round trip.
+   */
+  const link = await runQuery<unknown>((t) =>
+    t
+      .from('guardian_link')
+      .select('recipient_id')
+      .eq('user_id', user.userId)
+      .eq('recipient_id', recipientId)
+      .is('revoked_at', null),
+  );
+  if (link.length === 0) return [];
+
   const rows = await runQuery<unknown>((t) =>
     t.from('recipient_allergen').select('allergen_id').eq('recipient_id', recipientId),
   );

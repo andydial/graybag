@@ -8,6 +8,7 @@ import {
   updateRecipientDetails,
   removeRecipient,
   createRecipient,
+  fetchRecipientAllergens,
   fetchRecipients,
   setApiTransport,
 } from './index.js';
@@ -492,5 +493,52 @@ describe('removeRecipient', () => {
     // to would leave a meal with nobody's name on the packing list.
     stub({ error: Object.assign(new Error('future_orders_exist'), { context: new Response('', { status: 409 }) }) });
     await expect(removeRecipient('r1')).rejects.toMatchObject({ name: 'ApiError' });
+  });
+});
+
+/**
+ * `E06-44`. The sweep after `E06-43`: every parent-facing read whose meaning is "mine" must say so
+ * in the query, not lean on RLS.
+ *
+ * `recipient_allergen` carries `recipient_allergen_read_guardian` **and**
+ * `recipient_allergen_read_fulfilment`, so for an account with a kitchen grant the policy admits
+ * any child's allergens — tier-S data about a named minor. The app only ever passed ids from its
+ * own scoped list, which is precisely the "the caller behaves" reasoning that made `fetchOrders`
+ * wrong.
+ */
+describe('fetchRecipientAllergens is scoped to the caller’s own child', () => {
+  /**
+   * The fake transport records queries but has no `auth` surface, and this read now asks who is
+   * signed in before it asks anything else. Supplying a session here rather than mocking the auth
+   * module keeps the test exercising the real `currentUser` path — which is the thing the scoping
+   * depends on.
+   */
+  const installRows = (rows: unknown) => {
+    const fake = fakeTransport(rows);
+    setApiTransport({
+      ...fake.transport,
+      auth: { getSession: async () => ({ data: { session: { user: { id: 'user-1' } } } }) },
+    } as never);
+    return fake;
+  };
+
+  it('checks the guardian link before reading anything', async () => {
+    const fake = installRows([{ recipient_id: 'r1' }]);
+    await fetchRecipientAllergens('r1');
+    const [first] = fake.queries;
+    expect(first?.table).toBe('guardian_link');
+    expect(first?.filters).toEqual(
+      expect.arrayContaining([
+        { column: 'user_id', value: 'user-1' },
+        { column: 'recipient_id', value: 'r1' },
+      ]),
+    );
+  });
+
+  it('returns nothing, and reads no allergens, for a child that is not theirs', async () => {
+    // The leak this closes: with a kitchen grant, the policy would have answered.
+    const fake = installRows([]);
+    await expect(fetchRecipientAllergens('someone-elses-child')).resolves.toEqual([]);
+    expect(fake.queries.map((q) => q.table)).not.toContain('recipient_allergen');
   });
 });

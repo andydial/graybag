@@ -2930,13 +2930,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/42</span>
+          <span class="meter-num">0/43</span>
         </div>
       </header>
       <p class="summary">Razorpay checkout with native UPI, webhooks with signature verification, refunds, and the money ledger. Highest-risk epic in the build.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 42 tasks</summary>
+        <summary>Context &amp; 43 tasks</summary>
         <div class="context"><h4>Why this is the riskiest epic</h4>
 <p>Real money, live users, and the legacy implementation has a public webhook endpoint (<code>payment_processed</code>) with no visible server-side signature verification. Stripe is being dropped entirely; Razorpay only.</p>
 <p>The de-risking spike now lives in <strong><code>E19-01</code></strong> and runs in phase 1, long before this epic starts. Do not begin E06 design until it has an answer.</p></div>
@@ -3276,6 +3276,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>&quot;My Orders&quot; showed every order the account was authorised to read, not the account&#39;s own.</strong> On an account holding <code>orders.view</code> at kitchen scope it listed <strong>65 orders, 5 of them the signed-in customer&#39;s</strong> — sixty other families&#39;, children&#39;s names and classes included. Not a policy failure: a clean parent account saw zero, and RLS was correct throughout. <code>fetchOrders</code> had no <code>customer_user_id</code> filter, on my reasoning that adding one would mask a policy failure. <strong>That reasoning was wrong</strong>: <code>order</code> has two SELECT policies, so &quot;every order I may read&quot; is a strictly larger set than &quot;my orders&quot;, and the scope is part of what the screen means rather than an authorisation shortcut. Both customer reads are now scoped explicitly, with RLS as defence in depth. <code>my_orders_scope.test.sql</code> seeds three parents with 2/1/3 orders and asserts the <strong>count</strong> through an authenticated client — a test that only checks &quot;my order appears&quot; passes on a leak</span>
+      </li>
+      <li class="task" data-id="E06-44" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E06-44"></button>
+        <code class="tid">E06-44</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Swept every parent-facing read for the <code>E06-43</code> assumption.</strong> Each was built and checked against an account holding back-office grants, so any screen meaning &quot;mine&quot; might have been leaning on RLS to mean something it does not. Cross-referenced the api module against <code>pg_policies</code>: <strong>every</strong> table behind a &quot;mine&quot; screen carries a widening policy beside the customer one — <code>recipient_read_fulfilment</code>, <code>recipient_allergen_read_fulfilment</code>, <code>*_read_admin</code>, <code>*_read_backoffice</code>. Result: <code>fetchRecipients</code> (via <code>guardian_link.user_id</code>), <code>fetchProfile</code> (via <code>app_user.id</code>) and both order reads scope explicitly and are correct. <strong>One gap: <code>fetchRecipientAllergens(recipientId)</code> took an id and never checked the child was the caller&#39;s</strong> — tier-S data about a named minor, admitted by <code>recipient_allergen_read_fulfilment</code> for any kitchen-granted account. Not reachable from the product because the app only passed ids from its own scoped list, which is exactly the &quot;the caller behaves&quot; reasoning that made <code>E06-43</code> wrong. Now verifies the <code>guardian_link</code> first</span>
       </li></ul>
       </details>
     </article>
