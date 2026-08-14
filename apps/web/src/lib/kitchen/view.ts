@@ -354,6 +354,35 @@ export function filterOptions(day: KitchenDay | null): FilterOptions {
  * Counted over what is *visible*, so it agrees with the list underneath rather than describing a
  * day the filters have hidden.
  */
+/**
+ * What the collapsed filter line says: the selection, or "All orders".
+ *
+ * Names the *values* and never the categories — "Lunch break · Amity" rather than
+ * "Break: Lunch break · School: Amity". A category label is only useful when you are choosing;
+ * once chosen, the value identifies itself and the label is half the line's width spent saying
+ * nothing.
+ *
+ * Order follows the chips, so the line and the expanded rows read the same way round.
+ */
+export function filterSummary(
+  filters: KitchenFilters,
+  options: { schools: { id: string; name: string }[]; breaks: { id: string; label: string }[] },
+): string {
+  const parts: string[] = [];
+
+  const school = options.schools.find((s) => s.id === filters.schoolId);
+  if (school) parts.push(school.name);
+
+  const brk = options.breaks.find((b) => b.id === filters.breakId);
+  if (brk) parts.push(brk.label);
+
+  if (filters.status) parts.push(STATUS_LABEL[filters.status] ?? filters.status);
+
+  // "All orders" rather than "No filters": it describes what you are looking at, not what you
+  // have failed to do. The same reasoning as naming the empty states in §5.21.
+  return parts.length === 0 ? 'All orders' : parts.join(' · ');
+}
+
 export function countLine(
   orders: KitchenOrder[],
   groups: ClassGroup[],

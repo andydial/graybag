@@ -7,6 +7,7 @@ import {
   applyFilters,
   boardState,
   countLine,
+  filterSummary,
   groupByDish,
   describeDate,
   filterOptions,
@@ -411,6 +412,40 @@ describe('groupByDish — the cooking unit, not the handover unit', () => {
 
   it('returns nothing for a day with no orders rather than an empty dish', () => {
     expect(groupByDish([])).toEqual([]);
+  });
+});
+
+describe('filterSummary — what the collapsed line says', () => {
+  const options = {
+    schools: [{ id: 's1', name: 'Amity International School' }],
+    breaks: [{ id: 'b1', label: 'Lunch break' }],
+  };
+  const none: KitchenFilters = {
+    serviceDate: '2026-08-14', schoolId: null, breakId: null, status: null,
+  };
+
+  it('describes what you are looking at when nothing is filtered', () => {
+    expect(filterSummary(none, options)).toBe('All orders');
+  });
+
+  it('names the values, not the categories', () => {
+    // "Break: Lunch break" spends half the line saying what "Lunch break" already says.
+    expect(filterSummary({ ...none, breakId: 'b1' }, options)).toBe('Lunch break');
+  });
+
+  it('joins several in the order the chips are drawn', () => {
+    expect(filterSummary({ ...none, schoolId: 's1', breakId: 'b1', status: 'delivered' }, options))
+      .toBe('Amity International School · Lunch break · Delivered');
+  });
+
+  it('speaks a status in the kitchen’s words', () => {
+    expect(filterSummary({ ...none, status: 'paid' }, options)).toBe('To make');
+  });
+
+  it('ignores a selection whose option has gone, rather than naming an id', () => {
+    // A school filter can outlive a day change. Showing the raw uuid would be worse than
+    // showing nothing, and the board still applies the filter either way.
+    expect(filterSummary({ ...none, schoolId: 'vanished' }, options)).toBe('All orders');
   });
 });
 
