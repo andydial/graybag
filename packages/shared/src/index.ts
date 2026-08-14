@@ -70,3 +70,7 @@ export * as kitchen from './kitchen/index.js';
 // The three policy documents (`E20-38`), generated from `docs/` so the app and the lawyer read
 // one text. `E20-27`'s guard uses `hasPendingTokens` to keep a draft out of a production build.
 export { POLICY_DOCUMENTS, type PolicyDocument, type PolicyKey } from './policy/index.js';
+
+// Calendar dates in the kitchen's timezone (`E05-49`). Every function takes the instant, so the
+// 00:00–05:30 IST window that broke `defaultServiceDate` is provable at any hour.
+export * as time from './time/india.js';

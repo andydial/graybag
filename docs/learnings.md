@@ -59,6 +59,44 @@ the time dimension: **what else produces this result — including "nothing yet"
 
 ---
 
+## 2026-08-14 — A function that reads the clock is only testable at the hour the suite runs
+
+**Context:** `defaultServiceDate()` offered a cart its default day. It computed
+`new Date(Date.now() + 24h).toISOString().slice(0,10)` — UTC — so between **00:00 and 05:30 IST**
+it returned *today*, a day whose cutoff passed at midnight. A parent opening the app at 5am was
+shown a date they could not order for, and found out at the end of the cart.
+
+**What made it survive**, and this is the part worth keeping: **the function read the clock
+itself**, so no test could name the broken hour. Any test could only assert whatever
+`Date.now()` happened to be when CI ran.
+
+Do the arithmetic. The bad window is five and a half hours out of twenty-four — **a test written
+against the ambient clock passes 77% of the time.** That is the worst possible failure rate: too
+green to investigate, too red to trust, and indistinguishable from flakiness, so it gets retried
+rather than read. A bug that fails 100% of the time is found in an afternoon.
+
+**Fix / rule: take the instant as an argument.**
+
+```ts
+// untestable: asserts whatever the clock says today
+function defaultServiceDate() { return new Date(Date.now() + 86_400_000)… }
+
+// provable: names 05:24 IST and asserts the answer, at any hour, on any machine
+function defaultServiceDate(now: Date = new Date()) { … }
+```
+
+The default keeps every call site unchanged, so this costs nothing and buys the only tests that
+could have caught it. `todayInIndia` in this same codebase already had the parameter and was
+already correct — and the call site that needed it most did not import it, because it lived in a
+screen module. **One implementation, in a shared module**, is the other half of the fix: the right
+answer existing somewhere is not the same as it being reachable.
+
+The same shape recurs across this log — `Date.now()` in a fixture picking a Sunday, twice. The
+general rule: **any value the code reads from the world rather than from its arguments is a value
+the test cannot control**, and every one of those is a bug that appears on someone else's machine.
+
+---
+
 ## 2026-08-14 — An elapsed-time counter in render state is a loop waiting for a dependency
 
 **Context:** the first real payment through the rebuild. Razorpay captured ₹145.96, and the app

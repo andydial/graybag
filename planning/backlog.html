@@ -2193,13 +2193,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/48</span>
+          <span class="meter-num">0/50</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 48 tasks</summary>
+        <summary>Context &amp; 50 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2585,6 +2585,22 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Whole rupees or two decimals on customer-facing amounts?</strong> The prototype drops a trailing <code>.00</code> (<code>₹95</code>, <code>₹165</code>); <code>money.formatPaise</code> always renders two (<code>₹95.00</code>). It shows on every line, all four totals rows and the Place order button. Not changed unilaterally because the same formatter renders invoices, where two decimals are right, so this is a decision about where the two diverge rather than a formatting tweak</span>
+      </li>
+      <li class="task" data-id="E05-49" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-49"></button>
+        <code class="tid">E05-49</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">**<code>defaultServiceDate()</code> read the UTC date, so between 00:00 and 05:30 IST it offered *today* — a day whose cutoff passed at midnight.** A parent opening the app at 5am was shown a date they could not order for, and discovered it at the end of the cart. Found by the web thread, which had the same defect in its own code, proved at 05:24 IST. Fixed in <code>packages/shared/src/time/india.ts</code>, and the correct IST calculation that already existed in <code>OrdersScreen</code> now delegates to it — one implementation, because the reason this shipped is that the only right version lived in a screen module the call site never imported. Every function takes the instant: a helper that reads the clock itself is only testable at whatever time the suite runs, and the broken window is 5½ hours in 24 — 77% green, which reads as flakiness and gets retried. 8 assertions, each naming its instant</span>
+      </li>
+      <li class="task struck" data-id="E05-50" data-seed="0" data-risk="" data-owner="build" data-mvp="0" data-struck="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-50"></button>
+        <code class="tid">E05-50</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Five <code>toLocaleDateString</code> calls render in the device timezone</strong> — *struck 2026-08-14: does not apply to <code>apps/mobile</code>.* All six such calls here already pass an explicit <code>timeZone</code>. Four format a <code>YYYY-MM-DD</code> service date parsed as UTC midnight and formatted in UTC, which renders the calendar date exactly as written and is correct. The remaining one, <code>formatCutoffAt</code>, takes the school&#39;s zone and falls back to the device&#39;s <strong>deliberately</strong> (<code>C4</code>): it names the zone only when the two differ, so a Mohali parent gets the short form and a parent in London gets <code>11:59 PM GMT+5:30</code>. The defect was real in <code>apps/web</code>; changing these would have broken working code</span>
       </li></ul>
       </details>
     </article>

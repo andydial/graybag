@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { design, menu as menuDomain, money } from '@graybag/shared';
+import { design, menu as menuDomain, money, time } from '@graybag/shared';
 
 import {
   BrandHeader,
@@ -308,8 +308,11 @@ export function formatOrderDate(serviceDate: menuDomain.ServiceDate): string {
  * upcoming/past split on.
  */
 export function todayInIndia(now: Date = new Date()): string {
-  const IST_OFFSET_MINUTES = 330;
-  return new Date(now.getTime() + IST_OFFSET_MINUTES * 60_000).toISOString().slice(0, 10);
+  // Re-exported rather than reimplemented. This was the only correct IST calculation in the app
+  // and it lived in a screen module, so the one call site that needed it most —
+  // `defaultServiceDate` in `OrderTargetContext` — did not use it and shipped the UTC bug
+  // (`E05-49`). One implementation, in `packages/shared`, is the fix for that shape.
+  return time.todayInIndia(now);
 }
 
 /** `2 items · ₹162.76`. */
