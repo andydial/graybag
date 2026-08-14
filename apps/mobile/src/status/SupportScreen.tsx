@@ -39,12 +39,18 @@ const { bg, text, space, scale, layout } = design;
  * the compose button is the reachable half.
  */
 export interface GrievanceOfficer {
-  name: string;
+  /**
+   * **A role, never a person.** Andy, 2026-08-15: no individual's name in the app.
+   *
+   * `name` was here and carried "Vivek". It is gone rather than left optional, because an
+   * optional field that must never be filled is an invitation, and the next person to wire this
+   * block up would have had no way to know. Making it un-representable is the same technique
+   * this file already uses for the grievance email, and for the same reason.
+   */
   designation: string;
   /**
-   * Postal address. Optional because Andy supplied the name, designation and email on
-   * 2026-08-11 and **not a postal address** — `E20-21` is still open for that. Rendering
-   * "undefined" or inventing one would be worse than showing the two facts we have.
+   * Postal address. Optional because Andy has not supplied one — `E20-21` is still open for it.
+   * Rendering "undefined" or inventing one would be worse than showing the fact we have.
    */
   address?: string;
 }
@@ -90,9 +96,7 @@ export function SupportScreen({
           </Text>
         ) : (
           <>
-            <Text style={styles.cardBody}>
-              {grievance.name} · {grievance.designation}
-            </Text>
+            <Text style={styles.cardBody}>{grievance.designation}</Text>
             {grievance.address === undefined ? null : (
               <Text style={styles.cardBody}>{grievance.address}</Text>
             )}

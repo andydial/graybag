@@ -85,26 +85,37 @@ describe('SupportScreen', () => {
   it('publishes the real contact once it has one, and drops the notice', async () => {
     await render(
       <SupportScreen
-        grievance={{
-          name: 'A Person',
-          designation: 'Grievance Officer',
-          address: 'Mohali, Punjab',
-        }}
+        grievance={{ designation: 'Grievance Officer', address: 'Mohali, Punjab' }}
       />,
     );
     expect(screen.queryByTestId('screen-support-grievance-pending')).toBeNull();
-    expect(screen.getByText('A Person · Grievance Officer')).toBeTruthy();
+    expect(screen.getByText('Grievance Officer')).toBeTruthy();
     expect(screen.getByText('Mohali, Punjab')).toBeTruthy();
   });
 
   it('publishes the officer without a postal address, which is what we have', async () => {
-    // Andy supplied name, designation and email on 2026-08-11 and no postal address; `E20-21`
-    // stays open for that. Two real facts beat three with one invented.
-    await render(
-      <SupportScreen grievance={{ name: 'Vivek', designation: 'Grievance Officer' }} />,
-    );
+    // `E20-21` stays open for a postal address. One real fact beats two with one invented.
+    await render(<SupportScreen grievance={{ designation: 'Grievance Officer' }} />);
     expect(screen.queryByTestId('screen-support-grievance-pending')).toBeNull();
-    expect(screen.getByText('Vivek · Grievance Officer')).toBeTruthy();
+    expect(screen.getByText('Grievance Officer')).toBeTruthy();
+  });
+
+  /**
+   * **No individual's name reaches this screen.** Andy, 2026-08-15.
+   *
+   * `GrievanceOfficer.name` carried "Vivek" and is gone from the type, so this is enforced by
+   * the compiler as well as here — but the assertion stays, because the compiler protects the
+   * prop and this protects the *screen*. A name could equally arrive baked into a
+   * `designation` string, and the whole rendered tree is where that would show up.
+   */
+  it('draws no individual’s name, only a role', async () => {
+    const { toJSON } = await render(
+      <SupportScreen grievance={{ designation: 'Grievance Officer' }} />,
+    );
+    const tree = JSON.stringify(toJSON());
+    for (const name of ['Vivek', 'Andy', 'Anurag']) {
+      expect(tree).not.toContain(name);
+    }
   });
 
   /**
@@ -120,11 +131,7 @@ describe('SupportScreen', () => {
   it('never draws the support address anywhere on the screen', async () => {
     const { toJSON } = await render(
       <SupportScreen
-        grievance={{
-          name: 'A Person',
-          designation: 'Grievance Officer',
-          address: 'Mohali, Punjab',
-        }}
+        grievance={{ designation: 'Grievance Officer', address: 'Mohali, Punjab' }}
       />,
     );
     // The whole rendered tree, not just the text nodes we thought to check — an address in an
@@ -148,11 +155,15 @@ describe('SupportScreen', () => {
 
     fireEvent.press(screen.getByTestId('screen-support-grievance-email'));
     const opened = openURL.mock.calls.map(([url]) => url);
-    // **The named officer, not the general inbox** (`C17`). DPDP requires a person who answers
-    // data questions; routing a complaint into the order-query pile is how a statutory
-    // deadline gets missed. This assertion replaced its opposite when Andy named Vivek.
+    // **The grievance route, which is `support@graybag.com` since 2026-08-15** — no individual's
+    // mailbox in the app. `GRIEVANCE_EMAIL` and `SUPPORT_EMAIL` are now the same address, so the
+    // old `not.toContain(SUPPORT_EMAIL)` assertion is gone: it would now be asserting that the
+    // button does NOT go where it is supposed to go.
+    //
+    // The constants stay distinct because the *routing* is: the subject below is what lets a
+    // data-protection matter be filtered out of the order-query pile, and DPDP puts those on a
+    // statutory clock. This asserts the destination; the subject assertion is the real content.
     expect(opened[0]).toContain(`mailto:${GRIEVANCE_EMAIL}`);
-    expect(opened[0]).not.toContain(SUPPORT_EMAIL);
     // DPDP puts a data-protection query on a statutory clock. One undifferentiated inbox is
     // how a deadline gets missed, so the subject carries the reason.
     expect(opened[0]).toContain(encodeURIComponent(SUPPORT_SUBJECTS.grievance));
