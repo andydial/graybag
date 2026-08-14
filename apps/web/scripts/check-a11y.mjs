@@ -43,7 +43,22 @@ const CHROME =
   process.env.CHROME_PATH ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 /** The pages to check, as emitted by `format: 'file'`. */
-const PAGES = ['/index.html', '/privacy.html', '/terms.html', '/refunds.html', '/thanks.html', '/kitchen.html'];
+/**
+ * `/kitchen` carries `?state=` so the board itself is audited rather than the sign-in redirect.
+ *
+ * Any `?state=` value pins the page to fixtures — a signed-out visit to the live dashboard
+ * correctly bounces to `/signin`, which is right behaviour and useless to audit here, since
+ * `/signin` is on this list in its own right.
+ */
+const PAGES = [
+  '/index.html',
+  '/privacy.html',
+  '/terms.html',
+  '/refunds.html',
+  '/thanks.html',
+  '/kitchen.html?state=default',
+  '/signin.html',
+];
 
 const RULE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
@@ -80,8 +95,16 @@ const axeSource = readFileSync(axePath, 'utf8');
 // ------------------------------------------------------------------ static server
 
 const server = createServer((request, response) => {
-  const path = join(DIST, decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/'));
-  if (!path.startsWith(DIST) || !existsSync(path) || statSync(path).isDirectory()) {
+  const requested = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
+  // Resolve `/signin` to `signin.html`, which is what Netlify does and what `format: 'file'`
+  // requires. Without it a redirect under test lands on a 404 whose empty document then fails
+  // `html-has-lang` and `document-title` — two violations that say nothing about the page.
+  const candidates = [requested, `${requested}.html`, join(requested, 'index.html')];
+  const path = candidates
+    .map((c) => join(DIST, c))
+    .find((c) => c.startsWith(DIST) && existsSync(c) && !statSync(c).isDirectory());
+
+  if (!path) {
     response.writeHead(404).end('not found');
     return;
   }

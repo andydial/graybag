@@ -33,6 +33,18 @@ export interface KitchenOrderLine {
   dishId: string;
   dishName: string;
   quantity: number;
+  /**
+   * The parent's request for this line — "less spicy", "no coriander" (`ux-spec` §5.6.1).
+   *
+   * **Tier P.** Never logged, never to Sentry, never in a school report. It is also **never a
+   * safety record**: the app routes allergy language out of this field and into the child's
+   * profile, and nothing here may compute a warning from it or treat it as allergen data.
+   *
+   * It is rendered against its dish in both groupings, which is the condition the spec attaches
+   * to the field existing at all — a note the kitchen never sees is a lie told to a parent at
+   * the moment they were trying to be careful.
+   */
+  note: string | null;
 }
 
 /**
@@ -123,11 +135,20 @@ export interface KitchenTransport {
  * migration, and a dropdown that is empty because a lookup failed is a dropdown that stops
  * somebody cancelling an order they need to cancel. The server re-checks the code regardless.
  */
+/**
+ * The reasons a **kitchen** may give for cancelling, from `reason_code` where
+ * `category = 'cancellation'`.
+ *
+ * `cutoff_missed` was here and has been removed, along with the other codes the table carries:
+ * `payment_failed`, `checkout_expired`, `cutoff_missed` and `customer_cancelled` all describe a
+ * payment or a customer action, recorded by the system from evidence. A kitchen operator
+ * selecting one would be asserting something they cannot know, and it would be indistinguishable
+ * afterwards from the system having observed it.
+ */
 export const CANCEL_REASONS = [
   { code: 'dish_unavailable', label: 'Dish unavailable' },
   { code: 'kitchen_closed', label: 'Kitchen closed' },
   { code: 'school_holiday', label: 'School holiday' },
-  { code: 'cutoff_missed', label: 'Cut-off missed' },
 ] as const;
 
 /**

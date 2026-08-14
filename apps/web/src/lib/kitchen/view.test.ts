@@ -6,10 +6,16 @@ import {
   allowedActions,
   applyFilters,
   boardState,
+  countLine,
+  groupByDish,
+  describeDate,
+  filterOptions,
   groupByClass,
   groupProgress,
   groupState,
   productionTotals,
+  relativeDay,
+  shiftDate,
   summarise,
 } from './view.js';
 
@@ -37,7 +43,7 @@ const order = (over: Partial<KitchenOrder> = {}): KitchenOrder => ({
   sectionLabel: 'A',
   status: 'paid',
   pickupCode: null,
-  lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1 }],
+  lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1, note: null }],
   ...over,
 });
 
@@ -169,9 +175,9 @@ describe('groupState and groupProgress', () => {
 describe('productionTotals', () => {
   it('sums quantities per dish, biggest batch first', () => {
     const totals = productionTotals([
-      order({ id: 'a', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 2 }] }),
-      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1 }] }),
-      order({ id: 'c', lines: [{ dishId: 'd2', dishName: 'Paneer Wrap', quantity: 1 }] }),
+      order({ id: 'a', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 2, note: null }] }),
+      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1, note: null }] }),
+      order({ id: 'c', lines: [{ dishId: 'd2', dishName: 'Paneer Wrap', quantity: 1, note: null }] }),
     ]);
     expect(totals).toEqual([
       { dishId: 'd1', dishName: 'Veg Sandwich', quantity: 3 },
@@ -181,23 +187,23 @@ describe('productionTotals', () => {
 
   it('sorts alphabetically within a tie, so the list is stable between renders', () => {
     const totals = productionTotals([
-      order({ id: 'a', lines: [{ dishId: 'd2', dishName: 'Zebra dish', quantity: 1 }] }),
-      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Apple dish', quantity: 1 }] }),
+      order({ id: 'a', lines: [{ dishId: 'd2', dishName: 'Zebra dish', quantity: 1, note: null }] }),
+      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Apple dish', quantity: 1, note: null }] }),
     ]);
     expect(totals.map((t) => t.dishName)).toEqual(['Apple dish', 'Zebra dish']);
   });
 
   it('excludes cancelled orders — cooking against one wastes food', () => {
     const totals = productionTotals([
-      order({ id: 'a', status: 'cancelled', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 5 }] }),
-      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1 }] }),
+      order({ id: 'a', status: 'cancelled', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 5, note: null }] }),
+      order({ id: 'b', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1, note: null }] }),
     ]);
     expect(totals).toEqual([{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1 }]);
   });
 
   it('still counts a delivered order, because it was cooked', () => {
     const totals = productionTotals([
-      order({ id: 'a', status: 'delivered', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 3 }] }),
+      order({ id: 'a', status: 'delivered', lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 3, note: null }] }),
     ]);
     expect(totals[0]?.quantity).toBe(3);
   });
@@ -245,8 +251,8 @@ describe('summarise', () => {
 
   it('excludes cancelled orders from the item count', () => {
     const s = summarise([
-      order({ id: 'a', lines: [{ dishId: 'd1', dishName: 'x', quantity: 2 }] }),
-      order({ id: 'b', status: 'cancelled', lines: [{ dishId: 'd1', dishName: 'x', quantity: 9 }] }),
+      order({ id: 'a', lines: [{ dishId: 'd1', dishName: 'x', quantity: 2, note: null }] }),
+      order({ id: 'b', status: 'cancelled', lines: [{ dishId: 'd1', dishName: 'x', quantity: 9, note: null }] }),
     ]);
     expect(s.items).toBe(2);
   });
@@ -323,5 +329,162 @@ describe('the fixture transport', () => {
     transport.failNext();
     await transport.updateStatus({ orderIds: ['x'], to: 'delivered' }).catch(() => {});
     await expect(transport.updateStatus({ orderIds: ['x'], to: 'delivered' })).resolves.toBeDefined();
+  });
+});
+
+describe('filterOptions — an inert control is worse than none', () => {
+  const day = (schools: string[], breaks: string[]) => ({
+    ...fixtureDay(DATE),
+    schools: schools.map((s) => ({ id: s, name: s })),
+    breaks: breaks.map((b) => ({ id: b, label: b })),
+  });
+
+  it('hides the school filter when only one school is in scope', () => {
+    // A dropdown whose every option returns the same list takes the same room as a real
+    // control, invites the same tap, and teaches the operator that controls here do nothing.
+    expect(filterOptions(day(['Alpha'], ['am', 'pm'])).showSchools).toBe(false);
+  });
+
+  it('shows the school filter when there is a choice to make', () => {
+    expect(filterOptions(day(['Alpha', 'Bravo'], ['am'])).showSchools).toBe(true);
+  });
+
+  it('hides the break filter for a school with one break', () => {
+    expect(filterOptions(day(['Alpha'], ['am'])).showBreaks).toBe(false);
+  });
+
+  it('hides both when there is nothing loaded at all', () => {
+    const options = filterOptions(null);
+    expect(options.showSchools).toBe(false);
+    expect(options.showBreaks).toBe(false);
+  });
+});
+
+describe('groupByDish — the cooking unit, not the handover unit', () => {
+  const line = (dishId: string, dishName: string, quantity = 1, note: string | null = null) =>
+    ({ dishId, dishName, quantity, note });
+
+  it('sums a dish across orders and leads with the biggest batch', () => {
+    const orders = [
+      order({ id: 'a', lines: [line('d1', 'Paneer Wrap', 2)] }),
+      order({ id: 'b', lines: [line('d1', 'Paneer Wrap', 1), line('d2', 'Cold Coffee', 1)] }),
+    ];
+    expect(groupByDish(orders).map((g) => [g.dishName, g.quantity])).toEqual([
+      ['Paneer Wrap', 3],
+      ['Cold Coffee', 1],
+    ]);
+  });
+
+  it('excludes cancelled orders, because a cancelled order is not food to make', () => {
+    // Deliberately unlike the class view, where a cancelled row still matters — somebody is
+    // standing in that classroom expecting a bag. Here the only question is how much to cook.
+    const orders = [
+      order({ id: 'a', status: 'cancelled', lines: [line('d1', 'Paneer Wrap', 5)] }),
+      order({ id: 'b', lines: [line('d1', 'Paneer Wrap', 1)] }),
+    ];
+    expect(groupByDish(orders)[0]?.quantity).toBe(1);
+  });
+
+  it('carries the child, the class and the note onto each portion', () => {
+    const orders = [order({ id: 'a', recipientName: 'Anaya Singh',
+      lines: [line('d1', 'Paneer Wrap', 1, 'Less spicy')] })];
+    const [portion] = groupByDish(orders)[0]!.portions;
+    expect(portion?.recipientName).toBe('Anaya Singh');
+    expect(portion?.note).toBe('Less spicy');
+    expect(portion?.classLabel).toBe('5-A');
+  });
+
+  it('never lists an order twice as outstanding when it has two lines of one dish', () => {
+    // The endpoint is idempotent, but a header reading "Mark all delivered (2)" for one order is
+    // wrong on the screen before it ever reaches the server.
+    const orders = [order({ id: 'a', lines: [line('d1', 'Paneer Wrap'), line('d1', 'Paneer Wrap')] })];
+    expect(groupByDish(orders)[0]?.outstandingIds).toEqual(['a']);
+  });
+
+  it('does not count a delivered order as outstanding', () => {
+    const orders = [
+      order({ id: 'a', status: 'delivered', lines: [line('d1', 'Paneer Wrap')] }),
+      order({ id: 'b', status: 'paid', lines: [line('d1', 'Paneer Wrap')] }),
+    ];
+    expect(groupByDish(orders)[0]?.outstandingIds).toEqual(['b']);
+  });
+
+  it('returns nothing for a day with no orders rather than an empty dish', () => {
+    expect(groupByDish([])).toEqual([]);
+  });
+});
+
+describe('countLine — naming the school when only one has orders', () => {
+  it('names it, because a board silently scoped to one school reads as the whole day', () => {
+    const orders = [order({ id: 'a' })];
+    expect(countLine(orders, groupByClass(orders), 'Alpha Public School')).toBe(
+      'Alpha Public School · 1 order · 1 class · 1 break',
+    );
+  });
+
+  it('omits it when several schools have orders — the chips already say which', () => {
+    const orders = [order({ id: 'a' })];
+    expect(countLine(orders, groupByClass(orders), null)).toBe('1 order · 1 class · 1 break');
+    expect(countLine(orders, groupByClass(orders))).toBe('1 order · 1 class · 1 break');
+  });
+});
+
+describe('countLine — does today look right', () => {
+  it('counts orders, classes and breaks over what is visible', () => {
+    const orders = applyFilters(day.orders, filters());
+    // Six, not three: the fixture now spans two schools, and `groupByClass` keys by school — so
+    // class 5-A at Alpha and class 5-A at Bravo are two classes, two trays and two handovers.
+    // Counting them as one would under-report the work by half.
+    expect(countLine(orders, groupByClass(orders))).toBe('24 orders · 6 classes · 2 breaks');
+  });
+
+  it('counts a class per school, not per label', () => {
+    const orders = applyFilters(day.orders, filters());
+    const schools = new Set(orders.map((o) => o.schoolId));
+    expect(schools.size).toBe(2);
+    expect(groupByClass(orders).every((g) => g.schoolId)).toBe(true);
+  });
+
+  it('agrees with the list underneath once a filter is applied', () => {
+    const f = filters({ breakId: day.breaks[0]!.id });
+    const orders = applyFilters(day.orders, f);
+    expect(countLine(orders, groupByClass(orders))).toContain('1 break');
+  });
+
+  it('says so plainly when there is nothing', () => {
+    expect(countLine([], [])).toBe('No orders');
+  });
+
+  it('singularises rather than printing "1 orders"', () => {
+    const one = [order()];
+    expect(countLine(one, groupByClass(one))).toBe('1 order · 1 class · 1 break');
+  });
+
+  it('omits breaks entirely for a school that has none', () => {
+    // `break_label_snapshot` is nullable. "1 break" for a school with none is an invented fact.
+    const none = [order({ breakId: null, breakLabel: null })];
+    expect(countLine(none, groupByClass(none))).toBe('1 order · 1 class');
+  });
+});
+
+describe('the date, as a kitchen reads it', () => {
+  it('names today, tomorrow and yesterday', () => {
+    expect(relativeDay('2026-08-13', '2026-08-13')).toBe('Today');
+    expect(relativeDay('2026-08-14', '2026-08-13')).toBe('Tomorrow');
+    expect(relativeDay('2026-08-12', '2026-08-13')).toBe('Yesterday');
+  });
+
+  it('returns null for a date that is none of them', () => {
+    expect(relativeDay('2026-08-20', '2026-08-13')).toBeNull();
+  });
+
+  it('leads with the weekday, which answers "is this today" faster than a number', () => {
+    expect(describeDate('2026-08-13', '2026-08-13')).toBe('Today · Thursday 13 August');
+    expect(describeDate('2026-08-20', '2026-08-13')).toBe('Thursday 20 August');
+  });
+
+  it('shifts across a month boundary', () => {
+    expect(shiftDate('2026-08-31', 1)).toBe('2026-09-01');
+    expect(shiftDate('2026-09-01', -1)).toBe('2026-08-31');
   });
 });

@@ -84,6 +84,9 @@ describe('every browser-callable Edge Function', () => {
     'checkout',
     // `E06-16`. Browser-callable like the rest — the back office will read order status too.
     'checkout-status',
+    // Added by `E09-20`. The back office is the first browser client in the project, and this
+    // function is where the missing preflight was found.
+    'kitchen-order-status',
     'menu-version',
     'order-calendar',
     // Added by `E06-02`. This list failing on a new function is the point of the last test in

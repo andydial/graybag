@@ -35,38 +35,31 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
   <body>
     <div class="kitchen">
+      <!--
+        The date is the question; everything else is a refinement.
+
+        This was four dropdowns of equal weight all reading "All", which told nobody what they
+        were looking at. At 7am the only thing anyone needs to know is which day this is, so the
+        date is the largest thing on the screen and moves one tap at a time — a picker is three
+        interactions to answer a question that is almost always "today" or "tomorrow".
+      -->
       <header class="kitchen__bar">
         <div class="kitchen__bar-inner">
-          <h1 class="kitchen__title">Kitchen</h1>
-
-          <div class="kitchen__filters">
-            <div class="kitchen__field">
-              <label for="k-date">Date</label>
-              <input id="k-date" type="date" />
+          <div class="daynav">
+            <button class="daynav__step" id="k-prev" type="button" aria-label="Previous day">‹</button>
+            <div class="daynav__label">
+              <p class="daynav__date" id="k-date-label">—</p>
+              <p class="daynav__count" id="k-count">—</p>
             </div>
-            <div class="kitchen__field">
-              <label for="k-school">School</label>
-              <select id="k-school"><option value="">All schools</option></select>
-            </div>
-            <div class="kitchen__field">
-              <label for="k-break">Break</label>
-              <select id="k-break"><option value="">All breaks</option></select>
-            </div>
-            <div class="kitchen__field">
-              <label for="k-status">Status</label>
-              <select id="k-status">
-                <option value="">All</option>
-                <option value="paid">To make</option>
-                <option value="preparing">Making</option>
-                <option value="delivered">Delivered</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
-            <div class="kitchen__field">
-              <label for="k-reload">&nbsp;</label>
-              <button id="k-reload" class="kitchen__btn" type="button">Refresh</button>
-            </div>
+            <button class="daynav__step" id="k-next" type="button" aria-label="Next day">›</button>
+            <button class="kitchen__btn daynav__today" id="k-today" type="button" hidden>Today</button>
           </div>
+
+          <!-- Before the filters in the DOM because the grid places in source order: this puts
+               Refresh on the date's row rather than in a row of its own below the chips. -->
+          <button id="k-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+
+          <div class="kitchen__filters" id="k-filters"></div>
         </div>
       </header>
 
@@ -79,12 +72,61 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       </main>
     </div>
 
-    <template id="k-cancel-reasons">
-      {CANCEL_REASONS.map((r) => <option value={r.code}>{r.label}</option>)}
-    </template>
+    <!--
+      A real dialog, not `window.prompt`.
+
+      The prompt asked the operator to "Enter 1-4" and blocked the page while it waited. A native
+      `<dialog>` brings the focus trap, Esc-to-close and the inert backdrop with it, so none of
+      that is hand-rolled.
+
+      The warning is the important part. Cancelling today records that food was not delivered and
+      why; **no money moves and the parent is not told**. A kitchen that presses this and believes
+      it has refunded somebody leaves a parent who has paid, has no food and has had no message.
+      `docs/kitchen-write-contract.md` §2 specifies the refund (`E06`) and the email (`E08`), and
+      this paragraph is deleted in the PR that lands them — not before.
+    -->
+    <!--
+      The undo strip. Fixed to the bottom so it is thumb-reachable on a tablet and never shifts
+      the list under a finger that is already moving toward the next row.
+    -->
+    <div id="k-undo" class="kundo" hidden>
+      <p class="kundo__what" role="status" aria-live="polite"></p>
+      <button type="button" class="kitchen__btn kundo__btn" id="k-undo-btn">Undo</button>
+    </div>
+
+    <dialog id="k-cancel" class="kdialog" aria-labelledby="k-cancel-title">
+      <form method="dialog" class="kdialog__form">
+        <h2 id="k-cancel-title" class="kdialog__title">Cancel this order?</h2>
+        <p class="kdialog__who" id="k-cancel-who"></p>
+
+        <div class="kdialog__warn" role="note">
+          <b>This does not refund anyone.</b> Cancelling records that the food was not delivered
+          and why. No money moves and the parent is not told — someone will have to contact them.
+        </div>
+
+        <fieldset class="kdialog__reasons">
+          <legend>Why?</legend>
+          {CANCEL_REASONS.map((r, i) => (
+            <label class="kdialog__reason">
+              <input type="radio" name="reason" value={r.code} checked={i === 0} />
+              <span>{r.label}</span>
+            </label>
+          ))}
+        </fieldset>
+
+        <div class="kdialog__actions">
+          <button type="submit" value="" class="kitchen__btn">Keep the order</button>
+          <button type="submit" value="cancel" class="kitchen__btn kitchen__btn--danger" id="k-cancel-go">
+            Cancel the order
+          </button>
+        </div>
+      </form>
+    </dialog>
 
     <script>
       import { fixtureTransport } from '../lib/kitchen/fixture.js';
+      import { liveTransport } from '../lib/kitchen/live.js';
+      import { currentUser } from '../lib/backoffice/session.js';
       import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       import type { KitchenAction, KitchenDay, KitchenFilters, KitchenStatus } from '../lib/kitchen/types.js';
       import {
@@ -92,6 +134,12 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         allowedActions,
         applyFilters,
         boardState,
+        countLine,
+        describeDate,
+        filterOptions,
+        groupByClass,
+        groupByDish,
+        shiftDate,
         groupProgress,
         groupState,
         productionTotals,
@@ -132,14 +180,53 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         : forced === 'readonly' ? PERMISSION_SETS.readonly
         : undefined;
 
-      const transport = fixtureTransport(today, permissions);
-      if (forced === 'fail') transport.failNext();
+      /**
+       * Fixtures or the real server, chosen once.
+       *
+       * `PUBLIC_KITCHEN_TRANSPORT=live` points at staging through the `api/` module; anything
+       * else uses generated data, which is what keeps every `?state=` reachable and what lets a
+       * clean checkout run with no server at all. A forced state always implies fixtures — you
+       * cannot ask the real server for a failure on demand.
+       */
+      const useLive = import.meta.env.PUBLIC_KITCHEN_TRANSPORT === 'live' && !forced;
+      const fixture = fixtureTransport(today, permissions);
+      if (forced === 'fail') fixture.failNext();
+      const transport = useLive ? liveTransport() : fixture;
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-      const el = { date: $<HTMLInputElement>('k-date'), school: $<HTMLSelectElement>('k-school'),
-        brk: $<HTMLSelectElement>('k-break'), status: $<HTMLSelectElement>('k-status'),
-        reload: $<HTMLButtonElement>('k-reload'), banner: $('k-banner'), summary: $('k-summary'),
-        board: $('k-board'), live: $('k-status-line') };
+      const el = {
+        prev: $<HTMLButtonElement>('k-prev'), next: $<HTMLButtonElement>('k-next'),
+        todayBtn: $<HTMLButtonElement>('k-today'), dateLabel: $('k-date-label'),
+        count: $('k-count'), filters: $('k-filters'), reload: $<HTMLButtonElement>('k-reload'),
+        banner: $('k-banner'), summary: $('k-summary'), board: $('k-board'), live: $('k-status-line'),
+      };
+
+      /**
+       * The current selection, as state rather than as DOM.
+       *
+       * Named `sel` and not `state` on purpose: the render functions already carry a `state`
+       * from `boardState`, and shadowing it made `state.breakId` typecheck against the board
+       * union — which is the kind of collision that compiles in a dynamic language and does not
+       * here, gratefully.
+       */
+      const undoStrip = $('k-undo');
+      const undoWhat = undoStrip.querySelector('.kundo__what') as HTMLElement;
+      const undoBtn = $<HTMLButtonElement>('k-undo-btn');
+
+      const cancelDialog = $<HTMLDialogElement>('k-cancel');
+      const cancelWho = $('k-cancel-who');
+
+      const sel = { serviceDate: today, schoolId: '', breakId: '', status: '' };
+
+      /**
+       * Which question the board is answering: "what goes to this classroom" or "how many of
+       * these do I make".
+       *
+       * Not persisted. A shared kitchen tablet is picked up by whoever is next, and a toggle
+       * left on `dish` by the person plating is a surprise for the person doing the handover.
+       * Each visit starts on the handover view, which is the one the day ends in.
+       */
+      let grouping: 'class' | 'dish' = 'class';
 
       let day: KitchenDay | null = null;
       let loading = true;
@@ -148,10 +235,10 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       const busy = new Set<string>();
 
       const filters = (): KitchenFilters => ({
-        serviceDate: el.date.value || today,
-        schoolId: el.school.value || null,
-        breakId: el.brk.value || null,
-        status: (el.status.value || null) as KitchenStatus | null,
+        serviceDate: sel.serviceDate,
+        schoolId: sel.schoolId || null,
+        breakId: sel.breakId || null,
+        status: (sel.status || null) as KitchenStatus | null,
       });
 
       const esc = (s: string) =>
@@ -165,6 +252,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       // ------------------------------------------------------------------ load
 
       async function load(): Promise<KitchenDay | null> {
+        // Any pending write goes before a reload, or the fresh list would arrive without it and
+        // the optimistic status would be overwritten by the stale one from the server.
+        await flushPending();
         loading = true;
         error = null;
         render();
@@ -183,31 +273,147 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
       // ---------------------------------------------------------------- update
 
-      async function update(orderIds: string[], to: KitchenAction, reasonCode?: string) {
-        if (!orderIds.length || !day) return;
-        orderIds.forEach((id) => busy.add(id));
+      /**
+       * The undo window, and why it defers the write rather than reversing it.
+       *
+       * Gmail's "Undo Send" does not recall a sent mail — it holds the send for a few seconds and
+       * cancels it if you press undo. That distinction is the whole design here, because the
+       * lifecycle has **no reverse tuple**: `preparing -> paid` does not exist for any actor, so
+       * a write that has happened cannot be taken back client-side at all.
+       *
+       * Deferring needs no new tuple, no migration and no server change. If undo is pressed, the
+       * request was never sent and there is nothing in the audit trail to explain — which is also
+       * more honest than recording a mistake that never reached anybody.
+       *
+       * It is deliberately the *first* of the three layers in
+       * `docs/kitchen-write-contract.md` §1, because a finger landing on the wrong button and
+       * being noticed immediately is the overwhelming majority of mis-taps. The other two layers
+       * are corrections after the fact and genuinely need the server.
+       *
+       * **One pending batch at a time.** A second action flushes the first rather than queueing
+       * beside it: two windows running at once means two rollback states to reason about, and it
+       * bounds how stale the server can be to a single window.
+       */
+      const UNDO_WINDOW_MS = 10_000;
 
-        // Optimistic: the kitchen sees the change immediately, because waiting on a round trip
-        // before a tray moves is how a queue forms behind the person holding the tablet.
-        const previous = new Map(day.orders.map((o) => [o.id, o.status]));
+      interface Pending {
+        orderIds: string[];
+        to: KitchenAction;
+        // `| undefined` rather than `?:` — `exactOptionalPropertyTypes` distinguishes "absent"
+        // from "present and undefined", and this is built by spreading a value that may be either.
+        reasonCode: string | undefined;
+        /** The statuses to restore on undo — the real ones, from before the optimistic change. */
+        previous: Map<string, KitchenStatus>;
+        timer: ReturnType<typeof setTimeout>;
+        tick: ReturnType<typeof setInterval>;
+        deadline: number;
+      }
+
+      let pending: Pending | null = null;
+
+      function queueUpdate(orderIds: string[], to: KitchenAction, reasonCode?: string) {
+        if (!orderIds.length || !day) return;
+
+        // Whatever was waiting goes now. Its window is over the moment attention moves on.
+        void flushPending();
+
+        const previous = new Map(day.orders.map((o) => [o.id, o.status] as const));
         day = { ...day, orders: day.orders.map((o) => (orderIds.includes(o.id) ? { ...o, status: to } : o)) };
+
+        const deadline = Date.now() + UNDO_WINDOW_MS;
+        pending = {
+          orderIds, to, reasonCode, previous, deadline,
+          timer: setTimeout(() => void flushPending(), UNDO_WINDOW_MS),
+          // Anchored to a deadline rather than counted down, for the same reason the OTP resend
+          // is: a backgrounded tab stops firing intervals, and a kitchen tablet is backgrounded
+          // constantly. The timeout above is what actually fires; this only draws the number.
+          tick: setInterval(renderUndo, 250),
+        };
+
+        render();
+      }
+
+      /** Send the pending write, if there is one. Returns when the server has answered. */
+      async function flushPending(): Promise<void> {
+        const p = pending;
+        if (!p) return;
+        clearTimeout(p.timer);
+        clearInterval(p.tick);
+        pending = null;
+        renderUndo();
+
+        p.orderIds.forEach((id) => busy.add(id));
         render();
 
         try {
-          await transport.updateStatus(reasonCode ? { orderIds, to, reasonCode } : { orderIds, to });
-          say(`${orderIds.length} order${orderIds.length === 1 ? '' : 's'} marked ${STATUS_LABEL[to].toLowerCase()}.`);
+          await transport.updateStatus(
+            p.reasonCode ? { orderIds: p.orderIds, to: p.to, reasonCode: p.reasonCode } : { orderIds: p.orderIds, to: p.to },
+          );
+          say(`${p.orderIds.length} order${p.orderIds.length === 1 ? '' : 's'} marked ${STATUS_LABEL[p.to].toLowerCase()}.`);
         } catch (cause) {
           // Roll back and say so loudly. A write that silently does nothing is the worst thing
           // this screen can do: the tray leaves, the record does not, and nobody finds out until
           // a parent asks.
-          day = { ...day!, orders: day!.orders.map((o) => ({ ...o, status: previous.get(o.id) ?? o.status })) };
+          day = day ? { ...day, orders: day.orders.map((o) => ({ ...o, status: p.previous.get(o.id) ?? o.status })) } : day;
           error = cause instanceof Error ? cause.message : 'That change did not save.';
           say('That change did not save. Nothing was recorded.');
         } finally {
-          orderIds.forEach((id) => busy.delete(id));
+          p.orderIds.forEach((id) => busy.delete(id));
           render();
         }
       }
+
+      /**
+       * Draw the strip. Called on a short interval while a window is open, so the number moves.
+       *
+       * The message sits in the live region and the seconds do not: announcing "9… 8… 7…" to a
+       * screen reader would bury the one sentence that matters under a countdown.
+       */
+      function renderUndo() {
+        if (!pending) {
+          undoStrip.hidden = true;
+          undoWhat.textContent = '';
+          return;
+        }
+        const left = Math.max(0, Math.ceil((pending.deadline - Date.now()) / 1000));
+        const n = pending.orderIds.length;
+        const verb = pending.to === 'cancelled' ? 'cancelled' : STATUS_LABEL[pending.to].toLowerCase();
+        undoStrip.hidden = false;
+        const next = `${n} order${n === 1 ? '' : 's'} ${pending.to === 'preparing' ? 'started' : verb}`;
+        // Only rewrite when the sentence itself changes, so the live region announces once
+        // instead of on every tick.
+        if (undoWhat.textContent !== next) undoWhat.textContent = next;
+        undoBtn.textContent = `Undo (${left})`;
+      }
+
+      /** Take it back. Nothing was sent, so there is nothing to reverse. */
+      function undoPending() {
+        const p = pending;
+        if (!p || !day) return;
+        clearTimeout(p.timer);
+        clearInterval(p.tick);
+        pending = null;
+
+        day = { ...day, orders: day.orders.map((o) => ({ ...o, status: p.previous.get(o.id) ?? o.status })) };
+        say(`Undone. ${p.orderIds.length} order${p.orderIds.length === 1 ? '' : 's'} unchanged.`);
+        renderUndo();
+        render();
+      }
+
+      undoBtn.addEventListener('click', undoPending);
+
+      /**
+       * A pending write must never be lost by leaving the page.
+       *
+       * `visibilitychange` is the reliable one on a tablet — `beforeunload` is not guaranteed to
+       * run when an app is backgrounded or the tab is killed. Both are here because they fail in
+       * different situations, and a deferred write that never happens is exactly the silent
+       * no-op this screen is otherwise careful to avoid.
+       */
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') void flushPending();
+      });
+      window.addEventListener('pagehide', () => void flushPending());
 
       // ---------------------------------------------------------------- render
 
@@ -249,7 +455,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
         el.summary.innerHTML =
           `<section class="kitchen__summary" aria-labelledby="k-cook">` +
-            `<h2 id="k-cook">To cook${el.brk.value ? ` · ${esc(el.brk.selectedOptions[0]!.text)}` : ''}</h2>` +
+            `<h2 id="k-cook">To cook${
+              sel.breakId ? ` · ${esc(day?.breaks.find((b) => b.id === sel.breakId)?.label ?? '')}` : ''
+            }</h2>` +
             `<div class="kitchen__totals">` +
               totals.map((t) => `<div class="kitchen__total"><b>${t.quantity}</b><span>${esc(t.dishName)}</span></div>`).join('') +
             `</div>` +
@@ -289,7 +497,8 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         if (state.kind === 'empty-day') {
           el.board.innerHTML =
             `<div class="kitchen__state"><h2>No orders for this day</h2>` +
-            `<p>Nobody has ordered for ${esc(el.date.value || today)}. That is a real answer, not a failure — ` +
+            `<p>Nobody has ordered for ${esc(describeDate(sel.serviceDate, today))}. That is a real answer, ` +
+            `not a failure — ` +
             `check the date if you were expecting some.</p></div>`;
           return;
         }
@@ -298,6 +507,11 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
             `<div class="kitchen__state"><h2>Nothing matches these filters</h2>` +
             `<p>There are orders today, but none with the school, break and status you have chosen.</p>` +
             `<button class="kitchen__btn" data-clear>Clear filters</button></div>`;
+          return;
+        }
+
+        if (grouping === 'dish') {
+          el.board.innerHTML = renderDishGroups(state.groups.flatMap((g) => g.orders), offline);
           return;
         }
 
@@ -325,14 +539,35 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           .join('');
       }
 
+      /**
+       * One line: the dish, the quantity, and the parent's request if there is one.
+       *
+       * The note sits **against its own line**, not against the order. "Less spicy" on one wrap
+       * and not the other is the case §5.6.1 designed the field around, and an order-level note
+       * cannot express it. It is given a block of its own rather than a parenthetical because
+       * the whole justification for the field existing is that the kitchen actually reads it.
+       *
+       * Labelled "Request", which is what it is. Not a safety record and never an allergy — the
+       * app routes that language into the child's profile — and the label is what stops an
+       * operator reading a blank line as "no allergies".
+       */
+      const renderLine = (l: KitchenDay['orders'][number]['lines'][number]) =>
+        `<li class="kline">` +
+          `<span class="kline__qty">${l.quantity}</span>` +
+          `<span class="kline__dish">${esc(l.dishName)}</span>` +
+          (l.note
+            ? `<span class="kline__note"><b>Request</b> ${esc(l.note)}</span>`
+            : '') +
+        `</li>`;
+
       const renderOrder = (offline: boolean) => (o: KitchenDay['orders'][number]) => {
         const actions = allowedActions(o.status, day?.permissions);
         const label = { preparing: 'Start', delivered: 'Delivered', cancelled: 'Cancel' } as const;
         return (
           `<div class="kitchen__order" data-busy="${busy.has(o.id)}">` +
             `<div class="kitchen__child">` +
+              `<ul class="kline-list">${o.lines.map(renderLine).join('')}</ul>` +
               `<p class="kitchen__name">${esc(o.recipientName)}</p>` +
-              `<p class="kitchen__dishes">${o.lines.map((l) => `${l.quantity} × ${esc(l.dishName)}`).join(' · ')}</p>` +
             `</div>` +
             `<span class="kitchen__pill" data-status="${o.status}">` +
               `<span aria-hidden="true">${({ paid: '○', preparing: '◐', delivered: '✓', cancelled: '✕' })[o.status]}</span>` +
@@ -346,10 +581,193 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
                   `${label[a]}<span class="visually-hidden"> ${esc(o.recipientName)}</span></button>`,
                 )
                 .join('') +
+              /**
+               * What can still be corrected, said where the mistake happens.
+               *
+               * The ten-second undo window (`E09-29`) catches the common case, and this covers
+               * what is left: `order-lifecycle.md` §4.1 has no `preparing -> paid` tuple for any
+               * actor, so once the window closes the database refuses the change and a button
+               * would be a lie.
+               *
+               * It deliberately does **not** say "ask an admin" — that was the first wording and
+               * Andy rejected it outright: at volume every mis-tap becomes a support ticket, and
+               * pointing at a person is not a design. `docs/kitchen-write-contract.md` §1(b)
+               * specifies the correction that replaces this line, and it is deleted when that
+               * lands.
+               */
+              (o.status === 'preparing' || o.status === 'delivered'
+                ? `<p class="kitchen__oneway">` +
+                    `${o.status === 'preparing' ? 'Started' : 'Delivered'} by hand. ` +
+                    `Correcting this after the undo window is not built yet.` +
+                  `</p>`
+                : '') +
+              /**
+               * A cancelled order says so on the row, not only in the dialog nobody sees again.
+               *
+               * The operator who cancelled it read the warning; the person looking at the board
+               * an hour later did not, and "Cancelled" on its own reads as finished business.
+               * Deleted in the PR that lands the refund — `kitchen-write-contract.md` §2.4.
+               */
+              (o.status === 'cancelled'
+                ? `<p class="kitchen__oneway">Not refunded — no money has moved.</p>`
+                : '') +
             `</div>` +
           `</div>`
         );
       };
+
+      /**
+       * The board grouped by dish — the view somebody plating food actually wants.
+       *
+       * `groupByClass` answers "what goes to this classroom"; this answers "how many of these do
+       * I make, and who is each one for". Same orders, same page, one toggle — a second screen
+       * would be a second thing to build, test and teach for a question this one already holds
+       * all the data for.
+       *
+       * A portion carries its own note, because the note belongs to the line and the whole point
+       * of grouping by dish is that you are looking at the line when you make it.
+       */
+      function renderDishGroups(orders: KitchenDay['orders'], offline: boolean): string {
+        const groups = groupByDish(orders);
+        if (groups.length === 0) return '';
+
+        // "5-A" is two different classes when two schools are on the board, and the dish view
+        // deliberately mixes schools together — so the school is named on the portion whenever
+        // there is more than one, and left off when there is only one and it would be noise.
+        const manySchools = new Set(orders.map((o) => o.schoolId)).size > 1;
+
+        return groups
+          .map((g) => {
+            const canAct = !offline && g.outstandingIds.length > 0 && Boolean(day?.permissions.markDelivered);
+            return (
+              `<section class="kitchen__group" aria-labelledby="d-${esc(g.key)}">` +
+                `<header class="kitchen__group-head">` +
+                  `<div class="kitchen__group-who">` +
+                    `<p class="kitchen__group-class" id="d-${esc(g.key)}">` +
+                      `<span class="kitchen__group-qty">${g.quantity}</span> ${esc(g.dishName)}` +
+                    `</p>` +
+                    `<p class="kitchen__group-where">${g.portions.length} order${g.portions.length === 1 ? '' : 's'}</p>` +
+                  `</div>` +
+                  (day?.permissions.markDelivered
+                    ? `<button class="kitchen__btn kitchen__btn--primary" data-dish-group="${esc(g.key)}" ${canAct ? '' : 'disabled'}>` +
+                        `Mark all delivered${g.outstandingIds.length ? ` (${g.outstandingIds.length})` : ''}` +
+                      `</button>`
+                    : '') +
+                `</header>` +
+                g.portions
+                  .map((portion) =>
+                    `<div class="kitchen__order" data-busy="${busy.has(portion.orderId)}">` +
+                      `<div class="kitchen__child">` +
+                        `<ul class="kline-list"><li class="kline">` +
+                          `<span class="kline__qty">${portion.quantity}</span>` +
+                          `<span class="kline__dish">${esc(portion.classLabel)}</span>` +
+                          (portion.note
+                            ? `<span class="kline__note"><b>Request</b> ${esc(portion.note)}</span>`
+                            : '') +
+                        `</li></ul>` +
+                        `<p class="kitchen__name">${esc(portion.recipientName)}` +
+                          `${manySchools ? ` · ${esc(portion.schoolName)}` : ''}` +
+                          `${portion.breakLabel ? ` · ${esc(portion.breakLabel)}` : ''}</p>` +
+                      `</div>` +
+                      `<span class="kitchen__pill" data-status="${portion.status}">` +
+                        `<span aria-hidden="true">${({ paid: '○', preparing: '◐', delivered: '✓', cancelled: '✕' })[portion.status]}</span>` +
+                        `${STATUS_LABEL[portion.status]}` +
+                      `</span>` +
+                    `</div>`,
+                  )
+                  .join('') +
+              `</section>`
+            );
+          })
+          .join('');
+      }
+
+      /**
+       * The secondary filters, drawn as chips rather than dropdowns.
+       *
+       * A chip shows its state without being opened, which is the whole complaint about a row of
+       * selects reading "All": you cannot tell what you are looking at. They are also a single
+       * tap at 56px, and a dropdown on a tablet with wet hands is two interactions and a
+       * scrolling list.
+       *
+       * Anything with fewer than two options is not drawn — an inert control is worse than none.
+       */
+      /**
+       * The school's name when exactly one has orders today, else `null`.
+       *
+       * `filterOptions` hides the school chips in that case, and a board that is silently scoped
+       * to one school out of three is a board where "24 orders" means the wrong thing. The name
+       * moves into the count line rather than becoming a chip nobody can press.
+       */
+      const soleSchoolName = (): string | null => {
+        const { schools, showSchools } = filterOptions(day);
+        return !showSchools && schools.length === 1 ? (schools[0]?.name ?? null) : null;
+      };
+
+      function renderFilters() {
+        const options = filterOptions(day);
+        const group = (
+          label: string,
+          key: 'schoolId' | 'breakId' | 'status',
+          items: { id: string; label: string }[],
+          allLabel: string,
+        ) =>
+          `<div class="chips" role="group" aria-label="${esc(label)}">` +
+            [{ id: '', label: allLabel }, ...items]
+              .map((item) =>
+                `<button class="chip" type="button" data-filter="${key}" data-value="${esc(item.id)}" ` +
+                `aria-pressed="${sel[key] === item.id}">${esc(item.label)}</button>`,
+              )
+              .join('') +
+          `</div>`;
+
+        const parts: string[] = [];
+
+        /**
+         * The grouping toggle leads the row, before any filter.
+         *
+         * It changes what the board *is* rather than what it shows, so it is not a filter and is
+         * separated from them. Same chip shape because it behaves the same way — one tap, its
+         * state visible without being opened.
+         */
+        parts.push(
+          `<div class="chips" role="group" aria-label="Group the list by">` +
+            ([['class', 'By class'], ['dish', 'By dish']] as const)
+              .map(([value, text]) =>
+                `<button class="chip" type="button" data-grouping="${value}" ` +
+                `aria-pressed="${grouping === value}">${text}</button>`,
+              )
+              .join('') +
+          `</div>`,
+        );
+
+        if (options.showSchools) {
+          parts.push(group('School', 'schoolId', options.schools.map((s2) => ({ id: s2.id, label: s2.name })), 'All schools'));
+        }
+        if (options.showBreaks) {
+          parts.push(group('Break', 'breakId', options.breaks.map((b) => ({ id: b.id, label: b.label })), 'All breaks'));
+        }
+        parts.push(
+          group('Status', 'status', [
+            { id: 'paid', label: STATUS_LABEL.paid },
+            { id: 'preparing', label: STATUS_LABEL.preparing },
+            { id: 'delivered', label: STATUS_LABEL.delivered },
+            { id: 'cancelled', label: STATUS_LABEL.cancelled },
+          ], 'Any status'),
+        );
+        el.filters.innerHTML = parts.join('');
+      }
+
+      function renderDay(board: ReturnType<typeof boardState>) {
+        el.dateLabel.textContent = describeDate(sel.serviceDate, today);
+        el.todayBtn.hidden = sel.serviceDate === today;
+
+        const visible = day ? applyFilters(day.orders, filters()) : [];
+        el.count.textContent =
+          board.kind === 'loading' ? 'Loading…'
+          : board.kind === 'unreachable' || board.kind === 'forbidden' ? '—'
+          : countLine(visible, groupByClass(visible), soleSchoolName());
+      }
 
       function render() {
         const offline = forced === 'offline' || !navigator.onLine;
@@ -360,6 +778,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           offline,
           error: forced === 'unreachable' ? 'Simulated: the server did not respond.' : error,
         });
+        renderDay(state);
+        renderUndo();
+        renderFilters();
         renderBanner(offline, state);
         renderSummary(state);
         renderBoard(state, offline);
@@ -373,15 +794,24 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
         if (target.hasAttribute('data-retry')) return load();
         if (target.hasAttribute('data-clear')) {
-          el.school.value = ''; el.brk.value = ''; el.status.value = '';
+          sel.schoolId = ''; sel.breakId = ''; sel.status = '';
           return render();
+        }
+
+        const dishKey = target.getAttribute('data-dish-group');
+        if (dishKey) {
+          const state = boardState({ day, filters: filters(), loading, offline: !navigator.onLine, error });
+          const visible = state.kind === 'data' || state.kind === 'stale' ? state.groups.flatMap((g) => g.orders) : [];
+          const group = groupByDish(visible).find((g) => g.key === dishKey);
+          if (group) queueUpdate(group.outstandingIds, 'delivered');
+          return;
         }
 
         const groupKey = target.getAttribute('data-group');
         if (groupKey) {
           const state = boardState({ day, filters: filters(), loading, offline: !navigator.onLine, error });
           const group = (state.kind === 'data' || state.kind === 'stale' ? state.groups : []).find((g) => g.key === groupKey);
-          if (group) await update(group.outstandingIds, 'delivered');
+          if (group) queueUpdate(group.outstandingIds, 'delivered');
           return;
         }
 
@@ -392,35 +822,88 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         if (action === 'cancelled') {
           // A cancellation without a reason loses *why* the food was not delivered, and the
           // schema will not take one — `cancel_reason_code` is how a refund is later explained.
-          const options = CANCEL_REASONS.map((r, i) => `${i + 1}. ${r.label}`).join('\n');
-          const answer = window.prompt(`Why is this order being cancelled?\n\n${options}\n\nEnter 1-${CANCEL_REASONS.length}:`);
-          if (!answer) return;
-          const reason = CANCEL_REASONS[Number(answer) - 1];
+          const reason = await askWhyCancelled(orderId);
           if (!reason) return;
-          return update([orderId], 'cancelled', reason.code);
+          return queueUpdate([orderId], 'cancelled', reason);
         }
 
-        await update([orderId], action);
+        queueUpdate([orderId], action);
       });
 
-      for (const control of [el.date, el.school, el.brk, el.status]) {
-        control.addEventListener('change', () => (control === el.date ? load() : render()));
+      /**
+       * Ask why, and return the reason code — or `null` if the operator backed out.
+       *
+       * The child's name goes into the dialog so the operator can see who they are cancelling
+       * for, and is written with `textContent` rather than into the markup: it is tier P, and it
+       * is the one string on this screen that comes from a person rather than from us.
+       */
+      function askWhyCancelled(orderId: string): Promise<string | null> {
+        const order = day?.orders.find((o) => o.id === orderId);
+        cancelWho.textContent = order
+          ? `${order.recipientName} · ${order.lines.map((l) => `${l.quantity} × ${l.dishName}`).join(', ')}`
+          : '';
+
+        cancelDialog.showModal();
+        return new Promise((resolve) => {
+          cancelDialog.addEventListener(
+            'close',
+            () => {
+              // `returnValue` is the submit button's `value`. Esc and the backdrop both close
+              // with an empty one, so backing out and "Keep the order" are the same path.
+              if (cancelDialog.returnValue !== 'cancel') return resolve(null);
+              const chosen = cancelDialog.querySelector<HTMLInputElement>('input[name=reason]:checked');
+              resolve(chosen?.value ?? null);
+            },
+            { once: true },
+          );
+        });
       }
+
+      el.filters.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+
+        // The grouping toggle lives in this row but is not a filter — it changes what the board
+        // is, not what it shows. Handled first, because the filter branch below returns early on
+        // anything without `data-filter` and would swallow it.
+        const grouped = target.closest<HTMLElement>('[data-grouping]')?.dataset.grouping;
+        if (grouped === 'class' || grouped === 'dish') {
+          grouping = grouped;
+          return render();
+        }
+
+        const chip = target.closest<HTMLElement>('[data-filter]');
+        if (!chip) return;
+        const key = chip.dataset.filter as 'schoolId' | 'breakId' | 'status';
+        sel[key] = chip.dataset.value ?? '';
+        render();
+      });
+
+      const goToDate = (iso: string) => {
+        sel.serviceDate = iso;
+        void load();
+      };
+      el.prev.addEventListener('click', () => goToDate(shiftDate(sel.serviceDate, -1)));
+      el.next.addEventListener('click', () => goToDate(shiftDate(sel.serviceDate, 1)));
+      el.todayBtn.addEventListener('click', () => goToDate(today));
       el.reload.addEventListener('click', load);
       window.addEventListener('online', render);
       window.addEventListener('offline', render);
 
       // ------------------------------------------------------------------ start
 
-      el.date.value = today;
       void (async () => {
+        // Signed out against the real server is not an empty kitchen — it is a locked door, and
+        // §5.21's N3 says the two must never look alike. Fixtures need no session.
+        if (useLive && !(await currentUser().catch(() => null))) {
+          location.assign(`/signin?next=${encodeURIComponent(location.pathname + location.search)}`);
+          return;
+        }
         // Populate the filter options from the first load rather than from `day`: TypeScript
         // cannot see an assignment made inside `load()` from out here, and narrowing a
         // module-level `let` across an await is exactly where that analysis gives up.
-        const first = await load();
-        if (!first) return;
-        for (const s of first.schools) el.school.add(new Option(s.name, s.id));
-        for (const b of first.breaks) el.brk.add(new Option(b.label, b.id));
+        // The bar renders itself from whatever the day contains, so there is nothing to
+        // populate here — which is also why a school appearing tomorrow needs no code change.
+        await load();
       })();
     </script>
   </body>

@@ -45,13 +45,24 @@
   padding: var(--gb-space-4);
 }
 
+/**
+ * A grid, not a wrapping flex row: the day and Refresh on the first line, the filters spanning
+ * the second.
+ *
+ * As flex, Refresh was a third wrapped item on a tablet, so it took a whole empty row to itself
+ * below the chips. Pinning it to the day's row costs nothing at desktop width and gives back a
+ * row of a screen that is mostly list.
+ */
 .kitchen__bar-inner {
   max-width: var(--gb-layout-container-max-width);
   margin-inline: auto;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  /* `minmax(0, 1fr)`, not `1fr`: a bare `1fr` floors at min-content, and the day nav's
+     min-content is wider than a phone — so the whole bar overflowed to the right and the chips
+     sat on the canvas rather than on the green. Caught by the contrast check, at 390px. */
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--gb-space-4);
+  gap: var(--gb-space-4) var(--gb-space-3);
 }
 
 .kitchen__title {
@@ -61,24 +72,153 @@
   margin-right: auto;
 }
 
+/* ------------------------------------------------------------------- the date */
+
+/**
+ * The date is the largest thing on the screen, and it moves one tap at a time.
+ *
+ * This replaced a native date picker sitting among three other dropdowns of equal weight. At 7am
+ * the question is almost always "today" or "tomorrow", and a picker is three interactions to
+ * answer it — open, navigate, choose — on a tablet, with wet hands.
+ */
+.daynav {
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-3);
+  margin-right: auto;
+}
+
+.daynav__step {
+  min-width: 3.5rem;
+  min-height: 3.5rem;
+  border: var(--gb-border-width-default) solid var(--gb-ramp-forest-600);
+  border-radius: var(--gb-radius-full);
+  background: transparent;
+  color: var(--gb-text-on-brand);
+  font-family: inherit;
+  font-size: var(--gb-font-size-h2);
+  line-height: 1;
+  cursor: pointer;
+}
+.daynav__step:hover { background: var(--gb-ramp-forest-600); }
+
+/**
+ * Wide enough that stepping between days does not reflow the arrows, and able to shrink below
+ * that when there is not room.
+ *
+ * `min-width: 15rem` on its own is what overflowed the bar on a phone. Letting the daynav wrap
+ * instead was worse: it stranded `‹` on one line and `›` two lines below, either side of
+ * nothing. The date wraps inside its own box; the arrows stay flanking it.
+ */
+.daynav__label { flex: 1 1 15rem; min-width: 0; }
+
+.daynav__date {
+  font-size: var(--gb-font-size-h2);
+  line-height: var(--gb-line-height-h2);
+  font-weight: var(--gb-font-semibold);
+  color: var(--gb-text-on-brand);
+}
+
+/** "24 orders · 3 classes · 2 breaks" — does today look right, before reading a single name. */
+.daynav__count {
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+  color: var(--gb-ramp-lime-200);
+  font-variant-numeric: tabular-nums;
+}
+
+.daynav__today { min-height: 3rem; padding-inline: var(--gb-space-5); }
+
+/**
+ * On a phone the bar becomes one column and Refresh takes a full-width row of its own.
+ *
+ * That is the layout deliberately avoided at tablet width, where it wasted a row of a screen
+ * that is mostly list. Here there is no second column to put it in without squeezing the date
+ * to about 100px, and the date is the most important thing on the screen.
+ */
+@media (max-width: 40rem) {
+  .kitchen__bar-inner { grid-template-columns: minmax(0, 1fr); }
+  .kitchen__filters { order: 1; }
+  .kitchen__refresh { order: 2; }
+}
+
 /* -------------------------------------------------------------------- filters */
 
+/**
+ * Secondary filters as chips, not dropdowns.
+ *
+ * A chip shows its state without being opened, which is the whole complaint about a row of
+ * selects all reading "All": you cannot tell what you are looking at. It is also one tap at
+ * 56px, where a dropdown is two interactions and a scrolling list.
+ *
+ * `aria-pressed` carries the selection for a screen reader, so the state is not only a colour.
+ */
+.chips { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); }
+
+.chip {
+  min-height: 3rem;
+  padding: var(--gb-space-2) var(--gb-space-4);
+  border-radius: var(--gb-radius-full);
+  border: var(--gb-border-width-default) solid var(--gb-ramp-forest-600);
+  background: transparent;
+  color: var(--gb-text-on-brand);
+  font-family: inherit;
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-medium);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover { background: var(--gb-ramp-forest-600); }
+
+/* The selected chip inverts, so it reads as chosen at a glance and not only by its border. */
+.chip[aria-pressed='true'] {
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+  border-color: var(--gb-bg-surface);
+  font-weight: var(--gb-font-semibold);
+}
+
+/**
+ * Space between one group of chips and the next, rather than a rule between them.
+ *
+ * Without any separation "All breaks · Morning break · Lunch break · Any status · To make" is
+ * one undifferentiated run of eight chips, and the eye has to read every label to find where
+ * break-filtering stops and status-filtering starts.
+ *
+ * A border was the first attempt and was wrong: the groups wrap independently, so on a tablet
+ * it became a stray vertical tick floating to the left of a row. A column gap degrades — when a
+ * group wraps to its own line the separation is simply the line. The leading chip of each group
+ * names its category ("All breaks", "Any status"), which is what actually disambiguates them.
+ */
 .kitchen__filters {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--gb-space-3);
+  row-gap: var(--gb-space-3);
+  column-gap: var(--gb-space-8);
 }
 
 .kitchen__field { display: grid; gap: var(--gb-space-1); }
 
+/**
+ * The label's ink depends on what it is sitting on, and getting that wrong is invisible.
+ *
+ * `lime-200` is 6.00:1 on the bar's `forest-500` and **1.26:1 on white** — so reusing these
+ * field styles on the sign-in card produced labels nobody could read. Caught by the axe gate,
+ * not by looking at it, which is the whole argument for having the gate.
+ *
+ * Default to the light-surface ink and override inside the bar, so the failure mode of a new
+ * field somewhere else is "slightly dark" rather than "invisible".
+ */
 .kitchen__field label {
   font-size: var(--gb-font-size-caption);
   line-height: var(--gb-line-height-caption);
   letter-spacing: var(--gb-tracking-overline);
   text-transform: uppercase;
   font-weight: var(--gb-font-semibold);
-  color: var(--gb-ramp-lime-200);
+  color: var(--gb-text-secondary);
 }
+.kitchen__bar .kitchen__field label { color: var(--gb-ramp-lime-200); }
 
 .kitchen__field select,
 .kitchen__field input {
@@ -235,12 +375,6 @@
 .kitchen__order[data-busy='true'] { opacity: var(--gb-opacity-pressed); }
 
 .kitchen__child { min-width: 12rem; margin-right: auto; }
-.kitchen__name { font-weight: var(--gb-font-semibold); }
-.kitchen__dishes {
-  font-size: var(--gb-font-size-body-sm);
-  line-height: var(--gb-line-height-body-sm);
-  color: var(--gb-text-secondary);
-}
 
 /**
  * The status pill: a word first, then a mark, then a colour.
@@ -266,7 +400,7 @@
 
 /* -------------------------------------------------------------------- buttons */
 
-.kitchen__actions { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); }
+.kitchen__actions { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); justify-content: flex-end; }
 
 .kitchen__btn {
   min-height: 3.5rem;                 /* 56px — bigger than the 48 floor. Wet hands, in a hurry. */
@@ -332,4 +466,219 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------- sign-in */
+
+.signin { max-width: 30rem; margin-inline: auto; }
+.signin__card { text-align: left; padding: var(--gb-space-8) var(--gb-space-6); }
+.signin__card h2 {
+  font-size: var(--gb-font-size-h2);
+  line-height: var(--gb-line-height-h2);
+  font-weight: var(--gb-font-semibold);
+  margin-bottom: var(--gb-space-2);
+}
+.signin__card p { color: var(--gb-text-secondary); margin-bottom: var(--gb-space-6); }
+.signin__field { margin-bottom: var(--gb-space-6); }
+.signin__field input { width: 100%; }
+.signin__card .kitchen__btn { width: 100%; margin-bottom: var(--gb-space-3); }
+
+/* ------------------------------------------------------- the line, and the note */
+
+/**
+ * The dish is the biggest thing on the row and the child's name sits under it.
+ *
+ * It was the other way round. In a kitchen the dish is what is being *made* and the name is who
+ * it goes to — the name matters at the moment of handover and not before. It is also better on a
+ * shared screen: a name that is not the dominant element is a name a visitor does not read over
+ * somebody's shoulder, which matters because every one of these is a child's name (tier P).
+ */
+.kline-list { list-style: none; display: grid; gap: var(--gb-space-1); }
+
+.kline {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--gb-space-2);
+}
+
+.kline__qty {
+  font-size: var(--gb-font-size-h3);
+  font-weight: var(--gb-font-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--gb-text-secondary);
+  min-width: 1.5rem;
+}
+
+.kline__dish {
+  font-size: var(--gb-font-size-h3);
+  line-height: var(--gb-line-height-h3);
+  font-weight: var(--gb-font-semibold);
+  color: var(--gb-text-primary);
+}
+
+/**
+ * The parent's request, against the dish it belongs to.
+ *
+ * Amber and full-width so it cannot be skimmed past: `ux-spec` §5.6.1 makes the whole field
+ * conditional on the kitchen reading it, so a note styled as a quiet aside would defeat the
+ * reason it is rendered at all.
+ *
+ * The **Request** label is load-bearing, not decoration. It says what this text is and is not —
+ * it is not an allergy record, and the absence of one here means nothing about allergies. Colour
+ * carries none of that on its own (§2.10).
+ */
+.kline__note {
+  flex-basis: 100%;
+  padding: var(--gb-space-2) var(--gb-space-3);
+  border-left: var(--gb-space-1) solid var(--gb-ramp-amber-700);
+  background: var(--gb-ramp-amber-100);
+  color: var(--gb-text-primary);
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+  border-radius: var(--gb-radius-sm);
+}
+
+.kline__note b {
+  text-transform: uppercase;
+  letter-spacing: var(--gb-tracking-overline);
+  font-size: var(--gb-font-size-caption);
+  font-weight: var(--gb-font-bold);
+  margin-right: var(--gb-space-2);
+}
+
+/* Secondary now: who it goes to, read at handover. */
+.kitchen__name {
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+  font-weight: var(--gb-font-medium);
+  color: var(--gb-text-secondary);
+  margin-top: var(--gb-space-1);
+}
+
+/**
+ * The one-way-door explanation, next to the actions that are one.
+ *
+ * Deliberately quiet — it is an explanation, not a warning, and an operator who has already
+ * delivered forty orders correctly should not be shouted at forty times. It exists so that the
+ * one person who mis-taps finds an answer instead of hunting for an Undo that is not there.
+ */
+.kitchen__oneway {
+  flex-basis: 100%;
+  margin-top: var(--gb-space-1);
+  font-size: var(--gb-font-size-caption);
+  line-height: var(--gb-line-height-caption);
+  color: var(--gb-text-secondary);
+  text-align: right;
+  max-width: 22rem;
+}
+
+/* The dish's batch size, which is the number the person plating is working to. */
+.kitchen__group-qty { font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------------- cancel dialog */
+
+/**
+ * A native `<dialog>`, which brings the focus trap, Esc-to-close and the inert backdrop with it.
+ * It replaced `window.prompt("Enter 1-4")`, which blocked the page and was not a UI.
+ */
+.kdialog {
+  border: none;
+  border-radius: var(--gb-radius-lg);
+  padding: 0;
+  max-width: 32rem;
+  width: calc(100% - var(--gb-space-8));
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+  font-size: var(--gb-font-size-h3);
+}
+.kdialog::backdrop { background: rgb(0 0 0 / 0.5); }
+
+.kdialog__form { display: grid; gap: var(--gb-space-4); padding: var(--gb-space-5); }
+
+.kdialog__title {
+  font-size: var(--gb-font-size-h2);
+  line-height: var(--gb-line-height-h2);
+  font-weight: var(--gb-font-semibold);
+}
+
+.kdialog__who { font-size: var(--gb-font-size-body-sm); color: var(--gb-text-secondary); }
+
+/**
+ * What cancelling does not do, stated before the button that does it.
+ *
+ * Amber rather than red: it is not a warning about the action being dangerous, it is a
+ * correction to what the operator almost certainly assumes — that pressing this refunds someone.
+ */
+.kdialog__warn {
+  padding: var(--gb-space-3) var(--gb-space-4);
+  border-left: var(--gb-space-1) solid var(--gb-ramp-amber-700);
+  background: var(--gb-ramp-amber-100);
+  border-radius: var(--gb-radius-sm);
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+}
+
+.kdialog__reasons { border: none; display: grid; gap: var(--gb-space-2); }
+.kdialog__reasons legend {
+  font-size: var(--gb-font-size-caption);
+  letter-spacing: var(--gb-tracking-overline);
+  text-transform: uppercase;
+  font-weight: var(--gb-font-semibold);
+  color: var(--gb-text-secondary);
+  margin-bottom: var(--gb-space-2);
+}
+
+/* The whole row is the target, not the 20px radio — the same wet-hands argument as the buttons. */
+.kdialog__reason {
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-3);
+  min-height: var(--gb-touch-min);
+  padding: var(--gb-space-2) var(--gb-space-3);
+  border: var(--gb-border-width-default) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-md);
+  cursor: pointer;
+}
+.kdialog__reason:hover { background: var(--gb-bg-canvas); }
+.kdialog__reason input { width: 1.25rem; height: 1.25rem; }
+
+.kdialog__actions { display: flex; flex-wrap: wrap; gap: var(--gb-space-3); justify-content: flex-end; }
+
+/* ------------------------------------------------------------- the undo strip */
+
+/**
+ * Fixed to the bottom, thumb-reachable, and out of the list's flow.
+ *
+ * Putting it inline would shift rows under a finger already moving toward the next one, which on
+ * a 56px-target screen is how you cause the second mis-tap while offering to fix the first.
+ */
+.kundo {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: var(--gb-space-5);
+  z-index: var(--gb-z-sticky-header);
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-4);
+  max-width: calc(100% - var(--gb-space-8));
+  padding: var(--gb-space-3) var(--gb-space-3) var(--gb-space-3) var(--gb-space-5);
+  border-radius: var(--gb-radius-full);
+  background: var(--gb-bg-surface-inverse);
+  color: var(--gb-text-on-brand);
+  box-shadow: var(--gb-shadow-lg, 0 8px 24px rgb(0 0 0 / 0.25));
+}
+.kundo[hidden] { display: none; }
+
+.kundo__what {
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+  font-weight: var(--gb-font-medium);
+}
+
+/* Light on the dark strip, and wide enough that the countdown does not resize it each second. */
+.kundo__btn {
+  min-width: 8rem;
+  font-variant-numeric: tabular-nums;
 }

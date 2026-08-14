@@ -361,13 +361,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/23</span>
+          <span class="meter-num">0/24</span>
         </div>
       </header>
       <p class="summary">Repo, two real environments, secrets management, and the test harness that every later task depends on.</p>
       <p class="deps">Depends on <code>E00</code></p>
       <details>
-        <summary>Context &amp; 23 tasks</summary>
+        <summary>Context &amp; 24 tasks</summary>
         <div class="context"><h4>Why early</h4>
 <p>Everything after this inherits the quality bar set here. Getting tests and environments right on day one is what stops &quot;manually swapping Razorpay keys&quot; happening again.</p></div>
         <ul class="tasks">
@@ -529,7 +529,7 @@
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:high) <strong>Put the staging Supabase credentials into GitHub Actions secrets</strong> — <code>SUPABASE_ACCESS_TOKEN</code>, <code>SUPABASE_DB_PASSWORD</code> and the staging project ref. <code>E01-04</code> created the project, but the values were never supplied, so <strong><code>Deploy to staging</code> has failed on every run since 2026-08-08</strong> (<code>supabase link --project-ref &quot;&quot;</code>). CI&#39;s required checks are unaffected and green; nothing has ever actually deployed</span>
+        <span class="ttext">(risk:high) <strong><code>SUPABASE_DB_PASSWORD</code> in GitHub Actions secrets is wrong, and it is the last thing stopping <code>Deploy to staging</code>.</strong> *(Narrowed 2026-08-13 — this task previously read &quot;the values were never supplied&quot; and that is no longer the failure.)* <code>SUPABASE_ACCESS_TOKEN</code> and <code>SUPABASE_PROJECT_REF</code> <strong>are</strong> now set: the run reaches <code>npx supabase migration list --linked</code> with <code>SUPABASE_PROJECT_REF: jcagqjsibcpjyskvebeq</code> and fails on <code>FATAL: password authentication failed for user &quot;postgres&quot; (SQLSTATE 28P01)</code> against <code>aws-0-ap-south-1.pooler.supabase.com</code>. So one secret is stale — almost certainly predating the database password reset. The working value is the password inside <code>SUPABASE_DB_URL</code> in <code>.secrets.staging.env</code>, which authenticates against that same pooler host from this machine. <strong>Nothing has ever deployed to staging and no migration has ever been applied by CI</strong>; every schema change on staging so far arrived by hand. Required checks are unaffected and green</span>
       </li>
       <li class="task" data-id="E01-21" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-21"></button>
@@ -554,6 +554,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>scripts/tag-mvp.mjs</code> rewrote the backlog markdown from its include list, so a disagreement resolved as &quot;whoever ran it last wins&quot;.</strong> <code>E03-20</code>, <code>E05-16</code>, <code>E05-20</code> and <code>E05-21</code> carried <code>(mvp)</code> in markdown and were absent from the list — a run would have <strong>stripped all four from v1</strong> silently. <code>E09-11</code> was the mirror case. <strong>Closed 2026-08-11</strong>: Andy ruled all five are MVP and they are reconciled; the script is replaced by <code>scripts/check-mvp.mjs</code>, which <strong>verifies and never writes</strong>, names both sides of any disagreement, and runs in <code>npm run smoke</code> so CI fails on drift</span>
+      </li>
+      <li class="task" data-id="E01-26" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-26"></button>
+        <code class="tid">E01-26</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>Maestro (cart)</code> has timed out at the 45-minute job limit on every pull request today</strong>, including the payments thread&#39;s <code>e06-02-create-order</code>. The step that hangs is *Build the staging APK*; the last Integration run to pass was a scheduled one on 2026-08-12 at 4m12s. <code>#43</code> and <code>#45</code> were both merged around it after confirming neither diff touched a mobile, Android, Gradle or Maestro file. <strong>That is twice, and Andy&#39;s ruling stands: a required check that times out on every PR is a gate switched off by accident, and merging around it is how it stays off.</strong> Find the cause — a Gradle distribution fetch was seen failing with <code>Unexpected end of file from server</code>, so a pinned/cached distribution is the first thing to try — and either fix it or raise the timeout deliberately. Do not merge around it a third time</span>
       </li></ul>
       </details>
     </article>
@@ -3550,13 +3558,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/18</span>
+          <span class="meter-num">0/30</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 18 tasks</summary>
+        <summary>Context &amp; 30 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3672,6 +3680,102 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The packing list is tier P and needs a retention rule.</strong> <code>packingCsv</code> names children by design — staff hand food to a named child and there is no version of that job that does not. That makes a downloaded packing CSV regulated data sitting on a kitchen laptop indefinitely. Decide how long it may be kept and how it is destroyed, and put it in <code>docs/dpdp-compliance.md</code>. The file warns the reader in its first row, which is the most a file can do for itself; the rest is policy. Raised with <code>E09-11a</code></span>
       </li>
+      <li class="task" data-id="E09-21" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-21"></button>
+        <code class="tid">E09-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The parent&#39;s per-line note reaches the kitchen, and the dish outweighs the child&#39;s name on a row.</strong> <code>order_line.special_comments</code> existed and nothing rendered it, so a parent typing &quot;less spicy&quot; was typing into nothing — the exact failure <code>ux-spec</code> §5.6.1 makes the field conditional on avoiding. It now comes through <code>KITCHEN_ORDER_COLUMNS</code> and renders against its own line in an amber block labelled <strong>Request</strong>, per line and not per order. The label is load-bearing: the note is never a safety record, and it is what stops an operator reading an empty line as &quot;no allergies&quot;. Separately, the row was inverted — the dish is now the dominant element and the name is secondary, because in a kitchen the dish is what is being made and the name matters at handover, and a name that is not dominant is one a visitor does not read off a shared screen (Andy, 2026-08-13)</span>
+      </li>
+      <li class="task" data-id="E09-22" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-22"></button>
+        <code class="tid">E09-22</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The cancel dialog, replacing <code>prompt()</code>.</strong> A native <code>&lt;dialog&gt;</code> — focus trap, Esc and an inert backdrop come with it — instead of a browser prompt asking the operator to &quot;Enter 1-4&quot; while the page was blocked. Reason codes as tappable rows, the child and their dishes named so you can see who you are cancelling for, and an unmissable statement that <strong>cancelling refunds nobody and tells nobody</strong>, repeated on the row afterwards because the person reading the board an hour later never saw the dialog. <code>cutoff_missed</code> removed from the kitchen&#39;s options along with the other system-observed codes — an operator selecting one would be asserting something they cannot know. <strong>The free-text field is deliberately not shipped</strong>: see <code>E09-27</code></span>
+      </li>
+      <li class="task" data-id="E09-23" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-23"></button>
+        <code class="tid">E09-23</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>Start</code> and <code>Delivered</code> are one-way doors, and the screen now says so.</strong> <code>order-lifecycle.md</code> §4.1 is strictly forward: there is no <code>preparing -&gt; paid</code> tuple for any actor, so the database refuses the write and a button would be a lie. Andy mis-tapped <code>Start</code> and found no way back and no explanation. The row now says what it cannot do and why rather than silently refusing. <strong>The write half is <code>E09-24</code> and this line is deleted when it lands</strong></span>
+      </li>
+      <li class="task" data-id="E09-24" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-24"></button>
+        <code class="tid">E09-24</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Correcting a status a human set by hand, as a new event rather than an edit.</strong> Andy, 2026-08-13: *&quot;a correction is a NEW event, never an edit&quot;* — <code>order_event</code> stays append-only, status is derived, so the derived value goes back while the record grows and the history honestly reads <code>paid → preparing → paid</code>. <strong>&quot;Ask an admin&quot; was rejected outright</strong>: at volume every mis-tap becomes a support ticket. Needs (1) the tuples <code>preparing → paid</code> and <code>delivered → preparing</code> for <code>kitchen</code> and <code>admin</code>, (2) an <code>event_kind</code> column distinguishing <code>progress</code> from <code>correction</code>, because a <code>preparing → paid</code> row is otherwise indistinguishable from a legitimate one, (3) a <strong>time bound</strong> enforced in SQL and not only in the UI — suggested default: until the end of the service date — and (4) a <strong>mandatory reason on <code>delivered → preparing</code></strong>, rejected 422 without one, because <code>delivered</code> is a claim about the physical world and is the record that answers &quot;my child says they got nothing&quot;. Forward stamps cleared on both. <code>docs/kitchen-write-contract.md</code> §1(b) and §1(c). Layer (a), the undo window, is done and needed none of this — <code>E09-29</code></span>
+      </li>
+      <li class="task" data-id="E09-25" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-25"></button>
+        <code class="tid">E09-25</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The school filter follows the day&#39;s data, not the seed&#39;s.</strong> It was hidden whenever one school had orders, which was right in principle and wrong in effect: the fixture had one school, so the control that matters most once three schools are live was the one nobody could look at. The fixture now spans two schools unevenly, and when exactly one school has orders the board <strong>names it in the count line</strong> — &quot;Alpha Public School · 24 orders · 3 classes&quot; — rather than going silently unlabelled, because &quot;24 orders&quot; means something different if you did not know you were seeing one school out of three (Andy, 2026-08-13)</span>
+      </li>
+      <li class="task" data-id="E09-26" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-26"></button>
+        <code class="tid">E09-26</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>&quot;By dish&quot; as a second grouping on the same board</strong> — the Cook view, restored as a toggle rather than the separate screen that was cut. &quot;9 Paneer Wrap&quot; as a block with every portion under it: quantity, class, child, break, and the parent&#39;s request against the portion it belongs to. Same orders, same page, one toggle, so it is not a second surface to build, test and teach. <code>groupByClass</code> answers &quot;what goes to this classroom&quot;; <code>groupByDish</code> answers &quot;how many do I make and who is each one for&quot;. <strong>Cancelled orders are excluded here and shown in the class view</strong>, because a cancelled order is still a child standing in a classroom expecting a bag, and is not food to cook. Ordered biggest batch first; the school is named on a portion only when more than one is on the board, since &quot;5-A&quot; is two classes then. The toggle is not persisted — a shared tablet left on <code>By dish</code> by whoever was plating is a surprise for whoever does the handover (Andy, 2026-08-13)</span>
+      </li>
+      <li class="task" data-id="E09-27" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-27"></button>
+        <code class="tid">E09-27</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Free text on a cancellation has nowhere to be stored.</strong> Andy is right that three codes will never cover the real reason, and the field is not shipped until it has a column, because a box that discards what you type is the same lie the parent&#39;s note was (<code>E09-21</code>). <code>order_event.note</code> exists and <code>write_order_event</code> never populates it; the table is <strong>append-only and refuses UPDATE outright</strong>, so it cannot be filled in afterwards even inside the same transaction; and <code>&quot;order&quot;</code> has no free-text column at all. Needs a <strong>migration</strong>. Recommended: <code>write_order_event</code> reads <code>app.event_note</code> from a session setting exactly as it already reads <code>app.actor_type</code>, <code>app.actor_user_id</code> and <code>app.correlation_id</code> — smallest change, same mechanism, and it serves every actor rather than only cancellation. <code>docs/kitchen-write-contract.md</code> §2.1</span>
+      </li>
+      <li class="task" data-id="E09-28" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-28"></button>
+        <code class="tid">E09-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The school filter reads the <code>school</code> table, not the day&#39;s orders.</strong> Deriving it from orders meant the control appeared and disappeared with the data: a school that ordered nothing today vanished from it, and a single-school day showed no filter at all — so an operator could not tell whether they were looking at every school or at one of several. Which schools a kitchen serves is a property of the kitchen, not of a Tuesday, and selecting one with no orders is a useful answer rather than a dead end (&quot;they ordered nothing today&quot;, which the empty state already says properly). Scope is <strong>RLS</strong>, never a filter written client-side — <code>permission_grant</code> widens platform → city → kitchen → school, so a school-scoped operator sees one school and a kitchen-scoped one sees the kitchen&#39;s. Breaks stay derived from the orders: a break genuinely is a property of the day, and its label is already snapshotted on the row (Andy, 2026-08-13)</span>
+      </li>
+      <li class="task" data-id="E09-29" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-29"></button>
+        <code class="tid">E09-29</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>An undo window on every status tap — the Gmail pattern, and it needs no server change.</strong> Gmail&#39;s &quot;Undo Send&quot; does not recall a sent mail; it holds the send and cancels it. That distinction is the whole design, because the lifecycle has no reverse tuple and a write that has happened cannot be taken back from the client at all. Deferring the request by ten seconds needs no migration and leaves nothing in the audit trail to explain. One pending batch at a time — a second action flushes the first — and the pending write is flushed on <code>visibilitychange</code>, <code>pagehide</code> and any reload, because a deferred write that never happens is the silent no-op this screen exists to avoid. <strong>Layer (a) of three</strong>; (b) and (c) are corrections after the window and genuinely need the server — <code>E09-24</code>, and <code>docs/kitchen-write-contract.md</code> §1</span>
+      </li>
+      <li class="task" data-id="E09-30" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-30"></button>
+        <code class="tid">E09-30</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The school filter offers active schools PLUS any school with orders on the selected day.</strong> Neither half works alone: active-only hides a school we have stopped serving whose orders from last week are on the board — a filter that cannot name something on screen — and orders-only was <code>E09-28</code>&#39;s bug. Not hypothetical: <code>supabase/seeds/catalogue.sql</code> <strong>deliberately</strong> deactivates the three synthetic fixture schools once the real Bubble-imported ones exist, so that &quot;Alpha Public School sitting next to Amity International School&quot; cannot confuse the parent-facing picker. Alpha and Bravo are therefore inactive *and* carry every seeded order, so an active-only filter would have listed neither. <code>is_active</code> is read and returned by the <code>api/</code> module and applied by the caller, never filtered in the query, because the caller needs both halves. A missing column reads as active — hiding a school because a column did not come back is the wrong way to be wrong (Andy, 2026-08-13)</span>
+      </li>
+      <li class="task" data-id="E09-18" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-18"></button>
+        <code class="tid">E09-18</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Move <code>kitchen-order-status</code>&#39;s transaction into a SQL function.</strong> The Edge Function currently holds the guards and the <code>BEGIN</code> itself, over a direct connection, because the WEB thread was told not to touch migrations on 2026-08-12. <code>checkout</code> and <code>recipients</code> are thin shells over <code>create_recipient()</code> / <code>change_recipient_school()</code> and this should join them: a guard in SQL is enforced against every caller, whereas a guard in a function body is enforced only against callers who come through that function. Needs one migration adding <code>kitchen_set_order_status()</code></span>
+      </li>
+      <li class="task" data-id="E09-19" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-19"></button>
+        <code class="tid">E09-19</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The filter bar read as a form, not a tool.</strong> Four dropdowns of equal weight all reading &quot;All&quot;, with a native date picker among them — three interactions to answer a question that is almost always &quot;today&quot; or &quot;tomorrow&quot;. Replaced by: the date as the largest thing on the screen with one-tap <code>‹</code>/<code>›</code> and a <code>Today</code> button that only appears when you have left today; a count line (&quot;24 orders · 3 classes · 2 breaks&quot;, following the filters, singular when it should be); school/break/status as chips that show their own state without being opened, the leading chip of each naming its category (&quot;All breaks&quot;, &quot;Any status&quot;) rather than a bare &quot;All&quot;; and <strong>a filter with fewer than two options is not drawn at all</strong> — an inert control is worse than none (Andy, 2026-08-13). Raised and closed in the same PR</span>
+      </li>
       <li class="task" data-id="E09-15" data-seed="1" data-risk="" data-owner="andy" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-15"></button>
         <code class="tid">E09-15</code>
@@ -3688,7 +3792,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Render the per-line kitchen note on the packing list and the per-class delivery sheet, under the same retention rule as the rest of it (<code>P12</code>, <code>E09-14</code>)</span>
       </li>
-      <li class="task" data-id="E09-17" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E09-17" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-17"></button>
         <code class="tid">E09-17</code>
         
@@ -4637,13 +4741,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/42</span>
+          <span class="meter-num">0/46</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 42 tasks</summary>
+        <summary>Context &amp; 46 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -4986,6 +5090,38 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Two threads appending to one epic file will collide again.</strong> <code>E17-41</code> is the symptom; the cause is that <code>planning/backlog/</code> is shared mutable state with no reservation, and the next-free-id is read from whatever the branch happens to have. Either give each thread an id band per epic, or make <code>build-backlog.mjs</code> fail on a duplicate id across <code>git branch -a</code> rather than only within the file it is building</span>
+      </li>
+      <li class="task" data-id="E17-43" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-43"></button>
+        <code class="tid">E17-43</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Closed as a duplicate when <code>kitchen-live</code> merged, 2026-08-13.</strong> Superseded by <code>E17-37</code> on <code>main</code> — the strict store version floor. Renumbered from <code>E17-29</code>, which <code>main</code> had independently assigned to something else; <code>E17-41</code> predicted exactly this collision. Kept rather than deleted because task ids are permanent. <strong><code>(owner:andy)</code> dropped deliberately</strong>: the tag marks work only Andy can do, and a closed duplicate carries no work — the action lives on <code>E17-37</code>. Original text follows. (risk:critical) <strong><code>apps/mobile/app.json</code> is <code>version: &quot;2.0.0&quot;</code> and the live Play build is <code>3.7.0</code> — every store upload would be rejected.</strong> <code>app-config.test.ts</code>&#39;s &quot;store version floor&quot; asserts only <code>major &gt;= 2</code>, which passes on 2.0.0 and proves nothing: the comment says &quot;an upload whose version is not higher than the live one is rejected — after the build has been paid for and waited on&quot;, and that is exactly the state the assertion currently permits. Set <code>version</code> above <code>3.7.0</code> and change the assertion to compare against the live version rather than a major number. Found by the WEB thread 2026-08-12; <strong>not fixed, because <code>apps/mobile/</code> belongs to the other thread</strong></span>
+      </li>
+      <li class="task" data-id="E17-44" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-44"></button>
+        <code class="tid">E17-44</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Closed as a duplicate when <code>kitchen-live</code> merged, 2026-08-13.</strong> Superseded by <code>E17-33</code> on <code>main</code> — reading the live Play numbers off the Play Console. Renumbered from <code>E17-30</code>, which <code>main</code> had independently assigned to something else; <code>E17-41</code> predicted exactly this collision. Kept rather than deleted because task ids are permanent. <strong><code>(owner:andy)</code> dropped deliberately</strong>: the tag marks work only Andy can do, and a closed duplicate carries no work — the action lives on <code>E17-33</code>. Original text follows. (risk:critical) <strong>Android <code>versionCode</code> floor: live is <code>1777726914</code>, a Unix timestamp Bubble minted from the clock</strong> (Andy, Play Console, 2026-08-12). <code>eas.json</code> uses <code>appVersionSource: remote</code> with <code>autoIncrement: true</code>, and EAS&#39;s remote counter starts at <strong>1</strong>, so every production submission would be rejected. Two halves: (a) an assertion in <code>apps/mobile</code> that the configured floor is strictly greater than 1777726914, with the provenance in a comment; (b) setting the remote counter itself, which is <strong>not a file edit</strong> — see <code>E17-31</code></span>
+      </li>
+      <li class="task" data-id="E17-45" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-45"></button>
+        <code class="tid">E17-45</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Closed as a duplicate when <code>kitchen-live</code> merged, 2026-08-13.</strong> Superseded by <code>E17-34</code> on <code>main</code> — the EAS Android version counter, set to 1786591932 on 2026-08-13. Renumbered from <code>E17-31</code>, which <code>main</code> had independently assigned to something else; <code>E17-41</code> predicted exactly this collision. Kept rather than deleted because task ids are permanent. <strong><code>(owner:andy)</code> dropped deliberately</strong>: the tag marks work only Andy can do, and a closed duplicate carries no work — the action lives on <code>E17-34</code>. Original text follows. <strong>Set the EAS remote Android version code above <code>1777726914</code></strong> — <code>eas build:version:set --platform android</code>. With <code>appVersionSource: remote</code> the number lives on EAS&#39;s servers, not in this repository, so no commit can do it. Credentialed action. Pairs with <code>E17-30</code></span>
+      </li>
+      <li class="task" data-id="E17-46" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-46"></button>
+        <code class="tid">E17-46</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Closed as a duplicate when <code>kitchen-live</code> merged, 2026-08-13.</strong> Superseded by <code>E17-35</code> on <code>main</code> — the com.Gracord.Graybag package assertion. Renumbered from <code>E17-32</code>, which <code>main</code> had independently assigned to something else; <code>E17-41</code> predicted exactly this collision. Kept rather than deleted because task ids are permanent. <strong><code>(owner:andy)</code> dropped deliberately</strong>: the tag marks work only Andy can do, and a closed duplicate carries no work — the action lives on <code>E17-35</code>. Original text follows. Confirm the Android package name is asserted, not just present. <code>app.json</code> already reads <code>com.Gracord.Graybag</code>, which matches the Play Console exactly including the capitals (Andy, 2026-08-12) — but nothing tests it, and an <code>applicationId</code> cannot be changed after publication. Note the iOS bundle id is lowercase <code>com.gracord.graybag</code>: separate namespaces, deliberately different, and exactly the asymmetry somebody later &quot;fixes&quot;</span>
       </li></ul>
       </details>
     </article>

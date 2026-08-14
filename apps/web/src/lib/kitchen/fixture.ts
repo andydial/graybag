@@ -55,7 +55,18 @@ const STATUS_MIX: KitchenStatus[] = [
   'cancelled',
 ];
 
-const SCHOOL = { id: '50000000-0000-0000-0000-000000000001', name: 'Alpha Public School' };
+/**
+ * Two schools, not one.
+ *
+ * A single-school fixture cannot show the school filter at all, so the control that matters most
+ * once three schools are live was the one nobody could look at. The split is uneven on purpose —
+ * a real kitchen serves a big school and a small one, and an even split hides bugs where a group
+ * happens to be the same size as its neighbour.
+ */
+const SCHOOLS = [
+  { id: '50000000-0000-0000-0000-000000000001', name: 'Alpha Public School' },
+  { id: '50000000-0000-0000-0000-000000000002', name: 'Bravo International School' },
+];
 
 /** A kitchen operator's usual grants: sees orders, hands food over, may cancel. */
 export const FULL_PERMISSIONS: KitchenPermissions = {
@@ -64,12 +75,17 @@ export const FULL_PERMISSIONS: KitchenPermissions = {
   cancelOrders: true,
 };
 
+/** Realistic parent requests. Deliberately none of them allergy language — see §5.6.1. */
+const NOTES = ['Less spicy', 'No coriander', 'Cut into halves', 'No onion, please'];
+
 export function fixtureDay(
   serviceDate: string,
   loadedAt = '2026-08-13T01:42:00.000Z',
   permissions: KitchenPermissions = FULL_PERMISSIONS,
 ): KitchenDay {
   const orders: KitchenOrder[] = CHILDREN.map(([first, last], index) => {
+    // Every fourth child is at the second school, so it is a minority rather than half the board.
+    const school = index % 4 === 3 ? SCHOOLS[1]! : SCHOOLS[0]!;
     const klass = CLASSES[index % CLASSES.length]!;
     const brk = BREAKS[index % BREAKS.length]!;
     const lines = [{ ...DISHES[index % DISHES.length]!, quantity: index % 7 === 0 ? 2 : 1 }];
@@ -78,8 +94,8 @@ export function fixtureDay(
     return {
       id: `71000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}`,
       orderRef: `SEED-${serviceDate.replace(/-/g, '')}-${String(index + 1).padStart(3, '0')}`,
-      schoolId: SCHOOL.id,
-      schoolName: SCHOOL.name,
+      schoolId: school.id,
+      schoolName: school.name,
       breakId: brk.id,
       breakLabel: brk.label,
       recipientName: `${first} ${last}`,
@@ -87,7 +103,15 @@ export function fixtureDay(
       sectionLabel: klass.section,
       status: STATUS_MIX[index % STATUS_MIX.length]!,
       pickupCode: null,
-      lines: lines.map((l) => ({ dishId: l.id, dishName: l.name, quantity: l.quantity })),
+      lines: lines.map((l, lineIndex) => ({
+        dishId: l.id,
+        dishName: l.name,
+        quantity: l.quantity,
+        // Roughly one line in four, so the note is a thing you notice rather than a thing you
+        // stop seeing. Requests only — never allergy language, which the app routes out of this
+        // field and into the child's profile (ux-spec §5.6.1).
+        note: (index + lineIndex) % 4 === 0 ? NOTES[(index + lineIndex) % NOTES.length]! : null,
+      })),
     };
   });
 
@@ -95,7 +119,9 @@ export function fixtureDay(
     serviceDate,
     permissions,
     orders,
-    schools: [SCHOOL],
+    // Every school, exactly as `liveTransport` now does: the list comes from the `school` table
+    // and not from the day's orders, so the filter does not appear and disappear with the data.
+    schools: SCHOOLS,
     breaks: BREAKS,
     loadedAt,
   };

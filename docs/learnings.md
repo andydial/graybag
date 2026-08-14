@@ -2409,3 +2409,169 @@ permanence claim happens to hold, but nothing checks it either and it is one car
 from the same failure. Still open: the menu importer matches dishes **by name** (`MI`-series,
 already known to be ambiguous for 6 names), and `sync-state.mjs` keys by task id, so it inherits
 whatever `check-mvp.mjs` now catches.
+
+## An Edge Function can be correct for the app and unreachable from a browser (2026-08-13)
+
+`kitchen-order-status` passed every check I could make from a terminal — auth, grants, the
+transaction, the row lock, idempotency — and then returned **405 on the first real click** in the
+back office.
+
+The cause is CORS. A POST carrying `content-type: application/json` and an `Authorization` header
+is not a CORS-simple request, so the browser sends `OPTIONS` first. The function answered
+`method_not_allowed`, and the actual POST was never sent.
+
+**Why nobody had hit it before**: `apps/mobile` is React Native, and its `fetch` issues no
+preflight at all. Every function in `supabase/functions/` is written for that client, and **none
+of them handles `OPTIONS`**. The web back office is the first browser client in the project, so
+this is not a bug in one function so much as an assumption baked into all five (`E09-20`).
+
+`*` is the correct origin for these: authorisation is a bearer token, no cookie is set, so there
+is no CSRF for an origin allowlist to prevent.
+
+**What to take from it**: a `curl` from a terminal proves the function; it does not prove the
+browser can reach it. Test an Edge Function from the page that calls it, or not at all.
+
+## Two silent failures found only by running the thing end to end (2026-08-13)
+
+Both were in code that looked right and behaved right on the happy path.
+
+**`set_config('app.actor_id', ...)` when the trigger reads `app.actor_user_id`.** The status
+change succeeded, `order.delivered_by_user_id` was stamped correctly from the JWT, and the
+`order_event` row was written with a **null actor**. Nothing errored. The order knew who
+delivered it and the audit trail did not — and the audit trail is the half that cannot be
+reconstructed afterwards. A GUC that is not set reads as empty, never as an error, so a typo in a
+setting name is invisible until someone queries the column.
+
+**`items[(index + 4) % items.length]` where `items.length` is 4.** `tools/seed-kitchen-day`
+picked a "second dish" that was always the first one, so every two-line order was two lines of
+the same dish, and the dashboard read "1 × Cold Coffee · 1 × Cold Coffee". It looked exactly like
+a rendering bug in the screen, and the screen was faithful. Any offset sharing a factor with the
+length can land back on the start; a step in `[1, length - 1]` cannot.
+
+## `supabase functions deploy` cannot bundle `deno.land/x` (2026-08-13)
+
+`import postgres from 'https://deno.land/x/postgresjs@v3.4.4/mod.js'` fails with
+`failed to create the graph / brotli error`. `npm:postgres@3.4.4` bundles and is what Supabase's
+own Edge Function docs use. Worth assuming for any `deno.land/x` import.
+
+## A service-role key missing one character fails as "Invalid API key" (2026-08-13)
+
+`.secrets.staging.env` held a service-role JWT beginning `yJhbGciOi…`. A JWT begins `eyJ`; a
+single leading `e` had been lost in transit. Everything using it returned 401 "Invalid API key",
+which reads like a wrong or revoked key rather than a truncated one. **A JWT that does not start
+with `eyJ` is truncated, not wrong** — check that before reissuing anything.
+
+## The a11y gate was auditing a 404 (2026-08-13)
+
+`check-a11y.mjs` reported `html-has-lang` and `document-title` failures on `/kitchen`, and both
+were present and correct in `dist/kitchen.html`. The page redirects a signed-out visitor to
+`/signin`; the gate's static server did not resolve extensionless paths, so the redirect landed
+on a 404 whose empty document failed both rules.
+
+**When a gate contradicts the built output, suspect the gate's navigation before the output.** It
+resolves `/x` to `x.html` now, as Netlify does, and audits `/kitchen?state=…` so it measures the
+board rather than the redirect.
+
+## A fixture with one of something hides the control that handles many (2026-08-13)
+
+The kitchen board hides a filter with fewer than two options — an inert control is worse than
+none. The fixture had one school. So the rule was right, and its effect was that **the control
+which matters most once three schools are live was the one nobody could ever look at**, on a
+board reviewed a dozen times.
+
+Worse, it was invisible in both directions: the live transport derives its school list from the
+orders, and staging only had orders for one school too. Neither path was wrong; both were
+untested.
+
+**A fixture should have two of everything that can be many** — two schools, uneven; a group with
+one member and a group with several. The cost is a few lines. The alternative is a control whose
+first real exercise is in production.
+
+Related, from the same board: `groupByClass` keys by school, so adding a second school changed a
+count from 3 classes to 6. That is correct — 5-A at two schools is two trays and two handovers —
+but it surfaced as a failing assertion written against a single-school world. When a fixture
+gains a dimension, expectations pinned to constants fail; the fix is to pin them to a *reason*
+instead.
+
+## Append-only means you cannot fill in the blank afterwards (2026-08-13)
+
+`order_event.note` exists, and `write_order_event` never populates it. The obvious workaround is
+to insert via the trigger and then `UPDATE` the row in the same transaction. That is refused
+outright:
+
+    order_event is append-only; UPDATE is not permitted. Write a compensating row instead.
+
+So a column existing is not the same as a column being writable. For a trigger-populated
+append-only table, **the only way in is the trigger**, which means a session GUC — the mechanism
+`app.actor_type`, `app.actor_user_id` and `app.correlation_id` already use — and therefore a
+migration.
+
+Consequence for the cancel dialog: the free-text field was **not shipped**, because a box that
+discards what you type is the same failure as the parent's note the same board had just fixed.
+The reason codes work today; the text arrives with its column (`E09-27`).
+
+## The rule that makes both of the above the same lesson
+
+Twice in one day the honest move was to *not* ship an affordance: no Undo button that the
+lifecycle would refuse, no free-text box with nowhere to store the text. In both cases the
+substitute is the same — **say in the UI what cannot be done and why**, and specify the write in
+a contract document so the thread that owns the territory can implement it.
+
+A control that fails silently teaches people the tool is unreliable. A sentence explaining the
+gap costs one line and keeps the board trustworthy.
+
+## Defer the write instead of reversing it (2026-08-13)
+
+The kitchen board needed an undo for a mis-tapped status. The lifecycle is strictly forward —
+`order-lifecycle.md` §4.1 has no `preparing → paid` tuple for any actor — so the database refuses
+the reversal, and no amount of client code can take back a write that has happened.
+
+**Gmail's "Undo Send" does not recall a sent mail. It holds the send for a few seconds and
+cancels it.** Applied here: the tap updates the screen optimistically, and the request is held for
+ten seconds. Press Undo and it is simply never sent.
+
+That turned a change needing a migration, two new lifecycle tuples and an audit-event type into
+one that needed **nothing on the server at all**. A write that never happened needs no reverse
+tuple and leaves nothing in the audit trail to explain — which is also more honest than recording
+a mistake nobody ever acted on.
+
+**This generalises well past this screen.** Whenever "undo" looks like it needs a compensating
+action, ask first whether the action can be *delayed* instead. Delay is cheap, local, and needs no
+agreement from the system you were about to write to. Compensation needs a new state transition,
+a new permission, an audit story, and someone to build all three.
+
+The costs are real and worth naming: the server is stale for the length of the window, so a
+second device does not see the change; and a pending write must be flushed on
+`visibilitychange`, `pagehide` and before any reload, or a deferred write silently never happens
+— the exact failure the deferral was meant to protect against. Keep the window short, allow one
+pending batch at a time, and make every exit flush.
+
+## Automation that says "I don't understand this" and then acts anyway (2026-08-13)
+
+A rebase driver resolved the two files it understood — `backlog-state.json` and the epic markdown
+— printed `UNHANDLED` for anything else, and then ran `git add -A` regardless. So it staged files
+it had **explicitly declined to resolve**, conflict markers and all.
+
+Two files went in that way and survived two further rebases:
+
+- `packages/shared/src/payments/cors.test.ts`, caught only when `tsc` finally refused to parse it
+- `PROGRESS.md`, which would **never** have been caught: markdown with `<<<<<<< HEAD` in it
+  renders without complaint
+
+The failure was not the resolver's narrow scope — narrow is fine and honest. It was that
+detecting the gap and continuing were separated: it knew, said so on stdout where nobody was
+reading, and carried on.
+
+**Rules taken from it:**
+
+- A tool that recognises a case it cannot handle must **stop**, not log. `process.exitCode = 1`,
+  and let the loop that drives it halt.
+- `git add -A` after an automated resolution is the bug. Stage the files you resolved, by name.
+- **Grep for `^<<<<<<< ` across the whole tree after any scripted rebase**, not just in the files
+  you expected to touch. It costs one command and catches the class.
+- Text that compiles regardless — markdown, JSON without a schema, comments — is where this hides.
+  A green build is not evidence those files are intact.
+
+The wider pattern this fortnight is the same shape: `check-a11y` auditing a 404, `tag-mvp.mjs`
+rewriting the markdown it was meant to check, a seed emitting `where id in ()`. Automation that
+proceeds past a condition it has already noticed.
