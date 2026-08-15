@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0060_allergen_vocabulary.sql — the allergen list, on every environment. `E10-25`.
+-- 0063_allergen_vocabulary.sql — the allergen list, on every environment. `E10-25`.
 -- =============================================================================
 --
 -- Production had **zero rows in `allergen`**. Not a subset, not a stale set: none.
@@ -39,6 +39,15 @@
 -- This does **not** tag any dish. Which dish contains milk is Andy's data, exactly as
 -- `food_type` is, and it is not guessable from a name — `catalogue.sql` refused to invent it and
 -- so does this.
+--
+-- ## Numbered 0063, and already applied
+--
+-- Written as `0060` and renumbered on rebase: `main` had taken 0060, 0061 and 0062 while this
+-- branch was live. The rows were applied to production directly by `psql`, so they are **not** in
+-- `supabase_migrations.schema_migrations` — the ledger there holds main's 0060–0062. When this
+-- migration is next pushed it will run against a database that already has the four codes, and
+-- `on conflict do nothing` makes that a no-op. Verified by applying it twice inside one
+-- transaction.
 -- =============================================================================
 
 insert into allergen (id, code, display_name, description, is_major, sort_order) values

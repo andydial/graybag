@@ -46,7 +46,7 @@ export function findings(s) {
         'it, so no dish can be tagged, no parent can record a child’s allergy, and the kitchen ' +
         'board and packing sheet show no flags. Nothing errors — it reads as "nobody has any ' +
         'allergies", on a product that feeds children.',
-      fix: 'Apply supabase/migrations/0060_allergen_vocabulary.sql. Tagging which dish contains what is separate, and is yours.',
+      fix: 'Apply supabase/migrations/0063_allergen_vocabulary.sql. Tagging which dish contains what is separate, and is yours.',
     });
   }
 
