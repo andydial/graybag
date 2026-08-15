@@ -78,6 +78,17 @@ export function missingClientEnvNames(): string[] {
     ['EXPO_PUBLIC_APP_ENV', process.env.EXPO_PUBLIC_APP_ENV],
     ['EXPO_PUBLIC_SUPABASE_URL', process.env.EXPO_PUBLIC_SUPABASE_URL],
     ['EXPO_PUBLIC_SUPABASE_ANON_KEY', process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY],
+    // **`E01-28`: this line was missing, and its absence made the diagnostic lie.**
+    //
+    // `loadClientEnv` requires `RAZORPAY_KEY_ID` (see its `required(...)` call), so a build
+    // without it fails to configure and lands on `CantConnectScreen`. That screen then listed
+    // the three names above, found them all present, and reported **nothing missing** — while
+    // the app was unusable for want of the one name it did not check.
+    //
+    // A diagnostic that omits a required variable is worse than no diagnostic: it actively
+    // sends the reader somewhere else. This file's own header warns that a computed lookup
+    // would produce "a diagnostic that lies"; an incomplete literal list does the same thing.
+    ['EXPO_PUBLIC_RAZORPAY_KEY_ID', process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID],
   ];
   return present.filter(([, value]) => value === undefined || value === '').map(([name]) => name);
 }

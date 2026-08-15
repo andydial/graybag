@@ -270,6 +270,18 @@ jobs:
           EXPO_PUBLIC_APP_ENV: staging
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.STAGING_SUPABASE_ANON_KEY }}
+          # `E01-28`. **Required, and its absence is why `tab-menu` never rendered.**
+          #
+          # `loadClientEnv` requires RAZORPAY_KEY_ID as much as it requires the Supabase pair.
+          # Without it the loader throws, `configureApiFromEnvironment()` returns false, and
+          # `App.tsx` renders `CantConnectScreen` INSTEAD of `RootNavigator` — so there is no
+          # tab bar and no `tab-menu` for Maestro to tap. The flow reported a missing element
+          # and the cause was three screens earlier.
+          #
+          # All three `vars.*` above were also EMPTY until 2026-08-16 — the repository had no
+          # variables at all — so this build has never once had a backend. That is `E01-21`,
+          # and it is the same failure wearing a different name.
+          EXPO_PUBLIC_RAZORPAY_KEY_ID: ${{ vars.STAGING_RAZORPAY_KEY_ID }}
         run: npx expo prebuild --platform android --no-install && ./android/gradlew -p android assembleRelease
 
       - name: Run the cart flow
