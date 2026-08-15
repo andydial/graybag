@@ -2717,13 +2717,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/35</span>
+          <span class="meter-num">0/36</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 35 tasks</summary>
+        <summary>Context &amp; 36 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -3010,6 +3010,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>Maximum update depth exceeded</code> on the waiting screen, during the first real payment.</strong> The poller updated an <code>elapsedMs</code> state every two seconds and its effect depended on the object <code>useCheckout()</code> returns — which is rebuilt every render, so each tick re-subscribed the effect. <strong>It starved the poll it existed to drive</strong>: the payment captured at Razorpay and the order never settled. Fixed by taking the clock out of render state entirely — the screen needs one threshold crossing (§5.12&#39;s ten seconds), so that is one boolean set by one <code>setTimeout</code> instead of a state write per tick — and by depending only on primitives and stable callbacks</span>
+      </li>
+      <li class="task" data-id="E14-38" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-38"></button>
+        <code class="tid">E14-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Maestro reached the flow for the first time, and its failure is now readable.</strong> The 2026-08-15 run on PR #74 is the furthest this job has ever got: the AVD booted, the staging APK built and installed, the app launched, <code>tab-menu</code> and <code>school-picker</code> both resolved — so <code>E01-26</code> (wrong <code>applicationId</code>), <code>E14-36</code> (Gradle metaspace OOM, 781-second boot) and <code>E01-28</code> (<code>EXPO_PUBLIC_RAZORPAY_KEY_ID</code> missing, <code>CantConnectScreen</code> instead of <code>RootNavigator</code>) are all genuinely fixed and the three <code>vars.*</code> are set. It then failed on <code>Assertion is false: id: screen-menu is visible</code> after 37 seconds. Ruled out by direct query as anon against staging: the data is present and readable — Amity has <strong>47 menu items, version 91, 2 break times</strong>, and the school list returns all three schools for the exact <code>select</code> the picker sends. So the backend is not the cause, which leaves a slow first load, a wrong screen, or a tap that missed — <strong>and the JUnit XML cannot distinguish them</strong>, which is why each guess costs a 29-minute run. Two changes: the flow now uses <code>extendedWaitUntil</code> with an explicit 45s timeout for <code>screen-menu</code>, which is the first assertion in the flow that waits on the network at all (everything before it is local); and <code>--debug-output</code> plus a second artifact upload keep Maestro&#39;s <strong>screenshot at the moment of failure and the full view hierarchy</strong>, so the next failure is read rather than inferred. Still not observed green</span>
       </li></ul>
       </details>
     </article>

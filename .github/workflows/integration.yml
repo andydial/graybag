@@ -311,7 +311,9 @@ jobs:
           disable-animations: true
           script: |
             adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
-            maestro test apps/mobile/.maestro/cart.yaml --format junit --output maestro-report.xml
+            maestro test apps/mobile/.maestro/cart.yaml \
+              --format junit --output maestro-report.xml \
+              --debug-output "$GITHUB_WORKSPACE/maestro-debug"
 
       - name: Keep the report even when the flow fails
         if: always()
@@ -319,6 +321,22 @@ jobs:
         with:
           name: maestro-report
           path: maestro-report.xml
+          if-no-files-found: ignore
+
+      # The JUnit XML says only `Assertion is false: id: screen-menu is visible`. It does not say
+      # what WAS on the screen, which is the single thing needed to tell a slow load from a wrong
+      # screen from a tap that missed — and each guess costs a 29-minute run.
+      #
+      # `--debug-output` writes a screenshot at the moment of failure plus the full view
+      # hierarchy, so the next failure is read rather than inferred. `~` is not expanded by
+      # upload-artifact, which is why the path is passed explicitly to Maestro above rather than
+      # left in its default `~/.maestro/tests/`.
+      - name: Keep the screenshot and view hierarchy — what the report cannot tell you
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-debug
+          path: maestro-debug/
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------

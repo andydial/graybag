@@ -49,8 +49,21 @@ appId: com.Gracord.Graybag.staging
 - tapOn:
     id: 'school-picker-.*'
     index: 0
-- assertVisible:
-    id: 'screen-menu'
+
+# `extendedWaitUntil`, not `assertVisible`, and this is the only assertion in the flow that gets
+# it. Picking a school is the **first thing in the app that waits on the network**: everything
+# before it is local, and this fetches a 47-item menu with its dishes and prices over whatever
+# connection a cold CI emulator has. A default assertion gives it a few seconds and reports
+# `screen-menu is visible = false`, which is indistinguishable from the screen being wrong.
+#
+# 45s is deliberately generous. The cost of it being too short is a 29-minute run that proves
+# nothing; the cost of it being too long is 45 seconds, and only on a run that was going to fail
+# anyway. If this ever legitimately takes 45 seconds on a phone, that is a P0 in its own right
+# and the flow timing out is the correct outcome.
+- extendedWaitUntil:
+    visible:
+      id: 'screen-menu'
+    timeout: 45000
 
 # Add the first dish the menu offers. Deliberately not a hard-coded dish name: staging's menu
 # is seeded data that changes, and a flow that breaks when a seed changes gets disabled rather
