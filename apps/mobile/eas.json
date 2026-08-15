@@ -50,7 +50,9 @@
     "production": {
       "ios": {
         "appleTeamId": "F247T8Y2NT",
-        "ascAppId": "6749555467"
+        "ascAppId": "6749555467",
+        "ascApiKeyId": "435XUS53TJ",
+        "ascApiKeyIssuerId": "92f32c0c-4434-4bd3-91d2-7b66868a48e4"
       },
       "android": {
         "track": "internal"

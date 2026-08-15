@@ -984,3 +984,73 @@ The one that catches people is condition 7: `PUBLIC_SITE_PUBLISHED` is read at *
 `robots.txt.ts`, so setting the variable without promoting a build leaves `Disallow: /` live —
 and removing the header without rebuilding leaves the two mechanisms disagreeing, which is exactly
 the state having two of them is meant to prevent.
+---
+
+## D22 — iOS: the key was reported placed and is still not on the machine
+
+Andy, with the Key ID and Issuer ID: *"the App Store Connect key at
+`~/.graybag-secrets/AuthKey_435XUS53TJ.p8`"*.
+
+**Both IDs match `prod.env` exactly**, so the configuration is right. The file is not there.
+Searched, not assumed:
+
+```
+~/.graybag-secrets/            → graybag-upload.keystore, .bak, prod.env   (mtime 13:48, unchanged)
+find ~ -name "*.p8"            → nothing
+find ~ -iname "AuthKey*"       → nothing
+~/Downloads modified <2h       → nothing
+grep -rl "BEGIN PRIVATE KEY"   → nothing in Downloads, Desktop or .graybag-secrets
+```
+
+**I did not start the build**, because there is nothing to sign with and a build that fails on
+credentials burns twenty minutes and increments the build number for nothing — it has already
+gone 1 → 2 → 3 across earlier attempts.
+
+**What is now pre-wired**, so this is one command when the file lands:
+
+`eas.json` `submit.production.ios` carries `ascApiKeyId` and `ascApiKeyIssuerId` — identifiers,
+not secrets, and they belong in version control so a submission is reproducible. The **path is
+deliberately not committed**: it is machine-specific and would bake a home directory into the
+repository. Pass it at invocation:
+
+```bash
+export EXPO_ASC_API_KEY_PATH=~/.graybag-secrets/AuthKey_435XUS53TJ.p8
+export EXPO_ASC_KEY_ID=435XUS53TJ
+export EXPO_ASC_ISSUER_ID=92f32c0c-4434-4bd3-91d2-7b66868a48e4
+cd apps/mobile
+npx eas-cli build --platform ios --profile production --non-interactive --auto-submit
+```
+
+`--auto-submit` uploads to App Store Connect, which is what feeds TestFlight. **Submitting for
+review is a separate action** and EAS does not do it; with this same key it can be scripted
+against the ASC API, otherwise it is a human in the web UI.
+
+If the `.p8` cannot be found, it cannot be recovered — App Store Connect offers that download
+once. Generate a new key with **Admin** or **App Manager** role (a Developer-role key cannot
+create certificates) and update `ASC_KEY_ID`, which will change.
+
+---
+
+## D23 — E01-28: admit-on-unknown proven against PRODUCTION, under a raised floor
+
+Previously proven against staging and in 11 component assertions. Re-run against **production**,
+because that is what parents meet on the 19th, and with the floor actually raised to `99.0.0` —
+the only condition in which a wrong answer locks somebody out:
+
+| version sent | result |
+|---|---|
+| `4.0.0` — the real build | **blocked**, with the configured sentence. The feature works |
+| missing (`null`) | **admitted**, `version_not_stated` |
+| empty string | **admitted** |
+| `not-a-version` | **admitted** |
+| `4.0.0-rc1` | **admitted** |
+
+Floor restored to `0.0.0` and read back rather than assumed. **Production is not gating anybody
+today**; on the 19th it becomes one UPDATE.
+
+The gated state was also rendered from the real component text and the real design tokens
+(`bg.canvas #f7f8f7`, `action.primaryBg #007e3b`, `scale.h1` 28/34/600, `layout.gutter` 16) and
+screenshotted with headless Chrome. **It is a reconstruction, not a device screenshot** — the app
+cannot run on this machine (`E14-30`: no Xcode or Android SDK), so no simulator or emulator exists
+to capture. Said plainly because a reconstruction presented as a screenshot is a claim about
+evidence that is not true.
