@@ -301,6 +301,66 @@ export function planMenus(records, snapshot) {
   return { menus: [...menus.values()], blockers };
 }
 
+/**
+ * Break windows, matched on `(school_code, code)` — the same shape `break_time`'s unique index has.
+ *
+ * `P19`: a school with no windows cannot be ordered from at all. That makes this the one importer
+ * plan whose *absence* is the interesting case, so the caller is told which schools still have
+ * none after the plan is applied rather than being left to notice.
+ */
+export function planBreakTimes(records, snapshot) {
+  const schools = new Map(snapshot.schools.map((s) => [lower(s.code), s]));
+  const existing = new Map(
+    (snapshot.breakTimes ?? []).map((b) => [`${lower(b.schoolCode)}::${lower(b.code)}`, b]),
+  );
+
+  const creates = [];
+  const updates = [];
+  const unchanged = [];
+  const blockers = [];
+
+  for (const r of records) {
+    const school = schools.get(r.schoolCode);
+    if (!school) {
+      blockers.push({
+        row: r.__row,
+        message: `school_code "${r.schoolCode}" does not exist. Import schools before their break windows`,
+      });
+      continue;
+    }
+
+    const found = existing.get(`${r.schoolCode}::${lower(r.code)}`);
+    const withSchool = { ...r, schoolId: school.id };
+    if (!found) {
+      creates.push(withSchool);
+      continue;
+    }
+
+    const changed = [];
+    if (r.label !== found.label) changed.push('label');
+    if (r.startsAt !== found.startsAt) changed.push('starts_at');
+    if (r.endsAt !== found.endsAt) changed.push('ends_at');
+    if (r.sortOrder !== null && r.sortOrder !== found.sortOrder) changed.push('sort_order');
+    if (r.isActive !== null && r.isActive !== found.isActive) changed.push('is_active');
+
+    if (changed.length === 0) unchanged.push({ ...withSchool, id: found.id });
+    else updates.push({ ...withSchool, id: found.id, changed });
+  }
+
+  // Which schools are STILL closed once this file is applied. `P19` makes that the headline,
+  // not a footnote: an active, onboarded school with no window takes no orders at all.
+  const afterwards = new Set([
+    ...(snapshot.breakTimes ?? []).filter((b) => b.isActive).map((b) => lower(b.schoolCode)),
+    ...creates.map((c) => c.schoolCode),
+    ...updates.map((c) => c.schoolCode),
+  ]);
+  const stillClosed = snapshot.schools
+    .filter((s) => s.isActive && s.onboardedAt !== null && !afterwards.has(lower(s.code)))
+    .map((s) => s.code);
+
+  return { creates, updates, unchanged, blockers, stillClosed };
+}
+
 /** Everything is a no-op and nothing is broken. */
 export const planIsEmpty = (plan) =>
   plan.creates.length === 0 && plan.updates.length === 0;

@@ -895,3 +895,92 @@ It ran the wrapper, which read the repository's `HEAD` — so it passed only whi
 contain `[promote]`, and failed the moment a real promote merged, reporting a gate bug that did
 not exist. The wrapper now prefers an injected `COMMIT_MESSAGE` and the test pins one. Exactly the
 trap `docs/learnings.md` records: assert the behaviour, never today's contents.
+
+---
+
+## D-16P — `0059` applied to production; migrations I own are mine to apply
+
+Andy, 2026-08-15: *"Apply 0059 to prod… you flagged it as mine — take it. Same for any migration
+you own from here."* Done, and the standing rule for this thread is now: **a migration this thread
+writes, this thread applies.**
+
+Applied inside one transaction that *proved the guard before committing* — it created the trigger,
+then attempted to publish an actually-unmarked production dish and required a `check_violation`,
+raising and aborting if the guard had failed to fire. Recorded in
+`supabase_migrations.schema_migrations` so `supabase migration list` stays honest, and the
+PostgREST schema cache reloaded afterwards. All 83 existing `menu_item` rows untouched, as
+designed.
+
+---
+
+## D-16Q — break windows: the times stay blank, the labels do not
+
+`P19` means Paragon and Gem take **no orders at all** on production today. The fix is their real
+times, which are Andy's to supply, so `--export-breaks` writes a file with the rows and labels
+ready and the **times deliberately empty**. The importer refuses a blank time, so the file cannot
+be applied until a human has typed four numbers.
+
+Pre-filling them from Amity would have been faster and wrong: it publishes a time nobody agreed
+to, which is the exact refusal `catalogue.sql` makes about the legacy option set. `P20` does record
+Andy ruling on 2026-08-11 that Gem and Paragon use Amity's windows provisionally — that reached
+staging via `0029` and never reached production — so the document states Amity's four numbers
+plainly and says that if the ruling stands, copying them across is the whole job.
+
+**The labels are not copied.** Amity's labels *are* their own time ranges, which `check:launch`
+already warns about, and propagating that to two more schools would spread a known defect across
+the estate on the day it was noticed. The template offers friendly names instead, and editing
+Amity's two label cells in the same file fixes the original.
+
+### Two defects found by using it
+
+**The export could not be re-imported.** The code was derived from the label, and production's
+codes (`break-1`) do not match its labels (`"10:40AM - 11:15AM"`), so an untouched export came
+back as two **creates** — duplicate windows. The exported row now carries the stored code and an
+explicit code wins over a derived one.
+
+**The template rows were missing entirely.** `snapshot()` did not read `is_active` or
+`onboarded_at` on schools, so every school looked inactive and was skipped. The first export
+produced two rows and no templates, which read as "nothing to do" about a problem that closes two
+schools.
+
+---
+
+## D-16R — production could take a payment and send nothing, and nothing said so
+
+Andy asked me to confirm the enquiry email *arrives*, not just that the row lands. It did not — and
+the cause was not the enquiry.
+
+`ORDER_EMAIL_FROM` on production was an address at **`graybag.com`**. The only verified domain on
+the Resend account is **`mail.graybag.com`**. So every transactional send failed with
+`403 The graybag.com domain is not verified` — **order confirmations, tax invoices, refund notices
+and enquiry notifications alike**. The request still succeeded, the order still saved, and the
+403 appeared only in the Edge Function log.
+
+On the 19th that is a parent paying and being told nothing.
+
+Proven rather than inferred: the same message sent from `hello@graybag.com` returns 403 and from
+`hello@mail.graybag.com` returns 200, on the production key. `ORDER_EMAIL_FROM` is now
+`GrayBag <hello@mail.graybag.com>`, and an enquiry submitted afterwards produced a real email to
+`support@graybag.com` with the subject `GrayBag enquiry — …`.
+
+**What made it findable was insisting on the arrival rather than the row.** Every previous check
+had confirmed the enquiry was stored, which it always was.
+
+`check:launch` now reads Resend's domain list: a blocker when nothing is verified, and it prints
+the verified domain so the from-address is a one-line eyeball rather than an invisible assumption.
+It cannot read `ORDER_EMAIL_FROM` itself — the API returns secrets hashed — so the honest
+protection is that plus the canary in `docs/kitchen-day-one.md`.
+
+---
+
+## D-16S — the `noindex` flip is prepared and NOT pulled
+
+Seven conditions, in `docs/production-cutover.md`, and the two that are not met are not mine:
+the **DNS cutover** has not happened (the site answers only on `graybag-web.netlify.app`) and the
+**legal pages are not confirmed cleared**, which is the reason the marketing site was held back in
+the first place.
+
+The one that catches people is condition 7: `PUBLIC_SITE_PUBLISHED` is read at **build** time by
+`robots.txt.ts`, so setting the variable without promoting a build leaves `Disallow: /` live —
+and removing the header without rebuilding leaves the two mechanisms disagreeing, which is exactly
+the state having two of them is meant to prevent.

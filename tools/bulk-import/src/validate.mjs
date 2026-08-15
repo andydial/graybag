@@ -396,8 +396,87 @@ export function validateMenuItems(rows) {
   return { records, errors };
 }
 
+/**
+ * Break windows — `E05-30`, `P19`. One row per window per school.
+ *
+ * **A blank time is refused, loudly, with the shape to copy.** `--export-breaks` writes template
+ * rows for every school that has none, with the labels filled in and the times deliberately left
+ * empty, so this is the message an operator sees on their first dry run. Pre-filling those times
+ * with another school's would be inventing a time nobody agreed to — which is exactly what
+ * `catalogue.sql` refused to do from the legacy option set, and for the same reason.
+ */
+export function validateBreakTimes(rows) {
+  const errors = [];
+  const records = [];
+  const seen = new Map();
+
+  for (const row of rows) {
+    const before = errors.length;
+
+    const schoolCode = (required(row, 'school_code', errors) ?? '').toLowerCase() || null;
+    const label = required(row, 'label', errors);
+    const startsAt = time(row, 'starts_at', errors);
+    const endsAt = time(row, 'ends_at', errors);
+
+    if (startsAt !== null && endsAt !== null && endsAt <= startsAt) {
+      errors.push(problem(row, 'ends_at',
+        `ends_at (${endsAt}) is not after starts_at (${startsAt}). A window with no duration is ` +
+        `not a window`));
+    }
+
+    /**
+     * `break_time` is unique on (school_id, code).
+     *
+     * An explicit `code` wins, because that is what `--export-breaks` writes and it is the only
+     * thing that makes the round trip lossless: production's codes are `break-1` and `break-2`
+     * while its labels are `"10:40AM - 11:15AM"`, so deriving from the label matched nothing and
+     * re-importing an untouched export **created duplicate windows**.
+     *
+     * Derived from the label only when absent — a template row, where an operator typing
+     * "Morning break" should not also have to invent an identifier.
+     */
+    const given = (row.code ?? '').trim().toLowerCase();
+    const code = given !== ''
+      ? given
+      : label === null
+        ? null
+        : label.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+
+    const record = {
+      __row: row.__row,
+      schoolCode,
+      code,
+      label,
+      startsAt,
+      endsAt,
+      // Ordered by start time unless told otherwise. The kitchen reads these in the order the day
+      // happens, not the order somebody typed them.
+      sortOrder: integer(row, 'sort_order', errors, { optional: true, min: 0, max: 32767 }),
+      isActive: row.is_active === undefined || row.is_active === ''
+        ? null
+        : row.is_active.toLowerCase() !== 'false',
+    };
+
+    if (schoolCode !== null && code !== null) {
+      const key = `${schoolCode}::${code}`;
+      if (seen.has(key)) {
+        errors.push(problem(row, 'label',
+          `"${label}" already appears on row ${seen.get(key)} for this school. Two windows with ` +
+          `the same name are one window typed twice`));
+      } else {
+        seen.set(key, row.__row);
+      }
+    }
+
+    if (errors.length === before) records.push(record);
+  }
+
+  return { records, errors };
+}
+
 export const VALIDATORS = {
   schools: validateSchools,
   dishes: validateDishes,
   menu: validateMenuItems,
+  breaks: validateBreakTimes,
 };

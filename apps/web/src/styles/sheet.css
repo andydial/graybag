@@ -1,0 +1,151 @@
+/*
+ * The packing sheet — `E09-34`.
+ *
+ * Two readers, and they want opposite things: a phone held in one hand in a kitchen, and a sheet
+ * of A4 on a bench. Both want the same content, so the layout is one column at every width and
+ * the print rules only remove chrome and fix the page breaks.
+ *
+ * Nothing here is tappable. The board is where things change; a Delivered button printed on paper
+ * is a promise nobody can keep.
+ */
+
+.sheetpage { background: var(--gb-bg-canvas); }
+
+.sheet__bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--gb-bg-surface-inverse);
+  padding: var(--gb-space-2) var(--gb-space-3);
+}
+
+.sheet__bar-inner {
+  max-width: 48rem;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-2);
+  flex-wrap: wrap;
+}
+
+.sheet__date {
+  margin: 0;
+  flex: 1 1 auto;
+  color: var(--gb-text-on-inverse, #fff);
+  font-weight: var(--gb-font-weight-semibold);
+}
+
+.sheet {
+  max-width: 48rem;
+  margin-inline: auto;
+  padding: var(--gb-space-4) var(--gb-space-3) var(--gb-space-8);
+}
+
+.sheet__note { color: var(--gb-text-muted); }
+
+.sheet__block {
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-md);
+  padding: var(--gb-space-4);
+  margin-bottom: var(--gb-space-5);
+}
+
+.sheet__head { margin: 0; font-size: var(--gb-font-size-lg); }
+.sheet__sub { margin: 0 0 var(--gb-space-3); color: var(--gb-text-muted); font-size: var(--gb-font-size-sm); }
+
+/*
+ * The tray count. First on the block because it is the first thing done — you count portions onto
+ * a tray, then you bag them per child. Putting it after the children would be describing the job
+ * backwards.
+ */
+.sheet__totals {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--gb-space-4);
+  background: var(--gb-bg-surface-muted);
+  border-radius: var(--gb-radius-md);
+}
+
+.sheet__totals caption {
+  text-align: left;
+  font-size: var(--gb-font-size-sm);
+  font-weight: var(--gb-font-weight-semibold);
+  padding-bottom: var(--gb-space-1);
+}
+
+.sheet__totals td { padding: var(--gb-space-1) var(--gb-space-2); }
+.sheet__qty {
+  width: 3ch;
+  text-align: right;
+  font-weight: var(--gb-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet__class { margin-top: var(--gb-space-3); }
+
+.sheet__classname {
+  margin: 0 0 var(--gb-space-1);
+  font-size: var(--gb-font-size-base);
+  border-bottom: var(--gb-border-width-default) solid var(--gb-border-default);
+  padding-bottom: var(--gb-space-1);
+  display: flex;
+  justify-content: space-between;
+}
+
+.sheet__count { color: var(--gb-text-muted); font-weight: var(--gb-font-weight-regular); }
+
+.sheet__kids, .sheet__lines { list-style: none; margin: 0; padding: 0; }
+.sheet__kid { padding: var(--gb-space-2) 0; border-bottom: var(--gb-border-width-hairline) solid var(--gb-border-subtle); }
+.sheet__kid:last-child { border-bottom: 0; }
+.sheet__name { margin: 0; font-weight: var(--gb-font-weight-semibold); }
+.sheet__lines { margin-left: var(--gb-space-3); }
+.sheet__lines li { font-variant-numeric: tabular-nums; }
+
+/*
+ * Allergens, and the parent's request.
+ *
+ * Both are marked by weight and a border rather than colour alone: this page is printed, and most
+ * kitchen printers are monochrome. A badge that only exists in colour does not exist on paper.
+ */
+.sheet__allergens {
+  font-size: var(--gb-font-size-sm);
+  font-weight: var(--gb-font-weight-bold);
+  border: 2px solid currentColor;
+  border-radius: var(--gb-radius-sm);
+  padding: 0 var(--gb-space-1);
+  white-space: nowrap;
+}
+
+.sheet__req {
+  font-size: var(--gb-font-size-sm);
+  font-style: italic;
+  border-bottom: 1px dotted currentColor;
+}
+
+/* ------------------------------------------------------------------ print */
+
+@media print {
+  /* Chrome is for the screen. On paper it is a black bar and three dead buttons. */
+  .sheet__bar { display: none; }
+
+  .sheetpage, .sheet__block, .sheet__totals { background: #fff; color: #000; }
+  .sheet { max-width: none; padding: 0; }
+
+  .sheet__block {
+    border: 0;
+    padding: 0;
+    margin-bottom: 0;
+    /* One break per page. A packer holding page two with no heading cannot tell whose it is. */
+    break-after: page;
+  }
+  .sheet__block:last-child { break-after: auto; }
+
+  /* A class must not straddle a page either — half a class is a child left unbagged. */
+  .sheet__class { break-inside: avoid; }
+  .sheet__kid { break-inside: avoid; }
+
+  /* Ink, and legibility at arm's length on a bench. */
+  .sheet__totals { border: 1px solid #000; }
+  .sheet__sub, .sheet__count { color: #000; }
+}

@@ -108,6 +108,33 @@ export function renderMenuPlan(menus) {
   return lines.join('\n');
 }
 
+export function renderBreakPlan(plan) {
+  const lines = ['BREAK WINDOWS', ''];
+
+  if (plan.creates.length === 0 && plan.updates.length === 0) {
+    lines.push('  nothing to do — every window in the file already matches what is stored');
+  }
+  for (const b of plan.creates) {
+    lines.push(`  + create  ${b.schoolCode.padEnd(28)} ${b.label}  ${b.startsAt.slice(0, 5)}–${b.endsAt.slice(0, 5)}`);
+  }
+  for (const b of plan.updates) {
+    lines.push(`  ~ update  ${b.schoolCode.padEnd(28)} ${b.label}  ${b.startsAt.slice(0, 5)}–${b.endsAt.slice(0, 5)}`);
+    lines.push(`            changing: ${b.changed.join(', ')}`);
+  }
+  if (plan.unchanged.length > 0) {
+    lines.push(`  = ${plural(plan.unchanged.length, 'window')} unchanged`);
+  }
+
+  // `P19` makes this the headline rather than a footnote: an active, onboarded school with no
+  // window takes no orders at all, and the app says so rather than failing.
+  if (plan.stillClosed.length > 0) {
+    lines.push('');
+    lines.push(`  STILL CLOSED after this: ${plan.stillClosed.join(', ')}`);
+    lines.push('  A school with no break window cannot be ordered from (P19).');
+  }
+  return lines.join('\n');
+}
+
 /** The one line that says what happens next. */
 export function renderVerdict({ dryRun, errorCount, blockerCount, changeCount }) {
   if (errorCount > 0 || blockerCount > 0) {

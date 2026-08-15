@@ -139,6 +139,52 @@ import has not happened yet.
 
 ---
 
+## Lifting `noindex` — prepared, deliberately not pulled
+
+The site is held out of search two ways, and **both must come off together or neither works**:
+
+1. `robots.txt` renders `Disallow: /` unless `PUBLIC_SITE_PUBLISHED=true`
+2. `netlify.toml` sets `X-Robots-Tag: noindex, nofollow` on `/*`
+
+Two mechanisms because they fail differently: a header covers a crawler that ignores `robots.txt`,
+and `robots.txt` covers one that never requests the page.
+
+### What has to be true first
+
+Every one of these, and none is a judgement call:
+
+| # | Condition | How to check | Today |
+|---|---|---|---|
+| 1 | **The DNS cutover has happened** (`E12-10`) and the site answers on `graybag.com` | `curl -sI https://graybag.com` | **not done** — the site is only on `graybag-web.netlify.app` |
+| 2 | **The legal pages are cleared to publish.** They are the reason the marketing site has been held back, not the app | Andy's confirmation. `E20-01` | **not confirmed** |
+| 3 | **No `«…-PENDING-…»` token on any published surface** | `npm run check:placeholders` | see the register |
+| 4 | **The enquiry form reaches production**, not the dev mock | `PUBLIC_ENQUIRY_ENDPOINT` set on the production context | **done, 2026-08-15** |
+| 5 | **An enquiry notification actually arrives** | submit one, then check Resend | **done, 2026-08-15** |
+| 6 | **`check:launch` has no blockers** | `npm run check:launch` | **2 blockers** |
+| 7 | **A production build is promoted after the flip** | the variable is baked in at build time, so setting it changes nothing until you rebuild | — |
+
+Condition 7 is the one that catches people. `PUBLIC_SITE_PUBLISHED` is read at **build** time by
+`robots.txt.ts`, so setting it in Netlify and not promoting leaves `Disallow: /` on the live site,
+and removing the header without rebuilding leaves the two mechanisms disagreeing.
+
+### The flip, when the conditions hold
+
+```bash
+cd apps/web
+npx netlify env:set PUBLIC_SITE_PUBLISHED true --context production
+# then delete the X-Robots-Tag block in apps/web/netlify.toml, commit, and promote:
+#   docs/netlify-deploys.md
+```
+
+Then verify **both**, on the live host:
+
+```bash
+curl -sI https://graybag.com/ | grep -i x-robots-tag     # expect nothing
+curl -s  https://graybag.com/robots.txt | head -3        # expect Allow, not Disallow
+```
+
+If only one of the two changes, the site is in the state the two mechanisms exist to prevent.
+
 ## What must NOT be carried across
 
 - **`.secrets.staging.env`** stays staging. It is gitignored and `chmod 600`; production gets its

@@ -314,6 +314,71 @@ Numbers may be written as numbers rather than strings. `null` is treated as blan
 
 ---
 
+## 4. Break windows — the sixty-second job
+
+**A school with no break window cannot be ordered from at all** (`P19`). As of 15 August that is
+**Paragon and Gem** on production: neither can take a single order, and the app says so rather
+than failing. Amity is the only school that can.
+
+Two commands:
+
+```bash
+set -a; . ~/.graybag-secrets/prod.env; set +a
+
+# 1. Write a file with every existing window, plus ready-to-fill rows for each school that has
+#    none. The times are LEFT BLANK on purpose.
+node tools/bulk-import/src/cli.mjs --export-breaks breaks.csv
+
+# 2. Type the four times. Then:
+node tools/bulk-import/src/cli.mjs --breaks breaks.csv            # dry run
+node tools/bulk-import/src/cli.mjs --breaks breaks.csv --apply
+```
+
+The file comes out looking like this — you edit the four empty cells and nothing else:
+
+```csv
+school_code,code,label,starts_at,ends_at,sort_order,is_active
+amity-international-school,break-1,10:40AM - 11:15AM,10:40,11:15,10,true
+amity-international-school,break-2,11:15AM - 11:40AM,11:15,11:40,20,true
+paragon-senior-secondary,,Morning break,,,10,true
+paragon-senior-secondary,,Second break,,,20,true
+gem-public-school,,Morning break,,,10,true
+gem-public-school,,Second break,,,20,true
+```
+
+### Amity's windows, exactly as stored — the shape to copy
+
+| Window | Starts | Ends |
+|---|---|---|
+| `break-1` | **10:40** | **11:15** |
+| `break-2` | **11:15** | **11:40** |
+
+Two windows, back to back, 35 and 25 minutes. `P20` records that on 2026-08-11 you ruled Gem and
+Paragon use *the same two windows as Amity for now, provisional until each school confirms* — that
+ruling reached staging via `0029` and **never reached production**, which is why they are shut
+there. If it still stands, copy those four numbers across and you are done.
+
+**The times are blank rather than pre-filled deliberately.** Copying another school's times would
+publish a time nobody agreed to, which is exactly what `catalogue.sql` refused to do from the
+legacy option set. The importer refuses a blank time, so the file cannot be applied until a human
+has typed them.
+
+### The labels
+
+The template uses **Morning break** and **Second break** rather than copying Amity's, because
+Amity's labels *are* their own time ranges — `"10:40AM - 11:15AM"` — and the picker shows the
+label with the times underneath, so a parent reads the time twice. `check:launch` warns about it.
+**Editing the label column on Amity's two rows in this same file fixes that too**, and costs
+nothing extra.
+
+### What it matches on
+
+`school_code` + `code`. The `code` column round-trips: an exported row carries the stored code, so
+re-importing an untouched file changes nothing. A template row leaves it blank and the importer
+derives one from the label (`Morning break` → `morning-break`).
+
+---
+
 ## Photos
 
 Not handled here. Dish photography goes through `tools/upload-dish-images`, which matches files
