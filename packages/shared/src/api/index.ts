@@ -80,6 +80,25 @@ export {
   type SchoolUpdateResult,
 } from './admin-schools.js';
 
+// The dish and menu catalogue, for editing one thing at a time (`E10-20`). `tools/bulk-import`
+// is the other half and does the bulk case; this is the afternoon one price is wrong, where
+// preparing a CSV is six minutes of ceremony for a four-character change — and the ceremony is
+// what makes somebody edit the database by hand instead.
+export {
+  ADMIN_DISH_COLUMNS,
+  ADMIN_MENU_COLUMNS,
+  AdminDishError,
+  fetchAdminDishes,
+  fetchAdminMenus,
+  updateCatalogue,
+  type AdminDish,
+  type AdminMenu,
+  type AdminMenuItem,
+  type CatalogueUpdateResult,
+  type DishEdit,
+  type MenuItemEdit,
+} from './admin-dishes.js';
+
 // Orders and revenue by school by month (`E10-10`). Its column list reads NO recipient, class or
 // section — non-negotiable #4, and a report is aggregate by definition. `admin-orders.ts` reads
 // all three because that screen is a record of individual orders; keeping the two lists apart is
