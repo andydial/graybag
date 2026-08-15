@@ -4537,13 +4537,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/49</span>
+          <span class="meter-num">0/51</span>
         </div>
       </header>
       <p class="summary">Move ~400 users, dependents and full order history off Bubble. Rehearsed at least twice before the real thing.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E04</code> <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 49 tasks</summary>
+        <summary>Context &amp; 51 tasks</summary>
         <div class="context"><h4>Known constraints</h4>
 <p>Verified against the real export on 2026-08-08 (<code>E19-04</code>). Full evidence in</p>
 <p><strong><code>docs/bubble-recon-findings.md</code></strong> — read it before writing <code>E16-01</code>. Several constraints below</p>
@@ -5029,6 +5029,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The migration actor, and the narrowest exemption I could write.</strong> <code>0040</code>/<code>0041</code>, Andy&#39;s option (b). <code>0039</code> enforces §4.1, whose only entry points are <code>draft</code> and <code>pending_payment</code>, leaving <code>E16</code>&#39;s ~283 finished legacy orders nowhere to go. Walking each through the machine would write an <code>order_event</code> history that never happened onto the table <code>I2</code> exists to make trustworthy; disabling the trigger in the importer is the version that ends up in a script nobody reviews. So: a named <code>migration</code> actor with <strong>T14</strong>, and three properties that keep it narrow — only <code>paid</code> and <code>cancelled</code> (the recon counts 281 and 2; drafts are not migrated, and <code>delivered</code>/<code>refunded</code> are absent because no legacy order is in them), <strong>INSERT only</strong> (no UPDATE row exists for it anywhere, so it can create history and never move a live order), and <strong>the row must carry a <code>legacy_bubble_id</code></strong> (the actor and the data must agree, so a new order — which has no Bubble id and never will — cannot use this path). Four assertions, three of them about what it refuses. §4.1 updated with T14 and the reasoning</span>
+      </li>
+      <li class="task" data-id="E16-51" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-51"></button>
+        <code class="tid">E16-51</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Production had schema and no catalogue.</strong> Found 2026-08-16 while standing up <code>graybag-prod</code>: 56 migrations applied and <strong>zero cities, schools, kitchens, dishes, menus or break times</strong> — only the reference data migrations insert directly. Every parent opening the app on the 19th would have met an empty school picker, which §5.21 exists because it is indistinguishable from a bug. <code>seed.sql</code> is dev fixtures and says *&quot;NEVER into staging or production&quot;*, and <code>db push</code> does not apply seeds regardless; the real catalogue is <code>supabase/seeds/catalogue.sql</code> and had to be applied deliberately. <code>0024_onboard_real_schools</code> predicts exactly this in its header. Applied and verified <strong>as an anonymous visitor</strong>, which is the population that matters: 3 schools onboarded and active, 47/36/36 menu items, 79 dishes, 8 categories</span>
+      </li>
+      <li class="task" data-id="E16-52" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-52"></button>
+        <code class="tid">E16-52</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:critical) <strong>Every dish on production has <code>food_type</code> null — no veg / non-veg / egg marking.</strong> <code>[DM-17]</code> is open and <code>catalogue.sql</code> deliberately refuses to guess it: *&quot;guessing it in this market is a trust failure, not a cosmetic gap.&quot;* Correct call by the generator, and it leaves a hole that matters more than any other missing field: <strong>shipping a school lunch app in India with no veg marking is the single most likely thing to cause a complaint on day one</strong>, and for many families it is a religious rather than a dietary question. The data exists with the kitchen; it needs someone to state it per dish. 79 dishes. Blocks a comfortable launch on 19 August far more than anything technical still open</span>
       </li></ul>
       </details>
     </article>

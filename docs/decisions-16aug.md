@@ -581,3 +581,53 @@ forbids this thread completing an `owner:andy` task.
 
 So `E20-52` remains open and remains Andy's. Nothing here pre-empts whichever way the lawyer
 answers.
+
+---
+
+## D18 — Production had schema and no catalogue: the app would have opened empty
+
+Checked after the migrations, because "56 applied, 0 pending" says nothing about whether a parent
+can see a menu. Production held **zero cities, schools, kitchens, dishes, menus and break times** —
+only the reference data migrations insert directly (`policy_version`, `reason_code`, `permission`,
+`role_template`).
+
+On the 19th, every parent opening the app would have met an empty school picker. The app would
+have been working perfectly and completely useless, and §5.21's whole N1/N2 distinction exists
+because that is indistinguishable from a bug.
+
+**Why:** `supabase/seed.sql` is dev fixtures and says so — *"NEVER into staging or production"* —
+and `db push` does not apply seeds anyway. The real catalogue lives in
+`supabase/seeds/catalogue.sql` and had to be applied deliberately. `0024_onboard_real_schools`
+predicts this in its own header: *"in an environment where the catalogue has not been seeded, no
+row matches and this is a no-op."*
+
+**Decision: applied `supabase/seeds/catalogue.sql` to production.** It is the right file and it is
+built for this — generated from the Bubble export of 2026-08-11, every insert `on conflict do
+nothing`, every id derived from the legacy Bubble id so all environments agree, and it deliberately
+contains **no User, Child, Order or Dish_In_Order rows**: no data about a minor goes near it.
+
+Verified afterwards as an **anonymous visitor**, which is the population that matters here:
+
+| | |
+|---|---|
+| Schools visible | 3 — Amity International, Gem Public, Paragon Senior Secondary |
+| `onboarded_at` set, `offboarded_at` null | all three |
+| Menu items visible | Amity 47, Gem 36, Paragon 36 |
+| Dishes / menu items / categories loaded | 79 / 83 / 8 |
+
+Two of my probes were wrong on the way and the system was right both times — there is no
+`public_school` view (the app reads `school` with a redacted column list) and `public_menu`'s
+column is `name`, not `dish_name`. Worth recording only because both looked like production
+failures for a moment and were mine.
+
+**What is still missing from production data**, and is not mine to invent:
+
+- `food_type` (veg / non-veg / egg) is **null on every dish** — `[DM-17]` is open and the
+  catalogue's own header refuses to guess it: *"guessing it in this market is a trust failure, not
+  a cosmetic gap."* In India, shipping a lunch app to schools without veg/non-veg marking is the
+  single most likely thing to cause a complaint on day one. **This needs Andy or the kitchen before
+  the 19th.**
+- `dish_allergen` is empty — never derived from an ingredients list, tier S. The allergen warning
+  therefore cannot fire, and the app says so rather than reassuring.
+- `calories_kcal` is null; the source's ranges are preserved as text in
+  `nutrition->>'calories_text'`.
