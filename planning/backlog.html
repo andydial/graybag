@@ -361,13 +361,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/24</span>
+          <span class="meter-num">0/25</span>
         </div>
       </header>
       <p class="summary">Repo, two real environments, secrets management, and the test harness that every later task depends on.</p>
       <p class="deps">Depends on <code>E00</code></p>
       <details>
-        <summary>Context &amp; 24 tasks</summary>
+        <summary>Context &amp; 25 tasks</summary>
         <div class="context"><h4>Why early</h4>
 <p>Everything after this inherits the quality bar set here. Getting tests and environments right on day one is what stops &quot;manually swapping Razorpay keys&quot; happening again.</p></div>
         <ul class="tasks">
@@ -562,6 +562,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>Maestro (cart)</code> could never have passed, and the timeout was not why.</strong> The job was blamed on the 45-minute limit and <code>E14-36</code> fixed that half — the Gradle metaspace OOM and the 781-second software-emulated boot, with KVM and an AVD cache. It still failed, now in 27 minutes rather than 45, with <code>Package com.gracord.graybag.staging is not installed</code> after a 24-minute build. <strong>Two independent bugs, either of which alone was fatal.</strong> (1) The workflow set <code>EXPO_PUBLIC_APP_ENV: staging</code> but <code>app.config.js</code> reads <code>process.env.APP_ENV</code> to choose the identity, so <code>APP_ENV</code> was unset, the config fell to the <code>local</code> identity, and the APK installed as <code>…Graybag.dev</code>. (2) The flow&#39;s <code>appId</code> was <code>com.gracord.graybag.staging</code> — the <strong>iOS</strong> bundle id with a staging suffix — while Android builds <code>com.Gracord.Graybag.staging</code>, and Android package names are <strong>case-sensitive</strong>. The capitals match the Play Console exactly (<code>E17-35</code>) and cannot be changed after publication, so the flow was wrong, not the app. Both fixed. <code>scripts/check-maestro-ids.mjs</code> now derives the expected <code>appId</code> from <code>app.json</code> + <code>app.config.js</code> and fails in a second — verified by reverting the value and watching it fail. A wrong <code>appId</code> otherwise fails only *after* the emulator boots and the APK builds, which is the most expensive place to learn it</span>
+      </li>
+      <li class="task" data-id="E01-27" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-27"></button>
+        <code class="tid">E01-27</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Standing up an environment has steps that exist only in somebody&#39;s head, and two of them were found in one hour.</strong> Creating <code>graybag-prod</code> on 2026-08-16 exposed both. <strong>(1) <code>platform_config.environment</code> defaults to <code>local</code> and nothing sets it.</strong> The default is right — a new database is a developer&#39;s — but it means a fresh production database says <code>local</code>, which silently disarms <code>assert_seller_identity_configured()</code> (<code>E07-20</code>), the guard that stops <code>create_checkout</code> taking money while the seller identity is still a placeholder. Its own comment describes what that costs: *&quot;every customer charged, no order created, no 5xx and no alert.&quot;* <strong>(2) <code>payments-webhook</code> deploys with <code>verify_jwt = true</code></strong>, so Razorpay&#39;s deliveries 401 at the gateway and no payment ever settles; staging was <code>false</code> because somebody set it by hand in the dashboard, and it appeared in no file until <code>E06-47</code>. Both were caught by *looking*, not by anything failing. Fix: a <code>scripts/verify-environment.mjs</code> that a deploy runs against its target and that fails on any of these — environment column matches the deploy target, no seller-identity placeholder in production, <code>payments-webhook</code> has <code>verify_jwt = false</code>, every required secret present, and the schema cache serves the newest migration&#39;s objects. The pattern to copy is <code>check-supabase-config.mjs</code>, which already reads a live project. <strong>The general rule this is an instance of</strong>: a setting that lives only in a dashboard is a setting that is wrong in the next environment</span>
       </li></ul>
       </details>
     </article>
@@ -5037,13 +5045,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/49</span>
+          <span class="meter-num">0/50</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 49 tasks</summary>
+        <summary>Context &amp; 50 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -5442,6 +5450,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Write <code>~/.graybag-secrets/prod.env</code>, then point the web app at production.</strong> BLOCKED and skipped on 2026-08-15: the file does not exist — <code>~/.graybag-secrets/</code> holds only the upload keystore — so the payments thread has not stood the production project up, or has not written it. Nothing was guessed and <code>apps/web/.env</code> was not touched, so staging is unchanged and still works. <code>docs/production-cutover.md</code> has the whole procedure: the two variables that decide which database the app talks to, the five that decide its behaviour, why they go in Netlify&#39;s <strong>production context only</strong> (a deploy preview writing to the live database is worse than one that does not build), the one command that verifies the switch, and the order — migrations before import, because the importer reads <code>service_days</code> from <code>0056</code>. A credentialed action: it needs the Supabase and Netlify accounts</span>
+      </li>
+      <li class="task" data-id="E17-50" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-50"></button>
+        <code class="tid">E17-50</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:critical) <strong>iOS cannot be built or submitted: no Apple credentials exist.</strong> Blocking the 4.0.0 submission and therefore the 19 August mandatory update. Verified 2026-08-16, not assumed: <code>eas build --platform ios --profile production --non-interactive</code> fails with *&quot;Distribution Certificate is not validated for non-interactive builds&quot;*; <code>eas build:list --platform ios</code> shows <strong>every iOS build ever attempted errored</strong>, all on the <code>development</code> profile, so no distribution certificate has ever been created on the EAS servers; there is no <code>AuthKey_*.p8</code> anywhere under <code>$HOME</code>; and no <code>APPLE_*</code> / <code>EXPO_APPLE_*</code> / <code>ASC_*</code> variables exist. <code>eas credentials</code> is interactive-only and rejects <code>--non-interactive</code>. <code>eas.json</code> already carries <code>appleTeamId</code> and <code>ascAppId</code>, so the App Store record exists — what is missing is purely the authentication to mint a signing certificate. <strong>Two ways to unblock, either is enough:</strong> run <code>eas build --platform ios --profile production</code> interactively and complete the Apple 2FA prompt, or place an App Store Connect API key at <code>~/.graybag-secrets/AuthKey_XXXX.p8</code> and add <code>ASC_KEY_ID</code> / <code>ASC_ISSUER_ID</code> to <code>prod.env</code> — the second also makes it repeatable in CI and is the one worth doing. <strong>Note that <code>eas submit</code> uploads to App Store Connect (feeding TestFlight) but does NOT submit for review</strong>; submitting for review is a separate action, scriptable only with an ASC API key and otherwise a human in the web UI</span>
       </li></ul>
       </details>
     </article>
