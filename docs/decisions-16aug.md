@@ -292,6 +292,135 @@ header"** — because it changes behaviour that has already shipped, and two ass
 
 ---
 
+# PART TWO — production stood up, 2026-08-16
+
+`prod.env` and `graybag-prod` (`bdamkuugbqjajbndjoxn`, ap-south-1) both arrived. What follows is
+what was done, in order, and the two things that were caught on the way.
+
+## D12 — Migrations, secrets, functions
+
+- **All 56 migrations applied** to an empty prod database. `migration list` reports 56 applied,
+  0 pending.
+- **Schema cache verified over REST**, with the negative control: computed columns resolve,
+  `cancel_order` and `record_refund` answer with their own refusal hints rather than 404,
+  `app_version_support` is anon-callable, `ops_alert` refuses anon with `42501` — and a bogus
+  column still returns `42703`, which is what makes the positive results mean anything.
+- **7 secrets set**: `APP_ENV=production`, the three Razorpay live values, `RESEND_API_KEY`,
+  `ORDER_EMAIL_FROM`, `SUPPORT_ALERT_EMAIL`. Guarded before sending — the script refuses unless
+  `RAZORPAY_KEY_ID` starts `rzp_live_`.
+- **12 Edge Functions deployed.**
+
+Two values were not in `prod.env` and I decided them rather than stopping:
+
+**`RAZORPAY_WEBHOOK_SECRET`** — generated (`secrets.token_urlsafe(32)`) and **appended to
+`~/.graybag-secrets/prod.env`**, which is `0600`. It has to live somewhere durable: it must match
+the Razorpay dashboard exactly, and a secret that exists only inside a Supabase project cannot be
+compared against anything when the webhook starts failing.
+
+**`ORDER_EMAIL_FROM = "GrayBag <support@graybag.com>"`** — I could not read staging's value (the
+API returns hashes). `support@graybag.com` rather than `orders@`: it is the address `E20-51`
+standardised on and the one published in privacy notice v3, the refund email tells parents to
+reply to it, and one verified sender is one thing to get wrong instead of two.
+
+## D13 — `platform_config.environment` was `local` on production
+
+The column defaults to `local` so that a new database is a developer's, which is the right
+default. Nothing in the migrations sets it, and standing up prod therefore left it saying `local`.
+
+**That silently disarmed `assert_seller_identity_configured()`**, which returns early unless
+`environment = 'production'`. That is `E07-20` — the guard that stops `create_checkout` taking
+money while the seller identity is still a placeholder. Its own comment describes the failure it
+prevents: *"every customer charged, no order created, no 5xx and no alert."*
+
+Set to `production` and verified: `seller_identity_placeholders()` returns `[]` and
+`assert_seller_identity_configured()` passes.
+
+**Filed as `E01-19`** — standing up an environment has a step that exists only in somebody's head,
+and this is the second such step found in an hour (see D14).
+
+## D14 — `payments-webhook` deployed with `verify_jwt = true`, which would have broken every payment
+
+Caught by listing the functions after deploying, not by anything failing — because nothing fails
+until real money moves.
+
+Razorpay signs its deliveries with our shared secret in an `x-razorpay-signature` header. It has
+never heard of Supabase auth and sends no bearer token. With `verify_jwt = true` the **gateway
+answers 401 before the function runs**: every capture delivered, rejected, never settled. A
+customer charged with no order, and no error in any log we would think to read.
+
+Staging has it `false` — **set by hand in the dashboard, and nowhere in version control.** No
+`verify_jwt` anywhere in `config.toml`, no flag in the deploy workflow. So the setting that makes
+payments work at all existed only as a manual change to one project.
+
+Fixed at the source: `[functions.payments-webhook] verify_jwt = false` in `supabase/config.toml`,
+redeployed, verified `false` on prod. `payments-drain` deliberately keeps `true` — its own header
+explains that reading an unverified `role` claim is only safe because the gateway checked the
+signature first.
+
+## D15 — Razorpay live webhook registered, and signature verification proven both ways
+
+Created via the API (`POST /v1/webhooks`), id `TPqgSBnpEdsFSL`, active, subscribed to
+`payment.captured`, `payment.failed`, `refund.created`, `refund.processed`. The account had **zero**
+webhooks before this.
+
+Verification was proven rather than assumed, by signing a payload with the shared secret exactly
+as Razorpay does:
+
+| Delivery | Response | Recorded |
+|---|---|---|
+| Valid HMAC-SHA256 signature | `recorded` | `signature_verified = true`, `processed` |
+| Wrong signature, fresh payload | `recorded_unverified` | `signature_verified = false`, `ignored` |
+
+The second is the one that matters: a forged delivery is **recorded and not trusted**, which is
+the correct fail-safe.
+
+**Two synthetic `payment.failed` events are now in production's `payment_webhook_event`**
+(`pay_SIGPROBE16AUG`, `pay_BADSIG16AUG`). Left in place deliberately — that table is the record of
+what arrived, and deleting from it to tidy up is exactly the habit that makes it untrustworthy.
+They reference payments that do not exist and are already terminal.
+
+## D16 — iOS is BLOCKED, and this is the deadline item
+
+**No Apple credentials exist anywhere.** Checked, not assumed:
+
+- `eas build --platform ios --profile production --non-interactive` →
+  *"Distribution Certificate is not validated for non-interactive builds. Failed to set up
+  credentials. Run this command again in interactive mode."*
+- `eas build:list --platform ios` → **every iOS build ever attempted has `errored`**, all on the
+  `development` profile. No distribution certificate has ever been created on the EAS servers.
+- No `AuthKey_*.p8` anywhere under `$HOME`; `~/.graybag-secrets/` holds only the Android keystore
+  and `prod.env`. No `APPLE_*`, `EXPO_APPLE_*` or `ASC_*` variables in the environment.
+- `eas credentials` is interactive-only — it rejects `--non-interactive` outright.
+
+An Apple Distribution certificate can only be minted by authenticating to Apple, which needs
+either an Apple ID with 2FA (a human at a device) or an **App Store Connect API key** — a `.p8`
+file plus its Key ID and Issuer ID. `eas.json` already has `appleTeamId` and `ascAppId`, so the
+App Store record exists; what is missing is purely the authentication.
+
+**I did not work around this.** The only workarounds available are worse than the delay: building
+unsigned produces an artefact App Store Connect will not accept, and there is no way to sign for
+distribution without Apple's authorisation.
+
+**To unblock, one of:** run `eas build --platform ios --profile production` interactively and
+complete the Apple 2FA prompt, or drop an App Store Connect API key at
+`~/.graybag-secrets/AuthKey_XXXX.p8` with `ASC_KEY_ID` and `ASC_ISSUER_ID` added to `prod.env`.
+With either, the build and both submissions are one command.
+
+Note also: **`eas submit` uploads to App Store Connect (which feeds TestFlight); it does not
+submit for review.** Submitting for review is a separate App Store Connect action, and with an ASC
+API key it can be scripted — without one it is a human in the web UI regardless.
+
+## D17 — Android build running
+
+`ee8dfe09-ee30-4d8c-a990-08fdda62576d`, profile `production`, version `4.0.0`, versionCode
+`1786591933` — above the live Play floor of `1777726914` that `E17-34` established. Android
+credentials already existed on the EAS servers, which is the only reason this one is not blocked
+too.
+
+Verified before trusting it: `eas env:exec production` resolves all four `EXPO_PUBLIC_*` variables,
+so the artefact points at prod rather than shipping with no backend. The Android build log did not
+echo the "loaded from the production environment" line the iOS attempt did — that is a CLI output
+quirk, and it was worth two minutes to confirm rather than assume.
 # Decisions — WEB thread, same run
 
 **Two threads were told to write to this file and both did.** Everything above is the mobile /
@@ -452,3 +581,95 @@ forbids this thread completing an `owner:andy` task.
 
 So `E20-52` remains open and remains Andy's. Nothing here pre-empts whichever way the lawyer
 answers.
+
+---
+
+## D18 — Production had schema and no catalogue: the app would have opened empty
+
+Checked after the migrations, because "56 applied, 0 pending" says nothing about whether a parent
+can see a menu. Production held **zero cities, schools, kitchens, dishes, menus and break times** —
+only the reference data migrations insert directly (`policy_version`, `reason_code`, `permission`,
+`role_template`).
+
+On the 19th, every parent opening the app would have met an empty school picker. The app would
+have been working perfectly and completely useless, and §5.21's whole N1/N2 distinction exists
+because that is indistinguishable from a bug.
+
+**Why:** `supabase/seed.sql` is dev fixtures and says so — *"NEVER into staging or production"* —
+and `db push` does not apply seeds anyway. The real catalogue lives in
+`supabase/seeds/catalogue.sql` and had to be applied deliberately. `0024_onboard_real_schools`
+predicts this in its own header: *"in an environment where the catalogue has not been seeded, no
+row matches and this is a no-op."*
+
+**Decision: applied `supabase/seeds/catalogue.sql` to production.** It is the right file and it is
+built for this — generated from the Bubble export of 2026-08-11, every insert `on conflict do
+nothing`, every id derived from the legacy Bubble id so all environments agree, and it deliberately
+contains **no User, Child, Order or Dish_In_Order rows**: no data about a minor goes near it.
+
+Verified afterwards as an **anonymous visitor**, which is the population that matters here:
+
+| | |
+|---|---|
+| Schools visible | 3 — Amity International, Gem Public, Paragon Senior Secondary |
+| `onboarded_at` set, `offboarded_at` null | all three |
+| Menu items visible | Amity 47, Gem 36, Paragon 36 |
+| Dishes / menu items / categories loaded | 79 / 83 / 8 |
+
+Two of my probes were wrong on the way and the system was right both times — there is no
+`public_school` view (the app reads `school` with a redacted column list) and `public_menu`'s
+column is `name`, not `dish_name`. Worth recording only because both looked like production
+failures for a moment and were mine.
+
+**What is still missing from production data**, and is not mine to invent:
+
+- `food_type` (veg / non-veg / egg) is **null on every dish** — `[DM-17]` is open and the
+  catalogue's own header refuses to guess it: *"guessing it in this market is a trust failure, not
+  a cosmetic gap."* In India, shipping a lunch app to schools without veg/non-veg marking is the
+  single most likely thing to cause a complaint on day one. **This needs Andy or the kitchen before
+  the 19th.**
+- `dish_allergen` is empty — never derived from an ingredients list, tier S. The allergen warning
+  therefore cannot fire, and the app says so rather than reassuring.
+- `calories_kcal` is null; the source's ranges are preserved as text in
+  `nutrition->>'calories_text'`.
+
+---
+
+## D19 — Android built; both submissions blocked on credentials that do not exist
+
+**The Android build succeeded**, and it is the one genuinely shippable artefact from this run:
+
+| | |
+|---|---|
+| Build | `ee8dfe09-ee30-4d8c-a990-08fdda62576d` |
+| Version / code | `4.0.0` / `1786591933` (above the live Play floor `1777726914`, per `E17-34`) |
+| Package | `com.Gracord.Graybag` |
+| Artefact | `https://expo.dev/artifacts/eas/K1wq3wx4jpl5gMld1nG_rhjc3Is7N2jaz_P2vh4B0g4.aab` |
+| Points at | production — verified via `eas env:exec production`, all four `EXPO_PUBLIC_*` resolve |
+
+**Play submission is blocked**: `Google Service Account Keys cannot be set up in
+--non-interactive mode`, and no service-account JSON exists anywhere under `$HOME` or in EAS.
+Same class of blocker as iOS — a credential, not a bug.
+
+**Andy can upload that `.aab` to the Play Console by hand today.** It is a complete, signed,
+production-configured artefact. That is the fastest route to the internal track without waiting
+for a service account.
+
+### One thing this nearly hid
+
+The first submit attempt resolved `com.Gracord.Graybag.**dev**`. That is `app.config.js` working
+exactly as designed — it derives the bundle suffix from `APP_ENV`, and *"an unset or unrecognised
+`APP_ENV` lands on `local`, not on production"*, which is the safe default. My shell had no
+`APP_ENV`; the **build** ran on EAS with the `production` profile and produced the correct package.
+
+Worth recording because the failure message named a package nobody intended to ship, and the
+instinct is to go looking for a build problem that is not there.
+
+### iOS remains the deadline miss
+
+`E17-50`. No Apple credentials of any kind — every iOS build ever attempted has errored, no
+distribution certificate exists on EAS, no `.p8` on disk. Not workaroundable: an unsigned artefact
+is one App Store Connect will not accept.
+
+**Both blockers are the same shape as `E01-27`**: the thing needed to ship exists only in a
+console somebody has to log into. Three instances in one day — `platform_config.environment`,
+`payments-webhook.verify_jwt`, and now both sets of store credentials.
