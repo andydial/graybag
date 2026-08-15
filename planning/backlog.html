@@ -1209,13 +1209,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/32</span>
+          <span class="meter-num">0/33</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 32 tasks</summary>
+        <summary>Context &amp; 33 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -1372,7 +1372,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Actually run</strong> <code>0002_rls_policies.sql</code> and <code>supabase/tests/authorization.test.sql</code> against <code>supabase start</code> and fix what falls out. Both were written offline in <code>Q04</code> and have never been executed. Until this is green, <code>E02-08</code> and <code>E02-09</code> are not done</span>
       </li>
-      <li class="task" data-id="E02-19" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E02-19" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-19"></button>
         <code class="tid">E02-19</code>
         <span class="badge r-high">high</span>
@@ -1483,6 +1483,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Signing in emptied the menu.</strong> Production, 2026-08-15: an anonymous visitor read <strong>119</strong> menu items; the same parent one second after signing in read <strong>zero</strong>. The <code>anon_*</code> browse policies (<code>0012</code>, <code>AUTH-01</code>) are addressed <code>to anon</code>, and PostgREST serves any JWT-bearing request as <code>authenticated</code> — a role that is not <code>anon</code> cannot match a policy addressed to <code>anon</code>. What was left were the <code>*_read_customer</code> policies, scoped by <code>auth_customer_can_see_menu()</code> / <code>auth_customer_can_see_dish()</code> to schools the parent has a child at, so a parent who had not added a child yet was scoped to nothing. <strong>Signing in gave you strictly less than signing out</strong>, which is precisely inverted from the intent and severs <code>AR7</code> — &quot;adding a child must not be a wall in front of browsing the menu&quot; — in the middle, after the parent has already committed. Seven tables: <code>menu</code>, <code>menu_item</code>, <code>menu_assignment</code>, <code>school_menu_version</code>, <code>dish</code>, <code>dish_allergen</code>, <code>menu_item_price_override</code>. Two of those are worse than a blank screen: without the override a parent is quoted the <strong>base price instead of their school&#39;s</strong>, and without <code>dish_allergen</code> a dish renders with no allergen tags, which reads as &quot;contains nothing&quot; (non-negotiable #4). Fixed in <code>0061</code> by widening those seven to <code>anon, authenticated</code> — predicates untouched, so a signed-in parent sees exactly what a visitor sees and nothing that anon could not already read. Found only because the sweep ran as a genuinely clean parent, which is the discipline <code>E02-32</code> added; every back-office grant hides it. <code>MENU_CACHE_EPOCH</code> bumped to 4 — the third time in four epochs that the cause was an authorization change wearing an empty list&#39;s clothes. Applied to production the same day and verified against it: 119/119 and 47/47 for Amity. <strong>Three assertions in <code>authorization.test.sql</code> were changed</strong> — see the decision record; they asserted that a kitchen operator and a customer could not read another kitchen&#39;s menu, which was never true of an <code>active</code> assigned menu since anon reads it from any browser, and they now assert it of a <strong>draft</strong> menu, which is the isolation that genuinely holds</span>
+      </li>
+      <li class="task" data-id="E02-34" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-34"></button>
+        <code class="tid">E02-34</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Grant and revoke back-office permissions from the command line — <code>scripts/grant-operator.mjs</code>. Production had <strong>zero</strong> <code>permission_grant</code> rows, so the admin surface was unusable for its only operator: config read empty, <code>/reports</code> refused, saving a dish returned <code>not_permitted</code>. All 31 active permissions now granted to <code>anuragdial@gmail.com</code> at platform scope. Dry run by default; <code>--apply</code> is a separate word. Refuses <code>+parent@</code> addresses unconditionally — that account is the RLS canary and <code>authorization.test.sql</code> depends on it holding nothing. Verified through a real magic-link session, never the service role</span>
       </li></ul>
       </details>
     </article>
