@@ -1309,3 +1309,39 @@ cutoff behaviour and policy acceptance all need an authenticated session, and a 
 OTP delivered to an inbox. Given D30, that email cannot currently be delivered on production at
 all — so those paths are not merely untested, they are **currently untestable**, and will stay so
 until the SMTP sender is configured. That is the same blocker, not a second one.
+
+## D32 — Two migration-ledger corrections on production, and how they happened
+
+Both found by running the checks rather than by anything failing, and both are the same class:
+**the ledger said one thing and the schema said another.**
+
+**(a) `0060` was recorded but not applied.** A `db push` killed mid-flight left the version row
+committed with none of its effects. `assert_policies_accepted` did not exist and `create_checkout`
+was unpatched, while `migration list` reported it applied — and `db push` will never retry a
+migration it believes is done. Re-applied the file directly and verified all three properties.
+
+**(b) A version collision with the web thread.** `0059` was mine (`policy_gate_in_checkout`) and
+theirs (`food_type_required_on_menu`) simultaneously — the fourth such collision this week, and
+`check-migrations` caught it exactly as designed. Mine renumbered to `0060`.
+
+That left production in a state worth describing precisely, because it is the confusing one:
+prod's ledger held `0059`, but the *contents* applied under that number were mine, while the web
+thread's `0059` objects (`assert_dish_is_marked` and its `menu_item_dish_is_marked` trigger) were
+**also** present from a separate partial application.
+
+I removed the `0059` row so `db push` would apply theirs — and it failed with *"function
+assert_dish_is_marked already exists"*, which is how I learned their migration was in fact fully
+applied in effect. So the schema was right and only the bookkeeping was wrong.
+
+**Fixed by reconciling the ledger, not by dropping objects off production.** Re-recorded `0059`
+and `0060`; verified the trigger, the guard and the `create_checkout` patch all present; `db push`
+now reports up to date. Dropping a live trigger to satisfy a version number would have been
+choosing tidiness over a working production database.
+
+**The general rule, which is now two-for-two today:** `supabase migration list` is a record of
+intent, not evidence of schema. Verify the object, not the row — the same discipline the schema
+cache checks already follow.
+
+**Their migration is not idempotent** (`create function`, not `create or replace`), so it cannot
+be replayed onto an environment that has it. I did not edit another thread's migration; worth
+their attention.

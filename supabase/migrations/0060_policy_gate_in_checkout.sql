@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0059_policy_gate_in_checkout.sql — the ordering gate `0001` has always claimed. `E20-55`.
+-- 0060_policy_gate_in_checkout.sql — the ordering gate `0001` has always claimed. `E20-55`.
 -- =============================================================================
 --
 -- `user_policy_acceptance`'s own comment, since `0001`:
@@ -105,11 +105,11 @@ begin
    where n.nspname = 'public' and p.proname = 'create_checkout';
 
   if v_src is null then
-    raise exception 'create_checkout not found — 0059 cannot patch a function that is not there';
+    raise exception 'create_checkout not found — 0060 cannot patch a function that is not there';
   end if;
 
   if position('assert_policies_accepted' in v_src) > 0 then
-    raise notice '0059: create_checkout already calls assert_policies_accepted; nothing to do';
+    raise notice '0060: create_checkout already calls assert_policies_accepted; nothing to do';
     return;
   end if;
 
@@ -123,7 +123,7 @@ begin
     '  perform assert_policies_accepted(p_customer_user_id);');
 
   if v_new = v_src then
-    raise exception '0059: could not find the seller-identity guard to anchor on — create_checkout has changed shape, patch it by hand rather than letting this silently no-op';
+    raise exception '0060: could not find the seller-identity guard to anchor on — create_checkout has changed shape, patch it by hand rather than letting this silently no-op';
   end if;
 
   execute v_new;

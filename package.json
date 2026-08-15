@@ -51,7 +51,7 @@
     "check:mvp": "node scripts/check-mvp.mjs",
     "eas-build-pre-install": "npm config set ignore-scripts true",
     "check:placeholders": "node scripts/check-placeholders.mjs",
-    "check:launch": "node scripts/check-launch.mjs"
+    "check:launch": "node scripts/check-launch.mjs",
     "check:company": "node scripts/build-company-identity.mjs --check"
   },
   "devDependencies": {
