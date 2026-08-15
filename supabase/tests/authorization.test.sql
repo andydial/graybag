@@ -264,9 +264,18 @@ insert into dish (id, kitchen_id, name, category_id, image_asset_id, food_type) 
 insert into dish_allergen (dish_id, allergen_id) values
   ('d5000000-7e57-0000-0000-000000000001', 'd3000000-7e57-0000-0000-000000000001');
 
+-- Two published menus, and — since `E02-33` — a draft for each kitchen beside them.
+--
+-- The draft is what carries kitchen isolation now. An `active` menu assigned to a school is
+-- **world-readable**: `anon_menu_active` serves it to any anonymous request, so "kitchen B's
+-- operator cannot read kitchen A's menu" was never true of the menu itself — only of the role
+-- that happened to be cut off from the public policies. A draft is the thing that is genuinely
+-- private to a kitchen, and it is what §7.4 is asserted against below.
 insert into menu (id, kitchen_id, name, status) values
   ('d6000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'Menu A', 'active'),
-  ('d6000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000002', 'Menu B', 'active');
+  ('d6000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000002', 'Menu B', 'active'),
+  ('d6000000-7e57-0000-0000-000000000003', 'c2000000-7e57-0000-0000-000000000001', 'Menu A Draft', 'draft'),
+  ('d6000000-7e57-0000-0000-000000000004', 'c2000000-7e57-0000-0000-000000000002', 'Menu B Draft', 'draft');
 
 insert into menu_item (id, menu_id, dish_id, price_paise) values
   ('d7000000-7e57-0000-0000-000000000001', 'd6000000-7e57-0000-0000-000000000001', 'd5000000-7e57-0000-0000-000000000001', 10000),
@@ -1160,9 +1169,18 @@ select set_eq(
     ('allergen'),('app_user'),('asset'),('break_time'),('break_time_class'),('city'),
     ('consent_purpose'),('dish_category'),('menu_assignment'),('payout'),('permission_grant'),
     ('policy_document'),('policy_version'),('reason_code'),('school'),('school_class'),
-    ('school_menu_version'),('school_report')
+    ('school_menu_version'),('school_report'),
+    -- `E02-33` added these five. They are the public catalogue: the same rows any anonymous
+    -- visitor reads, now also readable by any live signed-in account, because withholding them
+    -- from signed-in users was showing parents an empty menu.
+    --
+    -- **The claim this assertion exists to defend is unchanged.** It is not "18 tables"; it is
+    -- "none of tier S, P or A" — no child, no order, no payment, no personal data. A dish and its
+    -- price are none of those. If a *tiered* table ever appears in this list, that is the
+    -- regression, and the count is only how you notice.
+    ('menu'),('menu_item'),('menu_item_price_override'),('dish'),('dish_allergen')
   $$,
-  '§8 SchoolViewer column: 18 tables. §13.3 rule 5 — none of tier S, P or A');
+  '§8 SchoolViewer column: 23 tables. §13.3 rule 5 — none of tier S, P or A');
 
 -- ---- PlatformAdmin ----------------------------------------------------------
 do $$ begin perform set_config('request.jwt.claims', '{"sub":"a0000000-7e57-0000-0000-000000000009","role":"authenticated"}', true); end $$;
@@ -1453,8 +1471,22 @@ select isnt_empty($$ select 1 from "order" where school_id = 'c3000000-7e57-0000
                   '§9 item 15: kitchenB''s operator sees orders at schoolB1…');
 select is_empty($$ select 1 from "order" where school_id in ('c3000000-7e57-0000-0000-000000000001','c3000000-7e57-0000-0000-000000000002') $$,
                   '§9 item 15: …and none of kitchenA''s. Asserting the reverse direction is how an inverted comparison gets caught');
-select is_empty($$ select 1 from menu where kitchen_id = 'c2000000-7e57-0000-0000-000000000001' $$,
-                '§7.4: kitchenB''s operator cannot read kitchenA''s menu');
+-- `E02-33` rewrote this pair. It used to assert that kitchenB's operator could read **no** menu
+-- of kitchenA's, and it passed for a reason that turned out to be a bug: `authenticated` was
+-- excluded from the `anon_*` browse policies, so signing in removed access that every anonymous
+-- request already had. Fixing that (a parent with no child was seeing an empty menu) necessarily
+-- let this through too.
+--
+-- The old assertion was not defending anything. Menu A is `active` and assigned, so kitchenB's
+-- operator could read it by signing out, or from any browser. What is genuinely private to a
+-- kitchen is its **unpublished** work, and that is now what is asserted.
+select is_empty($$ select 1 from menu where id = 'd6000000-7e57-0000-0000-000000000003' $$,
+                '§7.4: kitchenB''s operator cannot read kitchenA''s DRAFT menu — unpublished work is '
+                'what kitchen isolation actually protects');
+select isnt_empty($$ select 1 from menu where id = 'd6000000-7e57-0000-0000-000000000001' $$,
+                  '§7.4: …and can read kitchenA''s PUBLISHED menu, because so can anyone at all. '
+                  'Withholding it from a signed-in user protects nothing and cost E02-33 a blank '
+                  'menu for every parent who had not added a child yet');
 reset role;
 
 -- ---- §9 item 18-19: SchoolViewer -------------------------------------------
@@ -1602,8 +1634,14 @@ select is(auth_break_time_school_id('c5000000-7e57-0000-0000-000000000001'),
 -- school's price override alongside it.
 select isnt_empty($$ select 1 from menu_item_price_override where school_id = 'c3000000-7e57-0000-0000-000000000001' $$,
                   '§7.4: a customer sees their own school''s price override, or the app shows the wrong number');
-select is_empty($$ select 1 from menu where id = 'd6000000-7e57-0000-0000-000000000002' $$,
-                '§7.4: …and not another kitchen''s menu');
+-- Same rewrite as the KitchenOperator pair above, and for the same reason (`E02-33`). A customer
+-- browsing another kitchen's published menu is not a leak — it is the school picker working.
+select is_empty($$ select 1 from menu where id = 'd6000000-7e57-0000-0000-000000000004' $$,
+                '§7.4: …and not another kitchen''s DRAFT menu');
+select isnt_empty($$ select 1 from menu where id = 'd6000000-7e57-0000-0000-000000000002' $$,
+                  '§7.4: …but a customer CAN read another kitchen''s published menu, which is what '
+                  'SchoolPicker is for — browsing a school you have no child at is the normal '
+                  'signup path, not an escape');
 select is_empty($$ select 1 from menu_item_capacity $$,
                 '§7.4: menu_item_capacity is not readable by a customer — "sold out" is not expressible client-side until E18-12 adds a policy. A known gap, not a surprise');
 select is_empty($$ select 1 from order_event $$,
