@@ -226,7 +226,22 @@ jobs:
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-          test -w /dev/kvm && echo "/dev/kvm is writable — hardware acceleration available"
+          # **A report, never a gate.** `E01-28`, 2026-08-16.
+          #
+          # This was `test -w /dev/kvm && echo …`, and under `bash -e` a false `test` fails the
+          # STEP — so on any runner without `/dev/kvm` the whole job died here, 53 seconds in,
+          # before the APK was built and long before Maestro ran. The flow was reported as
+          # failing on `tab-menu` while it had not reached the app at all.
+          #
+          # Acceleration is a speed question, not a correctness one: the emulator action falls
+          # back to software rendering, which is slow (`E14-36` measured a 781-second boot) and
+          # still produces a real device to drive. Losing the run entirely is strictly worse than
+          # a slow one, and a job that dies before it starts teaches nobody anything.
+          if test -w /dev/kvm; then
+            echo "/dev/kvm is writable — hardware acceleration available"
+          else
+            echo "::warning::/dev/kvm is not writable — the emulator will fall back to software rendering and boot slowly (E14-36)."
+          fi
 
       # Boot once, snapshot, reuse. Without this every run pays the cold-boot cost even with KVM.
       - name: Cache the AVD
