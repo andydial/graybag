@@ -4601,13 +4601,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/51</span>
+          <span class="meter-num">0/52</span>
         </div>
       </header>
       <p class="summary">Move ~400 users, dependents and full order history off Bubble. Rehearsed at least twice before the real thing.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E04</code> <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 51 tasks</summary>
+        <summary>Context &amp; 52 tasks</summary>
         <div class="context"><h4>Known constraints</h4>
 <p>Verified against the real export on 2026-08-08 (<code>E19-04</code>). Full evidence in</p>
 <p><strong><code>docs/bubble-recon-findings.md</code></strong> — read it before writing <code>E16-01</code>. Several constraints below</p>
@@ -5109,6 +5109,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:critical) <strong>Every dish on production has <code>food_type</code> null — no veg / non-veg / egg marking.</strong> <code>[DM-17]</code> is open and <code>catalogue.sql</code> deliberately refuses to guess it: *&quot;guessing it in this market is a trust failure, not a cosmetic gap.&quot;* Correct call by the generator, and it leaves a hole that matters more than any other missing field: <strong>shipping a school lunch app in India with no veg marking is the single most likely thing to cause a complaint on day one</strong>, and for many families it is a religious rather than a dietary question. The data exists with the kitchen; it needs someone to state it per dish. 79 dishes. Blocks a comfortable launch on 19 August far more than anything technical still open</span>
+      </li>
+      <li class="task" data-id="E16-53" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-53"></button>
+        <code class="tid">E16-53</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>supabase/seeds/catalogue.sql</code> can no longer be applied — every fresh environment is unbuildable.</strong> <code>0059_food_type_required_on_menu</code> adds <code>assert_dish_is_marked</code>, which refuses any <strong>active</strong> <code>menu_item</code> whose dish has <code>food_type</code> null. <code>catalogue.sql</code> ships <strong>all 79 dishes unmarked</strong>, deliberately: <code>[DM-17]</code> is open and the generator&#39;s own header refuses to guess, because *&quot;guessing it in this market is a trust failure, not a cosmetic gap&quot;*. Both decisions are right on their own and together they are a contradiction: the seed says *we will not invent this* and the guard says *nothing unmarked reaches a menu*. Verified by applying the catalogue to a database carrying the trigger — it dies on the first row, <code>dish &quot;Wheat Jaggery Cake&quot; has no food type, so it cannot be put on a menu</code>. <strong>Production is fine and that is the trap</strong>: its catalogue was loaded on 16 August *before* the trigger existed, so prod holds 83 menu items that can no longer be reproduced from source. A rebuilt staging, a new environment, a restore drill (<code>E01-17</code>) or a disaster recovery all fail at the seed. <strong>Nobody has seen this yet</strong> because <code>main</code>&#39;s newest Integration run is <code>73f41ad</code>, which predates the migration — the suite has never run on a commit containing it. Not fixed here, and deliberately not papered over: the resolution is either marking the 79 dishes (<code>E16-52</code>, <code>owner:andy</code>, and the right answer) or making the guard tolerate a seed, and choosing between them is the web thread&#39;s call since the guard is theirs. <strong>Do not fix it by inventing food types.</strong></span>
       </li></ul>
       </details>
     </article>
