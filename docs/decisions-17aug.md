@@ -43,3 +43,32 @@ is the direction that would matter.
 The CSV carries only `name`, `kitchen_code`, `category` and `food_type`. The importer compares only
 the fields a file actually carries, so applying it **cannot** change a description or a price. The
 dry run confirms it: 68 changes, every one of them `changing: foodType`.
+
+---
+
+## D-17C — allergen suggestions are offered, never applied
+
+`/admin/allergens`. All 79 production dishes are in `MI1`'s **third** state: no tags, and nobody
+has declared there are none. `0006` is explicit that this is *unknown* and must be warned about —
+and on any screen that only counts tags it looks exactly like "contains nothing".
+
+Three decisions worth keeping:
+
+**The guesses are not pre-applied.** Boxes start at what the database holds; the suggestion sits
+beside them, drawn dashed rather than filled, with the ingredient words that triggered it. Accepting
+is a click and saving is another. A machine-generated allergy tag that arrives pre-ticked is one
+distracted Save away from becoming a fact nobody chose.
+
+**"Contains none" is a button, not an empty save.** Saving a dish with nothing ticked would clear
+the tags and leave it in the same unknown state — a save that appears to work and changes nothing
+that matters. `allergens_declared_none` is written explicitly, and the server **refuses** tags and
+`declaredNone` together rather than picking between two opposite claims.
+
+**The rules under-report, and the banner says so.** Keyword matching over ingredient text cannot
+know that a bread contains unlisted milk powder or that a kitchen fries in shared oil. Presenting
+an accepted suggestion as a finished dish would be the real failure here, so nothing on the screen
+ever says a dish is complete.
+
+Verified against production: both writes land, all three rails fire (opposite claims, unknown code,
+unknown dish id), and every row was restored — `dish_allergen` is back to 0 and no dish carries a
+declaration. **The tagging itself is Andy's**, exactly as the food types are.

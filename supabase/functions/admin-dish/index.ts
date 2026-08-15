@@ -2,7 +2,8 @@
 //
 //   PATCH /functions/v1/admin-dish
 //     { dish: { id, name?, foodType?, description?, ingredientsText?, caloriesKcal?,
-//               caloriesText?, portionText?, isActive?, allergens? } }
+//               caloriesText?, portionText?, isActive?, allergens?, allergensDeclaredNone? } }
+//     { dishAllergens: [{ id, allergens: [], declaredNone? }, …] }   bulk, up to 500 — `E10-33`
 //     { menuItem: { menuId, dishId, pricePaise?, availableDays?, isActive? } }
 //     { foodTypes: [{ id, foodType }, …] }        bulk, up to 500 — `E10-21`
 //
@@ -101,6 +102,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     dish?: Record<string, unknown>;
     menuItem?: Record<string, unknown>;
     foodTypes?: unknown;
+    dishAllergens?: unknown;
   };
   try {
     body = await request.json();
@@ -129,10 +131,13 @@ Deno.serve(async (request: Request): Promise<Response> => {
   if (body.foodTypes && !held.has('dish.edit')) {
     return json(403, { error: 'not_permitted', requires: 'dish.edit' });
   }
-  if (!body.dish && !body.menuItem && !body.foodTypes) {
+  if (body.dishAllergens && !held.has('dish.edit')) {
+    return json(403, { error: 'not_permitted', requires: 'dish.edit' });
+  }
+  if (!body.dish && !body.menuItem && !body.foodTypes && !body.dishAllergens) {
     return json(422, {
       error: 'validation_failed',
-      fields: { body: 'send a dish, a menuItem, or foodTypes' },
+      fields: { body: 'send a dish, a menuItem, foodTypes, or dishAllergens' },
     });
   }
 
@@ -225,6 +230,124 @@ Deno.serve(async (request: Request): Promise<Response> => {
     changed.push(`foodType×${touched}`);
   }
 
+
+  // ------------------------------------------------------------- bulk allergen tagging
+  //
+  // `E10-33`. Every one of the 79 production dishes is in `MI1`'s third state — no tags, and
+  // nobody has declared there are none — which the app must treat as **unknown and warn about**,
+  // never as "contains nothing". Tagging them one round trip at a time is 79 requests and a lost
+  // morning, and the whole point of the screen is that a person can work through them quickly.
+  //
+  // **`declaredNone` is a first-class field, not an inference from an empty list.** Sending
+  // `allergens: []` alone would clear the tags and leave the dish in the same unknown state it
+  // started in — the save would look like it worked and would have changed nothing that matters.
+  //
+  // **All or nothing**, like `foodTypes`: every entry is validated before a single row is written,
+  // so an unknown code at position 40 cannot leave the first 39 tagged and the rest not. On this
+  // table a partial write is worse than a failure, because the half that succeeded looks complete.
+  if (body.dishAllergens !== undefined) {
+    if (!Array.isArray(body.dishAllergens)) {
+      return json(422, { error: 'validation_failed', fields: { dishAllergens: 'must be a list' } });
+    }
+    if (body.dishAllergens.length > 500) {
+      return json(422, { error: 'validation_failed', fields: { dishAllergens: 'at most 500 at a time' } });
+    }
+
+    const { data: known } = await admin.from('allergen').select('id,code').eq('is_active', true);
+    const byCode = new Map((known ?? []).map((a: { id: string; code: string }) => [a.code.toLowerCase(), a.id]));
+    if (byCode.size === 0) {
+      // The state production was in until `0063`. Refused loudly rather than writing zero tags and
+      // reporting success — an empty vocabulary means every tag silently fails to match.
+      return json(422, {
+        error: 'validation_failed',
+        fields: { dishAllergens: 'no allergens exist in this database, so nothing can be tagged' },
+      });
+    }
+
+    const entries: { id: string; codes: string[]; declaredNone: boolean }[] = [];
+    for (const [i, raw] of body.dishAllergens.entries()) {
+      if (typeof raw !== 'object' || raw === null) {
+        return json(422, { error: 'validation_failed', fields: { [`dishAllergens[${i}]`]: 'not an object' } });
+      }
+      const entry = raw as Record<string, unknown>;
+      const id = str(entry.id);
+      if (!id || !UUID.test(id)) {
+        return json(422, { error: 'validation_failed', fields: { [`dishAllergens[${i}].id`]: 'required, and a uuid' } });
+      }
+      if (!Array.isArray(entry.allergens)) {
+        return json(422, { error: 'validation_failed', fields: { [`dishAllergens[${i}].allergens`]: 'must be a list of codes' } });
+      }
+      const codes = entry.allergens.map((a) => String(a).trim().toLowerCase()).filter((a) => a !== '');
+      const unknownCodes = codes.filter((c) => !byCode.has(c));
+      if (unknownCodes.length > 0) {
+        return json(422, {
+          error: 'validation_failed',
+          fields: {
+            [`dishAllergens[${i}].allergens`]:
+              `unknown code(s): ${unknownCodes.join(', ')}. Valid: ${[...byCode.keys()].join(', ')}. ` +
+              `An unmatched code is a warning that silently never fires.`,
+          },
+        });
+      }
+      // Tags and "there are none" are contradictory. Refused rather than picked between: the
+      // caller has a bug, and guessing which they meant is how a dish ends up reassuring a parent.
+      const declaredNone = entry.declaredNone === true;
+      if (declaredNone && codes.length > 0) {
+        return json(422, {
+          error: 'validation_failed',
+          fields: {
+            [`dishAllergens[${i}]`]:
+              'declaredNone is true and allergens were also given. Those are opposite claims.',
+          },
+        });
+      }
+      entries.push({ id, codes: [...new Set(codes)], declaredNone });
+    }
+
+    const ids = entries.map((e) => e.id);
+    const { data: found } = await admin.from('dish').select('id').in('id', ids);
+    if ((found ?? []).length !== new Set(ids).size) {
+      return json(404, {
+        error: 'unknown_dish',
+        detail: `${new Set(ids).size - (found ?? []).length} of ${new Set(ids).size} ids matched no dish. Nothing was changed.`,
+      });
+    }
+
+    // Replace: clear then insert, the same semantics the single-dish path has. A merge would make
+    // removing a wrong tag impossible from this screen.
+    const { error: delError } = await admin.from('dish_allergen').delete().in('dish_id', ids);
+    if (delError) {
+      console.error('bulk allergen clear failed', delError.code);
+      return json(500, { error: 'internal' });
+    }
+
+    const rows = entries.flatMap((e) => e.codes.map((c) => ({ dish_id: e.id, allergen_id: byCode.get(c) })));
+    if (rows.length > 0) {
+      const { error: insError } = await admin.from('dish_allergen').insert(rows);
+      if (insError) {
+        console.error('bulk allergen set failed', insError.code);
+        return json(500, { error: 'internal' });
+      }
+    }
+
+    // `allergens_declared_none` written for every entry, true or false, because a dish that just
+    // acquired tags must lose a stale "there are none" and vice versa.
+    for (const group of [true, false]) {
+      const groupIds = entries.filter((e) => e.declaredNone === group).map((e) => e.id);
+      if (groupIds.length === 0) continue;
+      const { error } = await admin
+        .from('dish')
+        .update({ allergens_declared_none: group })
+        .in('id', groupIds);
+      if (error) {
+        console.error('declared-none update failed', error.code);
+        return json(500, { error: 'internal' });
+      }
+    }
+
+    changed.push(`allergens×${entries.length}`);
+  }
+
   // ------------------------------------------------------------------------- the dish
   if (body.dish) {
     const d = body.dish;
@@ -262,6 +385,11 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if ('ingredientsText' in d) patch.ingredients_text = d.ingredientsText === null ? null : str(d.ingredientsText);
     if ('portionText' in d) patch.portion_text = d.portionText === null ? null : str(d.portionText);
     if ('isActive' in d) patch.is_active = d.isActive === true;
+    // `MI1` / `0006`: "we checked, there are none" is a DIFFERENT FACT from "nobody has looked",
+    // and an empty `dish_allergen` cannot tell them apart. Saving a dish with no allergens ticked
+    // must therefore be able to say which of the two it means, or the dish stays in the state the
+    // app has to warn about.
+    if ('allergensDeclaredNone' in d) patch.allergens_declared_none = d.allergensDeclaredNone === true;
     if ('caloriesKcal' in d) {
       const raw = d.caloriesKcal;
       if (raw === null) patch.calories_kcal = null;
