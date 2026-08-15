@@ -70,6 +70,7 @@ import '../../styles/admin.css';
       import {
         ALL_DISHES, NO_MENU, filterDishes, menuFilterOptions, placementsFor, schoolMenuRows,
       } from '../../lib/admin/catalogue-view.js';
+      import { MAX_EDGE, prepareDishImage } from '../../lib/admin/dish-image.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
@@ -117,10 +118,11 @@ import '../../styles/admin.css';
             allergens = ['gluten', 'milk', 'soy', 'tree_nut'];
           } else {
             configureBackofficeApi();
-            const [d, m, a, s, as] = await Promise.all([
+            const [d, m, a, s, as, assets] = await Promise.all([
               api.fetchAdminDishes(), api.fetchAdminMenus(), api.fetchAllergens(),
-              api.fetchAdminSchools(), api.fetchMenuAssignments(),
+              api.fetchAdminSchools(), api.fetchMenuAssignments(), api.fetchDishImageAssets(),
             ]);
+            assetPaths = assets;
             dishes = d;
             menus = m;
             schools = s;
@@ -139,6 +141,17 @@ import '../../styles/admin.css';
 
       /** `4500` → `₹45.00`. Integer paise in, never a float (non-negotiable #3). */
       const rupees = (p: number) => money.formatPaise(p);
+
+      /**
+       * Asset id → storage path, for the dishes that have a photo. Loaded alongside the catalogue
+       * because `dish` carries only the id, and a per-dish lookup would be 79 requests.
+       */
+      let assetPaths = new Map<string, string>();
+
+      const imageUrl = (d: api.AdminDish) => {
+        const path = d.imageAssetId ? assetPaths.get(d.imageAssetId) : null;
+        return path ? api.storagePublicUrl(api.DISH_IMAGE_BUCKET, path) : null;
+      };
 
       /** Which dishes the bulk bar will act on. Survives a re-render, not a reload. */
       const picked = new Set<string>();
@@ -494,18 +507,26 @@ import '../../styles/admin.css';
                 `</label>` +
               `</div>` +
 
-              // Stated rather than mocked up. `asset` has no rows, the `dish-images` bucket is
-              // empty, and no code in this repository writes either — a file picker here would be
-              // a control that silently does nothing, which is worse than the honest sentence.
+              // `E10-24`. The file is resized in the browser before it is sent — the audience is
+              // on mid-range Androids over unreliable connections, and a 4 MB phone photo is the
+              // easiest way to make a menu unusable.
               `<div class="admin__field">` +
-                `<p class="admin__label">Image</p>` +
+                `<label class="admin__label" for="${f('img')}">Photo</label>` +
+                (imageUrl(d)
+                  ? `<img class="dishthumb" src="${esc(imageUrl(d)!)}" alt="" width="160" />`
+                  : `<p class="admin__hint">No photo yet.</p>`) +
+                `<input class="admin__input" id="${f('img')}" type="file" ` +
+                  `accept="image/jpeg,image/png,image/webp" data-image="${esc(d.id)}" />` +
                 `<p class="admin__hint">` +
-                  (d.imageAssetId
-                    ? `One is linked (<code>${esc(d.imageAssetId)}</code>).`
-                    : `None. <b>Uploading is not built yet</b> — the bucket and the ` +
-                      `<code>asset</code> table exist, nothing writes them, and every dish is in ` +
-                      `this state. Tracked as <code>E10-24</code>.`) +
+                  `Resized to ${MAX_EDGE}px and re-encoded here before uploading. ` +
+                  `HEIC from an iPhone needs converting to JPEG first.` +
                 `</p>` +
+                (d.imageAssetId
+                  ? `<div class="setting__actions">` +
+                      `<button class="kitchen__btn" type="button" data-image-remove="${esc(d.id)}">` +
+                        `Remove photo</button>` +
+                    `</div>`
+                  : '') +
               `</div>` +
 
               `<div class="setting__actions">` +
@@ -741,6 +762,63 @@ import '../../styles/admin.css';
         }
       }
 
+
+      /**
+       * Upload a photo for one dish — `E10-24`.
+       *
+       * Resized in the browser first. The status goes on the field rather than the page banner
+       * because on a list of 79 dishes the person needs to see which row is busy.
+       */
+      async function uploadImage(dishId: string, input: HTMLInputElement) {
+        const file = input.files?.[0];
+        if (!file) return;
+        const field = input.closest('.admin__field');
+        const say = (message: string, isError = false) => {
+          let note = field?.querySelector('[data-img-note]') as HTMLElement | null;
+          if (!note && field) {
+            note = document.createElement('p');
+            note.setAttribute('data-img-note', '');
+            note.className = isError ? 'admin__error' : 'admin__hint';
+            if (isError) note.setAttribute('role', 'alert');
+            field.append(note);
+          }
+          if (note) { note.textContent = message; note.className = isError ? 'admin__error' : 'admin__hint'; }
+        };
+
+        if (demo) { say('This is the demo view — nothing is uploaded.'); return; }
+
+        try {
+          say('Resizing…');
+          const prepared = await prepareDishImage(file);
+          say(`Uploading ${Math.round(prepared.bytes / 1024)} kB (from ${Math.round(file.size / 1024)} kB)…`);
+          await api.uploadDishImage({
+            dishId,
+            filename: file.name,
+            contentType: prepared.contentType,
+            dataBase64: prepared.dataBase64,
+            width: prepared.width,
+            height: prepared.height,
+          });
+          el.status.textContent = 'Photo uploaded.';
+          await load();
+        } catch (cause) {
+          say(cause instanceof Error ? cause.message : 'The photo was not uploaded.', true);
+        }
+      }
+
+      async function removeImage(dishId: string) {
+        if (demo) { el.status.textContent = 'This is the demo view — nothing is written.'; return; }
+        if (!confirm('Remove this photo? The dish will show no image until another is uploaded.')) return;
+        try {
+          await api.removeDishImage(dishId);
+          el.status.textContent = 'Photo removed.';
+          await load();
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The photo was not removed.';
+          render();
+        }
+      }
+
       el.body.addEventListener('submit', (event) => {
         const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;
         if (!form || (!form.dataset.dish && !form.dataset.menu)) return;
@@ -773,6 +851,9 @@ import '../../styles/admin.css';
 
         const apply = t.closest('[data-apply]') as HTMLElement | null;
         if (apply) { void applyFoodType(apply.dataset.apply ?? ''); return; }
+
+        const removeImg = t.closest('[data-image-remove]') as HTMLElement | null;
+        if (removeImg) { void removeImage(removeImg.dataset.imageRemove!); return; }
       });
 
       // Not delegated through `click` on the label: a checkbox toggled by keyboard fires `change`
@@ -784,6 +865,9 @@ import '../../styles/admin.css';
           setFilter((target as HTMLSelectElement).value);
           return;
         }
+
+        const picker = event.target as HTMLInputElement;
+        if (picker.dataset?.image) { void uploadImage(picker.dataset.image, picker); return; }
 
         const box = event.target as HTMLInputElement;
         const id = box.dataset?.pick;

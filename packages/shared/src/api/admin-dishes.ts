@@ -415,3 +415,60 @@ export interface ImportResult {
 export async function runImport(request: ImportRequest): Promise<ImportResult> {
   return invokeFunction<ImportResult>('admin-import', request, 'POST');
 }
+
+// ------------------------------------------------------------------ dish images (`E10-24`)
+
+export interface DishImageUpload {
+  dishId: string;
+  filename: string;
+  /** `image/webp` or `image/jpeg`, decided by what the browser actually encoded. */
+  contentType: string;
+  /** The resized bytes, base64. The browser downscales first — see `prepareDishImage`. */
+  dataBase64: string;
+  width?: number;
+  height?: number;
+}
+
+export interface DishImageResult {
+  assetId: string;
+  bucket: string;
+  path: string;
+  bytes: number;
+}
+
+/**
+ * Put a photo on a dish — `E10-24`.
+ *
+ * The bytes go through an Edge Function rather than straight to storage: `storage.objects` has no
+ * policies at all, so a browser cannot write to the bucket, and opening that up would mean a broad
+ * policy on a **public** bucket. Routing through the function also keeps the `dish.edit` check,
+ * the `asset` row and `dish.image_asset_id` in one place — a direct upload leaves an orphaned
+ * object behind on any failure after the PUT.
+ */
+export async function uploadDishImage(upload: DishImageUpload): Promise<DishImageResult> {
+  return invokeFunction<DishImageResult>('admin-dish-image', upload, 'POST');
+}
+
+export async function removeDishImage(dishId: string): Promise<{ removed: boolean }> {
+  return invokeFunction<{ removed: boolean }>('admin-dish-image', { dishId, remove: true }, 'POST');
+}
+
+/**
+ * `asset.id` → storage path, for every live dish image.
+ *
+ * `dish` carries only the id, and a screen showing 79 dishes cannot do 79 lookups. Read under
+ * `asset_read_images`, which needs a live user and nothing more — a dish photo is not scoped data.
+ */
+export async function fetchDishImageAssets(): Promise<Map<string, string>> {
+  const rows = await runQuery<unknown>((t) =>
+    t.from('asset').select('id,path,kind,deleted_at').eq('kind', 'dish_image').is('deleted_at', null),
+  );
+  const out = new Map<string, string>();
+  for (const row of rows) {
+    if (!isRecord(row)) continue;
+    const id = str(row.id);
+    const path = str(row.path);
+    if (id && path) out.set(id, path);
+  }
+  return out;
+}

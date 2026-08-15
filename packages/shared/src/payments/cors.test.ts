@@ -83,6 +83,10 @@ describe('every browser-callable Edge Function', () => {
     'account',
     // `E10-20`. Browser-callable for the same reason `admin-school` is.
     'admin-dish',
+    // `E10-24`. Dish photos. The bytes go through a function because `storage.objects` has no
+    // policies at all — a browser cannot write to the bucket, and opening that up would mean a
+    // broad policy on a public bucket.
+    'admin-dish-image',
     // `E10-30`. The Apply half of `/admin/import`. Browser-callable by definition, and it runs
     // the CLI importer's own parse/validate/plan/apply modules rather than a second copy — a
     // reimplementation would let the browser write something subtly different from what the dry
