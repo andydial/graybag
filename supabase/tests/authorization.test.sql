@@ -254,9 +254,12 @@ insert into asset (id, kind, bucket, path) values
 insert into dish_category (id, code, display_name) values
   ('d4000000-7e57-0000-0000-000000000001', 'test_quick_bites', 'Quick bites');
 
-insert into dish (id, kitchen_id, name, category_id, image_asset_id) values
-  ('d5000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'Veg Sandwich', 'd4000000-7e57-0000-0000-000000000001', 'd2000000-7e57-0000-0000-000000000001'),
-  ('d5000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000002', 'Paneer Roll',  'd4000000-7e57-0000-0000-000000000001', null);
+-- `food_type` is set because these dishes go on a menu below, and `0059` refuses an unmarked
+-- dish on an active `menu_item`. Nothing in this suite is about food type; the fixture was
+-- relying on a state the product no longer permits, which is exactly what that guard is for.
+insert into dish (id, kitchen_id, name, category_id, image_asset_id, food_type) values
+  ('d5000000-7e57-0000-0000-000000000001', 'c2000000-7e57-0000-0000-000000000001', 'Veg Sandwich', 'd4000000-7e57-0000-0000-000000000001', 'd2000000-7e57-0000-0000-000000000001', 'veg'),
+  ('d5000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000002', 'Paneer Roll',  'd4000000-7e57-0000-0000-000000000001', null, 'veg');
 
 insert into dish_allergen (dish_id, allergen_id) values
   ('d5000000-7e57-0000-0000-000000000001', 'd3000000-7e57-0000-0000-000000000001');
