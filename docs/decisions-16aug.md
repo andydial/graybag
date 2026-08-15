@@ -113,3 +113,44 @@ aborted", which contains no `not ok`.
 That suite is the proof that a kitchen operator at school A cannot read school B's allergy flags.
 Andy made that proof the condition of shipping the feature. Leaving it broken to save time would
 have meant shipping the condition unmet, so it was fixed rather than noted.
+
+---
+
+## D-16H — The grievance route: the name is in the website footer and nowhere else
+
+Andy, 15 August: *"Vivek's name stays in the website footer only. Everywhere else — app-adjacent
+pages, order/support copy — route to `support@graybag.com`."*
+
+**What was already true.** `E20-51` had removed the name from the app on 15 August, and removed
+`GrievanceOfficer.name` from the *type* rather than leaving it optional. `apps/web` contained no
+individual's mailbox anywhere. So most of this instruction was already satisfied.
+
+**What actually changed.** One thing: the website footer had **no name at all** — it published
+the role and `grievance@graybag.com`. Andy's instruction is that this one surface carries the
+name, so it now does.
+
+**Why the split is not inconsistency.** Two real requirements pull in opposite directions. The
+DPDP Act requires a Data Fiduciary to *publish* the contact details of a named person, and
+`E20-52` records that notice version 2 added the name specifically because a general `info@`
+alias does not satisfy that. `E20-51` records why the same name is wrong inside the app: a
+personal mailbox behind a support route is unanswerable when that person is away, unchangeable
+without every shipped build pointing at the wrong place, and it makes one individual the public
+face of every complaint in an app-store listing. One published page carries the statutory name;
+nothing a parent taps does.
+
+**The address stays a role, not a mailbox.** `grievance@graybag.com`, not `vivek@graybag.com`,
+even with the name beside it. Naming the officer is what the Act asks for; routing every complaint
+into one person's inbox is the failure `E20-51` identified, and the two are separable. It also
+stays distinct from `support@` — `E20-51` kept them apart so a DPDP matter is filterable out of
+the order-query pile, and those run against a statutory clock.
+
+**`docs/privacy-policy.md` §7A was NOT touched**, and that is deliberate. It names
+`vivek@graybag.com`, and that is `E20-52`: `owner:andy`, risk:high, blocked on a lawyer's answer
+to one question — does the DPDP grievance contact have to name a natural person, or does a titled
+role with a monitored address satisfy it? The task says in as many words: *do not edit the
+published wording*. A `policy_version` row is immutable once published, so changing §7A is a new
+notice version that re-triggers the acceptance gate for every existing parent. `CLAUDE.md` also
+forbids this thread completing an `owner:andy` task.
+
+So `E20-52` remains open and remains Andy's. Nothing here pre-empts whichever way the lawyer
+answers.

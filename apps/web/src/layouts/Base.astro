@@ -150,9 +150,19 @@ const jsonLd = {
           </nav>
         </div>
 
+        {/*
+          The one published surface that names the officer — see `FOOTER.grievance` for why this
+          page and no other. The name is in its own element rather than folded into the body text
+          so that a screen reader announces it as the answer to the heading, and so that removing
+          it later is a markup change rather than a sentence edit.
+        */}
         <section class="footer__grievance" aria-labelledby="grievance">
           <h2 id="grievance">{FOOTER.grievance.heading}</h2>
           <p>{FOOTER.grievance.body}</p>
+          <p class="footer__officer">
+            <b>{FOOTER.grievance.name}</b><br />
+            {FOOTER.grievance.role}
+          </p>
           <p><a href={`mailto:${FOOTER.grievance.email}`}>{FOOTER.grievance.email}</a></p>
         </section>
 

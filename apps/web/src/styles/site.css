@@ -1193,3 +1193,13 @@ ul, ol { padding: 0; list-style: none; }
   line-height: var(--gb-line-height-body-lg);
   font-weight: var(--gb-font-medium);
 }
+
+/*
+ * The named grievance officer in the footer (`E20-07`).
+ *
+ * Its own block rather than another paragraph in the body copy: it is the answer to the heading
+ * above it, and a name buried mid-sentence is one a person scanning for who to write to will
+ * miss. `opacity` is left alone here — unlike the surrounding paragraphs — because this is the
+ * statutory detail, not supporting text.
+ */
+.footer__officer { margin-top: var(--gb-space-3); }
