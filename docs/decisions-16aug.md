@@ -748,3 +748,35 @@ dish is vegetarian is not a fast-follow concern in this market. But that is a sc
 one owner, and the work is finished either way — the tag changes the count, not the code.
 
 One line in `scripts/check-mvp.mjs` and one marker in the backlog if Andy agrees.
+
+---
+
+## D-16M — the enquiry notification is best-effort, and its recipient chain ends at an address prod has
+
+Live enquiries were going nowhere. `enquiry-submit` was **not deployed to production** (404), and
+`PUBLIC_ENQUIRY_ENDPOINT` was unset in Netlify, so the site fell back to `/api/dev/enquiry` — the
+dev mock. A school filling in the form on the live site would have been thanked and lost.
+
+Both fixed: the function is deployed, the variable is set on the **production context only** (a
+preview still falls back to the mock, which is right — a preview must not write real leads).
+
+**The notification now exists** (`E12-16`). It is sent after the row is committed and its result
+is discarded: the contract says an enquiry lost to a mail provider's bad minute is the worst
+outcome this endpoint can produce, so nothing after the insert may turn a stored lead into an
+error the visitor sees.
+
+**It carries no phone number and no message.** Those are on the row, which has RLS. An email is
+forwarded, quoted and left in inboxes. They are not on the `EnquiryNotice` interface at all, so
+the compiler refuses them — a comment asking somebody not to include a phone number is not a
+control.
+
+**The recipient chain was wrong on its first deploy and that is the lesson.** It read
+`ENQUIRY_EMAIL_TO ?? ORDER_EMAIL_REPLY_TO`, and production has neither. A real test enquiry was
+stored and silently not announced. A notification path whose only recipient variable is one nobody
+has set does nothing, and fails in the way hardest to notice: quietly, and only in production. It
+now falls back to `SUPPORT_ALERT_EMAIL`, which prod does have.
+
+**Not verified: that the email actually arrived.** This Supabase CLI has no `functions logs`
+subcommand, so the send could not be observed from here. What is verified is that the row lands
+(twice, on production), that the recipient chain resolves to a variable production has set, and
+that every failure path logs "the enquiry IS stored". Andy should confirm one arrived.
