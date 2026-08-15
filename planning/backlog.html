@@ -5013,13 +5013,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/47</span>
+          <span class="meter-num">0/48</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 47 tasks</summary>
+        <summary>Context &amp; 48 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -5402,6 +5402,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A web-only dependency was breaking every mobile build.</strong> EAS runs <code>npm ci</code> at the workspace root, so it installed <code>apps/web</code>&#39;s dependencies into an iOS build — including <code>sharp</code>, Astro&#39;s image library, which is native. The build died in *Install dependencies* with <code>sharp: Attempting to build from source via node-gyp / Please add node-addon-api</code> (build <code>5e32af14-69af-4b69-85b9-4394b635a52a</code>, 2026-08-14). <strong>Adding <code>node-addon-api</code> would have fixed that build and left the next web-only native package to do the same thing</strong>, so <code>apps/web/</code> is excluded from <code>.easignore</code> instead: the <code>apps/*</code> glob then resolves to <code>apps/mobile</code> alone and neither <code>sharp</code> nor <code>astro</code> is installed at all. Verified by running <code>npm ci --include=dev</code> against a tree with <code>apps/web</code> removed — it succeeds, keeps <code>expo</code>, and drops both. <code>scripts/test/easignore.test.mjs</code> asserts the exclusion, and that <code>packages/</code>, <code>config/</code> and <code>apps/mobile/</code> stay included, because nothing about editing <code>.easignore</code> looks like it could break an iOS build</span>
+      </li>
+      <li class="task" data-id="E17-48" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-48"></button>
+        <code class="tid">E17-48</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Write <code>~/.graybag-secrets/prod.env</code>, then point the web app at production.</strong> BLOCKED and skipped on 2026-08-15: the file does not exist — <code>~/.graybag-secrets/</code> holds only the upload keystore — so the payments thread has not stood the production project up, or has not written it. Nothing was guessed and <code>apps/web/.env</code> was not touched, so staging is unchanged and still works. <code>docs/production-cutover.md</code> has the whole procedure: the two variables that decide which database the app talks to, the five that decide its behaviour, why they go in Netlify&#39;s <strong>production context only</strong> (a deploy preview writing to the live database is worse than one that does not build), the one command that verifies the switch, and the order — migrations before import, because the importer reads <code>service_days</code> from <code>0056</code>. A credentialed action: it needs the Supabase and Netlify accounts</span>
       </li></ul>
       </details>
     </article>

@@ -26,6 +26,31 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
+## Closed 2026-08-15 (evening) — the unattended run
+
+Two lists, given back to back. The second reordered the first and added the 17 August import as
+the hard deadline. Everything below is on `e09-31-filter-bar`, PR **#51**.
+
+| # | Ask | Done |
+|---|---|---|
+| 1 | Renumber migration `0050` now payments has merged | Done. It was worse than stated — `main` had taken `0052`, `0053` and `0054`, so the enquiry migration collided at `0052` and `check-migrations` failed on `duplicate-version`. Renumbered to `0055`. **Second renumber of the same file in one day**, and the migration's header now records both rounds because the pattern is the useful part |
+| 2 | `E10-06` per-school config with visible inheritance | Done. **Service days did not exist anywhere** — added in `0056`, inert on the day it applies, and `orderable_calendar` honours it in the same migration. The screen reads the three config rows separately and keeps the losing values, so "overridden for this school" is distinguishable from "platform default", and "remove override" states what it would revert to — which is **not** always the platform default |
+| 3 | School onboarding | Done. `E10-01`, `/admin/schools` + the `admin-school` Edge Function. The list names *which* of the three ways a school can be invisible to parents applies to it |
+| 4 | Bulk import for the 17th | Done. `tools/bulk-import`, dry run by default. `docs/import-format.md` documents every column with worked examples. **Running it three times against a real database found four bugs no unit test would have** |
+| 5 | Dish and menu management screens | **Not built.** The importer covers the bulk path, which is what the 17th needs; the one-off case (change a single price without preparing a file) is `E10-20`, appended untagged |
+| 6 | Reports — orders and revenue by school by month | Done. `E10-10`. Reads **no** recipient, class or section column — non-negotiable #4 |
+| 7 | Netlify: PR previews on, production gated on approval | Done. `E12-30`. `docs/netlify-deploys.md` has the promotion procedure in one paragraph. `E12-31` is yours: the dashboard's auto-publish switch |
+| 8 | Grievance route — Vivek in the website footer only | Done. `E20-53`. Mostly already true from `E20-51`; the footer had **no name at all**, and now carries it. The published privacy policy was **not** touched — that is `E20-52`, yours, and blocked on a lawyer |
+| 9 | Point the web app at production | **BLOCKED and skipped.** `~/.graybag-secrets/prod.env` does not exist. Nothing guessed, `apps/web/.env` untouched, staging still works. `docs/production-cutover.md` has the whole procedure ready to run; filed as `E17-48` |
+
+Every judgement call taken without asking is in `docs/decisions-16aug.md`, D-16A to D-16H.
+
+**Still yours, and two of them are on the launch path:** `E12-31` (Netlify auto-publish switch),
+`E17-48` (the production project and its `prod.env`), `E01-26` (the Maestro gate that has timed
+out on every PR — it is why #51 has not merged), and `E20-52` (the DPDP named-officer question).
+
+---
+
 ## Closed 2026-08-15 — the six-item list
 
 Andy gave six items in order and all six are done. PRs #60 and #61.

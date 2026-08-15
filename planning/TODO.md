@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 58 open of 67.
+Your tasks only — 59 open of 68.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -89,6 +89,7 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E17-35` _(fast-follow)_ Confirm the live Android package is exactly com.Gracord.Graybag, capitals included — Play Console → App info. R4 calls it owned by the live listing and app-config.test.ts asserts the capitals, but nobody has checked it against Play; it is the same shape of defect as the version floor, and the test's own comment names the consequence (a new listing with zero installs). iOS's bundle id was verified by accident this week when Apple's rejection named the record; Android's has had no such luck
 - [x] `E17-36` _(fast-follow)_ Confirm whether the live iOS listing supports iPad. Answered by Andy 2026-08-11: it does not, and we are not adding it. supportsTablet: false is now asserted as verified-against-App-Store-Connect rather than assumed. app.json sets supportsTablet: false. If the live app is iPad-enabled, this update drops a device family from under existing users. Cheap to check while in App Store Connect; low severity, unverified either way
 - [ ] `E17-39` _(fast-follow)_ The EAS production environment is empty. A production build today would ship with no Supabase URL, no anon key and no Razorpay key, and open on CantConnectScreen. Set the five EXPO_PUBLIC_* variables for production — with live Razorpay and the production Supabase project — before any production build. Blocked behind E01-05 (the production project does not exist yet)
+- [ ] `E17-48` _(fast-follow)_ Write ~/.graybag-secrets/prod.env, then point the web app at production. BLOCKED and skipped on 2026-08-15: the file does not exist — ~/.graybag-secrets/ holds only the upload keystore — so the payments thread has not stood the production project up, or has not written it. Nothing was guessed and apps/web/.env was not touched, so staging is unchanged and still works. docs/production-cutover.md has the whole procedure: the two variables that decide which database the app talks to, the five that decide its behaviour, why they go in Netlify's production context only (a deploy preview writing to the live database is worse than one that does not build), the one command that verifies the switch, and the order — migrations before import, because the importer reads service_days from 0056. A credentialed action: it needs the Supabase and Netlify accounts
 
 ---
 
