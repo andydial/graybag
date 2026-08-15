@@ -28,8 +28,32 @@ export interface AdminDish {
   description: string | null;
   ingredientsText: string | null;
   caloriesKcal: number | null;
+  /**
+   * Calories as the source gave them — "330-370", a range the importer could not turn into an
+   * integer and refused to guess at (`0001` on `calories_kcal`: "left NULL when unparseable,
+   * never guessed").
+   *
+   * Read from the `calories_text` **column**, falling back to `nutrition->>'calories_text'` where
+   * the import put it. 76 of the 79 production dishes have it only in the jsonb. Writes go to the
+   * column, so an edited dish stops depending on the fallback — see `nutrition` below.
+   */
+  caloriesText: string | null;
   portionText: string | null;
+  /**
+   * The unstructured extras `0001` describes as "nothing queries it". On production it holds
+   * exactly `{"calories_text": "…"}` and, on four dishes, `calories_text_conflicting` where the
+   * source had two different values. Exposed read-only: it is a record of what was imported, and
+   * editing free-form JSON in a browser form is not a thing this screen should offer.
+   */
+  nutrition: Record<string, unknown> | null;
   isActive: boolean;
+  /**
+   * `asset.id`, or null. **Nothing in this repository writes it** — the `dish-images` bucket and
+   * the `asset` table both exist, and no code path uploads to either, so all 79 production dishes
+   * have no image. Surfaced so the screen can say that plainly instead of showing a control that
+   * does nothing.
+   */
+  imageAssetId: string | null;
   /** Allergen **codes**, the shared vocabulary `recipient_allergen` also uses. */
   allergens: string[];
 }
@@ -53,7 +77,8 @@ const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
  * round trip and a join in the browser, and the codes are the field most likely to be edited.
  */
 export const ADMIN_DISH_COLUMNS =
-  'id,name,kitchen_id,food_type,description,ingredients_text,calories_kcal,portion_text,is_active,' +
+  'id,name,kitchen_id,food_type,description,ingredients_text,calories_kcal,calories_text,' +
+  'portion_text,nutrition,image_asset_id,is_active,' +
   'category:category_id(code,display_name),dish_allergen(allergen:allergen_id(code))';
 
 export async function fetchAdminDishes(): Promise<AdminDish[]> {
@@ -85,8 +110,14 @@ export async function fetchAdminDishes(): Promise<AdminDish[]> {
       description: str(row.description),
       ingredientsText: str(row.ingredients_text),
       caloriesKcal: num(row.calories_kcal),
+      // The column first, the imported jsonb second. 76 production dishes have this only in
+      // `nutrition`, and a screen that read only the column would show 76 blanks over data that
+      // is right there.
+      caloriesText: str(row.calories_text) ?? (isRecord(row.nutrition) ? str(row.nutrition.calories_text) : null),
       portionText: str(row.portion_text),
+      nutrition: isRecord(row.nutrition) ? row.nutrition : null,
       isActive: row.is_active !== false,
+      imageAssetId: str(row.image_asset_id),
       allergens,
     };
   });
@@ -224,10 +255,14 @@ export async function fetchAdminMenus(): Promise<AdminMenu[]> {
 
 export interface DishEdit {
   id: string;
+  /** What a parent reads on the menu. Never blank — a nameless dish is unorderable in practice. */
+  name?: string;
   foodType?: string | null;
   description?: string | null;
   ingredientsText?: string | null;
   caloriesKcal?: number | null;
+  /** Writes the `calories_text` **column**, which then wins over the imported `nutrition` jsonb. */
+  caloriesText?: string | null;
   portionText?: string | null;
   isActive?: boolean;
   /** Replaces the whole set. Send the codes you want the dish to end up with. */

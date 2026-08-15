@@ -4075,13 +4075,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/22</span>
+          <span class="meter-num">0/24</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 22 tasks</summary>
+        <summary>Context &amp; 24 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4259,6 +4259,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Make the catalogue legible: school → menu → dishes, and a menu filter on the dish list.</strong> Nothing on any screen joined a school to its menu, so &quot;is Gem seeded correctly?&quot; could only be answered against the database — four days before parents arrive, the only question being asked. The schools view leads the page and shows what a parent at each school would see <strong>today</strong>: which menu is in force, since when, how many of its dishes are actually orderable, and why not when the answer is none. It distinguishes *no menu*, *starts later* and *assigned to a menu that no longer exists*, which look identical on any screen that does not join. Each menu says which schools it serves. The dish list gets a menu filter with counts on every option including &quot;Not on any menu&quot;, and each dish shows which menus it is on and at what price — a dish priced differently on two menus is legitimate and was invisible until the two numbers sat together. Bulk select is scoped to the filter, never the whole catalogue. The filter lives in the URL so a filtered view can be sent to somebody. Per-menu item lists collapsed: two menus of 47 and 36 rendered open made the page 60,000 pixels tall, and a page nobody can scroll is not more legible for containing everything</span>
+      </li>
+      <li class="task" data-id="E10-23" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-23"></button>
+        <code class="tid">E10-23</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>One dish editor, every attribute in one place.</strong> A dish appeared twice — once under its menu where price and available days could be changed, once under &quot;All dishes&quot; where food type and allergens could be — two forms forty rows apart for one thing, and the scroll between them is where a wrong price survives being looked at. Price and days now live <strong>on the dish</strong>, one block per menu it is on, and the per-menu lists carry no editors at all. Name and calories-as-text are newly editable; <code>admin-dish</code> accepts <code>name</code> (refusing blank — a nameless dish is what a parent reads) and <code>caloriesText</code>. The dish form and each menu block submit separately because they are different writes behind different grants (<code>dish.edit</code> vs <code>menu.edit</code>, <code>D3</code>) — one button spanning both would half-fail, and a half-failed save is how somebody comes to believe a price stuck</span>
+      </li>
+      <li class="task" data-id="E10-24" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-24"></button>
+        <code class="tid">E10-24</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Dish images: nothing uploads them.</strong> The <code>dish-images</code> storage bucket and the <code>asset</code> table both exist and <strong>no code path writes either</strong>, so all 79 production dishes have no image and the parent-facing menu is text-only. The dish editor states this rather than showing a file picker that silently does nothing. Needs: an upload path, an <code>asset</code> row written through an Edge Function (non-negotiable #1), and <code>dish.image_asset_id</code> wired</span>
       </li></ul>
       </details>
     </article>

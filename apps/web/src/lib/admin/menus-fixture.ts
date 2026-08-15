@@ -21,12 +21,14 @@ export const MENUS_FIXTURE: {
       foodType: 'veg', description: 'Atta bread, seasonal vegetables',
       ingredientsText: null, caloriesKcal: 220, portionText: '1 sandwich',
       isActive: true, allergens: ['gluten', 'milk'],
+      caloriesText: null, nutrition: null, imageAssetId: null,
     },
     {
       id: 'd-2', name: 'Paneer Wrap', kitchenId: 'k-1',
       categoryCode: 'main_meals', categoryName: 'Main Meals',
       foodType: 'veg', description: null, ingredientsText: null,
       caloriesKcal: 340, portionText: '1 wrap', isActive: true, allergens: ['milk'],
+      caloriesText: null, nutrition: null, imageAssetId: null,
     },
     {
       // No food type. The importer prints NO FOOD TYPE for exactly this row; so does this screen.
@@ -34,12 +36,15 @@ export const MENUS_FIXTURE: {
       categoryCode: 'quick_bites', categoryName: 'Quick Bites',
       foodType: null, description: null, ingredientsText: null,
       caloriesKcal: 110, portionText: '150 g', isActive: true, allergens: [],
+      // The production shape: calories arrived as an unparseable range and live in the jsonb.
+      caloriesText: '100-120', nutrition: { calories_text: '100-120' }, imageAssetId: null,
     },
     {
       id: 'd-4', name: 'Chocolate Muffin', kitchenId: 'k-1',
       categoryCode: 'quick_bites', categoryName: 'Quick Bites',
       foodType: 'egg', description: null, ingredientsText: null,
       caloriesKcal: 290, portionText: '1 muffin', isActive: false, allergens: ['gluten', 'milk'],
+      caloriesText: null, nutrition: null, imageAssetId: null,
     },
   ],
   menus: [

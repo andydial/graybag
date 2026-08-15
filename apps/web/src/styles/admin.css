@@ -385,3 +385,28 @@
 
 /* The filter sits in a bulkbar, where the select would otherwise stretch to the full row. */
 .bulkbar .admin__field { margin: 0; min-width: 16rem; }
+
+/* ------------------------------------------------- the merged dish editor (`E10-23`) */
+
+/*
+ * Nutrition is four unrelated fields, not a row of toggles like `admin__days`, so it overrides the
+ * inline flow it inherits and stacks.
+ */
+.admin__nutrition { display: block; }
+.admin__nutrition .admin__field { margin-bottom: var(--gb-space-3); }
+.admin__nutrition .admin__field:last-child { margin-bottom: 0; }
+
+/*
+ * One block per menu the dish is on, inside the dish's own editor. Boxed and offset so that two
+ * of them — the case that made the old two-screens-apart layout dangerous — read as two distinct
+ * prices rather than one long form.
+ */
+.placement {
+  margin-top: var(--gb-space-4);
+  padding: var(--gb-space-3) var(--gb-space-4);
+  background: var(--gb-bg-surface-muted);
+  border-left: 3px solid var(--gb-border-default);
+  border-radius: var(--gb-radius-sm);
+}
+
+.placement > .admin__label { margin-top: 0; font-weight: var(--gb-font-weight-semibold); }

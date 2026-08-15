@@ -392,20 +392,51 @@ import '../../styles/admin.css';
         );
       }
 
+      /**
+       * One dish, every attribute, one place — `E10-23`.
+       *
+       * Before this, a dish appeared **twice**: once under its menu where a price and days could
+       * be changed, and once under "All dishes" where a food type and allergens could be. Two
+       * forms, forty rows apart, for one thing — and the scroll between them is where a wrong
+       * price survives being looked at.
+       *
+       * So the price and the days move **onto the dish**, one block per menu it is on, and the
+       * per-menu list stops carrying editors. The dish is the thing; a menu is somewhere it
+       * appears at a price.
+       *
+       * ## Saved separately on purpose
+       *
+       * The dish form and each menu block submit on their own, because they are different writes
+       * behind different grants: what a dish **is** needs `dish.edit`, what it **costs** needs
+       * `menu.edit` (`D3`). One button spanning both would have to either demand both grants or
+       * half-fail, and half-failing a save is how somebody comes to believe a price stuck.
+       */
       function dishEditor(d: api.AdminDish): string {
         const on = new Set(d.allergens);
+        const placements = placementsFor(d.id, menus);
+        const f = (name: string) => `${name}-${esc(d.id)}`;
+
         return (
           `<details class="setting__edit">` +
             `<summary>Edit this dish</summary>` +
+
             `<form data-dish="${esc(d.id)}">` +
               `<div class="admin__field">` +
-                `<label class="admin__label" for="ft-${esc(d.id)}">Food type</label>` +
-                `<select class="admin__select" id="ft-${esc(d.id)}" name="foodType">` +
-                  FOOD_TYPES.map((f) =>
-                    `<option value="${esc(f.value)}"${(d.foodType ?? '') === f.value ? ' selected' : ''}>${esc(f.label)}</option>`,
+                `<label class="admin__label" for="${f('nm')}">Name</label>` +
+                `<input class="admin__input" id="${f('nm')}" name="name" type="text" required ` +
+                  `maxlength="200" value="${esc(d.name)}" />` +
+                `<p class="admin__hint">What a parent reads on the menu.</p>` +
+              `</div>` +
+
+              `<div class="admin__field">` +
+                `<label class="admin__label" for="${f('ft')}">Food type</label>` +
+                `<select class="admin__select" id="${f('ft')}" name="foodType">` +
+                  FOOD_TYPES.map((x) =>
+                    `<option value="${esc(x.value)}"${(d.foodType ?? '') === x.value ? ' selected' : ''}>${esc(x.label)}</option>`,
                   ).join('') +
                 `</select>` +
               `</div>` +
+
               `<fieldset class="admin__days">` +
                 `<legend class="admin__label">Allergens</legend>` +
                 allergens.map((a) =>
@@ -419,63 +450,113 @@ import '../../styles/admin.css';
                 `Ticking replaces the whole set. <b>An allergen removed here stops warning every ` +
                 `parent whose child has it</b> — the warning fires on this list and nothing else.` +
               `</p>` +
+
+              `<div class="admin__field">` +
+                `<label class="admin__label" for="${f('ds')}">Description</label>` +
+                `<textarea class="admin__input" id="${f('ds')}" name="description" rows="2">` +
+                  `${esc(d.description ?? '')}</textarea>` +
+              `</div>` +
+
+              // Nutrition, and it is thinner than the word suggests — see the note below the
+              // fields. Four columns exist; macros do not.
+              `<fieldset class="admin__days admin__nutrition">` +
+                `<legend class="admin__label">Nutrition</legend>` +
+                `<div class="admin__field">` +
+                  `<label class="admin__label" for="${f('ck')}">Calories (kcal)</label>` +
+                  `<input class="admin__input" id="${f('ck')}" name="caloriesKcal" type="number" ` +
+                    `min="0" max="10000" step="1" value="${d.caloriesKcal ?? ''}" />` +
+                `</div>` +
+                `<div class="admin__field">` +
+                  `<label class="admin__label" for="${f('ct')}">Calories as text</label>` +
+                  `<input class="admin__input" id="${f('ct')}" name="caloriesText" type="text" ` +
+                    `value="${esc(d.caloriesText ?? '')}" />` +
+                  `<p class="admin__hint">For a range the number field cannot hold — <b>330-370</b>.</p>` +
+                `</div>` +
+                `<div class="admin__field">` +
+                  `<label class="admin__label" for="${f('pt')}">Portion</label>` +
+                  `<input class="admin__input" id="${f('pt')}" name="portionText" type="text" ` +
+                    `value="${esc(d.portionText ?? '')}" />` +
+                `</div>` +
+                `<div class="admin__field">` +
+                  `<label class="admin__label" for="${f('it')}">Ingredients</label>` +
+                  `<textarea class="admin__input" id="${f('it')}" name="ingredientsText" rows="2">` +
+                    `${esc(d.ingredientsText ?? '')}</textarea>` +
+                `</div>` +
+              `</fieldset>` +
+              `<p class="admin__hint">` +
+                `These four are all the schema holds. <b>There are no protein, fat or carbohydrate ` +
+                `columns</b> — they were not in the source data and have not been invented here.` +
+              `</p>` +
+
               `<div class="admin__field">` +
                 `<label class="admin__day">` +
                   `<input type="checkbox" name="isActive"${d.isActive ? ' checked' : ''} /> On the catalogue` +
                 `</label>` +
               `</div>` +
+
+              // Stated rather than mocked up. `asset` has no rows, the `dish-images` bucket is
+              // empty, and no code in this repository writes either — a file picker here would be
+              // a control that silently does nothing, which is worse than the honest sentence.
+              `<div class="admin__field">` +
+                `<p class="admin__label">Image</p>` +
+                `<p class="admin__hint">` +
+                  (d.imageAssetId
+                    ? `One is linked (<code>${esc(d.imageAssetId)}</code>).`
+                    : `None. <b>Uploading is not built yet</b> — the bucket and the ` +
+                      `<code>asset</code> table exist, nothing writes them, and every dish is in ` +
+                      `this state. Tracked as <code>E10-24</code>.`) +
+                `</p>` +
+              `</div>` +
+
               `<div class="setting__actions">` +
                 `<button class="kitchen__btn kitchen__btn--primary" type="submit">Save dish</button>` +
               `</div>` +
             `</form>` +
+
+            // One block per menu, on the dish. This is the half that used to live forty rows away.
+            (placements.length === 0
+              ? `<p class="admin__hint"><b>This dish is on no menu</b>, so it has no price. ` +
+                `Adding it to one is <code>tools/bulk-import</code>.</p>`
+              : placements.map((p) => menuPlacementForm(d, p)).join('')) +
           `</details>`
         );
       }
 
-      function menuItemRow(item: api.AdminMenuItem): string {
-        const days = item.availableDays.length === 7
-          ? 'Every day'
-          : item.availableDays.map((d) => WEEKDAYS[d - 1]).join(', ');
+      /** Price and days for one dish on one menu. Its own form — a different grant writes it. */
+      function menuPlacementForm(d: api.AdminDish, p: ReturnType<typeof placementsFor>[number]): string {
+        const id = `${esc(p.menuId)}-${esc(d.id)}`;
         return (
-          `<div class="srow${item.isActive ? '' : ' srow--hidden'}">` +
-            `<div class="srow__main">` +
-              `<p class="srow__name">${esc(item.dishName)}</p>` +
-              `<p class="srow__meta">${esc(days)}</p>` +
-              (item.isActive ? '' : `<p class="srow__why">Not on the menu — parents cannot order it</p>`) +
-              `<details class="setting__edit">` +
-                `<summary>Change the price or the days</summary>` +
-                `<form data-menu="${esc(item.menuId)}" data-dish-id="${esc(item.dishId)}">` +
-                  `<div class="admin__field">` +
-                    `<label class="admin__label" for="p-${esc(item.dishId)}">Price in paise</label>` +
-                    `<input class="admin__input" id="p-${esc(item.dishId)}" name="pricePaise" type="number" ` +
-                      `min="0" step="1" value="${item.pricePaise}" required />` +
-                    // Spelled out because this is the field most likely to be entered as rupees,
-                    // and a price out by a factor of a hundred is not something a dry run catches
-                    // here — there is no dry run on this screen.
-                    `<p class="admin__hint">Whole paise. <b>₹45.00 is 4500</b>, not 45.</p>` +
-                  `</div>` +
-                  `<fieldset class="admin__days">` +
-                    `<legend class="admin__label">Available on</legend>` +
-                    WEEKDAYS.map((d, i) =>
-                      `<label class="admin__day">` +
-                        `<input type="checkbox" name="availableDays" value="${i + 1}"` +
-                        `${item.availableDays.includes(i + 1) ? ' checked' : ''} /> ${d}` +
-                      `</label>`,
-                    ).join('') +
-                  `</fieldset>` +
-                  `<div class="admin__field">` +
-                    `<label class="admin__day">` +
-                      `<input type="checkbox" name="isActive"${item.isActive ? ' checked' : ''} /> On this menu` +
-                    `</label>` +
-                  `</div>` +
-                  `<div class="setting__actions">` +
-                    `<button class="kitchen__btn kitchen__btn--primary" type="submit">Save</button>` +
-                  `</div>` +
-                `</form>` +
-              `</details>` +
+          `<form class="placement" data-menu="${esc(p.menuId)}" data-dish-id="${esc(d.id)}">` +
+            `<p class="admin__label">On ${esc(p.menuName)}</p>` +
+            `<div class="admin__field">` +
+              `<label class="admin__label" for="p-${id}">Price in paise</label>` +
+              `<input class="admin__input" id="p-${id}" name="pricePaise" type="number" ` +
+                `min="0" step="1" value="${p.pricePaise}" required />` +
+              // Spelled out because this is the field most likely to be entered as rupees, and a
+              // price out by a factor of a hundred is not something a dry run catches here —
+              // there is no dry run on this screen.
+              `<p class="admin__hint">Whole paise. <b>₹45.00 is 4500</b>, not 45. ` +
+                `Currently ${esc(rupees(p.pricePaise))}.</p>` +
             `</div>` +
-            `<div class="srow__side"><p class="setting__value">${esc(rupees(item.pricePaise))}</p></div>` +
-          `</div>`
+            `<fieldset class="admin__days">` +
+              `<legend class="admin__label">Available on</legend>` +
+              WEEKDAYS.map((w, i) =>
+                `<label class="admin__day">` +
+                  `<input type="checkbox" name="availableDays" value="${i + 1}"` +
+                  `${p.availableDays.includes(i + 1) ? ' checked' : ''} /> ${w}` +
+                `</label>`,
+              ).join('') +
+            `</fieldset>` +
+            `<div class="admin__field">` +
+              `<label class="admin__day">` +
+                `<input type="checkbox" name="isActive"${p.isActive ? ' checked' : ''} /> On this menu` +
+              `</label>` +
+            `</div>` +
+            (p.isActive ? '' : `<p class="srow__why">Parked — parents cannot order it here</p>`) +
+            `<div class="setting__actions">` +
+              `<button class="kitchen__btn" type="submit">Save price and days</button>` +
+            `</div>` +
+          `</form>`
         );
       }
 
@@ -532,14 +613,13 @@ import '../../styles/admin.css';
               (m.items.length === 0
                 ? `<div class="kitchen__state"><h2>No dishes on this menu</h2>` +
                   `<p>Nothing here can be ordered. Add dishes with the importer.</p></div>`
-                // Collapsed. Two menus of 47 and 36 rendered open made this page sixty thousand
-                // pixels tall, and a page nobody can scroll is not more legible for containing
-                // everything. What each menu *is* stays visible; its rows are one click away.
-                : `<details class="setting__edit">` +
-                    `<summary>Change a price or the days on ${m.items.length} dish` +
-                      `${m.items.length === 1 ? '' : 'es'}</summary>` +
-                    m.items.map(menuItemRow).join('') +
-                  `</details>`) +
+                // No editors, and no dish rows. Both moved onto the dish (`E10-23`) — a dish used
+                // to appear here *and* in the list below, forty rows apart, with half its fields
+                // in each. What is left is what a menu is: its name, its status, who it serves.
+                : `<p class="admin__section-note">` +
+                    `<button class="kitchen__btn" type="button" data-filter="${esc(m.id)}">` +
+                      `Show its ${m.items.length} dish${m.items.length === 1 ? '' : 'es'}</button>` +
+                  `</p>`) +
             `</section>`,
           ).join('') +
 
@@ -605,12 +685,31 @@ import '../../styles/admin.css';
 
           if (form.dataset.dish) {
             const foodType = String(data.get('foodType') ?? '');
+            // An emptied text box means "clear it", which is a null rather than an omission —
+            // `admin-dish` treats absent as "leave alone" and null as "set to nothing", and a
+            // form that never sends null can never undo a typo.
+            const text = (name: string) => {
+              const raw = String(data.get(name) ?? '').trim();
+              return raw === '' ? null : raw;
+            };
+            const kcal = String(data.get('caloriesKcal') ?? '').trim();
+
+            const name = String(data.get('name') ?? '').trim();
+            if (name === '') {
+              showFormError(form, 'A dish needs a name — this is what a parent reads on the menu.');
+              return;
+            }
+
             edit = {
               dish: {
                 id: form.dataset.dish,
-                // An empty select means "not set", which is a null, not an omission — somebody
-                // clearing a wrong food type must be able to.
+                name,
                 foodType: foodType === '' ? null : foodType,
+                description: text('description'),
+                ingredientsText: text('ingredientsText'),
+                caloriesText: text('caloriesText'),
+                portionText: text('portionText'),
+                caloriesKcal: kcal === '' ? null : Number(kcal),
                 allergens: data.getAll('allergens').map(String),
                 isActive: data.get('isActive') !== null,
               },
