@@ -99,8 +99,31 @@ appId: com.Gracord.Graybag.staging
 - assertVisible:
     id: 'screen-cart'
 
+# ux-spec §5.7 — a parent must never be one tap from paying without seeing who it is for.
+# Signed out, that block says so in words rather than naming a child it cannot resolve.
+#
+# **Asserted before the scroll below, and that order is load-bearing.** This block is the first
+# card in the cart; `CartTotals` is the last, under the break-time picker. On the 320x640 CI
+# emulator they are not on screen together, so asserting this after scrolling to the totals
+# would fail on a cart that is behaving perfectly.
+- assertVisible: 'No child chosen yet'
+
+# The payable total is on the button itself, not on a later screen. Sticky — it lives OUTSIDE
+# the ScrollView — so it holds at any scroll position.
+- assertVisible: 'Place order.*'
+
 # The GST split, which is the thing most worth pinning on a device: SC2 says menu prices are
 # GST-exclusive and M2 fixes the split at CGST 2.5% + SGST 2.5% for Mohali.
+#
+# `scrollUntilVisible`, because `CartTotals` is the LAST card in the ScrollView and is below the
+# fold on a cold CI emulator. A plain `assertVisible` here reported `"Subtotal" is visible =
+# false` while the screenshot showed a perfectly correct cart — the rows existed, they were just
+# further down. That is indistinguishable from "the GST breakdown is missing", which is a bug
+# worth failing over, so the flow has to be able to tell them apart.
+- scrollUntilVisible:
+    element:
+      id: 'cart-subtotal'
+    direction: DOWN
 - assertVisible: 'Subtotal'
 - assertVisible: 'CGST 2.5%'
 - assertVisible: 'SGST 2.5%'
@@ -108,14 +131,10 @@ appId: com.Gracord.Graybag.staging
 - assertVisible: 'Menu prices exclude GST.*'
 
 # R11: Mohali only. An IGST line appearing here means multi-state logic leaked in.
+#
+# After the scroll deliberately: `assertNotVisible` on a region that is off screen passes for
+# the wrong reason, and this is a non-negotiable rather than a nicety.
 - assertNotVisible: 'IGST'
-
-# ux-spec §5.7 — a parent must never be one tap from paying without seeing who it is for.
-# Signed out, that block says so in words rather than naming a child it cannot resolve.
-- assertVisible: 'No child chosen yet'
-
-# The payable total is on the button itself, not on a later screen.
-- assertVisible: 'Place order.*'
 
 # --- the gate, and only here (AR7 / ux-spec F1) ---
 # Nothing before this point may have mentioned signing in. This is the assertion that would
@@ -129,4 +148,17 @@ appId: com.Gracord.Graybag.staging
 - back
 - assertVisible:
     id: 'screen-cart'
-- assertVisible: 'Total'
+
+# The line the cart is proving it kept — asserted by testID rather than the word "Total",
+# because `Total` also matches inside `Subtotal` and an assertion that passes on the wrong row
+# is not evidence the cart survived.
+#
+# Scrolled to for the same reason as above: coming back from the gate, the cart is at the top
+# and the totals are below the fold. `scrollUntilVisible` is a no-op if it is already on screen,
+# so this does not depend on whether the scroll position is restored.
+- scrollUntilVisible:
+    element:
+      id: 'cart-total'
+    direction: DOWN
+- assertVisible:
+    id: 'cart-total'
