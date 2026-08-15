@@ -32,6 +32,41 @@ you, and neither can be caused by merging an ordinary pull request.
 A skipped production build is not a failure. Netlify records it as "Build skipped" and leaves the
 currently published deploy live and untouched.
 
+## READ THIS FIRST — the gate is inert until the repository is connected
+
+**The Netlify site has no Git repository attached.** Checked on 2026-08-15:
+`build_settings.repo_url`, `provider`, `cmd` and `base` are all null, and the most recent deploy
+before today carried no commit ref at all.
+
+That means **none of this file has ever actually run**. Netlify has never built from a push, so:
+
+- deploy previews on pull requests do not exist;
+- the `ignore` hook in `netlify.toml` — the whole promote gate — has never been evaluated;
+- every production deploy so far, including today's, was a manual `netlify deploy --prod`.
+
+The gate is correct and tested (`scripts/test/netlify-gate.test.mjs` runs the shell wrapper and
+asserts its inverted exit codes), and it will start working the moment a repository is connected.
+Until then it protects nothing, and **the only thing standing between a mistake and production is
+whoever types the deploy command**.
+
+Connecting it needs the Netlify account and GitHub authorisation, so it is `E12-33` and it is
+Andy's. Until it is done, promoting is:
+
+```bash
+set -a; . ~/.graybag-secrets/prod.env; set +a
+PUBLIC_APP_ENV=production \
+PUBLIC_SUPABASE_URL="$SUPABASE_PROD_URL" \
+PUBLIC_SUPABASE_ANON_KEY="$SUPABASE_PROD_ANON_KEY" \
+PUBLIC_KITCHEN_TRANSPORT=live \
+PUBLIC_ENQUIRY_ENDPOINT="$SUPABASE_PROD_URL/functions/v1/enquiry-submit" \
+npm run build:web
+cd apps/web && npx netlify deploy --prod --dir dist
+```
+
+**Do not put those values in `apps/web/.env`.** A local `npm run dev:web` would then be a browser
+session against the live database, which is how somebody marks a real class delivered while
+testing.
+
 ## Why it is a pull request and not a plain push
 
 The first version of this document said "make an empty commit and push it", and that **does not

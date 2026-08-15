@@ -860,3 +860,38 @@ the screenshot the ticket itself recommended as the first step. The suspicion wa
 confirmation was the part that mattered and I left it to somebody else.
 
 Their diagnosis stands. Nothing in this branch depends on mine.
+
+---
+
+## D-16O — the deploy gate has never run, because the site has no repository
+
+Promoting revealed something bigger than the promote. The Netlify site has **no Git repository
+connected**: `build_settings.repo_url`, `provider`, `cmd` and `base` are all null, and every
+production deploy to date carried no commit ref.
+
+So `E12-30`'s gate — the `ignore` hook, the `[promote]` marker, the inverted exit codes, all of it
+— **has never been evaluated**, and pull requests have never had deploy previews. The gate is
+correct and its test now drives the real shell wrapper; it simply has nothing to run in.
+
+Filed as `E12-33`, `owner:andy`: connecting a repository needs the Netlify account and GitHub
+authorisation. Until then the only thing between a mistake and production is whoever types the
+deploy command, and `docs/netlify-deploys.md` now says that in its first section rather than
+describing an automation that does not exist.
+
+Production was brought current by the manual route, with the production values passed to that one
+build and deliberately **not** written into `apps/web/.env` — a local dev session pointed at the
+live database is how somebody marks a real class delivered while testing.
+
+### And the runbook I wrote could not be followed
+
+It said "make an empty commit and push it". `main` is protected, so that is rejected outright with
+`GH013`. The marker has to arrive as the **squash subject of a merged PR**, and merging without
+`--subject` puts `Title (#nn)` on `main`, which the gate correctly ignores. Both corrected. Found
+by trying to follow my own instructions, which is the only way that class of error surfaces.
+
+### The gate's own test was pinned to today's commit
+
+It ran the wrapper, which read the repository's `HEAD` — so it passed only while `HEAD` did not
+contain `[promote]`, and failed the moment a real promote merged, reporting a gate bug that did
+not exist. The wrapper now prefers an injected `COMMIT_MESSAGE` and the test pins one. Exactly the
+trap `docs/learnings.md` records: assert the behaviour, never today's contents.

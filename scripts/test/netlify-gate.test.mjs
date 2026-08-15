@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -73,7 +74,12 @@ const runGate = (env) => {
   try {
     execFileSync('bash', [join(ROOT, 'scripts', 'netlify-should-build.sh')], {
       cwd: ROOT,
-      env: { ...process.env, PROMOTE_TO_PRODUCTION: '', ...env },
+      // `COMMIT_MESSAGE` is pinned rather than left to the repository's HEAD. The first version
+      // of this test let the script read `git log -1`, so it passed only while HEAD did not
+      // contain `[promote]` — and failed the moment a real promote was merged, reporting a gate
+      // bug that did not exist. That is `docs/learnings.md`'s rule exactly: assert the behaviour,
+      // never today's contents.
+      env: { ...process.env, PROMOTE_TO_PRODUCTION: '', COMMIT_MESSAGE: 'an ordinary commit', ...env },
       encoding: 'utf8',
       stdio: 'pipe',
     });
@@ -93,4 +99,16 @@ test('the wrapper exits 1 (build) for a deploy preview', () => {
 
 test('the wrapper exits 1 (build) when promotion is explicitly requested', () => {
   assert.equal(runGate({ CONTEXT: 'production', PROMOTE_TO_PRODUCTION: 'true' }), 1);
+});
+
+test('the wrapper exits 1 (build) when the commit subject carries the marker', () => {
+  // The end-to-end path a real promote takes, through the shell rather than the module.
+  assert.equal(runGate({ CONTEXT: 'production', COMMIT_MESSAGE: '[promote] release 2026-08-19' }), 1);
+});
+
+test('the wrapper still reads git when no message is injected', () => {
+  // The fallback has to keep working — on Netlify nothing sets COMMIT_MESSAGE, and a gate that
+  // silently stopped reading the commit would fail open on every build.
+  const script = readFileSync(join(ROOT, 'scripts', 'netlify-should-build.sh'), 'utf8');
+  assert.match(script, /COMMIT_MESSAGE:-\$\(git log -1/);
 });
