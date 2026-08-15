@@ -942,3 +942,45 @@ explicit code wins over a derived one.
 `onboarded_at` on schools, so every school looked inactive and was skipped. The first export
 produced two rows and no templates, which read as "nothing to do" about a problem that closes two
 schools.
+
+---
+
+## D-16R — production could take a payment and send nothing, and nothing said so
+
+Andy asked me to confirm the enquiry email *arrives*, not just that the row lands. It did not — and
+the cause was not the enquiry.
+
+`ORDER_EMAIL_FROM` on production was an address at **`graybag.com`**. The only verified domain on
+the Resend account is **`mail.graybag.com`**. So every transactional send failed with
+`403 The graybag.com domain is not verified` — **order confirmations, tax invoices, refund notices
+and enquiry notifications alike**. The request still succeeded, the order still saved, and the
+403 appeared only in the Edge Function log.
+
+On the 19th that is a parent paying and being told nothing.
+
+Proven rather than inferred: the same message sent from `hello@graybag.com` returns 403 and from
+`hello@mail.graybag.com` returns 200, on the production key. `ORDER_EMAIL_FROM` is now
+`GrayBag <hello@mail.graybag.com>`, and an enquiry submitted afterwards produced a real email to
+`support@graybag.com` with the subject `GrayBag enquiry — …`.
+
+**What made it findable was insisting on the arrival rather than the row.** Every previous check
+had confirmed the enquiry was stored, which it always was.
+
+`check:launch` now reads Resend's domain list: a blocker when nothing is verified, and it prints
+the verified domain so the from-address is a one-line eyeball rather than an invisible assumption.
+It cannot read `ORDER_EMAIL_FROM` itself — the API returns secrets hashed — so the honest
+protection is that plus the canary in `docs/kitchen-day-one.md`.
+
+---
+
+## D-16S — the `noindex` flip is prepared and NOT pulled
+
+Seven conditions, in `docs/production-cutover.md`, and the two that are not met are not mine:
+the **DNS cutover** has not happened (the site answers only on `graybag-web.netlify.app`) and the
+**legal pages are not confirmed cleared**, which is the reason the marketing site was held back in
+the first place.
+
+The one that catches people is condition 7: `PUBLIC_SITE_PUBLISHED` is read at **build** time by
+`robots.txt.ts`, so setting the variable without promoting a build leaves `Disallow: /` live —
+and removing the header without rebuilding leaves the two mechanisms disagreeing, which is exactly
+the state having two of them is meant to prevent.

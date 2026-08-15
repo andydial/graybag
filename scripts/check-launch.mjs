@@ -112,6 +112,46 @@ for (const [name, why, fix] of [
   if (!env[name]) snapshot.missingSecrets.push({ name, why, fix });
 }
 
+let mailNote = null;
+
+// ---------------------------------------------------------------------------- mail
+//
+// **Production could take a payment and send nothing, and nothing said so.**
+// `ORDER_EMAIL_FROM` pointed at `graybag.com`; only `mail.graybag.com` is verified in Resend, so
+// every transactional send — order confirmation, invoice, refund notice, enquiry notification —
+// failed with a 403 that only appeared in the function log. Found on 2026-08-15 by checking
+// whether an enquiry notification had actually arrived, rather than that the row had landed.
+//
+// A static check cannot read `ORDER_EMAIL_FROM` (it is a function secret and the API returns it
+// hashed), so this reports what it *can* prove: whether any domain is verified at all, and which.
+// The from-address is then a one-line eyeball rather than an invisible assumption.
+if (env.RESEND_API_KEY) {
+  try {
+    const res = await fetch('https://api.resend.com/domains', {
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}` },
+    });
+    const domains = res.ok ? ((await res.json()).data ?? []) : [];
+    const verified = domains.filter((d) => d.status === 'verified').map((d) => d.name);
+
+    if (verified.length === 0) {
+      snapshot.missingSecrets.push({
+        name: 'a verified Resend sending domain',
+        why:
+          'No domain on this Resend account is verified, so every transactional email fails with ' +
+          'a 403 — order confirmations, invoices, refund notices and enquiry notifications. The ' +
+          'failure appears only in the function log; the order still succeeds and the parent is ' +
+          'told nothing.',
+        fix: 'Verify the sending domain at https://resend.com/domains.',
+      });
+    } else {
+      mailNote = verified;
+    }
+  } catch {
+    // A launch check must not fail because Resend was briefly unreachable.
+    mailNote = null;
+  }
+}
+
 // ---------------------------------------------------------------------------- print
 
 // Named capture rather than a sparse-array fallback: `[, '?']` is a hole in an array literal,
@@ -124,6 +164,9 @@ console.log('');
 console.log(`GrayBag launch check — project ${ref}`);
 console.log(`${snapshot.schools.length} schools · ${snapshot.dishes.length} dishes · ` +
   `${snapshot.menus.length} menus · ${snapshot.menuItems.length} menu items`);
+if (mailNote) {
+  console.log(`mail sends from: ${mailNote.join(', ')} — ORDER_EMAIL_FROM must be on one of these`);
+}
 console.log('');
 
 if (results.length === 0) {

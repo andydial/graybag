@@ -4296,13 +4296,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/33</span>
+          <span class="meter-num">0/34</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 33 tasks</summary>
+        <summary>Context &amp; 34 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4569,6 +4569,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:high) <strong>The Netlify site has no Git repository connected, so <code>E12-30</code>&#39;s deploy gate has never run.</strong> Checked 2026-08-15: <code>build_settings.repo_url</code>, <code>provider</code>, <code>cmd</code> and <code>base</code> are all null, and every production deploy to date carried no commit ref — they were manual <code>netlify deploy --prod</code> runs. Consequences: <strong>no deploy previews on pull requests</strong>, and the <code>ignore</code> hook that gates production has never been evaluated, so the gate protects nothing. The gate itself is correct and tested (<code>scripts/test/netlify-gate.test.mjs</code> runs the shell wrapper and asserts its inverted exit codes) and starts working the instant a repository is attached. Until then the only thing between a mistake and production is whoever types the deploy command. Needs the Netlify account and GitHub authorisation: Site configuration → Build &amp; deploy → <strong>Link repository</strong>, base directory <code>apps/web</code>. <code>docs/netlify-deploys.md</code> carries the manual procedure in the meantime</span>
+      </li>
+      <li class="task" data-id="E12-34" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-34"></button>
+        <code class="tid">E12-34</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Production could take a payment and send nothing.</strong> <code>ORDER_EMAIL_FROM</code> on production was an address at <code>graybag.com</code>; the only domain verified in Resend is <code>mail.graybag.com</code>, so <strong>every</strong> transactional send failed <code>403</code> — order confirmations, tax invoices, refund notices and enquiry notifications. The request still succeeded and the 403 appeared only in the Edge Function log, so an order looked completely normal while the parent was told nothing. Fixed: <code>ORDER_EMAIL_FROM</code> is now <code>GrayBag &lt;hello@mail.graybag.com&gt;</code>, proven by sending the same message from both addresses on the production key (403 vs 200) and then by a real enquiry producing a real email to <code>support@graybag.com</code>. Found only because the check was &quot;did it arrive&quot;, not &quot;did the row land&quot; — every earlier check confirmed the row, which was never the broken half. <code>check:launch</code> now reports Resend&#39;s verified domains and blocks when none is verified</span>
       </li></ul>
       </details>
     </article>
