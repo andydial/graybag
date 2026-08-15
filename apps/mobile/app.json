@@ -12,7 +12,10 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.gracord.graybag",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Lets you save a payment QR code or receipt image from the checkout screen to your photos. GrayBag does not otherwise access your photo library.",
+        "NSPhotoLibraryAddUsageDescription": "Lets GrayBag save a payment QR code or receipt image to your photos when you choose to save one.",
+        "NSCameraUsageDescription": "Lets you scan a UPI QR code with your camera while paying for an order."
       }
     },
     "android": {

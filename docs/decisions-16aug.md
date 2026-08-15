@@ -1054,3 +1054,193 @@ screenshotted with headless Chrome. **It is a reconstruction, not a device scree
 cannot run on this machine (`E14-30`: no Xcode or Android SDK), so no simulator or emulator exists
 to capture. Said plainly because a reconstruction presented as a screenshot is a claim about
 evidence that is not true.
+
+---
+
+# PART THREE — the iOS submission, and the six items
+
+## D24 — iOS: built, uploaded, and what actually blocked it for three builds
+
+**Uploaded to App Store Connect: 4.0.0, build 11**, from `69ee4c59-4f62-4c80-b54f-64053985daea`.
+
+Getting there needed four things, and only the first was expected:
+
+1. **A pseudo-TTY.** `eas build` refuses to create credentials in non-interactive mode, and
+   piping into stdin still counts as non-interactive — stdin hits EOF before the prompt appears.
+   `script -q /dev/null` allocates a PTY; `expect` then answers the prompts. Without that, the
+   ASC key alone changes nothing.
+2. **The Apple Team Type**, which EAS asks and cannot infer. Chosen **Company/Organization** —
+   Enterprise is in-house distribution and does not publish to the public App Store, and GrayBag
+   Solutions Private Limited is a registered company. Apple then confirmed it:
+   *"Team name: Graycord Pty Ltd (Company/Organization)"*.
+3. **Reusing the existing distribution certificate** (`G9T5JTWLWM`, valid to June 2027, already
+   used by dubbaa and graybag) rather than minting a second. Apple caps distribution certificates
+   at two or three per team; spending one to avoid answering a prompt is a cost that lands months
+   later on somebody else.
+4. **`E12-30`** — the real blocker, below.
+
+Credentials are now stored on the EAS servers, so **subsequent builds work with plain
+`--non-interactive`**. The PTY dance was one-time.
+
+## D25 — `E12-30`: the bundle reached into `docs/`, which EAS does not upload
+
+Three iOS builds failed with the CLI reporting only *"Unknown error. See logs of the Bundle
+JavaScript build phase."* The worker log, fetched via GraphQL and **brotli**-decompressed, said:
+
+    Unable to resolve module ../../../../docs/legal/company.json
+      from packages/shared/src/legal/company.ts
+
+`packages/shared/src/legal/company.ts` (PR #51) imports `docs/legal/company.json`. `.easignore`
+excludes `docs/` deliberately — 1.25 MB of prose on an 85 KB/s upload — while `packages/` is
+uploaded because the app depends on it.
+
+**`.easignore`'s own header records the identical failure for `config/`**, which "cost three
+builds" and died "in the EAGER_BUNDLE phase with nothing in the CLI output but Unknown error".
+Same lesson, second directory, three more builds.
+
+Android built fine because it was built from `bd8b295`, before PR #51 merged. The break was
+invisible until the first iOS build after it.
+
+Fixed by following the precedent the repo already set for policy documents: a generated module
+(`scripts/build-company-identity.mjs` → `company.generated.ts`) with `check:company` in the smoke
+test. The JSON stays where it is — it is the source of entity facts for the web app, the invoice
+renderer and `sync-seller-identity.mjs`, and moving it under `packages/` to satisfy a bundler
+would break three readers to please one.
+
+## D26 — EAS Update is live on the production channel
+
+**The one-line command to ship a JS-only fix:**
+
+```bash
+cd apps/mobile && npx eas-cli update --branch production --environment production \
+  --message "what changed" --non-interactive
+```
+
+Proven end to end at the delivery layer, not assumed. Published update group
+`4625c384-74f0-40b8-ae37-d6956b9381a3`, then asked the update server exactly what the app asks:
+
+| request | result |
+|---|---|
+| `expo-platform: ios`, runtime `4.0.0`, channel `production` | **200**, manifest id `01a00401-85c0-7ab6-8d87-33b1e714e6ed` — the published iOS update — with a `launchAsset` |
+| same, runtime `3.7.0` (the live Bubble-era version) | **204**, no bundle |
+
+The second is the guard rail: `runtimeVersion` is `{ policy: "appVersion" }`, so an update only
+reaches builds of the **same app version**. A 4.0.0 update cannot land on a 3.7.0 install.
+
+**What OTA can and cannot fix**, because getting this wrong wastes a review cycle:
+
+- **Can**: anything in JS/TS — screens, copy, api calls, validation, the version-gate logic.
+- **Cannot**: native dependencies, permissions, app icons, the app version itself, `app.config.js`
+  identity. Those need a build and a review.
+- The app fetches on launch (`fallbackToCacheTimeout: 10000`): it waits up to 10s, and otherwise
+  applies the update on the **next** launch. A parent may need to background and reopen once.
+
+**I could not watch it apply on a device** — no simulator or emulator on this machine (`E14-30`).
+The server serves exactly the right manifest to exactly the right runtime and refuses the wrong
+one, which is the whole delivery path short of the device.
+
+## D27 — Sentry: NOT installed, and adding it now would cost a review cycle
+
+`@sentry/react-native` is **not a dependency**. It appears once, in a jest `transformIgnorePatterns`
+entry — aspirational, not wired. Nothing calls `Sentry.init`. There is no DSN in `prod.env`.
+
+**Decision: not added, and not before the iOS submission.** It is a **native** dependency. Adding
+it means a new binary, a new App Store review, and the 4.0.0 build now sitting in Apple's queue
+would be superseded by one that has not been reviewed. Against a 16 August submission deadline
+that trade is clearly wrong.
+
+**The guard Andy said matters more already exists and is enforced.**
+`apps/mobile/src/architecture/child-data-telemetry.test.ts` scans every non-test source in
+`apps/mobile/src` and `packages/shared/src` for a telemetry sink carrying a child-record field:
+
+- **Sinks**: `Sentry.*`, `captureException`, `captureMessage`, `addBreadcrumb`, `setUser`,
+  `setContext`, `setTag`, `analytics.*`, `track`, `identify`, `logEvent`, `posthog.*`,
+  `mixpanel.*`, `amplitude.*`, and `console.log|info|warn|error|debug|trace`.
+- **Fields**: `firstName`, `lastName`, `classLabel`, `sectionLabel`, **`allergyNote`,
+  `allergenIds`**, `displayName` — and every one again in snake_case, because the API layer and
+  PostgREST disagree about spelling and a rule that knew one would be half a rule.
+- Its own self-tests prove it catches "allergy data in a Sentry breadcrumb — tier S, the worst
+  case".
+
+So the assertion is in place **before** the SDK arrives, which is the order this repo learned to
+do things in (`setMenuCache` was named in four comments while nothing called it). When Sentry is
+added, it lands into a guard that is already failing builds.
+
+Needed to finish: a DSN, and a build+review cycle. Best done immediately **after** 4.0.0 clears
+review, so it rides the next binary rather than displacing this one.
+
+## D28 — Play: the hand-upload path works, and the three steps for a service account
+
+**The `.aab` is current against prod in every way that matters**, with one caveat worth stating.
+
+| | |
+|---|---|
+| Build | `ee8dfe09-ee30-4d8c-a990-08fdda62576d` |
+| Version / code | `4.0.0` / `1786591933` — above the live Play floor `1777726914` |
+| Package | `com.Gracord.Graybag` |
+| Points at | production — all four `EXPO_PUBLIC_*` verified via `eas env:exec production` |
+| Artefact | `https://expo.dev/artifacts/eas/K1wq3wx4jpl5gMld1nG_rhjc3Is7N2jaz_P2vh4B0g4.aab` |
+
+**Caveat:** it was built from `bd8b295`, so it predates two JS changes — the
+`missingClientEnvNames` fix (`E01-28`) and `company.generated.ts` (`E12-30`). Neither is native,
+so **both can be shipped to it over the air** once it is installed. That is the first real use of
+`D26`, and a good first exercise of the OTA path.
+
+**Hand upload works and needs no key:** Play Console → GrayBag → Testing → Internal testing →
+Create new release → upload the `.aab` → Save → Review → Start rollout.
+
+**The service account, in three steps**, for when this should be repeatable:
+
+1. **Google Cloud Console** → the project linked to your Play account → *IAM & Admin* →
+   *Service Accounts* → **Create service account** (name it `graybag-play-publisher`) → done, no
+   roles needed at the GCP level → open it → *Keys* → *Add key* → *Create new key* → **JSON** →
+   it downloads once.
+2. **Play Console** → *Users and permissions* → **Invite new user** → paste the service account's
+   email (`…@….iam.gserviceaccount.com`) → *App permissions*: add GrayBag → grant **Release
+   manager** (it needs *Release to testing tracks* at minimum) → Invite.
+3. Save the JSON to `~/.graybag-secrets/play-service-account.json` (`chmod 600`) and add to
+   `eas.json` under `submit.production.android`:
+   `"serviceAccountKeyPath": "/Users/andy/.graybag-secrets/play-service-account.json"`.
+   Then `eas submit --platform android --profile production --id <build-id>` works unattended.
+
+Step 2 is the one people miss: creating the account in GCP grants nothing in Play. The invite is
+what gives it permission, and it can take a few minutes to propagate.
+
+## D29 — The force-update plan for the 19th. NOT set today.
+
+The floor is `0.0.0` on production right now — verified by reading it back after the `E01-28`
+proof — so it gates nobody.
+
+**What to run on the 19th**, once 4.0.0 is live on both stores and you are ready:
+
+```sql
+update platform_config
+   set min_supported_app_version = '4.0.0',
+       update_required_message = 'GrayBag has moved to a new system. Please update to keep ordering.'
+ where id = 1;
+```
+
+**When.** Not at 7am. The cutoff for the same day's lunch is already past by then, so a parent
+blocked at breakfast has no way to fix an order they have already placed. **Set it mid-morning,
+after that day's deliveries are out and before the evening ordering peak** — roughly 11:00 IST.
+Nobody is mid-checkout, and everybody has the rest of the day to update before they next order.
+
+**Reverting is one statement** — set it back to `0.0.0`. No deploy either way; that is the whole
+reason the floor is data (`E17-46`).
+
+**What a parent on the old Bubble app sees: nothing.** This must be said plainly because it is
+the most likely misunderstanding. The floor lives in `platform_config` and is read by
+`app_version_support` in *this* system. The legacy Bubble app does not call it, does not know it
+exists, and will carry on working against Bubble's own backend until that is switched off.
+**Migrating those families is a separate job** — an email, and whatever cutover `E17` defines —
+and the force-update gate does nothing for it.
+
+Who the gate *does* affect: a parent who has installed 4.0.0's predecessor from **this** codebase.
+Today that is the TestFlight and internal-track testers, and after the 19th anyone who installed
+from the store before an OTA update reaches them.
+
+**One caveat about the floor itself.** Setting it to exactly `4.0.0` blocks nothing that is
+already on 4.0.0 — the comparison is `>=`. It only starts refusing when 4.0.1 exists and you raise
+the floor to it. If the intent on the 19th is "everyone must be on the new app", the floor is not
+the mechanism for that — it enforces *minimum version among installs of this app*, not
+*"stop using Bubble"*.
