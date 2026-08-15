@@ -18,11 +18,11 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
-## Open — 1 item
+## Open — nothing
 
-| # | Ask | Asked | Status |
-|---|---|---|---|
-| 1 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine). The job has **still never been observed green**; its last run was cancelled. `E14-36` fixed the Gradle metaspace OOM and the 781-second emulator boot and is on `main` |
+The queue is empty. `Maestro in CI` (asked 2026-08-10) closed on 2026-08-16: `[Passed] cart
+(47s)`, `1/1 Flow Passed`, run 31891879898 — **the first time that job has ever been green**.
+Five causes in total, listed on `E14-38`.
 
 ---
 

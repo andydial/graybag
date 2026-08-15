@@ -58,3 +58,44 @@ The first shape was a `identity` prop for testability and `orphans.test.ts` refu
 correctly, since nothing but a test would pass it. The logic moved into a pure `buildLabelText`.
 I changed my code rather than the guard; `UpdateRequiredScreen` had already made the same call
 for the same reason.
+
+## D45
+
+**Maestro is green** — `[Passed] cart (47s)`, run 31891879898, the first time that job has ever
+passed. Five distinct causes, and the shape is worth keeping: four were real defects in the
+harness or its configuration, one was mine (`\` line continuations in a `script:` the action runs
+a line at a time), and **none of them was a product bug**. The app was working the whole time.
+
+The thing that finally made it tractable was the debug artifact — a screenshot and view hierarchy
+at the moment of failure turned a 29-minute guess into a two-minute read, and settled the last
+two causes in one run each.
+
+## D46
+
+**No fake payment on production, so the order-confirmation email stays unproven.** Andy asked for
+"place an order, see it in Orders, open the detail, get the email". The first three are done on
+production against a real clean parent. The email fires only when an order reaches `paid`, and
+reaching `paid` needs a real Razorpay payment.
+
+I could have forged a signed webhook — I have the secret and the signature scheme is proven both
+ways — and I decided not to. It would put a phantom ₹72.46 through the live ledger, the invoice
+sequence and `settle_payment` on launch weekend, and someone would have to unpick it from real
+books. A test that corrupts the thing it is testing is not a test.
+
+What I did instead: proved Resend works **from production** by submitting an enquiry, which
+reached `support@graybag.com` with provider status `sent`, alongside sign-in codes showing
+`delivered`. So the API key, sending domain and `ORDER_EMAIL_FROM` are all confirmed live. The
+untested remainder is `_shared/order-confirmation.ts` itself — template, recipient resolution,
+and `0050`'s one-email-per-order index — logged as `E08-15` with the note that **no Edge Function
+shared module has any test at all**.
+
+## D47
+
+**Play could not be submitted; documented instead.** `eas submit --platform android` needs a
+Google Play service-account JSON that does not exist here (`E17-51`, `owner:andy`). The bundle is
+built, signed and on the `production` channel: `docs/play-internal-track.md` has the download
+URL, package name, version code and three steps.
+
+Worth knowing when it installs: the `.aab` was built from `bd8b295`, before this run's fixes, so
+it will pull the current JS over the air on first launch — which makes the Play install a second
+free test of the OTA path.
