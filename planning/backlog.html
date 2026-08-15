@@ -561,7 +561,7 @@
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong><code>Maestro (cart)</code> has timed out at the 45-minute job limit on every pull request today</strong>, including the payments thread&#39;s <code>e06-02-create-order</code>. The step that hangs is *Build the staging APK*; the last Integration run to pass was a scheduled one on 2026-08-12 at 4m12s. <code>#43</code> and <code>#45</code> were both merged around it after confirming neither diff touched a mobile, Android, Gradle or Maestro file. <strong>That is twice, and Andy&#39;s ruling stands: a required check that times out on every PR is a gate switched off by accident, and merging around it is how it stays off.</strong> Find the cause — a Gradle distribution fetch was seen failing with <code>Unexpected end of file from server</code>, so a pinned/cached distribution is the first thing to try — and either fix it or raise the timeout deliberately. Do not merge around it a third time</span>
+        <span class="ttext"><strong><code>Maestro (cart)</code> could never have passed, and the timeout was not why.</strong> The job was blamed on the 45-minute limit and <code>E14-36</code> fixed that half — the Gradle metaspace OOM and the 781-second software-emulated boot, with KVM and an AVD cache. It still failed, now in 27 minutes rather than 45, with <code>Package com.gracord.graybag.staging is not installed</code> after a 24-minute build. <strong>Two independent bugs, either of which alone was fatal.</strong> (1) The workflow set <code>EXPO_PUBLIC_APP_ENV: staging</code> but <code>app.config.js</code> reads <code>process.env.APP_ENV</code> to choose the identity, so <code>APP_ENV</code> was unset, the config fell to the <code>local</code> identity, and the APK installed as <code>…Graybag.dev</code>. (2) The flow&#39;s <code>appId</code> was <code>com.gracord.graybag.staging</code> — the <strong>iOS</strong> bundle id with a staging suffix — while Android builds <code>com.Gracord.Graybag.staging</code>, and Android package names are <strong>case-sensitive</strong>. The capitals match the Play Console exactly (<code>E17-35</code>) and cannot be changed after publication, so the flow was wrong, not the app. Both fixed. <code>scripts/check-maestro-ids.mjs</code> now derives the expected <code>appId</code> from <code>app.json</code> + <code>app.config.js</code> and fails in a second — verified by reverting the value and watching it fail. A wrong <code>appId</code> otherwise fails only *after* the emulator boots and the APK builds, which is the most expensive place to learn it</span>
       </li></ul>
       </details>
     </article>
@@ -4084,13 +4084,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Revenue share / payout report with edit-before-confirm and mark-as-paid</span>
       </li>
-      <li class="task" data-id="E10-10" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E10-10" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-10"></button>
         <code class="tid">E10-10</code>
         
         
-        <span class="badge r-later">later</span>
-        <span class="ttext">Business metrics: orders per day, revenue, active users, per-school breakdown</span>
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Orders and revenue, by school, by month.</strong> Andy, 2026-08-15: reports stay in v1. Scoped deliberately to that and nothing else — no active-user counts, no cohort retention, no payout view (<code>E10-09</code>, <code>E10-17</code>). <code>/reports</code> reads <code>admin-reports.ts</code>, whose column list is the compliance control: <strong>no recipient, class or section column</strong>, because a report is aggregate by definition and non-negotiable #4 keeps a child&#39;s data out of anything a school receives. Cancelled and refunded orders are counted but are not revenue, and the page says so — excluding them entirely makes the order count disagree with the kitchen&#39;s. Months come from the date string, never through a <code>Date</code>: <code>2026-08-01</code> parsed as UTC midnight formats back to 31 July in IST, which is <code>E09-32</code> in a new place</span>
       </li>
       <li class="task" data-id="E10-11" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-11"></button>

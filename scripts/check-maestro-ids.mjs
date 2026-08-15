@@ -169,11 +169,54 @@ for (const flow of flows) {
   }
 }
 
+// ---------------------------------------------------------------------------- appId
+//
+// `E01-26`. A flow's `appId` must be the package the CI build actually installs, and for two
+// months it was not: the flow named `com.gracord.graybag.staging` — the **iOS** bundle id with a
+// staging suffix — while the Android build produced `com.Gracord.Graybag.staging`. Android
+// package names are case-sensitive, so Maestro answered "Package … is not installed" after a
+// 24-minute build, every time, on every pull request.
+//
+// A wrong `appId` fails *late and expensively*: after the emulator boots and the APK builds.
+// This check fails in a second, on the machine of whoever changed it.
+//
+// Derived from `app.json` and `app.config.js` rather than written down again — a second copy of
+// the package name is exactly what went wrong, and hardcoding the answer here would recreate it.
+const APP_JSON = JSON.parse(readFileSync(join(ROOT, 'apps/mobile/app.json'), 'utf8'));
+const ANDROID_PACKAGE = APP_JSON.expo?.android?.package ?? APP_JSON.android?.package;
+
+// The staging suffix, read out of the identity table rather than assumed to be '.staging'.
+const CONFIG_SOURCE = readFileSync(join(ROOT, 'apps/mobile/app.config.js'), 'utf8');
+const STAGING_SUFFIX = /staging:\s*\{[^}]*suffix:\s*'([^']*)'/.exec(CONFIG_SOURCE)?.[1];
+
+if (!ANDROID_PACKAGE || STAGING_SUFFIX === undefined) {
+  problems.push(
+    'could not read the Android package or the staging suffix from app.json / app.config.js — ' +
+      'the appId check below cannot run, which means it is not protecting anything',
+  );
+} else {
+  const expected = `${ANDROID_PACKAGE}${STAGING_SUFFIX}`;
+  for (const flow of flows) {
+    const found = /^appId:\s*(\S+)\s*$/m.exec(readFileSync(flow, 'utf8'))?.[1];
+    if (found === undefined) continue;
+    if (found !== expected) {
+      problems.push(
+        `${flow.replace(`${ROOT}/`, '')}: appId is "${found}" but the CI build installs ` +
+          `"${expected}" (Android package + staging suffix). Package names are case-sensitive, ` +
+          `and the iOS bundle id is deliberately different — see E01-26.`,
+      );
+    }
+  }
+}
+
 if (problems.length) {
-  console.error('Maestro flows reference testIDs that do not exist:\n  ' + problems.join('\n  '));
+  console.error('Maestro flows reference things that do not exist:\n  ' + problems.join('\n  '));
   console.error('\nA missing id does not fail fast — the flow hangs until it times out, which');
-  console.error('reads as flakiness. Add the testID, or fix the flow.');
+  console.error('reads as flakiness. A wrong appId fails only after the APK is built. Both are');
+  console.error('cheap to catch here and expensive to catch in CI. Fix the flow, or the app.');
   process.exit(1);
 }
 
-console.log(`${flows.length} Maestro flow(s) checked — every id resolves.`);
+console.log(
+  `${flows.length} Maestro flow(s) checked — every id resolves, and every appId matches the build.`,
+);

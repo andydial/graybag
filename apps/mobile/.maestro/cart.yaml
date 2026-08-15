@@ -19,7 +19,20 @@
 #
 # Against the staging dev client or a staging build — the app id carries `.staging`, so this
 # cannot accidentally drive a production install (`app.config.js` STAGING_SUFFIX).
-appId: com.gracord.graybag.staging
+# The ANDROID package, capitals and all. `com.Gracord.Graybag` matches the Play Console exactly
+# (`E17-35`) and an `applicationId` cannot be changed after publication, so the capitals are not
+# ours to tidy. This line previously read `com.gracord.graybag.staging` — the **iOS** bundle id
+# with a staging suffix — and Android package names are case-sensitive, so the flow looked for an
+# app that was never going to be there.
+#
+# That is the second half of `E01-26`: combined with the unset `APP_ENV` in the workflow, this
+# job could not have passed on Android under any circumstances, which is why it has never once
+# been observed green.
+#
+# `scripts/check-maestro-ids.mjs` now asserts this value against `app.config.js`, so it cannot
+# drift again. When the iOS matrix leg arrives this becomes a `--env` substitution rather than a
+# literal, because the two platforms genuinely disagree on the id.
+appId: com.Gracord.Graybag.staging
 ---
 - launchApp:
     clearState: true
