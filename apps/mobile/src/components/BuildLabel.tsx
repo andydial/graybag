@@ -1,8 +1,42 @@
 import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { StyleSheet, Text, View } from 'react-native';
 import { design } from '@graybag/shared';
 
 const { text, space, scale } = design;
+
+/**
+ * Which JS the binary is actually running — the half `gitSha` cannot answer.
+ *
+ * `gitSha` is stamped at **build** time, so it never moves when an OTA lands. A build showing
+ * `Production · 394dd2f` is showing the commit its *binary* came from, whether the JS on top of
+ * it is that commit's or a bundle published half an hour ago. Without this, "did the update
+ * apply?" is unanswerable from the device, which makes an OTA something you hope happened.
+ */
+export interface BuildIdentity {
+  /** `false` in Expo Go and dev clients, where none of the rest means anything. */
+  enabled: boolean;
+  /** `true` when running the JS baked into the binary rather than a downloaded update. */
+  embedded: boolean;
+  /** The update's uuid, or `null` when running embedded. */
+  updateId: string | null;
+}
+
+/**
+ * Read it defensively. Every field here is optional at runtime depending on how the binary was
+ * built, and a diagnostic label is the last thing that should be able to crash a screen.
+ */
+export function readBuildIdentity(): BuildIdentity {
+  try {
+    return {
+      enabled: Updates.isEnabled === true,
+      embedded: Updates.isEmbeddedLaunch !== false,
+      updateId: typeof Updates.updateId === 'string' ? Updates.updateId : null,
+    };
+  } catch {
+    return { enabled: false, embedded: true, updateId: null };
+  }
+}
 
 /**
  * Which build is this, in words, on screen.
@@ -33,6 +67,35 @@ const { text, space, scale } = design;
  * Environment and commit only. Never a user id, never an email, never a school (R6). This is a
  * label about the *binary*, not about whoever is holding it.
  */
+/**
+ * The label, as a string. Pure, so the interesting part is testable without a renderer and
+ * without a test-only prop on the component — `orphans.test.ts` is right to refuse one, and it
+ * refused this exact prop when it was tried.
+ */
+export function buildLabelText(
+  label: string,
+  gitSha: string,
+  build: BuildIdentity,
+): string {
+  /**
+   * The OTA segment, and it is omitted rather than faked when updates are off.
+   *
+   * In Expo Go and dev clients `isEnabled` is false and none of the update fields mean
+   * anything; printing "bundled" there would be a true statement that reads as a claim about
+   * an update channel that is not running.
+   *
+   * Seven characters, like the commit beside it — enough to match against `eas update:list`
+   * and short enough to read off a photograph of a phone.
+   */
+  const ota = !build.enabled
+    ? null
+    : build.embedded || build.updateId === null
+      ? 'bundled'
+      : `OTA ${build.updateId.slice(0, 7)}`;
+
+  return `${label} · ${gitSha}${ota === null ? '' : ` · ${ota}`}`;
+}
+
 export function BuildLabel({ testID = 'build-label' }: { testID?: string }) {
   const extra = Constants.expoConfig?.extra ?? {};
   const appEnv = typeof extra.appEnv === 'string' ? extra.appEnv : 'unknown';
@@ -45,7 +108,7 @@ export function BuildLabel({ testID = 'build-label' }: { testID?: string }) {
   return (
     <View style={styles.wrap}>
       <Text style={styles.text} testID={testID} selectable>
-        {label} · {gitSha}
+        {buildLabelText(label, gitSha, readBuildIdentity())}
       </Text>
     </View>
   );
