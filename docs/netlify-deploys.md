@@ -7,15 +7,17 @@ status: Written 2026-08-15. `E12-30`.
 
 ## How you promote a build to production
 
-**Push a commit whose subject line contains `[promote]`.** That is the whole procedure. Every
-pull request already gets its own preview URL automatically, and every push to `main` builds
-nothing at all — the `ignore` hook in `apps/web/netlify.toml` skips the production build unless
-the tip commit's subject carries the marker, so the live site simply stays as it was. When you
-are ready to ship what is on `main`, make an empty commit that says so — `git commit --allow-empty
--m "[promote] release 2026-08-19"` and push it — and that one build runs and publishes. If you
-would rather not add a commit, open the Netlify dashboard, choose **Trigger deploy → Deploy site**
-and set `PROMOTE_TO_PRODUCTION=true` for that run; the gate accepts either. Both are deliberate
-acts by you, and neither can be caused by merging a pull request.
+**Open a pull request with one empty commit and merge it with `[promote]` in the subject.** That
+is the whole procedure. Every pull request already gets its own preview URL automatically, and
+every push to `main` builds nothing at all — the `ignore` hook in `apps/web/netlify.toml` skips
+the production build unless the tip commit's subject carries the marker, so the live site simply
+stays as it was. When you are ready to ship what is on `main`, run `git checkout -b promote-$(date
++%F) && git commit --allow-empty -m "[promote] release" && git push -u origin HEAD`, open the PR,
+and merge it with **`--squash --subject "[promote] release 2026-08-19"`** — the squash subject is
+what lands on `main`, and that is the line the gate reads. If you would rather not touch git at
+all, open the Netlify dashboard, choose **Trigger deploy → Deploy site** and set
+`PROMOTE_TO_PRODUCTION=true` for that run; the gate accepts either. Both are deliberate acts by
+you, and neither can be caused by merging an ordinary pull request.
 
 ---
 
@@ -29,6 +31,17 @@ acts by you, and neither can be caused by merging a pull request.
 
 A skipped production build is not a failure. Netlify records it as "Build skipped" and leaves the
 currently published deploy live and untouched.
+
+## Why it is a pull request and not a plain push
+
+The first version of this document said "make an empty commit and push it", and that **does not
+work**: `main` is protected, and a direct push is rejected with `GH013 — changes must be made
+through a pull request`. Found by trying to follow it.
+
+The marker therefore has to arrive on `main` as the **squash subject** of a merged PR, which is
+why the command above passes `--subject` explicitly. Merging without it puts GitHub's default
+subject on `main` — `Title (#nn)` — and the gate, correctly, skips the build. If you promote and
+nothing deploys, that is the first thing to check.
 
 ## The bit that is still yours to do
 
