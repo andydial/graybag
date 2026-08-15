@@ -424,3 +424,28 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# =============================================================================
+# Edge Functions — `E06-47`
+# =============================================================================
+#
+# **`payments-webhook` must not require a Supabase JWT.** Razorpay signs its deliveries with our
+# shared webhook secret in an `x-razorpay-signature` header; it has never heard of Supabase auth
+# and sends no bearer token. With `verify_jwt = true` the gateway answers 401 before the function
+# runs, so every capture is delivered, rejected, and never settled — a customer charged with no
+# order, and no error anywhere we would look.
+#
+# This was `false` on staging and **nowhere in version control**: somebody set it by hand in the
+# dashboard months ago. Standing up production on 2026-08-16 deployed it as `true` — the default —
+# and it was caught by listing the functions rather than by anything failing, because nothing
+# fails until real money moves.
+#
+# The function's own security does not depend on the gateway: it verifies the HMAC itself and
+# records `signature_verified = false` when it cannot, which is the correct fail-safe.
+[functions.payments-webhook]
+verify_jwt = false
+
+# `payments-drain` deliberately KEEPS `verify_jwt = true`. Its header explains why: the gateway
+# verifies the token's signature before the function runs, and the function then checks the `role`
+# claim without re-verifying. Reading an unverified token is only safe because of that ordering —
+# turn this off and the function is wide open to anyone who can forge a JSON blob.
