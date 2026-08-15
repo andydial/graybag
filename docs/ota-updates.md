@@ -87,3 +87,34 @@ npx eas update:list --branch production --limit 5
 OTA is the fast lever for a *fix*. Making a version mandatory is a different mechanism —
 `min_supported_app_version` in `platform_config`, described in `docs/force-update-plan.md`. Do
 not reach for OTA to force anything; it cannot, by design.
+
+---
+
+## What was verified on 2026-08-16, and what was not
+
+Published `c4342c44-4ce7-4b3f-9fad-4f66d92dfaac` (runtime 4.0.0, android + ios) and then asked
+the update server the same question a real client asks:
+
+```sh
+curl -s https://u.expo.dev/c2f325fa-47ad-474b-b863-e70a9b109728 \
+  -H "expo-platform: ios" -H "expo-runtime-version: 4.0.0" \
+  -H "expo-channel-name: production" -H "expo-protocol-version: 1" \
+  -H "expo-api-version: 1" -H "accept: multipart/mixed"
+```
+
+| Check | Result |
+|---|---|
+| iOS manifest for runtime 4.0.0 / channel production | **200**, id `01a0060e-169a-7835-…` — matches what `eas update` printed |
+| Android manifest, same | **200**, id `01a0060e-169a-7e59-…` — matches |
+| Runtime **3.7.0** | **204 — no update.** The Bubble build can never be served our JS |
+| Runtime **4.0.1** | **204 — no update.** This is the `version` bump trap above, demonstrated rather than asserted |
+
+**Not verified here: the bundle applying on a device.** There is no simulator or emulator on the
+build machine (Command Line Tools only, no Android SDK), so nothing could be launched to watch it
+land. Fetching the launch asset with plain `curl` returns 403 — EAS signs those requests and a
+real client sends credentials a shell does not, so that proves nothing in either direction.
+
+**The remaining proof takes five seconds on build 12**: open the app, go to Account, read the
+footer. `· bundled` means the binary's own JS; `· OTA c4342c44…` means this update applied. That
+binary was compiled before the OTA segment existed, so the segment cannot appear unless an update
+replaced its JS.
