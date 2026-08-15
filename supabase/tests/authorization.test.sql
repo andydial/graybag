@@ -78,7 +78,7 @@ begin;
 
 -- The harness's own tables and functions live in their own schema, never in public:
 -- a helper table in public would show up in tests_visible_counts() and in the
--- "public contains exactly these 61 tables" assertion, and a suite that has to make
+-- "public contains exactly these 64 tables" assertion, and a suite that has to make
 -- exceptions for itself is a suite that can be fooled. Rolled back with everything
 -- else at the end.
 create schema tests_tmp;
@@ -612,6 +612,12 @@ insert into tests_tmp.tests_class3 values
   ('retention_policy'), ('purge_run'), ('idempotency_key'),
   ('audit_log'), ('school_report'), ('notification_delivery'),
   ('school_menu_version'), ('menu_item_capacity'), ('reason_code'),
+  -- `0057`. Class 3 by the §5 Rule 4 definition — writes are service_role only, performed by
+  -- the `enquiry-submit` Edge Function. An enquiry carries a named member of staff at a school
+  -- and their direct line, so `authenticated` holding INSERT on it would let any signed-in
+  -- parent write one, and holding SELECT would let them read every school we are talking to.
+  ('enquiry'), ('enquiry_rate'),
+  -- `E06-39`. Class 3 by the strictest reading — no persona reads or writes it.
   ('ops_alert');
 grant all on tests_tmp.tests_class3 to public;
 
@@ -1019,11 +1025,15 @@ select set_eq(
     ('purge_run'),('reason_code'),('recipient'),('recipient_allergen'),('refund'),('refund_line'),
     ('retention_policy'),('role_template'),('role_template_permission'),('school'),('school_class'),
     ('school_config'),('school_menu_version'),('school_report'),('user_policy_acceptance'),
-    ('wallet_balance')
+    ('wallet_balance'),
+    -- Added by `0055` (E12-15). Both are class 3 — see tests_class3 above.
+    ('enquiry'),('enquiry_rate')
   $$,
-  '§8: public contains exactly the 62 tables the matrix classifies — a new table must be added to the matrix. '
+  '§8: public contains exactly the 64 tables the matrix classifies — a new table must be added to the matrix. '
   '61 -> 62: ops_alert (E06-39), which is class 3 by the strictest reading — no persona may read or write it, '
-  'because it names payment ids and failure counts and service_role (which bypasses RLS) is the only intended reader');
+  'because it names payment ids and failure counts and service_role (which bypasses RLS) is the only intended reader. '
+  '62 -> 64: enquiry and enquiry_rate (E12-15), class 3 for the same reason — an enquiry names a member of staff '
+  'at a school and carries their direct line');
 
 
 -- =============================================================================

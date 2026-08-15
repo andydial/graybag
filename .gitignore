@@ -69,3 +69,6 @@ docs/prototype/graybag-prototype.html
 # `enquiry` table via the Edge Function; this file is a development convenience and would be a
 # small pile of people's contact details in git.
 apps/web/.dev-enquiries.jsonl
+
+# Local Netlify folder
+.netlify

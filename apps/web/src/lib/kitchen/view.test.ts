@@ -6,8 +6,11 @@ import {
   allowedActions,
   applyFilters,
   boardState,
+  allergenBadges,
   countLine,
+  filterSummary,
   groupByDish,
+  serviceDateToday,
   describeDate,
   filterOptions,
   groupByClass,
@@ -44,6 +47,7 @@ const order = (over: Partial<KitchenOrder> = {}): KitchenOrder => ({
   status: 'paid',
   pickupCode: null,
   lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1, note: null }],
+  allergenCodes: [],
   ...over,
 });
 
@@ -411,6 +415,95 @@ describe('groupByDish — the cooking unit, not the handover unit', () => {
 
   it('returns nothing for a day with no orders rather than an empty dish', () => {
     expect(groupByDish([])).toEqual([]);
+  });
+});
+
+describe('serviceDateToday — the kitchen’s day, not UTC and not the device’s', () => {
+  it('is already tomorrow in Mohali when UTC still says today', () => {
+    // 23:54 UTC on the 13th is 05:24 on the 14th in IST — and a kitchen preparing a morning
+    // break is awake inside exactly that window. UTC would open the board on yesterday.
+    expect(serviceDateToday(new Date('2026-08-13T23:54:00Z'))).toBe('2026-08-14');
+  });
+
+  it('does not roll over early', () => {
+    // 18:29 UTC is 23:59 IST — still the 13th.
+    expect(serviceDateToday(new Date('2026-08-13T18:29:00Z'))).toBe('2026-08-13');
+  });
+
+  it('rolls at 18:30 UTC, which is midnight IST', () => {
+    expect(serviceDateToday(new Date('2026-08-13T18:30:00Z'))).toBe('2026-08-14');
+  });
+
+  it('ignores the device timezone entirely', () => {
+    // The same instant, asked from three places, is one service date. A tablet with its clock
+    // set to the wrong zone must still show the day the kitchen is cooking.
+    const instant = new Date('2026-08-13T23:54:00Z');
+    const original = process.env.TZ;
+    try {
+      const answers = new Set<string>();
+      for (const tz of ['UTC', 'America/Los_Angeles', 'Pacific/Kiritimati', 'Asia/Kolkata']) {
+        process.env.TZ = tz;
+        answers.add(serviceDateToday(instant));
+      }
+      expect([...answers]).toEqual(['2026-08-14']);
+    } finally {
+      if (original === undefined) delete process.env.TZ;
+      else process.env.TZ = original;
+    }
+  });
+});
+
+describe('allergenBadges — E09-33', () => {
+  it('shortens the enumerated code without renaming it', () => {
+    // `tree_nut` becomes `TREE NUT`, not `NUT`. Mapping our taxonomy onto a friendlier one would
+    // create a second vocabulary that then has to be kept in step with the first.
+    expect(allergenBadges(['tree_nut', 'milk'])).toEqual(['TREE NUT', 'MILK']);
+  });
+
+  it('returns null for no allergens recorded, so the caller can say so out loud', () => {
+    // Not an empty array the caller might render as nothing. Blank space beside a child's name
+    // reads as "no allergies" — the one thing this must never say by accident (§5.21).
+    expect(allergenBadges([])).toBeNull();
+  });
+
+  it('returns null when the record is not readable, the same as none recorded', () => {
+    // From the kitchen's point of view both mean "you have not been told", and the screen must
+    // not distinguish a permissions failure from a clean record by showing less.
+    expect(allergenBadges(null)).toBeNull();
+  });
+});
+
+describe('filterSummary — what the collapsed line says', () => {
+  const options = {
+    schools: [{ id: 's1', name: 'Amity International School' }],
+    breaks: [{ id: 'b1', label: 'Lunch break' }],
+  };
+  const none: KitchenFilters = {
+    serviceDate: '2026-08-14', schoolId: null, breakId: null, status: null,
+  };
+
+  it('describes what you are looking at when nothing is filtered', () => {
+    expect(filterSummary(none, options)).toBe('All orders');
+  });
+
+  it('names the values, not the categories', () => {
+    // "Break: Lunch break" spends half the line saying what "Lunch break" already says.
+    expect(filterSummary({ ...none, breakId: 'b1' }, options)).toBe('Lunch break');
+  });
+
+  it('joins several in the order the chips are drawn', () => {
+    expect(filterSummary({ ...none, schoolId: 's1', breakId: 'b1', status: 'delivered' }, options))
+      .toBe('Amity International School · Lunch break · Delivered');
+  });
+
+  it('speaks a status in the kitchen’s words', () => {
+    expect(filterSummary({ ...none, status: 'paid' }, options)).toBe('To make');
+  });
+
+  it('ignores a selection whose option has gone, rather than naming an id', () => {
+    // A school filter can outlive a day change. Showing the raw uuid would be worse than
+    // showing nothing, and the board still applies the filter either way.
+    expect(filterSummary({ ...none, schoolId: 'vanished' }, options)).toBe('All orders');
   });
 });
 

@@ -561,7 +561,7 @@
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong><code>Maestro (cart)</code> has timed out at the 45-minute job limit on every pull request today</strong>, including the payments thread&#39;s <code>e06-02-create-order</code>. The step that hangs is *Build the staging APK*; the last Integration run to pass was a scheduled one on 2026-08-12 at 4m12s. <code>#43</code> and <code>#45</code> were both merged around it after confirming neither diff touched a mobile, Android, Gradle or Maestro file. <strong>That is twice, and Andy&#39;s ruling stands: a required check that times out on every PR is a gate switched off by accident, and merging around it is how it stays off.</strong> Find the cause — a Gradle distribution fetch was seen failing with <code>Unexpected end of file from server</code>, so a pinned/cached distribution is the first thing to try — and either fix it or raise the timeout deliberately. Do not merge around it a third time</span>
+        <span class="ttext"><strong><code>Maestro (cart)</code> could never have passed, and the timeout was not why.</strong> The job was blamed on the 45-minute limit and <code>E14-36</code> fixed that half — the Gradle metaspace OOM and the 781-second software-emulated boot, with KVM and an AVD cache. It still failed, now in 27 minutes rather than 45, with <code>Package com.gracord.graybag.staging is not installed</code> after a 24-minute build. <strong>Two independent bugs, either of which alone was fatal.</strong> (1) The workflow set <code>EXPO_PUBLIC_APP_ENV: staging</code> but <code>app.config.js</code> reads <code>process.env.APP_ENV</code> to choose the identity, so <code>APP_ENV</code> was unset, the config fell to the <code>local</code> identity, and the APK installed as <code>…Graybag.dev</code>. (2) The flow&#39;s <code>appId</code> was <code>com.gracord.graybag.staging</code> — the <strong>iOS</strong> bundle id with a staging suffix — while Android builds <code>com.Gracord.Graybag.staging</code>, and Android package names are <strong>case-sensitive</strong>. The capitals match the Play Console exactly (<code>E17-35</code>) and cannot be changed after publication, so the flow was wrong, not the app. Both fixed. <code>scripts/check-maestro-ids.mjs</code> now derives the expected <code>appId</code> from <code>app.json</code> + <code>app.config.js</code> and fails in a second — verified by reverting the value and watching it fail. A wrong <code>appId</code> otherwise fails only *after* the emulator boots and the APK builds, which is the most expensive place to learn it</span>
       </li></ul>
       </details>
     </article>
@@ -3710,13 +3710,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/30</span>
+          <span class="meter-num">0/33</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 30 tasks</summary>
+        <summary>Context &amp; 33 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3912,6 +3912,22 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The school filter offers active schools PLUS any school with orders on the selected day.</strong> Neither half works alone: active-only hides a school we have stopped serving whose orders from last week are on the board — a filter that cannot name something on screen — and orders-only was <code>E09-28</code>&#39;s bug. Not hypothetical: <code>supabase/seeds/catalogue.sql</code> <strong>deliberately</strong> deactivates the three synthetic fixture schools once the real Bubble-imported ones exist, so that &quot;Alpha Public School sitting next to Amity International School&quot; cannot confuse the parent-facing picker. Alpha and Bravo are therefore inactive *and* carry every seeded order, so an active-only filter would have listed neither. <code>is_active</code> is read and returned by the <code>api/</code> module and applied by the caller, never filtered in the query, because the caller needs both halves. A missing column reads as active — hiding a school because a column did not come back is the wrong way to be wrong (Andy, 2026-08-13)</span>
       </li>
+      <li class="task" data-id="E09-31" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-31"></button>
+        <code class="tid">E09-31</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The controls were eating a third of the screen.</strong> Eleven chips wrapped to two rows in a 212px sticky bar, with a 178px &quot;to cook&quot; card under it, so the first order began at 531px of a 1080px tablet — <strong>51% of the screen showing orders</strong>. The chips now sit behind one line that names the selection (&quot;Lunch break · Amity · Any status&quot;, &quot;All orders&quot; when nothing is set) and opens on tap; the date stays large and always visible because it is the one thing that changes. &quot;To cook&quot; became a single sideways-scrolling row with the counts inline, and is <strong>dropped entirely in the dish grouping</strong>, where the group headers already say the same thing in bigger type. Measured on a 1440×1080 viewport against live staging data: <strong>51% → 77% by class, 83% by dish</strong> (Andy, 2026-08-14)</span>
+      </li>
+      <li class="task" data-id="E09-32" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-32"></button>
+        <code class="tid">E09-32</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The board opened on yesterday for the first five and a half hours of every day.</strong> <code>today</code> was <code>new Date().toISOString().slice(0, 10)</code>, which is <strong>UTC</strong> — and IST is UTC+5:30, so between midnight and 05:30 IST it returns the previous date. A kitchen preparing a morning break starts inside exactly that window, so the first person to open the board each day saw the wrong one, with &quot;Today&quot; labelling it. Found by looking at a screenshot whose header read 13 August when IST had been on the 14th for five hours. <code>serviceDateToday</code> formats in <code>Asia/Kolkata</code> via <code>Intl</code>, takes the instant as an argument so it is testable, and ignores the device clock — a tablet with the wrong timezone must still show the day the kitchen is cooking. Mohali-only makes one fixed zone correct rather than a simplification</span>
+      </li>
       <li class="task" data-id="E09-18" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-18"></button>
         <code class="tid">E09-18</code>
@@ -3959,6 +3975,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>No Edge Function handled a CORS preflight</strong>, so every one of them was correct for the app and unreachable from any web page. React Native&#39;s <code>fetch</code> sends no <code>OPTIONS</code>, which is why nothing failed and nothing was logged for months. A <code>POST</code> with <code>content-type: application/json</code> and an <code>Authorization</code> header is not a simple request, so a browser sends <code>OPTIONS</code> first — and <code>OPTIONS</code> was answered <code>405</code>. Found by the web thread on the back office&#39;s first real click. Fixed once in <code>_shared/cors.ts</code> for all six browser-callable functions rather than six times as six bugs; <code>payments-webhook</code> is deliberately excluded and the exclusion is asserted, because Razorpay calls it server to server and advertising a preflight would describe a browser surface that should not exist. 20 assertions, including one that fails when a seventh function appears unclassified</span>
+      </li>
+      <li class="task" data-id="E09-33" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-33"></button>
+        <code class="tid">E09-33</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Kitchen-visible allergy flags.</strong> Staff hand a physical bag to a named child and were previously told nothing; Andy accepted the privacy cost deliberately (2026-08-14), with the constraints as part of the requirement rather than advice. <strong>Structured data only</strong> — the enumerated <code>allergen</code> table, badged beside the child&#39;s name as <code>MILK</code>, <code>TREE NUT</code>. No parent note, no severity, no medical detail, and codes are shortened but never renamed: mapping <code>tree_nut</code> onto &quot;NUT&quot; would create a second vocabulary to keep in step with the first. <strong>A child with no record renders &quot;No allergies provided&quot;, never blank</strong> (§5.21) — and &quot;not readable&quot; renders the same, because both mean &quot;you have not been told&quot; and a permissions failure must not look like a clean bill of health. <code>allergenWarning</code>&#39;s <code>warn: &#39;unknown&#39;</code> is untouched. <strong>No migration was needed</strong>: <code>recipient_allergen_read_fulfilment</code> already required <code>orders.view_pii</code> at the order&#39;s own school or its kitchen. Four constraints tested in <code>allergen-handling.test.ts</code> (never logged, never exported or in a URL, not persisted client-side) and the scoping proved in <code>supabase/tests/kitchen_allergen_flags.test.sql</code> <strong>through an authenticated client</strong>, asserting the harness first so a deny cannot pass for the wrong reason. The terms&#39; allergy clause is updated in the same change, because it said the kitchen sees nothing and that became false</span>
       </li></ul>
       </details>
     </article>
@@ -3971,13 +3995,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/17</span>
+          <span class="meter-num">0/20</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 17 tasks</summary>
+        <summary>Context &amp; 20 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
@@ -4036,13 +4060,21 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">User management: search, view, disable, assign back-office grants</span>
       </li>
-      <li class="task" data-id="E10-08" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E10-08" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-08"></button>
         <code class="tid">E10-08</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Order dashboard across all kitchens with refund capability</span>
+        <span class="ttext">Order dashboard across all kitchens with refund capability — <strong>the view is done, the refund is not and cannot be.</strong> <code>/orders</code> lists every order on a service date across every kitchen the caller&#39;s grants reach, with totals, refunds and per-school subtotals, gated on <code>orders.view_financials</code>. Its own <code>api/</code> module and its own column list rather than a flag on <code>kitchen.ts</code>: money is a separate grant (<code>D3</code>) and a redaction behind a boolean is one careless caller away from not being one. Scope is RLS, never a client-side kitchen filter. Unpaid and draft orders are <strong>kept</strong> here, unlike the kitchen board — <code>L5</code> keeps them off the cooking list, not out of the record, and an order that never got paid for is exactly what somebody opens this to investigate. <strong>Refunds are blocked</strong>: <code>order-lifecycle</code> §4.1 performs <code>cancelled -&gt; refunded</code> as <code>system</code> only and no endpoint performs it, so the page says so once at the foot rather than drawing a disabled button on every row. Refund UI tracked as <code>E10-18</code></span>
+      </li>
+      <li class="task" data-id="E10-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-18"></button>
+        <code class="tid">E10-18</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Issue a refund from <code>/orders</code>.</strong> The other half of <code>E10-08</code>. Blocked on the refund endpoint (<code>E06</code>, <code>docs/kitchen-write-contract.md</code> §2.2): <code>cancelled -&gt; refunded</code> is a <code>system</code> transition and nothing performs it, so there is nothing for a button to call. Needs <code>orders.refund</code>, which exists as a permission and is granted to nobody. When it is built: idempotent per order, integer paise, and it must decide to-source vs to-wallet itself — the person clicking has no view on that and must not be asked</span>
       </li>
       <li class="task" data-id="E10-09" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-09"></button>
@@ -4052,13 +4084,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Revenue share / payout report with edit-before-confirm and mark-as-paid</span>
       </li>
-      <li class="task" data-id="E10-10" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E10-10" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-10"></button>
         <code class="tid">E10-10</code>
         
         
-        <span class="badge r-later">later</span>
-        <span class="ttext">Business metrics: orders per day, revenue, active users, per-school breakdown</span>
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext"><strong>Orders and revenue, by school, by month.</strong> Andy, 2026-08-15: reports stay in v1. Scoped deliberately to that and nothing else — no active-user counts, no cohort retention, no payout view (<code>E10-09</code>, <code>E10-17</code>). <code>/reports</code> reads <code>admin-reports.ts</code>, whose column list is the compliance control: <strong>no recipient, class or section column</strong>, because a report is aggregate by definition and non-negotiable #4 keeps a child&#39;s data out of anything a school receives. Cancelled and refunded orders are counted but are not revenue, and the page says so — excluding them entirely makes the order count disagree with the kitchen&#39;s. Months come from the date string, never through a <code>Date</code>: <code>2026-08-01</code> parsed as UTC midnight formats back to 31 July in IST, which is <code>E09-32</code> in a new place</span>
       </li>
       <li class="task" data-id="E10-11" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-11"></button>
@@ -4115,6 +4147,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Build the six metrics of <code>docs/product-metrics.md</code> (<code>P17</code>)</strong> as server-side queries: activated users, weekly active orderers, orders per active orderer per week, AOV in paise, school penetration, cohort retention at N+4/N+8/N+12. Constraints are part of the task, not decoration — no column of <code>recipient</code> selected or joined for filtering, <code>recipient_id</code> counted but never described, small-number suppression built into the query rather than the template, integer paise throughout, an immature cohort cell rendered *not yet* rather than 0%, and school penetration rendered &quot;no enrolled count&quot; where <code>E10-16</code>&#39;s column is null</span>
+      </li>
+      <li class="task" data-id="E10-19" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-19"></button>
+        <code class="tid">E10-19</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Edit an override from <code>/admin/config</code>.</strong> The write half of <code>E10-06</code>. Each overridable setting carries a collapsed <code>&lt;details&gt;</code> editor — collapsed because this screen is read far more often than written, and nine open forms would bury the question it exists to answer. <strong>One setting per request, and only that setting&#39;s key in the body</strong>: the endpoint treats an absent key as &quot;leave it alone&quot; and <code>null</code> as &quot;clear it&quot;, so posting the whole config object would rewrite settings nobody touched — and with <code>undefined</code> collapsed to <code>null</code> by <code>JSON.stringify</code>, it would *clear* them. &quot;Remove override&quot; is offered only where there is one, and the <code>revertsTo</code> line above it names the real fallback, which is the kitchen&#39;s value rather than the platform default whenever the kitchen also overrides. Settings that are overridable in the schema but not from here say so out loud — <code>revenue_share_bps</code> is <code>M4</code>, and changing what a school is paid from the same form as its cutoff is the adjacency that produces an accident</span>
+      </li>
+      <li class="task" data-id="E10-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-20"></button>
+        <code class="tid">E10-20</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Dish and menu management screens.</strong> <code>tools/bulk-import</code> covers the bulk path — creating and updating dishes, menus, items and assignments from CSV or JSON, with a dry run — and <code>docs/import-format.md</code> documents it. What is missing is the one-off case: change a single price without preparing a file. Needs an <code>admin-dish</code> Edge Function on the shape <code>admin-school</code> already sets, plus a screen. Not on the launch path while the importer exists</span>
       </li></ul>
       </details>
     </article>
@@ -4208,13 +4256,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/19</span>
+          <span class="meter-num">0/31</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 19 tasks</summary>
+        <summary>Context &amp; 31 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4282,13 +4330,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Lighthouse performance <strong>and accessibility</strong> budgets enforced in CI, with actual threshold numbers</span>
       </li>
-      <li class="task" data-id="E12-09" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E12-09" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-09"></button>
         <code class="tid">E12-09</code>
         
         
         <span class="badge r-mvp">v1</span>
-        <span class="ttext">Deploy to Netlify and prepare the graybag.com DNS cutover plan</span>
+        <span class="ttext">Deploy to Netlify and prepare the graybag.com DNS cutover plan — <strong>deployed 2026-08-14 to <code>https://graybag-web.netlify.app</code>.</strong> <code>/signin</code>, <code>/kitchen</code> and <code>/orders</code> are reachable from any device and verified against staging: signed out, <code>/kitchen</code> redirects to sign-in; signed in it reads 34 orders across 5 classes, and <code>/orders</code> reads 35 across 2 schools. <strong>The marketing pages ride along on the same build and are held out of search</strong>, because they carry claims still waiting on legal review: <code>robots.txt</code> now defaults to <code>Disallow: /</code> unless <code>PUBLIC_SITE_PUBLISHED=true</code>, and <code>X-Robots-Tag: noindex, nofollow</code> is set on every response. Both are removed at the cutover, not before. DNS cutover itself is <code>E12-10</code> and is Andy&#39;s. <strong>Continuous deploy is not connected</strong> — that needs the GitHub repo authorised to Netlify, which only Andy can do; today&#39;s deploy was a manual upload of <code>dist</code></span>
       </li>
       <li class="task" data-id="E12-10" data-seed="0" data-risk="" data-owner="andy" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-10"></button>
@@ -4330,13 +4378,93 @@
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:medium) Confirm what may be stated about food safety and the FSSAI registration (<code>[WEB-04]</code>)</span>
       </li>
-      <li class="task" data-id="E12-15" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E12-15" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-15"></button>
         <code class="tid">E12-15</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Build the <code>enquiry</code> table, RLS and the <code>enquiry-submit</code> Edge Function to <code>docs/enquiry-submission-contract.md</code> — owned by the <code>supabase/</code> thread, not by <code>apps/web</code></span>
+        <span class="ttext">Build the <code>enquiry</code> table, RLS and the <code>enquiry-submit</code> Edge Function to <code>docs/enquiry-submission-contract.md</code> — <strong>taken by the web thread on 2026-08-14</strong> on Andy&#39;s instruction, after the <code>supabase/</code> thread did not pick it up. Only <code>supabase/migrations/0050_enquiry.sql</code>, <code>supabase/down/0050_enquiry.down.sql</code>, <code>supabase/functions/enquiry-submit/</code> and one line of <code>packages/shared/src/payments/cors.test.ts</code> were touched. Deployed and verified against staging on every path: 204 preflight, 201 stored, 202 honeypot (stored nowhere), 422 validation, 303 for the no-JavaScript form post, and an open redirect refused. Email lowercased, phone normalised, message trimmed to <code>null</code>. <strong>The notification email is <code>E12-20</code></strong> — §6 makes it best-effort and forbids it failing the request, and <code>E08</code> owns the mail infrastructure</span>
+      </li>
+      <li class="task" data-id="E12-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-20"></button>
+        <code class="tid">E12-20</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>One email per stored enquiry</strong> — <code>docs/enquiry-submission-contract.md</code> §6. From <code>GrayBag &lt;orders@graybag.com&gt;</code>, Reply-To <code>support@graybag.com</code>, to <code>ENQUIRY_NOTIFY_EMAIL</code> Cc <code>ENQUIRY_NOTIFY_CC</code> (seed to andy@ and vivek@), subject <code>New school enquiry — &lt;school&gt;, &lt;city&gt;</code>, body every field plus a <code>mailto:</code> so replying is one tap. <strong>Best-effort: it must never fail the request</strong> — the row is the record, and an enquiry lost because a mail provider had a bad minute is the worst thing this endpoint can do. Blocked on <code>E08</code>&#39;s transactional mail, or reuse the provider <code>E07-05</code> needs for GST invoices</span>
+      </li>
+      <li class="task" data-id="E12-21" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-21"></button>
+        <code class="tid">E12-21</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Set <code>PUBLIC_ENQUIRY_ENDPOINT</code> in Netlify</strong> to the deployed function URL. Until then the live form posts to the dev mock and production submissions go nowhere — <code>docs/enquiry-submission-contract.md</code> §8 item 1, the one genuinely blocking handover</span>
+      </li>
+      <li class="task" data-id="E12-22" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-22"></button>
+        <code class="tid">E12-22</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The internal drafting note was being published on all three policy pages.</strong> A parent opening <code>/terms</code> read &quot;⚠ DRAFT FOR LEGAL REVIEW — DO NOT PUBLISH AS-IS&quot;, &quot;Nothing here has been checked by a lawyer&quot;, two internal task ids and an instruction about CI — live on the Netlify deploy. Worse than an unresolved token: a token reads as a mistake, this reads as a statement about the document&#39;s standing, and it was the first thing on the page. The renderer now strips the preamble blockquote — the one before the first <code>##</code>, where a note lives and no authored quote does — in both <code>apps/web/src/lib/policy.ts</code> and <code>scripts/build-policy-docs.mjs</code>, so the website and the app agree. Covered by <code>policy.test.ts</code>. Fixing it also removed the <code>«ANGLE-BRACKET»</code> false positive that would have blocked a production build for ever, since that token existed only inside the note</span>
+      </li>
+      <li class="task" data-id="E12-23" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-23"></button>
+        <code class="tid">E12-23</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Internal task ids remain in the published policy bodies</strong> — <code>E06-33</code> in the refund policy&#39;s change log, <code>E00-10</code> in the privacy policy&#39;s, and six in <code>terms.md</code>. These are authored body content rather than a preamble note, and deleting text from a legal document is a decision, not a rendering fix: some change-log entries are legitimately public (&quot;what changed in version 2&quot;) and the citation is not. Decide per line whether to cut the id, reword it, or keep it</span>
+      </li>
+      <li class="task" data-id="E12-24" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-24"></button>
+        <code class="tid">E12-24</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The placeholder register</strong> — <code>docs/placeholder-register.md</code>, one checklist of every <code>«…-PENDING-…»</code> token on a surface we publish, each with what it is, what it needs and who can supply it, plus <code>npm run check:placeholders</code> so it cannot go stale. <strong>10 block a production build, all in <code>docs/terms.md</code>; 12 more sit on documents that will publish but are not built yet.</strong> The privacy and refund policies have none — both are the lawyer-drafted text already published for the legacy app. A bare grep returns 33 and is useless: most are the convention described in prose, superseded drafts, or test fixtures, so the register counts published surfaces only. <strong>The production guard stays</strong> (Andy, 2026-08-14)</span>
+      </li>
+      <li class="task" data-id="E12-25" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-25"></button>
+        <code class="tid">E12-25</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>One source for the company&#39;s published identity</strong> — <code>docs/legal/company.json</code>, read by the website renderer, the app&#39;s generated policy documents and the placeholder register. The legal name, registered address and GSTIN each had a <strong>separate token in two documents with different task ids</strong>; filling them meant answering twice and hoping the copies matched, and an invoice whose GSTIN disagrees with the terms is worse than either being blank (Andy, 2026-08-14). Documents keep their <code>«…»</code> tokens and are substituted at render time, so they stay readable as documents. <strong>A <code>null</code> is never substituted</strong> — its token survives and <code>assertPublishable</code> refuses it, so the file cannot turn an unanswered question into a published claim by defaulting to <code>&#39;&#39;</code>. Andy&#39;s five values applied: legal name, support email, jurisdiction, grievance officer (copied from privacy §7A, not re-decided) and effective date. <strong>Blocking tokens 10 → 5</strong></span>
+      </li>
+      <li class="task" data-id="E12-26" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-26"></button>
+        <code class="tid">E12-26</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>docs/gst-invoicing.md</code>&#39;s placeholders must block a build once <code>E07</code> renders invoices from it.</strong> An invoice is a published document and its five tokens include the GSTIN and the SAC code. Today nothing fails, only because the invoice path is not wired to the file yet — which is the weakest possible reason for a guard not to exist</span>
+      </li>
+      <li class="task" data-id="E12-27" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-27"></button>
+        <code class="tid">E12-27</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The two liability clauses, settled 2026-08-14.</strong> There was nothing to lift — <code>graybag.com</code> is a placeholder page and the legacy app never published terms. Andy split them rather than treating them as one problem. <strong>Liability cap: published without one</strong>, no value and no token; the section now says only that nothing limits liability which cannot be limited by law, which is a position rather than an omission. <strong>Allergy clause: rewritten as a description of how the system actually works</strong> — what the parent enters, where it is stored, what the app compares, what the kitchen sees, and what the system does not do — with no warranty language. Every statement checked against the code first</span>
+      </li>
+      <li class="task" data-id="E12-28" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-28"></button>
+        <code class="tid">E12-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>Graybag Pty Ltd</code> was a first-pass value and is resolved.</strong> The final name is <code>GRAYBAG SOLUTIONS PRIVATE LIMITED</code>, an Indian private limited company, so the Australian-suffix concern is closed</span>
+      </li>
+      <li class="task" data-id="E12-29" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-29"></button>
+        <code class="tid">E12-29</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:medium) <strong>The GSTIN and the registered address name different states.</strong> <code>03AAMCG3438M1ZD</code> begins <strong>03</strong> — Punjab. The registered address is <strong>Chandigarh</strong>, state code <strong>04</strong>. Recorded exactly as supplied and deliberately not resolved (Andy, 2026-08-14). It may be legitimate — a company can be GST-registered in one state with its registered office in another — but both appear on a tax invoice and place of supply is derived from state. <strong>Place-of-supply logic stays keyed off the GSTIN, unchanged. Nothing guessed.</strong> One check against the GST registration certificate settles it</span>
       </li>
       <li class="task" data-id="E12-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-16"></button>
@@ -4369,6 +4497,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Re-shoot or re-frame the food section once real photography exists (<code>E12-13</code>) — the five category cards are laid out to take a proper photograph, and the 96px cap comes off the moment there is one worth showing</span>
+      </li>
+      <li class="task" data-id="E12-30" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-30"></button>
+        <code class="tid">E12-30</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Netlify deploy gating</strong> — every PR gets a preview; production never auto-publishes from <code>main</code>. The <code>ignore</code> hook in <code>apps/web/netlify.toml</code> skips the production build unless the tip commit&#39;s subject carries <code>[promote]</code> or <code>PROMOTE_TO_PRODUCTION=true</code> is set on a manual deploy. The decision is <code>scripts/lib/netlify-gate.mjs</code> (pure, tested) and <code>scripts/netlify-should-build.sh</code> only translates it, because Netlify&#39;s exit codes are <strong>inverted</strong> — 0 skips, 1 builds — and reversing them fails OPEN. <code>docs/netlify-deploys.md</code> has the one-paragraph promotion procedure</span>
+      </li>
+      <li class="task" data-id="E12-31" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-31"></button>
+        <code class="tid">E12-31</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Turn off auto-publishing in the Netlify dashboard</strong> — Site configuration → Build &amp; deploy → Continuous deployment → Stop auto publishing. <code>E12-30</code> stops production being *built*; this stops anything that reaches the build stage another way being *published*. Both halves are worth having and this one needs the Netlify account. See <code>docs/netlify-deploys.md</code></span>
       </li></ul>
       </details>
     </article>
@@ -4893,13 +5037,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/47</span>
+          <span class="meter-num">0/49</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 47 tasks</summary>
+        <summary>Context &amp; 49 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -5275,13 +5419,29 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Closed as a duplicate when <code>kitchen-live</code> merged, 2026-08-13.</strong> Superseded by <code>E17-35</code> on <code>main</code> — the com.Gracord.Graybag package assertion. Renumbered from <code>E17-32</code>, which <code>main</code> had independently assigned to something else; <code>E17-41</code> predicted exactly this collision. Kept rather than deleted because task ids are permanent. <strong><code>(owner:andy)</code> dropped deliberately</strong>: the tag marks work only Andy can do, and a closed duplicate carries no work — the action lives on <code>E17-35</code>. Original text follows. Confirm the Android package name is asserted, not just present. <code>app.json</code> already reads <code>com.Gracord.Graybag</code>, which matches the Play Console exactly including the capitals (Andy, 2026-08-12) — but nothing tests it, and an <code>applicationId</code> cannot be changed after publication. Note the iOS bundle id is lowercase <code>com.gracord.graybag</code>: separate namespaces, deliberately different, and exactly the asymmetry somebody later &quot;fixes&quot;- [x] <code>E17-46</code> (risk:critical) <strong>A mandatory update was a store listing and an email, with nothing in the product enforcing it.</strong> Andy, 2026-08-15: a mandatory parent update on 19 August, and *&quot;this is what makes the 19th update mandatory in practice&quot;*. Built: <code>platform_config.min_supported_app_version</code> (<strong>data, not a constant</strong> — a constant can only be raised by shipping a build, and the population this controls is exactly the one that has not taken the new build, so raising the floor on the 19th is an UPDATE and not a deploy), <code>app_version_support()</code> as an <code>anon</code>-executable RPC, <code>api.fetchVersionSupport</code>, <code>UpdateRequiredScreen</code> and <code>VersionGate</code> above every provider in <code>App.tsx</code>. <strong>The app blocks and the server reports, deliberately not the reverse</strong>: a server that hard-refused every call from an old build would first meet a parent mid-order on the morning of the cutover, whose cart fails with a network error and who has no idea why. Two directions are load-bearing and both are the opposite of the usual rule here: an <strong>unknown or unparseable version is ADMITTED</strong>, and a <strong>failed check is ADMITTED</strong> — a parent wrongly locked out cannot recover (the screen says update, the store says they are current) while a wrongly admitted one gets an app that mostly works, and a gate that closed on an outage would lock everybody out using the mechanism whose job is to tell them how to keep ordering. Compared <strong>numerically</strong>: <code>&#39;3.10.0&#39; &lt; &#39;3.9.0&#39;</code> as text, which is <code>E20-50</code>&#39;s bug in a new place, and the arrays are <strong>padded</strong> because <code>4.0</code> and <code>4.0.0</code> are the same version — <code>compareVersions()</code> in <code>packages/shared</code> pads with <code>?? 0</code> and <code>policy_version_rank</code> does not, so without padding the client and server disagree about whether a build is at the floor and the server&#39;s answer is the one that locks somebody out. <code>minimum_app_version.test.sql</code> 21 assertions, <code>app-version.test.ts</code> 8, <code>update-required.test.tsx</code> 6</span>
       </li>
-      <li class="task" data-id="E17-47" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E17-47" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-47"></button>
         <code class="tid">E17-47</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>policy_version_rank</code> does not mirror <code>compareVersions()</code> on trailing zeros, though its comment says it does.</strong> <code>&#39;2&#39;</code> vs <code>&#39;2.0&#39;</code>: the SQL compares <code>{2}</code> against <code>{2,0}</code> and calls the shorter one lower; the TypeScript pads with <code>?? 0</code> and calls them equal. Found building <code>E17-46</code>, which pads explicitly to work around it. Narrow — policy versions are short and hand-authored and nobody has written <code>2.0</code> — but the comment claiming they mirror each other is the dangerous half, because the next person to need this will believe it. Not fixed during launch week: <code>policy_version_rank</code> decides which wording is current for consent, and that is not a function to change on the way to a release</span>
+      </li>
+      <li class="task" data-id="E17-48" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-48"></button>
+        <code class="tid">E17-48</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A web-only dependency was breaking every mobile build.</strong> *(Renumbered from <code>E17-47</code>, which <code>main</code> independently assigned to the <code>policy_version_rank</code> mismatch while this branch was in flight.)* EAS runs <code>npm ci</code> at the workspace root, so it installed <code>apps/web</code>&#39;s dependencies into an iOS build — including <code>sharp</code>, Astro&#39;s image library, which is native. The build died in *Install dependencies* with <code>sharp: Attempting to build from source via node-gyp / Please add node-addon-api</code> (build <code>5e32af14-69af-4b69-85b9-4394b635a52a</code>, 2026-08-14). <strong>Adding <code>node-addon-api</code> would have fixed that build and left the next web-only native package to do the same thing</strong>, so <code>apps/web/</code> is excluded from <code>.easignore</code> instead: the <code>apps/*</code> glob then resolves to <code>apps/mobile</code> alone and neither <code>sharp</code> nor <code>astro</code> is installed at all. Verified by running <code>npm ci --include=dev</code> against a tree with <code>apps/web</code> removed — it succeeds, keeps <code>expo</code>, and drops both. <code>scripts/test/easignore.test.mjs</code> asserts the exclusion, and that <code>packages/</code>, <code>config/</code> and <code>apps/mobile/</code> stay included, because nothing about editing <code>.easignore</code> looks like it could break an iOS build</span>
+      </li>
+      <li class="task" data-id="E17-49" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-49"></button>
+        <code class="tid">E17-49</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Write <code>~/.graybag-secrets/prod.env</code>, then point the web app at production.</strong> BLOCKED and skipped on 2026-08-15: the file does not exist — <code>~/.graybag-secrets/</code> holds only the upload keystore — so the payments thread has not stood the production project up, or has not written it. Nothing was guessed and <code>apps/web/.env</code> was not touched, so staging is unchanged and still works. <code>docs/production-cutover.md</code> has the whole procedure: the two variables that decide which database the app talks to, the five that decide its behaviour, why they go in Netlify&#39;s <strong>production context only</strong> (a deploy preview writing to the live database is worse than one that does not build), the one command that verifies the switch, and the order — migrations before import, because the importer reads <code>service_days</code> from <code>0056</code>. A credentialed action: it needs the Supabase and Netlify accounts</span>
       </li></ul>
       </details>
     </article>

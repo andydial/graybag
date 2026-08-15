@@ -354,6 +354,52 @@ export function filterOptions(day: KitchenDay | null): FilterOptions {
  * Counted over what is *visible*, so it agrees with the list underneath rather than describing a
  * day the filters have hidden.
  */
+/**
+ * What the collapsed filter line says: the selection, or "All orders".
+ *
+ * Names the *values* and never the categories — "Lunch break · Amity" rather than
+ * "Break: Lunch break · School: Amity". A category label is only useful when you are choosing;
+ * once chosen, the value identifies itself and the label is half the line's width spent saying
+ * nothing.
+ *
+ * Order follows the chips, so the line and the expanded rows read the same way round.
+ */
+export function filterSummary(
+  filters: KitchenFilters,
+  options: { schools: { id: string; name: string }[]; breaks: { id: string; label: string }[] },
+): string {
+  const parts: string[] = [];
+
+  const school = options.schools.find((s) => s.id === filters.schoolId);
+  if (school) parts.push(school.name);
+
+  const brk = options.breaks.find((b) => b.id === filters.breakId);
+  if (brk) parts.push(brk.label);
+
+  if (filters.status) parts.push(STATUS_LABEL[filters.status] ?? filters.status);
+
+  // "All orders" rather than "No filters": it describes what you are looking at, not what you
+  // have failed to do. The same reasoning as naming the empty states in §5.21.
+  return parts.length === 0 ? 'All orders' : parts.join(' · ');
+}
+
+/**
+ * The badges to draw beside a child's name, and the word to use when there are none.
+ *
+ * Codes come from the enumerated `allergen` table and are shortened for a badge by upper-casing
+ * and replacing the underscore — `tree_nut` becomes `TREE NUT`. **Nothing is renamed.** Andy's
+ * example said "NUT, DAIRY"; our taxonomy says `tree_nut` and `milk`, and mapping one onto the
+ * other would be inventing a second vocabulary that then has to be kept in step with the first.
+ *
+ * An empty or unreadable record returns `null`, and the caller renders "not provided" — never
+ * blank. §5.21: an unknown must not render as a known, and on this screen the known would be
+ * "this child has no allergies", which is the one thing we must not say by accident.
+ */
+export function allergenBadges(codes: string[] | null): string[] | null {
+  if (codes === null || codes.length === 0) return null;
+  return codes.map((code) => code.replace(/_/g, ' ').toUpperCase());
+}
+
 export function countLine(
   orders: KitchenOrder[],
   groups: ClassGroup[],
@@ -409,6 +455,29 @@ export function relativeDay(iso: string, today: string): string | null {
   if (iso === shiftDate(today, 1)) return 'Tomorrow';
   if (iso === shiftDate(today, -1)) return 'Yesterday';
   return null;
+}
+
+/**
+ * Today's service date **in the kitchen's timezone**, not the device's and not UTC.
+ *
+ * `new Date().toISOString().slice(0, 10)` is UTC, and IST is UTC+5:30 — so between midnight and
+ * 05:30 IST it returns *yesterday*. That is not a rare edge: a kitchen preparing a morning break
+ * starts inside that window, so the board would open on the previous day's orders precisely when
+ * somebody first looks at it.
+ *
+ * The device clock is not the answer either. A tablet with the wrong timezone, or an operator
+ * checking from elsewhere, must still see the day the kitchen is cooking. Mohali-only
+ * (non-negotiable #7) means one fixed zone is correct rather than a simplification.
+ *
+ * `en-CA` because it formats as `YYYY-MM-DD`, which is what a service date is.
+ */
+export function serviceDateToday(at: Date, timeZone = 'Asia/Kolkata'): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(at);
 }
 
 /**

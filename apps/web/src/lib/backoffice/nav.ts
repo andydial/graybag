@@ -17,7 +17,18 @@
  * change when the roles do; a screen that checks a grant does not.
  */
 
-/** Grant codes, as seeded in `permission` (`0001_initial_schema.sql`). */
+/**
+ * Grant codes, as seeded in `permission` (`0001_initial_schema.sql`).
+ *
+ * **Three of these were wrong until `E10-06`**, and the way they were wrong is worth keeping:
+ * `user.view`, `user.edit` and `config.edit` are not codes this system has. The real ones are
+ * `users.view`, `users.manage` and `config.platform_edit`. Nothing failed — a nav item requiring
+ * a grant that cannot exist is simply never visible, so `/admin/people` was unreachable by every
+ * account including a full platform admin, and it looked exactly like correct default-deny.
+ *
+ * `nav.test.ts` now asserts every code here against the seeded list, so the next invented code
+ * fails a test instead of silently hiding a screen.
+ */
 export type Grant =
   | 'orders.view'
   | 'orders.view_pii'
@@ -29,12 +40,35 @@ export type Grant =
   | 'menu.edit'
   | 'school.view'
   | 'school.edit'
+  | 'school.onboard'
   | 'kitchen.view'
   | 'kitchen.edit'
-  | 'user.view'
-  | 'user.edit'
-  | 'config.edit'
+  | 'users.view'
+  | 'users.manage'
+  | 'config.platform_edit'
+  | 'school.config_edit'
+  | 'kitchen.config_edit'
   | 'reports.view';
+
+/**
+ * Every permission code seeded by `0001_initial_schema.sql`, in the order it is seeded.
+ *
+ * Duplicated from SQL on purpose, and the duplication *is* the check — a lint config and a test
+ * cannot read a migration, so `nav.test.ts` asserts that every code in `Grant` appears here, and
+ * `supabase/tests/authorization.test.sql` is what keeps this list honest against the database.
+ * A code that exists in neither place is the failure this list was added to catch.
+ */
+export const SEEDED_PERMISSIONS = [
+  'orders.view', 'orders.view_pii', 'orders.mark_delivered', 'orders.cancel', 'orders.refund',
+  'orders.view_financials', 'orders.create_on_behalf',
+  'menu.view', 'menu.edit', 'menu.publish', 'menu.import', 'dish.edit',
+  'school.view', 'school.edit', 'school.onboard', 'school.config_edit',
+  'kitchen.view', 'kitchen.edit', 'kitchen.config_edit',
+  'users.view', 'users.manage', 'users.impersonate', 'grants.manage',
+  'config.platform_edit', 'audit.view', 'consent.view',
+  'reports.view', 'reports.financial_view',
+  'invoices.view', 'payouts.view', 'payouts.manage',
+] as const;
 
 export interface Operator {
   /** Display only. Never used to decide access — that is what `grants` is for. */
@@ -80,12 +114,24 @@ export const NAV: NavItem[] = [
     href: '/admin/schools',
     label: 'Schools',
     requires: ['school.edit'],
-    description: 'Onboarding, break times, and per-school configuration.',
+    description: 'Onboarding, break times, and which kitchen serves each school.',
+  },
+  {
+    /**
+     * `E10-06`. Split from `/admin/schools` because reading the configuration needs
+     * `config.platform_edit` — `revenue_share_bps` (`M4`) sits on the same row as the cutoff and
+     * RLS filters rows, never columns, so somebody who may onboard a school is not thereby
+     * somebody who may see its commercial terms.
+     */
+    href: '/admin/config',
+    label: 'Configuration',
+    requires: ['config.platform_edit'],
+    description: 'Cutoffs, service days and break times, and where each value is inherited from.',
   },
   {
     href: '/admin/people',
     label: 'People',
-    requires: ['user.edit'],
+    requires: ['users.manage'],
     description: 'Back-office accounts and what each of them may do.',
   },
   {
@@ -139,7 +185,8 @@ export const EXAMPLE_LEVELS = {
   platformAdmin: new Set<Grant>([
     'orders.view', 'orders.view_pii', 'orders.mark_delivered', 'orders.cancel', 'orders.refund',
     'orders.view_financials', 'menu.view', 'menu.edit', 'school.view', 'school.edit',
-    'kitchen.view', 'kitchen.edit', 'user.view', 'user.edit', 'config.edit', 'reports.view',
+    'school.onboard', 'kitchen.view', 'kitchen.edit', 'users.view', 'users.manage',
+    'config.platform_edit', 'school.config_edit', 'kitchen.config_edit', 'reports.view',
   ]),
   kitchenOperator: new Set<Grant>([
     'orders.view', 'orders.view_pii', 'orders.mark_delivered', 'orders.cancel',

@@ -42,6 +42,26 @@ apps/mobile/.expo-bundle-check/
 # Not needed to build the app. This is the part that makes the upload finish.
 # ---------------------------------------------------------------------------
 
+# THE WEB APP. Not a dependency of the mobile app — and worse than merely unnecessary.
+#
+# EAS runs `npm ci` at the workspace root, so every dependency of every workspace is installed
+# whether the app imports it or not. `apps/web` depends on `sharp`, Astro's image library, which
+# is a native module: on 2026-08-14 an iOS build died in "Install dependencies" with
+#
+#     npm error sharp: Attempting to build from source via node-gyp
+#     npm error sharp: Please add node-addon-api to your dependencies
+#
+# Adding `node-addon-api` would have fixed that build and left the next web-only native package
+# to do exactly the same thing. Excluding the workspace is the fix that does not recur: with
+# `apps/web` absent the `apps/*` glob resolves to `apps/mobile` alone, `npm ci` stays happy
+# because the lockfile's other entries are simply not requested, and neither `sharp` nor `astro`
+# is installed at all. Verified by running `npm ci` against a tree with `apps/web` removed.
+#
+# `packages/` stays: `apps/mobile` genuinely depends on `@graybag/shared`.
+#
+# `scripts/test/easignore.test.mjs` asserts this line still exists.
+apps/web/
+
 # The decision log, specs and learnings: ~1.25 MB of prose the bundler never reads.
 docs/
 

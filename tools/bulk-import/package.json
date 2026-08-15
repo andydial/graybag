@@ -1,0 +1,13 @@
+{
+  "name": "@graybag/bulk-import",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Bulk import of schools, dishes and menus from CSV or JSON. Dry run by default.",
+  "main": "src/import.mjs",
+  "bin": { "graybag-import": "src/cli.mjs" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

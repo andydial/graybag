@@ -2781,3 +2781,37 @@ reading, and carried on.
 The wider pattern this fortnight is the same shape: `check-a11y` auditing a 404, `tag-mvp.mjs`
 rewriting the markdown it was meant to check, a seed emitting `where id in ()`. Automation that
 proceeds past a condition it has already noticed.
+
+## A calendar date is not an instant, and the machine's answer is not the kitchen's (2026-08-14)
+
+Two bugs, one cause, found a day apart.
+
+`new Date().toISOString().slice(0, 10)` is **UTC**. IST is UTC+5:30, so between midnight and
+05:30 IST it returns *yesterday*. The kitchen board opened on the wrong day for the first five and
+a half hours of every morning — labelled "Today" — and it took reading a screenshot's header to
+notice, because everything about the screen was internally consistent. The mobile app has the same
+shape in `defaultServiceDate()`, where it offers a service date whose cutoff has already passed.
+
+The mirror-image mistake is just as easy: `new Date('2026-08-14T00:00:00Z').toLocaleDateString()`
+parses UTC midnight and then formats in the *device's* zone, so a device west of Greenwich renders
+it as the 13th.
+
+**The rule.** A service date is a calendar label. Anything that turns "now" into one must name the
+zone it means, and for this product that zone is always `Asia/Kolkata` — never UTC, never the
+device's:
+
+- deriving today → `Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' })` in a browser, or a
+  fixed +330-minute shift on React Native, where Hermes' `Intl` is a thin platform shim on Android
+  and its `timeZone` support is not worth betting on;
+- formatting a date you already hold → pass `timeZone` explicitly, matching however it was
+  constructed;
+- arithmetic on a date → do it in UTC on the parts (`Date.UTC(y, m, d + n)`), never by adding
+  milliseconds to an instant.
+
+**Take the instant as an argument.** `serviceDateToday(at: Date)` is testable at 18:29 UTC, 18:30
+UTC and 23:54 UTC; `serviceDateToday()` calling `new Date()` itself is testable only at whatever
+time the suite runs, which is how this survived.
+
+**And audit in both directions.** Fixing the kitchen board and stopping there would have left the
+identical bug in the app. One grep for `toISOString().slice(0, 10)` and one for
+`toLocaleDateString` without `timeZone` found every instance in the repository in about a minute.

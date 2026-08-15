@@ -133,3 +133,31 @@ describe('assertPublishable', () => {
     expect(blocked.length).toBeGreaterThan(0);
   });
 });
+
+describe('the note to ourselves never reaches a reader', () => {
+  // All three policies open with a preamble blockquote — provenance for the two the lawyer
+  // already approved, and a drafting warning on `terms.md`. Every word of it was being
+  // published: `/terms` carried "⚠ DRAFT FOR LEGAL REVIEW — DO NOT PUBLISH AS-IS", "Nothing
+  // here has been checked by a lawyer" and two internal task ids, on a live URL.
+  //
+  // That is worse than an unresolved token. A token reads as a mistake; this reads as a
+  // statement about the document's standing, and it was the first thing on the page.
+  it.each(keys)('%s publishes no internal note', (key) => {
+    const { html } = renderPolicy(key, repoRoot);
+    for (const leak of ['DO NOT PUBLISH', 'What this document is', 'checked by a lawyer', 'must fail CI']) {
+      expect(html).not.toContain(leak);
+    }
+    // Task ids still appear in the documents' change-log sections — `E06-33` in the refund
+    // policy, `E20-01` in terms. Those are authored body content, not a preamble note, and
+    // removing text from a legal document is Andy's call rather than the renderer's. Raised as
+    // `E12-22`; deliberately not asserted here so this test does not quietly become a licence
+    // to delete clauses.
+  });
+
+  it.each(keys)('%s keeps its title and its sections', (key) => {
+    // The stripper removes a preamble blockquote, not the document.
+    const { html } = renderPolicy(key, repoRoot);
+    expect(html).toContain('<h1');
+    expect((html.match(/<h2/g) ?? []).length).toBeGreaterThan(5);
+  });
+});

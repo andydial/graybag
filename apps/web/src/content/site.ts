@@ -12,6 +12,8 @@
  * trust it.
  */
 
+import { legal } from '@graybag/shared';
+
 export const SITE = {
   name: 'GrayBag',
   url: 'https://graybag.com',
@@ -403,16 +405,50 @@ export const FOOTER = {
   /**
    * The DPDP grievance officer contact (`E20-07`), required by law to be published.
    *
-   * The name and direct line are `owner:andy` — appointing the officer is his to do — so what
-   * is published is the route that is certain to work today. A published contact that reaches
-   * nobody would be worse than the generic one.
+   * ## This names the OFFICE, not a person — and that reverses an instruction
+   *
+   * Andy, 2026-08-15, told the web thread: *"Vivek's name stays in the website footer only."* The
+   * name was added here on that instruction. **It has been taken out again**, because while this
+   * branch was in flight `main` published **privacy notice version 3**, which changed §7A to
+   * `Grievance Officer, GrayBag Solutions Private Limited, support@graybag.com` — no individual —
+   * on Andy's direct ruling (`E20-53` on `main`). `docs/legal/company.json` now holds
+   * `grievanceOfficer.name: null` with a comment saying that leaving a name there would be *"a
+   * second source of truth that reintroduces the name the first time anybody wires the grievance
+   * block from this file"*.
+   *
+   * That is exactly what this footer would have been. The statutory contact must not differ
+   * between the published notice and the page that links to it: a parent or a regulator reading
+   * both would find two different contacts for the same obligation, and the notice is the one
+   * with legal weight. **A footer naming somebody the notice does not name is worse than either
+   * option on its own.**
+   *
+   * So this now mirrors `company.json`, which is the single source. If Andy wants the name back
+   * on the marketing page specifically, it is a one-line change here — but it should be made
+   * together with notice version 4, not against version 3.
+   *
+   * ## What is still open
+   *
+   * Whether the DPDP Act requires a *natural person* at all is unanswered — `E20-52`,
+   * `owner:andy`, narrowed rather than closed. Version 2 asserted that a general address does not
+   * satisfy a named-officer requirement and named an individual on that basis, and no lawyer had
+   * said so. If the answer is that a person is required, version 4 puts a name back, and this
+   * footer follows it.
+   *
+   * ## The address stays distinct from `support@`... and no longer does
+   *
+   * It was `grievance@graybag.com`. Notice version 3 publishes `support@graybag.com`, so that is
+   * what this says. `E20-51`'s reason for keeping the routes separate — a DPDP matter has to be
+   * filterable out of the order-query pile, because it runs against a statutory clock — is now
+   * carried by `SUPPORT_SUBJECTS.grievance` in the app rather than by a second address. Publishing
+   * an address the notice does not name would be the same defect as publishing a different person.
    */
   grievance: {
     heading: 'Grievance officer',
+    role: legal.GRIEVANCE_OFFICER.title,
     body:
       'For questions about personal data, or to exercise a right under the Digital Personal ' +
       'Data Protection Act, 2023.',
-    email: 'grievance@graybag.com',
+    email: legal.GRIEVANCE_OFFICER.email,
   },
 } as const;
 

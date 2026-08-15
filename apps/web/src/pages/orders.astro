@@ -1,0 +1,248 @@
+---
+/**
+ * Orders across every kitchen, with money — `E10-08`.
+ *
+ * A different surface from `/kitchen` on purpose, not the same one with a flag. The kitchen board
+ * selects no money column at all, because `orders.view_financials` is a separate grant from
+ * `orders.view` (`D3`) and a policy filters rows, never columns — so the column list *is* the
+ * redaction. Two pages with two column lists means the kitchen path cannot leak a total by
+ * mistake: the columns are not in the query it sends.
+ *
+ * `noindex`, like every back-office page.
+ */
+import '../styles/tokens.css';
+import '../styles/site.css';
+import '../styles/kitchen.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Orders — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner">
+          <div class="daynav">
+            <button class="daynav__step" id="o-prev" type="button" aria-label="Previous day">‹</button>
+            <div class="daynav__label">
+              <p class="daynav__date" id="o-date-label">—</p>
+              <p class="daynav__count" id="o-count">—</p>
+            </div>
+            <button class="daynav__step" id="o-next" type="button" aria-label="Next day">›</button>
+            <button class="kitchen__btn daynav__today" id="o-today" type="button" hidden>Today</button>
+          </div>
+          <a class="kitchen__btn" href="/kitchen">Kitchen board</a>
+          <button id="o-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <main class="kitchen__wrap">
+        <div id="o-status" class="visually-hidden" role="status" aria-live="polite"></div>
+        <div id="o-banner"></div>
+        <div id="o-summary"></div>
+        <div id="o-board"></div>
+      </main>
+    </div>
+
+    <script>
+      import { api, money } from '@graybag/shared';
+      import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
+      import { describeDate, serviceDateToday, shiftDate } from '../lib/kitchen/view.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = {
+        dateLabel: $('o-date-label'), count: $('o-count'), today: $<HTMLButtonElement>('o-today'),
+        banner: $('o-banner'), summary: $('o-summary'), board: $('o-board'),
+        status: $('o-status'), reload: $<HTMLButtonElement>('o-reload'),
+      };
+
+      const esc = (s: string) =>
+        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const today = serviceDateToday(new Date());
+      let serviceDate = today;
+      let orders: api.AdminOrder[] = [];
+      let grants: string[] = [];
+      let loading = true;
+      let error: string | null = null;
+
+      const STATUS_WORD: Record<string, string> = {
+        draft: 'Draft', pending_payment: 'Awaiting payment', paid: 'Paid',
+        preparing: 'Making', delivered: 'Delivered', cancelled: 'Cancelled', refunded: 'Refunded',
+      };
+
+      async function load() {
+        loading = true; error = null; render();
+        try {
+          configureBackofficeApi();
+          [orders, grants] = await Promise.all([
+            api.fetchAdminOrders(serviceDate),
+            api.fetchMyGrants(),
+          ]);
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The order list did not load.';
+          orders = [];
+        } finally {
+          loading = false;
+          render();
+        }
+      }
+
+      /** School, then break — the two things somebody scanning a day actually groups by. */
+      function bySchool(list: api.AdminOrder[]) {
+        const groups = new Map<string, { name: string; orders: api.AdminOrder[] }>();
+        for (const order of list) {
+          const key = order.schoolId || 'unknown';
+          if (!groups.has(key)) groups.set(key, { name: order.schoolName || 'Unknown school', orders: [] });
+          groups.get(key)!.orders.push(order);
+        }
+        return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      function render() {
+        el.dateLabel.textContent = describeDate(serviceDate, today);
+        el.today.hidden = serviceDate === today;
+
+        /**
+         * The money grant is checked before anything is drawn.
+         *
+         * This is `ux-spec` §5.21's N3 — "you can't see this" — and it must never render as N1,
+         * "nothing here". An admin without `orders.view_financials` seeing an empty page would
+         * reasonably conclude there were no orders, and act on that.
+         */
+        if (!loading && !grants.includes('orders.view_financials')) {
+          el.count.textContent = '—';
+          el.summary.innerHTML = '';
+          el.board.innerHTML =
+            `<div class="kitchen__state"><h2>You can see orders, not money</h2>` +
+            `<p>This page shows totals and refunds, which needs the <b>orders.view_financials</b> ` +
+            `permission. Your account does not have it. There may well be orders today — this is ` +
+            `about what you may see, not about whether there are any.</p>` +
+            `<a class="kitchen__btn kitchen__btn--primary" href="/kitchen">Go to the kitchen board</a></div>`;
+          return;
+        }
+
+        if (loading) {
+          el.count.textContent = 'Loading…';
+          el.board.innerHTML = Array(4).fill('<div class="kitchen__skeleton"></div>').join('');
+          return;
+        }
+
+        if (error) {
+          el.count.textContent = '—';
+          el.summary.innerHTML = '';
+          el.board.innerHTML =
+            `<div class="kitchen__state"><h2>We can't reach the order list</h2>` +
+            `<p>${esc(error)}</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+
+        const t = api.totalsFor(orders);
+        el.count.textContent = orders.length === 0
+          ? 'No orders'
+          : `${t.orders} order${t.orders === 1 ? '' : 's'} · ${bySchool(orders).length} schools`;
+
+        if (orders.length === 0) {
+          el.summary.innerHTML = '';
+          el.board.innerHTML =
+            `<div class="kitchen__state"><h2>Nobody ordered on this day</h2>` +
+            `<p>Not an error — there are simply no orders for ${esc(describeDate(serviceDate, today))}.</p></div>`;
+          return;
+        }
+
+        el.summary.innerHTML =
+          `<section class="kitchen__summary" aria-label="Money for the day">` +
+            `<p class="kitchen__counts">` +
+              `<span><b>${money.formatPaise(t.grossPaise)}</b> taken</span>` +
+              `<span><b>${money.formatPaise(t.refundedPaise)}</b> refunded</span>` +
+              `<span><b>${money.formatPaise(t.netPaise)}</b> net</span>` +
+              (t.cancelled ? `<span><b>${t.cancelled}</b> cancelled</span>` : '') +
+            `</p>` +
+          `</section>`;
+
+        el.board.innerHTML = bySchool(orders)
+          .map((group) => {
+            const gt = api.totalsFor(group.orders);
+            return (
+              `<section class="kitchen__group">` +
+                `<header class="kitchen__group-head">` +
+                  `<div class="kitchen__group-who">` +
+                    `<p class="kitchen__group-class">${esc(group.name)}</p>` +
+                    `<p class="kitchen__group-where">${group.orders.length} order${group.orders.length === 1 ? '' : 's'}</p>` +
+                  `</div>` +
+                  `<p class="kitchen__progress">${money.formatPaise(gt.netPaise)}</p>` +
+                `</header>` +
+                `<table class="otable">` +
+                  `<thead><tr>` +
+                    `<th scope="col">Order</th><th scope="col">Child</th><th scope="col">Class</th>` +
+                    `<th scope="col">Status</th><th scope="col" class="otable__num">Total</th>` +
+                    `<th scope="col" class="otable__num">Refunded</th>` +
+                  `</tr></thead>` +
+                  `<tbody>` +
+                    group.orders.map((o) =>
+                      `<tr>` +
+                        `<td class="otable__ref">${esc(o.orderRef)}</td>` +
+                        `<td>${esc(o.recipientName)}</td>` +
+                        `<td>${esc([o.classLabel, o.sectionLabel].filter(Boolean).join('-'))}` +
+                          `${o.breakLabel ? ` · ${esc(o.breakLabel)}` : ''}</td>` +
+                        `<td>${esc(STATUS_WORD[o.status] ?? o.status)}</td>` +
+                        `<td class="otable__num">${money.formatPaise(o.totalPaise)}</td>` +
+                        `<td class="otable__num">${o.refundedPaise ? money.formatPaise(o.refundedPaise) : '—'}</td>` +
+                      `</tr>`,
+                    ).join('') +
+                  `</tbody>` +
+                `</table>` +
+              `</section>`
+            );
+          })
+          .join('');
+
+        /**
+         * Said once, at the bottom, rather than as a disabled button on every row.
+         *
+         * `E10-08` asks for refund capability and there is no refund endpoint: `order-lifecycle`
+         * §4.1 performs `cancelled -> refunded` as `system` only, and nothing performs it.
+         * A greyed-out "Refund" on 34 rows would suggest the feature exists and is merely
+         * unavailable to you, which is a different and wronger thing to say.
+         */
+        el.board.innerHTML +=
+          `<p class="kitchen__oneway kitchen__oneway--block">` +
+            `Refunds are not issued from here yet — no endpoint exists to move money. ` +
+            `<b>Cancelling an order on the kitchen board does not refund anyone either.</b> ` +
+            `See docs/kitchen-write-contract.md §2.2.` +
+          `</p>`;
+      }
+
+      el.board.addEventListener('click', (event) => {
+        if ((event.target as HTMLElement).closest('[data-retry]')) void load();
+      });
+      el.reload.addEventListener('click', () => void load());
+      $('o-prev').addEventListener('click', () => { serviceDate = shiftDate(serviceDate, -1); void load(); });
+      $('o-next').addEventListener('click', () => { serviceDate = shiftDate(serviceDate, 1); void load(); });
+      el.today.addEventListener('click', () => { serviceDate = today; void load(); });
+
+      void (async () => {
+        // Same guard as `/kitchen`: a signed-out visitor is sent to sign in rather than shown an
+        // empty page that looks like a day with no orders.
+        try {
+          if (!(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent('/orders')}`);
+            return;
+          }
+        } catch {
+          /* An unconfigured build falls through to the error state below. */
+        }
+        await load();
+      })();
+    </script>
+  </body>
+</html>

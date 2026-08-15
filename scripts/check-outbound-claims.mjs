@@ -72,6 +72,10 @@ const ALLOWED = new Map([
   // listing is required to make. It is the opposite of a service claim — it says nothing about
   // where we deliver lunch.
   ['Mumbai', 'AWS ap-south-1, the data region (A2) — a storage location, not a service area'],
+  // Added 2026-08-14 with the real entity facts. The registered office is in Chandigarh and we
+  // do not serve schools there — the guard was right to stop it, and this is the reason rather
+  // than a loosening.
+  ['Chandigarh', 'the registered office address of GRAYBAG SOLUTIONS PRIVATE LIMITED — not a service area'],
 ]);
 
 /** The cities that actually exist, read from the real catalogue seed. */

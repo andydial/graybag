@@ -20,6 +20,8 @@ export interface RecordedQuery {
   isFilters: { column: string; value: null | boolean }[];
   /** `<=` filters. Separate for the same reason: a test asserting a range must see the operator. */
   lteFilters: { column: string; value: unknown }[];
+  /** `>=` filters. A range is two operators and a test must be able to assert both ends. */
+  gteFilters: { column: string; value: unknown }[];
   /** Negated filters — `not('published_at', 'is', null)`. The operator is part of the assertion. */
   notFilters: { column: string; operator: string; value: unknown }[];
   orders: { column: string; ascending: boolean }[];
@@ -55,6 +57,7 @@ export function fakeTransport(
             filters: [],
             isFilters: [],
             lteFilters: [],
+            gteFilters: [],
             notFilters: [],
             orders: [],
             limits: [],
@@ -72,6 +75,10 @@ export function fakeTransport(
             },
             lte(column, value) {
               record.lteFilters.push({ column, value });
+              return builder;
+            },
+            gte(column, value) {
+              record.gteFilters.push({ column, value });
               return builder;
             },
             not(column, operator, value) {

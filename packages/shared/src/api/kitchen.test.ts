@@ -136,6 +136,7 @@ describe('fetchKitchenOrders', () => {
       status: 'paid',
       pickupCode: null,
       lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 2, note: null }],
+      allergenCodes: null,
     });
   });
 
@@ -193,6 +194,46 @@ describe('fetchKitchenOrders', () => {
     const [order] = await fetchKitchenOrders('2026-08-13');
     expect(order?.breakId).toBeNull();
     expect(order?.breakLabel).toBeNull();
+  });
+});
+
+describe('allergen flags — E09-33', () => {
+  const withAllergens = (codes: string[] | null) =>
+    ROW({ recipient: codes === null ? null : { recipient_allergen: codes.map((code) => ({ allergen: { code } })) } });
+
+  it('selects the enumerated codes, never the free-text notes', () => {
+    // `recipient.allergy_note` and `recipient_allergen.note` are things a parent typed. Andy,
+    // 2026-08-14: "No parent notes, no severity prose, no medical detail."
+    expect(KITCHEN_ORDER_COLUMNS).toContain('recipient(recipient_allergen(allergen(code)))');
+    expect(KITCHEN_ORDER_COLUMNS).not.toContain('allergy_note');
+    expect(KITCHEN_ORDER_COLUMNS).not.toContain('severity');
+  });
+
+  it('does not select the recipient id, only the embed', () => {
+    // The kitchen needs badges, not an identifier it could join on.
+    expect(KITCHEN_ORDER_COLUMNS).not.toContain('recipient_id');
+  });
+
+  it('returns sorted, de-duplicated codes', async () => {
+    install([withAllergens(['tree_nut', 'milk', 'milk'])]);
+    const [order] = await fetchKitchenOrders('2026-08-14');
+    expect(order?.allergenCodes).toEqual(['milk', 'tree_nut']);
+  });
+
+  it('distinguishes "none recorded" from "not readable"', async () => {
+    // The single worst way for this to be wrong is a permissions failure rendering as a clean
+    // bill of health. PostgREST returns `recipient: null` when RLS filters the row, and an empty
+    // array when the child simply has none.
+    install([withAllergens([])]);
+    expect((await fetchKitchenOrders('2026-08-14'))[0]?.allergenCodes).toEqual([]);
+
+    install([withAllergens(null)]);
+    expect((await fetchKitchenOrders('2026-08-14'))[0]?.allergenCodes).toBeNull();
+  });
+
+  it('drops an unreadable code rather than rendering an empty badge', async () => {
+    install([ROW({ recipient: { recipient_allergen: [{ allergen: { code: null } }, { allergen: { code: 'soy' } }] } })]);
+    expect((await fetchKitchenOrders('2026-08-14'))[0]?.allergenCodes).toEqual(['soy']);
   });
 });
 

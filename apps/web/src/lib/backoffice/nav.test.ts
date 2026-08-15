@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { EXAMPLE_LEVELS, NAV, canReach, noAccessReason, visibleNav, type Grant, type Operator } from './nav.js';
+import {
+  EXAMPLE_LEVELS,
+  NAV,
+  SEEDED_PERMISSIONS,
+  canReach,
+  noAccessReason,
+  visibleNav,
+  type Grant,
+  type Operator,
+} from './nav.js';
 
 const operator = (grants: Iterable<Grant>): Operator => ({ name: 'Test', grants: new Set(grants) });
 
@@ -72,5 +81,49 @@ describe('the nav table itself', () => {
 
   it('describes every item, because a label alone does not say what a screen is for', () => {
     for (const item of NAV) expect(item.description.length, item.href).toBeGreaterThan(20);
+  });
+
+  /**
+   * The regression test for `E10-06`'s find.
+   *
+   * `/admin/people` required `user.edit`, and `/admin/config` would have required `config.edit`.
+   * Neither is a code this system seeds — they are `users.manage` and `config.platform_edit`.
+   * Nothing failed: a nav item whose required grant cannot exist is simply never visible, so the
+   * screen was unreachable by every account including a full platform admin, and it was
+   * indistinguishable from correct default-deny.
+   *
+   * An invented grant is silent in exactly the direction nobody investigates — it denies rather
+   * than allows — which is why it needs a test rather than a review.
+   */
+  it('requires only grants that actually exist in the permission table', () => {
+    const seeded = new Set<string>(SEEDED_PERMISSIONS);
+    for (const item of NAV) {
+      for (const grant of item.requires) {
+        expect(seeded.has(grant), `${item.href} requires "${grant}", which is not a seeded permission`).toBe(true);
+      }
+    }
+  });
+
+  it('keeps every example bundle to grants that exist', () => {
+    const seeded = new Set<string>(SEEDED_PERMISSIONS);
+    for (const [level, grants] of Object.entries(EXAMPLE_LEVELS)) {
+      for (const grant of grants) {
+        expect(seeded.has(grant), `${level} holds "${grant}", which is not a seeded permission`).toBe(true);
+      }
+    }
+  });
+
+  it('lets a platform admin reach the configuration screen', () => {
+    // The direct assertion that the bug is gone: before the fix this was false, because
+    // `config.edit` was not a grant anyone could hold.
+    const item = NAV.find((i) => i.href === '/admin/config')!;
+    expect(canReach(item, operator(EXAMPLE_LEVELS.platformAdmin))).toBe(true);
+  });
+
+  it('does not open the configuration screen to a kitchen operator', () => {
+    // `revenue_share_bps` (M4) is on the same row as the cutoff, and RLS filters rows, never
+    // columns — which is why config is shut to kitchen staff rather than column-redacted.
+    const item = NAV.find((i) => i.href === '/admin/config')!;
+    expect(canReach(item, operator(EXAMPLE_LEVELS.kitchenOperator))).toBe(false);
   });
 });

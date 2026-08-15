@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
+import { legal } from '@graybag/shared';
+
 import {
   BENEFITS,
   FACTS,
@@ -213,6 +215,25 @@ describe('the footer carries what the law and the stores require', () => {
     // E20-07. DPDP requires it to be findable by a person who wants to complain.
     expect(FOOTER.grievance.email).toMatch(/@graybag\.com$/);
     expect(FOOTER.grievance.body).toMatch(/Digital Personal Data Protection Act/);
+  });
+
+  it('names the office rather than an individual', () => {
+    // Privacy notice version 3 (`E20-53` on `main`) publishes the office. This footer previously
+    // named Vivek on an earlier instruction and no longer does — the statutory contact must not
+    // differ between the published notice and the page that links to it.
+    expect(FOOTER.grievance.role).toMatch(/Grievance Officer/);
+    expect(JSON.stringify(FOOTER)).not.toMatch(/\bVivek\b/);
+  });
+
+  it('reads the contact from company.json rather than restating it', () => {
+    // The whole point of `E12-25`: one source. A second copy here is what reintroduces a name
+    // the notice has removed, which is the failure `company.json`'s own comment predicts.
+    expect(FOOTER.grievance.role).toBe(legal.GRIEVANCE_OFFICER.title);
+    expect(FOOTER.grievance.email).toBe(legal.GRIEVANCE_OFFICER.email);
+  });
+
+  it('publishes the same address the notice does', () => {
+    expect(FOOTER.grievance.email).toBe('support@graybag.com');
   });
 
   it('uses no no-reply address anywhere', () => {

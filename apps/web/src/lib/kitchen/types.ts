@@ -68,6 +68,16 @@ export interface KitchenOrder {
   status: KitchenStatus;
   pickupCode: string | null;
   lines: KitchenOrderLine[];
+  /**
+   * Enumerated allergen codes for this child — `E09-33`.
+   *
+   * `[]` means none recorded and renders as "not provided"; `null` means not readable and renders
+   * the same way, because from the kitchen's point of view both mean "you have not been told" and
+   * neither may render as blank space (`ux-spec` §5.21).
+   *
+   * **Tier S.** Never logged, never exported, never written to disk — see `MEMORY_ONLY`.
+   */
+  allergenCodes: string[] | null;
 }
 
 export interface KitchenFilters {

@@ -258,6 +258,15 @@ jobs:
       - name: Build the staging APK
         working-directory: apps/mobile
         env:
+          # `APP_ENV` and `EXPO_PUBLIC_APP_ENV` are DIFFERENT variables and both are needed.
+          #
+          # `app.config.js` reads `process.env.APP_ENV` to pick the identity — the package name,
+          # the display name and the URL scheme. `EXPO_PUBLIC_APP_ENV` is the app's own runtime
+          # environment. Only the second was set here, so `APP_ENV` was unset, the config fell to
+          # the `local` identity, and the APK installed as `com.Gracord.Graybag.dev` while the
+          # flow looked for a `.staging` package. Maestro reported
+          # "Package … is not installed" after a 24-minute build — see `E01-26`.
+          APP_ENV: staging
           EXPO_PUBLIC_APP_ENV: staging
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.STAGING_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.STAGING_SUPABASE_ANON_KEY }}

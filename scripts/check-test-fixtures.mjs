@@ -74,6 +74,12 @@ const SHARED_ON_PURPOSE = new Map([
   // The same enum as `guardian` beside it — `E05-38` asserts an adult's link says `self`
   // rather than `guardian`. A relationship value, not a code on a unique column.
   ['self', 'guardian relationship enum'],
+  // `E09-33` looks these up rather than inserting them — `select id from allergen where code =
+  // 'milk'`. Referencing the seeded taxonomy is the point: the kitchen badge renders the real
+  // enumerated code, and a fixture inventing its own would prove the badge against a vocabulary
+  // that does not ship.
+  ['milk', 'allergen code, read from the seeded taxonomy and never inserted by a test'],
+  ['tree_nut', 'allergen code, read from the seeded taxonomy and never inserted by a test'],
   ['school', 'scope_type enum'],
   ['counter', 'delivery mode enum'],
   // Composite uniques whose OTHER column already differs between seed and tests.

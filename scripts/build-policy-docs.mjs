@@ -41,8 +41,40 @@ const PENDING = /«[^»]*PENDING[^»]*»/g;
  * Strip the YAML frontmatter. It is repo metadata (`title:`, `status:`) and means nothing to a
  * parent; leaving it in would render three lines of `---` at the top of a legal document.
  */
+import { resolveTokens } from './lib/legal-tokens.mjs';
+
 function body(text) {
-  return text.startsWith('---') ? text.replace(/^---[\s\S]*?\n---\n/, '').trimStart() : text;
+  const withoutFrontmatter = text.startsWith('---')
+    ? text.replace(/^---[\s\S]*?\n---\n/, '').trimStart()
+    : text;
+  return resolveTokens(stripLeadingNote(withoutFrontmatter));
+}
+
+/**
+ * Strip the leading blockquote — a note to ourselves, not part of the document.
+ *
+ * All three policies open with one, and every word of it was being published: `/terms` carried
+ * "⚠ DRAFT FOR LEGAL REVIEW — DO NOT PUBLISH AS-IS" and two internal task ids on a live URL.
+ * `apps/web/src/lib/policy.ts` does the same thing for the website; the app renders from this
+ * generated file, so both surfaces have to agree.
+ */
+function stripLeadingNote(markdown) {
+  const lines = markdown.split('\n');
+
+  // Only the preamble — everything before the first `##` section. The policies use blockquotes
+  // inside their sections for emphasis, and those are authored content that must survive.
+  const firstSection = lines.findIndex((l) => l.startsWith('## '));
+  const limit = firstSection === -1 ? lines.length : firstSection;
+
+  const start = lines.findIndex((l, i) => i < limit && l.startsWith('>'));
+  if (start === -1) return markdown;
+
+  let end = start;
+  while (end < lines.length && lines[end].startsWith('>')) end += 1;
+
+  const kept = [...lines.slice(0, start), ...lines.slice(end)];
+  // Collapse the blank line the note left behind, so the page does not open with a gap.
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trimStart();
 }
 
 function generate() {

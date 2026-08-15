@@ -31,18 +31,27 @@
 .kitchen__wrap {
   max-width: var(--gb-layout-container-max-width);
   margin-inline: auto;
-  padding: var(--gb-space-5) var(--gb-space-4) var(--gb-space-16);
+  padding: var(--gb-space-3) var(--gb-space-4) var(--gb-space-16);
 }
 
 /* ------------------------------------------------------------------- header */
 
+/**
+ * The bar is one row: the date, the filter line, Refresh. The chips appear below it only when
+ * opened.
+ *
+ * It was 212px of a 1080px screen — daynav plus two wrapped rows of eleven chips — and with the
+ * "to cook" card under it the first order started at 531px. Half the screen spent on controls
+ * nobody touches once service starts. `padding-block` is tighter than the old `space-4` for the
+ * same reason: every row here is a row not spent on orders.
+ */
 .kitchen__bar {
   position: sticky;
   top: 0;
   z-index: var(--gb-z-sticky-header);
   background: var(--gb-bg-surface-inverse);
   color: var(--gb-text-on-brand);
-  padding: var(--gb-space-4);
+  padding: var(--gb-space-2) var(--gb-space-4);
 }
 
 /**
@@ -60,9 +69,9 @@
   /* `minmax(0, 1fr)`, not `1fr`: a bare `1fr` floors at min-content, and the day nav's
      min-content is wider than a phone — so the whole bar overflowed to the right and the chips
      sat on the canvas rather than on the green. Caught by the contrast check, at 390px. */
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: var(--gb-space-4) var(--gb-space-3);
+  gap: var(--gb-space-2) var(--gb-space-3);
 }
 
 .kitchen__title {
@@ -138,8 +147,9 @@
  */
 @media (max-width: 40rem) {
   .kitchen__bar-inner { grid-template-columns: minmax(0, 1fr); }
-  .kitchen__filters { order: 1; }
-  .kitchen__refresh { order: 2; }
+  .kitchen__filterline { order: 1; max-width: none; }
+  .kitchen__filters { order: 2; }
+  .kitchen__refresh { order: 3; }
 }
 
 /* -------------------------------------------------------------------- filters */
@@ -190,8 +200,38 @@
  * group wraps to its own line the separation is simply the line. The leading chip of each group
  * names its category ("All breaks", "Any status"), which is what actually disambiguates them.
  */
+/**
+ * The collapsed filter line: what is selected, and a tap to change it.
+ *
+ * Inverts when something is filtered, the same way a selected chip does, so "you are looking at
+ * a subset" is visible without reading the words.
+ */
+.kitchen__filterline {
+  min-height: 3rem;
+  max-width: 22rem;
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-2);
+  justify-content: space-between;
+}
+.kitchen__filterline > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kitchen__filterline[data-filtered='true'] {
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+  font-weight: var(--gb-font-semibold);
+}
+.kitchen__filterline[aria-expanded='true'] .kitchen__filterline-caret { transform: rotate(180deg); }
+.kitchen__filterline-caret { display: inline-block; }
+
+.kitchen__filters[hidden] { display: none; }
+
 .kitchen__filters {
   grid-column: 1 / -1;
+  padding-top: var(--gb-space-2);
   display: flex;
   flex-wrap: wrap;
   row-gap: var(--gb-space-3);
@@ -258,42 +298,49 @@
  * It recomputes from whatever is filtered, so narrowing to one break answers the question for
  * that break — which is the whole reason Cook and Deliver became one surface.
  */
+/**
+ * One row you scroll past once, not a card that owns the top of the screen.
+ *
+ * It was a heading, a wrapping grid of dish tiles and a bordered stats line — 178px of a 1080px
+ * screen, on top of a 212px bar, so the first order started at 531. The "TO COOK" heading is
+ * gone because a tile reading "10 Paneer Wrap" says what it is, and the totals now scroll
+ * sideways rather than wrapping, which fixes the height whatever the menu size.
+ *
+ * It is dropped entirely in the dish grouping, where the group headers already say all of this.
+ */
 .kitchen__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gb-space-2) var(--gb-space-5);
   background: var(--gb-bg-surface);
   border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
-  border-radius: var(--gb-radius-xl);
-  padding: var(--gb-space-5);
-  margin-bottom: var(--gb-space-6);
-}
-
-.kitchen__summary h2 {
-  font-size: var(--gb-font-size-overline);
-  line-height: var(--gb-line-height-overline);
-  letter-spacing: var(--gb-tracking-overline);
-  text-transform: uppercase;
-  color: var(--gb-text-tertiary);
-  font-weight: var(--gb-font-semibold);
+  border-radius: var(--gb-radius-lg);
+  padding: var(--gb-space-2) var(--gb-space-3);
   margin-bottom: var(--gb-space-3);
 }
 
 .kitchen__totals {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-  gap: var(--gb-space-3);
+  display: flex;
+  gap: var(--gb-space-2);
+  overflow-x: auto;
+  /* Never squeezed by the counts beside it: the dish numbers are what the cook is reading. */
+  flex: 1 1 20rem;
 }
 
 .kitchen__total {
   display: flex;
   align-items: baseline;
-  gap: var(--gb-space-3);
+  gap: var(--gb-space-2);
   background: var(--gb-bg-surface-accent);
   border-radius: var(--gb-radius-md);
-  padding: var(--gb-space-3) var(--gb-space-4);
+  padding: var(--gb-space-1) var(--gb-space-3);
+  white-space: nowrap;
 }
 .kitchen__total b {
-  font-size: var(--gb-font-size-h2);
-  line-height: var(--gb-line-height-h2);
-  font-weight: var(--gb-font-semibold);
+  font-size: var(--gb-font-size-h3);
+  line-height: var(--gb-line-height-h3);
+  font-weight: var(--gb-font-bold);
   font-variant-numeric: tabular-nums;
   color: var(--gb-text-on-accent);
 }
@@ -302,11 +349,8 @@
 .kitchen__counts {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--gb-space-5);
-  margin-top: var(--gb-space-4);
-  padding-top: var(--gb-space-4);
-  border-top: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
-  font-size: var(--gb-font-size-body-strong);
+  gap: var(--gb-space-4);
+  font-size: var(--gb-font-size-body-sm);
   color: var(--gb-text-secondary);
 }
 .kitchen__counts b { color: var(--gb-text-primary); font-variant-numeric: tabular-nums; }
@@ -681,4 +725,91 @@
 .kundo__btn {
   min-width: 8rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------- the order table (E10-08) */
+
+/**
+ * A table, not cards: this screen is read across rows — "what did this school take today" — and
+ * a card grid makes you compare numbers that are not in a column. Money is right-aligned and
+ * tabular so the digits line up, which is the whole reason to use a table here.
+ */
+.otable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--gb-font-size-body-sm);
+}
+
+.otable th,
+.otable td {
+  text-align: left;
+  padding: var(--gb-space-2) var(--gb-space-4);
+  border-bottom: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+}
+
+.otable th {
+  font-size: var(--gb-font-size-caption);
+  letter-spacing: var(--gb-tracking-overline);
+  text-transform: uppercase;
+  color: var(--gb-text-secondary);
+  font-weight: var(--gb-font-semibold);
+}
+
+.otable__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.otable__ref {
+  font-variant-numeric: tabular-nums;
+  color: var(--gb-text-secondary);
+}
+
+/* The refund note, once at the foot of the board rather than on every row. */
+.kitchen__oneway--block {
+  max-width: none;
+  text-align: left;
+  margin-top: var(--gb-space-5);
+  padding: var(--gb-space-3) var(--gb-space-4);
+  background: var(--gb-ramp-amber-100);
+  border-left: var(--gb-space-1) solid var(--gb-ramp-amber-700);
+  border-radius: var(--gb-radius-sm);
+  font-size: var(--gb-font-size-body-sm);
+}
+
+/* ------------------------------------------------- allergen badges (E09-33) */
+
+/**
+ * Beside the child's name, because that is the moment the bag changes hands.
+ *
+ * Amber, not red: this is information the person handing over needs, not an error state, and the
+ * board already uses red for cancellation. Colour carries none of the meaning on its own — the
+ * code is written out (§2.10), which matters here more than anywhere else on the screen.
+ */
+.kallergen {
+  display: inline-block;
+  margin-left: var(--gb-space-2);
+  padding: 0 var(--gb-space-2);
+  border-radius: var(--gb-radius-sm);
+  background: var(--gb-ramp-amber-200);
+  color: var(--gb-text-on-amber);
+  font-size: var(--gb-font-size-caption);
+  font-weight: var(--gb-font-bold);
+  letter-spacing: var(--gb-tracking-overline);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/**
+ * "No allergies provided" is deliberately quiet, and deliberately present.
+ *
+ * It must not compete with a real badge — most rows will carry it — but blank space beside a name
+ * reads as "no allergies", and that is the one thing this feature must never say by accident.
+ */
+.kallergen--none {
+  background: none;
+  color: var(--gb-text-tertiary);
+  font-weight: var(--gb-font-medium);
+  letter-spacing: normal;
+  text-transform: none;
 }

@@ -46,6 +46,13 @@ export * as ordering from './ordering/index.js';
 // bug this module exists to make unnecessary.
 export * as money from './money/index.js';
 
+/**
+ * The company's published identity — one source for the legal name, registered address and GSTIN
+ * (`E12-25`). The policy renderer and the invoice renderer both substitute from here, so an
+ * invoice cannot state a different GSTIN from the terms.
+ */
+export * as legal from './legal/index.js';
+
 // The cart domain (E05-04). Pure, immutable operations — the cart has no table, because a
 // cart is a draft of an intention and the order is the record. Carries the price the app
 // displayed, which is the evidence L7's abort-on-mismatch check needs.

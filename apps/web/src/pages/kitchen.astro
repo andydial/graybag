@@ -55,11 +55,26 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
             <button class="kitchen__btn daynav__today" id="k-today" type="button" hidden>Today</button>
           </div>
 
-          <!-- Before the filters in the DOM because the grid places in source order: this puts
-               Refresh on the date's row rather than in a row of its own below the chips. -->
+          <!--
+            The filters live behind one line, not in two rows of chips.
+
+            Eleven chips wrapped to two rows cost 108px of a sticky bar that already cost 212 —
+            about a third of a kitchen tablet spent on controls nobody touches once service
+            starts. The summary says what is selected ("Lunch break · Amity · Any status") and
+            opens the chips on tap.
+
+            `aria-expanded` and `aria-controls` are what make this a disclosure rather than a
+            mystery button, and the chips keep their own `role="group"` labels when open.
+          -->
+          <button id="k-filter-toggle" class="kitchen__btn kitchen__filterline" type="button"
+                  aria-expanded="false" aria-controls="k-filters">
+            <span id="k-filter-summary">All orders</span>
+            <span class="kitchen__filterline-caret" aria-hidden="true">▾</span>
+          </button>
+
           <button id="k-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
 
-          <div class="kitchen__filters" id="k-filters"></div>
+          <div class="kitchen__filters" id="k-filters" hidden></div>
         </div>
       </header>
 
@@ -134,7 +149,10 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         allowedActions,
         applyFilters,
         boardState,
+        allergenBadges,
         countLine,
+        filterSummary,
+        serviceDateToday,
         describeDate,
         filterOptions,
         groupByClass,
@@ -153,7 +171,8 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
        * `mark-delivered` and `E12-06`'s sign-in are built. Until then everything below runs
        * against fixtures, which is what makes every state reachable in review.
        */
-      const today = new Date().toISOString().slice(0, 10);
+      // The kitchen's date, never UTC and never the device's — see `serviceDateToday`.
+      const today = serviceDateToday(new Date());
 
       /**
        * Every state is reachable deliberately, via `?state=`.
@@ -209,6 +228,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
        * union — which is the kind of collision that compiles in a dynamic language and does not
        * here, gratefully.
        */
+      const filterToggle = $<HTMLButtonElement>('k-filter-toggle');
+      const filterSummaryEl = $('k-filter-summary');
+
       const undoStrip = $('k-undo');
       const undoWhat = undoStrip.querySelector('.kundo__what') as HTMLElement;
       const undoBtn = $<HTMLButtonElement>('k-undo-btn');
@@ -311,6 +333,14 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
       let pending: Pending | null = null;
 
+      /**
+       * Orders this session moved and then let past the undo window.
+       *
+       * Memory only, and deliberately: it is about what *you* just did, so it should not survive
+       * a reload any more than the undo window does. Holds ids, never anything about the child.
+       */
+      const committed = new Set<string>();
+
       function queueUpdate(orderIds: string[], to: KitchenAction, reasonCode?: string) {
         if (!orderIds.length || !day) return;
 
@@ -349,6 +379,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           await transport.updateStatus(
             p.reasonCode ? { orderIds: p.orderIds, to: p.to, reasonCode: p.reasonCode } : { orderIds: p.orderIds, to: p.to },
           );
+          if (p.to !== 'cancelled') p.orderIds.forEach((id) => committed.add(id));
           say(`${p.orderIds.length} order${p.orderIds.length === 1 ? '' : 's'} marked ${STATUS_LABEL[p.to].toLowerCase()}.`);
         } catch (cause) {
           // Roll back and say so loudly. A write that silently does nothing is the worst thing
@@ -447,24 +478,42 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         el.banner.innerHTML = parts.join('');
       }
 
+      /**
+       * "To cook" is dropped entirely in the dish grouping.
+       *
+       * It lists "10 Paneer Wrap, 9 Rajma Chawal…" — which is precisely what the group headers
+       * below already say, one per block, in bigger type and next to the orders they belong to.
+       * Keeping both costs about 180px of a 1080px screen to say the same thing twice.
+       *
+       * It stays in the class grouping, where the per-dish totals genuinely appear nowhere else:
+       * grouped by class, nothing on the screen tells you how many wraps to make.
+       */
       function renderSummary(state: ReturnType<typeof boardState>) {
+        if (grouping === 'dish') { el.summary.innerHTML = ''; return; }
         if (!day || (state.kind !== 'data' && state.kind !== 'stale')) { el.summary.innerHTML = ''; return; }
         const visible = applyFilters(day.orders, filters());
         const totals = productionTotals(visible);
         const s = summarise(visible);
 
+        // One row: what to make, then how the day stands. It scrolls sideways rather than
+        // wrapping, so its height is fixed however many dishes are on the menu — the card used
+        // to be 178px of a 1080px screen and is now about 80.
         el.summary.innerHTML =
-          `<section class="kitchen__summary" aria-labelledby="k-cook">` +
-            `<h2 id="k-cook">To cook${
-              sel.breakId ? ` · ${esc(day?.breaks.find((b) => b.id === sel.breakId)?.label ?? '')}` : ''
-            }</h2>` +
-            `<div class="kitchen__totals">` +
-              totals.map((t) => `<div class="kitchen__total"><b>${t.quantity}</b><span>${esc(t.dishName)}</span></div>`).join('') +
+          `<section class="kitchen__summary" aria-label="To cook${
+            sel.breakId ? `, ${esc(day?.breaks.find((b) => b.id === sel.breakId)?.label ?? '')}` : ''
+          }">` +
+            // `tabindex="0"` because it scrolls sideways: a scrollable region with nothing
+            // focusable inside it cannot be reached by keyboard at all, so the dishes past the
+            // right edge would be unreadable without a mouse. Labelled, so it is not an
+            // anonymous tab stop.
+            `<div class="kitchen__totals" role="group" aria-label="Dishes to cook" tabindex="0">` +
+              totals
+                .map((t) => `<div class="kitchen__total"><b>${t.quantity}</b><span>${esc(t.dishName)}</span></div>`)
+                .join('') +
             `</div>` +
             `<p class="kitchen__counts">` +
-              `<span><b>${s.orders}</b> orders</span>` +
               `<span><b>${s.items}</b> items</span>` +
-              `<span><b>${s.outstanding}</b> still to hand over</span>` +
+              `<span><b>${s.outstanding}</b> to hand over</span>` +
               `<span><b>${s.delivered}</b> delivered</span>` +
               (s.cancelled ? `<span><b>${s.cancelled}</b> cancelled</span>` : '') +
             `</p>` +
@@ -560,6 +609,23 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
             : '') +
         `</li>`;
 
+      /**
+       * Allergen badges beside the child's name — `E09-33`.
+       *
+       * The kitchen is the last human in the chain: they hand a physical bag to a named child,
+       * and until now they were told nothing. Codes only, from the enumerated table. No parent
+       * note, no severity, no medical detail.
+       *
+       * **"Not provided" is rendered, never nothing.** Blank space beside a name reads as "no
+       * allergies" to anyone who has not read this comment, and that is the one thing this must
+       * never say by accident (`ux-spec` §5.21).
+       */
+      const renderAllergens = (codes: string[] | null) => {
+        const badges = allergenBadges(codes);
+        if (!badges) return `<span class="kallergen kallergen--none">No allergies provided</span>`;
+        return badges.map((b) => `<span class="kallergen">${esc(b)}</span>`).join('');
+      };
+
       const renderOrder = (offline: boolean) => (o: KitchenDay['orders'][number]) => {
         const actions = allowedActions(o.status, day?.permissions);
         const label = { preparing: 'Start', delivered: 'Delivered', cancelled: 'Cancel' } as const;
@@ -567,7 +633,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           `<div class="kitchen__order" data-busy="${busy.has(o.id)}">` +
             `<div class="kitchen__child">` +
               `<ul class="kline-list">${o.lines.map(renderLine).join('')}</ul>` +
-              `<p class="kitchen__name">${esc(o.recipientName)}</p>` +
+              `<p class="kitchen__name">${esc(o.recipientName)}` +
+                renderAllergens(o.allergenCodes) +
+              `</p>` +
             `</div>` +
             `<span class="kitchen__pill" data-status="${o.status}">` +
               `<span aria-hidden="true">${({ paid: '○', preparing: '◐', delivered: '✓', cancelled: '✕' })[o.status]}</span>` +
@@ -595,10 +663,16 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
                * specifies the correction that replaces this line, and it is deleted when that
                * lands.
                */
-              (o.status === 'preparing' || o.status === 'delivered'
+              // Only on rows this session actually moved and whose undo window has closed.
+              //
+              // It used to render on every `preparing` or `delivered` row, which on a 24-order
+              // board meant the same sentence twenty-four times — the most repeated thing on
+              // the screen, about a feature that does not exist. On a row that arrived already
+              // delivered from the server it was answering a question nobody had asked.
+              (committed.has(o.id) && (o.status === 'preparing' || o.status === 'delivered')
                 ? `<p class="kitchen__oneway">` +
                     `${o.status === 'preparing' ? 'Started' : 'Delivered'} by hand. ` +
-                    `Correcting this after the undo window is not built yet.` +
+                    `Correcting this is not built yet.` +
                   `</p>`
                 : '') +
               /**
@@ -704,6 +778,26 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         return !showSchools && schools.length === 1 ? (schools[0]?.name ?? null) : null;
       };
 
+      /** The collapsed line, and whether the chips are open. */
+      let filtersOpen = false;
+
+      function renderFilterLine() {
+        const { schools, breaks } = filterOptions(day);
+        filterSummaryEl.textContent = filterSummary(filters(), { schools, breaks });
+        filterToggle.setAttribute('aria-expanded', String(filtersOpen));
+        el.filters.hidden = !filtersOpen;
+        // A set filter is worth seeing at a glance even while collapsed, so the line inverts the
+        // way a selected chip does rather than looking like every other button on the bar.
+        filterToggle.dataset.filtered = String(
+          Boolean(sel.schoolId || sel.breakId || sel.status),
+        );
+      }
+
+      filterToggle.addEventListener('click', () => {
+        filtersOpen = !filtersOpen;
+        renderFilterLine();
+      });
+
       function renderFilters() {
         const options = filterOptions(day);
         const group = (
@@ -781,6 +875,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         renderDay(state);
         renderUndo();
         renderFilters();
+        renderFilterLine();
         renderBanner(offline, state);
         renderSummary(state);
         renderBoard(state, offline);

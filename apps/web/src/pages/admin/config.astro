@@ -1,0 +1,464 @@
+---
+/**
+ * Per-school configuration, with visible inheritance — `E10-06`.
+ *
+ * ## What this screen exists to prevent
+ *
+ * An operator looking at `Cutoff: 12:00 AM` cannot act on it. The number is the same whether
+ * somebody chose it for this school or whether it is the platform default every school gets, and
+ * those two facts lead to opposite actions: one you change here, the other you change centrally
+ * or you will be changing it school by school forever. So every row says where its value came
+ * from, and an overridden row is marked three ways — the words, the weight, and a solid left edge
+ * that survives greyscale.
+ *
+ * ## Why `?school=` and not `/admin/schools/[id]/config`
+ *
+ * The site is statically built with no adapter (`A5`, `netlify.toml`), so a dynamic route would
+ * need `getStaticPaths` and a build-time list of every school. That would bake the school list
+ * into the bundle — which is a list of customers on a public URL — and it would go stale the
+ * moment one is onboarded. A query parameter read at runtime has neither problem.
+ *
+ * `?state=demo` renders fixtures instead of reaching the backend, the same trick `/kitchen` uses,
+ * so `check:a11y` can audit this page rather than being bounced to `/signin`.
+ */
+import '../../styles/tokens.css';
+import '../../styles/site.css';
+import '../../styles/kitchen.css';
+import '../../styles/admin.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>School configuration — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
+          <h1 class="kitchen__title">School configuration</h1>
+          <a class="kitchen__btn" href="/kitchen">Kitchen board</a>
+          <a class="kitchen__btn" href="/orders">Orders</a>
+          <button id="c-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <main class="kitchen__wrap admin__wrap">
+        <div id="c-status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <p class="admin__intro">
+          Every setting below applies to the school you pick. A value is either
+          <b>set for this school</b>, inherited from its <b>kitchen</b>, or the <b>platform
+          default</b> — and the row says which. Changing a platform default changes it for every
+          school that has not overridden it.
+        </p>
+
+        <div class="admin__picker">
+          <div>
+            <label class="admin__label" for="c-school">School</label>
+            <select class="admin__select" id="c-school"><option>Loading…</option></select>
+          </div>
+        </div>
+
+        <div id="c-banner"></div>
+        <div id="c-body"></div>
+      </main>
+    </div>
+
+    <script>
+      import { api } from '@graybag/shared';
+      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { CONFIG_FIXTURE } from '../../lib/admin/config-fixture.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = {
+        school: $<HTMLSelectElement>('c-school'),
+        banner: $('c-banner'),
+        body: $('c-body'),
+        status: $('c-status'),
+        reload: $<HTMLButtonElement>('c-reload'),
+      };
+
+      const esc = (s: string) =>
+        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const params = new URLSearchParams(location.search);
+      /** Any `?state=` renders fixtures — the same switch `/kitchen` uses, and why a11y can audit this. */
+      const demo = params.has('state');
+
+      let schools: { id: string; name: string }[] = [];
+      let view: api.SchoolConfigView | null = null;
+      let breaks: api.BreakTime[] = [];
+      let loading = true;
+      let error: string | null = null;
+
+      async function loadSchools() {
+        if (demo) {
+          schools = CONFIG_FIXTURE.schools;
+          return;
+        }
+        const list = await api.fetchSchools();
+        schools = list.map((s) => ({ id: s.id, name: s.name }));
+      }
+
+      async function load() {
+        loading = true;
+        error = null;
+        render();
+        try {
+          if (demo) {
+            view = CONFIG_FIXTURE.view;
+            breaks = CONFIG_FIXTURE.breaks;
+          } else {
+            configureBackofficeApi();
+            const schoolId = el.school.value;
+            if (!schoolId) {
+              view = null;
+              return;
+            }
+            [view, breaks] = await Promise.all([
+              api.fetchSchoolConfig(schoolId),
+              api.fetchBreakTimes(schoolId),
+            ]);
+          }
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The configuration did not load.';
+          view = null;
+        } finally {
+          loading = false;
+          render();
+        }
+      }
+
+      /**
+       * One setting.
+       *
+       * The source is stated in words as well as marked in the styling. `E10-06` asks for a
+       * *visible* distinction, and colour alone fails WCAG 1.4.1 — as well as failing anyone
+       * reading this on a kitchen tablet in daylight.
+       */
+      function settingRow(r: api.SettingResolution): string {
+        const value = api.formatSettingValue(r.spec, r.value);
+        const source = api.sourceLabel(r);
+        const canOverride = r.spec.scopes.includes('school');
+
+        return (
+          // Keyed on the SOURCE, not on `isOverridden`. "Set for this school" and "inherited from
+          // the kitchen" are different facts leading to different actions, and styling them alike
+          // made four rows look marked while the heading counted three.
+          `<div class="setting setting--${r.source}">` +
+            `<p class="setting__label">${esc(r.spec.label)}</p>` +
+            `<p class="setting__value">${esc(value)}</p>` +
+            `<p class="setting__source">${esc(source)}</p>` +
+            (r.spec.help ? `<p class="setting__help">${esc(r.spec.help)}</p>` : '') +
+            // Shown before "Remove override" is clicked, not in a dialog after it: clearing a
+            // school override at a school whose kitchen also overrides the setting reverts to the
+            // KITCHEN's value, not the platform default, and a confirmation that says otherwise
+            // is worse than none.
+            (r.revertsTo
+              ? `<p class="setting__reverts">Removing this override would leave ` +
+                `<b>${esc(api.formatSettingValue(r.spec, r.revertsTo.value))}</b> ` +
+                `(${esc(r.revertsTo.source === 'kitchen' ? 'from the kitchen' : 'the platform default')}).</p>`
+              : '') +
+            (canOverride
+              ? editor(r)
+              : `<p class="setting__reverts">Set platform-wide. This setting has no per-school value.</p>`) +
+          `</div>`
+        );
+      }
+
+      /**
+       * The client key `admin-school` expects for a setting — `E10-19`.
+       *
+       * The endpoint speaks camelCase (`serviceDays`), the database speaks snake_case
+       * (`service_days`), and `SETTINGS[].key` is the database's. Mapped explicitly rather than
+       * transformed, so a setting the endpoint does not accept has no editor at all instead of
+       * one that silently posts a key the server ignores.
+       */
+      const CONFIG_KEY: Record<string, string> = {
+        order_cutoff_time: 'orderCutoffTime',
+        order_cutoff_days_before: 'orderCutoffDaysBefore',
+        service_days: 'serviceDays',
+        max_advance_order_days: 'maxAdvanceOrderDays',
+        min_advance_order_days: 'minAdvanceOrderDays',
+      };
+
+      const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+      /**
+       * The control for one setting, inside a collapsed `<details>`.
+       *
+       * Collapsed by default because this screen is read far more often than it is written — the
+       * question it answers is "why is this school's cutoff 11:00", and nine open forms would
+       * bury the answer. `<details>` rather than a JavaScript toggle so it is keyboard-operable
+       * and announced without any focus management of mine.
+       *
+       * The current value is pre-filled from the **effective** value, not from the school's
+       * override. Opening the editor on a blank field would invite somebody to type a value they
+       * think they are confirming, and pre-filling with the inherited one makes "override with
+       * what it already is" a visible no-op rather than an accident.
+       */
+      function editor(r: api.SettingResolution): string {
+        const key = CONFIG_KEY[r.spec.key];
+        // Overridable in the schema, but not from this screen. Said out loud: a row with no
+        // control beside eight rows that have one reads as a bug, and the reason differs per
+        // setting. `revenue_share_bps` is `M4` — a commercial term, and changing what a school is
+        // paid from the same form as its cutoff is the kind of adjacency that produces an
+        // accident. The cancellation pair is `E05-11`'s and belongs with the cancellation rules.
+        if (!key) {
+          return `<p class="setting__reverts">Not editable here. ${
+            r.spec.key === 'revenue_share_bps'
+              ? 'Revenue share is a commercial term (<code>M4</code>) and is deliberately not changed from the same form as a cutoff.'
+              : 'No editor for this setting yet — <code>admin-school</code> does not accept it.'
+          }</p>`;
+        }
+        const id = `f-${r.spec.key}`;
+        let control = '';
+
+        switch (r.spec.kind) {
+          case 'time': {
+            const hhmm = String(r.value ?? '00:00:00').slice(0, 5);
+            control =
+              `<label class="admin__label" for="${id}">Cutoff time</label>` +
+              `<input class="admin__input" id="${id}" name="${esc(key)}" type="time" value="${esc(hhmm)}" required />`;
+            break;
+          }
+          case 'integer':
+            control =
+              `<label class="admin__label" for="${id}">Days</label>` +
+              `<input class="admin__input" id="${id}" name="${esc(key)}" type="number" min="0" ` +
+              `value="${esc(String(r.value ?? 0))}" required />`;
+            break;
+          case 'weekdays': {
+            const on = new Set((Array.isArray(r.value) ? r.value : []).map(Number));
+            control =
+              `<fieldset class="admin__days">` +
+                `<legend class="admin__label">Served on</legend>` +
+                WEEKDAYS.map((d, i) =>
+                  `<label class="admin__day">` +
+                    `<input type="checkbox" name="${esc(key)}" value="${i + 1}"` +
+                    `${on.has(i + 1) ? ' checked' : ''} /> ${d}` +
+                  `</label>`,
+                ).join('') +
+              `</fieldset>`;
+            break;
+          }
+          default:
+            return '';
+        }
+
+        return (
+          `<details class="setting__edit">` +
+            `<summary>${r.source === 'school' ? 'Change or remove this override' : 'Override for this school'}</summary>` +
+            `<form data-setting="${esc(r.spec.key)}" data-kind="${esc(r.spec.kind)}" data-key="${esc(key)}">` +
+              control +
+              `<div class="setting__actions">` +
+                `<button class="kitchen__btn kitchen__btn--primary" type="submit">Save override</button>` +
+                // Only offered when there IS one. A "remove" on an inherited row would either do
+                // nothing or, worse, write a null that looks like a change in the audit log.
+                (r.source === 'school'
+                  ? `<button class="kitchen__btn" type="button" data-clear>Remove override</button>`
+                  : '') +
+              `</div>` +
+            `</form>` +
+          `</details>`
+        );
+      }
+
+      /**
+       * Read one setting's control back into the value the endpoint wants.
+       *
+       * Returns `undefined` when the form cannot produce a usable value — an empty weekday set,
+       * which the server would refuse anyway and which the operator means as "close this school",
+       * not as "serve on no days".
+       */
+      function readEditor(form: HTMLFormElement): unknown {
+        const kind = form.dataset.kind;
+        const key = form.dataset.key!;
+        const data = new FormData(form);
+
+        if (kind === 'weekdays') {
+          const days = data.getAll(key).map(Number).sort((a, b) => a - b);
+          return days.length === 0 ? undefined : days;
+        }
+        const raw = String(data.get(key) ?? '').trim();
+        if (raw === '') return undefined;
+        return kind === 'integer' ? Number(raw) : raw;
+      }
+
+      /**
+       * Save or clear one override.
+       *
+       * **One setting per request, and only that setting's key in the body.** The endpoint treats
+       * an absent key as "leave it alone" and a null as "clear it", so sending the whole config
+       * object would make every save rewrite settings the operator never touched — and with
+       * `undefined` collapsed to `null` by `JSON.stringify`, it would *clear* them.
+       */
+      async function saveSetting(form: HTMLFormElement, clear: boolean) {
+        if (!view) return;
+        const key = form.dataset.key!;
+        const value = clear ? null : readEditor(form);
+
+        if (value === undefined) {
+          showFormError(form, 'Pick at least one day. To close a school entirely, deactivate it instead.');
+          return;
+        }
+
+        if (demo) {
+          showFormError(form, 'This is the demo view — nothing is written. Sign in to change a setting.');
+          return;
+        }
+
+        try {
+          const result = await api.updateSchool({ id: view.schoolId, config: { [key]: value } });
+          el.status.textContent = result.changed.length
+            ? `Saved: ${result.changed.join(', ')}.`
+            : 'Nothing changed — that was already the value.';
+          await load();
+        } catch (cause) {
+          showFormError(form, cause instanceof Error ? cause.message : 'The change was not saved.');
+        }
+      }
+
+      function showFormError(form: HTMLFormElement, message: string) {
+        let box = form.querySelector('[data-err]') as HTMLElement | null;
+        if (!box) {
+          box = document.createElement('p');
+          box.setAttribute('data-err', '');
+          box.setAttribute('role', 'alert');
+          box.className = 'admin__error';
+          form.append(box);
+        }
+        box.textContent = message;
+      }
+
+      function render() {
+        if (loading) {
+          el.body.innerHTML = Array(5).fill('<div class="kitchen__skeleton"></div>').join('');
+          return;
+        }
+
+        if (error) {
+          // A configuration that cannot be read must not render as a school with no overrides.
+          // `fetchSchoolConfig` refuses on an empty `platform_config` precisely because a missing
+          // grant and a missing row look identical through PostgREST — [AUTH-01].
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>We can't show this configuration</h2>` +
+            `<p>${esc(error)}</p>` +
+            `<p>If this says the platform defaults came back empty, it usually means this account ` +
+            `does not hold <b>config.platform_edit</b>. That is different from the school having ` +
+            `no settings, which is why nothing is drawn.</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+
+        if (!view) {
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>Pick a school</h2>` +
+            `<p>Choose a school above to see how it is configured.</p></div>`;
+          return;
+        }
+
+        const overridden = view.settings.filter((s) => s.isOverridden && s.source === 'school').length;
+        el.status.textContent = `${view.settings.length} settings, ${overridden} overridden for this school.`;
+
+        el.body.innerHTML =
+          `<section class="admin__section" aria-labelledby="c-set-h">` +
+            `<h2 id="c-set-h">Settings</h2>` +
+            `<p class="admin__section-note">` +
+              (overridden === 0
+                ? 'Nothing is overridden for this school — every value below is inherited.'
+                : `<b>${overridden}</b> setting${overridden === 1 ? ' is' : 's are'} set specifically for this school. ` +
+                  'Those rows are marked.') +
+            `</p>` +
+            view.settings.map(settingRow).join('') +
+          `</section>` +
+
+          `<section class="admin__section" aria-labelledby="c-brk-h">` +
+            `<h2 id="c-brk-h">Break times</h2>` +
+            `<p class="admin__section-note">` +
+              `Break windows are held per school and are not inherited — there is no platform ` +
+              `default to fall back to. <b>A school with no windows cannot be ordered from at ` +
+              `all</b> (<code>P19</code>), so an empty list here is a closed school rather than ` +
+              `an empty state.</p>` +
+            (breaks.length === 0
+              ? `<div class="kitchen__state"><h2>No break windows</h2>` +
+                `<p>This school cannot be ordered from until its windows are agreed and added.</p></div>`
+              : `<ul class="breaks">` +
+                breaks.map((b) =>
+                  `<li class="breaks__item">` +
+                    `<span class="breaks__label">${esc(b.label)}</span>` +
+                    `<span class="breaks__time">${esc(b.startsAt.slice(0, 5))}–${esc(b.endsAt.slice(0, 5))}</span>` +
+                  `</li>`,
+                ).join('') +
+                `</ul>`) +
+          `</section>` +
+
+          `<p class="kitchen__oneway kitchen__oneway--block">` +
+            `Changes are written by the <code>admin-school</code> Edge Function and need the ` +
+            `<b>school.config_edit</b> permission, which is separate from being able to onboard a ` +
+            `school. Every change writes a <code>config_change_log</code> row naming you — that ` +
+            `is a database trigger (<code>§9.4</code>), not something this screen chooses to do. ` +
+            `<b>An override affects orders placed from now on.</b> Orders already placed carry ` +
+            `their own <code>config_snapshot</code> and do not move (<code>L6</code>).` +
+          `</p>`;
+      }
+
+      el.body.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('[data-retry]')) { void load(); return; }
+        const clear = target.closest('[data-clear]');
+        if (clear) {
+          // `revertsTo` is already on screen above this button, so the confirmation can name the
+          // real fallback rather than assuming the platform default — which is wrong whenever the
+          // kitchen also overrides the setting.
+          const form = clear.closest('form') as HTMLFormElement;
+          void saveSetting(form, true);
+        }
+      });
+
+      el.body.addEventListener('submit', (event) => {
+        const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;
+        if (!form?.dataset.setting) return;
+        event.preventDefault();
+        void saveSetting(form, false);
+      });
+      el.reload.addEventListener('click', () => void load());
+      el.school.addEventListener('change', () => {
+        const url = new URL(location.href);
+        url.searchParams.set('school', el.school.value);
+        history.replaceState(null, '', url);
+        void load();
+      });
+
+      void (async () => {
+        try {
+          if (!demo && !(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent(location.pathname + location.search)}`);
+            return;
+          }
+          if (!demo) configureBackofficeApi();
+          await loadSchools();
+          el.school.innerHTML = schools
+            .map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`)
+            .join('');
+          const wanted = params.get('school');
+          if (wanted && schools.some((s) => s.id === wanted)) el.school.value = wanted;
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The school list did not load.';
+          el.school.innerHTML = '<option>—</option>';
+          loading = false;
+          render();
+          return;
+        }
+        await load();
+      })();
+    </script>
+  </body>
+</html>
