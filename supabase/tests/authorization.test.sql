@@ -141,7 +141,9 @@ set local app.actor_type = 'system';
 --
 --   a0000000-…  app_user / auth.users        c1…  city        c2…  kitchen
 --   c3…  school       c4…  school_class      c5…  break_time
---   d1…  recipient    d2…  asset             d3…  allergen    d4…  dish_category
+--   d1…  recipient    d2…  asset             d4…  dish_category
+--   (no d3 — allergens are real vocabulary from `0063`/`0064` and are referenced by their
+--    migration ids, not re-seeded here; `allergen.code` is unique and a second copy fails)
 --   d5…  dish         d6…  menu              d7…  menu_item   d8…  menu_assignment
 --   d9…  menu_item_price_override
 --   e1…  order_group  e2…  order             e3…  payment     e4…  refund
@@ -234,16 +236,24 @@ insert into guardian_link (id, recipient_id, user_id, relationship, can_order, c
   ('d1a00000-7e57-0000-0000-000000000007', 'd1000000-7e57-0000-0000-000000000006', 'a0000000-7e57-0000-0000-000000000001', 'mother',   true,  true,  true,  now()),
   ('d1a00000-7e57-0000-0000-000000000008', 'd1000000-7e57-0000-0000-000000000007', 'a0000000-7e57-0000-0000-000000000001', 'mother',   true,  true,  true,  null);
 
-insert into allergen (id, code, display_name) values
-  ('d3000000-7e57-0000-0000-000000000001', 'peanut', 'Peanut');
+-- No allergen fixture. `peanut` is **real vocabulary** now — `0064` seeds it, along with milk,
+-- egg, gluten, tree_nut, soy and sesame — and `allergen.code` is unique, so inserting a second
+-- "peanut" under a test-namespace id fails on `allergen_code_key`. That is the constraint doing
+-- its job: the vocabulary is shared between `dish_allergen` and `recipient_allergen`, and two
+-- rows for one allergen is exactly the state that makes a warning match one and miss the other.
+--
+-- So the fixtures below reference the seeded row by its migration id. Everything this suite
+-- asserts about allergens is about *who may read and write the link*, never about the vocabulary
+-- itself, so nothing is lost by using the real one — and a test that seeds its own copy of
+-- reference data stops testing the schema people actually run.
 
 -- Two rows: recipA's is asserted on by the kitchen (the fulfilment path) and must
 -- survive the whole run; recipA2's exists so that the customer-plane DELETE — the
 -- only DELETE in the customer plane, §13.4 — can be exercised without destroying a
 -- fixture something else depends on.
 insert into recipient_allergen (recipient_id, allergen_id, severity) values
-  ('d1000000-7e57-0000-0000-000000000001', 'd3000000-7e57-0000-0000-000000000001', 'anaphylaxis'),
-  ('d1000000-7e57-0000-0000-000000000007', 'd3000000-7e57-0000-0000-000000000001', 'intolerance');
+  ('d1000000-7e57-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000006', 'anaphylaxis'),
+  ('d1000000-7e57-0000-0000-000000000007', 'a1000000-0000-0000-0000-000000000006', 'intolerance');
 
 insert into asset (id, kind, bucket, path) values
   ('d2000000-7e57-0000-0000-000000000001', 'dish_image',  'dish-images', 'dish/a.jpg'),
@@ -262,7 +272,7 @@ insert into dish (id, kitchen_id, name, category_id, image_asset_id, food_type) 
   ('d5000000-7e57-0000-0000-000000000002', 'c2000000-7e57-0000-0000-000000000002', 'Paneer Roll',  'd4000000-7e57-0000-0000-000000000001', null, 'veg');
 
 insert into dish_allergen (dish_id, allergen_id) values
-  ('d5000000-7e57-0000-0000-000000000001', 'd3000000-7e57-0000-0000-000000000001');
+  ('d5000000-7e57-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000006');
 
 -- Two published menus, and — since `E02-33` — a draft for each kitchen beside them.
 --
