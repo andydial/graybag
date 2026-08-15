@@ -361,13 +361,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/25</span>
+          <span class="meter-num">0/26</span>
         </div>
       </header>
       <p class="summary">Repo, two real environments, secrets management, and the test harness that every later task depends on.</p>
       <p class="deps">Depends on <code>E00</code></p>
       <details>
-        <summary>Context &amp; 25 tasks</summary>
+        <summary>Context &amp; 26 tasks</summary>
         <div class="context"><h4>Why early</h4>
 <p>Everything after this inherits the quality bar set here. Getting tests and environments right on day one is what stops &quot;manually swapping Razorpay keys&quot; happening again.</p></div>
         <ul class="tasks">
@@ -555,7 +555,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>scripts/tag-mvp.mjs</code> rewrote the backlog markdown from its include list, so a disagreement resolved as &quot;whoever ran it last wins&quot;.</strong> <code>E03-20</code>, <code>E05-16</code>, <code>E05-20</code> and <code>E05-21</code> carried <code>(mvp)</code> in markdown and were absent from the list — a run would have <strong>stripped all four from v1</strong> silently. <code>E09-11</code> was the mirror case. <strong>Closed 2026-08-11</strong>: Andy ruled all five are MVP and they are reconciled; the script is replaced by <code>scripts/check-mvp.mjs</code>, which <strong>verifies and never writes</strong>, names both sides of any disagreement, and runs in <code>npm run smoke</code> so CI fails on drift</span>
       </li>
-      <li class="task" data-id="E01-26" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E01-26" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-26"></button>
         <code class="tid">E01-26</code>
         <span class="badge r-high">high</span>
@@ -570,6 +570,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Standing up an environment has steps that exist only in somebody&#39;s head, and two of them were found in one hour.</strong> Creating <code>graybag-prod</code> on 2026-08-16 exposed both. <strong>(1) <code>platform_config.environment</code> defaults to <code>local</code> and nothing sets it.</strong> The default is right — a new database is a developer&#39;s — but it means a fresh production database says <code>local</code>, which silently disarms <code>assert_seller_identity_configured()</code> (<code>E07-20</code>), the guard that stops <code>create_checkout</code> taking money while the seller identity is still a placeholder. Its own comment describes what that costs: *&quot;every customer charged, no order created, no 5xx and no alert.&quot;* <strong>(2) <code>payments-webhook</code> deploys with <code>verify_jwt = true</code></strong>, so Razorpay&#39;s deliveries 401 at the gateway and no payment ever settles; staging was <code>false</code> because somebody set it by hand in the dashboard, and it appeared in no file until <code>E06-47</code>. Both were caught by *looking*, not by anything failing. Fix: a <code>scripts/verify-environment.mjs</code> that a deploy runs against its target and that fails on any of these — environment column matches the deploy target, no seller-identity placeholder in production, <code>payments-webhook</code> has <code>verify_jwt = false</code>, every required secret present, and the schema cache serves the newest migration&#39;s objects. The pattern to copy is <code>check-supabase-config.mjs</code>, which already reads a live project. <strong>The general rule this is an instance of</strong>: a setting that lives only in a dashboard is a setting that is wrong in the next environment</span>
+      </li>
+      <li class="task" data-id="E01-28" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-28"></button>
+        <code class="tid">E01-28</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">*(Renumbered from <code>E01-27</code>, which <code>main</code> assigned to the environment-standup checklist while this branch was in flight — the fourth such collision.)* <strong><code>Maestro (cart)</code> now installs, launches and fails 23 seconds in on <code>tab-menu</code> — a third cause, not the first two.</strong> <code>E01-26</code> fixed the two that made the job impossible (the unset <code>APP_ENV</code>, and an <code>appId</code> that was the iOS bundle id). The evidence that those are gone: <code>adb install … Success</code>, the emulator loads its snapshot in 4s, and the flow <strong>runs</strong> — where it previously died in 3s with &quot;Package … is not installed&quot; after a 24-minute build. It now fails with <code>Element not found: Id matching regex: tab-menu</code> after 23s, which is Maestro&#39;s timeout, not an immediate miss. <strong>The id is not missing</strong>: <code>RootNavigator.tsx:636</code> sets <code>tabBarButtonTestID: &#39;tab-menu&#39;</code> and <code>check:maestro</code> passes. So the tab bar is not being *rendered* — something is in front of it. <strong>Prime suspect, unconfirmed: <code>VersionGate</code>.</strong> <code>E17-46</code> merged to <code>main</code> the same day and wraps the entire app (<code>App.tsx:93</code>), above every provider and therefore above the tab navigator; the flow&#39;s first action after <code>launchApp</code> is <code>tapOn: tab-menu</code>, with nothing between. If the gate renders <code>UpdateRequiredScreen</code>, the tab bar never exists. Against that hypothesis: <code>E17-46</code> states an unknown or unparseable version is ADMITTED and a failed check is ADMITTED, so a CI build with no version stamp should pass through — which is worth verifying, because if it is *not* admitting, the same logic blocks real parents on 19 August and that is far more serious than a red CI job. Other candidates: a splash or auth state that outlasts the 23s timeout, or an error boundary. <strong>Diagnose by screenshot first</strong> — <code>maestro test --debug-output</code> keeps one, and this is a class of failure where a picture settles in seconds what logs argue about. Owned by whoever owns <code>apps/mobile</code>; the web thread found it while fixing <code>E01-26</code> and did not go further, having already spent its timebox</span>
       </li></ul>
       </details>
     </article>
@@ -4012,7 +4020,7 @@
         <summary>Context &amp; 20 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
-      <li class="task" data-id="E10-01" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-01"></button>
         <code class="tid">E10-01</code>
         
@@ -4052,7 +4060,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Dish image management</span>
       </li>
-      <li class="task" data-id="E10-06" data-seed="0" data-risk="medium" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E10-06" data-seed="1" data-risk="medium" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-06"></button>
         <code class="tid">E10-06</code>
         <span class="badge r-medium">medium</span>
@@ -4092,7 +4100,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Revenue share / payout report with edit-before-confirm and mark-as-paid</span>
       </li>
-      <li class="task" data-id="E10-10" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
+      <li class="task" data-id="E10-10" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-10"></button>
         <code class="tid">E10-10</code>
         
@@ -4156,7 +4164,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Build the six metrics of <code>docs/product-metrics.md</code> (<code>P17</code>)</strong> as server-side queries: activated users, weekly active orderers, orders per active orderer per week, AOV in paise, school penetration, cohort retention at N+4/N+8/N+12. Constraints are part of the task, not decoration — no column of <code>recipient</code> selected or joined for filtering, <code>recipient_id</code> counted but never described, small-number suppression built into the query rather than the template, integer paise throughout, an immature cohort cell rendered *not yet* rather than 0%, and school penetration rendered &quot;no enrolled count&quot; where <code>E10-16</code>&#39;s column is null</span>
       </li>
-      <li class="task" data-id="E10-19" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E10-19" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-19"></button>
         <code class="tid">E10-19</code>
         
@@ -4164,13 +4172,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Edit an override from <code>/admin/config</code>.</strong> The write half of <code>E10-06</code>. Each overridable setting carries a collapsed <code>&lt;details&gt;</code> editor — collapsed because this screen is read far more often than written, and nine open forms would bury the question it exists to answer. <strong>One setting per request, and only that setting&#39;s key in the body</strong>: the endpoint treats an absent key as &quot;leave it alone&quot; and <code>null</code> as &quot;clear it&quot;, so posting the whole config object would rewrite settings nobody touched — and with <code>undefined</code> collapsed to <code>null</code> by <code>JSON.stringify</code>, it would *clear* them. &quot;Remove override&quot; is offered only where there is one, and the <code>revertsTo</code> line above it names the real fallback, which is the kitchen&#39;s value rather than the platform default whenever the kitchen also overrides. Settings that are overridable in the schema but not from here say so out loud — <code>revenue_share_bps</code> is <code>M4</code>, and changing what a school is paid from the same form as its cutoff is the adjacency that produces an accident</span>
       </li>
-      <li class="task" data-id="E10-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E10-20" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-20"></button>
         <code class="tid">E10-20</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Dish and menu management screens.</strong> <code>tools/bulk-import</code> covers the bulk path — creating and updating dishes, menus, items and assignments from CSV or JSON, with a dry run — and <code>docs/import-format.md</code> documents it. What is missing is the one-off case: change a single price without preparing a file. Needs an <code>admin-dish</code> Edge Function on the shape <code>admin-school</code> already sets, plus a screen. Not on the launch path while the importer exists</span>
+        <span class="ttext"><strong>Dish and menu management screens.</strong> <code>/admin/menus</code> edits <strong>one</strong> thing: a dish&#39;s food type, allergens and whether it is on the catalogue, or one dish&#39;s price and available days on one menu. Creating dishes, menus and assignments stays with <code>tools/bulk-import</code> — a file can be prepared, dry-run and reviewed, and this screen has no dry run. Writes go through <code>admin-dish</code>, which needs <strong><code>dish.edit</code></strong> for what a dish *is* and <strong><code>menu.edit</code></strong> for what it *costs* — separate in <code>permission</code> and separate here, because the person who corrects an allergen is not necessarily the person who sets prices (<code>D3</code>). A <code>menu_item</code> update is qualified by <strong>both</strong> ids: <code>menu_item</code> is unique on the pair, and qualifying by dish alone would reprice that dish on every menu it appears on. An unknown allergen code is a <strong>422 naming the valid codes</strong>, never a silent skip — <code>dish_allergen</code> and <code>recipient_allergen</code> share one vocabulary, and an unmatched code means the warning silently never fires. The screen labels the three states that look identical in a list of names: retired, not on this menu, and no food type</span>
       </li></ul>
       </details>
     </article>
@@ -4506,7 +4514,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Re-shoot or re-frame the food section once real photography exists (<code>E12-13</code>) — the five category cards are laid out to take a proper photograph, and the 96px cap comes off the moment there is one worth showing</span>
       </li>
-      <li class="task" data-id="E12-30" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E12-30" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-30"></button>
         <code class="tid">E12-30</code>
         
@@ -5061,13 +5069,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/51</span>
+          <span class="meter-num">0/49</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 51 tasks</summary>
+        <summary>Context &amp; 49 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -5459,29 +5467,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A web-only dependency was breaking every mobile build.</strong> *(Renumbered from <code>E17-47</code>, which <code>main</code> independently assigned to the <code>policy_version_rank</code> mismatch while this branch was in flight.)* EAS runs <code>npm ci</code> at the workspace root, so it installed <code>apps/web</code>&#39;s dependencies into an iOS build — including <code>sharp</code>, Astro&#39;s image library, which is native. The build died in *Install dependencies* with <code>sharp: Attempting to build from source via node-gyp / Please add node-addon-api</code> (build <code>5e32af14-69af-4b69-85b9-4394b635a52a</code>, 2026-08-14). <strong>Adding <code>node-addon-api</code> would have fixed that build and left the next web-only native package to do the same thing</strong>, so <code>apps/web/</code> is excluded from <code>.easignore</code> instead: the <code>apps/*</code> glob then resolves to <code>apps/mobile</code> alone and neither <code>sharp</code> nor <code>astro</code> is installed at all. Verified by running <code>npm ci --include=dev</code> against a tree with <code>apps/web</code> removed — it succeeds, keeps <code>expo</code>, and drops both. <code>scripts/test/easignore.test.mjs</code> asserts the exclusion, and that <code>packages/</code>, <code>config/</code> and <code>apps/mobile/</code> stay included, because nothing about editing <code>.easignore</code> looks like it could break an iOS build</span>
       </li>
-      <li class="task" data-id="E17-49" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+      <li class="task" data-id="E17-49" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-49"></button>
         <code class="tid">E17-49</code>
         
-        <span class="badge r-you">you</span>
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Write <code>~/.graybag-secrets/prod.env</code>, then point the web app at production.</strong> BLOCKED and skipped on 2026-08-15: the file does not exist — <code>~/.graybag-secrets/</code> holds only the upload keystore — so the payments thread has not stood the production project up, or has not written it. Nothing was guessed and <code>apps/web/.env</code> was not touched, so staging is unchanged and still works. <code>docs/production-cutover.md</code> has the whole procedure: the two variables that decide which database the app talks to, the five that decide its behaviour, why they go in Netlify&#39;s <strong>production context only</strong> (a deploy preview writing to the live database is worse than one that does not build), the one command that verifies the switch, and the order — migrations before import, because the importer reads <code>service_days</code> from <code>0056</code>. A credentialed action: it needs the Supabase and Netlify accounts</span>
-      </li>
-      <li class="task" data-id="E17-50" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-50"></button>
-        <code class="tid">E17-50</code>
         
-        <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:critical) <strong>iOS cannot be built or submitted: no Apple credentials exist.</strong> Blocking the 4.0.0 submission and therefore the 19 August mandatory update. Verified 2026-08-16, not assumed: <code>eas build --platform ios --profile production --non-interactive</code> fails with *&quot;Distribution Certificate is not validated for non-interactive builds&quot;*; <code>eas build:list --platform ios</code> shows <strong>every iOS build ever attempted errored</strong>, all on the <code>development</code> profile, so no distribution certificate has ever been created on the EAS servers; there is no <code>AuthKey_*.p8</code> anywhere under <code>$HOME</code>; and no <code>APPLE_*</code> / <code>EXPO_APPLE_*</code> / <code>ASC_*</code> variables exist. <code>eas credentials</code> is interactive-only and rejects <code>--non-interactive</code>. <code>eas.json</code> already carries <code>appleTeamId</code> and <code>ascAppId</code>, so the App Store record exists — what is missing is purely the authentication to mint a signing certificate. <strong>Two ways to unblock, either is enough:</strong> run <code>eas build --platform ios --profile production</code> interactively and complete the Apple 2FA prompt, or place an App Store Connect API key at <code>~/.graybag-secrets/AuthKey_XXXX.p8</code> and add <code>ASC_KEY_ID</code> / <code>ASC_ISSUER_ID</code> to <code>prod.env</code> — the second also makes it repeatable in CI and is the one worth doing. <strong>Note that <code>eas submit</code> uploads to App Store Connect (feeding TestFlight) but does NOT submit for review</strong>; submitting for review is a separate action, scriptable only with an ASC API key and otherwise a human in the web UI</span>
-      </li>
-      <li class="task" data-id="E17-51" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-51"></button>
-        <code class="tid">E17-51</code>
-        
-        <span class="badge r-you">you</span>
-        <span class="badge r-later">later</span>
-        <span class="ttext">(risk:critical) <strong>Play submission is blocked: no Google Play service-account key.</strong> <code>eas submit --platform android</code> fails with *&quot;Google Service Account Keys cannot be set up in --non-interactive mode&quot;*, and no service-account JSON exists under <code>$HOME</code> or in EAS. <strong>The build itself succeeded</strong> — <code>ee8dfe09-ee30-4d8c-a990-08fdda62576d</code>, <code>4.0.0</code> / versionCode <code>1786591933</code>, package <code>com.Gracord.Graybag</code>, pointing at production, artefact at <code>https://expo.dev/artifacts/eas/K1wq3wx4jpl5gMld1nG_rhjc3Is7N2jaz_P2vh4B0g4.aab</code>. <strong>Fastest unblock: upload that <code>.aab</code> to the Play Console by hand</strong>, which needs no key at all. The durable fix is a service account with the *Release Manager* role, its JSON at <code>~/.graybag-secrets/play-service-account.json</code>, referenced from <code>eas.json</code>&#39;s <code>submit.production.android.serviceAccountKeyPath</code> — which also makes Play submission repeatable in CI. Note the first submit attempt resolved <code>com.Gracord.Graybag.dev</code> because the local shell had no <code>APP_ENV</code>: that is <code>app.config.js</code>&#39;s safe default working, not a build defect, and the artefact carries the correct package</span>
+        <span class="ttext"><strong>Point the web app at production.</strong> *(Renumbered from <code>E17-48</code>.)* <strong>Half done, 2026-08-15.</strong> <code>~/.graybag-secrets/prod.env</code> appeared; the four <code>PUBLIC_*</code> variables are set on Netlify&#39;s <strong>production context only</strong> and read back per context to confirm production points at the prod project while deploy previews still point at staging. <code>apps/web/.env</code> untouched. <code>(owner:andy)</code> dropped — the credentialed half is done. <strong>What remains is not mine:</strong> production is missing <code>0057_enquiry</code> and <code>0058_service_days</code>, checked against the live project (<code>school_config.service_days</code> → 400, <code>enquiry</code> → 404, <code>ops_alert</code> → 200). Both reached <code>main</code> when #51 merged. Promoting a build before they are applied gives <code>400</code> on <code>/admin/config</code> and on <code>tools/bulk-import</code>&#39;s first read. Applying a migration to production during launch week is not something to do on an inferred authorisation, and Andy put the migration step with the mobile thread. Safe to have set the variables early because production does not auto-deploy (<code>E12-30</code>). See <code>docs/production-cutover.md</code></span>
       </li></ul>
       </details>
     </article>

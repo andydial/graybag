@@ -1,0 +1,378 @@
+---
+/**
+ * Dishes and menus, for changing one thing — `E10-20`.
+ *
+ * ## What this deliberately does not do
+ *
+ * It does not create dishes, create menus, or assign a menu to a school. That is
+ * `tools/bulk-import`, it is documented in `docs/import-format.md`, and it is better at it: a
+ * file can be prepared, dry-run, reviewed and applied in one pass, and it tells you what it would
+ * do before it does it.
+ *
+ * This screen is the other case — the afternoon one price is wrong, or a dish turns out to
+ * contain milk. Preparing a CSV for a four-character change is six minutes of ceremony, and the
+ * ceremony is precisely what makes somebody open the database directly instead.
+ *
+ * ## Two grants, and the screen says which
+ *
+ * Changing what a dish *is* needs `dish.edit`. Changing what it *costs on a menu* needs
+ * `menu.edit`. Separate in `permission` and separate in the endpoint, because the person who
+ * corrects an allergen is not necessarily the person who sets prices (`D3`).
+ *
+ * `?state=demo` renders fixtures, so `check:a11y` audits this rather than the sign-in redirect.
+ */
+import '../../styles/tokens.css';
+import '../../styles/site.css';
+import '../../styles/kitchen.css';
+import '../../styles/admin.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Dishes and menus — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
+          <h1 class="kitchen__title">Dishes and menus</h1>
+          <a class="kitchen__btn" href="/admin/schools">Schools</a>
+          <a class="kitchen__btn" href="/admin/config">Configuration</a>
+          <button id="m-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <main class="kitchen__wrap admin__wrap">
+        <div id="m-status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <p class="admin__intro">
+          For changing <b>one</b> thing. Creating dishes and menus, and assigning a menu to a
+          school, is <code>tools/bulk-import</code> — it takes a CSV and tells you what it would do
+          before it does it. See <code>docs/import-format.md</code>.
+        </p>
+
+        <div id="m-body"></div>
+      </main>
+    </div>
+
+    <script>
+      import { api, money } from '@graybag/shared';
+      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = {
+        body: $('m-body'), status: $('m-status'), reload: $<HTMLButtonElement>('m-reload'),
+      };
+
+      const esc = (s: string) =>
+        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const demo = new URLSearchParams(location.search).has('state');
+      const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      const FOOD_TYPES = [
+        { value: '', label: 'Not set' },
+        { value: 'veg', label: 'Veg' },
+        { value: 'non_veg', label: 'Non-veg' },
+        { value: 'egg', label: 'Egg' },
+      ];
+
+      let dishes: api.AdminDish[] = [];
+      let menus: api.AdminMenu[] = [];
+      let allergens: string[] = [];
+      let loading = true;
+      let error: string | null = null;
+
+      async function load() {
+        loading = true; error = null; render();
+        try {
+          if (demo) {
+            dishes = MENUS_FIXTURE.dishes;
+            menus = MENUS_FIXTURE.menus;
+            allergens = ['gluten', 'milk', 'soy', 'tree_nut'];
+          } else {
+            configureBackofficeApi();
+            const [d, m, a] = await Promise.all([
+              api.fetchAdminDishes(), api.fetchAdminMenus(), api.fetchAllergens(),
+            ]);
+            dishes = d;
+            menus = m;
+            // Codes, not names. `dish_allergen` and `recipient_allergen` share this vocabulary,
+            // and the shared row id is the whole mechanism behind an allergen warning.
+            allergens = a.map((x) => x.code).sort();
+          }
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The catalogue did not load.';
+          dishes = []; menus = [];
+        } finally {
+          loading = false; render();
+        }
+      }
+
+      /** `4500` → `₹45.00`. Integer paise in, never a float (non-negotiable #3). */
+      const rupees = (p: number) => money.formatPaise(p);
+
+      function dishRow(d: api.AdminDish): string {
+        const marks: string[] = [];
+        if (!d.isActive) marks.push('Retired — off every menu');
+        // The same call-out `tools/bulk-import` prints. `[DM-17]` leaves the column nullable
+        // because the source Excel had no such field, but a dish a parent cannot filter by
+        // veg/non-veg is close to unusable in this market.
+        if (d.foodType === null) marks.push('No food type — a parent cannot filter this dish');
+
+        return (
+          `<div class="srow${marks.length ? ' srow--hidden' : ''}">` +
+            `<div class="srow__main">` +
+              `<p class="srow__name">${esc(d.name)}</p>` +
+              `<p class="srow__meta">${esc(d.categoryName)}` +
+                (d.foodType ? ` · ${esc(d.foodType.replace('_', '-'))}` : '') +
+                (d.caloriesKcal !== null ? ` · ${d.caloriesKcal} kcal` : '') +
+                (d.portionText ? ` · ${esc(d.portionText)}` : '') +
+              `</p>` +
+              `<p class="srow__meta">` +
+                (d.allergens.length
+                  ? `Allergens: ${d.allergens.map((a) => esc(a.toUpperCase().replace('_', ' '))).join(', ')}`
+                  : 'No allergens recorded') +
+              `</p>` +
+              marks.map((m) => `<p class="srow__why">${esc(m)}</p>`).join('') +
+              dishEditor(d) +
+            `</div>` +
+          `</div>`
+        );
+      }
+
+      function dishEditor(d: api.AdminDish): string {
+        const on = new Set(d.allergens);
+        return (
+          `<details class="setting__edit">` +
+            `<summary>Edit this dish</summary>` +
+            `<form data-dish="${esc(d.id)}">` +
+              `<div class="admin__field">` +
+                `<label class="admin__label" for="ft-${esc(d.id)}">Food type</label>` +
+                `<select class="admin__select" id="ft-${esc(d.id)}" name="foodType">` +
+                  FOOD_TYPES.map((f) =>
+                    `<option value="${esc(f.value)}"${(d.foodType ?? '') === f.value ? ' selected' : ''}>${esc(f.label)}</option>`,
+                  ).join('') +
+                `</select>` +
+              `</div>` +
+              `<fieldset class="admin__days">` +
+                `<legend class="admin__label">Allergens</legend>` +
+                allergens.map((a) =>
+                  `<label class="admin__day">` +
+                    `<input type="checkbox" name="allergens" value="${esc(a)}"${on.has(a) ? ' checked' : ''} /> ` +
+                    `${esc(a.toUpperCase().replace('_', ' '))}` +
+                  `</label>`,
+                ).join('') +
+              `</fieldset>` +
+              `<p class="admin__hint">` +
+                `Ticking replaces the whole set. <b>An allergen removed here stops warning every ` +
+                `parent whose child has it</b> — the warning fires on this list and nothing else.` +
+              `</p>` +
+              `<div class="admin__field">` +
+                `<label class="admin__day">` +
+                  `<input type="checkbox" name="isActive"${d.isActive ? ' checked' : ''} /> On the catalogue` +
+                `</label>` +
+              `</div>` +
+              `<div class="setting__actions">` +
+                `<button class="kitchen__btn kitchen__btn--primary" type="submit">Save dish</button>` +
+              `</div>` +
+            `</form>` +
+          `</details>`
+        );
+      }
+
+      function menuItemRow(item: api.AdminMenuItem): string {
+        const days = item.availableDays.length === 7
+          ? 'Every day'
+          : item.availableDays.map((d) => WEEKDAYS[d - 1]).join(', ');
+        return (
+          `<div class="srow${item.isActive ? '' : ' srow--hidden'}">` +
+            `<div class="srow__main">` +
+              `<p class="srow__name">${esc(item.dishName)}</p>` +
+              `<p class="srow__meta">${esc(days)}</p>` +
+              (item.isActive ? '' : `<p class="srow__why">Not on the menu — parents cannot order it</p>`) +
+              `<details class="setting__edit">` +
+                `<summary>Change the price or the days</summary>` +
+                `<form data-menu="${esc(item.menuId)}" data-dish-id="${esc(item.dishId)}">` +
+                  `<div class="admin__field">` +
+                    `<label class="admin__label" for="p-${esc(item.dishId)}">Price in paise</label>` +
+                    `<input class="admin__input" id="p-${esc(item.dishId)}" name="pricePaise" type="number" ` +
+                      `min="0" step="1" value="${item.pricePaise}" required />` +
+                    // Spelled out because this is the field most likely to be entered as rupees,
+                    // and a price out by a factor of a hundred is not something a dry run catches
+                    // here — there is no dry run on this screen.
+                    `<p class="admin__hint">Whole paise. <b>₹45.00 is 4500</b>, not 45.</p>` +
+                  `</div>` +
+                  `<fieldset class="admin__days">` +
+                    `<legend class="admin__label">Available on</legend>` +
+                    WEEKDAYS.map((d, i) =>
+                      `<label class="admin__day">` +
+                        `<input type="checkbox" name="availableDays" value="${i + 1}"` +
+                        `${item.availableDays.includes(i + 1) ? ' checked' : ''} /> ${d}` +
+                      `</label>`,
+                    ).join('') +
+                  `</fieldset>` +
+                  `<div class="admin__field">` +
+                    `<label class="admin__day">` +
+                      `<input type="checkbox" name="isActive"${item.isActive ? ' checked' : ''} /> On this menu` +
+                    `</label>` +
+                  `</div>` +
+                  `<div class="setting__actions">` +
+                    `<button class="kitchen__btn kitchen__btn--primary" type="submit">Save</button>` +
+                  `</div>` +
+                `</form>` +
+              `</details>` +
+            `</div>` +
+            `<div class="srow__side"><p class="setting__value">${esc(rupees(item.pricePaise))}</p></div>` +
+          `</div>`
+        );
+      }
+
+      function render() {
+        if (loading) {
+          el.body.innerHTML = Array(4).fill('<div class="kitchen__skeleton"></div>').join('');
+          return;
+        }
+        if (error) {
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>We can't show the catalogue</h2>` +
+            `<p>${esc(error)}</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+        if (dishes.length === 0 && menus.length === 0) {
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>Nothing in the catalogue yet</h2>` +
+            `<p>Import dishes and menus with <code>tools/bulk-import</code> — this screen edits ` +
+            `what is already there.</p></div>`;
+          return;
+        }
+
+        const noType = dishes.filter((d) => d.foodType === null).length;
+        const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+        el.status.textContent =
+          `${plural(dishes.length, 'dish', 'dishes')}, ${plural(menus.length, 'menu')}, ` +
+          `${noType} with no food type.`;
+
+        el.body.innerHTML =
+          menus.map((m) =>
+            `<section class="admin__section" aria-labelledby="menu-${esc(m.id)}">` +
+              `<h2 id="menu-${esc(m.id)}">${esc(m.name)}</h2>` +
+              `<p class="admin__section-note">` +
+                `${m.items.length} dish${m.items.length === 1 ? '' : 'es'} · status <code>${esc(m.status)}</code>. ` +
+                `Prices are what a parent pays before GST — menu prices are tax-exclusive, and 5% ` +
+                `is added at checkout.` +
+              `</p>` +
+              (m.items.length === 0
+                ? `<div class="kitchen__state"><h2>No dishes on this menu</h2>` +
+                  `<p>Nothing here can be ordered. Add dishes with the importer.</p></div>`
+                : m.items.map(menuItemRow).join('')) +
+            `</section>`,
+          ).join('') +
+
+          `<section class="admin__section" aria-labelledby="dishes-h">` +
+            `<h2 id="dishes-h">All dishes</h2>` +
+            `<p class="admin__section-note">` +
+              `Everything in the kitchen's catalogue, whether or not it is on a menu.` +
+            `</p>` +
+            dishes.map(dishRow).join('') +
+          `</section>` +
+
+          `<p class="kitchen__oneway kitchen__oneway--block">` +
+            `Editing a dish needs <b>dish.edit</b>; changing a price needs <b>menu.edit</b>. They ` +
+            `are separate permissions on purpose — the person who corrects an allergen is not ` +
+            `necessarily the person who sets prices. <b>A price change applies to orders placed ` +
+            `from now on</b>; orders already placed keep the price they were charged.` +
+          `</p>`;
+      }
+
+      function showFormError(form: HTMLFormElement, message: string) {
+        let box = form.querySelector('[data-err]') as HTMLElement | null;
+        if (!box) {
+          box = document.createElement('p');
+          box.setAttribute('data-err', '');
+          box.setAttribute('role', 'alert');
+          box.className = 'admin__error';
+          form.append(box);
+        }
+        box.textContent = message;
+      }
+
+      async function save(form: HTMLFormElement) {
+        if (demo) {
+          showFormError(form, 'This is the demo view — nothing is written. Sign in to make a change.');
+          return;
+        }
+        const data = new FormData(form);
+        try {
+          let edit: Parameters<typeof api.updateCatalogue>[0];
+
+          if (form.dataset.dish) {
+            const foodType = String(data.get('foodType') ?? '');
+            edit = {
+              dish: {
+                id: form.dataset.dish,
+                // An empty select means "not set", which is a null, not an omission — somebody
+                // clearing a wrong food type must be able to.
+                foodType: foodType === '' ? null : foodType,
+                allergens: data.getAll('allergens').map(String),
+                isActive: data.get('isActive') !== null,
+              },
+            };
+          } else {
+            const days = data.getAll('availableDays').map(Number).sort((a, b) => a - b);
+            if (days.length === 0) {
+              showFormError(form, 'Pick at least one day, or untick "On this menu" to take the dish off.');
+              return;
+            }
+            edit = {
+              menuItem: {
+                menuId: form.dataset.menu!,
+                dishId: form.dataset.dishId!,
+                pricePaise: Number(data.get('pricePaise')),
+                availableDays: days,
+                isActive: data.get('isActive') !== null,
+              },
+            };
+          }
+
+          const result = await api.updateCatalogue(edit);
+          el.status.textContent = result.changed.length
+            ? `Saved: ${result.changed.join(', ')}.`
+            : 'Nothing changed — those were already the values.';
+          await load();
+        } catch (cause) {
+          showFormError(form, cause instanceof Error ? cause.message : 'The change was not saved.');
+        }
+      }
+
+      el.body.addEventListener('submit', (event) => {
+        const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;
+        if (!form || (!form.dataset.dish && !form.dataset.menu)) return;
+        event.preventDefault();
+        void save(form);
+      });
+      el.body.addEventListener('click', (event) => {
+        if ((event.target as HTMLElement).closest('[data-retry]')) void load();
+      });
+      el.reload.addEventListener('click', () => void load());
+
+      void (async () => {
+        try {
+          if (!demo && !(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent('/admin/menus')}`);
+            return;
+          }
+        } catch { /* an unconfigured build falls through to the error state */ }
+        await load();
+      })();
+    </script>
+  </body>
+</html>

@@ -6,17 +6,45 @@ blocks: the 19 August launch
 
 # Production cutover — the web app's configuration
 
-## Why this is not done
+## Status — the environment is set; the migrations are not
 
-`~/.graybag-secrets/prod.env` **does not exist**. That directory holds `graybag-upload.keystore`
-and nothing else. Either the payments thread has not stood the production project up yet, or it
-has and the file was not written.
+**Done, 2026-08-15.** `~/.graybag-secrets/prod.env` appeared and the four `PUBLIC_*` variables are
+set on Netlify's **production context only**. Read back per context to confirm:
 
-Nothing was guessed, and **`apps/web/.env` was not touched**, so staging is exactly as it was and
-still works. Everything below is ready to run the moment the file appears; it is a five-minute
-job, and none of it is a decision.
+| Context | `PUBLIC_SUPABASE_URL` | `PUBLIC_APP_ENV` |
+|---|---|---|
+| `production` | `bdamkuugbqjajbndjoxn` (prod) | `production` |
+| `deploy-preview` | `jcagqjsibcpjyskvebeq` (staging) | `staging` |
 
-Recorded as `D-16F` in `docs/decisions-16aug.md`.
+Staging is untouched and previews still point at it. `apps/web/.env` was not modified.
+
+### NOT done, and it blocks promoting a build
+
+**Production is missing `0057_enquiry` and `0058_service_days`.** Checked against the live
+project rather than assumed:
+
+```
+school_config.service_days    HTTP 400   ← 0058 not applied
+platform_config.service_days  HTTP 400   ← 0058 not applied
+enquiry                       HTTP 404   ← 0057 not applied
+ops_alert                     HTTP 200   ← 0056 IS applied
+```
+
+Prod is at `main`'s head *as it was before #51 merged*. Those two migrations reached `main` when
+#51 merged, minutes after this check.
+
+**If a build is promoted before they are applied**, `/admin/config` and the school-config half of
+`/admin/schools` return `400` — they read `service_days` — and `tools/bulk-import` fails on its
+first snapshot read for the same reason. Nothing a parent touches is affected; the enquiry form
+posts to an Edge Function that is not deployed to prod either.
+
+Applying them is deliberately **not** done here: Andy's instruction was to do the web config
+*"once mobile has applied migrations"*, which puts the prod migration step with that thread, and
+a production migration during launch week is not something to do on an inferred authorisation.
+
+Because production does **not** auto-deploy (`E12-30`), nothing has changed on the live site and
+nothing will until somebody promotes. Setting the variables early is therefore safe: it removes a
+step from the critical path without taking any risk.
 
 ---
 
@@ -65,17 +93,24 @@ somebody marks a real class delivered while testing.
 
 ## Doing it
 
-```bash
-# 1. The file, once the payments thread writes it.
-set -a; . ~/.graybag-secrets/prod.env; set +a
-echo "$SUPABASE_URL"          # sanity — is this the production project?
+The variable names in `prod.env` are `SUPABASE_PROD_*`, not `SUPABASE_*` — an earlier draft of
+this document guessed the shorter names and was wrong.
 
-# 2. Netlify, production context only.
+```bash
+# 1. The file.
+set -a; . ~/.graybag-secrets/prod.env; set +a
+echo "$SUPABASE_PROD_URL"     # sanity — is this the production project?
+
+# 2. Netlify, production context only. Already done, 2026-08-15.
 cd apps/web
-npx netlify env:set PUBLIC_SUPABASE_URL      "$SUPABASE_URL"      --context production
-npx netlify env:set PUBLIC_SUPABASE_ANON_KEY "$SUPABASE_ANON_KEY" --context production
-npx netlify env:set PUBLIC_APP_ENV           production           --context production
-npx netlify env:set PUBLIC_KITCHEN_TRANSPORT live                 --context production
+npx netlify env:set PUBLIC_SUPABASE_URL      "$SUPABASE_PROD_URL"      --context production
+npx netlify env:set PUBLIC_SUPABASE_ANON_KEY "$SUPABASE_PROD_ANON_KEY" --context production
+npx netlify env:set PUBLIC_APP_ENV           production                --context production
+npx netlify env:set PUBLIC_KITCHEN_TRANSPORT live                      --context production
+
+# Do NOT pass --secret on a PUBLIC_* variable. It has to be inlined into the client bundle at
+# build time, and it is publishable by design — RLS is the control, not the key. Passing it was
+# the one mistake made here and it was undone immediately.
 
 # 3. Confirm what is set, per context, before building anything.
 npx netlify env:list --context production
@@ -122,11 +157,12 @@ import has not happened yet.
 
 ## The order this has to happen in
 
-1. Payments thread stands up the production project and writes `~/.graybag-secrets/prod.env`.
-2. Migrations `0001`–`0058` applied to production.
+1. ~~Payments thread stands up the production project and writes `~/.graybag-secrets/prod.env`.~~ **Done.**
+2. **Migrations `0001`–`0058` applied to production. ← THE OUTSTANDING STEP.** Prod is at `0056`;
+   `0057_enquiry` and `0058_service_days` landed on `main` when #51 merged and are not on prod.
 3. **`tools/bulk-import` run against production** — schools, dishes, menus. Dry run first;
    `docs/import-format.md`. This is the 17th.
-4. Netlify environment variables set, production context only.
+4. ~~Netlify environment variables set, production context only.~~ **Done, and verified per context.**
 5. A build promoted with `[promote]`.
 6. Sign in and check `/admin/schools` lists what was imported.
 

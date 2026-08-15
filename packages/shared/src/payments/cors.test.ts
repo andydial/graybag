@@ -81,6 +81,8 @@ describe('every browser-callable Edge Function', () => {
    */
   const BROWSER_CALLABLE = [
     'account',
+    // `E10-20`. Browser-callable for the same reason `admin-school` is.
+    'admin-dish',
     // `E10-01` / `E10-06`. Browser-callable by definition: it exists so the admin screens can
     // onboard a school and set its configuration, and the admin screens are a browser.
     'admin-school',
