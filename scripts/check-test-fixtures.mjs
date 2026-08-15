@@ -81,6 +81,13 @@ const SHARED_ON_PURPOSE = new Map([
   ['milk', 'allergen code, read from the seeded taxonomy and never inserted by a test'],
   ['tree_nut', 'allergen code, read from the seeded taxonomy and never inserted by a test'],
   ['school', 'scope_type enum'],
+  // `E10-21`. `food_type` is an enum — `create type food_type as enum ('veg','non_veg','egg')` —
+  // so these are literals, not codes on a unique column, and two fixtures naming `veg` collide
+  // with nothing. They appear in tests because `0059` refuses an unmarked dish on an active menu,
+  // so any fixture that puts a dish on a menu now has to say what the dish is.
+  ['veg', 'food_type enum'],
+  ['non_veg', 'food_type enum'],
+  ['egg', 'food_type enum'],
   ['counter', 'delivery mode enum'],
   // Composite uniques whose OTHER column already differs between seed and tests.
   ['break_1', 'break_time is unique on (school_id, code); the school ids differ'],
