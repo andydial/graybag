@@ -1244,3 +1244,68 @@ already on 4.0.0 — the comparison is `>=`. It only starts refusing when 4.0.1 
 the floor to it. If the intent on the 19th is "everyone must be on the new app", the floor is not
 the mechanism for that — it enforces *minimum version among installs of this app*, not
 *"stop using Bubble"*.
+
+---
+
+## D30 — ⛔ THE LAUNCH BLOCKER: nobody can sign in on production
+
+Found by the prod verification sweep, running `scripts/check-supabase-config.mjs` — which exists
+for exactly this — against the production project. **Six settings wrong, and together they mean no
+parent can create an account or sign in.**
+
+| Setting | Production today | Why it stops a parent |
+|---|---|---|
+| `mailer_otp_*` template | **Sends a magic link, not a code** | The app shows a six-box code input. A parent gets a link, taps it, lands on a blank page, and waits for a code that never arrives. *This is the defect that cost 2026-08-10.* |
+| `mailer_otp_length` | **8** | `SignInScreen` says "six-digit code" and labels the field "Six-digit code". The screen is lying to the person reading it. |
+| `site_url` | **`http://localhost:3000`** | Every link Supabase generates opens a blank localhost page on the recipient's phone. |
+| `uri_allow_list` | **empty** | The app scheme cannot receive a deep link or OAuth callback. |
+| `rate_limit_email_sent` | **2 per hour, project-wide** | Not per user. The **third** parent to sign in during a school-gate rush gets nothing and reports the app as broken. |
+| `smtp_host` | **null** | Supabase's built-in mailer is a development service — a handful of messages an hour, no delivery guarantee. **For an OTP-only product this alone means nobody signs in.** |
+
+**These are dashboard settings, not code.** No pull request fixes them; they are `owner:andy`
+credentialed actions in the Supabase dashboard, and `docs/environments.md` says so.
+
+Staging has the same failures — the handover records that `Supabase project config (staging)`
+fails on every branch and calls it expected. **On staging that is harmless. On production it is
+the whole product**, and the reason it did not read as urgent before is that the check has always
+been failing for a project where it did not matter.
+
+**This is a bigger blocker than anything else outstanding**, including the App Store review. A
+build that reaches a parent's phone on the 19th and cannot sign them in is worse than a build that
+arrives late.
+
+### The order to fix them in
+
+1. **SMTP first** — everything else is cosmetic until real mail leaves the building. Resend is
+   already configured for order email (`RESEND_API_KEY` is set on prod); the same domain can serve
+   Supabase Auth.
+2. **OTP template → code, length 6** — match `SignInScreen`.
+3. **`site_url` and `uri_allow_list`** — the production scheme is `graybag://` (not
+   `graybag-staging://`; `app.config.js` `IDENTITIES.production.scheme`).
+4. **Rate limit** — 2/hour is unusable. `docs/environments.md` should carry whatever number is
+   chosen so the check can assert it.
+
+Re-run `SUPABASE_ACCESS_TOKEN=$(security find-generic-password -s 'Supabase CLI' -w)
+SUPABASE_PRODUCTION_REF=<ref> node scripts/check-supabase-config.mjs production` until it is clean.
+
+## D31 — The rest of the prod sweep: no divergence from staging
+
+Everything else checked matches staging exactly.
+
+**Anon (signed out) — `AR7` holds**: 3 schools, 47 menu items for Amity, 2 break times. A parent
+can browse the entire menu without an account, which is the conversion path the scope document
+puts first.
+
+**Default-deny holds.** Eleven tables probed as anon — `order`, `order_group`, `payment`,
+`refund`, `invoice`, `recipient`, `guardian_link`, `app_user`, `permission_grant`, `ledger_entry`,
+`ops_alert` — **all 401**. Not "zero rows": refused.
+
+`is_service_date_orderable` returns `42501` to anon on **both** prod and staging. That is by
+design and not a gap: no api-module read calls it directly, the app reaches the calendar through
+the `order-calendar` Edge Function, which runs as `service_role`.
+
+**What this sweep could NOT cover, stated plainly:** sign-up, OTP, adding a child, the cart, the
+cutoff behaviour and policy acceptance all need an authenticated session, and a session needs an
+OTP delivered to an inbox. Given D30, that email cannot currently be delivered on production at
+all — so those paths are not merely untested, they are **currently untestable**, and will stay so
+until the SMTP sender is configured. That is the same blocker, not a second one.
