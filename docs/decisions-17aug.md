@@ -238,3 +238,27 @@ URL, package name, version code and three steps.
 Worth knowing when it installs: the `.aab` was built from `bd8b295`, before this run's fixes, so
 it will pull the current JS over the air on first launch — which makes the Play install a second
 free test of the OTA path.
+
+## D48
+
+**The first OTA I published pointed at staging, and the manifest is the only thing that showed
+it.** `apps/mobile/.env` names the staging project and a `rzp_test` key — correct for a
+developer, catastrophic in a production bundle. `eas update` read it, `APP_ENV` was unset, and
+the update went to the **production channel** stamped `"appEnv":"local"`.
+
+Had build 12 picked it up, every tester would have moved onto staging with a test payment key,
+without a single error: **`env.ts`'s Razorpay prefix guard was satisfied**, because it requires
+`rzp_test_` when `appEnv` is `local` and that is exactly what the leaked file supplied. The wrong
+pair was internally consistent.
+
+Fixed by hardening `scripts/ship-ota.sh` with `EXPO_NO_DOTENV=1` and an explicit
+`APP_ENV=production`, republishing as `f6e08844`, and verifying the live manifest now returns
+`"appEnv":"production"` on both platforms. Then confirmed properly rather than by inference: a
+local `expo export` with the same inputs contains the production Supabase host, **zero**
+occurrences of the staging host, and the live Razorpay key — the single `rzp_test` hit is the
+prefix constant in `env.ts`, not a key.
+
+**I found this by checking something I had already reported as done.** The verification I ran at
+the time — manifest 200, ids matching — was true and told me nothing about which backend was
+inside the bundle. A check that passes on the wrong artefact is the failure mode worth
+remembering here.

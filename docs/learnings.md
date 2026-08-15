@@ -2940,3 +2940,38 @@ Two general lessons:
 It also reinforces the rule from the deferred-constraint entry above: a green suite proves what
 it asserts, and the failure was in the space between "the app launched" and "the screen I meant
 to be on".
+
+## A `.env` file will follow your JS into a production OTA (2026-08-16)
+
+`apps/mobile/.env` names the **staging** Supabase project and a `rzp_test` key. That is correct
+for a developer and catastrophic in a published bundle, and `eas update` reads it like any other
+bundler invocation. The first update published to the **production** channel therefore went out
+carrying staging.
+
+Two things made it invisible:
+
+1. **The obvious verification passed.** The manifest returned 200 for runtime 4.0.0 on both
+   platforms with ids matching what `eas update` printed, and old runtimes correctly got 204.
+   All true, and none of it says anything about what is *inside* the bundle.
+2. **The app's own guard was satisfied.** `env.ts` requires the Razorpay key prefix to match the
+   environment — `rzp_test_` for `local` and `staging`, `rzp_live_` for `production`. With
+   `APP_ENV` unset the config falls back to `local`, which *wants* a test key, and the leaked
+   `.env` supplied one. The wrong pair was internally consistent, so nothing complained.
+
+The tell was one field in the manifest: `"appEnv":"local"` where it should have said
+`production`. That is now the documented post-publish check, and the publish script sets
+`EXPO_NO_DOTENV=1` and an explicit `APP_ENV=production` so the values can only come from the EAS
+environment.
+
+**Two general lessons:**
+
+- **A verification that passes on the wrong artefact is worse than no verification**, because it
+  is spent confidence. "The manifest is served correctly" and "the bundle is built correctly" are
+  different claims and I had only tested the first while believing I had done both.
+- **A guard keyed on the environment cannot catch the environment being wrong.** Every
+  consistency check `env.ts` performs is *within* an environment; choosing the wrong one moves
+  the whole frame, and no internal check sees it. The only check that works compares against
+  something outside the bundle — here, what the channel is *supposed* to be.
+
+Found by re-checking something already reported as done, which is the only reason it was caught
+before a tester picked it up.

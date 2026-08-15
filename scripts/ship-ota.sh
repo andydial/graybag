@@ -18,6 +18,16 @@
 #      and every invocation from a tool. `eas` exits with
 #      "The `--environment` flag must be set when running in `--non-interactive` mode".
 #
+#   3. **`apps/mobile/.env` silently wins.** That file names the STAGING project and a
+#      `rzp_test` key — it is what a developer wants locally and is catastrophic in a
+#      production bundle, because every install on the channel would quietly change backend
+#      and payment key. The first update published by this script went out with
+#      `"appEnv":"local"` for exactly this reason. `EXPO_NO_DOTENV=1` stops the bundler
+#      reading it, so the values come from the EAS `production` environment and nowhere else.
+#   4. **`APP_ENV` is not an `EXPO_PUBLIC_` variable**, so it is not in the EAS environment at
+#      all. `app.config.js` reads it to pick the app identity and stamps `extra.appEnv`;
+#      unset, it falls back to `local`. It has to be passed explicitly.
+#
 # Both are fixed here rather than in documentation, so the documented command is the working one.
 set -euo pipefail
 
@@ -49,7 +59,15 @@ git diff --quiet || dirty=" +uncommitted"
 # directory resolves the workspace root's copy, and `eas` needs that cwd anyway — it reads
 # app.json and eas.json relative to it.
 cd apps/mobile
-exec npx eas update \
+
+# `EXPO_NO_DOTENV=1` and an explicit `APP_ENV` are both load-bearing — see notes 3 and 4 above.
+# Verify afterwards with:
+#   curl -s https://u.expo.dev/<project> -H "expo-platform: ios" \
+#     -H "expo-runtime-version: 4.0.0" -H "expo-channel-name: production" \
+#     -H "expo-protocol-version: 1" -H "expo-api-version: 1" -H "accept: multipart/mixed" \
+#     | grep -o '"appEnv":"[a-z]*"'
+# It must say `production`. If it says `local`, the bundle is pointing at staging.
+APP_ENV=production EXPO_NO_DOTENV=1 exec npx eas update \
   --branch production \
   --environment production \
   --message "$message ($sha$dirty)"

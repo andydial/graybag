@@ -114,6 +114,31 @@ build machine (Command Line Tools only, no Android SDK), so nothing could be lau
 land. Fetching the launch asset with plain `curl` returns 403 — EAS signs those requests and a
 real client sends credentials a shell does not, so that proves nothing in either direction.
 
+### The environment check, which is not optional
+
+The **first** update published on 16 August went out with `"appEnv":"local"`, because
+`apps/mobile/.env` — which names the **staging** project and a `rzp_test` key — was read by the
+bundler, and `APP_ENV` was unset. Published to the *production* channel, that would have moved
+every install onto staging with a test payment key, silently.
+
+`scripts/ship-ota.sh` now sets `APP_ENV=production` and `EXPO_NO_DOTENV=1`, so the values come
+from the EAS `production` environment and nowhere else. **Check it after every publish:**
+
+```sh
+curl -s https://u.expo.dev/c2f325fa-47ad-474b-b863-e70a9b109728 \
+  -H "expo-platform: ios" -H "expo-runtime-version: 4.0.0" \
+  -H "expo-channel-name: production" -H "expo-protocol-version: 1" \
+  -H "expo-api-version: 1" -H "accept: multipart/mixed" | grep -o '"appEnv":"[a-z]*"'
+```
+
+It must print `"appEnv":"production"`. `local` or `staging` means the bundle is pointing at the
+wrong backend and must be republished immediately — the newest update on a branch wins, so
+republishing correctly is the fix.
+
+**`env.ts`'s Razorpay prefix guard does not catch this**, and it is worth knowing why: it
+requires `rzp_test_` when `appEnv` is `local`, and the leaked `.env` supplied exactly that. The
+guard was satisfied by the wrong pair. Only the manifest check above sees it.
+
 **The remaining proof takes five seconds on build 12**: open the app, go to Account, read the
 footer. `· bundled` means the binary's own JS; `· OTA c4342c44…` means this update applied. That
 binary was compiled before the OTA segment existed, so the segment cannot appear unless an update

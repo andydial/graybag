@@ -5341,13 +5341,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/51</span>
+          <span class="meter-num">0/52</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 51 tasks</summary>
+        <summary>Context &amp; 52 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -5762,6 +5762,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Apply <code>0059_food_type_required_on_menu</code> to production.</strong> The only migration from this thread not on prod — <code>0057</code> and <code>0058</code> are there. It is additive and inert against existing rows (a trigger fires on write), so applying it changes nothing until somebody publishes a dish. <strong>Until it is applied the guard does not protect production</strong>, and the 17 August import can put unmarked dishes back on a menu. Left to whoever owns prod migrations, per Andy&#39;s instruction that the mobile thread applies them; flagged rather than applied because a production migration during launch week is not a thing to do on an inferred authorisation. <code>supabase/down/0059_food_type_required_on_menu.down.sql</code> is the rollback and drops the trigger without touching data</span>
+      </li>
+      <li class="task" data-id="E17-57" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-57"></button>
+        <code class="tid">E17-57</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The first production OTA pointed at staging, with a test payment key.</strong> Found on 2026-08-16 by re-checking an item already reported done. <code>apps/mobile/.env</code> names the staging project and a <code>rzp_test</code> key — right for a developer, catastrophic in a published bundle — and <code>eas update</code> reads it like any other bundler invocation. <code>APP_ENV</code> was also unset, so <code>app.config.js</code> fell back to the <code>local</code> identity. The update went to the <strong>production channel</strong> stamped <code>&quot;appEnv&quot;:&quot;local&quot;</code>. Had build 12 picked it up, every TestFlight tester would have moved onto staging with a test key and <strong>no error at all</strong>: <code>env.ts</code>&#39;s Razorpay prefix guard requires <code>rzp_test_</code> when <code>appEnv</code> is <code>local</code>, and the leaked file supplied exactly that, so the wrong pair was internally consistent. Fixed by hardening <code>scripts/ship-ota.sh</code> with <code>EXPO_NO_DOTENV=1</code> and an explicit <code>APP_ENV=production</code>, republishing as <code>f6e08844</code>, and verifying the live manifest returns <code>&quot;appEnv&quot;:&quot;production&quot;</code> on both platforms — then confirming rather than inferring, with a local <code>expo export</code> on the same inputs: production Supabase host present, staging host <strong>absent</strong>, live key present, and the one <code>rzp_test</code> hit is <code>env.ts</code>&#39;s prefix constant. The post-publish manifest check is now documented in <code>docs/ota-updates.md</code> as mandatory. <strong>The lesson is the verification, not the bug</strong>: manifest-200-and-ids-match was true and said nothing about what was inside the bundle</span>
       </li></ul>
       </details>
     </article>
