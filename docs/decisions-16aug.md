@@ -631,3 +631,45 @@ failures for a moment and were mine.
   therefore cannot fire, and the app says so rather than reassuring.
 - `calories_kcal` is null; the source's ranges are preserved as text in
   `nutrition->>'calories_text'`.
+
+---
+
+## D19 — Android built; both submissions blocked on credentials that do not exist
+
+**The Android build succeeded**, and it is the one genuinely shippable artefact from this run:
+
+| | |
+|---|---|
+| Build | `ee8dfe09-ee30-4d8c-a990-08fdda62576d` |
+| Version / code | `4.0.0` / `1786591933` (above the live Play floor `1777726914`, per `E17-34`) |
+| Package | `com.Gracord.Graybag` |
+| Artefact | `https://expo.dev/artifacts/eas/K1wq3wx4jpl5gMld1nG_rhjc3Is7N2jaz_P2vh4B0g4.aab` |
+| Points at | production — verified via `eas env:exec production`, all four `EXPO_PUBLIC_*` resolve |
+
+**Play submission is blocked**: `Google Service Account Keys cannot be set up in
+--non-interactive mode`, and no service-account JSON exists anywhere under `$HOME` or in EAS.
+Same class of blocker as iOS — a credential, not a bug.
+
+**Andy can upload that `.aab` to the Play Console by hand today.** It is a complete, signed,
+production-configured artefact. That is the fastest route to the internal track without waiting
+for a service account.
+
+### One thing this nearly hid
+
+The first submit attempt resolved `com.Gracord.Graybag.**dev**`. That is `app.config.js` working
+exactly as designed — it derives the bundle suffix from `APP_ENV`, and *"an unset or unrecognised
+`APP_ENV` lands on `local`, not on production"*, which is the safe default. My shell had no
+`APP_ENV`; the **build** ran on EAS with the `production` profile and produced the correct package.
+
+Worth recording because the failure message named a package nobody intended to ship, and the
+instinct is to go looking for a build problem that is not there.
+
+### iOS remains the deadline miss
+
+`E17-50`. No Apple credentials of any kind — every iOS build ever attempted has errored, no
+distribution certificate exists on EAS, no `.p8` on disk. Not workaroundable: an unsigned artefact
+is one App Store Connect will not accept.
+
+**Both blockers are the same shape as `E01-27`**: the thing needed to ship exists only in a
+console somebody has to log into. Three instances in one day — `platform_config.environment`,
+`payments-webhook.verify_jwt`, and now both sets of store credentials.

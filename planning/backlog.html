@@ -5061,13 +5061,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/50</span>
+          <span class="meter-num">0/51</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 50 tasks</summary>
+        <summary>Context &amp; 51 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -5474,6 +5474,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:critical) <strong>iOS cannot be built or submitted: no Apple credentials exist.</strong> Blocking the 4.0.0 submission and therefore the 19 August mandatory update. Verified 2026-08-16, not assumed: <code>eas build --platform ios --profile production --non-interactive</code> fails with *&quot;Distribution Certificate is not validated for non-interactive builds&quot;*; <code>eas build:list --platform ios</code> shows <strong>every iOS build ever attempted errored</strong>, all on the <code>development</code> profile, so no distribution certificate has ever been created on the EAS servers; there is no <code>AuthKey_*.p8</code> anywhere under <code>$HOME</code>; and no <code>APPLE_*</code> / <code>EXPO_APPLE_*</code> / <code>ASC_*</code> variables exist. <code>eas credentials</code> is interactive-only and rejects <code>--non-interactive</code>. <code>eas.json</code> already carries <code>appleTeamId</code> and <code>ascAppId</code>, so the App Store record exists — what is missing is purely the authentication to mint a signing certificate. <strong>Two ways to unblock, either is enough:</strong> run <code>eas build --platform ios --profile production</code> interactively and complete the Apple 2FA prompt, or place an App Store Connect API key at <code>~/.graybag-secrets/AuthKey_XXXX.p8</code> and add <code>ASC_KEY_ID</code> / <code>ASC_ISSUER_ID</code> to <code>prod.env</code> — the second also makes it repeatable in CI and is the one worth doing. <strong>Note that <code>eas submit</code> uploads to App Store Connect (feeding TestFlight) but does NOT submit for review</strong>; submitting for review is a separate action, scriptable only with an ASC API key and otherwise a human in the web UI</span>
+      </li>
+      <li class="task" data-id="E17-51" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-51"></button>
+        <code class="tid">E17-51</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:critical) <strong>Play submission is blocked: no Google Play service-account key.</strong> <code>eas submit --platform android</code> fails with *&quot;Google Service Account Keys cannot be set up in --non-interactive mode&quot;*, and no service-account JSON exists under <code>$HOME</code> or in EAS. <strong>The build itself succeeded</strong> — <code>ee8dfe09-ee30-4d8c-a990-08fdda62576d</code>, <code>4.0.0</code> / versionCode <code>1786591933</code>, package <code>com.Gracord.Graybag</code>, pointing at production, artefact at <code>https://expo.dev/artifacts/eas/K1wq3wx4jpl5gMld1nG_rhjc3Is7N2jaz_P2vh4B0g4.aab</code>. <strong>Fastest unblock: upload that <code>.aab</code> to the Play Console by hand</strong>, which needs no key at all. The durable fix is a service account with the *Release Manager* role, its JSON at <code>~/.graybag-secrets/play-service-account.json</code>, referenced from <code>eas.json</code>&#39;s <code>submit.production.android.serviceAccountKeyPath</code> — which also makes Play submission repeatable in CI. Note the first submit attempt resolved <code>com.Gracord.Graybag.dev</code> because the local shell had no <code>APP_ENV</code>: that is <code>app.config.js</code>&#39;s safe default working, not a build defect, and the artefact carries the correct package</span>
       </li></ul>
       </details>
     </article>
