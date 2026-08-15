@@ -270,6 +270,12 @@ jobs:
           curl -Ls https://get.maestro.mobile.dev | bash
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
+      # Before the 25-minute APK build, because a malformed flow is otherwise discovered
+      # afterwards — and a flow error and a real product failure look identical at that point.
+      # `check-syntax` needs no device and takes about a second.
+      - name: Check the flow parses before spending 25 minutes on a build
+        run: maestro check-syntax apps/mobile/.maestro/cart.yaml
+
       - name: Build the staging APK
         working-directory: apps/mobile
         env:
@@ -311,9 +317,12 @@ jobs:
           disable-animations: true
           script: |
             adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
-            maestro test apps/mobile/.maestro/cart.yaml \
-              --format junit --output maestro-report.xml \
-              --debug-output "$GITHUB_WORKSPACE/maestro-debug"
+            # ONE LINE, and it has to stay one line. `android-emulator-runner` runs this script
+            # a line at a time through `sh -c`, so a `\` continuation is not joined — it is
+            # passed through as a literal argument. Splitting this for readability cost a
+            # 29-minute run that died in three seconds with
+            # `Flow path does not exist: /home/runner/work/graybag/graybag/\`.
+            maestro test apps/mobile/.maestro/cart.yaml --format junit --output maestro-report.xml --debug-output "$GITHUB_WORKSPACE/maestro-debug" --flatten-debug-output
 
       - name: Keep the report even when the flow fails
         if: always()
