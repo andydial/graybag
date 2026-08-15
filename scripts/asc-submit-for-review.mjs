@@ -143,16 +143,52 @@ await api(`/v1/appStoreVersions/${v.id}/relationships/build`, {
 });
 console.log('build attached to the version');
 
-const sub = await api('/v1/appStoreVersionSubmissions', {
+/**
+ * Apple retired `appStoreVersionSubmissions` — it now answers
+ * `403 … does not allow 'CREATE'. Allowed operation is: DELETE`.
+ *
+ * The current flow is three calls, and the third is the one that actually submits: creating a
+ * review submission and adding an item to it leaves the whole thing sitting in `READY_FOR_REVIEW`,
+ * which looks submitted and is not. That is the same trap as a version left in
+ * `PREPARE_FOR_SUBMISSION`, one level down.
+ */
+let sub = (
+  await api('/v1/reviewSubmissions', {
+    method: 'POST',
+    body: JSON.stringify({
+      data: {
+        type: 'reviewSubmissions',
+        attributes: { platform: 'IOS' },
+        relationships: { app: { data: { type: 'apps', id: APP_ID } } },
+      },
+    }),
+  })
+).data;
+console.log(`review submission created (${sub.id}, ${sub.attributes.state})`);
+
+await api('/v1/reviewSubmissionItems', {
   method: 'POST',
   body: JSON.stringify({
     data: {
-      type: 'appStoreVersionSubmissions',
-      relationships: { appStoreVersion: { data: { type: 'appStoreVersions', id: v.id } } },
+      type: 'reviewSubmissionItems',
+      relationships: {
+        reviewSubmission: { data: { type: 'reviewSubmissions', id: sub.id } },
+        appStoreVersion: { data: { type: 'appStoreVersions', id: v.id } },
+      },
     },
   }),
 });
-console.log(`submitted for review (${sub.data?.id})`);
+console.log('version added to the review submission');
+
+sub = (
+  await api(`/v1/reviewSubmissions/${sub.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      data: { type: 'reviewSubmissions', id: sub.id, attributes: { submitted: true } },
+    }),
+  })
+).data;
+console.log(`submitted for review — reviewSubmission state: ${sub.attributes.state}`);
 
 const after = await api(`/v1/appStoreVersions/${v.id}`);
 console.log(`state is now: ${after.data.attributes.appStoreState}`);
