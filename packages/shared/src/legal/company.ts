@@ -1,4 +1,27 @@
-import data from '../../../../docs/legal/company.json' with { type: 'json' };
+// **Generated, not imported from `docs/`.** `E12-30`.
+//
+// This read `../../../../docs/legal/company.json` directly. That works on a laptop and cannot
+// work on an EAS build worker: `.easignore` excludes `docs/` deliberately (1.25 MB of prose on
+// an 85 KB/s upload) while `packages/` is uploaded because the app depends on it — so the mobile
+// bundle reached into a directory that was not there, and iOS died in the eager-bundle phase
+// with the CLI reporting only "Unknown error. See logs of the Bundle JavaScript build phase."
+//
+// `.easignore`'s own header records the same failure for `config/`, which "cost three builds".
+// `docs/legal/company.json` remains the single source; `scripts/build-company-identity.mjs`
+// derives this artefact from it and `--check` runs in the smoke test so they cannot drift.
+import { COMPANY_JSON } from './company.generated.js';
+
+const data = COMPANY_JSON as unknown as {
+  legalName: string | null;
+  registeredAddress: string | null;
+  gstin: string | null;
+  sacCode: string | null;
+  signatureTreatment: string | null;
+  supportEmail: string | null;
+  jurisdictionCity: string | null;
+  termsEffectiveDate: string | null;
+  grievanceOfficer: { name: string | null; title: string; email: string; address: string | null };
+};
 
 /**
  * The company's published identity — one source, read by every document that states it.
