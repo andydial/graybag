@@ -7,7 +7,10 @@
 //     --schools <file.csv|json>   schools to create or update
 //     --dishes  <file.csv|json>   dishes to create or update
 //     --menu    <file.csv|json>   menu items and their assignment to schools
+//     --breaks  <file.csv|json>   break windows — which times each school serves at
 //     --export-dishes <path>      write every dish as a CSV ready to edit and re-import
+//     --export-breaks <path>      write every break window, plus a ready-to-fill row per school
+//                                 that has none. Times are left BLANK on purpose
 //     --apply                     actually write. WITHOUT THIS NOTHING IS WRITTEN
 //     --json <path>               also write the plan as JSON
 //     --quiet                     suppress the report
@@ -30,31 +33,38 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import { parseFile, ParseError } from './parse.mjs';
-import { validateSchools, validateDishes, validateMenuItems } from './validate.mjs';
-import { planSchools, planDishes, planMenus } from './plan.mjs';
+import { validateSchools, validateDishes, validateMenuItems, validateBreakTimes } from './validate.mjs';
+import { planSchools, planDishes, planMenus, planBreakTimes } from './plan.mjs';
 import {
-  renderBlockers, renderDishPlan, renderErrors, renderMenuPlan, renderSchoolPlan, renderVerdict,
+  renderBlockers, renderBreakPlan, renderDishPlan, renderErrors, renderMenuPlan, renderSchoolPlan,
+  renderVerdict,
 } from './report.mjs';
-import { applyDishes, applyMenus, applySchools, connect, exportDishes, snapshot } from './db.mjs';
+import {
+  applyBreakTimes, applyDishes, applyMenus, applySchools, connect, exportBreakTimes,
+  exportDishes, snapshot,
+} from './db.mjs';
 import { toCsv } from './csv-out.mjs';
 
 const USAGE = `usage: node tools/bulk-import/src/cli.mjs [--schools FILE] [--dishes FILE] [--menu FILE]
                                         [--apply] [--json PATH] [--quiet]
        node tools/bulk-import/src/cli.mjs --export-dishes dishes.csv
+       node tools/bulk-import/src/cli.mjs --export-breaks breaks.csv   then  --breaks breaks.csv
 
 Dry run unless --apply is given. See docs/import-format.md.`;
 
 function parseArgs(argv) {
   const o = {
     schools: null, dishes: null, menu: null, apply: false, json: null, quiet: false,
-    help: false, exportDishes: null,
+    help: false, exportDishes: null, exportBreaks: null, breaks: null,
   };
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
       case '--schools': o.schools = argv[++i]; break;
       case '--dishes': o.dishes = argv[++i]; break;
       case '--menu': o.menu = argv[++i]; break;
+      case '--breaks': o.breaks = argv[++i]; break;
       case '--export-dishes': o.exportDishes = argv[++i]; break;
+      case '--export-breaks': o.exportBreaks = argv[++i]; break;
       case '--apply': o.apply = true; break;
       case '--json': o.json = argv[++i]; break;
       case '--quiet': o.quiet = true; break;
@@ -80,7 +90,8 @@ async function main(argv) {
     return 2;
   }
 
-  if (options.help || (!options.schools && !options.dishes && !options.menu && !options.exportDishes)) {
+  if (options.help || (!options.schools && !options.dishes && !options.menu && !options.breaks
+      && !options.exportDishes && !options.exportBreaks)) {
     console.log(USAGE);
     return options.help ? 0 : 2;
   }
@@ -89,6 +100,32 @@ async function main(argv) {
   //
   // Before the import path entirely: it takes no input files, writes nothing to the database, and
   // pairing it with `--apply` would be a confusing thing to allow.
+  if (options.exportBreaks) {
+    let db;
+    try { db = connect(); } catch (cause) { console.error(cause.message); return 2; }
+    const { rows: breakRows, closed, shape, existing } = await exportBreakTimes(db);
+    mkdirSync(dirname(options.exportBreaks), { recursive: true });
+    writeFileSync(options.exportBreaks, toCsv(breakRows));
+    say(options, `Wrote ${breakRows.length} break window row(s) to ${options.exportBreaks}.`);
+    if (closed.length > 0) {
+      say(options, '');
+      say(options,
+        `${closed.join(', ')} ${closed.length === 1 ? 'has' : 'have'} NO break windows and ` +
+        `therefore cannot be ordered from at all (P19).\n` +
+        `Template rows are in the file with the labels filled in and the times LEFT BLANK — ` +
+        `deliberately, because copying another school's times would publish a time nobody agreed ` +
+        `to. Type the real ones, then:\n` +
+        `  node tools/bulk-import/src/cli.mjs --breaks ${options.exportBreaks}\n` +
+        `\nThe shape to copy. These are the windows that already exist, exactly as stored:\n` +
+        existing.map((w) => `  ${w.schoolCode}  "${w.label}"  ${(w.startsAt ?? '').slice(0, 5)}–${(w.endsAt ?? '').slice(0, 5)}`).join('\n') +
+        `\n\nThe template uses friendly labels (${shape.map((w) => w.label).join(', ')}) rather ` +
+        `than copying those, because a label that IS its own time range renders the time twice in ` +
+        `the picker — P20, and check:launch warns about it. Editing the existing rows' label ` +
+        `column in this same file fixes that too.`);
+    }
+    return 0;
+  }
+
   if (options.exportDishes) {
     let db;
     try {
@@ -124,6 +161,7 @@ async function main(argv) {
     ['schools', options.schools, validateSchools],
     ['dishes', options.dishes, validateDishes],
     ['menu', options.menu, validateMenuItems],
+    ['breaks', options.breaks, validateBreakTimes],
   ]) {
     if (!file) continue;
     let rows;
@@ -177,6 +215,14 @@ async function main(argv) {
     say(options, '');
   }
 
+  if (parsed.breaks) {
+    plans.breaks = planBreakTimes(parsed.breaks, snap);
+    blockers.push(...plans.breaks.blockers);
+    changeCount += plans.breaks.creates.length + plans.breaks.updates.length;
+    say(options, renderBreakPlan(plans.breaks));
+    say(options, '');
+  }
+
   if (parsed.menu) {
     // Dishes and schools created earlier in this same run count as existing, so one file set
     // describing a new school, its dishes and its menu does not block on its own first half.
@@ -221,6 +267,12 @@ async function main(argv) {
   try {
     let written = 0;
     if (plans.schools) written += await applySchools(db, plans.schools, snap);
+    if (plans.breaks) {
+      // After schools, because a window references one; before menus, for no ordering reason
+      // beyond reading in the order the report printed.
+      const after = plans.schools ? await snapshot(db) : snap;
+      written += await applyBreakTimes(db, planBreakTimes(parsed.breaks, after));
+    }
     if (plans.dishes) written += await applyDishes(db, plans.dishes, snap);
     if (plans.menu) {
       // Re-snapshot: schools and dishes created above are referenced by the menu pass, and the

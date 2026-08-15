@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { planDishes, planMenus, planSchools } from '../src/plan.mjs';
+import { planBreakTimes, planDishes, planMenus, planSchools } from '../src/plan.mjs';
 
 const snap = (o = {}) => ({
   cities: [{ id: 'city-1', code: 'mohali', name: 'SAS Nagar (Mohali)' }],
@@ -232,4 +232,72 @@ test('a menu whose stored name differs from menu_code is still matched', () => {
   }));
   assert.equal(menus[0].isNew, false);
   assert.equal(menus[0].id, 'm-9');
+});
+
+// ---------------------------------------------------------------------------- break windows
+
+const breakSnap = (o = {}) => snap({
+  schools: [{ id: 's-1', code: 'amity', isActive: true, onboardedAt: '2026-08-01' }],
+  breakTimes: [],
+  ...o,
+});
+
+const window_ = (o = {}) => ({
+  __row: 2, schoolCode: 'amity', code: 'morning-break', label: 'Morning break',
+  startsAt: '10:40:00', endsAt: '11:15:00', sortOrder: null, isActive: null, ...o,
+});
+
+test('a window that does not exist is a create', () => {
+  const plan = planBreakTimes([window_()], breakSnap());
+  assert.equal(plan.creates.length, 1);
+  assert.equal(plan.creates[0].schoolId, 's-1');
+});
+
+test('an identical window is unchanged, not an update', () => {
+  // The property that makes re-running an export safe.
+  const plan = planBreakTimes([window_()], breakSnap({
+    breakTimes: [{ id: 'b-1', schoolCode: 'amity', code: 'morning-break', label: 'Morning break', startsAt: '10:40:00', endsAt: '11:15:00', sortOrder: 10, isActive: true }],
+  }));
+  assert.equal(plan.unchanged.length, 1);
+  assert.equal(plan.creates.length, 0);
+});
+
+test('a changed time is an update naming the field', () => {
+  const plan = planBreakTimes([window_({ startsAt: '10:45:00' })], breakSnap({
+    breakTimes: [{ id: 'b-1', schoolCode: 'amity', code: 'morning-break', label: 'Morning break', startsAt: '10:40:00', endsAt: '11:15:00', sortOrder: 10, isActive: true }],
+  }));
+  assert.deepEqual(plan.updates[0].changed, ['starts_at']);
+});
+
+test('an unknown school is a blocker', () => {
+  const plan = planBreakTimes([window_({ schoolCode: 'nope' })], breakSnap());
+  assert.match(plan.blockers[0].message, /Import schools before their break windows/);
+});
+
+test('reports which schools are STILL closed after the file is applied', () => {
+  // P19 makes this the headline, not a footnote: an active onboarded school with no window takes
+  // no orders at all, and a plan that fixed one school while leaving another shut must say so.
+  const plan = planBreakTimes([window_()], breakSnap({
+    schools: [
+      { id: 's-1', code: 'amity', isActive: true, onboardedAt: '2026-08-01' },
+      { id: 's-2', code: 'gem', isActive: true, onboardedAt: '2026-08-01' },
+    ],
+  }));
+  assert.deepEqual(plan.stillClosed, ['gem']);
+});
+
+test('a school this file opens is not reported as still closed', () => {
+  const plan = planBreakTimes([window_()], breakSnap());
+  assert.deepEqual(plan.stillClosed, []);
+});
+
+test('an inactive or never-onboarded school is not reported as closed', () => {
+  // Deactivating a school is a decision, not a gap.
+  const plan = planBreakTimes([], breakSnap({
+    schools: [
+      { id: 's-2', code: 'off', isActive: false, onboardedAt: '2026-08-01' },
+      { id: 's-3', code: 'new', isActive: true, onboardedAt: null },
+    ],
+  }));
+  assert.deepEqual(plan.stillClosed, []);
 });

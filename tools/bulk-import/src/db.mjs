@@ -48,17 +48,18 @@ const rows = async (query, what) => {
  * dishes.
  */
 export async function snapshot(db) {
-  const [cities, kitchens, schools, schoolConfigs, categories, allergens, dishes, dishAllergens, menus, menuItems] =
+  const [cities, kitchens, schools, schoolConfigs, categories, allergens, dishes, dishAllergens, menus, breakTimes, menuItems] =
     await Promise.all([
       rows(db.from('city').select('id,code,name'), 'cities'),
       rows(db.from('kitchen').select('id,code,name'), 'kitchens'),
-      rows(db.from('school').select('id,code,name,city_id,kitchen_id,institution_type,address_line1,address_line2,postcode,contact_name,contact_email,contact_phone'), 'schools'),
+      rows(db.from('school').select('id,code,name,city_id,kitchen_id,institution_type,address_line1,address_line2,postcode,contact_name,contact_email,contact_phone,is_active,onboarded_at'), 'schools'),
       rows(db.from('school_config').select('school_id,service_days,order_cutoff_time,order_cutoff_days_before'), 'school config'),
       rows(db.from('dish_category').select('id,code,display_name'), 'dish categories'),
       rows(db.from('allergen').select('id,code'), 'allergens'),
       rows(db.from('dish').select('id,kitchen_id,name,description,ingredients_text,calories_kcal,portion_text,food_type,category_id,is_active'), 'dishes'),
       rows(db.from('dish_allergen').select('dish_id,allergen_id'), 'dish allergens'),
       rows(db.from('menu').select('id,kitchen_id,name,status'), 'menus'),
+      rows(db.from('break_time').select('id,school_id,code,label,starts_at,ends_at,sort_order,is_active'), 'break times'),
       rows(db.from('menu_item').select('menu_id,dish_id,price_paise,available_days,sort_order'), 'menu items'),
     ]);
 
@@ -94,6 +95,12 @@ export async function snapshot(db) {
         contactName: s.contact_name,
         contactEmail: s.contact_email,
         contactPhone: s.contact_phone,
+        // Read because `exportBreakTimes` and `planBreakTimes` both ask "is this school actually
+        // open" — a deactivated or never-onboarded school reaches no parent, so offering to fix
+        // its break windows would be noise. Absent from this snapshot until `E05-30`, which made
+        // every school look inactive and silently produced an export with no template rows.
+        isActive: s.is_active !== false,
+        onboardedAt: s.onboarded_at ?? null,
         serviceDays: cfg?.service_days ?? null,
         cutoffTime: cfg?.order_cutoff_time ?? null,
         cutoffDaysBefore: cfg?.order_cutoff_days_before ?? null,
@@ -119,6 +126,23 @@ export async function snapshot(db) {
       name: m.name,
       kitchenCode: kitchenCodeById.get(m.kitchen_id),
     })),
+    breakTimes: breakTimes.map((b) => {
+      const school = schools.find((s) => s.id === b.school_id);
+      return {
+        id: b.id,
+        schoolId: b.school_id,
+        schoolCode: school?.code ?? '',
+        code: b.code,
+        label: b.label,
+        // Postgres renders `time` as HH:MM:SS; the validator normalises to the same, so these
+        // compare directly. Comparing "10:40" against "10:40:00" would report a change on every
+        // run and make the plan untrustworthy.
+        startsAt: b.starts_at,
+        endsAt: b.ends_at,
+        sortOrder: b.sort_order,
+        isActive: b.is_active !== false,
+      };
+    }),
     // Keyed by menu id, and each item carries the DISH NAME rather than its id, because that is
     // what the file speaks. Without this the planner cannot tell "this menu already says exactly
     // this" from "this menu needs writing", and every re-run reports changes it is not making.
@@ -172,6 +196,123 @@ export async function exportDishes(db) {
     allergens: (byDish.get(d.id) ?? []).sort().join(';'),
     is_active: d.is_active ? 'true' : 'false',
   }));
+}
+
+/**
+ * Break windows as a CSV ready to fill in — `E05-30`.
+ *
+ * Writes every window that exists, then a **template row for each active, onboarded school that
+ * has none**: labels filled in, sort order filled in, and the **times deliberately blank**.
+ *
+ * Blank, not copied from another school. `P19` says a school with no windows cannot be ordered
+ * from; the fix for that is the school's real times, and pre-filling somebody else's would put a
+ * time nobody agreed to in front of a parent. `catalogue.sql` refused exactly this from the
+ * legacy option set and its comment says why. The validator refuses a blank time, so the file
+ * cannot be applied until a human has typed them.
+ */
+export async function exportBreakTimes(db) {
+  const snap = await snapshot(db);
+  const out = [];
+
+  for (const b of snap.breakTimes) {
+    out.push({
+      school_code: b.schoolCode,
+      // The STORED code, not one derived from the label. `break_time` is unique on
+      // (school_id, code), and deriving it from the label meant an exported row whose label had
+      // since been edited — or which never matched, as production's `break-1` against the label
+      // `"10:40AM - 11:15AM"` — came back as a CREATE and duplicated the window. An export that
+      // cannot be re-imported unchanged is not an export.
+      code: b.code,
+      label: b.label,
+      starts_at: (b.startsAt ?? '').slice(0, 5),
+      ends_at: (b.endsAt ?? '').slice(0, 5),
+      sort_order: b.sortOrder ?? '',
+      is_active: b.isActive ? 'true' : 'false',
+    });
+  }
+
+  const haveWindows = new Set(snap.breakTimes.filter((b) => b.isActive).map((b) => b.schoolCode));
+
+  /**
+   * How many windows to offer, and what to call them.
+   *
+   * The **count and ordering** are copied from the school that already has windows — that is the
+   * real shape, and two breaks is a fact about the school day rather than a guess.
+   *
+   * The **labels are not copied.** Production's existing labels are the raw time ranges
+   * (`"10:40AM - 11:15AM"`), which `P20` and `check:launch` both call out: the picker shows the
+   * label with the times underneath, so a parent reads the time twice. Copying that to two more
+   * schools would spread a known defect across the whole estate on the day it was noticed.
+   *
+   * So the template offers friendly names. They are a starting point an operator edits, not a
+   * claim about the school — unlike the times, which are left blank because they are.
+   */
+  const FRIENDLY = ['Morning break', 'Second break', 'Third break', 'Fourth break'];
+  const existingShape = [...new Map(snap.breakTimes.map((b) => [b.code, b])).values()]
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const shape = (existingShape.length > 0
+    ? existingShape
+    : [{ sortOrder: 10 }, { sortOrder: 20 }]
+  ).map((w, i) => ({ label: FRIENDLY[i] ?? `Break ${i + 1}`, sortOrder: w.sortOrder ?? (i + 1) * 10 }));
+
+  const closed = [];
+  for (const school of snap.schools) {
+    if (!school.isActive || school.onboardedAt === null) continue;
+    if (haveWindows.has(school.code)) continue;
+    closed.push(school.code);
+    for (const w of shape) {
+      out.push({
+        school_code: school.code,
+        // Blank for a template row: there is nothing stored to preserve, so the validator derives
+        // it from whatever label the operator settles on.
+        code: '',
+        label: w.label,
+        starts_at: '',
+        ends_at: '',
+        sort_order: w.sortOrder ?? '',
+        is_active: 'true',
+      });
+    }
+  }
+
+  return { rows: out, closed, shape, existing: snap.breakTimes };
+}
+
+export async function applyBreakTimes(db, plan) {
+  let count = 0;
+
+  for (const b of plan.creates) {
+    must(
+      await db.from('break_time').insert({
+        school_id: b.schoolId,
+        code: b.code,
+        label: b.label,
+        starts_at: b.startsAt,
+        ends_at: b.endsAt,
+        // Ordered by start time when unspecified: the kitchen reads these in the order the day
+        // happens, not the order somebody typed them.
+        sort_order: b.sortOrder ?? Number(b.startsAt.slice(0, 2)) * 60 + Number(b.startsAt.slice(3, 5)),
+        is_active: b.isActive ?? true,
+      }),
+      `creating break window "${b.label}" for ${b.schoolCode}`,
+    );
+    count += 1;
+  }
+
+  for (const b of plan.updates) {
+    const patch = {};
+    if (b.changed.includes('label')) patch.label = b.label;
+    if (b.changed.includes('starts_at')) patch.starts_at = b.startsAt;
+    if (b.changed.includes('ends_at')) patch.ends_at = b.endsAt;
+    if (b.changed.includes('sort_order')) patch.sort_order = b.sortOrder;
+    if (b.changed.includes('is_active')) patch.is_active = b.isActive;
+    // Qualified by the row's own id. `E06-38`.
+    must(await db.from('break_time').update(patch).eq('id', b.id),
+      `updating break window "${b.label}" for ${b.schoolCode}`);
+    count += 1;
+  }
+
+  return count;
 }
 
 const must = (result, what) => {

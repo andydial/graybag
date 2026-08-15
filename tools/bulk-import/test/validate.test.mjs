@@ -1,7 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { validateDishes, validateMenuItems, validateSchools } from '../src/validate.mjs';
+import {
+  validateBreakTimes, validateDishes, validateMenuItems, validateSchools,
+} from '../src/validate.mjs';
 
 const row = (o) => ({ __row: 2, ...o });
 
@@ -162,4 +164,52 @@ test('a row with several problems reports all of them, not just the first', () =
   // three-column mistake into three round trips.
   const { errors } = validateMenuItems([menuItem({ price_paise: 'free', valid_from: 'yesterday' })]);
   assert.ok(errors.length >= 2, `expected several errors, got ${errors.length}`);
+});
+
+// ---------------------------------------------------------------------------- break windows
+
+const breakRow = (o = {}) =>
+  row({ school_code: 'amity', label: 'Morning break', starts_at: '10:40', ends_at: '11:15', ...o });
+
+test('accepts a break window and normalises the times', () => {
+  const { records, errors } = validateBreakTimes([breakRow()]);
+  assert.equal(errors.length, 0);
+  assert.equal(records[0].startsAt, '10:40:00');
+  assert.equal(records[0].endsAt, '11:15:00');
+});
+
+test('derives a code from the label when none is given', () => {
+  // A template row. An operator typing "Morning break" should not also have to invent `break-1`.
+  assert.equal(validateBreakTimes([breakRow()]).records[0].code, 'morning-break');
+});
+
+test('an explicit code WINS over the derived one', () => {
+  // The round trip depends on this. Production stores `break-1` with the label
+  // "10:40AM - 11:15AM"; deriving from that label matched nothing, so re-importing an untouched
+  // export created duplicate windows.
+  const { records } = validateBreakTimes([breakRow({ code: 'break-1', label: '10:40AM - 11:15AM' })]);
+  assert.equal(records[0].code, 'break-1');
+});
+
+test('refuses a blank time rather than inventing one', () => {
+  // The template ships with times blank on purpose. Copying another school's would publish a
+  // time nobody agreed to — the same refusal `catalogue.sql` makes about the legacy option set.
+  const { errors } = validateBreakTimes([breakRow({ starts_at: '', ends_at: '' })]);
+  assert.equal(errors.length, 2);
+  assert.match(messages(errors), /required and is blank/);
+});
+
+test('refuses a window that ends before it starts', () => {
+  const { errors } = validateBreakTimes([breakRow({ starts_at: '11:15', ends_at: '10:40' })]);
+  assert.match(messages(errors), /not a window/);
+});
+
+test('refuses two windows with the same name at one school', () => {
+  const { errors } = validateBreakTimes([breakRow(), { ...breakRow(), __row: 3 }]);
+  assert.match(messages(errors), /one window typed twice/);
+});
+
+test('allows the same window name at different schools', () => {
+  const { errors } = validateBreakTimes([breakRow(), { ...breakRow(), __row: 3, school_code: 'gem' }]);
+  assert.equal(errors.length, 0);
 });
