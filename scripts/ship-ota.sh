@@ -11,7 +11,9 @@
 #
 #   1. **The message loses its quoting.** `npm run ship:ota -- "build label names the JS"`
 #      appends the words unquoted, so `eas` receives `--message build` followed by four stray
-#      positionals. The error it prints is about the flags, not about quoting.
+#      positionals. The error it prints is about the flags, not about quoting. npm does this
+#      regardless of how the caller quotes, which is why this script joins `"$*"` rather than
+#      trusting `"$1"`.
 #   2. **`--environment` is required whenever stdin is not a TTY**, which includes every CI run
 #      and every invocation from a tool. `eas` exits with
 #      "The `--environment` flag must be set when running in `--non-interactive` mode".
@@ -19,7 +21,8 @@
 # Both are fixed here rather than in documentation, so the documented command is the working one.
 set -euo pipefail
 
-if [ $# -lt 1 ] || [ -z "${1// /}" ]; then
+message="$*"
+if [ $# -lt 1 ] || [ -z "${message// /}" ]; then
   cat >&2 <<'USAGE'
 A message is required.
 
@@ -41,8 +44,12 @@ sha=$(git rev-parse --short HEAD)
 dirty=""
 git diff --quiet || dirty=" +uncommitted"
 
-exec npm --prefix apps/mobile exec -- \
-  eas update \
-    --branch production \
-    --environment production \
-    --message "$1 ($sha$dirty)"
+# `cd` + `npx`, not `npm --prefix … exec`: eas-cli is not a dependency of apps/mobile, so
+# `npm exec --prefix` answers "could not determine executable to run". `npx` from inside the
+# directory resolves the workspace root's copy, and `eas` needs that cwd anyway — it reads
+# app.json and eas.json relative to it.
+cd apps/mobile
+exec npx eas update \
+  --branch production \
+  --environment production \
+  --message "$message ($sha$dirty)"
