@@ -1,4 +1,6 @@
-// The only file here that talks to Supabase.
+// The reads and writes. `connect()` lives in `connect.mjs`, so this file imports **nothing** —
+// every function here takes the client as an argument, which is what lets `snapshot()` run in a
+// browser against the api/ module (`E10-29`) instead of being reimplemented there.
 //
 // ## Why the service role, and why that is allowed here
 //
@@ -17,21 +19,6 @@
 // `apply()` performs exactly what the plan says. Nothing in this file decides whether a row
 // should change.
 
-import { createClient } from '@supabase/supabase-js';
-
-export function connect(env = process.env) {
-  const url = env.SUPABASE_URL;
-  const key = env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error(
-      'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must both be set.\n\n' +
-        '  set -a; . ./.secrets.staging.env; set +a\n\n' +
-        'The service role key bypasses RLS. Never put it in a shell history, a script in the ' +
-        'repository, or anything that reaches a browser.',
-    );
-  }
-  return createClient(url, key, { auth: { persistSession: false } });
-}
 
 const rows = async (query, what) => {
   const { data, error } = await query;

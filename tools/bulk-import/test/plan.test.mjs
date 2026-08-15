@@ -301,3 +301,33 @@ test('an inactive or never-onboarded school is not reported as closed', () => {
   }));
   assert.deepEqual(plan.stillClosed, []);
 });
+
+// ------------------------------------------------------------------ what does exist (`E10-29`)
+
+test('a dish naming a missing kitchen is told which kitchens exist', () => {
+  // Found by dry-running a real file against production from `/admin/import`. The kitchen code is
+  // `sky-bites` while the city is `mohali`, so "kitchen_code mohali does not exist" with no list
+  // is a dead end — and guessing the kitchen from the city is the exact mistake being made.
+  const plan = planDishes(
+    [{ __row: 2, kitchenCode: 'mohali', name: 'X', category: 'bakery' }],
+    { kitchens: [{ code: 'sky-bites' }], categories: [{ code: 'bakery' }], dishes: [], allergens: [] },
+  );
+  assert.equal(plan.blockers.length, 1);
+  assert.match(plan.blockers[0].message, /Existing: sky-bites/);
+});
+
+test('a menu row naming a missing kitchen says the same thing', () => {
+  const plan = planMenus(
+    [{ __row: 2, kitchenCode: 'nope', menuName: 'M', dishName: 'D', pricePaise: 100 }],
+    { kitchens: [{ code: 'sky-bites' }], dishes: [], menus: [], menuItems: [], schools: [] },
+  );
+  assert.match(plan.blockers[0].message, /Existing: sky-bites/);
+});
+
+test('with no kitchens at all it says so rather than printing an empty list', () => {
+  const plan = planDishes(
+    [{ __row: 2, kitchenCode: 'anything', name: 'X', category: 'bakery' }],
+    { kitchens: [], categories: [{ code: 'bakery' }], dishes: [], allergens: [] },
+  );
+  assert.match(plan.blockers[0].message, /\(none\)/);
+});

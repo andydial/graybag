@@ -1,8 +1,8 @@
 // `admin-dish` — editing one dish, or one dish's price on one menu. `E10-20`.
 //
 //   PATCH /functions/v1/admin-dish
-//     { dish: { id, foodType?, description?, ingredientsText?, caloriesKcal?, portionText?,
-//               isActive?, allergens? } }
+//     { dish: { id, name?, foodType?, description?, ingredientsText?, caloriesKcal?,
+//               caloriesText?, portionText?, isActive?, allergens? } }
 //     { menuItem: { menuId, dishId, pricePaise?, availableDays?, isActive? } }
 //     { foodTypes: [{ id, foodType }, …] }        bulk, up to 500 — `E10-21`
 //
@@ -245,7 +245,20 @@ Deno.serve(async (request: Request): Promise<Response> => {
         patch.food_type = value;
       }
     }
+    // The name is what a parent reads on the menu, so it is the one text field with a floor:
+    // present-but-blank is refused rather than written. `str()` turns "   " into null, which
+    // would otherwise land as a null name on a NOT NULL column and surface as a 500.
+    if ('name' in d) {
+      const name = str(d.name);
+      if (name === null) fields.name = 'a dish must have a name — this is what a parent reads on the menu';
+      else if (name.length > 200) fields.name = 'at most 200 characters';
+      else patch.name = name;
+    }
     if ('description' in d) patch.description = d.description === null ? null : str(d.description);
+    // Free text on purpose: the source gives ranges like "330-370" that `calories_kcal` cannot
+    // hold, and `0001` is explicit that an unparseable value is left null rather than guessed.
+    // Writing it here moves the dish off the imported `nutrition` jsonb and onto the column.
+    if ('caloriesText' in d) patch.calories_text = d.caloriesText === null ? null : str(d.caloriesText);
     if ('ingredientsText' in d) patch.ingredients_text = d.ingredientsText === null ? null : str(d.ingredientsText);
     if ('portionText' in d) patch.portion_text = d.portionText === null ? null : str(d.portionText);
     if ('isActive' in d) patch.is_active = d.isActive === true;

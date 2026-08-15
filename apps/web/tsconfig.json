@@ -15,6 +15,13 @@
     "skipLibCheck": true,
     "noEmit": true,
 
+    // `/admin/import` runs the CLI importer's own pure modules (`E10-29`). They are plain `.mjs`,
+    // so `allowJs` lets TypeScript infer their types from the source itself rather than from a
+    // hand-written declaration that could quietly drift from what the functions actually return —
+    // which, for the code deciding what an import will do, is the last place drift belongs.
+    "allowJs": true,
+    "paths": { "@bulk-import/*": ["../../tools/bulk-import/src/*"] },
+
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
@@ -26,6 +33,13 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["astro/client", "node"]
   },
-  "include": [".astro/types.d.ts", "src/**/*.ts", "src/**/*.astro", "*.mjs", "scripts/**/*.mjs"],
+  "include": [
+    ".astro/types.d.ts",
+    "src/**/*.ts",
+    "src/**/*.astro",
+    "*.mjs",
+    "scripts/**/*.mjs",
+    "../../tools/bulk-import/src/*.mjs"
+  ],
   "exclude": ["dist", "node_modules"]
 }

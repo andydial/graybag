@@ -14,6 +14,10 @@ export {
   ApiNotConfiguredError,
   configureApi,
   invokeFunction,
+  // `E10-29`. The generic read, exported so `/admin/import` can satisfy the CLI importer's
+  // `snapshot(db)` — which only ever calls `db.from(t).select(c)` — without any caller outside
+  // this directory touching `@supabase/supabase-js` (non-negotiable #1).
+  runQuery,
   storagePublicUrl,
   DISH_IMAGE_BUCKET,
   setApiTransport,
@@ -85,15 +89,19 @@ export {
 // preparing a CSV is six minutes of ceremony for a four-character change — and the ceremony is
 // what makes somebody edit the database by hand instead.
 export {
+  ADMIN_ASSIGNMENT_COLUMNS,
   ADMIN_DISH_COLUMNS,
   ADMIN_MENU_COLUMNS,
   AdminDishError,
   fetchAdminDishes,
   fetchAdminMenus,
+  fetchMenuAssignments,
+  isAssignmentLive,
   setFoodTypes,
   updateCatalogue,
   type AdminDish,
   type AdminMenu,
+  type AdminMenuAssignment,
   type AdminMenuItem,
   type CatalogueUpdateResult,
   type DishEdit,
@@ -272,3 +280,22 @@ export {
   skipNamePrompt,
   type Profile,
 } from './profile.js';
+
+// Who holds what back-office access (`E10-27`). Registration is identical for everyone and reach
+// is a `permission_grant` row and nothing else (`D3`) — which is right, and left no screen able to
+// answer "who can do what?". Writes go through `admin-grants`, because `permission_grant` has no
+// write policy at all and must not have one.
+export {
+  ACCESS_GRANT_COLUMNS,
+  ACCESS_USER_COLUMNS,
+  AdminAccessError,
+  PERMISSION_COLUMNS,
+  fetchAccess,
+  fetchPermissions,
+  grantPermission,
+  revokePermission,
+  type AccessAccount,
+  type GrantRequest,
+  type HeldGrant,
+  type PermissionInfo,
+} from './admin-grants.js';

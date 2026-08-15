@@ -28,8 +28,32 @@ export interface AdminDish {
   description: string | null;
   ingredientsText: string | null;
   caloriesKcal: number | null;
+  /**
+   * Calories as the source gave them — "330-370", a range the importer could not turn into an
+   * integer and refused to guess at (`0001` on `calories_kcal`: "left NULL when unparseable,
+   * never guessed").
+   *
+   * Read from the `calories_text` **column**, falling back to `nutrition->>'calories_text'` where
+   * the import put it. 76 of the 79 production dishes have it only in the jsonb. Writes go to the
+   * column, so an edited dish stops depending on the fallback — see `nutrition` below.
+   */
+  caloriesText: string | null;
   portionText: string | null;
+  /**
+   * The unstructured extras `0001` describes as "nothing queries it". On production it holds
+   * exactly `{"calories_text": "…"}` and, on four dishes, `calories_text_conflicting` where the
+   * source had two different values. Exposed read-only: it is a record of what was imported, and
+   * editing free-form JSON in a browser form is not a thing this screen should offer.
+   */
+  nutrition: Record<string, unknown> | null;
   isActive: boolean;
+  /**
+   * `asset.id`, or null. **Nothing in this repository writes it** — the `dish-images` bucket and
+   * the `asset` table both exist, and no code path uploads to either, so all 79 production dishes
+   * have no image. Surfaced so the screen can say that plainly instead of showing a control that
+   * does nothing.
+   */
+  imageAssetId: string | null;
   /** Allergen **codes**, the shared vocabulary `recipient_allergen` also uses. */
   allergens: string[];
 }
@@ -53,7 +77,8 @@ const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
  * round trip and a join in the browser, and the codes are the field most likely to be edited.
  */
 export const ADMIN_DISH_COLUMNS =
-  'id,name,kitchen_id,food_type,description,ingredients_text,calories_kcal,portion_text,is_active,' +
+  'id,name,kitchen_id,food_type,description,ingredients_text,calories_kcal,calories_text,' +
+  'portion_text,nutrition,image_asset_id,is_active,' +
   'category:category_id(code,display_name),dish_allergen(allergen:allergen_id(code))';
 
 export async function fetchAdminDishes(): Promise<AdminDish[]> {
@@ -85,8 +110,14 @@ export async function fetchAdminDishes(): Promise<AdminDish[]> {
       description: str(row.description),
       ingredientsText: str(row.ingredients_text),
       caloriesKcal: num(row.calories_kcal),
+      // The column first, the imported jsonb second. 76 production dishes have this only in
+      // `nutrition`, and a screen that read only the column would show 76 blanks over data that
+      // is right there.
+      caloriesText: str(row.calories_text) ?? (isRecord(row.nutrition) ? str(row.nutrition.calories_text) : null),
       portionText: str(row.portion_text),
+      nutrition: isRecord(row.nutrition) ? row.nutrition : null,
       isActive: row.is_active !== false,
+      imageAssetId: str(row.image_asset_id),
       allergens,
     };
   });
@@ -98,6 +129,86 @@ export interface AdminMenu {
   kitchenId: string;
   status: string;
   items: AdminMenuItem[];
+}
+
+/**
+ * Which menu a school is serving — `E10-22`.
+ *
+ * The link that made the catalogue unreadable by its absence: a menu and a school were each
+ * visible on their own, and nothing on any screen joined them. "Is Gem seeded correctly?" was
+ * unanswerable without opening the database, which on the week before launch is the one question
+ * being asked.
+ *
+ * A school can hold **several** assignment rows — that is how a menu changes mid-term without
+ * losing the record of what was served before. `revoked_at` and the date window decide which one
+ * is live, and both are kept here rather than resolved away, because "Paragon's menu starts on
+ * the 22nd" and "Paragon has no menu" look identical once you throw the dates out.
+ */
+export interface AdminMenuAssignment {
+  schoolId: string;
+  schoolName: string;
+  schoolCode: string;
+  menuId: string;
+  menuName: string;
+  /** `YYYY-MM-DD`. **Inclusive** — the first day the menu is served. */
+  validFrom: string;
+  /**
+   * `YYYY-MM-DD`, or null for open-ended. **EXCLUSIVE** — the first day it is *not* served.
+   *
+   * Not a preference: `0001` constrains the column with
+   * `daterange(valid_from, coalesce(valid_to, 'infinity'), '[)')`, and every read in the system —
+   * the RLS policies, the public menu view, `create_checkout` — tests `valid_to > current_date`.
+   */
+  validTo: string | null;
+  revokedAt: string | null;
+}
+
+export const ADMIN_ASSIGNMENT_COLUMNS =
+  'school_id,menu_id,valid_from,valid_to,revoked_at,school:school_id(name,code),menu:menu_id(name)';
+
+export async function fetchMenuAssignments(): Promise<AdminMenuAssignment[]> {
+  const rows = await runQuery<unknown>((t) =>
+    t.from('menu_assignment').select(ADMIN_ASSIGNMENT_COLUMNS),
+  );
+
+  return rows.map((row, i) => {
+    if (!isRecord(row)) throw new AdminDishError(`assignment ${i} is not an object`);
+    const school = isRecord(row.school) ? row.school : {};
+    const menu = isRecord(row.menu) ? row.menu : {};
+    return {
+      schoolId: str(row.school_id) ?? '',
+      schoolName: str(school.name) ?? '',
+      schoolCode: str(school.code) ?? '',
+      menuId: str(row.menu_id) ?? '',
+      menuName: str(menu.name) ?? '',
+      validFrom: str(row.valid_from) ?? '',
+      validTo: str(row.valid_to),
+      revokedAt: str(row.revoked_at),
+    };
+  });
+}
+
+/**
+ * Is this assignment the one in force on `today`?
+ *
+ * `today` is passed in rather than read from the clock so it is testable and so the caller can
+ * hand it an **IST** service date — the day rolls at 18:30 UTC, and a screen that decided
+ * liveness from the browser's local midnight would show the wrong menu to anyone not in India
+ * for five and a half hours a day.
+ *
+ * Dates compare as strings on purpose: `YYYY-MM-DD` is lexicographically ordered, both sides come
+ * from Postgres `date` columns in that exact shape, and parsing them into `Date` is how a
+ * timezone gets reintroduced into a comparison that must not have one.
+ *
+ * **`valid_to` is exclusive**, matching `0001`'s `'[)'` daterange and the `valid_to > current_date`
+ * every read in the system uses. The first version of this function had it inclusive, which would
+ * have shown an admin a school still serving a menu on the day the parent-facing app had already
+ * stopped serving it — the admin screen quietly disagreeing with the app about what is on sale.
+ */
+export function isAssignmentLive(a: AdminMenuAssignment, today: string): boolean {
+  if (a.revokedAt !== null) return false;
+  if (a.validFrom > today) return false;
+  return a.validTo === null || a.validTo > today;
 }
 
 export interface AdminMenuItem {
@@ -155,10 +266,14 @@ export async function fetchAdminMenus(): Promise<AdminMenu[]> {
 
 export interface DishEdit {
   id: string;
+  /** What a parent reads on the menu. Never blank — a nameless dish is unorderable in practice. */
+  name?: string;
   foodType?: string | null;
   description?: string | null;
   ingredientsText?: string | null;
   caloriesKcal?: number | null;
+  /** Writes the `calories_text` **column**, which then wins over the imported `nutrition` jsonb. */
+  caloriesText?: string | null;
   portionText?: string | null;
   isActive?: boolean;
   /** Replaces the whole set. Send the codes you want the dish to end up with. */

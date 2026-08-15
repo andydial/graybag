@@ -26,6 +26,30 @@ export function findings(s) {
   const out = [];
   const activeSchools = s.schools.filter((x) => x.isActive);
 
+  // ------------------------------------------------------------------- the allergen vocabulary
+  //
+  // First, because it is the only finding here that fails *silently on a safety path*. Production
+  // had zero rows in `allergen`, and nothing said so: `dish_allergen` and `recipient_allergen`
+  // share this vocabulary, and the match between them is the whole mechanism of an allergy
+  // warning. Empty means no dish can be tagged, no child's allergy can be recorded, and the
+  // kitchen's badges never fire — all of which looks exactly like "nobody has any allergies".
+  //
+  // Checked before anything else because a missing allergen is worse than a missing menu, and a
+  // missing menu is at least loud.
+  const liveAllergens = (s.allergens ?? []).filter((a) => a.isActive);
+  if (liveAllergens.length === 0) {
+    out.push({
+      level: BLOCKER,
+      title: 'no allergens exist at all — every allergy warning is silently disabled',
+      detail:
+        'The `allergen` table is empty. `dish_allergen` and `recipient_allergen` both reference ' +
+        'it, so no dish can be tagged, no parent can record a child’s allergy, and the kitchen ' +
+        'board and packing sheet show no flags. Nothing errors — it reads as "nobody has any ' +
+        'allergies", on a product that feeds children.',
+      fix: 'Apply supabase/migrations/0063_allergen_vocabulary.sql. Tagging which dish contains what is separate, and is yours.',
+    });
+  }
+
   // ---------------------------------------------------------------- dishes without a food type
   //
   // First because it is the one that was actually wrong in production: 79 of 79.
