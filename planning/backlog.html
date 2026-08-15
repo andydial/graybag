@@ -4083,13 +4083,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/34</span>
+          <span class="meter-num">0/35</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 34 tasks</summary>
+        <summary>Context &amp; 35 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4363,6 +4363,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The importer cannot clear a column.</strong> An empty cell means &quot;the file had no opinion&quot; and is skipped (<code>plan.mjs</code>, deliberately — a partial export must not blank the catalogue), so there is no way to *remove* a description or a portion from a CSV. Found while reverting an apply test on production: the round trip set a value and could not unset it. <code>admin-dish</code> can, with an explicit <code>null</code>. Needs a documented convention — a literal <code>NULL</code> or <code>--clear</code> — before somebody discovers it mid-import</span>
+      </li>
+      <li class="task" data-id="E10-36" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-36"></button>
+        <code class="tid">E10-36</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>check:launch</code> now reports dishes nobody has checked for allergens.</strong> It knew the vocabulary existed and stopped there, so 79 dishes in <code>MI1</code>&#39;s unknown state — which a menu renders as no warning at all — were invisible to it. A blocker for the same reason <code>food_type</code> is: it does not stop an order being placed, it makes the order wrong. Reported first, and suppressed entirely when the vocabulary is empty, so the report never says &quot;tag your dishes&quot; while tagging is impossible</span>
       </li></ul>
       </details>
     </article>
