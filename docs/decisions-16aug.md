@@ -1392,3 +1392,45 @@ without them, and learning that from a review rejection costs a day), and a vers
 the notes, attaching the build and asking Apple to review are four further steps, and a build
 sitting in `PREPARE_FOR_SUBMISSION` looks submitted to anyone glancing at TestFlight. That was the
 last mile nobody had automated, and it is the mile the deadline actually depends on.
+
+---
+
+## D34 — `E16-53`: the catalogue seed and the food-type guard contradict each other
+
+Found chasing a CI failure, and it is larger than the CI failure.
+
+`0059_food_type_required_on_menu` (web thread) adds a trigger refusing any **active** `menu_item`
+whose dish has `food_type` null. `supabase/seeds/catalogue.sql` ships **all 79 dishes unmarked**,
+deliberately — `[DM-17]` is open and the generator refuses to guess because *"guessing it in this
+market is a trust failure, not a cosmetic gap."*
+
+Both decisions are correct in isolation. Together they mean **the catalogue can no longer be
+applied to any database carrying the trigger.** Verified rather than reasoned: it dies on the
+first row — `dish "Wheat Jaggery Cake" has no food type, so it cannot be put on a menu`.
+
+**Production is fine, and that is the trap.** Its catalogue loaded on 16 August *before* the
+trigger existed, so prod holds 83 menu items that **can no longer be reproduced from source**. A
+rebuilt staging, a new environment, `E01-17`'s restore drill, or a real disaster recovery all fail
+at the seed.
+
+**Nobody has seen it** because `main`'s newest Integration run is `73f41ad`, which predates the
+migration. The suite has never run on a commit containing it — so `main` is red and unaware.
+
+**Not fixed, and deliberately not papered over.** The resolutions are (a) mark the 79 dishes —
+`E16-52`, `owner:andy`, and the right answer — or (b) make the guard tolerate a seed. Choosing is
+the web thread's call, since the guard is theirs and the forcing function is intentional. **It
+must not be fixed by inventing food types**, which is the one thing both files agree on.
+
+## D35 — An unintended consequence of my own KVM fix
+
+Making the KVM check non-fatal (`E01-28`) means the Maestro job now runs a software-rendered
+emulator for the better part of an hour instead of dying in 53 seconds. That is the point — it can
+finally reach the app.
+
+The cost, which I did not anticipate: **`gh run view --log-failed` refuses while any job in the
+run is still going**, so a fast-failing required check now waits on a slow optional one before its
+log can be read. I hit that diagnosing the suite failure above and had to reproduce locally
+instead.
+
+Worth splitting Maestro into its own workflow so it cannot delay the diagnosis of the checks that
+gate a merge. Not done here — it is a CI restructure, and this is a launch day.
