@@ -18,7 +18,12 @@ CONTEXT="${CONTEXT:-production}"
 # The commit message is not in Netlify's environment, so it is read from the checkout. `|| true`
 # because a shallow or missing clone must not crash the gate — an empty message simply means no
 # promote marker, which fails closed.
-COMMIT_MESSAGE="$(git log -1 --pretty=%B 2>/dev/null || true)"
+# An already-exported `COMMIT_MESSAGE` wins. That is not a convenience: without it this script
+# reads whatever the repository's HEAD happens to say, so its own test passed only while HEAD
+# did not contain `[promote]` — and broke the moment a real promote was merged. A gate whose
+# test depends on today's commit message is the trap `docs/learnings.md` names: assert the
+# behaviour, not the contents.
+COMMIT_MESSAGE="${COMMIT_MESSAGE:-$(git log -1 --pretty=%B 2>/dev/null || true)}"
 
 RESULT="$(
   CONTEXT="$CONTEXT" \

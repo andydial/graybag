@@ -4280,13 +4280,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/32</span>
+          <span class="meter-num">0/33</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 32 tasks</summary>
+        <summary>Context &amp; 33 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4545,6 +4545,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The enquiry form was live and going nowhere.</strong> <code>enquiry-submit</code> was never deployed to production — a <code>404</code> — and <code>PUBLIC_ENQUIRY_ENDPOINT</code> was unset in Netlify, so the built site fell back to <code>/api/dev/enquiry</code>, the development mock. A school filling in the form on the live site would have seen <code>/thanks</code> and been lost. Both fixed: the function is deployed to <code>graybag-prod</code>, and the variable is set on the <strong>production context only</strong> — a deploy preview still falls back to the mock, which is correct, because a preview must not write real leads. Verified by posting two real enquiries to production and reading the rows back, then deleting them. <code>E12-16</code>&#39;s notification now exists: sent after the row is committed, result discarded, no phone number or message in the body (they are on the row, which has RLS, and they are not on the notice&#39;s interface so the compiler refuses them). <strong>Its recipient chain was wrong on the first deploy</strong> — <code>ENQUIRY_EMAIL_TO ?? ORDER_EMAIL_REPLY_TO</code>, and production has neither, so a real enquiry was stored and silently not announced. It now falls back to <code>SUPPORT_ALERT_EMAIL</code>, which prod does have. Not verified: that the mail arrived — this CLI has no <code>functions logs</code> subcommand</span>
+      </li>
+      <li class="task" data-id="E12-33" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-33"></button>
+        <code class="tid">E12-33</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:high) <strong>The Netlify site has no Git repository connected, so <code>E12-30</code>&#39;s deploy gate has never run.</strong> Checked 2026-08-15: <code>build_settings.repo_url</code>, <code>provider</code>, <code>cmd</code> and <code>base</code> are all null, and every production deploy to date carried no commit ref — they were manual <code>netlify deploy --prod</code> runs. Consequences: <strong>no deploy previews on pull requests</strong>, and the <code>ignore</code> hook that gates production has never been evaluated, so the gate protects nothing. The gate itself is correct and tested (<code>scripts/test/netlify-gate.test.mjs</code> runs the shell wrapper and asserts its inverted exit codes) and starts working the instant a repository is attached. Until then the only thing between a mistake and production is whoever types the deploy command. Needs the Netlify account and GitHub authorisation: Site configuration → Build &amp; deploy → <strong>Link repository</strong>, base directory <code>apps/web</code>. <code>docs/netlify-deploys.md</code> carries the manual procedure in the meantime</span>
       </li></ul>
       </details>
     </article>
