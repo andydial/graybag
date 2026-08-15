@@ -18,13 +18,17 @@
  * is read through the `api/` module under the operator's **own grants and RLS**, which is also
  * the honest thing for a preview to do.
  *
- * ## Applying still happens from the command line, on purpose
+ * ## Applying — `E10-30`, and it runs the same code
  *
- * `E10-30`. Writing schools, dishes, menus and break windows needs a second write path into the
- * tables the whole product sits on, and three days before parents arrive is the wrong week to
- * introduce one — the CLI's is tested and is what the 17th's import will actually use. So the
- * page ends by printing the exact command for the file you just checked, and says so plainly
- * rather than offering an Apply button that is not there yet.
+ * The Apply button posts the **file** to `admin-import`, which parses, validates and plans again
+ * with these same modules and then calls the importer's own `applySchools` / `applyDishes` /
+ * `applyMenus` / `applyBreakTimes`. Not a reimplementation: the failure a second write path
+ * invites is not a crash, it is the browser writing something subtly different from what the dry
+ * run promised, on the tables the whole product sits on.
+ *
+ * The browser's plan is **never** sent. A client-supplied plan would be an arbitrary write request
+ * wearing the shape of an audit trail, so the server recomputes and applies the result of that —
+ * and returns its own report, which is what the page then shows.
  *
  * `?state=demo` renders a worked example, so `check:a11y` audits this rather than the redirect.
  */
@@ -131,6 +135,9 @@ import '../../styles/admin.css';
       /** One cached snapshot per page load. A plan is cheap; twelve table reads are not. */
       let snap: Record<string, unknown> | null = null;
 
+      /** The file the report on screen belongs to. Apply sends this, never a plan. */
+      let loaded: { name: string; text: string; kind: string } | null = null;
+
       async function getSnapshot() {
         if (snap) return snap;
         configureBackofficeApi();
@@ -155,6 +162,7 @@ import '../../styles/admin.css';
 
       async function check(name: string, text: string, kind: string) {
         el.body.innerHTML = '<p class="admin__intro">Reading…</p>';
+        loaded = { name, text, kind };
 
         // 1. Parse. A malformed file fails here in under a second, with no database read at all —
         // on an import day the commonest failure by far is the file, not the data.
@@ -243,22 +251,24 @@ import '../../styles/admin.css';
             parts.join('') +
 
             `<h3>Applying it</h3>` +
-            `<p class="admin__hint">` +
-              (clean
-                ? `Nothing above is blocking. Run this against the same file — it dry-runs again ` +
-                  `first, so you will see this report a second time before anything is written:`
-                : `<b>Fix the errors and blockers above first.</b> When it is clean, the command is:`) +
-            `</p>` +
+            (clean
+              ? `<p class="admin__hint">` +
+                  `Nothing above is blocking. <b>Apply re-checks the file on the server first</b> — ` +
+                  `the plan below is computed here for speed, and the one that gets written is ` +
+                  `computed again there, from the file, using the same code.` +
+                `</p>` +
+                `<div class="setting__actions">` +
+                  `<button class="kitchen__btn kitchen__btn--primary" type="button" data-apply>` +
+                    `Apply ${changeCount} change${changeCount === 1 ? '' : 's'}</button>` +
+                `</div>`
+              : `<p class="admin__hint"><b>Fix the errors and blockers above first.</b> ` +
+                `Apply is refused while any remain — by this page and by the server.</p>`) +
+            `<p class="admin__hint">The same thing from a terminal, if you prefer:</p>` +
             `<pre class="import__report" tabindex="0" role="region" ` +
               `aria-label="The command to apply this file">` +
               `set -a; . ~/.graybag-secrets/prod.env; set +a\n` +
               `node tools/bulk-import/src/cli.mjs ${esc(FLAG[kind]!)} ${esc(name)}\n` +
               `node tools/bulk-import/src/cli.mjs ${esc(FLAG[kind]!)} ${esc(name)} --apply</pre>` +
-            `<p class="admin__hint">` +
-              `<b>Writing from this page is not built</b> — <code>E10-30</code>. It needs a second ` +
-              `write path into schools, dishes and menus, and the command above is the one that ` +
-              `is tested. This page exists so the file is already known-good before you run it.` +
-            `</p>` +
           `</section>`;
 
         el.status.textContent =
@@ -266,6 +276,71 @@ import '../../styles/admin.css';
           `${result.errors.length + blockers.length} problem` +
           `${result.errors.length + blockers.length === 1 ? '' : 's'}.`;
       }
+
+
+      /**
+       * Apply the file currently on screen.
+       *
+       * Sends the **file**, and shows the server's report rather than the one already on screen —
+       * they should be identical, and if they are ever not, the server's is the one that describes
+       * what happened.
+       */
+      async function apply() {
+        if (!loaded) return;
+        if (demo) {
+          el.body.insertAdjacentHTML('beforeend',
+            '<p class="admin__error" role="alert">This is the demo view — nothing is written.</p>');
+          return;
+        }
+
+        const button = el.body.querySelector('[data-apply]') as HTMLButtonElement | null;
+        // Named, and it names the file. This writes to schools, dishes or menus on production, and
+        // it is the one action on this page that cannot be undone by reloading.
+        if (!confirm(
+          `Apply ${esc(loaded.name)} to the live database?\n\n` +
+          `It is re-checked on the server first and refused if anything is wrong. ` +
+          `There is no undo.`,
+        )) return;
+
+        if (button) { button.disabled = true; button.textContent = 'Applying…'; }
+        try {
+          const result = await api.runImport({
+            kind: loaded.kind as 'schools' | 'dishes' | 'menu' | 'breaks',
+            filename: loaded.name,
+            text: loaded.text,
+            apply: true,
+          });
+          el.body.innerHTML =
+            `<section class="admin__section">` +
+              `<h2>Applied ${esc(loaded.name)}</h2>` +
+              `<p class="admin__section-note">` +
+                `<b>${result.applied ?? result.changes} row${(result.applied ?? result.changes) === 1 ? '' : 's'} written.</b> ` +
+                `This is the server's own report:` +
+              `</p>` +
+              pre(result.report, 'What the server did') +
+              `<div class="setting__actions">` +
+                `<button class="kitchen__btn" type="button" data-recheck>Check it again</button>` +
+                `<a class="kitchen__btn" href="/admin/menus">See the catalogue</a>` +
+              `</div>` +
+            `</section>`;
+          el.status.textContent = `Applied. ${result.applied ?? result.changes} rows written.`;
+          // The snapshot on this page is now stale by definition.
+          snap = null;
+        } catch (cause) {
+          const message = cause instanceof Error ? cause.message : 'The import did not run.';
+          el.body.insertAdjacentHTML('beforeend',
+            `<p class="admin__error" role="alert">${esc(message)}</p>`);
+          if (button) { button.disabled = false; button.textContent = 'Apply'; }
+        }
+      }
+
+      el.body.addEventListener('click', (event) => {
+        const t = event.target as HTMLElement;
+        if (t.closest('[data-apply]')) { void apply(); return; }
+        if (t.closest('[data-recheck]') && loaded) {
+          void check(loaded.name, loaded.text, loaded.kind);
+        }
+      });
 
       el.file.addEventListener('change', () => {
         const file = el.file.files?.[0];

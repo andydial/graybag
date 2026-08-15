@@ -15,6 +15,8 @@ const clean = (over = {}) => ({
   breakTimes: [{ schoolId: 's-1', isActive: true }],
   platformConfig: { priceIsTaxInclusive: false },
   allergens: [{ code: 'milk', isActive: true }],
+  dishAllergens: [{ dishId: 'd-1' }],
+  declaredNone: [],
   missingSecrets: [],
   ...over,
 });
@@ -215,4 +217,32 @@ test('a vocabulary that exists but is entirely deactivated still blocks', () => 
 test('a snapshot with no allergens key at all does not throw', () => {
   // Defensive: an older caller, or a partial snapshot in a test, must not crash the whole report.
   assert.doesNotThrow(() => findings({ ...clean(), allergens: undefined }));
+});
+
+// ------------------------------------------------------------------ allergen tagging (`E10-33`)
+
+test('a dish neither tagged nor declared is a blocker while it is on a menu', () => {
+  // `MI1`'s third state. It looks identical to "contains none" on a menu, and the absence reads as
+  // reassurance — which is why it is a blocker rather than a note, exactly like `food_type`.
+  const found = findings(clean({ dishAllergens: [], declaredNone: [] }));
+  const f = found.find((x) => /nobody has checked/.test(x.title));
+  assert.ok(f, 'expected an allergen-checking finding');
+  assert.equal(f.level, BLOCKER);
+});
+
+test('a tagged dish is not reported', () => {
+  assert.equal(findings(clean({ dishAllergens: [{ dishId: 'd-1' }], declaredNone: [] })).length, 0);
+});
+
+test('a dish explicitly declared to contain none is not reported either', () => {
+  // The whole point of `allergens_declared_none`: "we checked, there are none" is a finished dish.
+  assert.equal(findings(clean({ dishAllergens: [], declaredNone: ['d-1'] })).length, 0);
+});
+
+test('with no allergen vocabulary at all, only the vocabulary is reported', () => {
+  // Otherwise the report says "tag your dishes" while tagging is impossible, which sends somebody
+  // to a screen that cannot help them.
+  const found = findings(clean({ allergens: [], dishAllergens: [], declaredNone: [] }));
+  assert.equal(found.filter((f) => /nobody has checked/.test(f.title)).length, 0);
+  assert.match(found[0].title, /no allergens exist/);
 });

@@ -46,7 +46,43 @@ export function findings(s) {
         'it, so no dish can be tagged, no parent can record a child’s allergy, and the kitchen ' +
         'board and packing sheet show no flags. Nothing errors — it reads as "nobody has any ' +
         'allergies", on a product that feeds children.',
+      names: [],
+      more: 0,
       fix: 'Apply supabase/migrations/0063_allergen_vocabulary.sql. Tagging which dish contains what is separate, and is yours.',
+    });
+  }
+
+  // -------------------------------------------------------------- dishes nobody has looked at
+  //
+  // `MI1` and `0006`: an empty tag list means one of two OPPOSITE things, and only
+  // `allergens_declared_none` tells them apart —
+  //
+  //     tags present                     declared, and these are they
+  //     none, declared_none = true       declared, and there are none
+  //     none, declared_none = false      NOBODY HAS LOOKED
+  //
+  // The third state is what every production dish is in, and on a menu it renders exactly like the
+  // second: a parent reads "no allergens" and is reassured by an absence that means nothing. A
+  // blocker for the same reason `food_type` is one — it does not stop an order being placed, it
+  // makes the order WRONG, and in the way that matters most on a children's food product.
+  const tagged = new Set((s.dishAllergens ?? []).map((t) => t.dishId));
+  const declared = new Set(s.declaredNone ?? []);
+  const unchecked = s.dishes.filter((d) => d.isActive && !tagged.has(d.id) && !declared.has(d.id));
+  if (unchecked.length > 0 && (s.allergens ?? []).length > 0) {
+    const offered = new Set(s.menuItems.filter((i) => i.isActive).map((i) => i.dishId));
+    const live = unchecked.filter((d) => offered.has(d.id));
+    out.push({
+      level: live.length > 0 ? BLOCKER : WARNING,
+      title: `${plural(unchecked.length, 'dish', 'dishes')} nobody has checked for allergens`,
+      detail:
+        `Neither tagged nor declared to contain none — which the app treats as unknown, and a ` +
+        `menu shows as no warning. ` +
+        (live.length > 0
+          ? `${plural(live.length, 'is', 'are')} on a live menu right now.`
+          : 'None is on a live menu yet.'),
+      names: unchecked.slice(0, 8).map((d) => d.name),
+      more: Math.max(0, unchecked.length - 8),
+      fix: 'Open /admin/allergens. It suggests tags from the ingredients — they are guesses, and "Contains none" is a separate button for the dishes that genuinely have none.',
     });
   }
 

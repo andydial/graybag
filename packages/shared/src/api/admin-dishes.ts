@@ -56,6 +56,17 @@ export interface AdminDish {
   imageAssetId: string | null;
   /** Allergen **codes**, the shared vocabulary `recipient_allergen` also uses. */
   allergens: string[];
+  /**
+   * `MI1` and `0006`. An empty `allergens` list means one of **two opposite things**, and this
+   * flag is the only thing that tells them apart:
+   *
+   *     allergens.length > 0            declared, and these are they
+   *     [] and declaredNone === true    declared, and there are none
+   *     [] and declaredNone === false   NOBODY HAS LOOKED — warn, never reassure
+   *
+   * Every production dish is currently in the third state.
+   */
+  allergensDeclaredNone: boolean;
 }
 
 export class AdminDishError extends Error {
@@ -78,7 +89,7 @@ const num = (v: unknown): number | null => (typeof v === 'number' ? v : null);
  */
 export const ADMIN_DISH_COLUMNS =
   'id,name,kitchen_id,food_type,description,ingredients_text,calories_kcal,calories_text,' +
-  'portion_text,nutrition,image_asset_id,is_active,' +
+  'portion_text,nutrition,image_asset_id,is_active,allergens_declared_none,' +
   'category:category_id(code,display_name),dish_allergen(allergen:allergen_id(code))';
 
 export async function fetchAdminDishes(): Promise<AdminDish[]> {
@@ -119,6 +130,7 @@ export async function fetchAdminDishes(): Promise<AdminDish[]> {
       isActive: row.is_active !== false,
       imageAssetId: str(row.image_asset_id),
       allergens,
+      allergensDeclaredNone: row.allergens_declared_none === true,
     };
   });
 }
@@ -278,6 +290,8 @@ export interface DishEdit {
   isActive?: boolean;
   /** Replaces the whole set. Send the codes you want the dish to end up with. */
   allergens?: string[];
+  /** Records "we checked, there are none" — a different fact from an empty list. See `AdminDish`. */
+  allergensDeclaredNone?: boolean;
 }
 
 export interface MenuItemEdit {
@@ -336,4 +350,125 @@ export interface FoodTypeAssignment {
  */
 export async function setFoodTypes(assignments: FoodTypeAssignment[]): Promise<CatalogueUpdateResult> {
   return invokeFunction<CatalogueUpdateResult>('admin-dish', { foodTypes: assignments }, 'PATCH');
+}
+
+export interface DishAllergenAssignment {
+  id: string;
+  /** Allergen codes the dish should end up with. A replace, not a merge. */
+  allergens: string[];
+  /**
+   * True records **"we checked, there are none"**. Mutually exclusive with a non-empty
+   * `allergens` — the server refuses both together rather than picking, because those are
+   * opposite claims and guessing which was meant is how a dish comes to reassure a parent.
+   */
+  declaredNone?: boolean;
+}
+
+/**
+ * Tag many dishes at once — `E10-33`.
+ *
+ * All 79 production dishes are in `MI1`'s third state: no tags, and nobody has said there are
+ * none. That is the state the app must **warn** about, and it looks identical on screen to a dish
+ * that genuinely contains nothing. Clearing it one request at a time is 79 round trips.
+ *
+ * **All or nothing.** Every entry is validated before a single row is written — on this table a
+ * partial write is worse than a failure, because the half that succeeded looks complete.
+ */
+export async function setDishAllergens(
+  assignments: DishAllergenAssignment[],
+): Promise<CatalogueUpdateResult> {
+  return invokeFunction<CatalogueUpdateResult>('admin-dish', { dishAllergens: assignments }, 'PATCH');
+}
+
+// ------------------------------------------------------------------- bulk import (`E10-30`)
+
+export interface ImportRequest {
+  kind: 'schools' | 'dishes' | 'menu' | 'breaks';
+  filename: string;
+  /** The file's text. Sent whole — the server re-parses and re-plans rather than trusting a plan. */
+  text: string;
+  /** Omitted or false is a dry run. */
+  apply?: boolean;
+}
+
+export interface ImportResult {
+  dryRun: boolean;
+  changes: number;
+  applied?: number;
+  errors: unknown[];
+  blockers: { row?: number; message: string }[];
+  /** The importer's own report, verbatim, so the browser shows what the command shows. */
+  report: string;
+  refused?: boolean;
+}
+
+/**
+ * Dry-run or apply an import file — `E10-30`.
+ *
+ * The **file** goes to the server, never a plan computed in the browser. The server parses,
+ * validates and plans again with the same modules, and applies the result of *that*. A
+ * client-supplied plan would be an arbitrary write request wearing the shape of an audit trail.
+ *
+ * Refuses on any error or blocker, exactly as `cli.mjs --apply` does, and says so in a `409` whose
+ * body carries the full report.
+ */
+export async function runImport(request: ImportRequest): Promise<ImportResult> {
+  return invokeFunction<ImportResult>('admin-import', request, 'POST');
+}
+
+// ------------------------------------------------------------------ dish images (`E10-24`)
+
+export interface DishImageUpload {
+  dishId: string;
+  filename: string;
+  /** `image/webp` or `image/jpeg`, decided by what the browser actually encoded. */
+  contentType: string;
+  /** The resized bytes, base64. The browser downscales first — see `prepareDishImage`. */
+  dataBase64: string;
+  width?: number;
+  height?: number;
+}
+
+export interface DishImageResult {
+  assetId: string;
+  bucket: string;
+  path: string;
+  bytes: number;
+}
+
+/**
+ * Put a photo on a dish — `E10-24`.
+ *
+ * The bytes go through an Edge Function rather than straight to storage: `storage.objects` has no
+ * policies at all, so a browser cannot write to the bucket, and opening that up would mean a broad
+ * policy on a **public** bucket. Routing through the function also keeps the `dish.edit` check,
+ * the `asset` row and `dish.image_asset_id` in one place — a direct upload leaves an orphaned
+ * object behind on any failure after the PUT.
+ */
+export async function uploadDishImage(upload: DishImageUpload): Promise<DishImageResult> {
+  return invokeFunction<DishImageResult>('admin-dish-image', upload, 'POST');
+}
+
+export async function removeDishImage(dishId: string): Promise<{ removed: boolean }> {
+  return invokeFunction<{ removed: boolean }>('admin-dish-image', { dishId, remove: true }, 'POST');
+}
+
+/**
+ * `asset.id` → storage path, for every live dish image.
+ *
+ * `dish` carries only the id, and a screen showing 79 dishes cannot do 79 lookups. Read under
+ * `asset_read_images`, which needs a live user and nothing more — a dish photo is not scoped data.
+ */
+export async function fetchDishImageAssets(): Promise<Map<string, string>> {
+  const rows = await runQuery<unknown>((t) =>
+    t.from('asset').select('id,path,kind,deleted_at').eq('kind', 'dish_image').is('deleted_at', null),
+  );
+  const out = new Map<string, string>();
+  for (const row of rows) {
+    if (!isRecord(row)) continue;
+    const id = str(row.id);
+    const path = str(row.path);
+    if (id && path) out.set(id, path);
+  }
+  return out;
 }
