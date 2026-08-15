@@ -2857,3 +2857,44 @@ Two rules fall out:
 A useful corollary surfaced while fixing it: an assertion that a signed-in role *cannot* read
 something anonymous requests can read is not a security property, it is a bug waiting to be
 described. Three such assertions existed; see `AZ12`.
+
+## A rollback-based test suite cannot see a DEFERRED constraint (2026-08-15)
+
+`recipient_erasure.test.sql` calls `deactivate_recipient`, asserts fifteen things about what it
+did, and passes. On production the same call returns **500** and erases nothing. Both were true at
+the same time for two months.
+
+**A `DEFERRABLE INITIALLY DEFERRED` constraint trigger fires at COMMIT.** Every pgTAP file in
+`supabase/tests/` opens with `begin` and ends with `rollback`, so it never fires — not once, in any
+file, for any deferred constraint in the schema. The suite is not weak here, it is *blind*: the
+assertions run, pass honestly, and the transaction that would have failed is thrown away
+unexamined.
+
+What it hid: `deactivate_recipient` anonymises the recipient and then revokes every
+`guardian_link`, while `guardian_link_keeps_recipient_reachable` (deferred, `D10`) requires every
+recipient to keep one. Zero links at commit → the entire erasure rolls back → a parent cannot
+delete their child, which is a DPDP obligation.
+
+**The fix is one statement:**
+
+    set constraints all immediate;
+
+It forces every deferred trigger to fire at that point, inside the transaction, so the test sees
+exactly what a commit would do. Assert it with `lives_ok` / `throws_matching` and the failure
+becomes an ordinary red test.
+
+Two things that cost time when writing that test:
+
+- **It is not one-shot.** `set constraints all immediate` changes the mode for the *rest of the
+  transaction*, so the next write fires triggers on the spot — outside pgTAP's exception handler,
+  aborting everything. Go back with `set constraints all deferred` before continuing.
+- **pgTAP's `throws_*` catch in a subtransaction**, so the outer transaction survives a caught
+  failure and the plan can still close normally afterwards.
+
+**The general shape, which is the part worth remembering:** a test that ends in `rollback` proves
+what the *statements* did, never what *committing* them would do. Anything enforced at commit —
+deferred constraints, deferred FKs, `initially deferred` unique indexes — needs to be forced, or it
+is untested no matter how many assertions surround it.
+
+Found by exercising the real endpoint against production as a real parent. No amount of staring at
+the suite would have surfaced it, because the suite was green and honest.

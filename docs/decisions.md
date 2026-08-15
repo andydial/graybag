@@ -29,7 +29,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Payments integration](decisions/payments.md) | `PY1`–`PY9` | Razorpay secrets, webhook contract, refund arithmetic, reconciliation |
 | [Menu import and the cache token](decisions/menu-import.md) | `MI1`–`MI13`, `MC1`–`MC5` | Blank allergens mean unknown, plan-then-apply, and what bumps `school_menu_version` |
 | [GST and invoicing](decisions/gst-invoicing.md) | `G1`–`G10` | Per-line rounding, CGST/SGST computed independently, gapless series |
-| [Consent, retention and DPDP](decisions/dpdp.md) | `C1`–`C19` | Consent atomicity, purpose immutability, retention as data, breach clock |
+| [Consent, retention and DPDP](decisions/dpdp.md) | `C1`–`C20` | Consent atomicity, purpose immutability, retention as data, breach clock |
 | [Release](decisions/release.md) | `R1`–`R8` | Closed beta, cutover freeze window, rollback-by-default gates |
 | [Policy documents](decisions/policy-documents.md) | `PP1`–`PP4` | Cross-reference not duplicate, retention tokens, allergy disclaimer |
 | [Store submission](decisions/store-submission.md) | `SUB1`–`SUB3` | Declarations derived from the policy, no tracking, no ad ID |
