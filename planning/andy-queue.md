@@ -26,6 +26,31 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
+## Closed 2026-08-15 (night) — the production verification sweep
+
+Andy, 2026-08-15: *"'prod auth is configured' so you can run your verification sweep."*
+
+Run as `anuragdial+parent@gmail.com` — a genuinely clean parent, zero grants — never as the
+granted account. That distinction found both of the bugs below; a granted account passes each of
+these reads for the wrong reason.
+
+| Item | Result |
+|---|---|
+| Sign-in / OTP | Works. OTP minted and exchanged for a session; the code-not-link fix holds |
+| Default-deny | Holds on every sensitive table — 0 other users, 0 other children, 0 other orders, 0 other invoices |
+| Menu browse | **BROKEN, fixed.** `E02-33` / `0061` — signing in emptied the menu. Applied to production, verified 119/119 |
+| Add a child | Works. Consent gate refuses with 409 when consent is not granted; the child and its consent record are written together |
+| Delete a child | **BROKEN, fixed.** `E20-56` / `0062` — erasure failed at COMMIT for everybody. Applied to production, verified end to end |
+| Cart / checkout | Works. Order created, GST correct to the paise (per line, per component, half-up) |
+| Cutoff | Works. A past service date is refused with `cutoff_passed`; a wrong total with `price_changed` |
+| Cancellation | `E06-42` computed columns resolve from the order's own snapshot; `cancel-order` refuses an unpaid order with the right message |
+| Policy acceptance | 3 published versions, none blocking — the gate is inert today, as designed |
+
+Logged, not fixed: `E05-51` (nothing closes an abandoned unpaid order, and one blocks child
+deletion for ever), `E05-52` (`order-calendar` 404s for every parent; no screen calls it yet),
+`E16-54` (`owner:andy` — production has zero allergen data, so every dish reads as though it
+contains nothing), `E20-57` (the pgTAP suite is blind to every deferred constraint).
+
 ## Closed 2026-08-15 (late) — the six-item production run
 
 | # | Ask | Done |
