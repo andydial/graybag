@@ -72,9 +72,11 @@ values ('dc000000-7e57-0000-0000-000000000401', 'mv_cat', 'MV Category', 10);
 insert into allergen (id, code, display_name, sort_order)
 values ('a1000000-7e57-0000-0000-000000000401', 'mv_peanut', 'Peanut', 10);
 
-insert into dish (id, kitchen_id, name, category_id)
+-- Marked, because it goes on a menu below and `0059` refuses an unmarked dish there. This suite
+-- is about menu versioning, not food type.
+insert into dish (id, kitchen_id, name, category_id, food_type)
 values ('d1000000-7e57-0000-0000-000000000401', 'cc000000-7e57-0000-0000-000000000401',
-        'MV Test Dish', 'dc000000-7e57-0000-0000-000000000401');
+        'MV Test Dish', 'dc000000-7e57-0000-0000-000000000401', 'veg');
 
 insert into menu (id, kitchen_id, name, status)
 values ('e1000000-7e57-0000-0000-000000000401', 'cc000000-7e57-0000-0000-000000000401', 'MV Menu', 'active');

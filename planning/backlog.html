@@ -4011,13 +4011,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/20</span>
+          <span class="meter-num">0/21</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 20 tasks</summary>
+        <summary>Context &amp; 21 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4179,6 +4179,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Dish and menu management screens.</strong> <code>/admin/menus</code> edits <strong>one</strong> thing: a dish&#39;s food type, allergens and whether it is on the catalogue, or one dish&#39;s price and available days on one menu. Creating dishes, menus and assignments stays with <code>tools/bulk-import</code> — a file can be prepared, dry-run and reviewed, and this screen has no dry run. Writes go through <code>admin-dish</code>, which needs <strong><code>dish.edit</code></strong> for what a dish *is* and <strong><code>menu.edit</code></strong> for what it *costs* — separate in <code>permission</code> and separate here, because the person who corrects an allergen is not necessarily the person who sets prices (<code>D3</code>). A <code>menu_item</code> update is qualified by <strong>both</strong> ids: <code>menu_item</code> is unique on the pair, and qualifying by dish alone would reprice that dish on every menu it appears on. An unknown allergen code is a <strong>422 naming the valid codes</strong>, never a silent skip — <code>dish_allergen</code> and <code>recipient_allergen</code> share one vocabulary, and an unmatched code means the warning silently never fires. The screen labels the three states that look identical in a list of names: retired, not on this menu, and no food type</span>
+      </li>
+      <li class="task" data-id="E10-21" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-21"></button>
+        <code class="tid">E10-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>food_type</code> was null on all 79 production dishes, and 83 menu items were offering them.</strong> In this market a parent who cannot tell whether a dish is vegetarian is the most likely day-one complaint. Three ways to set it, because the fastest depends on what is in front of you: a <strong>bulk bar</strong> on <code>/admin/menus</code> (&quot;select the N with no food type&quot; → Veg, then correct the exceptions — three actions for 79 dishes, and <strong>one request</strong>, since the endpoint groups by value); <strong><code>--export-dishes</code></strong>, which writes the catalogue as a CSV whose columns are exactly what <code>--dishes</code> reads back; and one dish at a time, which already existed. The bulk endpoint accepts <strong>only <code>food_type</code></strong> — a general mass-patch endpoint is one careless caller away from retiring a catalogue — and is all-or-nothing, so a bad id at position 60 does not leave 59 changed. <code>0059</code> guards the <strong>offer</strong> rather than the column: <code>[DM-17]</code>&#39;s reason for nullability covers a dish in the catalogue, not one shown to a parent, so a dish may exist unmarked and may not be published unmarked. Fires only for an active <code>menu_item</code>, and deliberately does not touch rows already written. <strong>Left untagged, and it probably should not be</strong>: Andy ranked this first and called it the most likely day-one complaint, which sounds like v1 — but <code>CLAUDE.md</code> reserves adding an id to the MVP list to him, precisely because the backlog grew from 161 to 288 by work quietly defaulting into scope. The build is done either way; the tag is a scope decision</span>
       </li></ul>
       </details>
     </article>
@@ -4272,13 +4280,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/31</span>
+          <span class="meter-num">0/32</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 31 tasks</summary>
+        <summary>Context &amp; 32 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4529,6 +4537,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Turn off auto-publishing in the Netlify dashboard</strong> — Site configuration → Build &amp; deploy → Continuous deployment → Stop auto publishing. <code>E12-30</code> stops production being *built*; this stops anything that reaches the build stage another way being *published*. Both halves are worth having and this one needs the Netlify account. See <code>docs/netlify-deploys.md</code></span>
+      </li>
+      <li class="task" data-id="E12-32" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-32"></button>
+        <code class="tid">E12-32</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The enquiry form was live and going nowhere.</strong> <code>enquiry-submit</code> was never deployed to production — a <code>404</code> — and <code>PUBLIC_ENQUIRY_ENDPOINT</code> was unset in Netlify, so the built site fell back to <code>/api/dev/enquiry</code>, the development mock. A school filling in the form on the live site would have seen <code>/thanks</code> and been lost. Both fixed: the function is deployed to <code>graybag-prod</code>, and the variable is set on the <strong>production context only</strong> — a deploy preview still falls back to the mock, which is correct, because a preview must not write real leads. Verified by posting two real enquiries to production and reading the rows back, then deleting them. <code>E12-16</code>&#39;s notification now exists: sent after the row is committed, result discarded, no phone number or message in the body (they are on the row, which has RLS, and they are not on the notice&#39;s interface so the compiler refuses them). <strong>Its recipient chain was wrong on the first deploy</strong> — <code>ENQUIRY_EMAIL_TO ?? ORDER_EMAIL_REPLY_TO</code>, and production has neither, so a real enquiry was stored and silently not announced. It now falls back to <code>SUPPORT_ALERT_EMAIL</code>, which prod does have. Not verified: that the mail arrived — this CLI has no <code>functions logs</code> subcommand</span>
       </li></ul>
       </details>
     </article>
@@ -5069,13 +5085,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/49</span>
+          <span class="meter-num">0/50</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 49 tasks</summary>
+        <summary>Context &amp; 50 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -5474,6 +5490,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Point the web app at production.</strong> *(Renumbered from <code>E17-48</code>.)* <strong>Half done, 2026-08-15.</strong> <code>~/.graybag-secrets/prod.env</code> appeared; the four <code>PUBLIC_*</code> variables are set on Netlify&#39;s <strong>production context only</strong> and read back per context to confirm production points at the prod project while deploy previews still point at staging. <code>apps/web/.env</code> untouched. <code>(owner:andy)</code> dropped — the credentialed half is done. <strong>What remains is not mine:</strong> production is missing <code>0057_enquiry</code> and <code>0058_service_days</code>, checked against the live project (<code>school_config.service_days</code> → 400, <code>enquiry</code> → 404, <code>ops_alert</code> → 200). Both reached <code>main</code> when #51 merged. Promoting a build before they are applied gives <code>400</code> on <code>/admin/config</code> and on <code>tools/bulk-import</code>&#39;s first read. Applying a migration to production during launch week is not something to do on an inferred authorisation, and Andy put the migration step with the mobile thread. Safe to have set the variables early because production does not auto-deploy (<code>E12-30</code>). See <code>docs/production-cutover.md</code></span>
+      </li>
+      <li class="task" data-id="E17-52" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-52"></button>
+        <code class="tid">E17-52</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>npm run check:launch</code> — what is this environment missing before it can take a real order.</strong> One command, plain output, read-only, no flags. Source <code>prod.env</code> or <code>.secrets.staging.env</code>; it prints the project ref first, because the one way to misread the report is to run it against staging and believe it about production. <strong>Blockers and warnings, and no third level</strong>: a report listing twelve things when two matter gets skimmed on the morning it matters most. Warnings do not fail the exit code — a check that fails on what you have accepted is a check you stop running. Every finding carries the fix, not just the fault. Checks dishes without <code>food_type</code> (blocker only when they are actually being offered), schools with no live menu, onboarded schools with no break windows, schools never onboarded, empty menus, unset <code>price_is_tax_inclusive</code>, missing payment and mail secrets; warns on unset service days and break windows labelled with their own time range. Decisions in <code>scripts/lib/launch-checks.mjs</code>, tested against object literals; <code>scripts/check-launch.mjs</code> only fetches and prints</span>
       </li></ul>
       </details>
     </article>

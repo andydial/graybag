@@ -8,6 +8,7 @@ import {
   AdminDishError,
   fetchAdminDishes,
   fetchAdminMenus,
+  setFoodTypes,
   updateCatalogue,
 } from './admin-dishes.js';
 
@@ -172,5 +173,35 @@ describe('updateCatalogue', () => {
     });
     expect(result.changed).toHaveLength(2);
     expect(invoke).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('setFoodTypes', () => {
+  it('sends one request for the whole selection, not one per dish', async () => {
+    // 79 dishes reached production unmarked. One round trip per dish is 79 round trips on a
+    // connection this project's performance priorities describe as the real constraint.
+    const invoke = stub({ data: { changed: ['foodType×3'] } });
+    await setFoodTypes([
+      { id: 'd-1', foodType: 'veg' },
+      { id: 'd-2', foodType: 'veg' },
+      { id: 'd-3', foodType: 'egg' },
+    ]);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    const body = invoke.mock.calls[0]![1].body as { foodTypes: unknown[] };
+    expect(body.foodTypes).toHaveLength(3);
+  });
+
+  it('can unset a food type, because a wrong one must be correctable', async () => {
+    const invoke = stub({ data: { changed: [] } });
+    await setFoodTypes([{ id: 'd-1', foodType: null }]);
+    const body = invoke.mock.calls[0]![1].body as { foodTypes: { foodType: unknown }[] };
+    expect(body.foodTypes[0]!.foodType).toBeNull();
+  });
+
+  it('goes to admin-dish as a PATCH, like every other catalogue write', async () => {
+    const invoke = stub({ data: { changed: [] } });
+    await setFoodTypes([{ id: 'd-1', foodType: 'veg' }]);
+    expect(invoke.mock.calls[0]![0]).toBe('admin-dish');
+    expect(invoke.mock.calls[0]![1].method).toBe('PATCH');
   });
 });

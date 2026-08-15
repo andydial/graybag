@@ -197,3 +197,28 @@ export async function updateCatalogue(edit: {
 }): Promise<CatalogueUpdateResult> {
   return invokeFunction<CatalogueUpdateResult>('admin-dish', edit, 'PATCH');
 }
+
+export interface FoodTypeAssignment {
+  id: string;
+  /** `veg` | `non_veg` | `egg`, or `null` to unset it again. */
+  foodType: string | null;
+}
+
+/**
+ * Set `food_type` on many dishes at once — `E10-21`.
+ *
+ * 79 dishes reached production with this null on every one of them. In this market a parent who
+ * cannot tell whether a dish is vegetarian is the most likely day-one complaint, and setting it
+ * one dish at a time is 79 round trips and a lost afternoon.
+ *
+ * **Only `food_type`.** Deliberately not a general mass-update: an endpoint that applied an
+ * arbitrary patch to 500 rows is one careless caller away from retiring a catalogue, and no
+ * operator task needs it.
+ *
+ * **All or nothing.** The server validates every entry before writing any, so a bad id at
+ * position 60 does not leave the first 59 changed — which is the failure that would make somebody
+ * distrust the whole screen and go back to editing rows by hand.
+ */
+export async function setFoodTypes(assignments: FoodTypeAssignment[]): Promise<CatalogueUpdateResult> {
+  return invokeFunction<CatalogueUpdateResult>('admin-dish', { foodTypes: assignments }, 'PATCH');
+}

@@ -739,3 +739,124 @@ which is why it has never been observed green.
 `RAZORPAY_KEY_ID`, so the diagnostic screen would have reported *nothing missing* while the app
 was unusable for want of exactly that. A diagnostic that omits a required input does not merely
 fail to help — it sends the reader somewhere else.
+
+## D-16I — `food_type` is guarded at the *offer*, not on the column
+
+79 dishes reached production with `food_type` null on every one, and 83 menu items were offering
+them. `[DM-17]` left the column nullable for a good reason — the source Excel had no such field
+and inventing one would be inventing a fact about food.
+
+**Decided.** That reasoning covers a dish sitting in the catalogue; it does not cover a dish
+*offered to a parent*. So the column stays nullable and `0059` guards `menu_item`: a dish can
+exist unmarked, it cannot be published to a menu unmarked. The trigger fires only when
+`is_active` is true, because that is how this schema says "offered" — parking a dish on next
+term's menu before its details are complete is ordinary and reaches nobody.
+
+**It does not touch the 83 rows already there.** A trigger fires on write. A migration that
+retro-actively emptied two live menus would be an outage, not a guard. Those rows are what
+`npm run check:launch` reports.
+
+**It will make `tools/bulk-import` fail** on any menu row whose dish is unmarked. That is the
+forcing function, and it is why the bulk editor and the CSV round trip ship in the same change —
+there is never a state where the rule exists and the means to satisfy it does not.
+
+---
+
+## D-16J — the fastest path is "mark everything veg, then correct the exceptions"
+
+Three ways in, because the fastest one depends on what Andy has in front of him:
+
+1. **`/admin/menus` bulk bar** — "Select the N with no food type" → Veg, then flip the handful
+   that are not. Three actions for 79 dishes. One request, not 79: the endpoint takes a list and
+   groups by value, so it is one statement per distinct value.
+2. **`--export-dishes dishes.csv`** — the catalogue as a CSV whose columns are exactly what
+   `--dishes` reads back. A spreadsheet is the right tool for 79 rows if the answers are not
+   uniform.
+3. **One dish at a time**, which already existed.
+
+The bulk endpoint accepts **only `food_type`**. A general "apply this patch to 500 rows" endpoint
+is one careless caller away from retiring a catalogue, and no operator task needs it. It is
+all-or-nothing: validated completely before anything is written, so a bad id at position 60 does
+not leave 59 changed and the operator guessing.
+
+---
+
+## D-16K — the launch check reports blockers and warnings, and nothing else
+
+`npm run check:launch` answers one question: what stops a parent ordering right now.
+
+A **blocker** stops ordering. A **warning** degrades it. There is no third level and no
+"consider" tier, because a report listing twelve things when two matter is a report that gets
+skimmed on the morning it matters most. Warnings do **not** fail the exit code — a check that
+fails on things you have deliberately accepted is a check you stop running.
+
+Every finding carries the fix, not just the fault. On the 17th the person reading it is alone.
+
+It found two production blockers on its first real run, one of which nobody knew about: **Paragon
+and Gem have no break windows**, so under `P19` neither can take an order at all. Staging got
+those rows from `0029`; production never did.
+
+---
+
+## D-16L — `E10-21` is NOT tagged `(mvp)`, and I think it should be
+
+I tagged it, `check:mvp` refused, and it was right to.
+
+`CLAUDE.md`: *"Never add an id to the MVP list yourself. If you believe something must be in v1,
+say so and let Andy decide."* The rule exists because the backlog grew from 161 tasks to 288 by
+new work quietly defaulting into scope.
+
+So the marker came back off. **For the record: I think it belongs in v1.** Andy ranked it first
+and described it as the most likely day-one complaint, and a parent who cannot tell whether a
+dish is vegetarian is not a fast-follow concern in this market. But that is a scope decision with
+one owner, and the work is finished either way — the tag changes the count, not the code.
+
+One line in `scripts/check-mvp.mjs` and one marker in the backlog if Andy agrees.
+
+---
+
+## D-16M — the enquiry notification is best-effort, and its recipient chain ends at an address prod has
+
+Live enquiries were going nowhere. `enquiry-submit` was **not deployed to production** (404), and
+`PUBLIC_ENQUIRY_ENDPOINT` was unset in Netlify, so the site fell back to `/api/dev/enquiry` — the
+dev mock. A school filling in the form on the live site would have been thanked and lost.
+
+Both fixed: the function is deployed, the variable is set on the **production context only** (a
+preview still falls back to the mock, which is right — a preview must not write real leads).
+
+**The notification now exists** (`E12-16`). It is sent after the row is committed and its result
+is discarded: the contract says an enquiry lost to a mail provider's bad minute is the worst
+outcome this endpoint can produce, so nothing after the insert may turn a stored lead into an
+error the visitor sees.
+
+**It carries no phone number and no message.** Those are on the row, which has RLS. An email is
+forwarded, quoted and left in inboxes. They are not on the `EnquiryNotice` interface at all, so
+the compiler refuses them — a comment asking somebody not to include a phone number is not a
+control.
+
+**The recipient chain was wrong on its first deploy and that is the lesson.** It read
+`ENQUIRY_EMAIL_TO ?? ORDER_EMAIL_REPLY_TO`, and production has neither. A real test enquiry was
+stored and silently not announced. A notification path whose only recipient variable is one nobody
+has set does nothing, and fails in the way hardest to notice: quietly, and only in production. It
+now falls back to `SUPPORT_ALERT_EMAIL`, which prod does have.
+
+**Not verified: that the email actually arrived.** This Supabase CLI has no `functions logs`
+subcommand, so the send could not be observed from here. What is verified is that the row lands
+(twice, on production), that the recipient chain resolves to a variable production has set, and
+that every failure path logs "the enquiry IS stored". Andy should confirm one arrived.
+
+---
+
+## D-16N — my `E01-28` hypothesis was wrong, and the mobile thread's answer is the right one
+
+I filed `E01-28` saying `tab-menu` never rendered and naming `VersionGate` as the prime suspect,
+explicitly unconfirmed. The mobile thread diagnosed it: **the Maestro build had no backend
+configured**, not a version gate.
+
+Recorded because the ticket argued a case that turned out to be wrong, and the reasoning it used —
+"`VersionGate` merged today and wraps everything above the tab bar, and the flow's first action is
+to tap the tab bar" — was plausible and still wrong. What made it wrong was that I did not take
+the screenshot the ticket itself recommended as the first step. The suspicion was cheap; the
+confirmation was the part that mattered and I left it to somebody else.
+
+Their diagnosis stands. Nothing in this branch depends on mine.

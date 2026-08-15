@@ -19,18 +19,24 @@
 // must not cost an enquiry, so a native form post with no JavaScript works: it arrives as
 // `application/x-www-form-urlencoded` and is answered with a `303` to `/thanks`.
 //
-// ## What is deliberately not here
+// ## The notification, and why it comes last
 //
-// **No email yet.** §6 wants one notification per stored enquiry, and `E08` owns the
-// transactional-mail infrastructure, which is not built. The contract is explicit that the email
-// is best-effort and must never fail the request — "an enquiry lost because a mail provider had a
-// bad minute is the worst outcome this endpoint can produce" — so the row is written and the send
-// is left to `E12-16`. An enquiry that is stored and not emailed is recoverable; the reverse is
-// not.
+// §6 wants one notification per stored enquiry. `E08`'s mail infrastructure now exists, so
+// `E12-16` is done: `_shared/enquiry-notice.ts` sends it.
+//
+// It is sent **after the row is committed, and its result is ignored**. The contract is explicit
+// that the email is best-effort and must never fail the request — *"an enquiry lost because a
+// mail provider had a bad minute is the worst outcome this endpoint can produce"* — so a send
+// that fails logs and the caller still gets its `201`. An enquiry stored and not emailed is
+// recoverable; the reverse is not.
+//
+// It also does not carry the phone number or the message. Those are on the row. An email is
+// forwarded and quoted and sits in inboxes; a row has RLS.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { corsHeaders, preflight } from '../_shared/cors.ts';
+import { sendEnquiryNotice } from '../_shared/enquiry-notice.ts';
 
 /**
  * An allowlist, not `*`.
@@ -309,6 +315,19 @@ Deno.serve(async (request: Request) => {
     return formEncoded ? seeOther() : json(500, { error: 'internal' }, cors);
   }
 
-  // §6's email is `E12-16` and deliberately absent. The row is the record.
+  // §6's notification — `E12-16`. Awaited so a failure is logged inside the request's own
+  // lifetime rather than after the runtime has moved on, but its result is **deliberately
+  // discarded**: the row is committed and nothing below this line may turn a stored enquiry into
+  // an error the visitor sees.
+  await sendEnquiryNotice({
+    id: data.id,
+    name: tidy(f.name),
+    role: f.role,
+    school: tidy(f.school),
+    city: tidy(f.city),
+    email: tidy(f.email).toLowerCase(),
+    noJs: formEncoded,
+  });
+
   return formEncoded ? seeOther() : json(201, { status: 'created', id: data.id }, cors);
 });
