@@ -435,3 +435,25 @@
 
 /* The grant list gives each row room for a trailing button without the text colliding with it. */
 .admin__plain li { line-height: 1.7; }
+
+/* ------------------------------------------------- import dry run (`E10-29`) */
+
+/*
+ * The importer's report is written for a terminal — aligned columns, deliberate blank lines. It is
+ * shown verbatim rather than re-laid-out as HTML, so that what you read here is character for
+ * character what the command prints. Reformatting it would be a second presentation to keep in
+ * step, which is the same mistake as a second implementation.
+ */
+.import__report {
+  overflow-x: auto;
+  padding: var(--gb-space-3);
+  margin: var(--gb-space-3) 0;
+  background: var(--gb-bg-surface-muted);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-md);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--gb-font-size-sm);
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 2;
+}

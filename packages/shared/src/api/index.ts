@@ -14,6 +14,10 @@ export {
   ApiNotConfiguredError,
   configureApi,
   invokeFunction,
+  // `E10-29`. The generic read, exported so `/admin/import` can satisfy the CLI importer's
+  // `snapshot(db)` — which only ever calls `db.from(t).select(c)` — without any caller outside
+  // this directory touching `@supabase/supabase-js` (non-negotiable #1).
+  runQuery,
   storagePublicUrl,
   DISH_IMAGE_BUCKET,
   setApiTransport,

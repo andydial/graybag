@@ -66,6 +66,9 @@ const PAGES = [
   // `E10-27`. Its fixture carries the four states worth auditing: an operator with a long list,
   // a cook with two, an account holding nothing, and a disabled account that still holds access.
   '/admin/people.html?state=demo',
+  // `E10-29`. Its demo file is deliberately not clean — an unchanged row, a create, and a
+  // blocker — so the audit sees the report in the state it is actually read in.
+  '/admin/import.html?state=demo',
   '/reports.html?state=demo',
   '/signin.html',
 ];

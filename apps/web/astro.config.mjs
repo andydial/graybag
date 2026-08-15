@@ -1,7 +1,22 @@
 // @ts-check
+import { fileURLToPath, URL } from 'node:url';
+
 import { defineConfig } from 'astro/config';
 
 import { ENQUIRY_ENDPOINT_PATH, devEnquiryEndpoint } from './scripts/dev-enquiry-endpoint.mjs';
+
+/**
+ * `/admin/import` runs the **CLI importer's own** parse, validate and plan (`E10-29`).
+ *
+ * Aliased rather than copied, and that is the entire point: a browser dry run that disagreed with
+ * the tool doing the real import would be worse than no dry run at all — it would say "12 changes,
+ * no problems" about a file that then behaves differently. One implementation, 83 tests, two
+ * callers.
+ *
+ * Only the four modules that import nothing are reachable this way. `connect.mjs` holds the
+ * service-role client and is deliberately not among them.
+ */
+const BULK_IMPORT = fileURLToPath(new URL('../../tools/bulk-import/src', import.meta.url));
 
 /**
  * The public GrayBag site (`E12`).
@@ -32,6 +47,13 @@ export default defineConfig({
   },
   devToolbar: { enabled: false },
   vite: {
+    resolve: {
+      alias: { '@bulk-import': BULK_IMPORT },
+    },
+    server: {
+      // The importer lives outside this package, so the dev server has to be told it may read it.
+      fs: { allow: ['..', BULK_IMPORT] },
+    },
     build: {
       // The site's own JS is a few hundred bytes of form enhancement. Chunking it would produce
       // more HTTP requests than code.

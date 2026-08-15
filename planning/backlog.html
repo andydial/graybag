@@ -4075,13 +4075,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/28</span>
+          <span class="meter-num">0/31</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 28 tasks</summary>
+        <summary>Context &amp; 31 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4307,6 +4307,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>grants.manage</code> was missing from the nav&#39;s <code>Grant</code> union and from the platform-admin example.</strong> <code>/admin/people</code> required <code>users.manage</code>, which is disabling an account — a different job. Corrected to <code>grants.manage</code> + <code>users.view</code>, which is what the screen actually reads and writes. The example platform admin did not hold <code>grants.manage</code>, so the screen was invisible to a full admin — the same silent failure <code>SEEDED_PERMISSIONS</code> was added to catch, surfaced this time by <code>visibleNav</code>&#39;s count test</span>
+      </li>
+      <li class="task" data-id="E10-29" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-29"></button>
+        <code class="tid">E10-29</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Check an import file in the browser — <code>/admin/import</code>.</strong> Every admin screen pointed at <code>tools/bulk-import</code> and gave no way to do anything from the browser. Drop a CSV or JSON in and get the importer&#39;s <strong>own</strong> report — creates, updates, unchanged, blockers and the verdict — against live data. It runs <code>parse</code>, <code>validate</code>, <code>plan</code> and <code>report</code> from <code>tools/bulk-import/src/</code> directly, aliased as <code>@bulk-import</code>: those four modules import nothing, so they are callable from a browser, and a preview that disagreed with the tool doing the real import would be worse than no preview. <code>connect.mjs</code> (the service-role client) was split out of <code>db.mjs</code> so <code>snapshot()</code> imports nothing either; the snapshot is read through the <code>api/</code> module under the operator&#39;s own grants and RLS, never the service role. The file is read in the browser and never uploaded</span>
+      </li>
+      <li class="task" data-id="E10-30" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-30"></button>
+        <code class="tid">E10-30</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Apply an import from the browser.</strong> <code>/admin/import</code> dry-runs but does not write — that needs a second write path into schools, dishes, menus and break windows under grants, and the CLI&#39;s is the one that is tested and the one the 17th&#39;s import used. The page prints the exact command for the file just checked and says plainly that writing is not built</span>
+      </li>
+      <li class="task" data-id="E10-31" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-31"></button>
+        <code class="tid">E10-31</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A dish or menu row naming a missing kitchen now says which kitchens exist.</strong> <code>planSchools</code> already listed them; <code>planDishes</code> and <code>planMenus</code> said only <code>kitchen_code &quot;x&quot; does not exist</code>, which on an import day sends somebody to the database. Found by dry-running a real file against production from <code>/admin/import</code> — the kitchen code is <code>sky-bites</code> while the city is <code>mohali</code>, so guessing the kitchen from the city is precisely the mistake the message should pre-empt</span>
       </li></ul>
       </details>
     </article>
