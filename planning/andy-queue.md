@@ -26,6 +26,33 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
+## Closed 2026-08-15 (late) — the six-item production run
+
+| # | Ask | Done |
+|---|---|---|
+| 1 | `food_type` null on all 79 dishes — fastest possible way to set it | Done. **Three** ways: a bulk bar on `/admin/menus` (select all → Veg → correct the exceptions; **one request**, not 79), `--export-dishes` for the spreadsheet route, and one at a time. `0059` guards the **offer** — a dish may exist unmarked, it may not be published unmarked — and does not touch the 83 rows already live. **Left untagged `(mvp)` and I think it should be tagged — your call** (`D-16L`) |
+| 2 | Verify the whole admin path against prod | Done for the importer path: exported the real 79-dish catalogue, planned it back, created a school with config, proved the re-run is a clean no-op, edited the config, removed it. **The browser screens were not verified against prod** — that needs a signed-in back-office session (email OTP as you), and your own rule forbids substituting the service role. Three-minute checklist below |
+| 3 | Enquiry form live, submissions land, you are notified | Done. It was **not deployed to prod at all** and `PUBLIC_ENQUIRY_ENDPOINT` was unset, so live enquiries were going to the dev mock and being lost. Deployed, wired, verified with two real submissions (deleted after). The notification now exists — **and its recipient chain was wrong on first deploy**, naming two variables prod does not have. **Not verified: that the mail arrived** — this CLI has no `functions logs` |
+| 4 | Kitchen board against prod, one real order | **Blocked.** Prod has zero orders and no prod payment has been taken. Nothing to verify against |
+| 5 | Promote, and the one-paragraph runbook | Done — and it exposed `E12-33`: **the Netlify site has no repository connected**, so the deploy gate has never run and PRs have never had previews. Production is live and current via the manual route. My runbook also could not be followed (it described a push to a protected branch) and the gate's own test was pinned to today's commit. Both fixed |
+| 6 | Launch-readiness check | Done. `npm run check:launch`. It found a blocker nobody knew about: **Paragon and Gem have no break windows**, so under `P19` neither can take an order — only Amity can |
+
+### What production says right now
+
+**2 blockers**: 79 dishes unmarked and offered; Paragon and Gem have no break windows.
+**2 warnings**: no service days on any school; Amity's break labels are its own time ranges.
+
+### Still yours
+
+- **`E12-33`** — connect the repository in Netlify, or the deploy gate stays decorative.
+- **`E17-53`** — apply `0059` to production; it is the only migration of mine not there.
+- **Sign in at <https://graybag-web.netlify.app/signin> and open `/admin/menus`** — three minutes,
+  and it is the half of the admin path I could not verify unattended.
+- **Confirm an enquiry notification arrived** at whatever `SUPPORT_ALERT_EMAIL` is.
+- `E12-31`, `E20-52`, and the `(mvp)` tag on `E10-21`.
+
+---
+
 ## Closed 2026-08-15 (evening) — the unattended run
 
 Two lists, given back to back. The second reordered the first and added the 17 August import as

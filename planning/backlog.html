@@ -5093,13 +5093,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/50</span>
+          <span class="meter-num">0/51</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 50 tasks</summary>
+        <summary>Context &amp; 51 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -5506,6 +5506,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>npm run check:launch</code> — what is this environment missing before it can take a real order.</strong> One command, plain output, read-only, no flags. Source <code>prod.env</code> or <code>.secrets.staging.env</code>; it prints the project ref first, because the one way to misread the report is to run it against staging and believe it about production. <strong>Blockers and warnings, and no third level</strong>: a report listing twelve things when two matter gets skimmed on the morning it matters most. Warnings do not fail the exit code — a check that fails on what you have accepted is a check you stop running. Every finding carries the fix, not just the fault. Checks dishes without <code>food_type</code> (blocker only when they are actually being offered), schools with no live menu, onboarded schools with no break windows, schools never onboarded, empty menus, unset <code>price_is_tax_inclusive</code>, missing payment and mail secrets; warns on unset service days and break windows labelled with their own time range. Decisions in <code>scripts/lib/launch-checks.mjs</code>, tested against object literals; <code>scripts/check-launch.mjs</code> only fetches and prints</span>
+      </li>
+      <li class="task" data-id="E17-53" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-53"></button>
+        <code class="tid">E17-53</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Apply <code>0059_food_type_required_on_menu</code> to production.</strong> The only migration from this thread not on prod — <code>0057</code> and <code>0058</code> are there. It is additive and inert against existing rows (a trigger fires on write), so applying it changes nothing until somebody publishes a dish. <strong>Until it is applied the guard does not protect production</strong>, and the 17 August import can put unmarked dishes back on a menu. Left to whoever owns prod migrations, per Andy&#39;s instruction that the mobile thread applies them; flagged rather than applied because a production migration during launch week is not a thing to do on an inferred authorisation. <code>supabase/down/0059_food_type_required_on_menu.down.sql</code> is the rollback and drops the trigger without touching data</span>
       </li></ul>
       </details>
     </article>
