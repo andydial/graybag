@@ -1524,3 +1524,38 @@ base price instead of their school's override.
 **What I did not do:** I did not touch the `*_read_customer` policies or any function they call.
 The fix is seven `alter policy … to anon, authenticated` statements and nothing else, so the blast
 radius is exactly "signed-in users may now read what anonymous users always could".
+
+## D39
+
+**The verification sweep found three more things, and I fixed the one that was a compliance
+obligation.** Full detail in the backlog; the calls I made without asking:
+
+**Fixed (`0062`, applied to production):** `deactivate_recipient` failed at COMMIT for every
+parent — a parent could not delete their child, and account/child deletion is one of the six v1
+compliance tasks. The deferred `D10` constraint required a guardian_link the erasure had just
+revoked. I exempted **anonymised** recipients from `D10` rather than making erasure set
+`deleted_at`, because `recipient_erasure.test.sql` pins `deleted_at is null` deliberately (`D15`:
+an anonymised row is a live financial reference, a deleted one is a dangling key). Recorded as
+`C20`. The exemption is narrow and the narrowness is asserted: orphaning a *live* child still
+fails.
+
+**Not fixed, logged as `E05-51`:** nothing ever closes an abandoned unpaid order. No `expired`
+status in the enum, no expiry function, no `pg_cron` on production — and because both
+`deactivate_recipient` and `change_recipient_school` refuse while a future undelivered order
+exists, **an abandoned cart permanently blocks that parent from deleting their child**. I did not
+invent a mechanism for this on launch day; it needs a decision (cron job, drain, or derive expiry
+from `cutoff_at` at read time) and it is not triggered by anything the app does today unless a
+parent abandons checkout.
+
+**Not fixed, logged as `E05-52`:** `order-calendar` returns 404 for every parent, because
+`resolve_effective_config` is SECURITY INVOKER and the config tables are admin-only. **No mobile
+screen calls it**, so nothing is broken today — it is an endpoint built ahead of its consumer.
+The fix is a judgement about whether config should be readable by parents at all, which is worth
+more than five minutes and is not blocking the 19th. Cutoff enforcement itself is unaffected:
+`create_checkout` is SECURITY DEFINER and refused a past date correctly on production.
+
+**Logged as `E16-54`, owner:andy:** production has **zero** rows in `allergen` and zero in
+`dish_allergen`. Same shape as `E16-52` and the same reason — the catalogue will not invent it.
+Every dish therefore renders with no allergen information, which reads as "contains nothing".
+Given non-negotiable #4 this is the highest-consequence of the three data gaps, and the app-side
+machinery for it is already built and tested with nothing to work with.
