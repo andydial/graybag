@@ -2898,3 +2898,80 @@ is untested no matter how many assertions surround it.
 
 Found by exercising the real endpoint against production as a real parent. No amount of staring at
 the suite would have surfaced it, because the suite was green and honest.
+
+## A Maestro `id:` is a regex, and `prefix-.*` matches far more than the rows (2026-08-15)
+
+The cart flow had never once been observed green. Three separate causes had already been found
+and fixed — a wrong Android `applicationId` (`E01-26`), a Gradle metaspace OOM and a 781-second
+emulator boot (`E14-36`), a missing `EXPO_PUBLIC_RAZORPAY_KEY_ID` that rendered
+`CantConnectScreen` instead of `RootNavigator` (`E01-28`) — and it still failed, now at:
+
+    Assertion is false: id: screen-menu is visible
+
+The tempting reading is "the menu is slow or broken". It was neither. The step before it was:
+
+    - tapOn:
+        id: 'school-picker-.*'
+        index: 0
+
+`SchoolPicker` renders **ten** testIDs under that prefix: `-search`, `-stale`, `-welcome`,
+`-loading`, `-error`, `-empty`, `-no-match`, `-request-footer`, `-request-from-list`, and
+`school-picker-<uuid>` for each row. **The search field is rendered before the list**, so
+`index: 0` was the search box. Tapping it focuses the field and opens the keyboard. No
+navigation, `MenuScreen` never mounts, and the failure surfaces one line later pointing at an
+innocent screen.
+
+**What made it diagnosable without another 29-minute run:** `screen-menu` is on the wrapper
+`<View>` of *every* `MenuScreen` branch — loading, error and loaded alike. So "screen-menu is not
+visible" cannot mean a slow load or an empty menu; it can only mean the screen was never
+reached. Reading the component settled in two minutes what three CI runs could not.
+
+Two general lessons:
+
+1. **`index: 0` on a prefix pattern is a bet on render order**, and render order puts chrome —
+   search fields, banners, empty states — before content. Match the shape of the thing you want:
+   a row id ending in a uuid is `prefix-[0-9a-f]{8}-...`, which cannot collide with a hand-written
+   suffix.
+2. **A guard that only understands the loose form will punish the precise one.**
+   `check-maestro-ids.mjs` recognised a trailing `.*` and nothing else, so it *passed* the wrong
+   pattern and *rejected* the correct one. A checker that accepts only the sloppy spelling of a
+   thing is an argument for the sloppy spelling.
+
+It also reinforces the rule from the deferred-constraint entry above: a green suite proves what
+it asserts, and the failure was in the space between "the app launched" and "the screen I meant
+to be on".
+
+## A `.env` file will follow your JS into a production OTA (2026-08-16)
+
+`apps/mobile/.env` names the **staging** Supabase project and a `rzp_test` key. That is correct
+for a developer and catastrophic in a published bundle, and `eas update` reads it like any other
+bundler invocation. The first update published to the **production** channel therefore went out
+carrying staging.
+
+Two things made it invisible:
+
+1. **The obvious verification passed.** The manifest returned 200 for runtime 4.0.0 on both
+   platforms with ids matching what `eas update` printed, and old runtimes correctly got 204.
+   All true, and none of it says anything about what is *inside* the bundle.
+2. **The app's own guard was satisfied.** `env.ts` requires the Razorpay key prefix to match the
+   environment — `rzp_test_` for `local` and `staging`, `rzp_live_` for `production`. With
+   `APP_ENV` unset the config falls back to `local`, which *wants* a test key, and the leaked
+   `.env` supplied one. The wrong pair was internally consistent, so nothing complained.
+
+The tell was one field in the manifest: `"appEnv":"local"` where it should have said
+`production`. That is now the documented post-publish check, and the publish script sets
+`EXPO_NO_DOTENV=1` and an explicit `APP_ENV=production` so the values can only come from the EAS
+environment.
+
+**Two general lessons:**
+
+- **A verification that passes on the wrong artefact is worse than no verification**, because it
+  is spent confidence. "The manifest is served correctly" and "the bundle is built correctly" are
+  different claims and I had only tested the first while believing I had done both.
+- **A guard keyed on the environment cannot catch the environment being wrong.** Every
+  consistency check `env.ts` performs is *within* an environment; choosing the wrong one moves
+  the whole frame, and no internal check sees it. The only check that works compares against
+  something outside the bundle — here, what the channel is *supposed* to be.
+
+Found by re-checking something already reported as done, which is the only reason it was caught
+before a tester picked it up.

@@ -81,3 +81,8 @@ export { POLICY_DOCUMENTS, type PolicyDocument, type PolicyKey } from './policy/
 // Calendar dates in the kitchen's timezone (`E05-49`). Every function takes the instant, so the
 // 00:00–05:30 IST window that broke `defaultServiceDate` is provable at any hour.
 export * as time from './time/india.js';
+
+// The guard in front of any crash reporting (`E15-15`). Exported before a reporter exists, on
+// purpose: Andy's instruction was that the guard matters more than the reporting, and nothing
+// may send an event that has not been through `scrub`.
+export * as observability from './observability/scrub.js';

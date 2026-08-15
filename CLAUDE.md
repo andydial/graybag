@@ -252,6 +252,30 @@ Anything not in that list is fast-follow, including anything you add later.
 5. **Never commit the `.bubble` export.** It contains live secrets.
 6. **Nothing merges without the smoke test green.** The full suite runs nightly.
 7. **Mohali-only, 5% flat GST, no passwords, no push, six compliance tasks.** Do not drift.
+8. **A migration applied to production by hand is recorded in the ledger in the same
+   operation.** One command, both effects — never the SQL now and the bookkeeping later:
+
+   ```bash
+   psql "$PROD" -v ON_ERROR_STOP=1 -1 -f supabase/migrations/00NN_name.sql \
+     && psql "$PROD" -c "insert into supabase_migrations.schema_migrations (version, name)
+                         values ('00NN','name') on conflict (version) do nothing;"
+   ```
+
+   Andy's rule, 2026-08-16, after ledger drift was found **twice in one day, in both
+   directions**: `0060` recorded without being applied (a `db push` was killed part-way), and
+   `0063` applied without being recorded (the SQL was run by hand). Each was individually
+   harmless — one replayed cleanly, the other was `on conflict do nothing` — and that is
+   exactly why the pattern is worse than either instance. The ledger is the only thing that
+   answers *"what is actually on production?"*, and once it disagrees with the database
+   nothing downstream can be trusted: `db push` either skips a migration that never ran or
+   replays one that did, and a restore drill (`E01-17`) rebuilds the wrong schema.
+
+   **Verify before you record.** `0063` was recorded only after checking that all four of its
+   rows existed with the exact ids in the migration. Recording a migration you have not
+   confirmed is applied is how the first direction of this bug happens.
+
+   If you find drift, reconcile it rather than dropping live objects, and write down which
+   direction it was in — the two have opposite fixes.
 
 ## Performance priorities
 

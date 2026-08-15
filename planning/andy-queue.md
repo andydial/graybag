@@ -18,13 +18,28 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
-## Open — 1 item
+## Open — nothing
 
-| # | Ask | Asked | Status |
-|---|---|---|---|
-| 1 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine). The job has **still never been observed green**; its last run was cancelled. `E14-36` fixed the Gradle metaspace OOM and the 781-second emulator boot and is on `main` |
+The queue is empty. `Maestro in CI` (asked 2026-08-10) closed on 2026-08-16: `[Passed] cart
+(47s)`, `1/1 Flow Passed`, run 31891879898 — **the first time that job has ever been green**.
+Five causes in total, listed on `E14-38`.
 
 ---
+
+## Closed 2026-08-16 — the eight-item overnight run
+
+Andy's list, in his order. All eight addressed; three carry a stated gap rather than a claim.
+
+| # | Ask | Outcome |
+|---|---|---|
+| 1 | Standing rule: hand-applied migration → ledger, same operation | **Done.** Non-negotiable #8 in `CLAUDE.md`, with the two-command form and a verify-before-you-record clause |
+| 2 | Confirm TestFlight build is *submitted for review* | **Done.** 4.0.0 `WAITING_FOR_REVIEW`, reviewSubmission `85684984…` submitted 15 Aug 12:22Z, build 12 VALID. Note `releaseType = MANUAL` — approval will not auto-release |
+| 3 | EAS Update on production + one-line command | **Done.** `npm run ship:ota -- "what changed"`. Published `c4342c44`; manifest verified 200 for runtime 4.0.0 both platforms, 204 for 3.7.0 and 4.0.1. **Gap: not watched applying on a device** — no simulator or emulator on this machine |
+| 4 | Prod sweep as a clean parent | **Done except the email.** Sign-in, add child, browse, cart, cutoff, price guard, order placed (`GB-APGY7Q`, ₹72.46), idempotent replay, Orders list, order detail — all correct. **Gap: the confirmation email needs a `paid` order and I would not forge a payment on the live ledger** (`D46`, `E08-15`) |
+| 5 | Sentry live + PII guard | **Guard done, reporting blocked.** `E15-15` — nine tests, including one that reads the real schema and fails when a personal column is uncovered. **There is no Sentry in the repo at all**, and adding the native SDK would invalidate build 12 mid-review (`E15-16`, needs a DSN and a decision) |
+| 6 | Play internal track | **Documented, not uploaded.** No Play service-account JSON exists here (`E17-51`). `docs/play-internal-track.md` — URL, package, version code, three steps |
+| 7 | Force-update plan, do not set | **Written, nothing set.** Floor still `0.0.0`. **And it cannot do what the 19th needs**: 3.7.0 is the Bubble binary and never calls the RPC, so the gate would block nobody (`D42`) |
+| 8 | Maestro, timeboxed to one run | **GREEN.** `[Passed] cart (47s)` — first time ever |
 
 ## Closed 2026-08-15 (night) — the production verification sweep
 

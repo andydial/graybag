@@ -28,6 +28,7 @@
     "kitchen": "tsx scripts/kitchen-list.mjs",
     "db:status": "npx supabase status",
     "bundle:check": "npm --prefix apps/mobile run bundle:check",
+    "ship:ota": "bash scripts/ship-ota.sh",
     "verify:apk": "node scripts/verify-apk-upi-queries.mjs",
     "check:migrations": "node scripts/check-migrations.mjs",
     "check:fixtures": "node scripts/check-test-fixtures.mjs",

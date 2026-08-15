@@ -4,6 +4,14 @@ An unattended run. Andy asleep; the instruction was to decide, record here, and 
 
 ---
 
+
+**Two threads wrote here on the same night, and both numberings are kept.** The web thread used
+`D-17A`…`D-17F`; the mobile thread continued `docs/decisions-16aug.md`'s sequence with
+`D41`…`D47`. Neither was renumbered on merge — a decision id that moves is worse than one that
+looks inconsistent, and `DOC1` says ids are permanent. Web entries first, mobile second.
+
+---
+
 ## D-17A — service days set to Mon–Sat on all three schools
 
 Andy's decision, stated and applied: *"Every dish is already Mon–Sat, so ordering for Sunday is a
@@ -137,3 +145,157 @@ One thing that cost twenty minutes and is worth writing down: the board has a **
 window**. A click queues the change and flushes when the window closes, so reading the database six
 seconds later shows the old status and looks exactly like a broken button. It was working the whole
 time.
+
+---
+
+## D41
+
+**The ledger rule is a non-negotiable in `CLAUDE.md`, not an entry here.** Andy asked for it as a
+standing rule, and standing rules that live in a dated decision file get read once. It is
+non-negotiable #8: a migration applied to production by hand is recorded in the ledger in the
+same operation, with the two-command form written out, and a "verify before you record" clause —
+because the two directions of drift found on 16 August have opposite fixes, and recording a
+migration you have not confirmed applied is how the first direction happens.
+
+## D42
+
+**The force-update gate cannot do what the 19th needs, and the plan says so.** Writing
+`docs/force-update-plan.md` surfaced this: `min_supported_app_version` works by the app calling
+`app_version_support` and obeying the answer, and `3.7.0` is the **Bubble** binary — it has never
+heard of `VersionGate`, does not call the RPC, and does not talk to our Supabase project at all.
+It asks nothing, so there is nothing to refuse.
+
+Setting the floor to `4.0.0` on the 19th blocks **nobody**: `3.7.0` never asks, and `4.0.0` is not
+below `4.0.0`. What actually moves parents off the old app is the Bubble freeze in the cutover
+runbook — ordering and payments disabled there. A parent still on `3.7.0` after that sees
+whatever *Bubble* shows, which is not a screen in this repository.
+
+I have set nothing, as instructed. The recommendation in the plan is to keep setting nothing on
+the 19th, and to arm the gate only if a released 4.0.x turns out to be harmful — with the hard
+rule that the floor may never exceed a version that is actually downloadable, because a parent
+blocked below a non-existent build has no recovery at all.
+
+## D43
+
+**`npm run ship:ota -- "message"` is the one line, and it lives in the root `package.json`.**
+`eas update` has to run from `apps/mobile`, so the script is
+`cd apps/mobile && npx eas update --branch production --message` — the trailing flag means
+`npm run ship:ota -- "text"` appends the message rather than passing it as a positional, which
+`eas` would ignore.
+
+## D44
+
+**The Account screen's build label now names the running JS, and that is how an OTA is
+confirmed.** `gitSha` is stamped at build time and never moves when an update lands, so there was
+no way to tell fresh JS from bundled JS on a device. The label now reads
+`Production · 394dd2f · OTA 4625c38` or `… · bundled`.
+
+Self-proving on build 12: that binary was compiled before the segment existed, so the segment can
+only appear if an update replaced its JS.
+
+The first shape was a `identity` prop for testability and `orphans.test.ts` refused it —
+correctly, since nothing but a test would pass it. The logic moved into a pure `buildLabelText`.
+I changed my code rather than the guard; `UpdateRequiredScreen` had already made the same call
+for the same reason.
+
+## D45
+
+**Maestro is green** — `[Passed] cart (47s)`, run 31891879898, the first time that job has ever
+passed. Five distinct causes, and the shape is worth keeping: four were real defects in the
+harness or its configuration, one was mine (`\` line continuations in a `script:` the action runs
+a line at a time), and **none of them was a product bug**. The app was working the whole time.
+
+The thing that finally made it tractable was the debug artifact — a screenshot and view hierarchy
+at the moment of failure turned a 29-minute guess into a two-minute read, and settled the last
+two causes in one run each.
+
+## D46
+
+**No fake payment on production, so the order-confirmation email stays unproven.** Andy asked for
+"place an order, see it in Orders, open the detail, get the email". The first three are done on
+production against a real clean parent. The email fires only when an order reaches `paid`, and
+reaching `paid` needs a real Razorpay payment.
+
+I could have forged a signed webhook — I have the secret and the signature scheme is proven both
+ways — and I decided not to. It would put a phantom ₹72.46 through the live ledger, the invoice
+sequence and `settle_payment` on launch weekend, and someone would have to unpick it from real
+books. A test that corrupts the thing it is testing is not a test.
+
+What I did instead: proved Resend works **from production** by submitting an enquiry, which
+reached `support@graybag.com` with provider status `sent`, alongside sign-in codes showing
+`delivered`. So the API key, sending domain and `ORDER_EMAIL_FROM` are all confirmed live. The
+untested remainder is `_shared/order-confirmation.ts` itself — template, recipient resolution,
+and `0050`'s one-email-per-order index — logged as `E08-15` with the note that **no Edge Function
+shared module has any test at all**.
+
+## D47
+
+**Play could not be submitted; documented instead.** `eas submit --platform android` needs a
+Google Play service-account JSON that does not exist here (`E17-51`, `owner:andy`). The bundle is
+built, signed and on the `production` channel: `docs/play-internal-track.md` has the download
+URL, package name, version code and three steps.
+
+Worth knowing when it installs: the `.aab` was built from `bd8b295`, before this run's fixes, so
+it will pull the current JS over the air on first launch — which makes the Play install a second
+free test of the OTA path.
+
+## D48
+
+**The first OTA I published pointed at staging, and the manifest is the only thing that showed
+it.** `apps/mobile/.env` names the staging project and a `rzp_test` key — correct for a
+developer, catastrophic in a production bundle. `eas update` read it, `APP_ENV` was unset, and
+the update went to the **production channel** stamped `"appEnv":"local"`.
+
+Had build 12 picked it up, every tester would have moved onto staging with a test payment key,
+without a single error: **`env.ts`'s Razorpay prefix guard was satisfied**, because it requires
+`rzp_test_` when `appEnv` is `local` and that is exactly what the leaked file supplied. The wrong
+pair was internally consistent.
+
+Fixed by hardening `scripts/ship-ota.sh` with `EXPO_NO_DOTENV=1` and an explicit
+`APP_ENV=production`, republishing as `f6e08844`, and verifying the live manifest now returns
+`"appEnv":"production"` on both platforms. Then confirmed properly rather than by inference: a
+local `expo export` with the same inputs contains the production Supabase host, **zero**
+occurrences of the staging host, and the live Razorpay key — the single `rzp_test` hit is the
+prefix constant in `env.ts`, not a key.
+
+**I found this by checking something I had already reported as done.** The verification I ran at
+the time — manifest 200, ids matching — was true and told me nothing about which backend was
+inside the bundle. A check that passes on the wrong artefact is the failure mode worth
+remembering here.
+
+## D49
+
+**"No payment has ever completed on production" is true, and nothing is broken.** Every link was
+tested against production this morning and each one works:
+
+| Step | Evidence |
+|---|---|
+| `create_checkout` → `pending_payment` | `GB-94Q6JD` placed for Monday 17 Aug, ₹72.46 |
+| `payments-create-order` → live Razorpay order | `order_TQEBriyYjojCF1`, `rzp_live_…`, and a `payment` row appeared |
+| Live account activated | Razorpay accepted the order; an unactivated account refuses at creation |
+| Webhook registered | `TPqgSBnpEdsFSL`, active, on the prod URL, for `payment.captured`, `payment.failed`, `refund.created`, `refund.processed` |
+| Webhook reachable unauthenticated | A POST with no apikey and no JWT returns `200 {"status":"recorded_unverified"}` — so `verify_jwt` is off and a bad signature is recorded, not processed |
+| `checkout-status` reconciles | Returned `{"status":"pending","reconciled":true}` — it asked the live Razorpay API rather than believing our row |
+
+**The reason no payment has completed is that none has ever been attempted.** The order sits at
+`created` with `attempts: 0`, and the live account has **zero payments, ever**. My smoke order
+deliberately stopped before paying, because paying it costs real money and I would not spend
+Andy's.
+
+So there was nothing to fix in the payment path. What I did instead was remove the two things
+standing between Andy and a real attempt: an installable APK (`E17-58`), and the discovery below.
+
+## D50
+
+**An abandoned payment is unrecoverable, and the copy says the opposite.** `E05-54`. The app can
+only pay an order inside the `useCheckout` flow, immediately after checkout — there is no resume
+path. Dismiss the Razorpay sheet and the order is `pending_payment` for ever: `OrderDetailScreen`
+refuses to cancel it, telling the parent *"it will close by itself if the payment does not come
+through"*, and nothing closes it (`E05-51` — no `expired` status, no job, no `pg_cron`). It also
+blocks deleting that child.
+
+Every parent who dismisses the sheet once on launch day lands here. I cancelled the three test
+orders on production as `system` so Andy starts clean, but a parent has no such route.
+
+`payments-create-order` already supports this — it is per-attempt and returns `attempt_no` — so a
+"Pay now" button on a pending order is a small change, not a redesign.

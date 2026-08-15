@@ -1970,13 +1970,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/14</span>
+          <span class="meter-num">0/16</span>
         </div>
       </header>
       <p class="summary">Because Andy is not a developer, the system has to be able to explain its own failures in plain English.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 14 tasks</summary>
+        <summary>Context &amp; 16 tasks</summary>
         <div class="context"><h4>Approach</h4>
 <p>Sentry for errors across app/web/backend, Supabase dashboard for query performance, Better Stack for uptime. The multiplier is that <strong>Sentry and Supabase both have MCP servers</strong> — wired into Claude Code, a plain-English question like &quot;orders from St. Xavier&#39;s stopped going through around 9pm yesterday, find out why&quot; can be answered by querying errors, logs and the database directly.</p></div>
         <ul class="tasks">
@@ -2091,6 +2091,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Run <code>check:config</code> against production on a schedule once that project exists, not only at cutover — a dashboard setting changed by hand at 2am to unblock something else is exactly the failure a one-time gate misses</span>
+      </li>
+      <li class="task" data-id="E15-15" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-15"></button>
+        <code class="tid">E15-15</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The PII guard for crash reporting, built before the reporter.</strong> Andy, 2026-08-16: *&quot;assert no child&#39;s name, class, section or allergy can reach it. That guard matters more than the reporting.&quot;* <code>packages/shared/src/observability/scrub.ts</code> removes tier P and tier S fields <strong>by key, at any depth</strong>, plus emails and Indian phone numbers by value. By key rather than by value because value-matching cannot work: a child called &quot;Sweep&quot; and a dish called &quot;Sweet corn&quot; are both just words, and the filter that tries to tell them apart misses real names and mangles innocent text. The structure is what we know, because our own schema chose the field names. Nine tests, and the one that matters most reads <code>0001_initial_schema.sql</code> and <strong>fails when a <code>recipient</code> column carrying a name, class, section, allergy, phone or email is not covered</strong> — the real failure mode is a migration adding a personal column and nobody updating the list. Also asserted: it keeps what makes a report worth having (screen, error code, HTTP status, order ref, total, dish name), survives a cycle rather than hanging (a crash reporter that hangs on a crash is worse than none), preserves an <code>Error</code>&#39;s message and stack (spreading one loses exactly what the report is for), and bounds depth. The free-text limit is stated as a limit, not papered over: <code>Aarav</code> in a message is indistinguishable from any other word, so the defence there is that we do not put a child&#39;s name into messages</span>
+      </li>
+      <li class="task" data-id="E15-16" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-16"></button>
+        <code class="tid">E15-16</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:medium) <strong>A Sentry DSN, and the decision about when crash reporting ships.</strong> Blocked, and the blocker is worth stating precisely. There is <strong>no Sentry in this repository at all</strong> — <code>@sentry/react-native</code> is not a dependency, nothing initialises it, and <code>EXPO_PUBLIC_SENTRY_DSN</code> is read by <code>configure.ts</code> into a config nothing consumes. So this is a from-scratch build, not a wiring job, and it needs a DSN that only Andy can create. <strong>The timing constraint is the important half</strong>: <code>@sentry/react-native</code> is a native SDK, so adding it invalidates build 12 — currently <code>WAITING_FOR_REVIEW</code> — and requires a new binary and a new Apple review, which is the one thing the 19th cannot absorb. Two options, and it is a decision rather than a task: <strong>(a)</strong> ship crash reporting in the first build after launch, accepting no crash visibility for the launch window; <strong>(b)</strong> a JS-only reporter posting to Sentry&#39;s HTTP API, which carries no native code, ships <strong>over the air</strong> on top of build 12, and catches JS errors — which is most of what a JS app produces — while missing native crashes. <code>E15-15</code>&#39;s scrubber is written and tested and is a precondition of either</span>
       </li></ul>
       </details>
     </article>
@@ -2297,13 +2313,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/51</span>
+          <span class="meter-num">0/54</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 51 tasks</summary>
+        <summary>Context &amp; 54 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2713,6 +2729,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>order-calendar</code> cannot work for the audience it is for.</strong> <code>resolve_effective_config</code> and <code>orderable_calendar</code> are both SECURITY INVOKER, and the config tables they read (<code>platform_config</code>, <code>kitchen_config</code>, <code>school_config</code>) are readable only by an admin holding <code>config.platform_edit</code> / <code>kitchen.config_edit</code> / <code>school.config_edit</code>. So the endpoint returns <code>404 no configuration for that school</code> for every parent, including one with a child at that school. Verified on production. <strong>Not launch-blocking</strong>: no mobile screen calls it yet — only <code>packages/shared/src/ordering/calendar-endpoint.ts</code> and the function shell exist, so this is an endpoint built ahead of its consumer. It must be fixed before anything calls it, and the fix is a decision rather than a typo: make the resolver SECURITY DEFINER (config is not secret, but it is not obviously public either), or expose a narrow read of just the ordering-relevant fields. Cutoff enforcement itself is unaffected and works — <code>create_checkout</code> is SECURITY DEFINER and refused a past date with <code>cutoff_passed</code> on production</span>
+      </li>
+      <li class="task" data-id="E05-53" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-53"></button>
+        <code class="tid">E05-53</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The cart line collapses at 320dp — a dish name wraps one word per line.</strong> Seen in the first Maestro screenshot ever captured (<code>E14-38</code>, 2026-08-15, 320x640 emulator): &quot;Wheat Jaggery Cake&quot; renders as four stacked lines, <code>Wh / eat / Jag / gery / Cake</code>, in a column roughly 40px wide, because the thumbnail and the quantity stepper take their space first and the name gets what is left. Everything else on the screen is correct — the price, the <code>excl. GST</code> note, the sticky <code>Place order · ₹72.46</code> — which is what makes this worth a task rather than a shrug: the cart is *right* and looks broken. 320dp is not a strawman for this audience (CLAUDE.md: mid-range Androids in tier-1 Indian cities), and the fix is to let the name column flex ahead of the stepper rather than after it. Not launch-blocking; it degrades rather than fails</span>
+      </li>
+      <li class="task" data-id="E05-54" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-54"></button>
+        <code class="tid">E05-54</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>An abandoned payment leaves an order the parent can neither pay nor cancel, under a message that says it will sort itself out.</strong> Found 2026-08-16 preparing Andy&#39;s payment test. The app has no resume-payment path: <code>createPaymentOrder</code> and the Razorpay sheet run only inside <code>useCheckout</code>, straight after <code>create_checkout</code>. Once that flow is left — the sheet dismissed, the app backgrounded, the network dropped — the order sits at <code>pending_payment</code> and <strong>nothing in the app can advance it</strong>. <code>OrdersScreen</code> shows &quot;Payment pending&quot;; <code>OrderDetailScreen</code> refuses cancellation with *&quot;This order hasn&#39;t been paid for yet, so there is nothing to cancel — it will close by itself if the payment does not come through.&quot;* That sentence is not true: there is no <code>expired</code> status in the enum, no expiry job, and no <code>pg_cron</code> on production (<code>E05-51</code>). So the order is permanent, the copy promises otherwise, and because <code>deactivate_recipient</code> and <code>change_recipient_school</code> both refuse while an undelivered future order exists, <strong>it also permanently blocks deleting that child or moving them schools</strong> — a DPDP erasure request blocked by a stray tap. On launch day, every parent who dismisses the Razorpay sheet once is in this state. Needs either a &quot;Pay now&quot; affordance on a pending order (which <code>payments-create-order</code> already supports — it is idempotent per attempt and returns <code>attempt_no</code>), or the expiry in <code>E05-51</code>, and probably both. The copy must not claim self-resolution until one of them exists</span>
+      </li>
+      <li class="task" data-id="E05-55" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-55"></button>
+        <code class="tid">E05-55</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A non-service day is reported as &quot;the dish is no longer on the menu&quot;.</strong> Verified on production 2026-08-16, the first Sunday since <code>service_days</code> became Mon–Sat: a checkout for Sunday is correctly refused, but with <code>{&quot;code&quot;:&quot;unavailable&quot;,&quot;message&quot;:&quot;One of the dishes is no longer on the menu for that day.&quot;}</code>. Two different conditions — *this school does not serve on Sundays* and *this dish came off the menu* — arrive as one message, and the one a parent is shown is the wrong one: they will go back and try a different dish, which will fail identically. §5.21&#39;s collapsed-states audit is exactly this defect class. The calendar is supposed to prevent the situation arising at all, but <code>order-calendar</code> 404s for every parent (<code>E05-52</code>) and no screen calls it, so the refusal is currently the only signal a parent gets. Needs its own code (<code>not_a_service_day</code>) and copy naming the day</span>
       </li></ul>
       </details>
     </article>
@@ -2725,13 +2765,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/35</span>
+          <span class="meter-num">0/36</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 35 tasks</summary>
+        <summary>Context &amp; 36 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -3018,6 +3058,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>Maximum update depth exceeded</code> on the waiting screen, during the first real payment.</strong> The poller updated an <code>elapsedMs</code> state every two seconds and its effect depended on the object <code>useCheckout()</code> returns — which is rebuilt every render, so each tick re-subscribed the effect. <strong>It starved the poll it existed to drive</strong>: the payment captured at Razorpay and the order never settled. Fixed by taking the clock out of render state entirely — the screen needs one threshold crossing (§5.12&#39;s ten seconds), so that is one boolean set by one <code>setTimeout</code> instead of a state write per tick — and by depending only on primitives and stable callbacks</span>
+      </li>
+      <li class="task" data-id="E14-38" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-38"></button>
+        <code class="tid">E14-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Maestro never left the school picker: the flow was tapping the search box.</strong> The 2026-08-15 runs are the furthest this job has ever got — AVD booted, staging APK built and installed, app launched, <code>tab-menu</code> and <code>school-picker</code> both resolved — so <code>E01-26</code> (wrong <code>applicationId</code>), <code>E14-36</code> (Gradle metaspace OOM, 781-second boot) and <code>E01-28</code> (missing <code>EXPO_PUBLIC_RAZORPAY_KEY_ID</code> rendering <code>CantConnectScreen</code>) are all genuinely fixed and the three <code>vars.*</code> are set. It then failed on <code>Assertion is false: id: screen-menu is visible</code>, <strong>identically on two different commits including a docs-only one</strong> — deterministic, not flaky. Ruled out by querying staging as anon with the exact <code>select</code> the app sends: Amity has 47 menu items, version 91, 2 break times, and all three schools list. The cause is the flow itself: <code>tapOn: id: &#39;school-picker-.*&#39;, index: 0</code>. <code>SchoolPicker</code> puts <strong>nine other testIDs under that prefix</strong> — <code>-search</code>, <code>-stale</code>, <code>-welcome</code>, <code>-loading</code>, <code>-error</code>, <code>-empty</code>, <code>-no-match</code>, <code>-request-footer</code>, <code>-request-from-list</code> — and the <strong>search field renders before the list</strong>, so index 0 was the search box. Tapping it focuses the field and opens the keyboard; no navigation happens, <code>MenuScreen</code> never mounts. <code>screen-menu</code> is rendered in *every* MenuScreen state including loading and error, so the assertion failing proved the screen was never reached — which is what ruled out the slow-load theory. Fixed by matching a uuid-shaped suffix (<code>school-picker-[0-9a-f]{8}-…</code>), which hits rows and only rows and still hard-codes no school. <code>check-maestro-ids.mjs</code> recognised a trailing <code>.*</code> and nothing else, so it *passed* the loose wrong pattern and *rejected* the precise right one; it now derives the literal prefix from the first regex metacharacter, and still rejects an id that exists nowhere. Also added: <code>--debug-output</code> and an artifact upload keeping the screenshot and view hierarchy, and a 45s <code>extendedWaitUntil</code> on the first network-backed assertion. <strong>Two self-inflicted costs on the way, both now guarded</strong>: splitting the <code>maestro test</code> command across lines with <code>\</code> continuations killed a whole 29-minute run in three seconds — <code>android-emulator-runner</code> runs its <code>script:</code> a line at a time through <code>sh -c</code>, so the backslash arrives as a literal argument (<code>Flow path does not exist: /home/runner/work/graybag/graybag/\</code>) — and no report or debug artifact was produced at all; and the flow&#39;s syntax was never checked before the 25-minute APK build. <code>maestro check-syntax</code> needs no device, takes a second, and now runs immediately after the Maestro install, so a malformed flow fails before the build rather than looking identical to a product failure after it. Maestro 2.8.0 confirmed locally to accept <code>--debug-output</code> and <code>--flatten-debug-output</code>. <strong>The picker fix worked</strong>: the next run reached <strong>step 13</strong> and 54 seconds, up from step 4 and 37 seconds — through the picker, the menu, dish detail, add-to-cart and into the cart — and failed on <code>&quot;Subtotal&quot; is visible</code>. The debug artifact settled that one in a minute instead of a run: the screenshot shows a <strong>correct</strong> cart (Wheat Jaggery Cake, ₹69.00 each · excl. GST, sticky <code>Place order · ₹72.46</code> — the same paise the production sweep computed), and the view hierarchy contains no <code>Subtotal</code> at all, because <code>CartTotals</code> is the last card in the ScrollView, under the break-time picker, and is below the fold on a 320x640 emulator. The flow now <code>scrollUntilVisible</code>s to <code>cart-subtotal</code> first, asserts <code>No child chosen yet</code> <strong>before</strong> that scroll (it is the first card; the totals are the last, and they do not share a screen), and moves <code>assertNotVisible: IGST</code> to after the scroll — an absence assertion over a region that is off screen passes for the wrong reason. The post-gate assertion changed from the text <code>Total</code> to the id <code>cart-total</code>, because <code>Total</code> also matches inside <code>Subtotal</code>. Also found from the same screenshot and filed as <code>E05-53</code>: the cart line collapses at 320dp, wrapping a dish name one word per line. <strong>GREEN on 2026-08-16</strong> — <code>[Passed] cart (47s)</code>, <code>1/1 Flow Passed</code>, run 31891879898, the first time this job has ever passed. Five distinct causes in the end: the wrong Android <code>applicationId</code> (<code>E01-26</code>), the Gradle metaspace OOM and 781-second boot (<code>E14-36</code>), the missing <code>EXPO_PUBLIC_RAZORPAY_KEY_ID</code> that rendered <code>CantConnectScreen</code> (<code>E01-28</code>), the picker pattern tapping the search box, and the totals being below the fold — plus one self-inflicted run lost to <code>\</code> line continuations in a <code>script:</code> the action runs a line at a time</span>
       </li></ul>
       </details>
     </article>
@@ -3642,13 +3690,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/14</span>
+          <span class="meter-num">0/15</span>
         </div>
       </header>
       <p class="summary">Push and email as primary, with a narrow SMS fallback. No WhatsApp for now.</p>
       <p class="deps">Depends on <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 14 tasks</summary>
+        <summary>Context &amp; 15 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E08-01" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
@@ -3762,6 +3810,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Decide per-template whether SMS is worth the cost, and cut unused DLT templates rather than leaving them dormant</span>
+      </li>
+      <li class="task" data-id="E08-15" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E08-15"></button>
+        <code class="tid">E08-15</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The order-confirmation email is the one production path never exercised, and no test covers it either.</strong> The 2026-08-16 sweep proved Resend works from production — an enquiry reached <code>support@graybag.com</code> (<code>sent</code>) and sign-in codes show <code>delivered</code> at the provider — so the API key, the sending domain and <code>ORDER_EMAIL_FROM</code> are all good. What is <strong>not</strong> proven is <code>_shared/order-confirmation.ts</code> itself: it fires only when an order reaches <code>paid</code>, and reaching <code>paid</code> on production needs a real Razorpay payment. I would not fake one, because a signed webhook would put a phantom ₹72.46 through the live ledger, invoice sequence and <code>settle_payment</code> on launch weekend — a real accounting problem to unpick, for a test. Nor is there a unit test: <strong>no Edge Function shared module has one</strong> (<code>supabase/functions/_shared/*</code> has no <code>.test.ts</code> at all), so the template, the recipient resolution and <code>0050</code>&#39;s one-email-per-order unique index are all unverified by anything. The narrow untested surface is: does the template render, does it address the right parent, and does the <code>23505</code> path really read as &quot;already sent&quot; rather than an error. First real paid order proves or disproves it in one go — which is a poor place to find out. Cheapest real coverage is a Deno test for the shared module against a stubbed Resend</span>
       </li></ul>
       </details>
     </article>
@@ -5284,7 +5340,7 @@
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:high) <strong>Production has no allergen data at all — zero rows in <code>allergen</code>, zero in <code>dish_allergen</code>.</strong> Found on production 2026-08-15. The reference table is empty, so there is nothing to tag dishes with and nothing for the allergen watchlist to match against; every dish therefore renders with no allergen information, which reads as *&quot;contains nothing&quot;*. This is the same shape as <code>E16-52</code> (no <code>food_type</code> on any of 79 dishes) and the same reason: <code>catalogue.sql</code> will not invent it. It is a validation only the kitchen can supply — which allergens are declared, and which dishes contain them. Non-negotiable #4 makes this the highest-consequence data gap of the three, because the failure mode is a child eating something they are allergic to rather than a complaint. The app-side machinery is built and tested (<code>useAllergenWatchlist</code>, the cart warnings wired in <code>E05-45</code>); it has nothing to work with</span>
+        <span class="ttext">(risk:high) <strong>No dish on production carries an allergen tag — <code>dish_allergen</code> is empty for all 79.</strong> Found 2026-08-15 during the verification sweep, when both <code>allergen</code> and <code>dish_allergen</code> were empty. <strong>The vocabulary half is now done by the web thread</strong> — <code>0063_allergen_vocabulary</code> seeds milk, gluten, tree nut and soy, and those four are live on production. What remains is the half only the kitchen can answer: <strong>which of the 79 dishes contain which of them.</strong> Until that exists every dish renders with no allergen information, which reads as *&quot;contains nothing&quot;*. Same shape as <code>E16-52</code> (no <code>food_type</code> on any dish) and the same reason — <code>catalogue.sql</code> will not invent it. Non-negotiable #4 makes this the highest-consequence of the data gaps, because the failure mode is a child eating something they are allergic to rather than a complaint. The app-side machinery is built and tested (<code>useAllergenWatchlist</code>, the cart warnings wired in <code>E05-45</code>) and has nothing to work with. <strong>Ledger note</strong>: <code>0063</code> was applied to production without being recorded in <code>supabase_migrations.schema_migrations</code> — verified byte-for-byte (the four ids match the migration exactly) and recorded, so a later <code>db push</code> does not replay it. Same class as the <code>0060</code> discrepancy, opposite direction; worth the web thread knowing</span>
       </li></ul>
       </details>
     </article>
@@ -5301,13 +5357,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/51</span>
+          <span class="meter-num">0/52</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 51 tasks</summary>
+        <summary>Context &amp; 52 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -5722,6 +5778,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Apply <code>0059_food_type_required_on_menu</code> to production.</strong> The only migration from this thread not on prod — <code>0057</code> and <code>0058</code> are there. It is additive and inert against existing rows (a trigger fires on write), so applying it changes nothing until somebody publishes a dish. <strong>Until it is applied the guard does not protect production</strong>, and the 17 August import can put unmarked dishes back on a menu. Left to whoever owns prod migrations, per Andy&#39;s instruction that the mobile thread applies them; flagged rather than applied because a production migration during launch week is not a thing to do on an inferred authorisation. <code>supabase/down/0059_food_type_required_on_menu.down.sql</code> is the rollback and drops the trigger without touching data</span>
+      </li>
+      <li class="task" data-id="E17-57" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-57"></button>
+        <code class="tid">E17-57</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The first production OTA pointed at staging, with a test payment key.</strong> Found on 2026-08-16 by re-checking an item already reported done. <code>apps/mobile/.env</code> names the staging project and a <code>rzp_test</code> key — right for a developer, catastrophic in a published bundle — and <code>eas update</code> reads it like any other bundler invocation. <code>APP_ENV</code> was also unset, so <code>app.config.js</code> fell back to the <code>local</code> identity. The update went to the <strong>production channel</strong> stamped <code>&quot;appEnv&quot;:&quot;local&quot;</code>. Had build 12 picked it up, every TestFlight tester would have moved onto staging with a test key and <strong>no error at all</strong>: <code>env.ts</code>&#39;s Razorpay prefix guard requires <code>rzp_test_</code> when <code>appEnv</code> is <code>local</code>, and the leaked file supplied exactly that, so the wrong pair was internally consistent. Fixed by hardening <code>scripts/ship-ota.sh</code> with <code>EXPO_NO_DOTENV=1</code> and an explicit <code>APP_ENV=production</code>, republishing as <code>f6e08844</code>, and verifying the live manifest returns <code>&quot;appEnv&quot;:&quot;production&quot;</code> on both platforms — then confirming rather than inferring, with a local <code>expo export</code> on the same inputs: production Supabase host present, staging host <strong>absent</strong>, live key present, and the one <code>rzp_test</code> hit is <code>env.ts</code>&#39;s prefix constant. The post-publish manifest check is now documented in <code>docs/ota-updates.md</code> as mandatory. <strong>The lesson is the verification, not the bug</strong>: manifest-200-and-ids-match was true and said nothing about what was inside the bundle</span>
       </li></ul>
       </details>
     </article>
