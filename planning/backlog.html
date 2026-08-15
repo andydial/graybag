@@ -4075,13 +4075,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/26</span>
+          <span class="meter-num">0/28</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 26 tasks</summary>
+        <summary>Context &amp; 28 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4291,6 +4291,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>valid_to</code> is exclusive, and my admin screen had it inclusive.</strong> <code>0001</code> constrains <code>menu_assignment</code> with <code>daterange(valid_from, valid_to, &#39;[)&#39;)</code>, and every read in the system — RLS, the public menu view, <code>create_checkout</code> — tests <code>valid_to &gt; current_date</code>. <code>isAssignmentLive</code> used <code>&gt;=</code>, so the back office would have shown a school still serving a menu on the day the parent-facing app had already stopped serving it, with nothing erroring anywhere. The test asserted the mistake and passed</span>
+      </li>
+      <li class="task" data-id="E10-27" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-27"></button>
+        <code class="tid">E10-27</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Staff and access — <code>/admin/people</code>.</strong> Registration is identical for everyone and back-office reach is a <code>permission_grant</code> row and nothing else (<code>D3</code>, <code>E02-07</code>) — right, and it left no screen able to answer &quot;who can do what?&quot;, so the answer lived in the database and onboarding a cook meant somebody with the database password. Lists every account that has signed in <strong>including those holding nothing</strong>, since that is the state everybody starts in and how you reach the person you are onboarding. Grants and revokes through the new <code>admin-grants</code> Edge Function: <code>permission_grant</code> has read policies and no write policy at all, deliberately, because a table that grants access must not be writable by the thing whose access it grants. Three rails, each verified against production: <strong>nobody edits their own access</strong> (not even the platform owner — an account that can widen itself makes every other check advisory), <strong>the <code>+parent@</code> customer persona is untouchable</strong>, and <strong>scope shape is enforced</strong> so a school-scoped grant can never silently mean every school. Revoking keeps the row with who and when. A disabled account still holding grants is called out — being disabled stops a sign-in, it does not remove reach</span>
+      </li>
+      <li class="task" data-id="E10-28" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-28"></button>
+        <code class="tid">E10-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>grants.manage</code> was missing from the nav&#39;s <code>Grant</code> union and from the platform-admin example.</strong> <code>/admin/people</code> required <code>users.manage</code>, which is disabling an account — a different job. Corrected to <code>grants.manage</code> + <code>users.view</code>, which is what the screen actually reads and writes. The example platform admin did not hold <code>grants.manage</code>, so the screen was invisible to a full admin — the same silent failure <code>SEEDED_PERMISSIONS</code> was added to catch, surfaced this time by <code>visibleNav</code>&#39;s count test</span>
       </li></ul>
       </details>
     </article>

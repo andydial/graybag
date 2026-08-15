@@ -1,0 +1,364 @@
+---
+/**
+ * Staff and access — `E10-27`.
+ *
+ * Registration is identical for everyone and back-office reach is a `permission_grant` row and
+ * nothing else (`D3`, `E02-07`). There is no role column anywhere. That is the right model, and
+ * it left one gap: **no screen could answer "who can do what?"** — so the answer lived in the
+ * database, and onboarding a cook meant somebody with the database password doing it by hand.
+ *
+ * ## Accounts with nothing are listed too
+ *
+ * That is how onboarding works: a new cook signs in once, the row is created (`0018`), and they
+ * appear here to be given access. A list filtered to privileged accounts would have no way to
+ * reach the person you are trying to onboard, which is the whole task.
+ *
+ * ## What this screen will not do
+ *
+ * It will not let you change your own access — not even for the platform owner. An account that
+ * can widen itself makes every other check advisory, and "I am the only operator" is exactly the
+ * argument that should not work here. Bootstrapping is `scripts/grant-operator.mjs`, which needs
+ * the database password: a meaningfully different act, performed by a human at a terminal.
+ *
+ * `?state=demo` renders fixtures, so `check:a11y` audits this rather than the sign-in redirect.
+ */
+import '../../styles/tokens.css';
+import '../../styles/site.css';
+import '../../styles/kitchen.css';
+import '../../styles/admin.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Staff and access — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
+          <h1 class="kitchen__title">Staff and access</h1>
+          <a class="kitchen__btn" href="/admin/schools">Schools</a>
+          <a class="kitchen__btn" href="/admin/menus">Dishes and menus</a>
+          <a class="kitchen__btn" href="/admin/config">Configuration</a>
+          <button id="a-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <main class="kitchen__wrap admin__wrap">
+        <div id="a-status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <p class="admin__intro">
+          Back-office access is a <b>grant</b>, never a role — there is no role column anywhere.
+          Somebody has to <b>sign in once</b> before they can be given anything; they appear here
+          the moment they do.
+        </p>
+
+        <div id="a-body"></div>
+      </main>
+    </div>
+
+    <script>
+      import { api } from '@graybag/shared';
+      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { PEOPLE_FIXTURE } from '../../lib/admin/people-fixture.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = { body: $('a-body'), status: $('a-status'), reload: $<HTMLButtonElement>('a-reload') };
+
+      const esc = (s: string) =>
+        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const demo = new URLSearchParams(location.search).has('state');
+
+      let accounts: api.AccessAccount[] = [];
+      let permissions: api.PermissionInfo[] = [];
+      let meId: string | null = null;
+      let loading = true;
+      let error: string | null = null;
+
+      async function load() {
+        loading = true; error = null; render();
+        try {
+          if (demo) {
+            accounts = PEOPLE_FIXTURE.accounts;
+            permissions = PEOPLE_FIXTURE.permissions;
+            meId = 'u-1';
+          } else {
+            configureBackofficeApi();
+            const [a, p, me] = await Promise.all([
+              api.fetchAccess(), api.fetchPermissions(), currentUser(),
+            ]);
+            accounts = a;
+            permissions = p;
+            // Needed to disable your own controls before the server refuses them. The server is
+            // still the authority — this only avoids offering an action that cannot succeed.
+            meId = me?.id ?? null;
+          }
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The access list did not load.';
+          accounts = []; permissions = [];
+        } finally {
+          loading = false; render();
+        }
+      }
+
+      const scopeLabel = (g: api.HeldGrant) =>
+        g.scopeId ? `${g.scopeType} · ${g.scopeId.slice(0, 8)}` : g.scopeType;
+
+      function accountRow(a: api.AccessAccount): string {
+        const isMe = a.userId === meId;
+        const sensitive = a.held.filter((g) => g.isSensitive).length;
+
+        const marks: string[] = [];
+        // A disabled account that still holds access. The combination is easy to miss and is
+        // precisely what somebody auditing access is looking for — being disabled stops a sign-in,
+        // it does not remove reach, and re-enabling restores everything silently.
+        if (a.isDisabled && a.held.length > 0) {
+          marks.push(`Account disabled, but still holds ${a.held.length} ` +
+            `permission${a.held.length === 1 ? '' : 's'} — re-enabling restores all of them`);
+        }
+
+        return (
+          `<div class="srow${marks.length ? ' srow--hidden' : ''}">` +
+            `<div class="srow__main">` +
+              `<p class="srow__name">${esc(a.email)}` +
+                (isMe ? ' <span class="admin__tag">you</span>' : '') +
+                (a.isDisabled ? ' <span class="admin__tag">disabled</span>' : '') +
+              `</p>` +
+              `<p class="srow__meta">` +
+                (a.displayName ? `${esc(a.displayName)} · ` : '') +
+                (a.held.length === 0
+                  ? '<b>No access</b> — signed in, holds nothing'
+                  : `${a.held.length} permission${a.held.length === 1 ? '' : 's'}` +
+                    (sensitive > 0 ? `, ${sensitive} sensitive` : '')) +
+              `</p>` +
+              marks.map((m) => `<p class="srow__why">${esc(m)}</p>`).join('') +
+
+              (a.held.length > 0
+                ? `<ul class="admin__plain">` +
+                    a.held.map((g) =>
+                      `<li>` +
+                        `<b>${esc(g.displayName)}</b> <code>${esc(g.permissionCode)}</code> ` +
+                        `at ${esc(scopeLabel(g))}` +
+                        (g.isSensitive ? ' <span class="admin__tag">sensitive</span>' : '') +
+                        (g.grantedByEmail ? ` · by ${esc(g.grantedByEmail)}` : '') +
+                        (isMe
+                          // No Revoke button, and no per-line explanation either. Not offered
+                          // rather than offered-and-refused, because a button that always fails
+                          // teaches people to ignore failures — but the reason is said once,
+                          // below the list, not thirty-one times down the side of it.
+                          ? ''
+                          : ` <button class="kitchen__btn kitchen__btn--small" type="button" ` +
+                            `data-revoke="${esc(g.grantId)}" ` +
+                            `data-what="${esc(g.displayName)}" data-who="${esc(a.email)}">Revoke</button>`) +
+                      `</li>`,
+                    ).join('') +
+                  `</ul>`
+                : '') +
+
+              (isMe
+                ? `<p class="admin__hint">Your own access is managed with ` +
+                  `<code>scripts/grant-operator.mjs</code>, which needs the database password. ` +
+                  `An account that can widen itself makes every other check advisory.</p>`
+                : grantForm(a)) +
+            `</div>` +
+          `</div>`
+        );
+      }
+
+      /**
+       * The customer persona. `authorization.test.sql` proves parent RLS restricts by asserting
+       * this account holds nothing, so the server refuses to grant it anything — and the form is
+       * not offered, for the same reason the Revoke button is not offered on your own grants.
+       * Matched on the tag rather than a literal address because `docs/environments.md` tells
+       * people to recreate it on an inbox they know receives.
+       */
+      const PROTECTED_ACCOUNT = /\+parent@/i;
+
+      function grantForm(a: api.AccessAccount): string {
+        if (PROTECTED_ACCOUNT.test(a.email)) {
+          return (
+            `<p class="admin__hint">` +
+              `<b>Deliberately holds nothing.</b> This is the customer persona — it is what proves ` +
+              `parent access is actually restricted, and <code>authorization.test.sql</code> fails ` +
+              `if it acquires a grant. Give it one and both the proof and the test guarding the ` +
+              `proof break in the same moment. The server refuses, so there is no form here.` +
+            `</p>`
+          );
+        }
+
+        const held = new Set(a.held.map((g) => `${g.permissionCode}@${g.scopeType}`));
+        const byCategory = new Map<string, api.PermissionInfo[]>();
+        for (const p of permissions) {
+          if (!byCategory.has(p.category)) byCategory.set(p.category, []);
+          byCategory.get(p.category)!.push(p);
+        }
+
+        return (
+          `<details class="setting__edit">` +
+            `<summary>Grant something to ${esc(a.email)}</summary>` +
+            `<form data-grant="${esc(a.userId)}">` +
+              `<div class="admin__field">` +
+                `<label class="admin__label" for="perm-${esc(a.userId)}">Permission</label>` +
+                `<select class="admin__select" id="perm-${esc(a.userId)}" name="permissionCode" required>` +
+                  [...byCategory.entries()].map(([category, list]) =>
+                    `<optgroup label="${esc(category)}">` +
+                      list.map((p) =>
+                        `<option value="${esc(p.code)}" data-scopes="${esc(p.validScopeTypes.join(','))}">` +
+                        `${esc(p.displayName)}${p.isSensitive ? ' (sensitive)' : ''}</option>`,
+                      ).join('') +
+                    `</optgroup>`,
+                  ).join('') +
+                `</select>` +
+              `</div>` +
+              `<div class="admin__field">` +
+                `<label class="admin__label" for="scope-${esc(a.userId)}">Scope</label>` +
+                `<select class="admin__select" id="scope-${esc(a.userId)}" name="scopeType" required>` +
+                  ['platform', 'city', 'kitchen', 'school'].map((s) =>
+                    `<option value="${esc(s)}">${esc(s)}</option>`).join('') +
+                `</select>` +
+                `<p class="admin__hint">` +
+                  `<b>platform</b> means everywhere. Anything narrower needs the id of the ` +
+                  `city, kitchen or school below — a narrow scope with no id would silently ` +
+                  `mean <b>all</b> of them, so the server refuses it.` +
+                `</p>` +
+              `</div>` +
+              `<div class="admin__field">` +
+                `<label class="admin__label" for="sid-${esc(a.userId)}">Scope id</label>` +
+                `<input class="admin__input" id="sid-${esc(a.userId)}" name="scopeId" type="text" ` +
+                  `placeholder="leave empty for platform" />` +
+              `</div>` +
+              (held.size > 0
+                ? `<p class="admin__hint">Already held: ${[...held].map((h) => `<code>${esc(h)}</code>`).join(' ')}</p>`
+                : '') +
+              `<div class="setting__actions">` +
+                `<button class="kitchen__btn kitchen__btn--primary" type="submit">Grant</button>` +
+              `</div>` +
+            `</form>` +
+          `</details>`
+        );
+      }
+
+      function render() {
+        if (loading) {
+          el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
+          return;
+        }
+        if (error) {
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>We can't show access</h2><p>${esc(error)}</p>` +
+            `<p>This screen needs <b>grants.manage</b> and <b>users.view</b>.</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+
+        const withAccess = accounts.filter((a) => a.held.length > 0);
+        el.status.textContent =
+          `${accounts.length} account${accounts.length === 1 ? '' : 's'}, ` +
+          `${withAccess.length} with back-office access.`;
+
+        el.body.innerHTML =
+          `<section class="admin__section" aria-labelledby="access-h">` +
+            `<h2 id="access-h">Everyone who has signed in</h2>` +
+            `<p class="admin__section-note">` +
+              `${accounts.length} account${accounts.length === 1 ? '' : 's'}, ` +
+              `<b>${withAccess.length}</b> with back-office access. Accounts holding nothing are ` +
+              `listed too — that is the state everybody starts in, and it is how you reach ` +
+              `somebody to onboard them.` +
+            `</p>` +
+            accounts.map(accountRow).join('') +
+          `</section>` +
+
+          `<p class="kitchen__oneway kitchen__oneway--block">` +
+            `Revoking is <b>not</b> a delete — the row is kept with who revoked it and when, so ` +
+            `access history survives. Granting and revoking both need <b>grants.manage</b> at ` +
+            `platform scope.` +
+          `</p>`;
+      }
+
+      function showFormError(form: HTMLFormElement, message: string) {
+        let box = form.querySelector('[data-err]') as HTMLElement | null;
+        if (!box) {
+          box = document.createElement('p');
+          box.setAttribute('data-err', '');
+          box.setAttribute('role', 'alert');
+          box.className = 'admin__error';
+          form.append(box);
+        }
+        box.textContent = message;
+      }
+
+      async function grant(form: HTMLFormElement) {
+        if (demo) {
+          showFormError(form, 'This is the demo view — nothing is written. Sign in to make a change.');
+          return;
+        }
+        const data = new FormData(form);
+        const scopeType = String(data.get('scopeType') ?? 'platform');
+        const rawScopeId = String(data.get('scopeId') ?? '').trim();
+        try {
+          await api.grantPermission({
+            userId: form.dataset.grant!,
+            permissionCode: String(data.get('permissionCode') ?? ''),
+            scopeType,
+            // Empty means null, and the server enforces the biconditional: platform must have no
+            // scope id, anything else must have one.
+            scopeId: rawScopeId === '' ? null : rawScopeId,
+          });
+          el.status.textContent = 'Granted.';
+          await load();
+        } catch (cause) {
+          showFormError(form, cause instanceof Error ? cause.message : 'The grant was not made.');
+        }
+      }
+
+      async function revoke(button: HTMLElement) {
+        const what = button.dataset.what ?? 'this permission';
+        const who = button.dataset.who ?? 'this account';
+        // Confirmed because it takes effect immediately and silently for the person holding it —
+        // their next action simply fails.
+        if (!confirm(`Revoke "${what}" from ${who}?\n\nIt stops working immediately.`)) return;
+        if (demo) { el.status.textContent = 'This is the demo view — nothing is written.'; return; }
+        try {
+          await api.revokePermission(button.dataset.revoke!, 'revoked from /admin/people');
+          el.status.textContent = `Revoked ${what} from ${who}.`;
+          await load();
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The revoke did not happen.';
+          render();
+        }
+      }
+
+      el.body.addEventListener('submit', (event) => {
+        const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;
+        if (!form?.dataset.grant) return;
+        event.preventDefault();
+        void grant(form);
+      });
+      el.body.addEventListener('click', (event) => {
+        const t = event.target as HTMLElement;
+        if (t.closest('[data-retry]')) { void load(); return; }
+        const r = t.closest('[data-revoke]') as HTMLElement | null;
+        if (r) void revoke(r);
+      });
+      el.reload.addEventListener('click', () => void load());
+
+      void (async () => {
+        try {
+          if (!demo && !(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent('/admin/people')}`);
+            return;
+          }
+        } catch { /* an unconfigured build falls through to the error state */ }
+        await load();
+      })();
+    </script>
+  </body>
+</html>

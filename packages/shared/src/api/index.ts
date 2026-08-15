@@ -276,3 +276,22 @@ export {
   skipNamePrompt,
   type Profile,
 } from './profile.js';
+
+// Who holds what back-office access (`E10-27`). Registration is identical for everyone and reach
+// is a `permission_grant` row and nothing else (`D3`) — which is right, and left no screen able to
+// answer "who can do what?". Writes go through `admin-grants`, because `permission_grant` has no
+// write policy at all and must not have one.
+export {
+  ACCESS_GRANT_COLUMNS,
+  ACCESS_USER_COLUMNS,
+  AdminAccessError,
+  PERMISSION_COLUMNS,
+  fetchAccess,
+  fetchPermissions,
+  grantPermission,
+  revokePermission,
+  type AccessAccount,
+  type GrantRequest,
+  type HeldGrant,
+  type PermissionInfo,
+} from './admin-grants.js';
