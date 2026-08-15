@@ -137,3 +137,56 @@ One thing that cost twenty minutes and is worth writing down: the board has a **
 window**. A click queues the change and flushes when the window closes, so reading the database six
 seconds later shows the old status and looks exactly like a broken button. It was working the whole
 time.
+
+---
+
+## D-17G — egg, peanut and sesame added; and why egg needed adding twice over
+
+`0064`. `0063` seeded the four codes that happened to be sitting in `supabase/seed.sql` — a list a
+fixture carried, not one anybody chose.
+
+**Egg is the one that mattered.** Nine production dishes visibly contain egg and there was no code
+to tag them with: `admin-dish` would have refused `egg` as unknown, correctly and uselessly.
+
+`dish.food_type = 'egg'` and `allergen.code = 'egg'` are **different facts and both are needed**:
+
+- `food_type` is a dietary classification of the whole dish — the thing an Indian menu filters on,
+  read by a family deciding whether the dish is for them at all;
+- `allergen` is a safety fact about an ingredient, and the half a specific child's record is
+  matched against.
+
+A cake made with egg is `food_type: 'veg'` and carries the egg allergen. Collapsing the two would
+mean either mislabelling cakes as egg dishes or leaving egg-allergic children nothing to match on.
+
+**Peanut is its own code, not a kind of tree nut.** A peanut is a legume; a great many people are
+allergic to one and not the other. `tree_nut` on a groundnut sauce tells a peanut-allergic family
+nothing while alarming a family that only avoids cashews.
+
+### The bug adding egg exposed
+
+The guesser matched **substrings**, and `"veggies"` contains `"egg"`. Every vegetable dish in the
+catalogue would have been suggested as containing egg — on the screen whose entire job is to be
+trusted about allergens. A test caught it; a menu would not have. Short and collision-prone words
+now match whole-word only, and `nut` is cancelled on "peanut"/"groundnut".
+
+---
+
+## D-17H — allergens: the data is v1, the matching is not
+
+Andy's correction. The scope doc read "allergen blocking warnings (tags still import)", which was
+being read as *allergens are deferred*. The split is:
+
+**In v1** — a parent recording their child's allergies (`E05-01`), the kitchen tagging dishes
+(`E10-33`), and the kitchen *seeing* those allergens on the board and the packing sheet (`E09-33`).
+`E09-33` and `E10-33` were added to the MVP list on this instruction; both markdown tags and
+`check-mvp.mjs` updated together, since the script asserts the two agree and rewrites neither.
+
+**Fast-follow** — the automatic match: the cart warning, the menu filter, the blocking
+(`E05-25`, `E05-31`).
+
+`check:launch` said an untagged dish means "a menu shows no warning", which implied the automatic
+warning exists. Reworded, and the reasoning inverted to the one that actually holds: **because the
+matching is deferred, the tags are the entire mechanism.** A kitchen hand reads the badge and acts
+on it — that is a person doing the matching, and on day one it is the only thing doing it. That
+makes an untagged dish a bigger problem in v1 than it would be with matching switched on, not a
+smaller one.

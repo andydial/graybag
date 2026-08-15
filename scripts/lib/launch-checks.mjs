@@ -62,9 +62,13 @@ export function findings(s) {
   //     none, declared_none = false      NOBODY HAS LOOKED
   //
   // The third state is what every production dish is in, and on a menu it renders exactly like the
-  // second: a parent reads "no allergens" and is reassured by an absence that means nothing. A
-  // blocker for the same reason `food_type` is one — it does not stop an order being placed, it
-  // makes the order WRONG, and in the way that matters most on a children's food product.
+  // second: a parent reads "no allergens" and is reassured by an absence that means nothing.
+  //
+  // **The automatic match is deferred, and that is exactly why this is a blocker.** v1 does not
+  // warn a parent when their child's allergen meets a dish's (`E05-25`, `E05-31` are fast-follow);
+  // what v1 does is put the child's allergens in front of the person handing the bag over
+  // (`E09-33`). That only works if the dishes are tagged. With the matching deferred, the tags are
+  // not a convenience feature whose absence degrades a warning — they are the whole mechanism.
   const tagged = new Set((s.dishAllergens ?? []).map((t) => t.dishId));
   const declared = new Set(s.declaredNone ?? []);
   const unchecked = s.dishes.filter((d) => d.isActive && !tagged.has(d.id) && !declared.has(d.id));
@@ -75,8 +79,10 @@ export function findings(s) {
       level: live.length > 0 ? BLOCKER : WARNING,
       title: `${plural(unchecked.length, 'dish', 'dishes')} nobody has checked for allergens`,
       detail:
-        `Neither tagged nor declared to contain none — which the app treats as unknown, and a ` +
-        `menu shows as no warning. ` +
+        `Neither tagged nor declared to contain none, which the app treats as unknown. ` +
+        `v1 does not match a child's allergens against a dish automatically — the kitchen reads ` +
+        `the child's allergens off the board and the packing sheet and acts on them, so the tags ` +
+        `ARE the mechanism, not a nicety on top of one. ` +
         (live.length > 0
           ? `${plural(live.length, 'is', 'are')} on a live menu right now.`
           : 'None is on a live menu yet.'),

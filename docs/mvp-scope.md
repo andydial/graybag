@@ -86,13 +86,37 @@ Parity cannot mean parity with today's mistakes.
 
 Push notifications · school monthly PDF reports · revenue-share and payout reports (stays a
 spreadsheet) · kitchen production and packing aggregates · 4-digit pickup codes · wallet
-balance and refund-to-wallet · allergen blocking warnings (tags still import) · offline
+balance and refund-to-wallet · **allergen matching** — see the note below · offline
 reads · load testing, product analytics, cost monitoring · audit log, metrics dashboard,
 view-as-user · automated retention purge, erasure pipeline, breach runbook, DSR alerting ·
 Chandigarh and Panchkula (IGST) · phone OTP · SEO polish and Lighthouse budgets · subscriptions,
 cash top-up, capacity limits, delivery role, WhatsApp.
 
 Nothing is deleted. It is all still in `planning/backlog/`, just untagged.
+
+### Allergens: the data is in v1, the matching is not
+
+Andy, 2026-08-17, correcting an earlier blanket deferral. The line above used to read "allergen
+blocking warnings (tags still import)", which was read as *allergens are deferred*. They are not.
+The split is:
+
+| | v1 | |
+|---|---|---|
+| A parent records their child's allergies | **yes** | `E05-01`, already tagged |
+| The kitchen tags which dishes contain what | **yes** | `E10-33` — `/admin/allergens` |
+| The kitchen sees a child's allergens on the board and the packing sheet | **yes** | `E09-33` |
+| The app **automatically warns or filters** when a child's allergen matches a dish's | no | `E05-25`, `E05-31` |
+
+**The data must be capturable and visible in v1.** What is deferred is only the automatic match —
+the cart warning, the menu filter, the blocking. A kitchen hand reads the badge on the packing
+sheet and acts on it; that is a person doing the matching, and on day one that is the mechanism.
+
+The distinction matters because the two are separately dangerous. Deferring the *warning* means a
+parent is not told automatically. Deferring the *data* would mean nobody could be told at all,
+ever, including the person handing the bag over — and it would leave `dish_allergen` empty, which
+every screen renders as "contains nothing" rather than as "nobody has checked" (`MI1`, `0006`).
+
+`E09-33` and `E10-33` were added to the MVP list on this instruction.
 
 ## The one number the task count hides
 

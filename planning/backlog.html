@@ -2504,7 +2504,7 @@
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Audit every allergen surface against a null child — dish card flag, dish detail, cart line. A warning naming a child must be impossible to render when no child is selected (ux-spec §5.6)</span>
+        <span class="ttext"><strong>Fast-follow, not v1</strong> (scope confirmed 2026-08-17 — the automatic match is deferred; capture and kitchen visibility are not). Audit every allergen surface against a null child — dish card flag, dish detail, cart line. A warning naming a child must be impossible to render when no child is selected (ux-spec §5.6)</span>
       </li>
       <li class="task" data-id="E05-26" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-26"></button>
@@ -4040,13 +4040,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>No Edge Function handled a CORS preflight</strong>, so every one of them was correct for the app and unreachable from any web page. React Native&#39;s <code>fetch</code> sends no <code>OPTIONS</code>, which is why nothing failed and nothing was logged for months. A <code>POST</code> with <code>content-type: application/json</code> and an <code>Authorization</code> header is not a simple request, so a browser sends <code>OPTIONS</code> first — and <code>OPTIONS</code> was answered <code>405</code>. Found by the web thread on the back office&#39;s first real click. Fixed once in <code>_shared/cors.ts</code> for all six browser-callable functions rather than six times as six bugs; <code>payments-webhook</code> is deliberately excluded and the exclusion is asserted, because Razorpay calls it server to server and advertising a preflight would describe a browser surface that should not exist. 20 assertions, including one that fails when a seventh function appears unclassified</span>
       </li>
-      <li class="task" data-id="E09-33" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+      <li class="task" data-id="E09-33" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-33"></button>
         <code class="tid">E09-33</code>
-        <span class="badge r-high">high</span>
         
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Kitchen-visible allergy flags.</strong> Staff hand a physical bag to a named child and were previously told nothing; Andy accepted the privacy cost deliberately (2026-08-14), with the constraints as part of the requirement rather than advice. <strong>Structured data only</strong> — the enumerated <code>allergen</code> table, badged beside the child&#39;s name as <code>MILK</code>, <code>TREE NUT</code>. No parent note, no severity, no medical detail, and codes are shortened but never renamed: mapping <code>tree_nut</code> onto &quot;NUT&quot; would create a second vocabulary to keep in step with the first. <strong>A child with no record renders &quot;No allergies provided&quot;, never blank</strong> (§5.21) — and &quot;not readable&quot; renders the same, because both mean &quot;you have not been told&quot; and a permissions failure must not look like a clean bill of health. <code>allergenWarning</code>&#39;s <code>warn: &#39;unknown&#39;</code> is untouched. <strong>No migration was needed</strong>: <code>recipient_allergen_read_fulfilment</code> already required <code>orders.view_pii</code> at the order&#39;s own school or its kitchen. Four constraints tested in <code>allergen-handling.test.ts</code> (never logged, never exported or in a URL, not persisted client-side) and the scoping proved in <code>supabase/tests/kitchen_allergen_flags.test.sql</code> <strong>through an authenticated client</strong>, asserting the harness first so a deny cannot pass for the wrong reason. The terms&#39; allergy clause is updated in the same change, because it said the kitchen sees nothing and that became false</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">(risk:high) <strong>Kitchen-visible allergy flags.</strong> Staff hand a physical bag to a named child and were previously told nothing; Andy accepted the privacy cost deliberately (2026-08-14), with the constraints as part of the requirement rather than advice. <strong>Structured data only</strong> — the enumerated <code>allergen</code> table, badged beside the child&#39;s name as <code>MILK</code>, <code>TREE NUT</code>. No parent note, no severity, no medical detail, and codes are shortened but never renamed: mapping <code>tree_nut</code> onto &quot;NUT&quot; would create a second vocabulary to keep in step with the first. <strong>A child with no record renders &quot;No allergies provided&quot;, never blank</strong> (§5.21) — and &quot;not readable&quot; renders the same, because both mean &quot;you have not been told&quot; and a permissions failure must not look like a clean bill of health. <code>allergenWarning</code>&#39;s <code>warn: &#39;unknown&#39;</code> is untouched. <strong>No migration was needed</strong>: <code>recipient_allergen_read_fulfilment</code> already required <code>orders.view_pii</code> at the order&#39;s own school or its kitchen. Four constraints tested in <code>allergen-handling.test.ts</code> (never logged, never exported or in a URL, not persisted client-side) and the scoping proved in <code>supabase/tests/kitchen_allergen_flags.test.sql</code> <strong>through an authenticated client</strong>, asserting the harness first so a deny cannot pass for the wrong reason. The terms&#39; allergy clause is updated in the same change, because it said the kitchen sees nothing and that became false</span>
       </li>
       <li class="task" data-id="E09-34" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-34"></button>
@@ -4083,13 +4083,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/35</span>
+          <span class="meter-num">0/37</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 35 tasks</summary>
+        <summary>Context &amp; 37 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4340,12 +4340,12 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Service days Mon–Sat, and 79 food types proposed without being written.</strong> Andy&#39;s decision applied through <code>admin-school</code> as his own session so the config audit trigger has an actor. <code>scripts/propose-food-types.mjs</code> proposes and writes nothing: 37 confident veg, 9 egg, 22 veg-worth-a-glance, 11 with <strong>no proposal at all</strong> because they have no ingredient list and the name alone is not evidence. The CSV carries only name, kitchen, category and food_type, so applying it cannot change anything else — dry run confirms 68 changes, every one <code>changing: foodType</code></span>
       </li>
-      <li class="task" data-id="E10-33" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+      <li class="task" data-id="E10-33" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-33"></button>
         <code class="tid">E10-33</code>
         
         
-        <span class="badge r-later">later</span>
+        <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Allergen tagging — <code>/admin/allergens</code>, suggestions only.</strong> Every production dish is in <code>MI1</code>&#39;s third state (no tags, no declaration), which the app must warn about and which reads to a parent as &quot;contains nothing&quot;. Suggestions come from ingredient keywords, are <strong>never pre-applied</strong>, are drawn dashed with their evidence, and nothing is written until Save with a confirmation naming how many dishes will be tagged and how many recorded as containing none. <code>admin-dish</code> gained a bulk <code>dishAllergens</code> path and <code>allergensDeclaredNone</code>; it refuses tags and declaredNone together, refuses unknown codes, and is all-or-nothing — on this table a partial write is worse than a failure because the half that succeeded looks complete</span>
       </li>
       <li class="task" data-id="E10-30" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
@@ -4371,6 +4371,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>check:launch</code> now reports dishes nobody has checked for allergens.</strong> It knew the vocabulary existed and stopped there, so 79 dishes in <code>MI1</code>&#39;s unknown state — which a menu renders as no warning at all — were invisible to it. A blocker for the same reason <code>food_type</code> is: it does not stop an order being placed, it makes the order wrong. Reported first, and suppressed entirely when the vocabulary is empty, so the report never says &quot;tag your dishes&quot; while tagging is impossible</span>
+      </li>
+      <li class="task" data-id="E10-37" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-37"></button>
+        <code class="tid">E10-37</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Egg, peanut and sesame added to the allergen vocabulary.</strong> <code>0063</code> seeded the four codes that happened to be sitting in <code>supabase/seed.sql</code> — a list a fixture carried, not one anybody chose. <strong>Egg</strong> is the serious omission: nine production dishes visibly contain egg and there was no code to tag them with, so <code>admin-dish</code> would have refused <code>egg</code> as unknown — correctly, and uselessly. <strong><code>food_type = &#39;egg&#39;</code> and <code>allergen = &#39;egg&#39;</code> are different facts and both are needed</strong>: one is a dietary classification of the whole dish that an Indian menu filters on, the other is a safety fact about an ingredient that a specific child&#39;s record is matched against. A cake made with egg is <code>food_type: &#39;veg&#39;</code> and carries the egg allergen. <strong>Peanut is its own code, never folded into tree nut</strong> — a peanut is a legume, and tagging a peanut dish <code>tree_nut</code> tells a peanut-allergic family nothing while alarming one that only avoids cashews. Applied to production with in-transaction proof and idempotence; tags no dish</span>
+      </li>
+      <li class="task" data-id="E10-38" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-38"></button>
+        <code class="tid">E10-38</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The allergen guesser matched substrings, and &quot;veggies&quot; contains &quot;egg&quot;.</strong> Adding the <code>egg</code> code exposed it: every vegetable dish in the catalogue would have been suggested as containing egg, on the screen whose entire job is to be trusted about allergens. Short and collision-prone words now match whole-word only, and <code>nut</code> is cancelled on &quot;peanut&quot;/&quot;groundnut&quot; so a groundnut sauce is not tagged as a tree nut. Both found by tests, neither would have been visible on the screen</span>
       </li></ul>
       </details>
     </article>
@@ -5284,7 +5300,7 @@
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
-        <span class="ttext">(risk:high) <strong>Production has no allergen data at all — zero rows in <code>allergen</code>, zero in <code>dish_allergen</code>.</strong> Found on production 2026-08-15. The reference table is empty, so there is nothing to tag dishes with and nothing for the allergen watchlist to match against; every dish therefore renders with no allergen information, which reads as *&quot;contains nothing&quot;*. This is the same shape as <code>E16-52</code> (no <code>food_type</code> on any of 79 dishes) and the same reason: <code>catalogue.sql</code> will not invent it. It is a validation only the kitchen can supply — which allergens are declared, and which dishes contain them. Non-negotiable #4 makes this the highest-consequence data gap of the three, because the failure mode is a child eating something they are allergic to rather than a complaint. The app-side machinery is built and tested (<code>useAllergenWatchlist</code>, the cart warnings wired in <code>E05-45</code>); it has nothing to work with</span>
+        <span class="ttext">(risk:high) <strong>Production has no allergen data at all — zero rows in <code>allergen</code>, zero in <code>dish_allergen</code>.</strong> Found on production 2026-08-15. The reference table is empty, so there is nothing to tag dishes with and nothing for the allergen watchlist to match against; every dish therefore renders with no allergen information, which reads as *&quot;contains nothing&quot;*. This is the same shape as <code>E16-52</code> (no <code>food_type</code> on any of 79 dishes) and the same reason: <code>catalogue.sql</code> will not invent it. It is a validation only the kitchen can supply — which allergens are declared, and which dishes contain them. Non-negotiable #4 makes this the highest-consequence data gap of the three, because the failure mode is a child eating something they are allergic to rather than a complaint. The app-side machinery is built and tested (<code>useAllergenWatchlist</code>, the cart warnings wired in <code>E05-45</code>); it has nothing to work with. <strong>Scope, corrected 2026-08-17:</strong> the automatic match is fast-follow (<code>E05-25</code>, <code>E05-31</code>) but the *data* is v1 — a parent recording allergies (<code>E05-01</code>), the kitchen tagging dishes (<code>E10-33</code>) and the kitchen seeing the child&#39;s allergens on the board and packing sheet (<code>E09-33</code>). With the matching deferred the tags are the entire mechanism, not a nicety on top of one, so this gap is worse in v1 than it would be with matching switched on</span>
       </li></ul>
       </details>
     </article>
