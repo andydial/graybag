@@ -27,7 +27,7 @@
 -- The grants below are test fixtures inside a transaction that ends in `rollback`. Nothing here
 -- changes who can do what in any real environment.
 --
---   psql -f this file    (any database with 0001..0056 applied)
+--   psql -f this file    (any database with 0001..0058 applied)
 -- =============================================================================
 begin;
 

@@ -12,14 +12,16 @@
   "gstin": "03AAMCG3438M1ZD",
   "sacCode": null,
   "signatureTreatment": null,
-  "supportEmail": "info@graybag.com",
+  "supportEmail": "support@graybag.com",
   "jurisdictionCity": "SAS Nagar (Mohali), India",
   "grievanceOfficer": {
-    "name": "Vivek",
-    "title": "Grievance Officer, GrayBag",
-    "email": "vivek@graybag.com",
-    "address": null
+    "name": null,
+    "title": "Grievance Officer, GrayBag Solutions Private Limited",
+    "email": "support@graybag.com",
+    "address": null,
+    "_comment": "name is deliberately NULL and title names the OFFICE, not a person. Andy, 2026-08-15: no individual's name in the app, and every route to a person goes to support@graybag.com. Privacy notice version 3 publishes exactly this. It previously read Vivek / vivek@graybag.com, and leaving that here would have been a second source of truth that reintroduces the name the first time anybody wires the grievance block from this file. WHETHER DPDP REQUIRES A NATURAL PERSON IS OPEN and is E20-52 / E20-01 — if the lawyer says it does, a name comes back here and in notice version 4."
   },
   "_effectiveDates": "Fixed, never computed. An effective date that moves with each build is not an effective date.",
-  "termsEffectiveDate": "2026-08-14"
+  "termsEffectiveDate": "2026-08-14",
+  "_supportEmailComment": "Was info@graybag.com. The app routes every support and grievance action to support@graybag.com (E20-51), and the published privacy notice says the same, so this is the third place that had to agree. info@graybag.com still appears in privacy policy §7 and §8, which are LAWYER-APPROVED BASELINE TEXT and are not edited here — changing them is a notice version and belongs with E20-01."
 }

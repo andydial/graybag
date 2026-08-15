@@ -4,14 +4,15 @@
 -- are deliberately dropped: survey questions answered by nobody in a hurry, and a longer form on
 -- a patchy connection converts worse.
 --
--- **Renumbered 0050 -> 0052 -> 0055.** Twice, both times on 2026-08-15, both times because the
+-- **Renumbered 0050 -> 0052 -> 0055 -> 0057.** Three times, all on 2026-08-15, every time because the
 -- payments thread merged something to `main` while this branch was in flight. `main` took 0050
 -- (`one_confirmation_email`) and 0051 (`post_ledger_transaction_safeupdate`) in the first round,
 -- then 0052 (`order_cancellation_window`), 0053 (`cancel_order`) and 0054 (`record_refund`) in the
--- second. Exactly as `check-migrations` predicted: versions are permanent and unique, and
--- whichever branch merges second renumbers.
+-- second, then 0055 (`minimum_app_version`) and 0056 (`ops_alert`) in the third. Exactly as
+-- `check-migrations` predicted: versions are permanent and unique, and whichever branch merges
+-- second renumbers.
 --
--- Twice is the point, not the accident. A long-lived branch holding an unmerged migration pays
+-- Three times is the point, not the accident. A long-lived branch holding an unmerged migration pays
 -- this every time the other thread merges, and the cost is paid by whoever rebases — which is why
 -- `CLAUDE.md` says no branch runs more than a day.
 --
@@ -22,7 +23,7 @@
 --
 -- **Staging already has this table**, applied by hand as 0050 on 2026-08-14. Whoever runs
 -- `supabase db push` against staging will need `supabase migration repair` for the old version
--- before 0055 applies cleanly. See `docs/handover-web.md`.
+-- before 0057 applies cleanly. See `docs/handover-web.md`.
 
 create type enquiry_role as enum (
   'principal',

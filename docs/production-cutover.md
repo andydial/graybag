@@ -114,7 +114,7 @@ import has not happened yet.
   DNS cutover (`E12-10`), **not** the production database cutover. They are different events and
   the marketing pages are not cleared to publish.
 - **Staging's migration drift.** `docs/handover-web.md` §3: the enquiry table was applied to
-  staging by hand as `0050` and is committed as `0055`, so a `supabase db push` against staging
+  staging by hand as `0050` and is committed as `0057`, so a `supabase db push` against staging
   needs `supabase migration repair` first. Production has no such history and should take the
   migrations cleanly — but check `supabase_migrations.schema_migrations` before assuming it.
 
@@ -123,12 +123,12 @@ import has not happened yet.
 ## The order this has to happen in
 
 1. Payments thread stands up the production project and writes `~/.graybag-secrets/prod.env`.
-2. Migrations `0001`–`0056` applied to production.
+2. Migrations `0001`–`0058` applied to production.
 3. **`tools/bulk-import` run against production** — schools, dishes, menus. Dry run first;
    `docs/import-format.md`. This is the 17th.
 4. Netlify environment variables set, production context only.
 5. A build promoted with `[promote]`.
 6. Sign in and check `/admin/schools` lists what was imported.
 
-Steps 2 and 3 must not be swapped: the importer reads `school_config.service_days`, which `0056`
+Steps 2 and 3 must not be swapped: the importer reads `school_config.service_days`, which `0058`
 adds, and fails with a PostgREST "column does not exist" if the migrations are behind.

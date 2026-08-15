@@ -15,7 +15,7 @@
 -- precedence backwards tells a parent "you have missed it" about a day that was never open,
 -- which reads as "order earlier next Saturday" — advice that will fail again.
 --
---   psql -f this file    (any database with 0001..0056 applied)
+--   psql -f this file    (any database with 0001..0058 applied)
 -- =============================================================================
 begin;
 
@@ -56,7 +56,7 @@ insert into school (id, code, name, city_id, kitchen_id, onboarded_at) values
 -- 1. Inheritance
 -- -----------------------------------------------------------------------------
 
--- Nothing overridden anywhere: the platform default, which 0056 sets to all seven days
+-- Nothing overridden anywhere: the platform default, which 0058 sets to all seven days
 -- precisely so that applying it changes nothing.
 select is(
   (select service_days from resolve_effective_config('5d000000-7e57-0000-0000-00000000000a')),
@@ -196,7 +196,7 @@ select is(
   'not_a_service_day beats cutoff_passed on a past Saturday — the permanent reason wins'
 );
 
--- A school on the platform default is unaffected, which is the property that makes 0056
+-- A school on the platform default is unaffected, which is the property that makes 0058
 -- safe to apply to a live database mid-week.
 select is(
   (select count(*) from orderable_calendar('5d000000-7e57-0000-0000-00000000000b',

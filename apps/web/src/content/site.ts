@@ -12,6 +12,8 @@
  * trust it.
  */
 
+import { legal } from '@graybag/shared';
+
 export const SITE = {
   name: 'GrayBag',
   url: 'https://graybag.com',
@@ -403,47 +405,50 @@ export const FOOTER = {
   /**
    * The DPDP grievance officer contact (`E20-07`), required by law to be published.
    *
-   * ## The name is here, and here only
+   * ## This names the OFFICE, not a person — and that reverses an instruction
    *
-   * Andy, 2026-08-15: **Vivek's name stays in the website footer only. Everywhere else — the
-   * app-adjacent pages, the order and support copy — routes to `support@graybag.com`.**
+   * Andy, 2026-08-15, told the web thread: *"Vivek's name stays in the website footer only."* The
+   * name was added here on that instruction. **It has been taken out again**, because while this
+   * branch was in flight `main` published **privacy notice version 3**, which changed §7A to
+   * `Grievance Officer, GrayBag Solutions Private Limited, support@graybag.com` — no individual —
+   * on Andy's direct ruling (`E20-53` on `main`). `docs/legal/company.json` now holds
+   * `grievanceOfficer.name: null` with a comment saying that leaving a name there would be *"a
+   * second source of truth that reintroduces the name the first time anybody wires the grievance
+   * block from this file"*.
    *
-   * The split is not inconsistency, it is the two requirements pulling in opposite directions.
-   * The DPDP Act requires a Data Fiduciary to *publish* the contact details of a named person
-   * who answers data complaints, and this footer is the published surface — `E20-52` records
-   * that notice version 2 added the name **specifically because** a general `info@` alias does
-   * not satisfy a named-officer requirement.
+   * That is exactly what this footer would have been. The statutory contact must not differ
+   * between the published notice and the page that links to it: a parent or a regulator reading
+   * both would find two different contacts for the same obligation, and the notice is the one
+   * with legal weight. **A footer naming somebody the notice does not name is worse than either
+   * option on its own.**
    *
-   * `E20-51` pulled the same name out of the app, for reasons that are just as real: a personal
-   * mailbox behind a support route is unanswerable when that person is away, unchangeable
-   * without every shipped build pointing at the wrong place, and it makes one individual the
-   * public face of every complaint in an app-store listing.
+   * So this now mirrors `company.json`, which is the single source. If Andy wants the name back
+   * on the marketing page specifically, it is a one-line change here — but it should be made
+   * together with notice version 4, not against version 3.
    *
-   * One published page carries the statutory name; nothing a parent taps inside the app does.
+   * ## What is still open
    *
-   * ## The address is a role, not an individual's mailbox
+   * Whether the DPDP Act requires a *natural person* at all is unanswered — `E20-52`,
+   * `owner:andy`, narrowed rather than closed. Version 2 asserted that a general address does not
+   * satisfy a named-officer requirement and named an individual on that basis, and no lawyer had
+   * said so. If the answer is that a person is required, version 4 puts a name back, and this
+   * footer follows it.
    *
-   * `grievance@graybag.com`, not `vivek@graybag.com`, even though the person is named beside it.
-   * Naming the officer is what the Act asks for; routing every data complaint into one person's
-   * inbox is what `E20-51` found to be the actual failure, and the two are separable. It also
-   * stays a **separate address from `support@`** on purpose: `E20-51` kept the grievance route
-   * distinct so a DPDP matter can be filtered out of the order-query pile, and those are on a
-   * statutory clock.
+   * ## The address stays distinct from `support@`... and no longer does
    *
-   * **`docs/privacy-policy.md` §7A still names `vivek@graybag.com` and was not touched.** That
-   * is `E20-52` — `owner:andy`, risk:high, blocked on a lawyer's answer — and the task says in
-   * as many words: do not edit the published wording. A `policy_version` row is immutable once
-   * published, so changing it is a new notice version that re-triggers the acceptance gate for
-   * every existing parent.
+   * It was `grievance@graybag.com`. Notice version 3 publishes `support@graybag.com`, so that is
+   * what this says. `E20-51`'s reason for keeping the routes separate — a DPDP matter has to be
+   * filterable out of the order-query pile, because it runs against a statutory clock — is now
+   * carried by `SUPPORT_SUBJECTS.grievance` in the app rather than by a second address. Publishing
+   * an address the notice does not name would be the same defect as publishing a different person.
    */
   grievance: {
     heading: 'Grievance officer',
-    name: 'Vivek',
-    role: 'Grievance Officer, GrayBag',
+    role: legal.GRIEVANCE_OFFICER.title,
     body:
       'For questions about personal data, or to exercise a right under the Digital Personal ' +
       'Data Protection Act, 2023.',
-    email: 'grievance@graybag.com',
+    email: legal.GRIEVANCE_OFFICER.email,
   },
 } as const;
 

@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
+import { legal } from '@graybag/shared';
+
 import {
   BENEFITS,
   FACTS,
@@ -215,26 +217,23 @@ describe('the footer carries what the law and the stores require', () => {
     expect(FOOTER.grievance.body).toMatch(/Digital Personal Data Protection Act/);
   });
 
-  it('names the officer, because the Act asks for a named person', () => {
-    // Andy, 2026-08-15: the name stays in the website footer and nowhere else. `E20-52` records
-    // why notice version 2 added it — a general `info@` alias does not satisfy a named-officer
-    // requirement — and `E20-51` records why it is out of the app.
-    expect(FOOTER.grievance.name).toBe('Vivek');
+  it('names the office rather than an individual', () => {
+    // Privacy notice version 3 (`E20-53` on `main`) publishes the office. This footer previously
+    // named Vivek on an earlier instruction and no longer does — the statutory contact must not
+    // differ between the published notice and the page that links to it.
     expect(FOOTER.grievance.role).toMatch(/Grievance Officer/);
+    expect(JSON.stringify(FOOTER)).not.toMatch(/\bVivek\b/);
   });
 
-  it('routes the officer to a role address, not to an individual mailbox', () => {
-    // The half of `E20-51` that still applies here. Naming the officer is what the Act asks for;
-    // routing every data complaint into one person's inbox is the failure — unanswerable when
-    // they are away, and unchangeable without republishing. The two are separable.
-    expect(FOOTER.grievance.email).not.toMatch(/^vivek@/);
-    expect(FOOTER.grievance.email).toBe('grievance@graybag.com');
+  it('reads the contact from company.json rather than restating it', () => {
+    // The whole point of `E12-25`: one source. A second copy here is what reintroduces a name
+    // the notice has removed, which is the failure `company.json`'s own comment predicts.
+    expect(FOOTER.grievance.role).toBe(legal.GRIEVANCE_OFFICER.title);
+    expect(FOOTER.grievance.email).toBe(legal.GRIEVANCE_OFFICER.email);
   });
 
-  it('keeps the grievance address distinct from support', () => {
-    // `E20-51` kept the routes separate on purpose: a DPDP matter has to be filterable out of
-    // the order-query pile, because it runs against a statutory clock.
-    expect(FOOTER.grievance.email).not.toBe('support@graybag.com');
+  it('publishes the same address the notice does', () => {
+    expect(FOOTER.grievance.email).toBe('support@graybag.com');
   });
 
   it('uses no no-reply address anywhere', () => {

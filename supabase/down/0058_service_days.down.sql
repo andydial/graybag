@@ -1,4 +1,4 @@
--- Rollback for `0056_service_days.sql`.
+-- Rollback for `0058_service_days.sql`.
 --
 -- Order matters, and it is not simply the reverse of the up migration.
 --

@@ -108,7 +108,7 @@ A single whole-value key is invisible to the reader and the page bounces straigh
 shared and never locked, and a back-office session can read every child's name in the school.
 
 **Migrations: staging drifts from the repo.** The enquiry table was applied to staging by hand as
-`0050` on 2026-08-14 and is committed as `0055` — renumbered **twice** in one day, both times
+`0050` on 2026-08-14 and is committed as `0057` — renumbered **three times** in one day, every time
 because the payments thread merged while this branch was in flight. A `supabase db push` will need
 `supabase migration repair` for the old version first. More generally, `Deploy to staging` has
 **never once succeeded** — `E01-20`.
@@ -120,7 +120,7 @@ because the payments thread merged while this branch was in flight. A `supabase 
 Read `docs/decisions-16aug.md` first — every judgement call taken without asking is in it, D-16A
 to D-16H. The short version:
 
-- **`0056_service_days.sql`.** Service days did not exist anywhere. Added on all three config
+- **`0058_service_days.sql`.** Service days did not exist anywhere. Added on all three config
   tables with the usual NULL-means-inherit chain, platform default all seven days so the
   migration is inert, and `orderable_calendar` honours it in the same migration.
 - **`/admin/config`, `/admin/schools`, `/reports`.** All three render fixtures under `?state=demo`
@@ -136,7 +136,7 @@ to D-16H. The short version:
 ### Two traps this run hit
 
 **`create or replace` on a function in this schema — read the live definition first.** The first
-draft of `0056` copied `resolve_effective_config`'s body from `0001`, which is **three
+draft of `0058` copied `resolve_effective_config`'s body from `0001`, which is **three
 replacements out of date**: `0037` appended the payment-timing settings. It would have silently
 deleted all three from the resolver while leaving them on the tables. It was caught only because
 appending a 24th field to a 20-field `row(...)` failed the cast — had `service_days` been an

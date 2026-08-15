@@ -78,7 +78,7 @@ begin;
 
 -- The harness's own tables and functions live in their own schema, never in public:
 -- a helper table in public would show up in tests_visible_counts() and in the
--- "public contains exactly these 63 tables" assertion, and a suite that has to make
+-- "public contains exactly these 64 tables" assertion, and a suite that has to make
 -- exceptions for itself is a suite that can be fooled. Rolled back with everything
 -- else at the end.
 create schema tests_tmp;
@@ -592,6 +592,14 @@ grant all on tests_tmp.tests_seen to public;
 -- The class-3 table list, kept identical to §10's revoke list in
 -- 0002_rls_policies.sql. A new table that belongs in class 3 must be added in BOTH
 -- places, which is the point: the duplication is the check.
+--
+-- **`ops_alert` is the first entry whose revoke is NOT in `0002`.** `0002` has already run
+-- everywhere, so a table created later carries its own revoke — `0056` does
+-- `revoke all on table ops_alert from anon, authenticated`. The rule the duplication enforces is
+-- unchanged (a class-3 table must be revoked somewhere and listed here); only the file moved.
+-- Verified rather than assumed: `has_table_privilege('authenticated','ops_alert','select')` is
+-- false, which it was NOT before `0056` added the revoke — Supabase's default privileges hand
+-- `authenticated` SELECT on every new table, the same inheritance `E02-26` found for functions.
 create table tests_tmp.tests_class3 (tbl text primary key);
 insert into tests_tmp.tests_class3 values
   ('order_group'), ('order'), ('order_line'), ('order_event'),
@@ -604,11 +612,13 @@ insert into tests_tmp.tests_class3 values
   ('retention_policy'), ('purge_run'), ('idempotency_key'),
   ('audit_log'), ('school_report'), ('notification_delivery'),
   ('school_menu_version'), ('menu_item_capacity'), ('reason_code'),
-  -- `0055`. Class 3 by the §5 Rule 4 definition — writes are service_role only, performed by
+  -- `0057`. Class 3 by the §5 Rule 4 definition — writes are service_role only, performed by
   -- the `enquiry-submit` Edge Function. An enquiry carries a named member of staff at a school
   -- and their direct line, so `authenticated` holding INSERT on it would let any signed-in
   -- parent write one, and holding SELECT would let them read every school we are talking to.
-  ('enquiry'), ('enquiry_rate');
+  ('enquiry'), ('enquiry_rate'),
+  -- `E06-39`. Class 3 by the strictest reading — no persona reads or writes it.
+  ('ops_alert');
 grant all on tests_tmp.tests_class3 to public;
 
 
@@ -1009,7 +1019,7 @@ select set_eq(
     ('guardian_link'),('idempotency_key'),('invoice'),('invoice_line'),('invoice_sequence'),
     ('kitchen'),('kitchen_config'),('ledger_account'),('ledger_entry'),('ledger_transaction'),
     ('menu'),('menu_assignment'),('menu_item'),('menu_item_capacity'),('menu_item_price_override'),
-    ('notification_delivery'),('notification_preference'),('order'),('order_event'),
+    ('notification_delivery'),('notification_preference'),('ops_alert'),('order'),('order_event'),
     ('order_group'),('order_line'),('payment'),('payment_webhook_event'),('payout'),('payout_line'),
     ('permission'),('permission_grant'),('platform_config'),('policy_document'),('policy_version'),
     ('purge_run'),('reason_code'),('recipient'),('recipient_allergen'),('refund'),('refund_line'),
@@ -1019,7 +1029,11 @@ select set_eq(
     -- Added by `0055` (E12-15). Both are class 3 — see tests_class3 above.
     ('enquiry'),('enquiry_rate')
   $$,
-  '§8: public contains exactly the 63 tables the matrix classifies — a new table must be added to the matrix');
+  '§8: public contains exactly the 64 tables the matrix classifies — a new table must be added to the matrix. '
+  '61 -> 62: ops_alert (E06-39), which is class 3 by the strictest reading — no persona may read or write it, '
+  'because it names payment ids and failure counts and service_role (which bypasses RLS) is the only intended reader. '
+  '62 -> 64: enquiry and enquiry_rate (E12-15), class 3 for the same reason — an enquiry names a member of staff '
+  'at a school and carries their direct line');
 
 
 -- =============================================================================

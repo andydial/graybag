@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0056_service_days.sql — which weekdays a school is served. `E10-06`.
+-- 0058_service_days.sql — which weekdays a school is served. `E10-06`.
 -- =============================================================================
 --
 -- `E10-06` asks for a config UI covering cutoffs, break times and **service days**. The first

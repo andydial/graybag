@@ -28,8 +28,13 @@ describe('one source for the company identity', () => {
   });
 
   it('substitutes an answered one', () => {
+    // Was `info@graybag.com` until `E20-51` routed every support and grievance action to
+    // `support@graybag.com` and privacy notice version 3 published the same. Asserted against
+    // `COMPANY` rather than a literal, so the next change to that one source moves this with it
+    // instead of breaking it — the same lesson as the unanswered-token test above.
     expect(resolveTokens('Write to «GRAYBAG-SUPPORT-EMAIL-PENDING-E20-01».'))
-      .toBe('Write to info@graybag.com.');
+      .toBe(`Write to ${COMPANY.supportEmail}.`);
+    expect(COMPANY.supportEmail).toBe('support@graybag.com');
   });
 
   it('passes an unknown token through untouched', () => {
@@ -37,11 +42,21 @@ describe('one source for the company identity', () => {
     expect(resolveTokens('«SOMETHING-ELSE-PENDING-E99-99»')).toBe('«SOMETHING-ELSE-PENDING-E99-99»');
   });
 
-  it('names the grievance officer the published privacy policy names', () => {
+  it('names the grievance OFFICE, as the published privacy policy does', () => {
     // Copied, not decided again. An internal record that disagrees with the published notice is
     // the document we would be judged against.
-    expect(GRIEVANCE_OFFICER.email).toBe('vivek@graybag.com');
-    expect(GRIEVANCE_OFFICER.name).toBe('Vivek');
+    //
+    // Privacy notice **version 3** (`E20-53`) replaced the named individual with the office.
+    // `name` being null is the assertion that matters: `company.json`'s own comment warns that
+    // leaving a name here would be a second source of truth that reintroduces it the first time
+    // anybody wires the grievance block from this file — which is exactly what the website footer
+    // did, and had to be undone.
+    //
+    // Whether DPDP requires a natural person is open (`E20-52`). If it does, a name comes back
+    // here and in notice version 4, and this test changes with it.
+    expect(GRIEVANCE_OFFICER.name).toBeNull();
+    expect(GRIEVANCE_OFFICER.title).toMatch(/^Grievance Officer/);
+    expect(GRIEVANCE_OFFICER.email).toBe('support@graybag.com');
   });
 
   it('has no support address that a reply would bounce off', () => {
