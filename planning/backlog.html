@@ -1970,13 +1970,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/14</span>
+          <span class="meter-num">0/16</span>
         </div>
       </header>
       <p class="summary">Because Andy is not a developer, the system has to be able to explain its own failures in plain English.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 14 tasks</summary>
+        <summary>Context &amp; 16 tasks</summary>
         <div class="context"><h4>Approach</h4>
 <p>Sentry for errors across app/web/backend, Supabase dashboard for query performance, Better Stack for uptime. The multiplier is that <strong>Sentry and Supabase both have MCP servers</strong> — wired into Claude Code, a plain-English question like &quot;orders from St. Xavier&#39;s stopped going through around 9pm yesterday, find out why&quot; can be answered by querying errors, logs and the database directly.</p></div>
         <ul class="tasks">
@@ -2091,6 +2091,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Run <code>check:config</code> against production on a schedule once that project exists, not only at cutover — a dashboard setting changed by hand at 2am to unblock something else is exactly the failure a one-time gate misses</span>
+      </li>
+      <li class="task" data-id="E15-15" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-15"></button>
+        <code class="tid">E15-15</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The PII guard for crash reporting, built before the reporter.</strong> Andy, 2026-08-16: *&quot;assert no child&#39;s name, class, section or allergy can reach it. That guard matters more than the reporting.&quot;* <code>packages/shared/src/observability/scrub.ts</code> removes tier P and tier S fields <strong>by key, at any depth</strong>, plus emails and Indian phone numbers by value. By key rather than by value because value-matching cannot work: a child called &quot;Sweep&quot; and a dish called &quot;Sweet corn&quot; are both just words, and the filter that tries to tell them apart misses real names and mangles innocent text. The structure is what we know, because our own schema chose the field names. Nine tests, and the one that matters most reads <code>0001_initial_schema.sql</code> and <strong>fails when a <code>recipient</code> column carrying a name, class, section, allergy, phone or email is not covered</strong> — the real failure mode is a migration adding a personal column and nobody updating the list. Also asserted: it keeps what makes a report worth having (screen, error code, HTTP status, order ref, total, dish name), survives a cycle rather than hanging (a crash reporter that hangs on a crash is worse than none), preserves an <code>Error</code>&#39;s message and stack (spreading one loses exactly what the report is for), and bounds depth. The free-text limit is stated as a limit, not papered over: <code>Aarav</code> in a message is indistinguishable from any other word, so the defence there is that we do not put a child&#39;s name into messages</span>
+      </li>
+      <li class="task" data-id="E15-16" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-16"></button>
+        <code class="tid">E15-16</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:medium) <strong>A Sentry DSN, and the decision about when crash reporting ships.</strong> Blocked, and the blocker is worth stating precisely. There is <strong>no Sentry in this repository at all</strong> — <code>@sentry/react-native</code> is not a dependency, nothing initialises it, and <code>EXPO_PUBLIC_SENTRY_DSN</code> is read by <code>configure.ts</code> into a config nothing consumes. So this is a from-scratch build, not a wiring job, and it needs a DSN that only Andy can create. <strong>The timing constraint is the important half</strong>: <code>@sentry/react-native</code> is a native SDK, so adding it invalidates build 12 — currently <code>WAITING_FOR_REVIEW</code> — and requires a new binary and a new Apple review, which is the one thing the 19th cannot absorb. Two options, and it is a decision rather than a task: <strong>(a)</strong> ship crash reporting in the first build after launch, accepting no crash visibility for the launch window; <strong>(b)</strong> a JS-only reporter posting to Sentry&#39;s HTTP API, which carries no native code, ships <strong>over the air</strong> on top of build 12, and catches JS errors — which is most of what a JS app produces — while missing native crashes. <code>E15-15</code>&#39;s scrubber is written and tested and is a precondition of either</span>
       </li></ul>
       </details>
     </article>
@@ -3658,13 +3674,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/14</span>
+          <span class="meter-num">0/15</span>
         </div>
       </header>
       <p class="summary">Push and email as primary, with a narrow SMS fallback. No WhatsApp for now.</p>
       <p class="deps">Depends on <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 14 tasks</summary>
+        <summary>Context &amp; 15 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E08-01" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
@@ -3778,6 +3794,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Decide per-template whether SMS is worth the cost, and cut unused DLT templates rather than leaving them dormant</span>
+      </li>
+      <li class="task" data-id="E08-15" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E08-15"></button>
+        <code class="tid">E08-15</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The order-confirmation email is the one production path never exercised, and no test covers it either.</strong> The 2026-08-16 sweep proved Resend works from production — an enquiry reached <code>support@graybag.com</code> (<code>sent</code>) and sign-in codes show <code>delivered</code> at the provider — so the API key, the sending domain and <code>ORDER_EMAIL_FROM</code> are all good. What is <strong>not</strong> proven is <code>_shared/order-confirmation.ts</code> itself: it fires only when an order reaches <code>paid</code>, and reaching <code>paid</code> on production needs a real Razorpay payment. I would not fake one, because a signed webhook would put a phantom ₹72.46 through the live ledger, invoice sequence and <code>settle_payment</code> on launch weekend — a real accounting problem to unpick, for a test. Nor is there a unit test: <strong>no Edge Function shared module has one</strong> (<code>supabase/functions/_shared/*</code> has no <code>.test.ts</code> at all), so the template, the recipient resolution and <code>0050</code>&#39;s one-email-per-order unique index are all unverified by anything. The narrow untested surface is: does the template render, does it address the right parent, and does the <code>23505</code> path really read as &quot;already sent&quot; rather than an error. First real paid order proves or disproves it in one go — which is a poor place to find out. Cheapest real coverage is a Deno test for the shared module against a stubbed Resend</span>
       </li></ul>
       </details>
     </article>
