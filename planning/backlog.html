@@ -361,13 +361,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/24</span>
+          <span class="meter-num">0/25</span>
         </div>
       </header>
       <p class="summary">Repo, two real environments, secrets management, and the test harness that every later task depends on.</p>
       <p class="deps">Depends on <code>E00</code></p>
       <details>
-        <summary>Context &amp; 24 tasks</summary>
+        <summary>Context &amp; 25 tasks</summary>
         <div class="context"><h4>Why early</h4>
 <p>Everything after this inherits the quality bar set here. Getting tests and environments right on day one is what stops &quot;manually swapping Razorpay keys&quot; happening again.</p></div>
         <ul class="tasks">
@@ -562,6 +562,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>Maestro (cart)</code> could never have passed, and the timeout was not why.</strong> The job was blamed on the 45-minute limit and <code>E14-36</code> fixed that half — the Gradle metaspace OOM and the 781-second software-emulated boot, with KVM and an AVD cache. It still failed, now in 27 minutes rather than 45, with <code>Package com.gracord.graybag.staging is not installed</code> after a 24-minute build. <strong>Two independent bugs, either of which alone was fatal.</strong> (1) The workflow set <code>EXPO_PUBLIC_APP_ENV: staging</code> but <code>app.config.js</code> reads <code>process.env.APP_ENV</code> to choose the identity, so <code>APP_ENV</code> was unset, the config fell to the <code>local</code> identity, and the APK installed as <code>…Graybag.dev</code>. (2) The flow&#39;s <code>appId</code> was <code>com.gracord.graybag.staging</code> — the <strong>iOS</strong> bundle id with a staging suffix — while Android builds <code>com.Gracord.Graybag.staging</code>, and Android package names are <strong>case-sensitive</strong>. The capitals match the Play Console exactly (<code>E17-35</code>) and cannot be changed after publication, so the flow was wrong, not the app. Both fixed. <code>scripts/check-maestro-ids.mjs</code> now derives the expected <code>appId</code> from <code>app.json</code> + <code>app.config.js</code> and fails in a second — verified by reverting the value and watching it fail. A wrong <code>appId</code> otherwise fails only *after* the emulator boots and the APK builds, which is the most expensive place to learn it</span>
+      </li>
+      <li class="task" data-id="E01-27" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-27"></button>
+        <code class="tid">E01-27</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>Maestro (cart)</code> now installs, launches and fails 23 seconds in on <code>tab-menu</code> — a third cause, not the first two.</strong> <code>E01-26</code> fixed the two that made the job impossible (the unset <code>APP_ENV</code>, and an <code>appId</code> that was the iOS bundle id). The evidence that those are gone: <code>adb install … Success</code>, the emulator loads its snapshot in 4s, and the flow <strong>runs</strong> — where it previously died in 3s with &quot;Package … is not installed&quot; after a 24-minute build. It now fails with <code>Element not found: Id matching regex: tab-menu</code> after 23s, which is Maestro&#39;s timeout, not an immediate miss. <strong>The id is not missing</strong>: <code>RootNavigator.tsx:636</code> sets <code>tabBarButtonTestID: &#39;tab-menu&#39;</code> and <code>check:maestro</code> passes. So the tab bar is not being *rendered* — something is in front of it. <strong>Prime suspect, unconfirmed: <code>VersionGate</code>.</strong> <code>E17-46</code> merged to <code>main</code> the same day and wraps the entire app (<code>App.tsx:93</code>), above every provider and therefore above the tab navigator; the flow&#39;s first action after <code>launchApp</code> is <code>tapOn: tab-menu</code>, with nothing between. If the gate renders <code>UpdateRequiredScreen</code>, the tab bar never exists. Against that hypothesis: <code>E17-46</code> states an unknown or unparseable version is ADMITTED and a failed check is ADMITTED, so a CI build with no version stamp should pass through — which is worth verifying, because if it is *not* admitting, the same logic blocks real parents on 19 August and that is far more serious than a red CI job. Other candidates: a splash or auth state that outlasts the 23s timeout, or an error boundary. <strong>Diagnose by screenshot first</strong> — <code>maestro test --debug-output</code> keeps one, and this is a class of failure where a picture settles in seconds what logs argue about. Owned by whoever owns <code>apps/mobile</code>; the web thread found it while fixing <code>E01-26</code> and did not go further, having already spent its timebox</span>
       </li></ul>
       </details>
     </article>
