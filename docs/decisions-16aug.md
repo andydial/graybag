@@ -676,6 +676,70 @@ console somebody has to log into. Three instances in one day — `platform_confi
 
 ---
 
+## D20 — iOS: the Key ID and Issuer ID arrived, the private key did not
+
+`prod.env` now carries `ASC_KEY_ID` (10 chars, well-formed) and `ASC_ISSUER_ID` (a well-formed
+UUID). **The `.p8` private key itself is not on this machine.** Checked, not assumed:
+
+- `~/.graybag-secrets/` holds `graybag-upload.keystore`, its `.bak`, and `prod.env`. No `.p8`.
+- `find ~ -name "*.p8"` outside `node_modules` → **nothing**. Not in Downloads, not on Desktop.
+- No PEM block inside `prod.env` either — the key was not pasted in as a variable.
+- No signing identity in the login keychain (`security find-identity -v -p codesigning` →
+  *0 valid identities found*), and no Apple Distribution certificate.
+
+Two build attempts were made, not one:
+
+1. `--non-interactive` with the ASC ids exported → *"Distribution Certificate is not validated
+   for non-interactive builds."*
+2. The same, plus `EXPO_APPLE_ID=andy@graycord.com` to pick up the **cached fastlane session**
+   at `~/.app-store/auth/andy@graycord.com/cookie` (last written 14 Aug, so plausibly still
+   valid) → identical failure.
+
+EAS will not mint a distribution certificate without the API key; a cached web session is not a
+substitute for it. **The two ids are useless on their own — the `.p8` is the credential.**
+
+**What Andy needs to do.** App Store Connect only offers the `.p8` download **once**, at
+creation. If it was not saved, it cannot be recovered and a new key must be generated:
+App Store Connect → Users and Access → Integrations → App Store Connect API → generate a key with
+**Admin** or **App Manager** role (a Developer-role key cannot create certificates). Then:
+
+```
+mv ~/Downloads/AuthKey_XXXXXXXXXX.p8 ~/.graybag-secrets/
+# and update ASC_KEY_ID in prod.env to the NEW key's id — it will not be the current one
+```
+
+With the file in place, the build and both submissions are one command each.
+
+**Note on build numbers.** iOS `buildNumber` has incremented 1 → 2 → 3 across the failed attempts,
+because `autoIncrement` runs before credentials are checked. Harmless — `4.0.0` has never been
+uploaded, so any build number is acceptable — but it explains a gap somebody might otherwise
+wonder about.
+
+---
+
+## D21 — E01-28: the Maestro failure was not `VersionGate`, and the real cause had been there all along
+
+Handed over as launch-blocking with `VersionGate` as prime suspect, which was reasonable — it
+wraps the whole app above the tab bar, and a gate that wrongly blocks is the one failure mode that
+locks every parent out with no route back.
+
+**Cleared it with evidence.** `version-gate.test.tsx` is the file `E17-46` should have shipped and
+did not: that task tested the api function and the screen, and left the component that *decides*
+untested. Eleven assertions now cover every uncertain path, including the Maestro-shaped one where
+the api module was never configured at all. Only an explicit `supported: false` blocks. The live
+staging endpoint agrees: `4.0.0`, `null` and `"not-a-version"` all return `supported: true`.
+
+**The real cause:** `loadClientEnv` requires `RAZORPAY_KEY_ID`, the workflow never set
+`EXPO_PUBLIC_RAZORPAY_KEY_ID`, so `App.tsx` rendered `CantConnectScreen` **instead of**
+`RootNavigator` — no tab bar, no `tab-menu`. And the repository had **no Actions variables at
+all**, so the two Supabase vars were empty strings as well. This job has never had a backend,
+which is why it has never been observed green.
+
+**The compounding defect is the one worth remembering:** `missingClientEnvNames()` did not check
+`RAZORPAY_KEY_ID`, so the diagnostic screen would have reported *nothing missing* while the app
+was unusable for want of exactly that. A diagnostic that omits a required input does not merely
+fail to help — it sends the reader somewhere else.
+
 ## D-16I — `food_type` is guarded at the *offer*, not on the column
 
 79 dishes reached production with `food_type` null on every one, and 83 menu items were offering
@@ -780,3 +844,19 @@ now falls back to `SUPPORT_ALERT_EMAIL`, which prod does have.
 subcommand, so the send could not be observed from here. What is verified is that the row lands
 (twice, on production), that the recipient chain resolves to a variable production has set, and
 that every failure path logs "the enquiry IS stored". Andy should confirm one arrived.
+
+---
+
+## D-16N — my `E01-28` hypothesis was wrong, and the mobile thread's answer is the right one
+
+I filed `E01-28` saying `tab-menu` never rendered and naming `VersionGate` as the prime suspect,
+explicitly unconfirmed. The mobile thread diagnosed it: **the Maestro build had no backend
+configured**, not a version gate.
+
+Recorded because the ticket argued a case that turned out to be wrong, and the reasoning it used —
+"`VersionGate` merged today and wraps everything above the tab bar, and the flow's first action is
+to tap the tab bar" — was plausible and still wrong. What made it wrong was that I did not take
+the screenshot the ticket itself recommended as the first step. The suspicion was cheap; the
+confirmation was the part that mattered and I left it to somebody else.
+
+Their diagnosis stands. Nothing in this branch depends on mine.
