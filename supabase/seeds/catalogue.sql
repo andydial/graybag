@@ -56,16 +56,9 @@ on conflict (id) do update set
   is_active    = true,
   updated_at   = now();
 
--- Break times, exactly as exported. **Only Amity has any in the source**, and this file still
--- refuses to invent one for the other two: the legacy option-set db values contradict their
--- labels, so a window taken from them is a time nobody agreed to.
---
--- Gem and Paragon are no longer left with none, though. `0029` gives them Amity's two windows as
--- **provisional** rows on Andy's instruction (2026-08-11) so both schools can open for ordering,
--- to be confirmed per school at onboarding — marked by a `code` ending `-provisional`, and
--- argued in that migration's header. Deliberately not folded back into this file: what is here
--- is the export, and a decision made afterwards does not belong in it. `0029` also renames these
--- two labels to "Morning break" / "Second break", since `label` is what a parent reads (`P19`).
+-- Break times, exactly as exported. Only Amity has any in the source; the other schools
+-- get none rather than a plausible invention — an unresolved break renders as "confirmed
+-- with the kitchen" (ux-spec §5.4) rather than as a time nobody agreed to.
 insert into break_time (id, school_id, code, label, starts_at, ends_at, sort_order, legacy_option_value) values
   ('06ca8ef9-d342-4596-aae1-08f43f7f3a55', '77308e75-d8e9-47ba-a503-7c38d482a72c', 'break-1', '10:40AM - 11:15AM', '10:40:00', '11:15:00', 10, '10:40AM - 11:15AM'),
   ('5659c6ab-6598-40ee-a563-04d688baaf64', '77308e75-d8e9-47ba-a503-7c38d482a72c', 'break-2', '11:15AM - 11:40AM', '11:15:00', '11:40:00', 20, '11:15AM - 11:40AM')
@@ -178,91 +171,112 @@ on conflict (id) do nothing;
 
 -- 83 real prices. Whole rupees in the source; x100 into integer paise here.
 -- GST-EXCLUSIVE — 5% is added at checkout, exactly as the Bubble cart does.
-insert into menu_item (id, menu_id, dish_id, price_paise, sort_order) values
-  ('4cbde0b8-7dee-46bc-ad64-5bc72ba07dc2', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '9ba5f4bb-ee85-49e8-a296-af9ec05a0477', 6900, 10),
-  ('60935560-61ec-4ad5-add6-19fe79782611', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '81a95eaa-ec46-4ba2-ad37-fecd9484247a', 10900, 20),
-  ('3af11ebf-d36e-44c2-ab0b-a2a7c72f4b91', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'df802cb2-ddf9-4fad-aeb0-76ae8ddb58cb', 13900, 30),
-  ('dd2ae1c3-63d9-434a-a078-cccca9e42714', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '476554f2-e6f4-4d5a-a69d-039461bc5751', 6900, 40),
-  ('b2e95247-c107-4094-a361-bef2c7e8846d', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '52d91c2f-c1be-4147-a7ff-f061a11213b2', 9900, 50),
-  ('3fda9966-5cb7-4d20-a5af-01bd1bc63bc5', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'd069659d-baac-4e9b-a06a-be91ce21dac9', 10900, 60),
-  ('5553ab89-6db6-46ac-a742-057ba0a5f5ed', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'a77dbdae-cc3a-46fc-a924-aca59b590410', 10900, 70),
-  ('d2e78d74-827a-4164-a3f3-f6c3f16607ec', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '0ea897ef-9bde-45d4-a167-f442bc80e68e', 9900, 80),
-  ('57dcf53d-f44a-45c6-a829-9e8aa909055a', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'ff30cec3-1de8-4575-a351-50a76668bc81', 6900, 90),
-  ('f24d5fc0-6150-4987-a355-c57905401c68', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'f97f39b1-ded3-481c-a1ae-885091984541', 6900, 100),
-  ('ed99a301-54a4-46e0-afe6-bc38402fbfb0', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '54b0a3b7-a96f-44cb-a6fc-1765fbca9ed9', 12900, 110),
-  ('71cb9914-b2eb-4e10-ac98-efeb33b9ab10', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'c02315fc-27f6-41b7-a755-16ab521db373', 6900, 120),
-  ('2c544f38-42c8-42dd-aa1f-7e281f219f84', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '64f15f33-361b-451c-a4ed-4179735662a3', 10900, 130),
-  ('b0bee3bc-1e0e-4863-aa06-c09af50e753e', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'ca24ff5a-f35a-4136-a58d-ed0b2d185578', 10900, 140),
-  ('eae0843a-e082-42bc-a140-ac28310d7495', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'c59857ba-c2c0-4dfb-a9e1-a471c6eb621a', 10900, 150),
-  ('5a22a43a-d0b7-479b-a5d3-54a5cd6f3166', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '6e290412-f98a-4fa9-a55b-c4123a2ede4a', 13900, 160),
-  ('1751d9a7-d1a1-4e26-aa2e-3e48ab3646a5', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '8f4e81fe-14f4-4405-ab76-401f251680f1', 10900, 170),
-  ('1737325d-03e7-4455-aa84-7b42d5036567', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '56aba5d0-d635-4ca5-a7e7-6ae90e8c4f83', 13900, 180),
-  ('780634eb-63f7-499c-a046-619e7ee60896', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'e6c7b983-711a-42c7-a6c1-f8c074688bd9', 7900, 190),
-  ('d2791b15-cbe7-40c1-adfd-f13b42c4c4f4', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'be429d49-67dd-40e9-a709-65e3107172c5', 10900, 200),
-  ('ec13fdb1-e6a5-4874-ae12-e5e72072a66a', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '9275cef8-840d-41a5-afc1-f321f5688a93', 12000, 210),
-  ('e2989cd4-d890-42a6-a2dc-fb64013f5c1f', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '9ecbfe93-cbd0-4c22-a3e3-2c2334a311ac', 12000, 220),
-  ('4b3fd707-37d0-4e9c-afae-20a83f5c921d', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '0889579a-1729-47d8-af98-6dfee108c886', 12000, 230),
-  ('d79afca9-ebca-4d09-a4e6-799d604470a3', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '749f188d-5fef-4e82-a587-4e023eda7720', 10900, 240),
-  ('6021c001-0283-494c-a849-be748cf95f66', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '92f3aebb-db75-428c-abb0-603faa0e4e60', 12000, 250),
-  ('4c253f63-6852-4858-a6e5-be6edb1f1159', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '71680f45-adba-4b5e-a60a-7c2b8e6ee844', 12000, 260),
-  ('d79d8647-0780-480f-a51b-e40fb8a4c059', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'f4853989-b2a7-4841-a517-a99bd5bf7b2d', 12000, 270),
-  ('04e216bf-32af-4879-a486-771918bbc0b3', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '257bfaf0-1ad1-4edb-a1bf-cc1a67a0d355', 10900, 280),
-  ('2b40cb02-c270-489e-a96c-66dc8498199c', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '67c4c96a-4ed0-42e3-a801-1a073edff543', 5900, 290),
-  ('bee9eef8-a9e2-498b-a320-440ab10b257b', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'bef50ee7-e9b3-4702-a1d2-760447dae14a', 10900, 300),
-  ('75942a6d-bb3c-4edd-a44b-c9d994530d0a', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'e91ffde9-99ef-4ef6-a8ce-d0035570bbc3', 10900, 310),
-  ('6ac935fe-bc32-47e9-a84f-d4ad17c42b90', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '4a1b9612-c426-49f4-a415-eac8b12ad18a', 10900, 320),
-  ('b127b6bf-6211-47fb-a4f5-6c0e6986f14c', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'ea6c7701-47e3-49e8-a287-130101806649', 10900, 330),
-  ('cc52310d-699f-474b-aff1-d8996b962575', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'c75aedc4-c422-4f03-aa89-eeba3c5ff187', 10900, 340),
-  ('ddaa894e-796a-48dd-a56c-086c8e77e4a8', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'f7ed2183-8f9e-466b-aa7c-ada3b3512793', 10900, 350),
-  ('df8bd8cb-1546-4d45-a861-f3a8162c2bb2', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '7ff727e6-75e9-419a-a40c-1496a3f53b97', 10900, 360),
-  ('34a37de6-bce3-447e-a636-f8f8f7b29b78', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '7b6a9487-a8c8-4313-ab59-4775e33b67e1', 10900, 370),
-  ('fbd62cfa-be03-4030-ad99-b201d1b55f36', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'bd743b4e-99ea-4858-a879-cf359e3abf9a', 12900, 380),
-  ('ef14fcb5-2e9f-4081-a977-329a6c80805e', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '1ecb1eb0-a3e3-4605-a10c-319356fefa2c', 10900, 390),
-  ('6317f79f-7c08-4a1c-a68b-f7e4c3717174', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '6a355b36-8c19-4dd7-ae33-038cf14b0f49', 5900, 400),
-  ('c000fc0c-bc16-4a7e-a8e1-51ac47c2ed63', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'e8da2b16-eed3-4010-af17-f67219a3d87e', 4000, 410),
-  ('4fc188de-1e8b-4527-a8e2-b9996d2b768a', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '7135dbf4-2182-4ed6-ae6a-2f9afee2c0d3', 10900, 420),
-  ('7febd225-6438-4826-ab17-8417d4187c8b', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'f2450d69-4bf9-41cc-a489-079b55e619f6', 10900, 430),
-  ('f8d0102a-d374-4d93-a3a8-3f1285ee05e8', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'a2d66075-8a26-44a7-a23e-115287123af7', 12900, 440),
-  ('db3b0aaf-0dc0-41e2-a201-b401e7c449b6', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '082891cf-f1a4-4fbb-aefb-07d0f8f817f1', 12900, 450),
-  ('7627ebcf-4082-4265-a343-2198c7346c55', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '3c7fc0ce-c798-4b36-a4a2-b778db302c68', 10900, 460),
-  ('56e8cb12-e1d2-4551-a562-8162dcc5328e', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '077a8845-034f-4fe4-ac88-7bbd1d3099bb', 10900, 470),
-  ('a5626a98-4166-4a1a-a26d-315283516450', '098e2390-9b9a-46cd-ae5b-09053780d099', '51115c58-7fe3-4aba-a1a1-5a24d85382f5', 8900, 480),
-  ('d4199cfd-18ea-48e0-aadf-3272df48252d', '098e2390-9b9a-46cd-ae5b-09053780d099', 'ff30cec3-1de8-4575-a351-50a76668bc81', 8900, 490),
-  ('3c938838-09a4-4647-a1cf-0b79f449b596', '098e2390-9b9a-46cd-ae5b-09053780d099', '78977f3f-7be5-4902-aa29-196daecd9e78', 8900, 500),
-  ('faf3d85b-f184-493e-a352-f82fa24270dc', '098e2390-9b9a-46cd-ae5b-09053780d099', '032ffa71-416f-410d-afa4-f0c2c851a37d', 11000, 510),
-  ('532a752d-3a14-4ec4-a3ea-c7bfd3fb6248', '098e2390-9b9a-46cd-ae5b-09053780d099', 'a3c2e5cf-0c02-4fa1-a033-df385ea00c2e', 7900, 520),
-  ('e9be02af-6b81-4526-a0c9-653cde1c4325', '098e2390-9b9a-46cd-ae5b-09053780d099', '48e45752-9ad2-4630-a15a-a133a30babee', 9900, 530),
-  ('52740f32-b754-4b64-ad92-a6c4641eee63', '098e2390-9b9a-46cd-ae5b-09053780d099', '59c2310c-849f-42b1-a817-8715116d8f17', 9900, 540),
-  ('fe91be51-34c7-41dd-a611-514c1e3348d6', '098e2390-9b9a-46cd-ae5b-09053780d099', '7135dbf4-2182-4ed6-ae6a-2f9afee2c0d3', 8900, 550),
-  ('d39c5401-a6bc-4cca-ae3d-00b9ae0736e6', '098e2390-9b9a-46cd-ae5b-09053780d099', '4fe69c9a-cc1d-4c70-a682-6ccf740f2c3a', 5900, 560),
-  ('dbbd83ee-8f55-4fdf-a6f1-5f02b93a1f8a', '098e2390-9b9a-46cd-ae5b-09053780d099', 'fc9fc49f-4f0f-4a25-a86f-b8e2c8932407', 11000, 570),
-  ('6604ec67-b95c-49cc-ac19-faa7569ad275', '098e2390-9b9a-46cd-ae5b-09053780d099', '55f3fbad-f01f-42c8-a17f-e9e28341f10b', 11000, 580),
-  ('e2e5e8a4-cd45-4025-a467-bf2504fda62e', '098e2390-9b9a-46cd-ae5b-09053780d099', 'd8552969-86e3-4166-a484-d67314744c9d', 8900, 590),
-  ('4180f020-065f-4606-ade3-4263333b477a', '098e2390-9b9a-46cd-ae5b-09053780d099', '249d5eea-bb21-4555-ab1a-9fb74911a4cf', 5900, 600),
-  ('3387ba06-1779-4147-aafe-65fede0e6a23', '098e2390-9b9a-46cd-ae5b-09053780d099', '5786123a-6435-4f32-a199-c966998b3c10', 13000, 610),
-  ('f8697d25-66cb-4d8c-aa29-b161f0e506e7', '098e2390-9b9a-46cd-ae5b-09053780d099', '2bcc8895-c2e7-4adf-a8fe-428981089cd5', 9900, 620),
-  ('99a8ea05-539b-465f-a2f3-dde1cda1f602', '098e2390-9b9a-46cd-ae5b-09053780d099', 'ca4c954e-c784-4484-a764-dd91d85921e6', 9900, 630),
-  ('f784fe81-8288-4604-a649-e2ec8f00ceb0', '098e2390-9b9a-46cd-ae5b-09053780d099', '7ff727e6-75e9-419a-a40c-1496a3f53b97', 9900, 640),
-  ('99297b37-dec3-4939-ab6a-4acb3665e6a4', '098e2390-9b9a-46cd-ae5b-09053780d099', '974feb0c-0649-4a60-a05f-fe36afa40e70', 9900, 650),
-  ('2e716a90-cc02-4732-afa6-b93d9c90be7f', '098e2390-9b9a-46cd-ae5b-09053780d099', '3118e713-773c-4201-a5e1-826edaf788bf', 11000, 660),
-  ('65a87e8f-6e6f-4551-aaff-859799e5a516', '098e2390-9b9a-46cd-ae5b-09053780d099', '18cb9677-0f79-452a-a267-37955597979b', 11000, 670),
-  ('b4b0233d-74ec-42b3-a2d2-5d6d615c124a', '098e2390-9b9a-46cd-ae5b-09053780d099', 'b71f4b14-ec16-4675-a2ea-70880c6a3fa4', 4900, 680),
-  ('c68902fb-5385-4efa-acea-ffcf9cee464b', '098e2390-9b9a-46cd-ae5b-09053780d099', 'a2da0e85-574c-4846-ac0a-2bb994f4996c', 11000, 690),
-  ('86e54b3d-4756-4c26-a5a3-7a3c65dfad19', '098e2390-9b9a-46cd-ae5b-09053780d099', '8b4d2880-9d4a-425c-a350-84d13e3e5a7a', 6900, 700),
-  ('b2301e52-8f9a-4538-a5a1-f6e11a403452', '098e2390-9b9a-46cd-ae5b-09053780d099', '07dac96a-2696-4bb1-a58b-0267dad3a20f', 5900, 710),
-  ('36c545ea-b3e2-4e7f-a563-1cf2dab09341', '098e2390-9b9a-46cd-ae5b-09053780d099', 'fcf5f7ef-4ba2-4fb3-adcd-6e5aa9856a6c', 11000, 720),
-  ('c9cb306f-6b88-4c2c-a191-21664f222253', '098e2390-9b9a-46cd-ae5b-09053780d099', '5545b7fa-ebc5-4b08-abc0-766b459b9407', 10000, 730),
-  ('7341ec1b-5c3a-4f0f-a40d-63b1a7f0a91a', '098e2390-9b9a-46cd-ae5b-09053780d099', '1ecb1eb0-a3e3-4605-a10c-319356fefa2c', 9900, 740),
-  ('4436b8df-99a2-45a5-ae63-86f63f94b2cb', '098e2390-9b9a-46cd-ae5b-09053780d099', '09456bbd-a4af-4745-a4b7-0e8372dc4a18', 7900, 750),
-  ('f598c3e1-3be9-46cf-a3f7-1608f27324b1', '098e2390-9b9a-46cd-ae5b-09053780d099', '4d2e14b8-9672-4a9d-a1ee-a2c07d6e5213', 11000, 760),
-  ('ecfdb6f6-92d4-4aa2-a589-77124c6ac471', '098e2390-9b9a-46cd-ae5b-09053780d099', 'feeef41f-7f46-4f82-aedb-03d2f5da9b28', 9900, 770),
-  ('ae70392f-4c87-43f8-a399-10bcc29f32df', '098e2390-9b9a-46cd-ae5b-09053780d099', '34e0b082-3d7f-4f6b-aca7-a9506b786feb', 6900, 780),
-  ('08aeafad-213c-4e8a-a19c-bac7b6251a93', '098e2390-9b9a-46cd-ae5b-09053780d099', 'a6cbc529-c379-4d80-a38b-30ea4fe43c6f', 11000, 790),
-  ('704a8736-e45f-4b49-ab66-5ba1d0a32046', '098e2390-9b9a-46cd-ae5b-09053780d099', '5ff51909-1a40-4e86-a006-eb57160a78f2', 9900, 800),
-  ('19136b79-060c-45a3-a9ec-e6632ebbf7cc', '098e2390-9b9a-46cd-ae5b-09053780d099', '630bd35a-da35-483a-ab12-69164b9fe84f', 11000, 810),
-  ('312f274b-6d56-481d-aed4-ddb79f3d7520', '098e2390-9b9a-46cd-ae5b-09053780d099', '1b285863-ae69-4bcf-af8d-7a8544e037e3', 6000, 820),
-  ('4167abb0-c7f9-4386-a321-cf922560abb8', '098e2390-9b9a-46cd-ae5b-09053780d099', '5886a511-7755-4077-a18d-61a913825080', 10000, 830)
+--
+-- SEEDED INACTIVE — `E16-53`. This is not a style choice and it is not optional.
+--
+-- `0059`'s `assert_dish_is_marked` refuses any ACTIVE menu_item whose dish has no
+-- `food_type`, and this file ships every dish unmarked because `[DM-17]` is open and the
+-- generator will not invent a fact about food. Both are right. Together they meant this
+-- seed could not be applied to a fresh database AT ALL — it died on the first row, so a
+-- rebuilt staging, a new environment and E01-17's restore drill all failed at the seed.
+--
+-- `is_active = false` satisfies both: the rows exist and are priced, and nothing unmarked
+-- is OFFERED to a parent, which is precisely what the guard is for. Marking the dishes is
+-- what activates them — see the note this file prints at the end.
+insert into menu_item (id, menu_id, dish_id, price_paise, sort_order, is_active) values
+  ('4cbde0b8-7dee-46bc-ad64-5bc72ba07dc2', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '9ba5f4bb-ee85-49e8-a296-af9ec05a0477', 6900, 10, false),
+  ('60935560-61ec-4ad5-add6-19fe79782611', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '81a95eaa-ec46-4ba2-ad37-fecd9484247a', 10900, 20, false),
+  ('3af11ebf-d36e-44c2-ab0b-a2a7c72f4b91', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'df802cb2-ddf9-4fad-aeb0-76ae8ddb58cb', 13900, 30, false),
+  ('dd2ae1c3-63d9-434a-a078-cccca9e42714', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '476554f2-e6f4-4d5a-a69d-039461bc5751', 6900, 40, false),
+  ('b2e95247-c107-4094-a361-bef2c7e8846d', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '52d91c2f-c1be-4147-a7ff-f061a11213b2', 9900, 50, false),
+  ('3fda9966-5cb7-4d20-a5af-01bd1bc63bc5', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'd069659d-baac-4e9b-a06a-be91ce21dac9', 10900, 60, false),
+  ('5553ab89-6db6-46ac-a742-057ba0a5f5ed', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'a77dbdae-cc3a-46fc-a924-aca59b590410', 10900, 70, false),
+  ('d2e78d74-827a-4164-a3f3-f6c3f16607ec', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '0ea897ef-9bde-45d4-a167-f442bc80e68e', 9900, 80, false),
+  ('57dcf53d-f44a-45c6-a829-9e8aa909055a', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'ff30cec3-1de8-4575-a351-50a76668bc81', 6900, 90, false),
+  ('f24d5fc0-6150-4987-a355-c57905401c68', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'f97f39b1-ded3-481c-a1ae-885091984541', 6900, 100, false),
+  ('ed99a301-54a4-46e0-afe6-bc38402fbfb0', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '54b0a3b7-a96f-44cb-a6fc-1765fbca9ed9', 12900, 110, false),
+  ('71cb9914-b2eb-4e10-ac98-efeb33b9ab10', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'c02315fc-27f6-41b7-a755-16ab521db373', 6900, 120, false),
+  ('2c544f38-42c8-42dd-aa1f-7e281f219f84', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '64f15f33-361b-451c-a4ed-4179735662a3', 10900, 130, false),
+  ('b0bee3bc-1e0e-4863-aa06-c09af50e753e', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'ca24ff5a-f35a-4136-a58d-ed0b2d185578', 10900, 140, false),
+  ('eae0843a-e082-42bc-a140-ac28310d7495', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'c59857ba-c2c0-4dfb-a9e1-a471c6eb621a', 10900, 150, false),
+  ('5a22a43a-d0b7-479b-a5d3-54a5cd6f3166', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '6e290412-f98a-4fa9-a55b-c4123a2ede4a', 13900, 160, false),
+  ('1751d9a7-d1a1-4e26-aa2e-3e48ab3646a5', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '8f4e81fe-14f4-4405-ab76-401f251680f1', 10900, 170, false),
+  ('1737325d-03e7-4455-aa84-7b42d5036567', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '56aba5d0-d635-4ca5-a7e7-6ae90e8c4f83', 13900, 180, false),
+  ('780634eb-63f7-499c-a046-619e7ee60896', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'e6c7b983-711a-42c7-a6c1-f8c074688bd9', 7900, 190, false),
+  ('d2791b15-cbe7-40c1-adfd-f13b42c4c4f4', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'be429d49-67dd-40e9-a709-65e3107172c5', 10900, 200, false),
+  ('ec13fdb1-e6a5-4874-ae12-e5e72072a66a', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '9275cef8-840d-41a5-afc1-f321f5688a93', 12000, 210, false),
+  ('e2989cd4-d890-42a6-a2dc-fb64013f5c1f', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '9ecbfe93-cbd0-4c22-a3e3-2c2334a311ac', 12000, 220, false),
+  ('4b3fd707-37d0-4e9c-afae-20a83f5c921d', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '0889579a-1729-47d8-af98-6dfee108c886', 12000, 230, false),
+  ('d79afca9-ebca-4d09-a4e6-799d604470a3', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '749f188d-5fef-4e82-a587-4e023eda7720', 10900, 240, false),
+  ('6021c001-0283-494c-a849-be748cf95f66', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '92f3aebb-db75-428c-abb0-603faa0e4e60', 12000, 250, false),
+  ('4c253f63-6852-4858-a6e5-be6edb1f1159', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '71680f45-adba-4b5e-a60a-7c2b8e6ee844', 12000, 260, false),
+  ('d79d8647-0780-480f-a51b-e40fb8a4c059', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'f4853989-b2a7-4841-a517-a99bd5bf7b2d', 12000, 270, false),
+  ('04e216bf-32af-4879-a486-771918bbc0b3', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '257bfaf0-1ad1-4edb-a1bf-cc1a67a0d355', 10900, 280, false),
+  ('2b40cb02-c270-489e-a96c-66dc8498199c', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '67c4c96a-4ed0-42e3-a801-1a073edff543', 5900, 290, false),
+  ('bee9eef8-a9e2-498b-a320-440ab10b257b', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'bef50ee7-e9b3-4702-a1d2-760447dae14a', 10900, 300, false),
+  ('75942a6d-bb3c-4edd-a44b-c9d994530d0a', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'e91ffde9-99ef-4ef6-a8ce-d0035570bbc3', 10900, 310, false),
+  ('6ac935fe-bc32-47e9-a84f-d4ad17c42b90', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '4a1b9612-c426-49f4-a415-eac8b12ad18a', 10900, 320, false),
+  ('b127b6bf-6211-47fb-a4f5-6c0e6986f14c', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'ea6c7701-47e3-49e8-a287-130101806649', 10900, 330, false),
+  ('cc52310d-699f-474b-aff1-d8996b962575', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'c75aedc4-c422-4f03-aa89-eeba3c5ff187', 10900, 340, false),
+  ('ddaa894e-796a-48dd-a56c-086c8e77e4a8', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'f7ed2183-8f9e-466b-aa7c-ada3b3512793', 10900, 350, false),
+  ('df8bd8cb-1546-4d45-a861-f3a8162c2bb2', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '7ff727e6-75e9-419a-a40c-1496a3f53b97', 10900, 360, false),
+  ('34a37de6-bce3-447e-a636-f8f8f7b29b78', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '7b6a9487-a8c8-4313-ab59-4775e33b67e1', 10900, 370, false),
+  ('fbd62cfa-be03-4030-ad99-b201d1b55f36', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'bd743b4e-99ea-4858-a879-cf359e3abf9a', 12900, 380, false),
+  ('ef14fcb5-2e9f-4081-a977-329a6c80805e', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '1ecb1eb0-a3e3-4605-a10c-319356fefa2c', 10900, 390, false),
+  ('6317f79f-7c08-4a1c-a68b-f7e4c3717174', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '6a355b36-8c19-4dd7-ae33-038cf14b0f49', 5900, 400, false),
+  ('c000fc0c-bc16-4a7e-a8e1-51ac47c2ed63', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'e8da2b16-eed3-4010-af17-f67219a3d87e', 4000, 410, false),
+  ('4fc188de-1e8b-4527-a8e2-b9996d2b768a', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '7135dbf4-2182-4ed6-ae6a-2f9afee2c0d3', 10900, 420, false),
+  ('7febd225-6438-4826-ab17-8417d4187c8b', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'f2450d69-4bf9-41cc-a489-079b55e619f6', 10900, 430, false),
+  ('f8d0102a-d374-4d93-a3a8-3f1285ee05e8', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', 'a2d66075-8a26-44a7-a23e-115287123af7', 12900, 440, false),
+  ('db3b0aaf-0dc0-41e2-a201-b401e7c449b6', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '082891cf-f1a4-4fbb-aefb-07d0f8f817f1', 12900, 450, false),
+  ('7627ebcf-4082-4265-a343-2198c7346c55', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '3c7fc0ce-c798-4b36-a4a2-b778db302c68', 10900, 460, false),
+  ('56e8cb12-e1d2-4551-a562-8162dcc5328e', '2ff90ad6-0d28-4fa4-aebb-7892c3999c20', '077a8845-034f-4fe4-ac88-7bbd1d3099bb', 10900, 470, false),
+  ('a5626a98-4166-4a1a-a26d-315283516450', '098e2390-9b9a-46cd-ae5b-09053780d099', '51115c58-7fe3-4aba-a1a1-5a24d85382f5', 8900, 480, false),
+  ('d4199cfd-18ea-48e0-aadf-3272df48252d', '098e2390-9b9a-46cd-ae5b-09053780d099', 'ff30cec3-1de8-4575-a351-50a76668bc81', 8900, 490, false),
+  ('3c938838-09a4-4647-a1cf-0b79f449b596', '098e2390-9b9a-46cd-ae5b-09053780d099', '78977f3f-7be5-4902-aa29-196daecd9e78', 8900, 500, false),
+  ('faf3d85b-f184-493e-a352-f82fa24270dc', '098e2390-9b9a-46cd-ae5b-09053780d099', '032ffa71-416f-410d-afa4-f0c2c851a37d', 11000, 510, false),
+  ('532a752d-3a14-4ec4-a3ea-c7bfd3fb6248', '098e2390-9b9a-46cd-ae5b-09053780d099', 'a3c2e5cf-0c02-4fa1-a033-df385ea00c2e', 7900, 520, false),
+  ('e9be02af-6b81-4526-a0c9-653cde1c4325', '098e2390-9b9a-46cd-ae5b-09053780d099', '48e45752-9ad2-4630-a15a-a133a30babee', 9900, 530, false),
+  ('52740f32-b754-4b64-ad92-a6c4641eee63', '098e2390-9b9a-46cd-ae5b-09053780d099', '59c2310c-849f-42b1-a817-8715116d8f17', 9900, 540, false),
+  ('fe91be51-34c7-41dd-a611-514c1e3348d6', '098e2390-9b9a-46cd-ae5b-09053780d099', '7135dbf4-2182-4ed6-ae6a-2f9afee2c0d3', 8900, 550, false),
+  ('d39c5401-a6bc-4cca-ae3d-00b9ae0736e6', '098e2390-9b9a-46cd-ae5b-09053780d099', '4fe69c9a-cc1d-4c70-a682-6ccf740f2c3a', 5900, 560, false),
+  ('dbbd83ee-8f55-4fdf-a6f1-5f02b93a1f8a', '098e2390-9b9a-46cd-ae5b-09053780d099', 'fc9fc49f-4f0f-4a25-a86f-b8e2c8932407', 11000, 570, false),
+  ('6604ec67-b95c-49cc-ac19-faa7569ad275', '098e2390-9b9a-46cd-ae5b-09053780d099', '55f3fbad-f01f-42c8-a17f-e9e28341f10b', 11000, 580, false),
+  ('e2e5e8a4-cd45-4025-a467-bf2504fda62e', '098e2390-9b9a-46cd-ae5b-09053780d099', 'd8552969-86e3-4166-a484-d67314744c9d', 8900, 590, false),
+  ('4180f020-065f-4606-ade3-4263333b477a', '098e2390-9b9a-46cd-ae5b-09053780d099', '249d5eea-bb21-4555-ab1a-9fb74911a4cf', 5900, 600, false),
+  ('3387ba06-1779-4147-aafe-65fede0e6a23', '098e2390-9b9a-46cd-ae5b-09053780d099', '5786123a-6435-4f32-a199-c966998b3c10', 13000, 610, false),
+  ('f8697d25-66cb-4d8c-aa29-b161f0e506e7', '098e2390-9b9a-46cd-ae5b-09053780d099', '2bcc8895-c2e7-4adf-a8fe-428981089cd5', 9900, 620, false),
+  ('99a8ea05-539b-465f-a2f3-dde1cda1f602', '098e2390-9b9a-46cd-ae5b-09053780d099', 'ca4c954e-c784-4484-a764-dd91d85921e6', 9900, 630, false),
+  ('f784fe81-8288-4604-a649-e2ec8f00ceb0', '098e2390-9b9a-46cd-ae5b-09053780d099', '7ff727e6-75e9-419a-a40c-1496a3f53b97', 9900, 640, false),
+  ('99297b37-dec3-4939-ab6a-4acb3665e6a4', '098e2390-9b9a-46cd-ae5b-09053780d099', '974feb0c-0649-4a60-a05f-fe36afa40e70', 9900, 650, false),
+  ('2e716a90-cc02-4732-afa6-b93d9c90be7f', '098e2390-9b9a-46cd-ae5b-09053780d099', '3118e713-773c-4201-a5e1-826edaf788bf', 11000, 660, false),
+  ('65a87e8f-6e6f-4551-aaff-859799e5a516', '098e2390-9b9a-46cd-ae5b-09053780d099', '18cb9677-0f79-452a-a267-37955597979b', 11000, 670, false),
+  ('b4b0233d-74ec-42b3-a2d2-5d6d615c124a', '098e2390-9b9a-46cd-ae5b-09053780d099', 'b71f4b14-ec16-4675-a2ea-70880c6a3fa4', 4900, 680, false),
+  ('c68902fb-5385-4efa-acea-ffcf9cee464b', '098e2390-9b9a-46cd-ae5b-09053780d099', 'a2da0e85-574c-4846-ac0a-2bb994f4996c', 11000, 690, false),
+  ('86e54b3d-4756-4c26-a5a3-7a3c65dfad19', '098e2390-9b9a-46cd-ae5b-09053780d099', '8b4d2880-9d4a-425c-a350-84d13e3e5a7a', 6900, 700, false),
+  ('b2301e52-8f9a-4538-a5a1-f6e11a403452', '098e2390-9b9a-46cd-ae5b-09053780d099', '07dac96a-2696-4bb1-a58b-0267dad3a20f', 5900, 710, false),
+  ('36c545ea-b3e2-4e7f-a563-1cf2dab09341', '098e2390-9b9a-46cd-ae5b-09053780d099', 'fcf5f7ef-4ba2-4fb3-adcd-6e5aa9856a6c', 11000, 720, false),
+  ('c9cb306f-6b88-4c2c-a191-21664f222253', '098e2390-9b9a-46cd-ae5b-09053780d099', '5545b7fa-ebc5-4b08-abc0-766b459b9407', 10000, 730, false),
+  ('7341ec1b-5c3a-4f0f-a40d-63b1a7f0a91a', '098e2390-9b9a-46cd-ae5b-09053780d099', '1ecb1eb0-a3e3-4605-a10c-319356fefa2c', 9900, 740, false),
+  ('4436b8df-99a2-45a5-ae63-86f63f94b2cb', '098e2390-9b9a-46cd-ae5b-09053780d099', '09456bbd-a4af-4745-a4b7-0e8372dc4a18', 7900, 750, false),
+  ('f598c3e1-3be9-46cf-a3f7-1608f27324b1', '098e2390-9b9a-46cd-ae5b-09053780d099', '4d2e14b8-9672-4a9d-a1ee-a2c07d6e5213', 11000, 760, false),
+  ('ecfdb6f6-92d4-4aa2-a589-77124c6ac471', '098e2390-9b9a-46cd-ae5b-09053780d099', 'feeef41f-7f46-4f82-aedb-03d2f5da9b28', 9900, 770, false),
+  ('ae70392f-4c87-43f8-a399-10bcc29f32df', '098e2390-9b9a-46cd-ae5b-09053780d099', '34e0b082-3d7f-4f6b-aca7-a9506b786feb', 6900, 780, false),
+  ('08aeafad-213c-4e8a-a19c-bac7b6251a93', '098e2390-9b9a-46cd-ae5b-09053780d099', 'a6cbc529-c379-4d80-a38b-30ea4fe43c6f', 11000, 790, false),
+  ('704a8736-e45f-4b49-ab66-5ba1d0a32046', '098e2390-9b9a-46cd-ae5b-09053780d099', '5ff51909-1a40-4e86-a006-eb57160a78f2', 9900, 800, false),
+  ('19136b79-060c-45a3-a9ec-e6632ebbf7cc', '098e2390-9b9a-46cd-ae5b-09053780d099', '630bd35a-da35-483a-ab12-69164b9fe84f', 11000, 810, false),
+  ('312f274b-6d56-481d-aed4-ddb79f3d7520', '098e2390-9b9a-46cd-ae5b-09053780d099', '1b285863-ae69-4bcf-af8d-7a8544e037e3', 6000, 820, false),
+  ('4167abb0-c7f9-4386-a321-cf922560abb8', '098e2390-9b9a-46cd-ae5b-09053780d099', '5886a511-7755-4077-a18d-61a913825080', 10000, 830, false)
 on conflict (id) do nothing;
+
+-- How to finish, once the dishes carry a food type (`E16-52`):
+--
+--   update menu_item mi set is_active = true
+--     from dish d where d.id = mi.dish_id and d.food_type is not null;
+--
+-- It is deliberately NOT run here. Activating is the moment a dish becomes visible to a
+-- parent, and that should be a thing somebody does on purpose after checking the marks —
+-- not a side effect of seeding. The statement is idempotent and safe to re-run.
 
 -- Which school eats from which menu. Straight from School-Menu, which is the flag Bubble
 -- actually gates on.

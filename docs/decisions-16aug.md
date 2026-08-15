@@ -1434,3 +1434,61 @@ instead.
 
 Worth splitting Maestro into its own workflow so it cannot delay the diagnosis of the checks that
 gate a merge. Not done here — it is a CI restructure, and this is a launch day.
+
+---
+
+# PART FOUR — the rejection, and E16-53
+
+## D36 — ITMS-90683, and why my own check missed it
+
+Apple rejected build 11 at processing: **missing `NSPhotoLibraryUsageDescription`**. No API record
+is produced for a build rejected at that stage, which is why two hours of querying found nothing —
+the answer only ever existed in the email.
+
+**My verification was wrong in a way worth naming.** I checked `app.json` and reported the usage
+descriptions present. They were — **in the working tree**. EAS builds from the *committed* tree,
+and the commit it built (`9bd7918`) carried only `ITSAppUsesNonExemptEncryption`:
+
+```
+working tree : ITSAppUsesNonExemptEncryption, NSCameraUsageDescription,
+               NSPhotoLibraryAddUsageDescription, NSPhotoLibraryUsageDescription
+commit 9bd7918: ITSAppUsesNonExemptEncryption
+```
+
+So I confirmed a build input by reading a file the builder never saw. **When checking what a build
+contains, read `git show <commit>:<path>`, not the file on disk** — the two differ exactly when it
+matters most, which is while somebody is mid-edit.
+
+The strings had in fact been committed by the time I looked again, swept into `cbdcdbc` during a
+rebase. Build 12 is from `0696698` and carries all three.
+
+## D37 — `E16-53` fixed: the catalogue seeds INACTIVE
+
+Confirmed unfixed on `main` (`d1e9000`): 0 of 79 dishes carry a `food_type`, `menu_item` has no
+`is_active` in the insert so it defaults true, and applying main's catalogue to a database with
+the trigger dies on the first row.
+
+**The fix does not invent food types**, which is the one thing `catalogue.sql` and `0059` already
+agree on. The generator now emits `is_active = false`, and both invariants hold:
+
+- **Nothing unmarked is offered to a parent** — the guard's whole purpose.
+- **A fresh environment can be built** — the seed's whole purpose.
+
+Proven against a fresh `db reset`: the catalogue applies (79 dishes, 83 items, all inactive), and
+then the documented one-liner does the rest —
+
+```sql
+update menu_item mi set is_active = true
+  from dish d where d.id = mi.dish_id and d.food_type is not null;
+```
+
+Marking one dish activated exactly its item (8 → 9), and the guard **still refused** activating an
+unmarked one. The statement is printed in the seed's footer and deliberately **not run by it**:
+activation is the moment a dish becomes visible to a parent, and that should be somebody's
+decision after checking the marks, not a side effect of seeding.
+
+**Production is unaffected** — its 83 items were loaded before the trigger and remain active. What
+changes is that production can now be *reproduced*, which it could not this morning.
+
+`E16-52` (mark the 79 dishes) remains open and remains the real answer; this makes the estate
+buildable in the meantime rather than making the gap invisible.

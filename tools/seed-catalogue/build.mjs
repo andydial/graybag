@@ -476,19 +476,40 @@ if (dropped > 0) notes.push(`${dropped} menu item(s) skipped: no price, or dish/
 
 w(`-- ${priced.length} real prices. Whole rupees in the source; x100 into integer paise here.`);
 w('-- GST-EXCLUSIVE — 5% is added at checkout, exactly as the Bubble cart does.');
+w('--');
+w('-- SEEDED INACTIVE — `E16-53`. This is not a style choice and it is not optional.');
+w('--');
+w('-- `0059`\'s `assert_dish_is_marked` refuses any ACTIVE menu_item whose dish has no');
+w('-- `food_type`, and this file ships every dish unmarked because `[DM-17]` is open and the');
+w('-- generator will not invent a fact about food. Both are right. Together they meant this');
+w('-- seed could not be applied to a fresh database AT ALL — it died on the first row, so a');
+w('-- rebuilt staging, a new environment and E01-17\'s restore drill all failed at the seed.');
+w('--');
+w('-- `is_active = false` satisfies both: the rows exist and are priced, and nothing unmarked');
+w('-- is OFFERED to a parent, which is precisely what the guard is for. Marking the dishes is');
+w('-- what activates them — see the note this file prints at the end.');
 // menu_item is the one Bubble-derived table with no `legacy_bubble_id` column of its own. Its
 // id is derived from the legacy id, so the provenance is recoverable without it.
-w('insert into menu_item (id, menu_id, dish_id, price_paise, sort_order) values');
+w('insert into menu_item (id, menu_id, dish_id, price_paise, sort_order, is_active) values');
 w(
   priced
     .map((i, n) => {
       const rupees = Number(i.price);
       if (!Number.isInteger(rupees)) throw new Error(`price is not whole rupees: ${i.dish} = ${i.price}`);
-      return `  ('${idOf('menuitem', i['unique id'])}', '${idOf('menu', menuByName.get(i.menu)['unique id'])}', '${idOf('dish', canonicalDishId(dishByName.get(i.dish)['unique id']))}', ${rupees * 100}, ${(n + 1) * 10})`;
+      return `  ('${idOf('menuitem', i['unique id'])}', '${idOf('menu', menuByName.get(i.menu)['unique id'])}', '${idOf('dish', canonicalDishId(dishByName.get(i.dish)['unique id']))}', ${rupees * 100}, ${(n + 1) * 10}, false)`;
     })
     .join(',\n'),
 );
 w('on conflict (id) do nothing;');
+w('');
+w('-- How to finish, once the dishes carry a food type (`E16-52`):');
+w('--');
+w('--   update menu_item mi set is_active = true');
+w('--     from dish d where d.id = mi.dish_id and d.food_type is not null;');
+w('--');
+w('-- It is deliberately NOT run here. Activating is the moment a dish becomes visible to a');
+w('-- parent, and that should be a thing somebody does on purpose after checking the marks —');
+w('-- not a side effect of seeding. The statement is idempotent and safe to re-run.');
 w('');
 
 // assignments -----------------------------------------------------------
