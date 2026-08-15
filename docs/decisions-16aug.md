@@ -1345,3 +1345,50 @@ cache checks already follow.
 **Their migration is not idempotent** (`create function`, not `create or replace`), so it cannot
 be replayed onto an environment that has it. I did not edit another thread's migration; worth
 their attention.
+
+---
+
+## D33 — The review submission: everything is staged, Apple has not produced the build
+
+**State as of the end of this run:**
+
+| | |
+|---|---|
+| Binary uploaded to App Store Connect | ✅ EAS submission `79ede8bf` reports `FINISHED`, no error |
+| App Store version `4.0.0` created | ✅ `581a6156-3a3d-49e9-8a14-c3cc8ddb388a`, `PREPARE_FOR_SUBMISSION` |
+| Release notes ("What's New") written | ✅ en-US |
+| Build attached to the version | ❌ **cannot — Apple has not produced a build record** |
+| Submitted for review | ❌ blocked on the above |
+
+**More than an hour after a successful upload, App Store Connect has no build 11 and no `4.0.0`
+TestFlight train.** Queried four ways: `filter[app]`, `filter[preReleaseVersion.version]`,
+unfiltered `sort=-uploadedDate`, and `preReleaseVersions`. The newest train is 3.7.0.
+
+I checked what I could pre-empt and it is all correct: `ITSAppUsesNonExemptEncryption` is declared
+`false`, the icon is present, and the three `NS*UsageDescription` strings are set — the usual
+causes of a binary that uploads and never appears.
+
+**The remaining likely cause is a processing rejection, which produces no API record at all and is
+emailed to the account.** That inbox is `andy@graycord.com` and I cannot read it. If there is a
+message from App Store Connect titled something like *"Your build has one or more issues"*, that
+is the answer and the fix is another build.
+
+Otherwise it is Apple's queue, which occasionally runs to several hours.
+
+**`scripts/asc-submit-for-review.mjs` finishes the job in one command** when the build appears:
+
+```bash
+export EXPO_ASC_API_KEY_PATH=~/.graybag-secrets/AuthKey_435XUS53TJ.p8
+set -a; . ~/.graybag-secrets/prod.env; set +a
+node scripts/asc-submit-for-review.mjs 4.0.0 --wait
+```
+
+It attaches the build, submits for review, and prints the resulting state. It **refuses** rather
+than guessing in three cases — no `VALID` build, empty release notes (Apple rejects an update
+without them, and learning that from a review rejection costs a day), and a version already past
+`PREPARE_FOR_SUBMISSION` — so re-running it is safe.
+
+**Why this script had to exist:** `eas submit` uploads and stops. Creating the version, writing
+the notes, attaching the build and asking Apple to review are four further steps, and a build
+sitting in `PREPARE_FOR_SUBMISSION` looks submitted to anyone glancing at TestFlight. That was the
+last mile nobody had automated, and it is the mile the deadline actually depends on.
