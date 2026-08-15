@@ -3774,13 +3774,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/35</span>
+          <span class="meter-num">0/36</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 35 tasks</summary>
+        <summary>Context &amp; 36 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -4056,13 +4056,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The sheet the kitchen packs from.</strong> <code>/kitchen/sheet</code> — one day, grouped school → break → class → child, printable on A4 and legible on a phone. Deliberately <strong>not</strong> <code>E09-12</code>&#39;s packing-list tooling: no interaction at all, because the board is where things change and a Delivered button printed on paper is a promise nobody can keep. A second page rather than a print stylesheet over the board, which leads with what is still to do, hides what is done and assumes you can tap — a print sheet would be an argument with every one of those. Same read, same columns, same RLS, no new grant. What it adds is a <strong>count per dish per break</strong> (what gets counted onto a tray, printed first because that is the first thing done) and every child&#39;s lines visible at once rather than behind a status. Cancelled orders are excluded — on the board they need explaining, on a packing sheet they would get bagged. Allergen badges are boxed and bold rather than coloured, because kitchen printers are monochrome and a badge that exists only in colour does not exist on paper. <code>break-after: page</code> per (school, break) and <code>break-inside: avoid</code> per class and child: half a class across a page boundary is a child left unbagged</span>
       </li>
-      <li class="task" data-id="E09-35" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E09-35" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-35"></button>
         <code class="tid">E09-35</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Kitchen day one verified end to end on staging.</strong> Driven through the real board in a real browser as a <strong>real signed-in operator</strong> — a genuine GoTrue session, so every read went through RLS as it will on the 19th, never the service role. Proven: 34 orders across 5 classes and 3 breaks render; parent notes reach the kitchen; allergy badges show <code>MILK</code>, <code>TREE NUT</code>, <code>GLUTEN</code>, <code>SOY</code> on the right children with 26 others reading &quot;No allergies provided&quot;, codes only and never a severity or note; <strong>mark-delivered works and sticks</strong> (paid 19 → 18, delivered 6 → 7, <code>delivered_at</code> set) with an <code>order_event</code> recording <code>paid → delivered</code> by <code>actor_type: kitchen</code> (<code>I2</code>); and the <strong>IST midnight boundary</strong> is correct *on the board*, not only in <code>serviceDateToday</code> — clock pinned inside the browser, 18:29 UTC reads Friday 14 August and 18:31 UTC reads Saturday 15 August. The undo window was <strong>waited out on its own timer</strong> rather than flushed by a reload, because a hand-over left alone takes the timer path. <code>docs/kitchen-day-one.md</code> has the five-line check to run against production once a smoke payment lands</span>
+      </li>
+      <li class="task" data-id="E09-36" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-36"></button>
+        <code class="tid">E09-36</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Kitchen path verified against production and staging.</strong> Production has <strong>no paid order</strong> — one cancelled, one stuck in <code>pending_payment</code>, and the <code>payment</code> table is empty, so the smoke payment never completed. The board and packing sheet correctly show nothing for that day: <code>pending_payment</code> must not reach the kitchen (<code>L5</code>). A paid order was <strong>not</strong> fabricated on production; that would put unpaid revenue in the ledger. Badges and mark-delivered proved on staging through the real board as a signed-in operator — <code>Tara Bajwa MILK</code>, <code>Dhruv Ahluwalia GLUTEN</code>, and the Delivered button writing <code>paid -&gt; delivered | actor=kitchen</code>. Note for anyone testing this: the board has a <strong>ten-second undo window</strong>, so a click looks like a no-op if you read the database before it closes</span>
       </li></ul>
       </details>
     </article>
