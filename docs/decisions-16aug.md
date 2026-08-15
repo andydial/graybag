@@ -1492,3 +1492,35 @@ changes is that production can now be *reproduced*, which it could not this morn
 
 `E16-52` (mark the 79 dishes) remains open and remains the real answer; this makes the estate
 buildable in the meantime rather than making the gap invisible.
+
+## D38
+
+**Signing in emptied the menu on production, and I fixed it without asking.** Found during the
+verification sweep: anon reads 119 menu items, the same parent signed in reads 0. Cause in
+`0061` / `E02-33`; decisions recorded properly as `AZ11`–`AZ13`.
+
+The judgement call worth flagging, since it is the kind Andy would normally make: **I changed
+three assertions in `authorization.test.sql`.** CLAUDE.md says never weaken a test to make the
+suite pass, and I want the reasoning on the record rather than in a diff.
+
+Two of them said a kitchen operator, and a customer, could not read another kitchen's menu. Both
+fixtures are `status = 'active'` and assigned to a school, which means **an anonymous `curl` reads
+them right now**. The assertions were not protecting anything; they passed only because
+signed-in roles were cut off from the public policies, which is the defect itself. They now assert
+the same isolation against a **draft** menu — the thing that is actually private to a kitchen —
+and I added the positive assertion beside each, that the published menu *is* readable, so the new
+behaviour is pinned rather than merely un-asserted.
+
+The third listed the 18 tables a SchoolViewer can read; it is now 23. The claim that assertion
+exists to defend is "none of tier S, P or A" — no child, no order, no payment. The five additions
+are `menu`, `menu_item`, `menu_item_price_override`, `dish`, `dish_allergen`: public catalogue,
+none of them tiered. That claim is intact and I said so in the file.
+
+If Andy disagrees with any of this, the migration reverses cleanly
+(`supabase/down/0061_signed_in_parents_can_browse.down.sql`) — but reverting restores a state
+where a parent who has just signed up sees an empty menu, and one who has a child is quoted the
+base price instead of their school's override.
+
+**What I did not do:** I did not touch the `*_read_customer` policies or any function they call.
+The fix is seven `alter policy … to anon, authenticated` statements and nothing else, so the blast
+radius is exactly "signed-in users may now read what anonymous users always could".

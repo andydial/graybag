@@ -158,8 +158,9 @@ export interface MenuCache<TMenu> {
  * | 1 | — | Original. |
  * | 2 | `AUTH-01` / `0012_anon_menu_table_grants.sql` | `anon` gained SELECT on the menu tables. Caches written before it hold an empty menu against a valid version and will never refetch. |
  * | 3 | `E16-48` / `0024_onboard_real_schools.sql` | The whole catalogue was replaced with the real one and three schools became visible for the first time. A device that read a school *while it was still un-onboarded* cached the refusal-shaped answer against a version that has not moved since, so it would keep showing an empty menu behind a real school name for ever. |
+ * | 4 | `E02-33` / `0061_signed_in_parents_can_browse.sql` | Signing in used to empty the menu: the `anon_*` browse policies were addressed `to anon`, and a JWT-bearing request is `authenticated`, so a parent with no child yet read zero rows. This is the third time in four epochs that the bug was **an authorization change wearing an empty list's clothes** — which is the entire argument for the epoch existing. A device that opened a school while signed in holds that refusal against a version that never moved. |
  */
-export const MENU_CACHE_EPOCH = 3;
+export const MENU_CACHE_EPOCH = 4;
 
 export function createMenuCache<TMenu>(options: MenuCacheOptions<TMenu>): MenuCache<TMenu> {
   const { storage, fetchVersion, fetchMenu, isEmpty } = options;

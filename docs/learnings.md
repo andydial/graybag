@@ -2815,3 +2815,45 @@ time the suite runs, which is how this survived.
 **And audit in both directions.** Fixing the kitchen board and stopping there would have left the
 identical bug in the app. One grep for `toISOString().slice(0, 10)` and one for
 `toLocaleDateString` without `timeZone` found every instance in the repository in about a minute.
+
+## An RLS policy addressed `to anon` stops applying the moment someone signs in (2026-08-15)
+
+Production, during the verification sweep. Anonymous request: **119 menu items**. Same parent, one
+second after signing in: **zero**.
+
+PostgREST picks the database role from the request. No JWT → `anon`. A JWT → `authenticated`. A
+permissive policy addressed `to anon` matches *only* the `anon` role, so **signing in subtracts
+access**. Everything else about the policy — its predicate, its table, its grants — is irrelevant
+to this; the role list alone decides it.
+
+Our public browse policies (`0012`, `AUTH-01`) were all `to anon`. The parallel `*_read_customer`
+policies were scoped to schools the parent has a child at. So the union a signed-in parent got was
+"nothing public" ∪ "their own school", and for a parent who had not added a child yet that is the
+empty set. Seven tables, including `menu_item_price_override` (base price shown instead of the
+school's) and `dish_allergen` (a dish rendering as though it contains nothing).
+
+**Why nothing caught it.** The authorization suite thoroughly covers what `anon` may read, and
+thoroughly covers what a customer may read *at their own school*. Nobody had asserted the state in
+between: a real, live, signed-in account with **no children yet** — which is every parent for the
+minutes between signing up and adding a child, and precisely the window `AR7` protects.
+
+**How it presents, which is the reusable part.** RLS filtering a read to nothing is `200 []` — byte
+identical to "there is nothing here". It cannot be distinguished at the wire, it does not move any
+menu version, and it therefore gets **cached as data**. Three of the four `MENU_CACHE_EPOCH` bumps
+now have this same cause. `MenuUnreadableError` and the epoch table both exist because of it, and
+it still took a manual sweep to find this instance.
+
+Two rules fall out:
+
+1. **Verify as the least-privileged real principal.** A granted account — 17 back-office grants, in
+   this case — passes every one of these reads for the wrong reason. This is `E02-32`'s rule and it
+   is the only reason this was found before the mandatory update on the 19th.
+2. **When auditing a policy, read the role list first.** The predicate is where the attention
+   naturally goes and it was correct in all seven cases here.
+
+    select tablename, policyname, roles, permissive from pg_policies
+     where schemaname = 'public' and not ('authenticated' = any(roles));
+
+A useful corollary surfaced while fixing it: an assertion that a signed-in role *cannot* read
+something anonymous requests can read is not a security property, it is a bug waiting to be
+described. Three such assertions existed; see `AZ12`.
