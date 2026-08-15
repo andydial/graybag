@@ -166,9 +166,176 @@ import '../../styles/admin.css';
                 `<b>${esc(api.formatSettingValue(r.spec, r.revertsTo.value))}</b> ` +
                 `(${esc(r.revertsTo.source === 'kitchen' ? 'from the kitchen' : 'the platform default')}).</p>`
               : '') +
-            (canOverride ? '' : `<p class="setting__reverts">Set platform-wide. This setting has no per-school value.</p>`) +
+            (canOverride
+              ? editor(r)
+              : `<p class="setting__reverts">Set platform-wide. This setting has no per-school value.</p>`) +
           `</div>`
         );
+      }
+
+      /**
+       * The client key `admin-school` expects for a setting — `E10-19`.
+       *
+       * The endpoint speaks camelCase (`serviceDays`), the database speaks snake_case
+       * (`service_days`), and `SETTINGS[].key` is the database's. Mapped explicitly rather than
+       * transformed, so a setting the endpoint does not accept has no editor at all instead of
+       * one that silently posts a key the server ignores.
+       */
+      const CONFIG_KEY: Record<string, string> = {
+        order_cutoff_time: 'orderCutoffTime',
+        order_cutoff_days_before: 'orderCutoffDaysBefore',
+        service_days: 'serviceDays',
+        max_advance_order_days: 'maxAdvanceOrderDays',
+        min_advance_order_days: 'minAdvanceOrderDays',
+      };
+
+      const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+      /**
+       * The control for one setting, inside a collapsed `<details>`.
+       *
+       * Collapsed by default because this screen is read far more often than it is written — the
+       * question it answers is "why is this school's cutoff 11:00", and nine open forms would
+       * bury the answer. `<details>` rather than a JavaScript toggle so it is keyboard-operable
+       * and announced without any focus management of mine.
+       *
+       * The current value is pre-filled from the **effective** value, not from the school's
+       * override. Opening the editor on a blank field would invite somebody to type a value they
+       * think they are confirming, and pre-filling with the inherited one makes "override with
+       * what it already is" a visible no-op rather than an accident.
+       */
+      function editor(r: api.SettingResolution): string {
+        const key = CONFIG_KEY[r.spec.key];
+        // Overridable in the schema, but not from this screen. Said out loud: a row with no
+        // control beside eight rows that have one reads as a bug, and the reason differs per
+        // setting. `revenue_share_bps` is `M4` — a commercial term, and changing what a school is
+        // paid from the same form as its cutoff is the kind of adjacency that produces an
+        // accident. The cancellation pair is `E05-11`'s and belongs with the cancellation rules.
+        if (!key) {
+          return `<p class="setting__reverts">Not editable here. ${
+            r.spec.key === 'revenue_share_bps'
+              ? 'Revenue share is a commercial term (<code>M4</code>) and is deliberately not changed from the same form as a cutoff.'
+              : 'No editor for this setting yet — <code>admin-school</code> does not accept it.'
+          }</p>`;
+        }
+        const id = `f-${r.spec.key}`;
+        let control = '';
+
+        switch (r.spec.kind) {
+          case 'time': {
+            const hhmm = String(r.value ?? '00:00:00').slice(0, 5);
+            control =
+              `<label class="admin__label" for="${id}">Cutoff time</label>` +
+              `<input class="admin__input" id="${id}" name="${esc(key)}" type="time" value="${esc(hhmm)}" required />`;
+            break;
+          }
+          case 'integer':
+            control =
+              `<label class="admin__label" for="${id}">Days</label>` +
+              `<input class="admin__input" id="${id}" name="${esc(key)}" type="number" min="0" ` +
+              `value="${esc(String(r.value ?? 0))}" required />`;
+            break;
+          case 'weekdays': {
+            const on = new Set((Array.isArray(r.value) ? r.value : []).map(Number));
+            control =
+              `<fieldset class="admin__days">` +
+                `<legend class="admin__label">Served on</legend>` +
+                WEEKDAYS.map((d, i) =>
+                  `<label class="admin__day">` +
+                    `<input type="checkbox" name="${esc(key)}" value="${i + 1}"` +
+                    `${on.has(i + 1) ? ' checked' : ''} /> ${d}` +
+                  `</label>`,
+                ).join('') +
+              `</fieldset>`;
+            break;
+          }
+          default:
+            return '';
+        }
+
+        return (
+          `<details class="setting__edit">` +
+            `<summary>${r.source === 'school' ? 'Change or remove this override' : 'Override for this school'}</summary>` +
+            `<form data-setting="${esc(r.spec.key)}" data-kind="${esc(r.spec.kind)}" data-key="${esc(key)}">` +
+              control +
+              `<div class="setting__actions">` +
+                `<button class="kitchen__btn kitchen__btn--primary" type="submit">Save override</button>` +
+                // Only offered when there IS one. A "remove" on an inherited row would either do
+                // nothing or, worse, write a null that looks like a change in the audit log.
+                (r.source === 'school'
+                  ? `<button class="kitchen__btn" type="button" data-clear>Remove override</button>`
+                  : '') +
+              `</div>` +
+            `</form>` +
+          `</details>`
+        );
+      }
+
+      /**
+       * Read one setting's control back into the value the endpoint wants.
+       *
+       * Returns `undefined` when the form cannot produce a usable value — an empty weekday set,
+       * which the server would refuse anyway and which the operator means as "close this school",
+       * not as "serve on no days".
+       */
+      function readEditor(form: HTMLFormElement): unknown {
+        const kind = form.dataset.kind;
+        const key = form.dataset.key!;
+        const data = new FormData(form);
+
+        if (kind === 'weekdays') {
+          const days = data.getAll(key).map(Number).sort((a, b) => a - b);
+          return days.length === 0 ? undefined : days;
+        }
+        const raw = String(data.get(key) ?? '').trim();
+        if (raw === '') return undefined;
+        return kind === 'integer' ? Number(raw) : raw;
+      }
+
+      /**
+       * Save or clear one override.
+       *
+       * **One setting per request, and only that setting's key in the body.** The endpoint treats
+       * an absent key as "leave it alone" and a null as "clear it", so sending the whole config
+       * object would make every save rewrite settings the operator never touched — and with
+       * `undefined` collapsed to `null` by `JSON.stringify`, it would *clear* them.
+       */
+      async function saveSetting(form: HTMLFormElement, clear: boolean) {
+        if (!view) return;
+        const key = form.dataset.key!;
+        const value = clear ? null : readEditor(form);
+
+        if (value === undefined) {
+          showFormError(form, 'Pick at least one day. To close a school entirely, deactivate it instead.');
+          return;
+        }
+
+        if (demo) {
+          showFormError(form, 'This is the demo view — nothing is written. Sign in to change a setting.');
+          return;
+        }
+
+        try {
+          const result = await api.updateSchool({ id: view.schoolId, config: { [key]: value } });
+          el.status.textContent = result.changed.length
+            ? `Saved: ${result.changed.join(', ')}.`
+            : 'Nothing changed — that was already the value.';
+          await load();
+        } catch (cause) {
+          showFormError(form, cause instanceof Error ? cause.message : 'The change was not saved.');
+        }
+      }
+
+      function showFormError(form: HTMLFormElement, message: string) {
+        let box = form.querySelector('[data-err]') as HTMLElement | null;
+        if (!box) {
+          box = document.createElement('p');
+          box.setAttribute('data-err', '');
+          box.setAttribute('role', 'alert');
+          box.className = 'admin__error';
+          form.append(box);
+        }
+        box.textContent = message;
       }
 
       function render() {
@@ -234,16 +401,33 @@ import '../../styles/admin.css';
           `</section>` +
 
           `<p class="kitchen__oneway kitchen__oneway--block">` +
-            `This screen reads the configuration. Editing it is <code>E10-19</code> — the ` +
-            `<code>admin-config</code> Edge Function that will write an override, with the ` +
-            `<code>config_change_log</code> row that <code>§9.4</code> already requires. ` +
-            `Nothing here writes yet, and a disabled Edit button on every row would suggest ` +
-            `otherwise.` +
+            `Changes are written by the <code>admin-school</code> Edge Function and need the ` +
+            `<b>school.config_edit</b> permission, which is separate from being able to onboard a ` +
+            `school. Every change writes a <code>config_change_log</code> row naming you — that ` +
+            `is a database trigger (<code>§9.4</code>), not something this screen chooses to do. ` +
+            `<b>An override affects orders placed from now on.</b> Orders already placed carry ` +
+            `their own <code>config_snapshot</code> and do not move (<code>L6</code>).` +
           `</p>`;
       }
 
       el.body.addEventListener('click', (event) => {
-        if ((event.target as HTMLElement).closest('[data-retry]')) void load();
+        const target = event.target as HTMLElement;
+        if (target.closest('[data-retry]')) { void load(); return; }
+        const clear = target.closest('[data-clear]');
+        if (clear) {
+          // `revertsTo` is already on screen above this button, so the confirmation can name the
+          // real fallback rather than assuming the platform default — which is wrong whenever the
+          // kitchen also overrides the setting.
+          const form = clear.closest('form') as HTMLFormElement;
+          void saveSetting(form, true);
+        }
+      });
+
+      el.body.addEventListener('submit', (event) => {
+        const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;
+        if (!form?.dataset.setting) return;
+        event.preventDefault();
+        void saveSetting(form, false);
       });
       el.reload.addEventListener('click', () => void load());
       el.school.addEventListener('change', () => {
