@@ -46,8 +46,21 @@ appId: com.Gracord.Graybag.staging
 # `clearState: true` launch it never does.
 - assertVisible:
     id: 'school-picker'
+# A school ROW, and the id pattern has to say so.
+#
+# This was `school-picker-.*` with `index: 0`, and that is why the flow has never got past this
+# step. `SchoolPicker` puts nine other testIDs under the same prefix — `school-picker-search`,
+# `-stale`, `-welcome`, `-loading`, `-error`, `-empty`, `-no-match`, `-request-footer`,
+# `-request-from-list` — and the **search field is rendered before the list**, so `index: 0`
+# matched the search box. Tapping it focuses the field and opens the keyboard. No navigation
+# happens, `MenuScreen` never mounts, and the next line fails with `screen-menu is visible =
+# false` — which reads exactly like a slow or broken menu and is nothing of the kind.
+#
+# A row's id is `school-picker-<school.id>` and `school.id` is a uuid, so matching a uuid-shaped
+# suffix hits rows and only rows. Still no hard-coded school: staging's seed changes, and a flow
+# that breaks when it does gets disabled rather than fixed.
 - tapOn:
-    id: 'school-picker-.*'
+    id: 'school-picker-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
     index: 0
 
 # `extendedWaitUntil`, not `assertVisible`, and this is the only assertion in the flow that gets

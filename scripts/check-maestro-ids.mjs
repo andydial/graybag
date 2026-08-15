@@ -136,8 +136,25 @@ for (const [, value] of source.matchAll(/tabBarButtonTestID:\s*['"]([^'"]+)['"]/
 /** Does any known id satisfy this flow reference? */
 function satisfied(reference) {
   if (composed.has(reference)) return true;
-  const isPattern = reference.endsWith('.*');
-  const literal = reference.replace(/\.\*$/, '');
+
+  /**
+   * A reference is a PATTERN if it carries regex syntax anywhere, and its literal part is
+   * everything before the first metacharacter.
+   *
+   * This used to recognise a trailing `.*` and nothing else, which quietly punished the more
+   * precise form. `school-picker-.*` passed; `school-picker-[0-9a-f]{8}-…` — which matches the
+   * school ROWS and not the nine other testIDs sharing that prefix — was reported as existing
+   * nowhere. The loose pattern was not merely less precise, it was wrong: it matched
+   * `school-picker-search`, which is rendered before the list, so `index: 0` tapped the search
+   * box and the flow never left the picker (`E14-38`).
+   *
+   * `menu-row-.*` still resolves to the literal `menu-row-`, exactly as before, and a reference
+   * with no metacharacters must still match a known id exactly — otherwise `tab-does-not-exist`
+   * passes on three shared characters.
+   */
+  const meta = reference.search(/[.*+?^${}()|[\]\\]/);
+  const isPattern = meta !== -1;
+  const literal = isPattern ? reference.slice(0, meta) : reference;
   if (literal.length < 3) return false;
 
   for (const id of known) {

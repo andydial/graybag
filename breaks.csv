@@ -1,7 +1,0 @@
-school_code,code,label,starts_at,ends_at,sort_order,is_active
-amity-international-school,break-1,Morning break,10:40,11:15,10,true
-amity-international-school,break-2,Second break,11:15,11:40,20,true
-paragon-senior-secondary,break-1,Morning break,10:40,11:15,10,true
-paragon-senior-secondary,break-2,Second break,11:15,11:40,20,true
-gem-public-school,break-1,Morning break,10:40,11:15,10,true
-gem-public-school,break-2,Second break,11:15,11:40,20,true

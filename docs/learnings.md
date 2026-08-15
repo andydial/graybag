@@ -2898,3 +2898,45 @@ is untested no matter how many assertions surround it.
 
 Found by exercising the real endpoint against production as a real parent. No amount of staring at
 the suite would have surfaced it, because the suite was green and honest.
+
+## A Maestro `id:` is a regex, and `prefix-.*` matches far more than the rows (2026-08-15)
+
+The cart flow had never once been observed green. Three separate causes had already been found
+and fixed — a wrong Android `applicationId` (`E01-26`), a Gradle metaspace OOM and a 781-second
+emulator boot (`E14-36`), a missing `EXPO_PUBLIC_RAZORPAY_KEY_ID` that rendered
+`CantConnectScreen` instead of `RootNavigator` (`E01-28`) — and it still failed, now at:
+
+    Assertion is false: id: screen-menu is visible
+
+The tempting reading is "the menu is slow or broken". It was neither. The step before it was:
+
+    - tapOn:
+        id: 'school-picker-.*'
+        index: 0
+
+`SchoolPicker` renders **ten** testIDs under that prefix: `-search`, `-stale`, `-welcome`,
+`-loading`, `-error`, `-empty`, `-no-match`, `-request-footer`, `-request-from-list`, and
+`school-picker-<uuid>` for each row. **The search field is rendered before the list**, so
+`index: 0` was the search box. Tapping it focuses the field and opens the keyboard. No
+navigation, `MenuScreen` never mounts, and the failure surfaces one line later pointing at an
+innocent screen.
+
+**What made it diagnosable without another 29-minute run:** `screen-menu` is on the wrapper
+`<View>` of *every* `MenuScreen` branch — loading, error and loaded alike. So "screen-menu is not
+visible" cannot mean a slow load or an empty menu; it can only mean the screen was never
+reached. Reading the component settled in two minutes what three CI runs could not.
+
+Two general lessons:
+
+1. **`index: 0` on a prefix pattern is a bet on render order**, and render order puts chrome —
+   search fields, banners, empty states — before content. Match the shape of the thing you want:
+   a row id ending in a uuid is `prefix-[0-9a-f]{8}-...`, which cannot collide with a hand-written
+   suffix.
+2. **A guard that only understands the loose form will punish the precise one.**
+   `check-maestro-ids.mjs` recognised a trailing `.*` and nothing else, so it *passed* the wrong
+   pattern and *rejected* the correct one. A checker that accepts only the sloppy spelling of a
+   thing is an argument for the sloppy spelling.
+
+It also reinforces the rule from the deferred-constraint entry above: a green suite proves what
+it asserts, and the failure was in the space between "the app launched" and "the screen I meant
+to be on".
