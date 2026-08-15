@@ -83,6 +83,11 @@ describe('every browser-callable Edge Function', () => {
     'account',
     // `E10-20`. Browser-callable for the same reason `admin-school` is.
     'admin-dish',
+    // `E10-30`. The Apply half of `/admin/import`. Browser-callable by definition, and it runs
+    // the CLI importer's own parse/validate/plan/apply modules rather than a second copy — a
+    // reimplementation would let the browser write something subtly different from what the dry
+    // run promised, on the tables the whole product sits on.
+    'admin-import',
     // `E10-27`. The write half of `/admin/people`. `permission_grant` has read policies and no
     // write policy at all, deliberately — a table that grants access must not be writable by the
     // thing whose access it grants — so granting and revoking run here behind `grants.manage`.

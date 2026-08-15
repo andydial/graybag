@@ -97,6 +97,7 @@ export {
   fetchAdminMenus,
   fetchMenuAssignments,
   isAssignmentLive,
+  runImport,
   setDishAllergens,
   setFoodTypes,
   updateCatalogue,
@@ -108,6 +109,8 @@ export {
   type DishAllergenAssignment,
   type DishEdit,
   type FoodTypeAssignment,
+  type ImportRequest,
+  type ImportResult,
   type MenuItemEdit,
 } from './admin-dishes.js';
 

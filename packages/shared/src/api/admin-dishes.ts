@@ -379,3 +379,39 @@ export async function setDishAllergens(
 ): Promise<CatalogueUpdateResult> {
   return invokeFunction<CatalogueUpdateResult>('admin-dish', { dishAllergens: assignments }, 'PATCH');
 }
+
+// ------------------------------------------------------------------- bulk import (`E10-30`)
+
+export interface ImportRequest {
+  kind: 'schools' | 'dishes' | 'menu' | 'breaks';
+  filename: string;
+  /** The file's text. Sent whole — the server re-parses and re-plans rather than trusting a plan. */
+  text: string;
+  /** Omitted or false is a dry run. */
+  apply?: boolean;
+}
+
+export interface ImportResult {
+  dryRun: boolean;
+  changes: number;
+  applied?: number;
+  errors: unknown[];
+  blockers: { row?: number; message: string }[];
+  /** The importer's own report, verbatim, so the browser shows what the command shows. */
+  report: string;
+  refused?: boolean;
+}
+
+/**
+ * Dry-run or apply an import file — `E10-30`.
+ *
+ * The **file** goes to the server, never a plan computed in the browser. The server parses,
+ * validates and plans again with the same modules, and applies the result of *that*. A
+ * client-supplied plan would be an arbitrary write request wearing the shape of an audit trail.
+ *
+ * Refuses on any error or blocker, exactly as `cli.mjs --apply` does, and says so in a `409` whose
+ * body carries the full report.
+ */
+export async function runImport(request: ImportRequest): Promise<ImportResult> {
+  return invokeFunction<ImportResult>('admin-import', request, 'POST');
+}
