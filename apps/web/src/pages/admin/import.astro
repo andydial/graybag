@@ -1,0 +1,300 @@
+---
+/**
+ * Dry-running an import file in the browser — `E10-29`.
+ *
+ * Every other admin screen said "use `tools/bulk-import`" and gave no way to do anything from
+ * here. This is the missing half: drop a file in, see exactly what it would change, before going
+ * anywhere near a terminal.
+ *
+ * ## It runs the importer's own code, not a second copy
+ *
+ * `parse`, `validate`, `plan` and `report` in `tools/bulk-import/src/` import **nothing** — they
+ * are pure functions over plain objects — so they are aliased into this build as `@bulk-import`
+ * and called directly. That is the whole design: a browser preview that disagreed with the tool
+ * doing the real import would be worse than no preview, because it would say "12 changes, no
+ * problems" about a file that then behaves differently. One implementation, 83 tests, two callers.
+ *
+ * `connect.mjs` — the service-role client — is deliberately not reachable this way. The snapshot
+ * is read through the `api/` module under the operator's **own grants and RLS**, which is also
+ * the honest thing for a preview to do.
+ *
+ * ## Applying still happens from the command line, on purpose
+ *
+ * `E10-30`. Writing schools, dishes, menus and break windows needs a second write path into the
+ * tables the whole product sits on, and three days before parents arrive is the wrong week to
+ * introduce one — the CLI's is tested and is what the 17th's import will actually use. So the
+ * page ends by printing the exact command for the file you just checked, and says so plainly
+ * rather than offering an Apply button that is not there yet.
+ *
+ * `?state=demo` renders a worked example, so `check:a11y` audits this rather than the redirect.
+ */
+import '../../styles/tokens.css';
+import '../../styles/site.css';
+import '../../styles/kitchen.css';
+import '../../styles/admin.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Check an import file — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
+          <h1 class="kitchen__title">Check an import file</h1>
+          <a class="kitchen__btn" href="/admin/menus">Dishes and menus</a>
+          <a class="kitchen__btn" href="/admin/schools">Schools</a>
+          <a class="kitchen__btn" href="/admin/people">Staff</a>
+        </div>
+      </header>
+
+      <main class="kitchen__wrap admin__wrap">
+        <div id="i-status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <p class="admin__intro">
+          Drop a CSV or JSON file in and see <b>exactly what it would change</b>. This runs the
+          importer's own parse, validate and plan — the same code, not a copy — against live data,
+          read with your own permissions. <b>Nothing is written from this page.</b>
+        </p>
+
+        <form id="i-form" class="admin__section">
+          <div class="admin__field">
+            <label class="admin__label" for="i-kind">What is in the file</label>
+            <select class="admin__select" id="i-kind">
+              <option value="schools">Schools</option>
+              <option value="dishes">Dishes</option>
+              <option value="menu">Menu assignment</option>
+              <option value="breaks">Break windows</option>
+            </select>
+          </div>
+          <div class="admin__field">
+            <label class="admin__label" for="i-file">The file</label>
+            <input class="admin__input" id="i-file" type="file" accept=".csv,.json,text/csv,application/json" />
+            <p class="admin__hint">
+              The formats are in <code>docs/import-format.md</code>. A file is read in your
+              browser and never uploaded anywhere.
+            </p>
+          </div>
+        </form>
+
+        <div id="i-body"></div>
+      </main>
+    </div>
+
+    <script>
+      import { api } from '@graybag/shared';
+      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { snapshotReader } from '../../lib/admin/import-snapshot.js';
+      import { DEMO_IMPORT } from '../../lib/admin/import-fixture.js';
+
+      // The importer's own modules. Pure — see the page header and `astro.config.mjs`.
+      import { ParseError, parseFile } from '@bulk-import/parse.mjs';
+      import {
+        validateBreakTimes, validateDishes, validateMenuItems, validateSchools,
+      } from '@bulk-import/validate.mjs';
+      import { planBreakTimes, planDishes, planMenus, planSchools } from '@bulk-import/plan.mjs';
+      import {
+        renderBlockers, renderBreakPlan, renderDishPlan, renderErrors, renderMenuPlan,
+        renderSchoolPlan, renderVerdict,
+      } from '@bulk-import/report.mjs';
+      import { snapshot } from '@bulk-import/db.mjs';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = {
+        body: $('i-body'), status: $('i-status'),
+        kind: $<HTMLSelectElement>('i-kind'), file: $<HTMLInputElement>('i-file'),
+      };
+
+      const esc = (s: string) =>
+        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const demo = new URLSearchParams(location.search).has('state');
+
+      const VALIDATORS: Record<string, (rows: unknown[]) => { records: unknown[]; errors: unknown[] }> = {
+        schools: validateSchools, dishes: validateDishes,
+        menu: validateMenuItems, breaks: validateBreakTimes,
+      };
+
+      /** The CLI flag for each kind, so the command printed at the end is the real one. */
+      const FLAG: Record<string, string> = {
+        schools: '--schools', dishes: '--dishes', menu: '--menu', breaks: '--breaks',
+      };
+
+      /** One cached snapshot per page load. A plan is cheap; twelve table reads are not. */
+      let snap: Record<string, unknown> | null = null;
+
+      async function getSnapshot() {
+        if (snap) return snap;
+        configureBackofficeApi();
+        snap = await snapshot(snapshotReader());
+        return snap;
+      }
+
+      /**
+       * The importer's report, shown verbatim.
+       *
+       * `tabindex="0"` and a name are not decoration: the block scrolls sideways when a line is
+       * longer than the screen, and a scrollable region that cannot be focused is unreachable
+       * with a keyboard — `scrollable-region-focusable`, and the one violation `check:a11y`
+       * caught on this page.
+       */
+      function pre(text: string, label: string): string {
+        return (
+          `<pre class="import__report" tabindex="0" role="region" ` +
+          `aria-label="${esc(label)}">${esc(text)}</pre>`
+        );
+      }
+
+      async function check(name: string, text: string, kind: string) {
+        el.body.innerHTML = '<p class="admin__intro">Reading…</p>';
+
+        // 1. Parse. A malformed file fails here in under a second, with no database read at all —
+        // on an import day the commonest failure by far is the file, not the data.
+        let rows: unknown[];
+        try {
+          rows = parseFile(name, text, kind);
+        } catch (cause) {
+          const why = cause instanceof ParseError || cause instanceof Error
+            ? cause.message : 'could not be read';
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>That file could not be read</h2>` +
+            `<p>${esc(name)}: ${esc(why)}</p>` +
+            `<p>The formats are in <code>docs/import-format.md</code>.</p></div>`;
+          el.status.textContent = 'The file could not be read.';
+          return;
+        }
+
+        // 2. Validate the rows on their own.
+        const validate = VALIDATORS[kind]!;
+        const result = validate(rows);
+        const parts: string[] = [];
+        if (result.errors.length > 0) {
+          parts.push(pre(renderErrors(result.errors, { label: `${kind} file` }), 'Problems with the rows in the file'));
+        }
+
+        // 3. Plan against what is actually there.
+        //
+        // `blockers` and `changeCount` are the only two things the rest of this function needs, so
+        // each branch reduces its own plan to those rather than widening one variable to cover
+        // four different shapes — which is what turned `plan.creates` into `unknown`.
+        let blockers: { row?: number; message: string }[] = [];
+        let changeCount = 0;
+        try {
+          const s = demo ? DEMO_IMPORT.snapshot : await getSnapshot();
+          if (kind === 'schools') {
+            const plan = planSchools(result.records, s);
+            blockers = plan.blockers;
+            changeCount = plan.creates.length + plan.updates.length;
+            parts.push(pre(renderSchoolPlan(plan), 'What would change for schools'));
+          } else if (kind === 'dishes') {
+            const plan = planDishes(result.records, s);
+            blockers = plan.blockers;
+            changeCount = plan.creates.length + plan.updates.length;
+            parts.push(pre(renderDishPlan(plan), 'What would change for dishes'));
+          } else if (kind === 'breaks') {
+            const plan = planBreakTimes(result.records, s);
+            blockers = plan.blockers;
+            changeCount = plan.creates.length + plan.updates.length;
+            parts.push(pre(renderBreakPlan(plan), 'What would change for break windows'));
+          } else {
+            const plan = planMenus(result.records, s);
+            blockers = plan.blockers;
+            changeCount = plan.menus.filter((m) => m.changed).length;
+            parts.push(pre(renderMenuPlan(plan.menus), 'What would change on the menus'));
+          }
+        } catch (cause) {
+          const why = cause instanceof Error ? cause.message : 'the live data could not be read';
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>We can't compare it to what's there</h2>` +
+            `<p>${esc(why)}</p>` +
+            `<p>This page reads with <b>your</b> permissions, so a table you cannot read stops ` +
+            `the plan rather than quietly shrinking it.</p></div>`;
+          return;
+        }
+
+        if (blockers.length > 0) parts.push(pre(renderBlockers(blockers), 'Rows that cannot be written yet'));
+
+        // The CLI's own verdict line, with `dryRun` true — because that is what this is.
+        parts.push(pre(renderVerdict({
+          dryRun: true,
+          errorCount: result.errors.length,
+          blockerCount: blockers.length,
+          changeCount,
+        }), 'The verdict'));
+
+        const clean = result.errors.length === 0 && blockers.length === 0;
+        el.body.innerHTML =
+          `<section class="admin__section">` +
+            `<h2>${esc(name)}</h2>` +
+            `<p class="admin__section-note">` +
+              `${rows.length} row${rows.length === 1 ? '' : 's'} read · ` +
+              `${changeCount} change${changeCount === 1 ? '' : 's'} · ` +
+              `${result.errors.length} error${result.errors.length === 1 ? '' : 's'} · ` +
+              `${blockers.length} blocker${blockers.length === 1 ? '' : 's'}` +
+            `</p>` +
+            parts.join('') +
+
+            `<h3>Applying it</h3>` +
+            `<p class="admin__hint">` +
+              (clean
+                ? `Nothing above is blocking. Run this against the same file — it dry-runs again ` +
+                  `first, so you will see this report a second time before anything is written:`
+                : `<b>Fix the errors and blockers above first.</b> When it is clean, the command is:`) +
+            `</p>` +
+            `<pre class="import__report" tabindex="0" role="region" ` +
+              `aria-label="The command to apply this file">` +
+              `set -a; . ~/.graybag-secrets/prod.env; set +a\n` +
+              `node tools/bulk-import/src/cli.mjs ${esc(FLAG[kind]!)} ${esc(name)}\n` +
+              `node tools/bulk-import/src/cli.mjs ${esc(FLAG[kind]!)} ${esc(name)} --apply</pre>` +
+            `<p class="admin__hint">` +
+              `<b>Writing from this page is not built</b> — <code>E10-30</code>. It needs a second ` +
+              `write path into schools, dishes and menus, and the command above is the one that ` +
+              `is tested. This page exists so the file is already known-good before you run it.` +
+            `</p>` +
+          `</section>`;
+
+        el.status.textContent =
+          `${changeCount} change${changeCount === 1 ? '' : 's'}, ` +
+          `${result.errors.length + blockers.length} problem` +
+          `${result.errors.length + blockers.length === 1 ? '' : 's'}.`;
+      }
+
+      el.file.addEventListener('change', () => {
+        const file = el.file.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => void check(file.name, String(reader.result ?? ''), el.kind.value);
+        reader.onerror = () => {
+          el.body.innerHTML = `<div class="kitchen__state"><h2>That file could not be opened</h2></div>`;
+        };
+        reader.readAsText(file);
+      });
+      // Re-check the same file when the kind changes, rather than silently showing a stale report
+      // for a different shape.
+      el.kind.addEventListener('change', () => {
+        if (el.file.files?.[0]) el.file.dispatchEvent(new Event('change'));
+      });
+
+      void (async () => {
+        if (demo) {
+          el.kind.value = 'schools';
+          await check(DEMO_IMPORT.name, DEMO_IMPORT.csv, 'schools');
+          return;
+        }
+        try {
+          if (!(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent('/admin/import')}`);
+          }
+        } catch { /* an unconfigured build falls through to the empty state */ }
+      })();
+    </script>
+  </body>
+</html>

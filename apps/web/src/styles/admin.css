@@ -360,3 +360,100 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* ------------------------------------------------- school → menu → dishes (`E10-22`) */
+
+/*
+ * The dish list inside a school's expanded menu. A plain list rather than the `srow` treatment
+ * used elsewhere: these rows are read, never edited — editing happens on the dish itself, one
+ * place, and giving them edit affordances here would be the second dish editor all over again.
+ */
+.admin__plain {
+  list-style: none;
+  margin: var(--gb-space-2) 0 0;
+  padding: 0;
+}
+
+.admin__plain li {
+  padding: var(--gb-space-1) 0;
+  border-bottom: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  font-size: var(--gb-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin__plain li:last-child { border-bottom: 0; }
+
+/* The filter sits in a bulkbar, where the select would otherwise stretch to the full row. */
+.bulkbar .admin__field { margin: 0; min-width: 16rem; }
+
+/* ------------------------------------------------- the merged dish editor (`E10-23`) */
+
+/*
+ * Nutrition is four unrelated fields, not a row of toggles like `admin__days`, so it overrides the
+ * inline flow it inherits and stacks.
+ */
+.admin__nutrition { display: block; }
+.admin__nutrition .admin__field { margin-bottom: var(--gb-space-3); }
+.admin__nutrition .admin__field:last-child { margin-bottom: 0; }
+
+/*
+ * One block per menu the dish is on, inside the dish's own editor. Boxed and offset so that two
+ * of them — the case that made the old two-screens-apart layout dangerous — read as two distinct
+ * prices rather than one long form.
+ */
+.placement {
+  margin-top: var(--gb-space-4);
+  padding: var(--gb-space-3) var(--gb-space-4);
+  background: var(--gb-bg-surface-muted);
+  border-left: 3px solid var(--gb-border-default);
+  border-radius: var(--gb-radius-sm);
+}
+
+.placement > .admin__label { margin-top: 0; font-weight: var(--gb-font-weight-semibold); }
+
+/* --------------------------------------------------- staff and access (`E10-27`) */
+
+/* A state on an account — "you", "disabled", "sensitive". Border as well as tint, because these
+ * qualify a line of text and colour alone would not survive a monochrome or high-contrast view. */
+.admin__tag {
+  display: inline-block;
+  font-size: var(--gb-font-size-xs, 0.75rem);
+  font-weight: var(--gb-font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 var(--gb-space-1);
+  border: var(--gb-border-width-hairline) solid currentColor;
+  border-radius: var(--gb-radius-sm);
+  vertical-align: middle;
+}
+
+/* Revoke sits inline at the end of a grant, so it must not have the height of a primary action. */
+.kitchen__btn--small {
+  font-size: var(--gb-font-size-sm);
+  padding: 0 var(--gb-space-2);
+}
+
+/* The grant list gives each row room for a trailing button without the text colliding with it. */
+.admin__plain li { line-height: 1.7; }
+
+/* ------------------------------------------------- import dry run (`E10-29`) */
+
+/*
+ * The importer's report is written for a terminal — aligned columns, deliberate blank lines. It is
+ * shown verbatim rather than re-laid-out as HTML, so that what you read here is character for
+ * character what the command prints. Reformatting it would be a second presentation to keep in
+ * step, which is the same mistake as a second implementation.
+ */
+.import__report {
+  overflow-x: auto;
+  padding: var(--gb-space-3);
+  margin: var(--gb-space-3) 0;
+  background: var(--gb-bg-surface-muted);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-md);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--gb-font-size-sm);
+  line-height: 1.5;
+  white-space: pre;
+  tab-size: 2;
+}

@@ -40,9 +40,10 @@ import {
   renderVerdict,
 } from './report.mjs';
 import {
-  applyBreakTimes, applyDishes, applyMenus, applySchools, connect, exportBreakTimes,
+  applyBreakTimes, applyDishes, applyMenus, applySchools, exportBreakTimes,
   exportDishes, snapshot,
 } from './db.mjs';
+import { connect } from './connect.mjs';
 import { toCsv } from './csv-out.mjs';
 
 const USAGE = `usage: node tools/bulk-import/src/cli.mjs [--schools FILE] [--dishes FILE] [--menu FILE]

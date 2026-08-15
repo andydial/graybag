@@ -83,6 +83,10 @@ describe('every browser-callable Edge Function', () => {
     'account',
     // `E10-20`. Browser-callable for the same reason `admin-school` is.
     'admin-dish',
+    // `E10-27`. The write half of `/admin/people`. `permission_grant` has read policies and no
+    // write policy at all, deliberately — a table that grants access must not be writable by the
+    // thing whose access it grants — so granting and revoking run here behind `grants.manage`.
+    'admin-grants',
     // `E10-01` / `E10-06`. Browser-callable by definition: it exists so the admin screens can
     // onboard a school and set its configuration, and the admin screens are a browser.
     'admin-school',

@@ -52,7 +52,7 @@ const today = new Date().toISOString().slice(0, 10);
 
 let snapshot;
 try {
-  const [schools, configs, dishes, menus, menuItems, assignments, breakTimes, platform] =
+  const [schools, configs, dishes, menus, menuItems, assignments, breakTimes, platform, allergens] =
     await Promise.all([
       rows(db.from('school').select('id,code,name,is_active,onboarded_at'), 'schools'),
       rows(db.from('school_config').select('school_id,service_days'), 'school config'),
@@ -62,6 +62,7 @@ try {
       rows(db.from('menu_assignment').select('school_id,menu_id,valid_from,valid_to,revoked_at'), 'assignments'),
       rows(db.from('break_time').select('school_id,label,is_active'), 'break times'),
       rows(db.from('platform_config').select('price_is_tax_inclusive').eq('id', 1), 'platform config'),
+      rows(db.from('allergen').select('code,is_active'), 'allergens'),
     ]);
 
   const serviceDaysBySchool = new Map(configs.map((c) => [c.school_id, c.service_days ?? null]));
@@ -94,6 +95,7 @@ try {
     breakTimes: breakTimes.map((b) => ({
       schoolId: b.school_id, label: b.label ?? '', isActive: b.is_active !== false,
     })),
+    allergens: allergens.map((a) => ({ code: a.code, isActive: a.is_active !== false })),
     platformConfig: { priceIsTaxInclusive: platform[0]?.price_is_tax_inclusive ?? null },
     missingSecrets: [],
   };

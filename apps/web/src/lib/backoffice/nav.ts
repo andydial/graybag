@@ -45,6 +45,8 @@ export type Grant =
   | 'kitchen.edit'
   | 'users.view'
   | 'users.manage'
+  | 'grants.manage'
+  | 'menu.import'
   | 'config.platform_edit'
   | 'school.config_edit'
   | 'kitchen.config_edit'
@@ -129,9 +131,22 @@ export const NAV: NavItem[] = [
     description: 'Cutoffs, service days and break times, and where each value is inherited from.',
   },
   {
+    // `E10-29`. Dry-runs an import file against live data and writes nothing, so `menu.import` —
+    // the grant for running the importer — is the honest requirement even though this half only
+    // reads: it is the same task, and somebody who cannot run the import has no use for a
+    // preview of one.
+    href: '/admin/import',
+    label: 'Check an import file',
+    requires: ['menu.import'],
+    description: 'See exactly what a CSV would change, before running it.',
+  },
+  {
     href: '/admin/people',
     label: 'People',
-    requires: ['users.manage'],
+    // The two the screen actually needs: `grants.manage` reads and writes `permission_grant` and
+    // the permission catalogue, `users.view` reads the accounts. `users.manage` is disabling an
+    // account, which is a different job and is not what this screen does.
+    requires: ['grants.manage', 'users.view'],
     description: 'Back-office accounts and what each of them may do.',
   },
   {
@@ -186,6 +201,10 @@ export const EXAMPLE_LEVELS = {
     'orders.view', 'orders.view_pii', 'orders.mark_delivered', 'orders.cancel', 'orders.refund',
     'orders.view_financials', 'menu.view', 'menu.edit', 'school.view', 'school.edit',
     'school.onboard', 'kitchen.view', 'kitchen.edit', 'users.view', 'users.manage',
+    // `grants.manage` is what `/admin/people` actually needs — without it here, the screen is
+    // invisible to a full platform admin, which is the same silent failure the `Grant` union and
+    // `SEEDED_PERMISSIONS` were added to catch. `visibleNav`'s count test is what surfaced it.
+    'grants.manage', 'menu.import',
     'config.platform_edit', 'school.config_edit', 'kitchen.config_edit', 'reports.view',
   ]),
   kitchenOperator: new Set<Grant>([

@@ -114,7 +114,16 @@ export function planDishes(records, snapshot) {
 
   for (const r of records) {
     if (!kitchens.has(r.kitchenCode)) {
-      blockers.push({ row: r.__row, message: `kitchen_code "${r.kitchenCode}" does not exist` });
+      // Names what DOES exist, the way `planSchools` does. "kitchen_code X does not exist" on
+      // its own sends somebody to the database to find out what to type — and the kitchen code
+      // is `sky-bites` while the city is `mohali`, so guessing it from the city is exactly the
+      // mistake this message should pre-empt.
+      blockers.push({
+        row: r.__row,
+        message:
+          `kitchen_code "${r.kitchenCode}" does not exist. Kitchens are not created by import. ` +
+          `Existing: ${[...kitchens].join(', ') || '(none)'}`,
+      });
       continue;
     }
     if (!categories.has(lower(r.category))) {
@@ -195,7 +204,16 @@ export function planMenus(records, snapshot) {
 
   for (const r of records) {
     if (!kitchens.has(r.kitchenCode)) {
-      blockers.push({ row: r.__row, message: `kitchen_code "${r.kitchenCode}" does not exist` });
+      // Names what DOES exist, the way `planSchools` does. "kitchen_code X does not exist" on
+      // its own sends somebody to the database to find out what to type — and the kitchen code
+      // is `sky-bites` while the city is `mohali`, so guessing it from the city is exactly the
+      // mistake this message should pre-empt.
+      blockers.push({
+        row: r.__row,
+        message:
+          `kitchen_code "${r.kitchenCode}" does not exist. Kitchens are not created by import. ` +
+          `Existing: ${[...kitchens].join(', ') || '(none)'}`,
+      });
       continue;
     }
     const dishKey = `${r.kitchenCode}::${lower(r.dishName)}`;

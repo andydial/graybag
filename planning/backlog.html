@@ -1209,13 +1209,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/32</span>
+          <span class="meter-num">0/33</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 32 tasks</summary>
+        <summary>Context &amp; 33 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -1372,7 +1372,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Actually run</strong> <code>0002_rls_policies.sql</code> and <code>supabase/tests/authorization.test.sql</code> against <code>supabase start</code> and fix what falls out. Both were written offline in <code>Q04</code> and have never been executed. Until this is green, <code>E02-08</code> and <code>E02-09</code> are not done</span>
       </li>
-      <li class="task" data-id="E02-19" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E02-19" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-19"></button>
         <code class="tid">E02-19</code>
         <span class="badge r-high">high</span>
@@ -1483,6 +1483,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Signing in emptied the menu.</strong> Production, 2026-08-15: an anonymous visitor read <strong>119</strong> menu items; the same parent one second after signing in read <strong>zero</strong>. The <code>anon_*</code> browse policies (<code>0012</code>, <code>AUTH-01</code>) are addressed <code>to anon</code>, and PostgREST serves any JWT-bearing request as <code>authenticated</code> — a role that is not <code>anon</code> cannot match a policy addressed to <code>anon</code>. What was left were the <code>*_read_customer</code> policies, scoped by <code>auth_customer_can_see_menu()</code> / <code>auth_customer_can_see_dish()</code> to schools the parent has a child at, so a parent who had not added a child yet was scoped to nothing. <strong>Signing in gave you strictly less than signing out</strong>, which is precisely inverted from the intent and severs <code>AR7</code> — &quot;adding a child must not be a wall in front of browsing the menu&quot; — in the middle, after the parent has already committed. Seven tables: <code>menu</code>, <code>menu_item</code>, <code>menu_assignment</code>, <code>school_menu_version</code>, <code>dish</code>, <code>dish_allergen</code>, <code>menu_item_price_override</code>. Two of those are worse than a blank screen: without the override a parent is quoted the <strong>base price instead of their school&#39;s</strong>, and without <code>dish_allergen</code> a dish renders with no allergen tags, which reads as &quot;contains nothing&quot; (non-negotiable #4). Fixed in <code>0061</code> by widening those seven to <code>anon, authenticated</code> — predicates untouched, so a signed-in parent sees exactly what a visitor sees and nothing that anon could not already read. Found only because the sweep ran as a genuinely clean parent, which is the discipline <code>E02-32</code> added; every back-office grant hides it. <code>MENU_CACHE_EPOCH</code> bumped to 4 — the third time in four epochs that the cause was an authorization change wearing an empty list&#39;s clothes. Applied to production the same day and verified against it: 119/119 and 47/47 for Amity. <strong>Three assertions in <code>authorization.test.sql</code> were changed</strong> — see the decision record; they asserted that a kitchen operator and a customer could not read another kitchen&#39;s menu, which was never true of an <code>active</code> assigned menu since anon reads it from any browser, and they now assert it of a <strong>draft</strong> menu, which is the isolation that genuinely holds</span>
+      </li>
+      <li class="task" data-id="E02-34" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-34"></button>
+        <code class="tid">E02-34</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Grant and revoke back-office permissions from the command line — <code>scripts/grant-operator.mjs</code>. Production had <strong>zero</strong> <code>permission_grant</code> rows, so the admin surface was unusable for its only operator: config read empty, <code>/reports</code> refused, saving a dish returned <code>not_permitted</code>. All 31 active permissions now granted to <code>anuragdial@gmail.com</code> at platform scope. Dry run by default; <code>--apply</code> is a separate word. Refuses <code>+parent@</code> addresses unconditionally — that account is the RLS canary and <code>authorization.test.sql</code> depends on it holding nothing. Verified through a real magic-link session, never the service role</span>
       </li></ul>
       </details>
     </article>
@@ -4067,13 +4075,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/21</span>
+          <span class="meter-num">0/31</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 21 tasks</summary>
+        <summary>Context &amp; 31 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4243,6 +4251,86 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong><code>food_type</code> was null on all 79 production dishes, and 83 menu items were offering them.</strong> In this market a parent who cannot tell whether a dish is vegetarian is the most likely day-one complaint. Three ways to set it, because the fastest depends on what is in front of you: a <strong>bulk bar</strong> on <code>/admin/menus</code> (&quot;select the N with no food type&quot; → Veg, then correct the exceptions — three actions for 79 dishes, and <strong>one request</strong>, since the endpoint groups by value); <strong><code>--export-dishes</code></strong>, which writes the catalogue as a CSV whose columns are exactly what <code>--dishes</code> reads back; and one dish at a time, which already existed. The bulk endpoint accepts <strong>only <code>food_type</code></strong> — a general mass-patch endpoint is one careless caller away from retiring a catalogue — and is all-or-nothing, so a bad id at position 60 does not leave 59 changed. <code>0059</code> guards the <strong>offer</strong> rather than the column: <code>[DM-17]</code>&#39;s reason for nullability covers a dish in the catalogue, not one shown to a parent, so a dish may exist unmarked and may not be published unmarked. Fires only for an active <code>menu_item</code>, and deliberately does not touch rows already written. <strong>In v1 on Andy&#39;s instruction, 2026-08-15.</strong> <code>CLAUDE.md</code> reserves adding an id to the MVP list to him and <code>check:mvp</code> enforced that when this thread tried it unasked; he has now said so, so the id is in <code>scripts/check-mvp.mjs</code> and the marker is on the task</span>
+      </li>
+      <li class="task" data-id="E10-22" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-22"></button>
+        <code class="tid">E10-22</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Make the catalogue legible: school → menu → dishes, and a menu filter on the dish list.</strong> Nothing on any screen joined a school to its menu, so &quot;is Gem seeded correctly?&quot; could only be answered against the database — four days before parents arrive, the only question being asked. The schools view leads the page and shows what a parent at each school would see <strong>today</strong>: which menu is in force, since when, how many of its dishes are actually orderable, and why not when the answer is none. It distinguishes *no menu*, *starts later* and *assigned to a menu that no longer exists*, which look identical on any screen that does not join. Each menu says which schools it serves. The dish list gets a menu filter with counts on every option including &quot;Not on any menu&quot;, and each dish shows which menus it is on and at what price — a dish priced differently on two menus is legitimate and was invisible until the two numbers sat together. Bulk select is scoped to the filter, never the whole catalogue. The filter lives in the URL so a filtered view can be sent to somebody. Per-menu item lists collapsed: two menus of 47 and 36 rendered open made the page 60,000 pixels tall, and a page nobody can scroll is not more legible for containing everything</span>
+      </li>
+      <li class="task" data-id="E10-23" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-23"></button>
+        <code class="tid">E10-23</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>One dish editor, every attribute in one place.</strong> A dish appeared twice — once under its menu where price and available days could be changed, once under &quot;All dishes&quot; where food type and allergens could be — two forms forty rows apart for one thing, and the scroll between them is where a wrong price survives being looked at. Price and days now live <strong>on the dish</strong>, one block per menu it is on, and the per-menu lists carry no editors at all. Name and calories-as-text are newly editable; <code>admin-dish</code> accepts <code>name</code> (refusing blank — a nameless dish is what a parent reads) and <code>caloriesText</code>. The dish form and each menu block submit separately because they are different writes behind different grants (<code>dish.edit</code> vs <code>menu.edit</code>, <code>D3</code>) — one button spanning both would half-fail, and a half-failed save is how somebody comes to believe a price stuck</span>
+      </li>
+      <li class="task" data-id="E10-24" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-24"></button>
+        <code class="tid">E10-24</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Dish images: nothing uploads them.</strong> The <code>dish-images</code> storage bucket and the <code>asset</code> table both exist and <strong>no code path writes either</strong>, so all 79 production dishes have no image and the parent-facing menu is text-only. The dish editor states this rather than showing a file picker that silently does nothing. Needs: an upload path, an <code>asset</code> row written through an Edge Function (non-negotiable #1), and <code>dish.image_asset_id</code> wired</span>
+      </li>
+      <li class="task" data-id="E10-25" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-25"></button>
+        <code class="tid">E10-25</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Production had zero rows in <code>allergen</code> — every allergy warning was silently disabled.</strong> <code>dish_allergen</code> and <code>recipient_allergen</code> share this vocabulary and the match between them *is* the warning mechanism (<code>E09-33</code>, non-negotiable #4). Empty meant no dish could be tagged (<code>admin-dish</code> correctly 422&#39;d every code), no parent could record a child&#39;s allergy, and the kitchen board and packing sheet showed no flags — all of which reads as &quot;nobody has any allergies&quot;, on a product that feeds children. It failed quiet, and the quiet reads as safe. The vocabulary lived only in <code>supabase/seed.sql</code>, which is the local fixture; staging got it from <code>seeds/staging-menu.sql</code> and production was built from the real catalogue import, which has no allergen section. Now <code>0063_allergen_vocabulary.sql</code>, applied to prod with in-transaction proof and idempotence. Found only because the merged dish editor rendered an empty allergen fieldset against prod and a full one against fixtures. <code>check:launch</code> now blocks on it, first in the report</span>
+      </li>
+      <li class="task" data-id="E10-26" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-26"></button>
+        <code class="tid">E10-26</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>valid_to</code> is exclusive, and my admin screen had it inclusive.</strong> <code>0001</code> constrains <code>menu_assignment</code> with <code>daterange(valid_from, valid_to, &#39;[)&#39;)</code>, and every read in the system — RLS, the public menu view, <code>create_checkout</code> — tests <code>valid_to &gt; current_date</code>. <code>isAssignmentLive</code> used <code>&gt;=</code>, so the back office would have shown a school still serving a menu on the day the parent-facing app had already stopped serving it, with nothing erroring anywhere. The test asserted the mistake and passed</span>
+      </li>
+      <li class="task" data-id="E10-27" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-27"></button>
+        <code class="tid">E10-27</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Staff and access — <code>/admin/people</code>.</strong> Registration is identical for everyone and back-office reach is a <code>permission_grant</code> row and nothing else (<code>D3</code>, <code>E02-07</code>) — right, and it left no screen able to answer &quot;who can do what?&quot;, so the answer lived in the database and onboarding a cook meant somebody with the database password. Lists every account that has signed in <strong>including those holding nothing</strong>, since that is the state everybody starts in and how you reach the person you are onboarding. Grants and revokes through the new <code>admin-grants</code> Edge Function: <code>permission_grant</code> has read policies and no write policy at all, deliberately, because a table that grants access must not be writable by the thing whose access it grants. Three rails, each verified against production: <strong>nobody edits their own access</strong> (not even the platform owner — an account that can widen itself makes every other check advisory), <strong>the <code>+parent@</code> customer persona is untouchable</strong>, and <strong>scope shape is enforced</strong> so a school-scoped grant can never silently mean every school. Revoking keeps the row with who and when. A disabled account still holding grants is called out — being disabled stops a sign-in, it does not remove reach</span>
+      </li>
+      <li class="task" data-id="E10-28" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-28"></button>
+        <code class="tid">E10-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>grants.manage</code> was missing from the nav&#39;s <code>Grant</code> union and from the platform-admin example.</strong> <code>/admin/people</code> required <code>users.manage</code>, which is disabling an account — a different job. Corrected to <code>grants.manage</code> + <code>users.view</code>, which is what the screen actually reads and writes. The example platform admin did not hold <code>grants.manage</code>, so the screen was invisible to a full admin — the same silent failure <code>SEEDED_PERMISSIONS</code> was added to catch, surfaced this time by <code>visibleNav</code>&#39;s count test</span>
+      </li>
+      <li class="task" data-id="E10-29" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-29"></button>
+        <code class="tid">E10-29</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Check an import file in the browser — <code>/admin/import</code>.</strong> Every admin screen pointed at <code>tools/bulk-import</code> and gave no way to do anything from the browser. Drop a CSV or JSON in and get the importer&#39;s <strong>own</strong> report — creates, updates, unchanged, blockers and the verdict — against live data. It runs <code>parse</code>, <code>validate</code>, <code>plan</code> and <code>report</code> from <code>tools/bulk-import/src/</code> directly, aliased as <code>@bulk-import</code>: those four modules import nothing, so they are callable from a browser, and a preview that disagreed with the tool doing the real import would be worse than no preview. <code>connect.mjs</code> (the service-role client) was split out of <code>db.mjs</code> so <code>snapshot()</code> imports nothing either; the snapshot is read through the <code>api/</code> module under the operator&#39;s own grants and RLS, never the service role. The file is read in the browser and never uploaded</span>
+      </li>
+      <li class="task" data-id="E10-30" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-30"></button>
+        <code class="tid">E10-30</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Apply an import from the browser.</strong> <code>/admin/import</code> dry-runs but does not write — that needs a second write path into schools, dishes, menus and break windows under grants, and the CLI&#39;s is the one that is tested and the one the 17th&#39;s import used. The page prints the exact command for the file just checked and says plainly that writing is not built</span>
+      </li>
+      <li class="task" data-id="E10-31" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-31"></button>
+        <code class="tid">E10-31</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A dish or menu row naming a missing kitchen now says which kitchens exist.</strong> <code>planSchools</code> already listed them; <code>planDishes</code> and <code>planMenus</code> said only <code>kitchen_code &quot;x&quot; does not exist</code>, which on an import day sends somebody to the database. Found by dry-running a real file against production from <code>/admin/import</code> — the kitchen code is <code>sky-bites</code> while the city is <code>mohali</code>, so guessing the kitchen from the city is precisely the mistake the message should pre-empt</span>
       </li></ul>
       </details>
     </article>

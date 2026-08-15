@@ -1559,3 +1559,51 @@ more than five minutes and is not blocking the 19th. Cutoff enforcement itself i
 Every dish therefore renders with no allergen information, which reads as "contains nothing".
 Given non-negotiable #4 this is the highest-consequence of the three data gaps, and the app-side
 machinery for it is already built and tested with nothing to work with.
+
+---
+
+## D-16T — every permission granted to Andy on production, and the standing "don't grant" rule set aside
+
+The first instruction of this run was **"Don't grant or revoke permissions."** Andy has now
+explicitly reversed it for his own account: *"Grant anuragdial@gmail.com every permission on prod
+… I'm the only operator; I want to see and do everything. Record it, don't ask."* That is the
+account owner provisioning himself on his own production system, so it is his to decide and I did
+it without asking, as instructed. Recording it here is the whole of what the original rule was
+protecting.
+
+**All 31 active permissions, all at platform scope** — every one in the catalogue accepts platform,
+so there was nothing to leave behind. That includes the sensitive ones: `config.platform_edit`,
+`orders.view_financials`, `orders.view_pii`, `dish.edit`, `menu.edit`, `grants.manage`,
+`payouts.manage`, `audit.view`, `consent.view` and **`users.impersonate`**.
+
+`users.impersonate` is the one worth a second look, and I am flagging rather than withholding it:
+it lets the holder act as another account, which on a system holding children's data is the
+widest thing on the list. It is granted because "everything" was the instruction and Andy is the
+only operator. **Worth revoking the day a second person has back-office access** — one command,
+in the same script.
+
+### Why a script and not a migration
+
+`scripts/grant-operator.mjs`. Grants are **data about people**, not schema. Production and staging
+have different `auth.users` rows, so a migration hard-coding a uuid would either fail on one
+environment or — much worse — succeed against a different human. `D3` says the grant *is* the
+truth; that truth is per-environment, so it is applied per-environment and visibly.
+
+Dry run by default, `--apply` as a separate word, same shape as `tools/bulk-import`. Authorization
+is the one place in this system where a typo does not correct itself.
+
+### The rail that is not overridable
+
+The script **refuses** to grant to any `+parent@` address. `anuragdial+parent@gmail.com` is the
+customer persona: it exists to prove parent RLS actually restricts, and `authorization.test.sql`
+fails if it acquires a grant. One grant would break the proof and the test guarding the proof in
+the same instant, and both would look fine. There is deliberately no flag to override it, because
+wanting the flag *is* the misunderstanding.
+
+### Verified as Andy, never as the service role
+
+A real magic-link session for `anuragdial@gmail.com` against production: `platform_config` returns
+its row (it read empty before), schools and dishes list, and `PATCH /functions/v1/admin-dish` —
+the call that was returning `not_permitted` — returned `200 {"changed":["description"]}`. The
+description was restored to its exact original text and re-read to confirm. Re-running the grant
+is a clean no-op.
