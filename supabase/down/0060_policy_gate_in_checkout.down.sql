@@ -1,4 +1,4 @@
--- Rollback for 0059.
+-- Rollback for 0060.
 --
 -- Removing the guard returns `create_checkout` to the state `0001`'s comment already described
 -- incorrectly: an ordering gate that exists only in the client. If this is rolled back while any
