@@ -7,6 +7,7 @@
 //     --schools <file.csv|json>   schools to create or update
 //     --dishes  <file.csv|json>   dishes to create or update
 //     --menu    <file.csv|json>   menu items and their assignment to schools
+//     --export-dishes <path>      write every dish as a CSV ready to edit and re-import
 //     --apply                     actually write. WITHOUT THIS NOTHING IS WRITTEN
 //     --json <path>               also write the plan as JSON
 //     --quiet                     suppress the report
@@ -34,20 +35,26 @@ import { planSchools, planDishes, planMenus } from './plan.mjs';
 import {
   renderBlockers, renderDishPlan, renderErrors, renderMenuPlan, renderSchoolPlan, renderVerdict,
 } from './report.mjs';
-import { applyDishes, applyMenus, applySchools, connect, snapshot } from './db.mjs';
+import { applyDishes, applyMenus, applySchools, connect, exportDishes, snapshot } from './db.mjs';
+import { toCsv } from './csv-out.mjs';
 
 const USAGE = `usage: node tools/bulk-import/src/cli.mjs [--schools FILE] [--dishes FILE] [--menu FILE]
                                         [--apply] [--json PATH] [--quiet]
+       node tools/bulk-import/src/cli.mjs --export-dishes dishes.csv
 
 Dry run unless --apply is given. See docs/import-format.md.`;
 
 function parseArgs(argv) {
-  const o = { schools: null, dishes: null, menu: null, apply: false, json: null, quiet: false, help: false };
+  const o = {
+    schools: null, dishes: null, menu: null, apply: false, json: null, quiet: false,
+    help: false, exportDishes: null,
+  };
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
       case '--schools': o.schools = argv[++i]; break;
       case '--dishes': o.dishes = argv[++i]; break;
       case '--menu': o.menu = argv[++i]; break;
+      case '--export-dishes': o.exportDishes = argv[++i]; break;
       case '--apply': o.apply = true; break;
       case '--json': o.json = argv[++i]; break;
       case '--quiet': o.quiet = true; break;
@@ -73,9 +80,37 @@ async function main(argv) {
     return 2;
   }
 
-  if (options.help || (!options.schools && !options.dishes && !options.menu)) {
+  if (options.help || (!options.schools && !options.dishes && !options.menu && !options.exportDishes)) {
     console.log(USAGE);
     return options.help ? 0 : 2;
+  }
+
+  // ---- export, which is a read and exits ------------------------------------------------------
+  //
+  // Before the import path entirely: it takes no input files, writes nothing to the database, and
+  // pairing it with `--apply` would be a confusing thing to allow.
+  if (options.exportDishes) {
+    let db;
+    try {
+      db = connect();
+    } catch (cause) {
+      console.error(cause.message);
+      return 2;
+    }
+    const rows = await exportDishes(db);
+    mkdirSync(dirname(options.exportDishes), { recursive: true });
+    writeFileSync(options.exportDishes, toCsv(rows));
+    const unmarked = rows.filter((r) => r.food_type === '').length;
+    say(options, `Wrote ${rows.length} dishes to ${options.exportDishes}.`);
+    if (unmarked > 0) {
+      say(options, '');
+      say(options,
+        `${unmarked} of them have no food_type. Fill that column in and hand the same file back:\n` +
+        `  node tools/bulk-import/src/cli.mjs --dishes ${options.exportDishes}\n` +
+        `A dish with no food_type cannot be put on a menu, and a parent cannot tell whether it ` +
+        `is vegetarian.`);
+    }
+    return 0;
   }
 
   // ---- read and validate, before touching the database at all -------------------------------

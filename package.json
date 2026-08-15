@@ -50,7 +50,8 @@
     "check:a11y": "npm --prefix apps/web run check:a11y",
     "check:mvp": "node scripts/check-mvp.mjs",
     "eas-build-pre-install": "npm config set ignore-scripts true",
-    "check:placeholders": "node scripts/check-placeholders.mjs"
+    "check:placeholders": "node scripts/check-placeholders.mjs",
+    "check:launch": "node scripts/check-launch.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

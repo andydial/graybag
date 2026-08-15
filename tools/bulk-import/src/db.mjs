@@ -135,6 +135,45 @@ export async function snapshot(db) {
   };
 }
 
+/**
+ * Every dish as a row ready to edit and re-import — `E10-21`.
+ *
+ * The point is the round trip: `--export-dishes` writes exactly the columns `--dishes` reads, so
+ * a catalogue can be pulled into a spreadsheet, a `food_type` column filled in, and the same file
+ * handed straight back. 79 dishes with nothing marked is a spreadsheet job, not a form job.
+ *
+ * `name` and `kitchen_code` are the match key, so they are first and must not be edited.
+ */
+export async function exportDishes(db) {
+  const [kitchens, categories, dishes, dishAllergens, allergens] = await Promise.all([
+    rows(db.from('kitchen').select('id,code'), 'kitchens'),
+    rows(db.from('dish_category').select('id,code'), 'dish categories'),
+    rows(db.from('dish').select('id,kitchen_id,name,category_id,food_type,calories_kcal,portion_text,is_active').order('name'), 'dishes'),
+    rows(db.from('dish_allergen').select('dish_id,allergen_id'), 'dish allergens'),
+    rows(db.from('allergen').select('id,code'), 'allergens'),
+  ]);
+
+  const kitchenById = new Map(kitchens.map((k) => [k.id, k.code]));
+  const categoryById = new Map(categories.map((c) => [c.id, c.code]));
+  const allergenById = new Map(allergens.map((a) => [a.id, a.code]));
+  const byDish = new Map();
+  for (const da of dishAllergens) {
+    if (!byDish.has(da.dish_id)) byDish.set(da.dish_id, []);
+    byDish.get(da.dish_id).push(allergenById.get(da.allergen_id));
+  }
+
+  return dishes.map((d) => ({
+    name: d.name,
+    kitchen_code: kitchenById.get(d.kitchen_id) ?? '',
+    category: categoryById.get(d.category_id) ?? '',
+    food_type: d.food_type ?? '',
+    calories_kcal: d.calories_kcal ?? '',
+    portion: d.portion_text ?? '',
+    allergens: (byDish.get(d.id) ?? []).sort().join(';'),
+    is_active: d.is_active ? 'true' : 'false',
+  }));
+}
+
 const must = (result, what) => {
   if (result.error) throw new Error(`${what}: ${result.error.message}`);
   return result.data;

@@ -119,6 +119,70 @@ import '../../styles/admin.css';
       /** `4500` → `₹45.00`. Integer paise in, never a float (non-negotiable #3). */
       const rupees = (p: number) => money.formatPaise(p);
 
+      /** Which dishes the bulk bar will act on. Survives a re-render, not a reload. */
+      const picked = new Set<string>();
+
+      /**
+       * Setting `food_type` on the whole catalogue in one action — `E10-21`.
+       *
+       * 79 dishes reached production with it null on every one. The realistic workflow is not
+       * "consider each dish": it is **select all, mark them veg, then correct the handful that
+       * are not** — which is three actions rather than seventy-nine, and is why "Select all" and
+       * the unmarked-only shortcut are the two prominent controls.
+       *
+       * The bar is placed above the list and repeats the count, because after a bulk apply the
+       * only thing worth knowing is how many are still unmarked.
+       */
+      function bulkBar(): string {
+        const unmarked = dishes.filter((d) => d.foodType === null);
+        return (
+          `<div class="bulkbar" role="group" aria-label="Set food type on several dishes">` +
+            `<div class="bulkbar__picks">` +
+              `<button class="kitchen__btn" type="button" data-select="all">Select all ${dishes.length}</button>` +
+              (unmarked.length
+                ? `<button class="kitchen__btn" type="button" data-select="unmarked">` +
+                  `Select the ${unmarked.length} with no food type</button>`
+                : '') +
+              `<button class="kitchen__btn" type="button" data-select="none">Clear selection</button>` +
+            `</div>` +
+            `<p class="bulkbar__count" aria-live="polite">` +
+              (picked.size === 0
+                ? 'Nothing selected'
+                : `<b>${picked.size}</b> selected — set ${picked.size === 1 ? 'it' : 'them'} to:`) +
+            `</p>` +
+            `<div class="bulkbar__apply">` +
+              ['veg', 'egg', 'non_veg'].map((v) =>
+                `<button class="kitchen__btn kitchen__btn--primary" type="button" data-apply="${v}"` +
+                `${picked.size === 0 ? ' disabled' : ''}>${esc(v === 'non_veg' ? 'Non-veg' : v[0]!.toUpperCase() + v.slice(1))}</button>`,
+              ).join('') +
+              `<button class="kitchen__btn" type="button" data-apply=""` +
+              `${picked.size === 0 ? ' disabled' : ''}>Clear food type</button>` +
+            `</div>` +
+          `</div>`
+        );
+      }
+
+      /** Apply one food type to everything currently selected, in a single request. */
+      async function applyFoodType(value: string) {
+        if (picked.size === 0) return;
+        if (demo) {
+          el.status.textContent = 'This is the demo view — nothing is written.';
+          return;
+        }
+        const assignments = [...picked].map((id) => ({ id, foodType: value === '' ? null : value }));
+        try {
+          await api.setFoodTypes(assignments);
+          el.status.textContent = `Set ${assignments.length} dish${assignments.length === 1 ? '' : 'es'}.`;
+          picked.clear();
+          await load();
+        } catch (cause) {
+          // Rendered where the bar is, not in a form: the failure belongs to the action, and the
+          // whole point of the endpoint being all-or-nothing is that nothing changed.
+          error = cause instanceof Error ? cause.message : 'The dishes were not changed.';
+          render();
+        }
+      }
+
       function dishRow(d: api.AdminDish): string {
         const marks: string[] = [];
         if (!d.isActive) marks.push('Retired — off every menu');
@@ -130,7 +194,12 @@ import '../../styles/admin.css';
         return (
           `<div class="srow${marks.length ? ' srow--hidden' : ''}">` +
             `<div class="srow__main">` +
-              `<p class="srow__name">${esc(d.name)}</p>` +
+              `<p class="srow__name">` +
+                `<label class="admin__day">` +
+                  `<input type="checkbox" data-pick="${esc(d.id)}"${picked.has(d.id) ? ' checked' : ''} ` +
+                    `aria-label="Select ${esc(d.name)}" /> ${esc(d.name)}` +
+                `</label>` +
+              `</p>` +
               `<p class="srow__meta">${esc(d.categoryName)}` +
                 (d.foodType ? ` · ${esc(d.foodType.replace('_', '-'))}` : '') +
                 (d.caloriesKcal !== null ? ` · ${d.caloriesKcal} kcal` : '') +
@@ -281,7 +350,13 @@ import '../../styles/admin.css';
             `<h2 id="dishes-h">All dishes</h2>` +
             `<p class="admin__section-note">` +
               `Everything in the kitchen's catalogue, whether or not it is on a menu.` +
+              (noType > 0
+                ? ` <b>${noType} ${noType === 1 ? 'has' : 'have'} no food type.</b> ` +
+                  `A dish without one cannot be published to a menu, and a parent cannot tell ` +
+                  `whether it is vegetarian.`
+                : '') +
             `</p>` +
+            bulkBar() +
             dishes.map(dishRow).join('') +
           `</section>` +
 
@@ -360,7 +435,42 @@ import '../../styles/admin.css';
         void save(form);
       });
       el.body.addEventListener('click', (event) => {
-        if ((event.target as HTMLElement).closest('[data-retry]')) void load();
+        const t = event.target as HTMLElement;
+        if (t.closest('[data-retry]')) { void load(); return; }
+
+        const select = t.closest('[data-select]') as HTMLElement | null;
+        if (select) {
+          const mode = select.dataset.select;
+          picked.clear();
+          if (mode === 'all') dishes.forEach((d) => picked.add(d.id));
+          if (mode === 'unmarked') dishes.filter((d) => d.foodType === null).forEach((d) => picked.add(d.id));
+          render();
+          return;
+        }
+
+        const apply = t.closest('[data-apply]') as HTMLElement | null;
+        if (apply) { void applyFoodType(apply.dataset.apply ?? ''); return; }
+      });
+
+      // Not delegated through `click` on the label: a checkbox toggled by keyboard fires `change`
+      // and not a click on the input, and this list is long enough that somebody will tab it.
+      el.body.addEventListener('change', (event) => {
+        const box = event.target as HTMLInputElement;
+        const id = box.dataset?.pick;
+        if (!id) return;
+        if (box.checked) picked.add(id);
+        else picked.delete(id);
+        // Re-render only the bar's count, not the list — a full render would drop focus from the
+        // checkbox somebody just used, which makes tabbing through 79 rows impossible.
+        const count = el.body.querySelector('.bulkbar__count');
+        if (count) {
+          count.innerHTML = picked.size === 0
+            ? 'Nothing selected'
+            : `<b>${picked.size}</b> selected — set ${picked.size === 1 ? 'it' : 'them'} to:`;
+        }
+        el.body.querySelectorAll('[data-apply]').forEach((b) => {
+          (b as HTMLButtonElement).disabled = picked.size === 0;
+        });
       });
       el.reload.addEventListener('click', () => void load());
 

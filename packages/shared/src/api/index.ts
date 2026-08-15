@@ -90,12 +90,14 @@ export {
   AdminDishError,
   fetchAdminDishes,
   fetchAdminMenus,
+  setFoodTypes,
   updateCatalogue,
   type AdminDish,
   type AdminMenu,
   type AdminMenuItem,
   type CatalogueUpdateResult,
   type DishEdit,
+  type FoodTypeAssignment,
   type MenuItemEdit,
 } from './admin-dishes.js';
 

@@ -4,6 +4,7 @@
 //     { dish: { id, foodType?, description?, ingredientsText?, caloriesKcal?, portionText?,
 //               isActive?, allergens? } }
 //     { menuItem: { menuId, dishId, pricePaise?, availableDays?, isActive? } }
+//     { foodTypes: [{ id, foodType }, …] }        bulk, up to 500 — `E10-21`
 //
 //     200 { changed: [...] }
 //     401 not_authenticated
@@ -96,7 +97,11 @@ Deno.serve(async (request: Request): Promise<Response> => {
   const user = userData?.user;
   if (userError || !user) return json(401, { error: 'not_authenticated' });
 
-  let body: { dish?: Record<string, unknown>; menuItem?: Record<string, unknown> };
+  let body: {
+    dish?: Record<string, unknown>;
+    menuItem?: Record<string, unknown>;
+    foodTypes?: unknown;
+  };
   try {
     body = await request.json();
   } catch {
@@ -121,8 +126,14 @@ Deno.serve(async (request: Request): Promise<Response> => {
   if (body.menuItem && !held.has('menu.edit')) {
     return json(403, { error: 'not_permitted', requires: 'menu.edit' });
   }
-  if (!body.dish && !body.menuItem) {
-    return json(422, { error: 'validation_failed', fields: { body: 'send a dish or a menuItem' } });
+  if (body.foodTypes && !held.has('dish.edit')) {
+    return json(403, { error: 'not_permitted', requires: 'dish.edit' });
+  }
+  if (!body.dish && !body.menuItem && !body.foodTypes) {
+    return json(422, {
+      error: 'validation_failed',
+      fields: { body: 'send a dish, a menuItem, or foodTypes' },
+    });
   }
 
   const admin = createClient(
@@ -133,6 +144,86 @@ Deno.serve(async (request: Request): Promise<Response> => {
 
   const fields: Record<string, string> = {};
   const changed: string[] = [];
+
+  // ---------------------------------------------------------------- bulk food types
+  //
+  // `E10-21`. 79 dishes reached production with `food_type` null on every one of them, which in
+  // this market is the most likely day-one complaint — a parent cannot tell whether a dish is
+  // vegetarian, and that is not a detail here.
+  //
+  // Its own shape rather than a general mass-update: **only `food_type` can be set this way.**
+  // A generic "update these 500 rows with this patch" endpoint is one careless caller away from
+  // rewriting descriptions or retiring a catalogue, and there is no operator task that needs it.
+  //
+  // **All or nothing.** Validated completely before a single row is written, so a bad id at
+  // position 60 does not leave the first 59 changed and the operator guessing which. That matters
+  // more here than anywhere else in this function, because the whole point is doing 79 at once.
+  if (body.foodTypes !== undefined) {
+    if (!Array.isArray(body.foodTypes)) {
+      return json(422, { error: 'validation_failed', fields: { foodTypes: 'must be a list' } });
+    }
+    // A cap, because an uncapped bulk write is a denial of service with a valid token. 500 is
+    // comfortably above the whole catalogue and far below anything that would hurt.
+    if (body.foodTypes.length > 500) {
+      return json(422, { error: 'validation_failed', fields: { foodTypes: 'at most 500 at a time' } });
+    }
+
+    const updates: { id: string; foodType: string | null }[] = [];
+    for (const [i, raw] of body.foodTypes.entries()) {
+      if (typeof raw !== 'object' || raw === null) {
+        return json(422, { error: 'validation_failed', fields: { [`foodTypes[${i}]`]: 'not an object' } });
+      }
+      const entry = raw as Record<string, unknown>;
+      const id = str(entry.id);
+      if (!id || !UUID.test(id)) {
+        return json(422, { error: 'validation_failed', fields: { [`foodTypes[${i}].id`]: 'required, and a uuid' } });
+      }
+      const value = entry.foodType === null ? null : str(entry.foodType);
+      if (value !== null && !FOOD_TYPES.includes(value)) {
+        return json(422, {
+          error: 'validation_failed',
+          fields: { [`foodTypes[${i}].foodType`]: `must be null or one of: ${FOOD_TYPES.join(', ')}` },
+        });
+      }
+      updates.push({ id, foodType: value });
+    }
+
+    // One statement per distinct value rather than one per dish: setting a whole catalogue to
+    // `veg` and then correcting the handful that are not is the actual operator workflow, and it
+    // becomes three round trips instead of seventy-nine.
+    const byValue = new Map<string, string[]>();
+    for (const u of updates) {
+      const key = u.foodType ?? '';
+      if (!byValue.has(key)) byValue.set(key, []);
+      byValue.get(key)!.push(u.id);
+    }
+
+    let touched = 0;
+    for (const [value, ids] of byValue) {
+      const { data, error } = await admin
+        .from('dish')
+        .update({ food_type: value === '' ? null : value })
+        .in('id', ids)
+        .select('id');
+      if (error) {
+        console.error('bulk food_type failed', error.code);
+        return json(500, { error: 'internal' });
+      }
+      touched += (data ?? []).length;
+    }
+
+    if (touched !== updates.length) {
+      // Some id matched nothing. Reported rather than shrugged off: a bulk edit that silently
+      // skipped a dish is a dish that stays unmarked, which is the exact thing this endpoint
+      // exists to prevent.
+      return json(404, {
+        error: 'unknown_dish',
+        detail: `${updates.length - touched} of ${updates.length} ids matched no dish. Nothing else was changed.`,
+      });
+    }
+
+    changed.push(`foodType×${touched}`);
+  }
 
   // ------------------------------------------------------------------------- the dish
   if (body.dish) {

@@ -673,3 +673,78 @@ is one App Store Connect will not accept.
 **Both blockers are the same shape as `E01-27`**: the thing needed to ship exists only in a
 console somebody has to log into. Three instances in one day — `platform_config.environment`,
 `payments-webhook.verify_jwt`, and now both sets of store credentials.
+
+---
+
+## D-16I — `food_type` is guarded at the *offer*, not on the column
+
+79 dishes reached production with `food_type` null on every one, and 83 menu items were offering
+them. `[DM-17]` left the column nullable for a good reason — the source Excel had no such field
+and inventing one would be inventing a fact about food.
+
+**Decided.** That reasoning covers a dish sitting in the catalogue; it does not cover a dish
+*offered to a parent*. So the column stays nullable and `0059` guards `menu_item`: a dish can
+exist unmarked, it cannot be published to a menu unmarked. The trigger fires only when
+`is_active` is true, because that is how this schema says "offered" — parking a dish on next
+term's menu before its details are complete is ordinary and reaches nobody.
+
+**It does not touch the 83 rows already there.** A trigger fires on write. A migration that
+retro-actively emptied two live menus would be an outage, not a guard. Those rows are what
+`npm run check:launch` reports.
+
+**It will make `tools/bulk-import` fail** on any menu row whose dish is unmarked. That is the
+forcing function, and it is why the bulk editor and the CSV round trip ship in the same change —
+there is never a state where the rule exists and the means to satisfy it does not.
+
+---
+
+## D-16J — the fastest path is "mark everything veg, then correct the exceptions"
+
+Three ways in, because the fastest one depends on what Andy has in front of him:
+
+1. **`/admin/menus` bulk bar** — "Select the N with no food type" → Veg, then flip the handful
+   that are not. Three actions for 79 dishes. One request, not 79: the endpoint takes a list and
+   groups by value, so it is one statement per distinct value.
+2. **`--export-dishes dishes.csv`** — the catalogue as a CSV whose columns are exactly what
+   `--dishes` reads back. A spreadsheet is the right tool for 79 rows if the answers are not
+   uniform.
+3. **One dish at a time**, which already existed.
+
+The bulk endpoint accepts **only `food_type`**. A general "apply this patch to 500 rows" endpoint
+is one careless caller away from retiring a catalogue, and no operator task needs it. It is
+all-or-nothing: validated completely before anything is written, so a bad id at position 60 does
+not leave 59 changed and the operator guessing.
+
+---
+
+## D-16K — the launch check reports blockers and warnings, and nothing else
+
+`npm run check:launch` answers one question: what stops a parent ordering right now.
+
+A **blocker** stops ordering. A **warning** degrades it. There is no third level and no
+"consider" tier, because a report listing twelve things when two matter is a report that gets
+skimmed on the morning it matters most. Warnings do **not** fail the exit code — a check that
+fails on things you have deliberately accepted is a check you stop running.
+
+Every finding carries the fix, not just the fault. On the 17th the person reading it is alone.
+
+It found two production blockers on its first real run, one of which nobody knew about: **Paragon
+and Gem have no break windows**, so under `P19` neither can take an order at all. Staging got
+those rows from `0029`; production never did.
+
+---
+
+## D-16L — `E10-21` is NOT tagged `(mvp)`, and I think it should be
+
+I tagged it, `check:mvp` refused, and it was right to.
+
+`CLAUDE.md`: *"Never add an id to the MVP list yourself. If you believe something must be in v1,
+say so and let Andy decide."* The rule exists because the backlog grew from 161 tasks to 288 by
+new work quietly defaulting into scope.
+
+So the marker came back off. **For the record: I think it belongs in v1.** Andy ranked it first
+and described it as the most likely day-one complaint, and a parent who cannot tell whether a
+dish is vegetarian is not a fast-follow concern in this market. But that is a scope decision with
+one owner, and the work is finished either way — the tag changes the count, not the code.
+
+One line in `scripts/check-mvp.mjs` and one marker in the backlog if Andy agrees.
