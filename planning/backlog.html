@@ -3726,13 +3726,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/33</span>
+          <span class="meter-num">0/35</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 33 tasks</summary>
+        <summary>Context &amp; 35 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -3999,6 +3999,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Kitchen-visible allergy flags.</strong> Staff hand a physical bag to a named child and were previously told nothing; Andy accepted the privacy cost deliberately (2026-08-14), with the constraints as part of the requirement rather than advice. <strong>Structured data only</strong> — the enumerated <code>allergen</code> table, badged beside the child&#39;s name as <code>MILK</code>, <code>TREE NUT</code>. No parent note, no severity, no medical detail, and codes are shortened but never renamed: mapping <code>tree_nut</code> onto &quot;NUT&quot; would create a second vocabulary to keep in step with the first. <strong>A child with no record renders &quot;No allergies provided&quot;, never blank</strong> (§5.21) — and &quot;not readable&quot; renders the same, because both mean &quot;you have not been told&quot; and a permissions failure must not look like a clean bill of health. <code>allergenWarning</code>&#39;s <code>warn: &#39;unknown&#39;</code> is untouched. <strong>No migration was needed</strong>: <code>recipient_allergen_read_fulfilment</code> already required <code>orders.view_pii</code> at the order&#39;s own school or its kitchen. Four constraints tested in <code>allergen-handling.test.ts</code> (never logged, never exported or in a URL, not persisted client-side) and the scoping proved in <code>supabase/tests/kitchen_allergen_flags.test.sql</code> <strong>through an authenticated client</strong>, asserting the harness first so a deny cannot pass for the wrong reason. The terms&#39; allergy clause is updated in the same change, because it said the kitchen sees nothing and that became false</span>
+      </li>
+      <li class="task" data-id="E09-34" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-34"></button>
+        <code class="tid">E09-34</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The sheet the kitchen packs from.</strong> <code>/kitchen/sheet</code> — one day, grouped school → break → class → child, printable on A4 and legible on a phone. Deliberately <strong>not</strong> <code>E09-12</code>&#39;s packing-list tooling: no interaction at all, because the board is where things change and a Delivered button printed on paper is a promise nobody can keep. A second page rather than a print stylesheet over the board, which leads with what is still to do, hides what is done and assumes you can tap — a print sheet would be an argument with every one of those. Same read, same columns, same RLS, no new grant. What it adds is a <strong>count per dish per break</strong> (what gets counted onto a tray, printed first because that is the first thing done) and every child&#39;s lines visible at once rather than behind a status. Cancelled orders are excluded — on the board they need explaining, on a packing sheet they would get bagged. Allergen badges are boxed and bold rather than coloured, because kitchen printers are monochrome and a badge that exists only in colour does not exist on paper. <code>break-after: page</code> per (school, break) and <code>break-inside: avoid</code> per class and child: half a class across a page boundary is a child left unbagged</span>
+      </li>
+      <li class="task" data-id="E09-35" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-35"></button>
+        <code class="tid">E09-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Kitchen day one verified end to end on staging.</strong> Driven through the real board in a real browser as a <strong>real signed-in operator</strong> — a genuine GoTrue session, so every read went through RLS as it will on the 19th, never the service role. Proven: 34 orders across 5 classes and 3 breaks render; parent notes reach the kitchen; allergy badges show <code>MILK</code>, <code>TREE NUT</code>, <code>GLUTEN</code>, <code>SOY</code> on the right children with 26 others reading &quot;No allergies provided&quot;, codes only and never a severity or note; <strong>mark-delivered works and sticks</strong> (paid 19 → 18, delivered 6 → 7, <code>delivered_at</code> set) with an <code>order_event</code> recording <code>paid → delivered</code> by <code>actor_type: kitchen</code> (<code>I2</code>); and the <strong>IST midnight boundary</strong> is correct *on the board*, not only in <code>serviceDateToday</code> — clock pinned inside the browser, 18:29 UTC reads Friday 14 August and 18:31 UTC reads Saturday 15 August. The undo window was <strong>waited out on its own timer</strong> rather than flushed by a reload, because a hand-over left alone takes the timer path. <code>docs/kitchen-day-one.md</code> has the five-line check to run against production once a smoke payment lands</span>
       </li></ul>
       </details>
     </article>
