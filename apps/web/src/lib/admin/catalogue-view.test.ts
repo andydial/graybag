@@ -82,9 +82,19 @@ describe('which menu a school is actually serving', () => {
     expect(rowFor({ assignments: [assign({ validTo: '2026-08-14' })] }).live).toBeNull();
   });
 
-  it('an assignment ending today is still live — valid_to is inclusive', () => {
-    // Off by one here means a school loses its menu a day early, on the day it matters.
-    expect(rowFor({ assignments: [assign({ validTo: TODAY })] }).live).not.toBeNull();
+  it('an assignment whose valid_to is today is ALREADY over — the bound is exclusive', () => {
+    // `0001` constrains the column as `daterange(valid_from, valid_to, '[)')`, and every read in
+    // the system — RLS, the public menu view, `create_checkout` — tests `valid_to > current_date`.
+    //
+    // I first wrote this the other way, and the test passed because it asserted my mistake. An
+    // inclusive bound here would show an admin a school still serving a menu on the day the
+    // parent-facing app had already stopped serving it: the back office quietly disagreeing with
+    // the app about what is on sale, with no error anywhere.
+    expect(rowFor({ assignments: [assign({ validTo: TODAY })] }).live).toBeNull();
+  });
+
+  it('an assignment ending tomorrow is still live today', () => {
+    expect(rowFor({ assignments: [assign({ validTo: '2026-08-16' })] }).live).not.toBeNull();
   });
 
   it('an assignment starting today is live — valid_from is inclusive too', () => {

@@ -150,9 +150,15 @@ export interface AdminMenuAssignment {
   schoolCode: string;
   menuId: string;
   menuName: string;
-  /** `YYYY-MM-DD`. Inclusive. */
+  /** `YYYY-MM-DD`. **Inclusive** — the first day the menu is served. */
   validFrom: string;
-  /** `YYYY-MM-DD`, or null for open-ended. Inclusive when set. */
+  /**
+   * `YYYY-MM-DD`, or null for open-ended. **EXCLUSIVE** — the first day it is *not* served.
+   *
+   * Not a preference: `0001` constrains the column with
+   * `daterange(valid_from, coalesce(valid_to, 'infinity'), '[)')`, and every read in the system —
+   * the RLS policies, the public menu view, `create_checkout` — tests `valid_to > current_date`.
+   */
   validTo: string | null;
   revokedAt: string | null;
 }
@@ -193,11 +199,16 @@ export async function fetchMenuAssignments(): Promise<AdminMenuAssignment[]> {
  * Dates compare as strings on purpose: `YYYY-MM-DD` is lexicographically ordered, both sides come
  * from Postgres `date` columns in that exact shape, and parsing them into `Date` is how a
  * timezone gets reintroduced into a comparison that must not have one.
+ *
+ * **`valid_to` is exclusive**, matching `0001`'s `'[)'` daterange and the `valid_to > current_date`
+ * every read in the system uses. The first version of this function had it inclusive, which would
+ * have shown an admin a school still serving a menu on the day the parent-facing app had already
+ * stopped serving it — the admin screen quietly disagreeing with the app about what is on sale.
  */
 export function isAssignmentLive(a: AdminMenuAssignment, today: string): boolean {
   if (a.revokedAt !== null) return false;
   if (a.validFrom > today) return false;
-  return a.validTo === null || a.validTo >= today;
+  return a.validTo === null || a.validTo > today;
 }
 
 export interface AdminMenuItem {

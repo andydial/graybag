@@ -4075,13 +4075,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/24</span>
+          <span class="meter-num">0/26</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 24 tasks</summary>
+        <summary>Context &amp; 26 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4275,6 +4275,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Dish images: nothing uploads them.</strong> The <code>dish-images</code> storage bucket and the <code>asset</code> table both exist and <strong>no code path writes either</strong>, so all 79 production dishes have no image and the parent-facing menu is text-only. The dish editor states this rather than showing a file picker that silently does nothing. Needs: an upload path, an <code>asset</code> row written through an Edge Function (non-negotiable #1), and <code>dish.image_asset_id</code> wired</span>
+      </li>
+      <li class="task" data-id="E10-25" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-25"></button>
+        <code class="tid">E10-25</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Production had zero rows in <code>allergen</code> — every allergy warning was silently disabled.</strong> <code>dish_allergen</code> and <code>recipient_allergen</code> share this vocabulary and the match between them *is* the warning mechanism (<code>E09-33</code>, non-negotiable #4). Empty meant no dish could be tagged (<code>admin-dish</code> correctly 422&#39;d every code), no parent could record a child&#39;s allergy, and the kitchen board and packing sheet showed no flags — all of which reads as &quot;nobody has any allergies&quot;, on a product that feeds children. It failed quiet, and the quiet reads as safe. The vocabulary lived only in <code>supabase/seed.sql</code>, which is the local fixture; staging got it from <code>seeds/staging-menu.sql</code> and production was built from the real catalogue import, which has no allergen section. Now <code>0060_allergen_vocabulary.sql</code>, applied to prod with in-transaction proof and idempotence. Found only because the merged dish editor rendered an empty allergen fieldset against prod and a full one against fixtures. <code>check:launch</code> now blocks on it, first in the report</span>
+      </li>
+      <li class="task" data-id="E10-26" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-26"></button>
+        <code class="tid">E10-26</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>valid_to</code> is exclusive, and my admin screen had it inclusive.</strong> <code>0001</code> constrains <code>menu_assignment</code> with <code>daterange(valid_from, valid_to, &#39;[)&#39;)</code>, and every read in the system — RLS, the public menu view, <code>create_checkout</code> — tests <code>valid_to &gt; current_date</code>. <code>isAssignmentLive</code> used <code>&gt;=</code>, so the back office would have shown a school still serving a menu on the day the parent-facing app had already stopped serving it, with nothing erroring anywhere. The test asserted the mistake and passed</span>
       </li></ul>
       </details>
     </article>

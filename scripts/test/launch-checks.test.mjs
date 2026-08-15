@@ -14,6 +14,7 @@ const clean = (over = {}) => ({
   assignments: [{ schoolId: 's-1', menuId: 'm-1', isLive: true }],
   breakTimes: [{ schoolId: 's-1', isActive: true }],
   platformConfig: { priceIsTaxInclusive: false },
+  allergens: [{ code: 'milk', isActive: true }],
   missingSecrets: [],
   ...over,
 });
@@ -187,4 +188,31 @@ test('a label that merely mentions a time is not reported', () => {
   // a number — over-matching here would send somebody to rename labels that are already good.
   const f = findings(clean({ breakTimes: [{ schoolId: 's-1', label: 'Lunch 12:30', isActive: true }] }));
   assert.equal(f.filter((x) => /labelled/.test(x.title)).length, 0);
+});
+
+// -------------------------------------------------------------------- the allergen vocabulary
+
+test('an empty allergen table is a blocker, and it leads the report', () => {
+  // Production had exactly this and nothing anywhere said so. It is first in the output because
+  // it is the only finding that fails on a safety path *quietly* — every screen degrades to
+  // "no allergens recorded", which is indistinguishable from a dish that has none.
+  const found = findings(clean({ allergens: [] }));
+  assert.equal(found[0].level, BLOCKER);
+  assert.match(found[0].title, /no allergens exist/);
+});
+
+test('a healthy vocabulary reports nothing', () => {
+  assert.equal(findings(clean()).length, 0);
+});
+
+test('a vocabulary that exists but is entirely deactivated still blocks', () => {
+  // `is_active` false on every row reaches the same place by a different route, and an inactive
+  // allergen cannot be attached to anything.
+  const found = findings(clean({ allergens: [{ code: 'milk', isActive: false }] }));
+  assert.match(found[0].title, /no allergens exist/);
+});
+
+test('a snapshot with no allergens key at all does not throw', () => {
+  // Defensive: an older caller, or a partial snapshot in a test, must not crash the whole report.
+  assert.doesNotThrow(() => findings({ ...clean(), allergens: undefined }));
 });
