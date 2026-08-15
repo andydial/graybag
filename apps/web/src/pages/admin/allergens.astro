@@ -1,0 +1,342 @@
+---
+/**
+ * Tagging allergens, fast — `E10-33`.
+ *
+ * Every one of the 79 production dishes has **no allergen tags and no declaration that there are
+ * none**. `MI1` and `0006` are explicit that those are two different facts and that the second one
+ * has to be recorded deliberately; the state we are in is the third — *nobody has looked* — which
+ * the app must warn about and which currently reads to a parent as "this dish contains nothing".
+ *
+ * This screen exists to clear that state in one sitting.
+ *
+ * ## The suggestions are guesses, and the screen never lets you forget it
+ *
+ * `suggestAllergens` reads the ingredient text and offers what it finds. It is **not pre-applied**:
+ * the boxes start as they are in the database, the suggestion sits beside them as something to
+ * accept, and every suggested chip is drawn differently from a real tag. Accepting is a click;
+ * nothing is written until Save.
+ *
+ * The reason for the ceremony is that a missed tag is a child with a milk allergy handed a dish
+ * containing milk, with the app having said nothing. There is no second control that catches it.
+ *
+ * ## "No allergens" is a button, not an empty save
+ *
+ * Saving a dish with nothing ticked would clear the tags and leave it in exactly the unknown state
+ * it started in — a save that appears to work and changes nothing that matters. So *Contains none*
+ * is its own action, writing `allergens_declared_none`, and the row then reads **declared** rather
+ * than **not checked**.
+ *
+ * `?state=demo` renders fixtures, so `check:a11y` audits this rather than the sign-in redirect.
+ */
+import '../../styles/tokens.css';
+import '../../styles/site.css';
+import '../../styles/kitchen.css';
+import '../../styles/admin.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Allergen tagging — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
+          <h1 class="kitchen__title">Allergen tagging</h1>
+          <a class="kitchen__btn" href="/admin/menus">Dishes and menus</a>
+          <button id="g-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+          <button id="g-save" class="kitchen__btn kitchen__btn--primary" type="button" disabled>
+            Save
+          </button>
+        </div>
+      </header>
+
+      <main class="kitchen__wrap admin__wrap">
+        <div id="g-status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <div class="guessbanner" role="note">
+          <p>
+            <b>The highlighted tags are guesses.</b> They are read from the ingredient text by
+            keyword and nothing else — they cannot know that a bread contains milk powder that
+            isn't listed, or that a kitchen fries in shared oil. <b>They under-report.</b>
+          </p>
+          <p>
+            Nothing is saved until you press Save. A dish with no tags and no declaration reads to
+            the app as <b>unknown</b>, not as safe — use <b>Contains none</b> to say you checked.
+          </p>
+        </div>
+
+        <div id="g-body"></div>
+      </main>
+    </div>
+
+    <script>
+      import { api } from '@graybag/shared';
+      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
+      import { ALLERGEN_CODES, allergenState, suggestAllergens } from '../../lib/admin/allergen-guess.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = {
+        body: $('g-body'), status: $('g-status'),
+        reload: $<HTMLButtonElement>('g-reload'), save: $<HTMLButtonElement>('g-save'),
+      };
+
+      const esc = (s: string) =>
+        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const demo = new URLSearchParams(location.search).has('state');
+
+      let dishes: api.AdminDish[] = [];
+      let loading = true;
+      let error: string | null = null;
+
+      /**
+       * The unsaved edit for each dish, keyed by id. A dish absent from this map has not been
+       * touched and is not sent — so Save writes exactly what was changed, and a page full of
+       * dishes does not become a page full of writes.
+       */
+      const edits = new Map<string, { codes: Set<string>; declaredNone: boolean }>();
+
+      const stored = (d: api.AdminDish) => ({
+        codes: new Set(d.allergens),
+        declaredNone: d.allergensDeclaredNone,
+      });
+      const current = (d: api.AdminDish) => edits.get(d.id) ?? stored(d);
+
+      async function load() {
+        loading = true; error = null; edits.clear(); render();
+        try {
+          if (demo) {
+            dishes = MENUS_FIXTURE.dishes;
+          } else {
+            configureBackofficeApi();
+            dishes = await api.fetchAdminDishes();
+          }
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The catalogue did not load.';
+          dishes = [];
+        } finally {
+          loading = false; render();
+        }
+      }
+
+      const LABEL: Record<string, string> = {
+        milk: 'Milk', gluten: 'Gluten', tree_nut: 'Tree nut', soy: 'Soy',
+      };
+
+      const STATE_WORD = {
+        tagged: 'tagged',
+        declared_none: 'declared: contains none',
+        unknown: 'NOT CHECKED — the app warns rather than reassures',
+      } as const;
+
+      function dishRow(d: api.AdminDish): string {
+        const now = current(d);
+        const suggestions = suggestAllergens({ name: d.name, ingredientsText: d.ingredientsText });
+        const suggested = new Map(suggestions.map((s) => [s.code, s]));
+        const state = allergenState({ allergens: [...now.codes], allergensDeclaredNone: now.declaredNone });
+        const dirty = edits.has(d.id);
+        // Only what is suggested and not already ticked — an "accept" that would change nothing is
+        // a button that teaches you it does nothing.
+        const acceptable = suggestions.filter((s) => !now.codes.has(s.code));
+
+        return (
+          `<div class="srow${state === 'unknown' ? ' srow--hidden' : ''}${dirty ? ' srow--dirty' : ''}" data-dish="${esc(d.id)}">` +
+            `<div class="srow__main">` +
+              `<p class="srow__name">${esc(d.name)}` +
+                (dirty ? ' <span class="admin__tag">unsaved</span>' : '') +
+              `</p>` +
+              `<p class="srow__meta">${esc(d.ingredientsText ?? 'no ingredient list — nothing to read')}</p>` +
+              `<p class="srow__meta">Currently ${esc(STATE_WORD[state])}</p>` +
+
+              `<fieldset class="admin__days">` +
+                `<legend class="admin__label">Contains</legend>` +
+                ALLERGEN_CODES.map((code) => {
+                  const s = suggested.get(code);
+                  const on = now.codes.has(code);
+                  return (
+                    `<label class="admin__day${s && !on ? ' admin__day--guess' : ''}">` +
+                      `<input type="checkbox" data-code="${esc(code)}"${on ? ' checked' : ''} ` +
+                        `aria-describedby="${s ? `why-${esc(d.id)}-${esc(code)}` : ''}" /> ` +
+                      `${esc(LABEL[code] ?? code)}` +
+                      (s ? ` <span class="guesschip" id="why-${esc(d.id)}-${esc(code)}">` +
+                           `guess: ${esc(s.evidence.join(', '))}${s.caveat ? ` — ${esc(s.caveat)}` : ''}</span>` : '') +
+                    `</label>`
+                  );
+                }).join('') +
+              `</fieldset>` +
+
+              `<div class="setting__actions">` +
+                (acceptable.length > 0
+                  ? `<button class="kitchen__btn" type="button" data-accept>` +
+                    `Accept ${acceptable.length} guess${acceptable.length === 1 ? '' : 'es'}</button>`
+                  : '') +
+                `<button class="kitchen__btn" type="button" data-none` +
+                  `${now.declaredNone && now.codes.size === 0 ? ' disabled' : ''}>Contains none</button>` +
+                (dirty ? `<button class="kitchen__btn" type="button" data-undo>Undo</button>` : '') +
+              `</div>` +
+            `</div>` +
+          `</div>`
+        );
+      }
+
+      function render() {
+        if (loading) {
+          el.body.innerHTML = Array(4).fill('<div class="kitchen__skeleton"></div>').join('');
+          return;
+        }
+        if (error) {
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>We can't show the catalogue</h2><p>${esc(error)}</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+
+        const unchecked = dishes.filter(
+          (d) => allergenState({ allergens: [...current(d).codes], allergensDeclaredNone: current(d).declaredNone }) === 'unknown',
+        ).length;
+
+        el.save.disabled = edits.size === 0;
+        el.save.textContent = edits.size === 0 ? 'Save' : `Save ${edits.size}`;
+        el.status.textContent =
+          `${dishes.length} dishes, ${unchecked} not checked, ${edits.size} unsaved.`;
+
+        el.body.innerHTML =
+          `<section class="admin__section" aria-labelledby="tag-h">` +
+            `<h2 id="tag-h">${dishes.length} dishes · ${unchecked} not checked</h2>` +
+            `<p class="admin__section-note">` +
+              (unchecked > 0
+                ? `<b>${unchecked} dishes have no tags and no declaration.</b> To a parent that ` +
+                  `currently reads as "contains nothing", which is not what it means.`
+                : `Every dish has been either tagged or declared to contain none.`) +
+            `</p>` +
+            dishes.map(dishRow).join('') +
+          `</section>`;
+      }
+
+      /** Re-render just one row, so ticking a box in a list of 79 does not lose focus or scroll. */
+      function repaint(dishId: string) {
+        const dish = dishes.find((d) => d.id === dishId);
+        const node = el.body.querySelector(`[data-dish="${CSS.escape(dishId)}"]`);
+        if (!dish || !node) { render(); return; }
+        node.outerHTML = dishRow(dish);
+        el.save.disabled = edits.size === 0;
+        el.save.textContent = edits.size === 0 ? 'Save' : `Save ${edits.size}`;
+      }
+
+      function edit(dishId: string, change: (e: { codes: Set<string>; declaredNone: boolean }) => void) {
+        const dish = dishes.find((d) => d.id === dishId);
+        if (!dish) return;
+        const next = edits.get(dishId) ?? {
+          codes: new Set(stored(dish).codes),
+          declaredNone: stored(dish).declaredNone,
+        };
+        change(next);
+        // Ticking anything cancels a "contains none" — they are opposite claims, and the server
+        // refuses both together rather than picking one.
+        if (next.codes.size > 0) next.declaredNone = false;
+        edits.set(dishId, next);
+        repaint(dishId);
+      }
+
+      el.body.addEventListener('change', (event) => {
+        const box = event.target as HTMLInputElement;
+        const code = box.dataset?.code;
+        const row = box.closest('[data-dish]') as HTMLElement | null;
+        if (!code || !row) return;
+        edit(row.dataset.dish!, (e) => {
+          if (box.checked) e.codes.add(code);
+          else e.codes.delete(code);
+        });
+      });
+
+      el.body.addEventListener('click', (event) => {
+        const t = event.target as HTMLElement;
+        if (t.closest('[data-retry]')) { void load(); return; }
+        const row = t.closest('[data-dish]') as HTMLElement | null;
+        if (!row) return;
+        const id = row.dataset.dish!;
+
+        if (t.closest('[data-accept]')) {
+          const dish = dishes.find((d) => d.id === id);
+          if (!dish) return;
+          const suggestions = suggestAllergens({ name: dish.name, ingredientsText: dish.ingredientsText });
+          edit(id, (e) => { for (const s of suggestions) e.codes.add(s.code); });
+          return;
+        }
+        if (t.closest('[data-none]')) {
+          // Clears the tags AND records the declaration. Doing only the first would leave the dish
+          // in the unknown state it is already in, which is the failure this button exists for.
+          edit(id, (e) => { e.codes.clear(); e.declaredNone = true; });
+          return;
+        }
+        if (t.closest('[data-undo]')) { edits.delete(id); repaint(id); return; }
+      });
+
+      el.save.addEventListener('click', () => void save());
+
+      async function save() {
+        if (edits.size === 0) return;
+        if (demo) { el.status.textContent = 'This is the demo view — nothing is written.'; return; }
+
+        const assignments = [...edits.entries()].map(([id, e]) => ({
+          id,
+          allergens: [...e.codes],
+          declaredNone: e.declaredNone && e.codes.size === 0,
+        }));
+
+        const tagged = assignments.filter((a) => a.allergens.length > 0).length;
+        const none = assignments.filter((a) => a.declaredNone).length;
+        // Named counts rather than "save 12 changes": this is the write where knowing exactly what
+        // is about to be claimed matters, and the two claims are opposites.
+        if (!confirm(
+          `Save allergen data for ${assignments.length} dish${assignments.length === 1 ? '' : 'es'}?\n\n` +
+          `${tagged} will be tagged with allergens.\n` +
+          `${none} will be recorded as CONTAINING NONE.\n\n` +
+          `This is what parents are warned on.`,
+        )) return;
+
+        el.save.disabled = true;
+        try {
+          const result = await api.setDishAllergens(assignments);
+          el.status.textContent = `Saved: ${result.changed.join(', ')}.`;
+          await load();
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'Nothing was saved.';
+          render();
+        }
+      }
+
+      el.reload.addEventListener('click', () => {
+        if (edits.size > 0 && !confirm(`Discard ${edits.size} unsaved change(s)?`)) return;
+        void load();
+      });
+
+      // A page of unsaved allergen decisions is the last thing that should vanish to a stray
+      // back gesture.
+      addEventListener('beforeunload', (event) => {
+        if (edits.size === 0) return;
+        event.preventDefault();
+        event.returnValue = '';
+      });
+
+      void (async () => {
+        try {
+          if (!demo && !(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent('/admin/allergens')}`);
+            return;
+          }
+        } catch { /* an unconfigured build falls through to the error state */ }
+        await load();
+      })();
+    </script>
+  </body>
+</html>

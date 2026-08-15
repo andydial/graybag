@@ -69,6 +69,9 @@ const PAGES = [
   // `E10-29`. Its demo file is deliberately not clean — an unchanged row, a create, and a
   // blocker — so the audit sees the report in the state it is actually read in.
   '/admin/import.html?state=demo',
+  // `E10-33`. The fixture carries a tagged dish, an explicitly-none dish and two unchecked
+  // ones, so the audit sees the guess chips and the three states rather than an empty list.
+  '/admin/allergens.html?state=demo',
   '/reports.html?state=demo',
   '/signin.html',
 ];
