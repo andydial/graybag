@@ -66,18 +66,36 @@ select throws_matching(
   'a published, in-effect, BLOCKING version with no acceptance refuses');
 
 -- The hint is what the Edge Function maps to a response the app can route on.
-do $$
+--
+-- **Why this is a function and not a `do` block.** It was a `do` block calling
+-- `perform is(...)`, and that is a silently broken way to write a pgTAP assertion: `is()`
+-- increments pgTAP's internal test counter and *returns* the TAP line, so `perform` runs the
+-- assertion and throws its output away. The count advances, the line never prints, and every
+-- later test is numbered one higher than the harness expects.
+--
+-- `scripts/test-db.sh` pipes through psql and does not check numbering, so it stayed green
+-- locally. CI runs `pg_prove`, which does: *"Tests out of sequence. Found (5) but expected (4)"*,
+-- nine times, and the file fails with **zero failed assertions** — the confusing signature that
+-- made this look like a policy bug rather than a reporting one.
+--
+-- The rule: a pgTAP assertion is always `select`ed, never `perform`ed. Where a value has to be
+-- captured first — here, an exception's hint — capture it in a function and `select is(...)`
+-- on the result.
+create function tests_tmp.gate_hint(p_user uuid) returns text
+language plpgsql as $$
 declare v_hint text;
 begin
-  begin
-    perform assert_policies_accepted((select parent_a from pg_ctx));
-    v_hint := '(no refusal)';
-  exception when others then
-    get stacked diagnostics v_hint = pg_exception_hint;
-  end;
-  perform is(v_hint, 'policy_acceptance_required',
-    'and refuses with the hint the Edge Function maps to a routable response');
+  perform assert_policies_accepted(p_user);
+  return '(no refusal)';
+exception when others then
+  get stacked diagnostics v_hint = pg_exception_hint;
+  return v_hint;
 end $$;
+
+select is(
+  tests_tmp.gate_hint((select parent_a from pg_ctx)),
+  'policy_acceptance_required',
+  'and refuses with the hint the Edge Function maps to a routable response');
 
 -- =============================================================================
 -- 2. Accepting it opens the gate — for that parent only.
