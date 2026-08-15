@@ -2313,13 +2313,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/52</span>
+          <span class="meter-num">0/54</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 52 tasks</summary>
+        <summary>Context &amp; 54 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2737,6 +2737,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The cart line collapses at 320dp — a dish name wraps one word per line.</strong> Seen in the first Maestro screenshot ever captured (<code>E14-38</code>, 2026-08-15, 320x640 emulator): &quot;Wheat Jaggery Cake&quot; renders as four stacked lines, <code>Wh / eat / Jag / gery / Cake</code>, in a column roughly 40px wide, because the thumbnail and the quantity stepper take their space first and the name gets what is left. Everything else on the screen is correct — the price, the <code>excl. GST</code> note, the sticky <code>Place order · ₹72.46</code> — which is what makes this worth a task rather than a shrug: the cart is *right* and looks broken. 320dp is not a strawman for this audience (CLAUDE.md: mid-range Androids in tier-1 Indian cities), and the fix is to let the name column flex ahead of the stepper rather than after it. Not launch-blocking; it degrades rather than fails</span>
+      </li>
+      <li class="task" data-id="E05-54" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-54"></button>
+        <code class="tid">E05-54</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>An abandoned payment leaves an order the parent can neither pay nor cancel, under a message that says it will sort itself out.</strong> Found 2026-08-16 preparing Andy&#39;s payment test. The app has no resume-payment path: <code>createPaymentOrder</code> and the Razorpay sheet run only inside <code>useCheckout</code>, straight after <code>create_checkout</code>. Once that flow is left — the sheet dismissed, the app backgrounded, the network dropped — the order sits at <code>pending_payment</code> and <strong>nothing in the app can advance it</strong>. <code>OrdersScreen</code> shows &quot;Payment pending&quot;; <code>OrderDetailScreen</code> refuses cancellation with *&quot;This order hasn&#39;t been paid for yet, so there is nothing to cancel — it will close by itself if the payment does not come through.&quot;* That sentence is not true: there is no <code>expired</code> status in the enum, no expiry job, and no <code>pg_cron</code> on production (<code>E05-51</code>). So the order is permanent, the copy promises otherwise, and because <code>deactivate_recipient</code> and <code>change_recipient_school</code> both refuse while an undelivered future order exists, <strong>it also permanently blocks deleting that child or moving them schools</strong> — a DPDP erasure request blocked by a stray tap. On launch day, every parent who dismisses the Razorpay sheet once is in this state. Needs either a &quot;Pay now&quot; affordance on a pending order (which <code>payments-create-order</code> already supports — it is idempotent per attempt and returns <code>attempt_no</code>), or the expiry in <code>E05-51</code>, and probably both. The copy must not claim self-resolution until one of them exists</span>
+      </li>
+      <li class="task" data-id="E05-55" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-55"></button>
+        <code class="tid">E05-55</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A non-service day is reported as &quot;the dish is no longer on the menu&quot;.</strong> Verified on production 2026-08-16, the first Sunday since <code>service_days</code> became Mon–Sat: a checkout for Sunday is correctly refused, but with <code>{&quot;code&quot;:&quot;unavailable&quot;,&quot;message&quot;:&quot;One of the dishes is no longer on the menu for that day.&quot;}</code>. Two different conditions — *this school does not serve on Sundays* and *this dish came off the menu* — arrive as one message, and the one a parent is shown is the wrong one: they will go back and try a different dish, which will fail identically. §5.21&#39;s collapsed-states audit is exactly this defect class. The calendar is supposed to prevent the situation arising at all, but <code>order-calendar</code> 404s for every parent (<code>E05-52</code>) and no screen calls it, so the refusal is currently the only signal a parent gets. Needs its own code (<code>not_a_service_day</code>) and copy naming the day</span>
       </li></ul>
       </details>
     </article>

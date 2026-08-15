@@ -262,3 +262,40 @@ prefix constant in `env.ts`, not a key.
 the time — manifest 200, ids matching — was true and told me nothing about which backend was
 inside the bundle. A check that passes on the wrong artefact is the failure mode worth
 remembering here.
+
+## D49
+
+**"No payment has ever completed on production" is true, and nothing is broken.** Every link was
+tested against production this morning and each one works:
+
+| Step | Evidence |
+|---|---|
+| `create_checkout` → `pending_payment` | `GB-94Q6JD` placed for Monday 17 Aug, ₹72.46 |
+| `payments-create-order` → live Razorpay order | `order_TQEBriyYjojCF1`, `rzp_live_…`, and a `payment` row appeared |
+| Live account activated | Razorpay accepted the order; an unactivated account refuses at creation |
+| Webhook registered | `TPqgSBnpEdsFSL`, active, on the prod URL, for `payment.captured`, `payment.failed`, `refund.created`, `refund.processed` |
+| Webhook reachable unauthenticated | A POST with no apikey and no JWT returns `200 {"status":"recorded_unverified"}` — so `verify_jwt` is off and a bad signature is recorded, not processed |
+| `checkout-status` reconciles | Returned `{"status":"pending","reconciled":true}` — it asked the live Razorpay API rather than believing our row |
+
+**The reason no payment has completed is that none has ever been attempted.** The order sits at
+`created` with `attempts: 0`, and the live account has **zero payments, ever**. My smoke order
+deliberately stopped before paying, because paying it costs real money and I would not spend
+Andy's.
+
+So there was nothing to fix in the payment path. What I did instead was remove the two things
+standing between Andy and a real attempt: an installable APK (`E17-58`), and the discovery below.
+
+## D50
+
+**An abandoned payment is unrecoverable, and the copy says the opposite.** `E05-54`. The app can
+only pay an order inside the `useCheckout` flow, immediately after checkout — there is no resume
+path. Dismiss the Razorpay sheet and the order is `pending_payment` for ever: `OrderDetailScreen`
+refuses to cancel it, telling the parent *"it will close by itself if the payment does not come
+through"*, and nothing closes it (`E05-51` — no `expired` status, no job, no `pg_cron`). It also
+blocks deleting that child.
+
+Every parent who dismisses the sheet once on launch day lands here. I cancelled the three test
+orders on production as `system` so Andy starts clean, but a parent has no such route.
+
+`payments-create-order` already supports this — it is per-attempt and returns `attempt_no` — so a
+"Pay now" button on a pending order is a small change, not a redesign.
