@@ -360,3 +360,28 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* ------------------------------------------------- school → menu → dishes (`E10-22`) */
+
+/*
+ * The dish list inside a school's expanded menu. A plain list rather than the `srow` treatment
+ * used elsewhere: these rows are read, never edited — editing happens on the dish itself, one
+ * place, and giving them edit affordances here would be the second dish editor all over again.
+ */
+.admin__plain {
+  list-style: none;
+  margin: var(--gb-space-2) 0 0;
+  padding: 0;
+}
+
+.admin__plain li {
+  padding: var(--gb-space-1) 0;
+  border-bottom: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  font-size: var(--gb-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin__plain li:last-child { border-bottom: 0; }
+
+/* The filter sits in a bulkbar, where the select would otherwise stretch to the full row. */
+.bulkbar .admin__field { margin: 0; min-width: 16rem; }

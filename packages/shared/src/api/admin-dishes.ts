@@ -100,6 +100,75 @@ export interface AdminMenu {
   items: AdminMenuItem[];
 }
 
+/**
+ * Which menu a school is serving — `E10-22`.
+ *
+ * The link that made the catalogue unreadable by its absence: a menu and a school were each
+ * visible on their own, and nothing on any screen joined them. "Is Gem seeded correctly?" was
+ * unanswerable without opening the database, which on the week before launch is the one question
+ * being asked.
+ *
+ * A school can hold **several** assignment rows — that is how a menu changes mid-term without
+ * losing the record of what was served before. `revoked_at` and the date window decide which one
+ * is live, and both are kept here rather than resolved away, because "Paragon's menu starts on
+ * the 22nd" and "Paragon has no menu" look identical once you throw the dates out.
+ */
+export interface AdminMenuAssignment {
+  schoolId: string;
+  schoolName: string;
+  schoolCode: string;
+  menuId: string;
+  menuName: string;
+  /** `YYYY-MM-DD`. Inclusive. */
+  validFrom: string;
+  /** `YYYY-MM-DD`, or null for open-ended. Inclusive when set. */
+  validTo: string | null;
+  revokedAt: string | null;
+}
+
+export const ADMIN_ASSIGNMENT_COLUMNS =
+  'school_id,menu_id,valid_from,valid_to,revoked_at,school:school_id(name,code),menu:menu_id(name)';
+
+export async function fetchMenuAssignments(): Promise<AdminMenuAssignment[]> {
+  const rows = await runQuery<unknown>((t) =>
+    t.from('menu_assignment').select(ADMIN_ASSIGNMENT_COLUMNS),
+  );
+
+  return rows.map((row, i) => {
+    if (!isRecord(row)) throw new AdminDishError(`assignment ${i} is not an object`);
+    const school = isRecord(row.school) ? row.school : {};
+    const menu = isRecord(row.menu) ? row.menu : {};
+    return {
+      schoolId: str(row.school_id) ?? '',
+      schoolName: str(school.name) ?? '',
+      schoolCode: str(school.code) ?? '',
+      menuId: str(row.menu_id) ?? '',
+      menuName: str(menu.name) ?? '',
+      validFrom: str(row.valid_from) ?? '',
+      validTo: str(row.valid_to),
+      revokedAt: str(row.revoked_at),
+    };
+  });
+}
+
+/**
+ * Is this assignment the one in force on `today`?
+ *
+ * `today` is passed in rather than read from the clock so it is testable and so the caller can
+ * hand it an **IST** service date — the day rolls at 18:30 UTC, and a screen that decided
+ * liveness from the browser's local midnight would show the wrong menu to anyone not in India
+ * for five and a half hours a day.
+ *
+ * Dates compare as strings on purpose: `YYYY-MM-DD` is lexicographically ordered, both sides come
+ * from Postgres `date` columns in that exact shape, and parsing them into `Date` is how a
+ * timezone gets reintroduced into a comparison that must not have one.
+ */
+export function isAssignmentLive(a: AdminMenuAssignment, today: string): boolean {
+  if (a.revokedAt !== null) return false;
+  if (a.validFrom > today) return false;
+  return a.validTo === null || a.validTo >= today;
+}
+
 export interface AdminMenuItem {
   menuId: string;
   dishId: string;

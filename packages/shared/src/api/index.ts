@@ -85,15 +85,19 @@ export {
 // preparing a CSV is six minutes of ceremony for a four-character change — and the ceremony is
 // what makes somebody edit the database by hand instead.
 export {
+  ADMIN_ASSIGNMENT_COLUMNS,
   ADMIN_DISH_COLUMNS,
   ADMIN_MENU_COLUMNS,
   AdminDishError,
   fetchAdminDishes,
   fetchAdminMenus,
+  fetchMenuAssignments,
+  isAssignmentLive,
   setFoodTypes,
   updateCatalogue,
   type AdminDish,
   type AdminMenu,
+  type AdminMenuAssignment,
   type AdminMenuItem,
   type CatalogueUpdateResult,
   type DishEdit,

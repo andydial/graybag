@@ -66,6 +66,10 @@ import '../../styles/admin.css';
       import { api, money } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
+      import { serviceDateToday } from '../../lib/kitchen/view.js';
+      import {
+        ALL_DISHES, NO_MENU, filterDishes, menuFilterOptions, placementsFor, schoolMenuRows,
+      } from '../../lib/admin/catalogue-view.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
@@ -86,9 +90,21 @@ import '../../styles/admin.css';
 
       let dishes: api.AdminDish[] = [];
       let menus: api.AdminMenu[] = [];
+      let schools: api.AdminSchool[] = [];
+      let assignments: api.AdminMenuAssignment[] = [];
       let allergens: string[] = [];
       let loading = true;
       let error: string | null = null;
+
+      /**
+       * Which menu the dish list is showing. Held in the URL, not just in memory, so that a
+       * filtered view can be sent to somebody or reloaded without losing it — the screen's whole
+       * job this week is answering "is this menu seeded right?", and that answer gets shared.
+       */
+      let filter = new URLSearchParams(location.search).get('menu') ?? ALL_DISHES;
+
+      /** The IST service date. The day rolls at 18:30 UTC, and an assignment is live by date. */
+      const today = serviceDateToday(new Date());
 
       async function load() {
         loading = true; error = null; render();
@@ -96,21 +112,26 @@ import '../../styles/admin.css';
           if (demo) {
             dishes = MENUS_FIXTURE.dishes;
             menus = MENUS_FIXTURE.menus;
+            schools = MENUS_FIXTURE.schools;
+            assignments = MENUS_FIXTURE.assignments;
             allergens = ['gluten', 'milk', 'soy', 'tree_nut'];
           } else {
             configureBackofficeApi();
-            const [d, m, a] = await Promise.all([
+            const [d, m, a, s, as] = await Promise.all([
               api.fetchAdminDishes(), api.fetchAdminMenus(), api.fetchAllergens(),
+              api.fetchAdminSchools(), api.fetchMenuAssignments(),
             ]);
             dishes = d;
             menus = m;
+            schools = s;
+            assignments = as;
             // Codes, not names. `dish_allergen` and `recipient_allergen` share this vocabulary,
             // and the shared row id is the whole mechanism behind an allergen warning.
             allergens = a.map((x) => x.code).sort();
           }
         } catch (cause) {
           error = cause instanceof Error ? cause.message : 'The catalogue did not load.';
-          dishes = []; menus = [];
+          dishes = []; menus = []; schools = []; assignments = [];
         } finally {
           loading = false; render();
         }
@@ -134,11 +155,15 @@ import '../../styles/admin.css';
        * only thing worth knowing is how many are still unmarked.
        */
       function bulkBar(): string {
-        const unmarked = dishes.filter((d) => d.foodType === null);
+        // Scoped to what the filter is showing, never to the whole catalogue. "Select all" while a
+        // menu filter is on must mean the dishes on screen — selecting rows somebody cannot see
+        // and then setting a food type on them is the kind of bulk action nobody would trust twice.
+        const visible = filterDishes(dishes, menus, filter);
+        const unmarked = visible.filter((d) => d.foodType === null);
         return (
           `<div class="bulkbar" role="group" aria-label="Set food type on several dishes">` +
             `<div class="bulkbar__picks">` +
-              `<button class="kitchen__btn" type="button" data-select="all">Select all ${dishes.length}</button>` +
+              `<button class="kitchen__btn" type="button" data-select="all">Select all ${visible.length}</button>` +
               (unmarked.length
                 ? `<button class="kitchen__btn" type="button" data-select="unmarked">` +
                   `Select the ${unmarked.length} with no food type</button>`
@@ -183,7 +208,147 @@ import '../../styles/admin.css';
         }
       }
 
+      const WEEKDAY_LABEL = (days: number[]) =>
+        days.length === 7 ? 'every day' : days.map((d) => WEEKDAYS[d - 1]).join(', ');
+
+      /**
+       * School → menu → dishes — `E10-22`, and the first thing on the page.
+       *
+       * The join that was missing. Menus and schools were each visible alone and nothing put them
+       * together, so "is Gem seeded correctly?" could only be answered against the database. Four
+       * days before parents arrive that is the only question anybody is asking, so it gets the top
+       * of the screen rather than a filter you have to know to apply.
+       *
+       * Each school shows what a **parent at that school would see today** — not what exists in
+       * the catalogue. Those differ whenever a dish is retired, parked, or unmarked, and every one
+       * of those differences is invisible from the menu alone.
+       */
+      function schoolsSection(): string {
+        const rows = schoolMenuRows(schools, assignments, menus, dishes, today);
+        if (rows.length === 0) {
+          return (
+            `<section class="admin__section"><h2>Schools and their menus</h2>` +
+            `<div class="kitchen__state"><h2>No schools yet</h2>` +
+            `<p>Onboard one on <a href="/admin/schools">Schools</a>.</p></div></section>`
+          );
+        }
+
+        const broken = rows.filter((r) => r.problems.length > 0).length;
+        return (
+          `<section class="admin__section" aria-labelledby="schools-h">` +
+            `<h2 id="schools-h">Schools and their menus</h2>` +
+            `<p class="admin__section-note">` +
+              `What a parent at each school would see <b>today</b> (${esc(today)}), not what is in ` +
+              `the catalogue. ` +
+              (broken > 0
+                ? `<b>${broken} of ${rows.length} cannot be ordered from.</b>`
+                : `All ${rows.length} can be ordered from.`) +
+            `</p>` +
+            rows.map((r) => {
+              const menu = r.live?.menu ?? null;
+              const total = menu ? menu.items.length : 0;
+              return (
+                `<div class="srow${r.problems.length ? ' srow--hidden' : ''}">` +
+                  `<div class="srow__main">` +
+                    `<p class="srow__name">${esc(r.school.name)}</p>` +
+                    `<p class="srow__meta">` +
+                      (r.live
+                        ? `Serving <b>${esc(r.live.assignment.menuName)}</b> since ` +
+                          `${esc(r.live.assignment.validFrom)}` +
+                          (r.live.assignment.validTo ? ` until ${esc(r.live.assignment.validTo)}` : '')
+                        : 'No menu in force today') +
+                    `</p>` +
+                    `<p class="srow__meta">` +
+                      (menu
+                        ? `${r.orderable} of ${total} dish${total === 1 ? '' : 'es'} orderable` +
+                          (r.orderable < total
+                            ? ` — ${total - r.orderable} inactive or with no food type`
+                            : '')
+                        : 'Nothing orderable') +
+                    `</p>` +
+                    r.problems.map((p) => `<p class="srow__why">${esc(p)}</p>`).join('') +
+                    (r.upcoming.length > 0 && r.live
+                      ? `<p class="srow__meta">Next: ${esc(r.upcoming[0]!.menuName)} from ` +
+                        `${esc(r.upcoming[0]!.validFrom)}</p>`
+                      : '') +
+                    (menu && total > 0
+                      ? `<details class="setting__edit">` +
+                          `<summary>The ${total} dish${total === 1 ? '' : 'es'} on ${esc(menu.name)}</summary>` +
+                          `<ul class="admin__plain">` +
+                            menu.items.map((i) => {
+                              const d = dishes.find((x) => x.id === i.dishId);
+                              const off: string[] = [];
+                              if (!i.isActive) off.push('not on the menu');
+                              if (d && !d.isActive) off.push('retired');
+                              if (d && d.foodType === null) off.push('no food type');
+                              return (
+                                `<li>${esc(i.dishName)} — ${esc(rupees(i.pricePaise))}, ` +
+                                `${esc(WEEKDAY_LABEL(i.availableDays))}` +
+                                (off.length ? ` <b>(${esc(off.join(', '))})</b>` : '') +
+                                `</li>`
+                              );
+                            }).join('') +
+                          `</ul>` +
+                          `<p class="setting__actions">` +
+                            // A button rather than a link: a link would reload, which drops
+                            // `?state=demo` and costs a full catalogue fetch to hide some rows.
+                            `<button class="kitchen__btn" type="button" ` +
+                              `data-filter="${esc(menu.id)}">Show only these in the dish list</button>` +
+                          `</p>` +
+                        `</details>`
+                      : '') +
+                  `</div>` +
+                `</div>`
+              );
+            }).join('') +
+          `</section>`
+        );
+      }
+
+      /**
+       * Change what the dish list is showing, and put it in the URL.
+       *
+       * `replaceState` rather than a reload: the filtered view is worth sending to somebody, but
+       * re-fetching the whole catalogue to hide some rows is a round trip on the connection the
+       * performance priorities call the real constraint.
+       */
+      function setFilter(next: string) {
+        filter = next;
+        // The selection does not survive. Carrying it would leave dishes picked that the new
+        // filter hides, and the next bulk apply would silently include them.
+        picked.clear();
+        const url = new URL(location.href);
+        if (filter === ALL_DISHES) url.searchParams.delete('menu');
+        else url.searchParams.set('menu', filter);
+        history.replaceState(null, '', url);
+        render();
+      }
+
+      /** The menu filter on the dish list. Counts are on the options, so the numbers read first. */
+      function filterBar(): string {
+        const options = menuFilterOptions(dishes, menus);
+        const active = options.find((o) => o.value === filter) ?? options[0]!;
+        return (
+          `<div class="bulkbar" role="group" aria-label="Filter the dish list by menu">` +
+            `<div class="admin__field">` +
+              `<label class="admin__label" for="m-filter">Show</label>` +
+              `<select class="admin__select" id="m-filter">` +
+                options.map((o) =>
+                  `<option value="${esc(o.value)}"${o.value === active.value ? ' selected' : ''}>` +
+                  `${esc(o.label)} (${o.count})</option>`,
+                ).join('') +
+              `</select>` +
+            `</div>` +
+            (active.value === NO_MENU && active.count > 0
+              ? `<p class="srow__why">These are in the catalogue but on no menu at all. ` +
+                `Nobody can order them.</p>`
+              : '') +
+          `</div>`
+        );
+      }
+
       function dishRow(d: api.AdminDish): string {
+        const placements = placementsFor(d.id, menus);
         const marks: string[] = [];
         if (!d.isActive) marks.push('Retired — off every menu');
         // The same call-out `tools/bulk-import` prints. `[DM-17]` leaves the column nullable
@@ -209,6 +374,16 @@ import '../../styles/admin.css';
                 (d.allergens.length
                   ? `Allergens: ${d.allergens.map((a) => esc(a.toUpperCase().replace('_', ' '))).join(', ')}`
                   : 'No allergens recorded') +
+              `</p>` +
+              // Which menus it is on, and at what price. Printed on the dish rather than left to
+              // be inferred from the menu sections: a dish priced differently on two menus is
+              // legitimate, and it is invisible until the two numbers sit next to each other.
+              `<p class="srow__meta">` +
+                (placements.length === 0
+                  ? '<b>On no menu</b> — nobody can order this'
+                  : `On ${placements.map((p) =>
+                      `${esc(p.menuName)} at ${esc(rupees(p.pricePaise))}` +
+                      (p.isActive ? '' : ' (parked)')).join(', ')}`) +
               `</p>` +
               marks.map((m) => `<p class="srow__why">${esc(m)}</p>`).join('') +
               dishEditor(d) +
@@ -330,34 +505,73 @@ import '../../styles/admin.css';
           `${plural(dishes.length, 'dish', 'dishes')}, ${plural(menus.length, 'menu')}, ` +
           `${noType} with no food type.`;
 
+        const shown = filterDishes(dishes, menus, filter);
+        const activeMenu = menus.find((m) => m.id === filter) ?? null;
+
         el.body.innerHTML =
+          schoolsSection() +
+
           menus.map((m) =>
             `<section class="admin__section" aria-labelledby="menu-${esc(m.id)}">` +
               `<h2 id="menu-${esc(m.id)}">${esc(m.name)}</h2>` +
               `<p class="admin__section-note">` +
-                `${m.items.length} dish${m.items.length === 1 ? '' : 'es'} · status <code>${esc(m.status)}</code>. ` +
-                `Prices are what a parent pays before GST — menu prices are tax-exclusive, and 5% ` +
+                `${m.items.length} dish${m.items.length === 1 ? '' : 'es'} · status <code>${esc(m.status)}</code>` +
+                // Which schools serve this menu, on the menu itself — the same join as the section
+                // above, read from the other end, because "who gets this menu?" is asked here.
+                (() => {
+                  const serving = schoolMenuRows(schools, assignments, menus, dishes, today)
+                    .filter((r) => r.live?.assignment.menuId === m.id)
+                    .map((r) => r.school.name);
+                  return serving.length
+                    ? ` · served to <b>${serving.map(esc).join(', ')}</b>`
+                    : ' · <b>served to no school today</b>';
+                })() +
+                `. Prices are what a parent pays before GST — menu prices are tax-exclusive, and 5% ` +
                 `is added at checkout.` +
               `</p>` +
               (m.items.length === 0
                 ? `<div class="kitchen__state"><h2>No dishes on this menu</h2>` +
                   `<p>Nothing here can be ordered. Add dishes with the importer.</p></div>`
-                : m.items.map(menuItemRow).join('')) +
+                // Collapsed. Two menus of 47 and 36 rendered open made this page sixty thousand
+                // pixels tall, and a page nobody can scroll is not more legible for containing
+                // everything. What each menu *is* stays visible; its rows are one click away.
+                : `<details class="setting__edit">` +
+                    `<summary>Change a price or the days on ${m.items.length} dish` +
+                      `${m.items.length === 1 ? '' : 'es'}</summary>` +
+                    m.items.map(menuItemRow).join('') +
+                  `</details>`) +
             `</section>`,
           ).join('') +
 
           `<section class="admin__section" aria-labelledby="dishes-h">` +
-            `<h2 id="dishes-h">All dishes</h2>` +
+            `<h2 id="dishes-h">` +
+              (activeMenu ? `Dishes on ${esc(activeMenu.name)}` : 'All dishes') +
+            `</h2>` +
             `<p class="admin__section-note">` +
-              `Everything in the kitchen's catalogue, whether or not it is on a menu.` +
-              (noType > 0
-                ? ` <b>${noType} ${noType === 1 ? 'has' : 'have'} no food type.</b> ` +
+              (activeMenu
+                ? `Showing the ${shown.length} dish${shown.length === 1 ? '' : 'es'} on this menu. `
+                : filter === NO_MENU
+                  ? `Showing the ${shown.length} in the catalogue that ${shown.length === 1 ? 'is' : 'are'} on no menu. `
+                  : `Everything in the kitchen's catalogue, whether or not it is on a menu. `) +
+              // Counted over what is on screen, not over the catalogue. "Showing 36" next to
+              // "79 have no food type" reads as though the 79 were the 36, and the number
+              // somebody is working through has to be the one in front of them.
+              (() => {
+                const n = shown.filter((d) => d.foodType === null).length;
+                if (n === 0) return '';
+                return (
+                  `<b>${n} of ${shown.length} ${n === 1 ? 'has' : 'have'} no food type.</b> ` +
                   `A dish without one cannot be published to a menu, and a parent cannot tell ` +
                   `whether it is vegetarian.`
-                : '') +
+                );
+              })() +
             `</p>` +
+            filterBar() +
             bulkBar() +
-            dishes.map(dishRow).join('') +
+            (shown.length === 0
+              ? `<div class="kitchen__state"><h2>Nothing matches</h2>` +
+                `<p>No dish is in that group.</p></div>`
+              : shown.map(dishRow).join('')) +
           `</section>` +
 
           `<p class="kitchen__oneway kitchen__oneway--block">` +
@@ -438,12 +652,22 @@ import '../../styles/admin.css';
         const t = event.target as HTMLElement;
         if (t.closest('[data-retry]')) { void load(); return; }
 
+        const jump = t.closest('[data-filter]') as HTMLElement | null;
+        if (jump) {
+          setFilter(jump.dataset.filter ?? ALL_DISHES);
+          // The dish list is below the school it was reached from, so scroll rather than leave
+          // somebody looking at an unchanged screen wondering whether the button did anything.
+          document.getElementById('dishes-h')?.scrollIntoView({ behavior: 'smooth' });
+          return;
+        }
+
         const select = t.closest('[data-select]') as HTMLElement | null;
         if (select) {
           const mode = select.dataset.select;
+          const visible = filterDishes(dishes, menus, filter);
           picked.clear();
-          if (mode === 'all') dishes.forEach((d) => picked.add(d.id));
-          if (mode === 'unmarked') dishes.filter((d) => d.foodType === null).forEach((d) => picked.add(d.id));
+          if (mode === 'all') visible.forEach((d) => picked.add(d.id));
+          if (mode === 'unmarked') visible.filter((d) => d.foodType === null).forEach((d) => picked.add(d.id));
           render();
           return;
         }
@@ -455,6 +679,13 @@ import '../../styles/admin.css';
       // Not delegated through `click` on the label: a checkbox toggled by keyboard fires `change`
       // and not a click on the input, and this list is long enough that somebody will tab it.
       el.body.addEventListener('change', (event) => {
+        const target = event.target as HTMLElement;
+
+        if (target.id === 'm-filter') {
+          setFilter((target as HTMLSelectElement).value);
+          return;
+        }
+
         const box = event.target as HTMLInputElement;
         const id = box.dataset?.pick;
         if (!id) return;
