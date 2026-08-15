@@ -61,6 +61,7 @@ const PAGES = [
   // Without it this audits the sign-in redirect rather than the screen (`E10-06`).
   '/admin/config.html?state=demo',
   '/admin/schools.html?state=demo',
+  '/reports.html?state=demo',
   '/signin.html',
 ];
 

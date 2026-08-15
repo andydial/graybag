@@ -62,6 +62,12 @@ export interface SelectBuilder extends PromiseLike<QueryResult> {
    */
   lte(column: string, value: unknown): SelectBuilder;
   /**
+   * `>=`. Added for `fetchMonthlyRevenue` (`E10-10`), which reads a date range rather than a
+   * single service date — and widening this interface is deliberately a visible diff rather than
+   * a method quietly appearing at a call site.
+   */
+  gte(column: string, value: unknown): SelectBuilder;
+  /**
    * Negation of another operator — `not('published_at', 'is', null)` is `IS NOT NULL`.
    *
    * `is(column, null)` is the opposite query, and there is no `isNot`. Added for

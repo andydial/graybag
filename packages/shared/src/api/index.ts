@@ -80,6 +80,22 @@ export {
   type SchoolUpdateResult,
 } from './admin-schools.js';
 
+// Orders and revenue by school by month (`E10-10`). Its column list reads NO recipient, class or
+// section — non-negotiable #4, and a report is aggregate by definition. `admin-orders.ts` reads
+// all three because that screen is a record of individual orders; keeping the two lists apart is
+// what stops a child's name reaching a school's inbox through an export.
+export {
+  MAX_REPORT_MONTHS,
+  REPORT_ORDER_COLUMNS,
+  ReportError,
+  fetchMonthlyRevenue,
+  monthOf,
+  summarise,
+  totalsByMonth,
+  type MonthTotals,
+  type ReportRow,
+} from './admin-reports.js';
+
 // Per-school configuration with visible inheritance (`E10-06`). Deliberately does NOT call
 // `resolve_effective_config`: that returns one scalar per setting, and a scalar cannot tell an
 // operator whether somebody chose this school's cutoff or whether it is the default every school

@@ -1,0 +1,257 @@
+---
+/**
+ * Orders and revenue, by school, by month — `E10-10`.
+ *
+ * The narrow report Andy asked for and nothing more. No cohort retention, no active-user counts,
+ * no revenue-share payout view: those are `E10-17` and `E10-09`, they are not in v1, and a screen
+ * that grows them quietly is a screen nobody agreed to.
+ *
+ * ## No child appears anywhere on this page
+ *
+ * `admin-reports.ts` reads no recipient, class or section column — non-negotiable #4 — and this
+ * page could not show one if it tried, because the data is not fetched. That is deliberate: a
+ * report is aggregate by definition, and a name on this screen is one screenshot away from a
+ * school's inbox.
+ *
+ * ## `reports.view`, and why the empty state matters
+ *
+ * `0002` scopes what a caller reads. A school viewer sees their own school; a platform admin sees
+ * all of them. Neither is enforced here — there is no client-side school filter, because a filter
+ * written in a browser is a second, weaker copy of a rule the database already holds.
+ *
+ * Which means an **empty report is ambiguous**: no orders, or no permission to see them. The page
+ * says both possibilities rather than picking one, which is `[AUTH-01]`.
+ */
+import '../styles/tokens.css';
+import '../styles/site.css';
+import '../styles/kitchen.css';
+import '../styles/admin.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Reports — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
+          <h1 class="kitchen__title">Reports</h1>
+          <a class="kitchen__btn" href="/admin/schools">Schools</a>
+          <a class="kitchen__btn" href="/orders">Orders</a>
+          <button id="r-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+        </div>
+      </header>
+
+      <main class="kitchen__wrap admin__wrap">
+        <div id="r-status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <p class="admin__intro">
+          Orders and revenue by school, by month. <b>Cancelled and refunded orders are counted but
+          are not revenue</b>, so the order count and the money deliberately do not agree —
+          the cancelled column is what reconciles them.
+        </p>
+
+        <form class="admin__picker" id="r-range">
+          <div>
+            <label class="admin__label" for="r-from">From</label>
+            <input class="admin__input" id="r-from" type="date" required />
+          </div>
+          <div>
+            <label class="admin__label" for="r-to">To</label>
+            <input class="admin__input" id="r-to" type="date" required />
+          </div>
+          <div>
+            <button class="kitchen__btn kitchen__btn--primary" type="submit">Show</button>
+          </div>
+        </form>
+
+        <div id="r-body"></div>
+      </main>
+    </div>
+
+    <script>
+      import { api, money } from '@graybag/shared';
+      import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
+      import { serviceDateToday } from '../lib/kitchen/view.js';
+      import { REPORTS_FIXTURE } from '../lib/admin/reports-fixture.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = {
+        body: $('r-body'), status: $('r-status'), reload: $<HTMLButtonElement>('r-reload'),
+        form: $<HTMLFormElement>('r-range'),
+        from: $<HTMLInputElement>('r-from'), to: $<HTMLInputElement>('r-to'),
+      };
+
+      const esc = (s: string) =>
+        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const demo = new URLSearchParams(location.search).has('state');
+
+      let rows: api.ReportRow[] = [];
+      let loading = true;
+      let error: string | null = null;
+
+      /**
+       * The default range: this month and the five before it.
+       *
+       * Built from `serviceDateToday`, not `new Date().toISOString()`. IST is UTC+5:30, so before
+       * 05:30 the UTC date is yesterday — and at a month boundary that opens the report on the
+       * wrong month. `E09-32` shipped exactly that bug once already.
+       */
+      function defaultRange(): { from: string; to: string } {
+        const today = serviceDateToday(new Date());
+        const [y, m] = today.split('-').map(Number) as [number, number];
+        // Six months back, wrapping the year by hand rather than through a Date, for the same
+        // reason: no timezone gets a chance to move it.
+        const startMonth = m - 5;
+        const from = startMonth > 0
+          ? `${y}-${String(startMonth).padStart(2, '0')}-01`
+          : `${y - 1}-${String(startMonth + 12).padStart(2, '0')}-01`;
+        return { from, to: today };
+      }
+
+      /** `2026-08` as "August 2026". Formatted from the parts — never through a Date. */
+      const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+      function monthName(month: string): string {
+        const [y, m] = month.split('-');
+        return `${MONTHS[Number(m) - 1] ?? month} ${y}`;
+      }
+
+      async function load() {
+        loading = true; error = null; render();
+        try {
+          if (demo) {
+            rows = REPORTS_FIXTURE.rows;
+          } else {
+            configureBackofficeApi();
+            rows = await api.fetchMonthlyRevenue(el.from.value, el.to.value);
+          }
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The report did not load.';
+          rows = [];
+        } finally {
+          loading = false; render();
+        }
+      }
+
+      function render() {
+        if (loading) {
+          el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
+          return;
+        }
+
+        if (error) {
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>We can't show this report</h2>` +
+            `<p>${esc(error)}</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+
+        if (rows.length === 0) {
+          // Both possibilities, because they are indistinguishable from here and picking one
+          // would be a guess presented as a fact. `[AUTH-01]`.
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>Nothing in this range</h2>` +
+            `<p>Either no orders were placed between these dates, or this account cannot see ` +
+            `them — reading orders needs <b>reports.view</b>, and what it shows you is scoped to ` +
+            `the schools you are granted. Those two look identical from here, so neither is ` +
+            `being claimed.</p></div>`;
+          return;
+        }
+
+        const months = api.totalsByMonth(rows);
+        el.status.textContent =
+          `${rows.length} school-months across ${months.length} months.`;
+
+        el.body.innerHTML = months.map((m) => {
+          const forMonth = rows.filter((r) => r.month === m.month);
+          return (
+            `<section class="admin__section" aria-labelledby="m-${esc(m.month)}">` +
+              `<h2 id="m-${esc(m.month)}">${esc(monthName(m.month))}</h2>` +
+              `<p class="kitchen__counts">` +
+                `<span><b>${m.orders}</b> orders</span>` +
+                `<span><b>${money.formatPaise(m.grossPaise)}</b> revenue</span>` +
+                (m.refundedPaise ? `<span><b>${money.formatPaise(m.refundedPaise)}</b> refunded</span>` : '') +
+                `<span><b>${money.formatPaise(m.netPaise)}</b> net</span>` +
+                (m.cancelled ? `<span><b>${m.cancelled}</b> cancelled</span>` : '') +
+              `</p>` +
+              `<table class="otable">` +
+                `<caption class="visually-hidden">` +
+                  `Orders and revenue by school for ${esc(monthName(m.month))}` +
+                `</caption>` +
+                `<thead><tr>` +
+                  `<th scope="col">School</th>` +
+                  `<th scope="col" class="otable__num">Orders</th>` +
+                  `<th scope="col" class="otable__num">Cancelled</th>` +
+                  `<th scope="col" class="otable__num">Revenue</th>` +
+                  `<th scope="col" class="otable__num">Refunded</th>` +
+                  `<th scope="col" class="otable__num">Net</th>` +
+                `</tr></thead>` +
+                `<tbody>` +
+                  forMonth.map((r) =>
+                    `<tr>` +
+                      `<th scope="row">${esc(r.schoolName)}</th>` +
+                      `<td class="otable__num">${r.orders}</td>` +
+                      `<td class="otable__num">${r.cancelled || '—'}</td>` +
+                      `<td class="otable__num">${money.formatPaise(r.grossPaise)}</td>` +
+                      `<td class="otable__num">${r.refundedPaise ? money.formatPaise(r.refundedPaise) : '—'}</td>` +
+                      `<td class="otable__num">${money.formatPaise(r.netPaise)}</td>` +
+                    `</tr>`,
+                  ).join('') +
+                `</tbody>` +
+                `<tfoot><tr>` +
+                  `<th scope="row">All schools</th>` +
+                  `<td class="otable__num">${m.orders}</td>` +
+                  `<td class="otable__num">${m.cancelled || '—'}</td>` +
+                  `<td class="otable__num">${money.formatPaise(m.grossPaise)}</td>` +
+                  `<td class="otable__num">${m.refundedPaise ? money.formatPaise(m.refundedPaise) : '—'}</td>` +
+                  `<td class="otable__num">${money.formatPaise(m.netPaise)}</td>` +
+                `</tr></tfoot>` +
+              `</table>` +
+            `</section>`
+          );
+        }).join('');
+
+        el.body.innerHTML +=
+          `<p class="kitchen__oneway kitchen__oneway--block">` +
+            `Revenue is what was charged, GST included. It is not a payout — the school's share ` +
+            `(<code>revenue_share_bps</code>) is applied at settlement, and the payout report is ` +
+            `<code>E10-09</code>. <b>Do not send these figures to a school as an invoice.</b>` +
+          `</p>`;
+      }
+
+      el.body.addEventListener('click', (event) => {
+        if ((event.target as HTMLElement).closest('[data-retry]')) void load();
+      });
+      el.reload.addEventListener('click', () => void load());
+      el.form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        void load();
+      });
+
+      void (async () => {
+        const range = defaultRange();
+        el.from.value = demo ? REPORTS_FIXTURE.from : range.from;
+        el.to.value = demo ? REPORTS_FIXTURE.to : range.to;
+
+        try {
+          if (!demo && !(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent('/reports')}`);
+            return;
+          }
+        } catch { /* an unconfigured build falls through to the error state */ }
+        await load();
+      })();
+    </script>
+  </body>
+</html>
