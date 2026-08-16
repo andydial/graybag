@@ -507,3 +507,258 @@
   border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
   border-radius: var(--gb-radius-md);
 }
+
+/* ================================================================= the dish workbench (E10-40)
+ *
+ * A list you search, not a list you scroll. The old page was 17,000px of identical cards; this is
+ * a fixed toolbar and a dense list, and the density is the feature — 79 dishes in a few screens
+ * means scrolling orients you rather than being how you find things.
+ */
+
+.wb { background: var(--gb-bg-canvas); }
+
+/* Sticky, because the search box is the primary control and scrolling away from it would mean
+ * scrolling back to the top to change a filter — the exact motion this screen removes. */
+.wb__bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--gb-bg-surface);
+  border-bottom: var(--gb-border-width-hairline) solid var(--gb-border-default);
+  padding: var(--gb-space-3) var(--gb-space-4) var(--gb-space-2);
+}
+
+.wb__bar-row { display: flex; align-items: center; gap: var(--gb-space-3); flex-wrap: wrap; }
+.wb__title { margin: 0; font-size: var(--gb-font-size-h2); font-weight: var(--gb-font-weight-h2); }
+.wb__nav { margin-left: auto; display: flex; gap: var(--gb-space-2); flex-wrap: wrap; }
+
+.wb__controls { margin-top: var(--gb-space-3); align-items: flex-end; }
+.wb__search { flex: 1 1 22rem; min-width: 14rem; }
+
+.wb__input {
+  width: 100%;
+  padding: var(--gb-space-2) var(--gb-space-3);
+  font: inherit;
+  font-size: var(--gb-font-size-body);
+  color: var(--gb-text-primary);
+  background: var(--gb-bg-canvas);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-md);
+}
+.wb__input:focus-visible { outline: var(--gb-focus-ring); outline-offset: 2px; }
+
+.wb__field { display: flex; flex-direction: column; gap: 2px; }
+.wb__field > span {
+  font-size: var(--gb-font-size-overline);
+  font-weight: var(--gb-font-weight-overline);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gb-text-tertiary);
+}
+
+.wb__select {
+  padding: var(--gb-space-1) var(--gb-space-2);
+  font: inherit;
+  font-size: var(--gb-font-size-body-sm);
+  background: var(--gb-bg-canvas);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-sm);
+}
+
+.wb__count {
+  margin: var(--gb-space-2) 0 0;
+  font-size: var(--gb-font-size-body-sm);
+  color: var(--gb-text-secondary);
+}
+
+/* Only present when something is selected. A permanently visible bulk bar is a control that is
+ * wrong 99% of the time occupying space that is scarce every time. */
+.wb__bulk {
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-3);
+  flex-wrap: wrap;
+  margin-top: var(--gb-space-2);
+  padding: var(--gb-space-2) var(--gb-space-3);
+  background: var(--gb-bg-surface-accent);
+  border-radius: var(--gb-radius-md);
+  font-size: var(--gb-font-size-body-sm);
+}
+.wb__bulk-actions { display: flex; align-items: center; gap: var(--gb-space-2); flex-wrap: wrap; }
+
+.wb__main { padding: var(--gb-space-3) var(--gb-space-4) var(--gb-space-16); }
+.wb__list { list-style: none; margin: 0; padding: 0; }
+
+/* ------------------------------------------------------------------------------------- a row */
+
+.drow {
+  display: grid;
+  grid-template-columns: auto 48px minmax(12rem, 1fr) auto;
+  align-items: center;
+  gap: var(--gb-space-3);
+  padding: var(--gb-space-2) var(--gb-space-3);
+  border-bottom: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+}
+.drow:hover { background: var(--gb-bg-surface-muted); }
+
+/* A dish with something wrong carries a rail rather than a colour wash: it has to be visible while
+ * scanning and must not compete with the food photograph beside it. */
+.drow--attention { box-shadow: inset 3px 0 0 var(--gb-border-accent); }
+
+.drow__pick { display: flex; align-items: center; padding: var(--gb-space-1); }
+.drow__img {
+  width: 48px; height: 48px;
+  object-fit: cover;
+  border-radius: var(--gb-radius-sm);
+  background: var(--gb-bg-surface-muted);
+}
+.drow__img--none {
+  display: block;
+  border: 1px dashed var(--gb-border-default);
+}
+
+/* The whole name block is the button. A small "Edit" link would be a smaller target for the most
+ * common action on the screen. */
+.drow__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--gb-space-1) 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.drow__main:focus-visible { outline: var(--gb-focus-ring); outline-offset: 2px; border-radius: var(--gb-radius-sm); }
+
+.drow__name { font-size: var(--gb-font-size-body-strong); font-weight: var(--gb-font-weight-body-strong); }
+.drow__meta { display: flex; align-items: center; gap: var(--gb-space-2); flex-wrap: wrap; }
+.drow__cat { font-size: var(--gb-font-size-caption); color: var(--gb-text-tertiary); }
+
+.drow__menus {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--gb-space-2);
+  flex-wrap: wrap;
+  max-width: 22rem;
+}
+
+.pill {
+  font-size: var(--gb-font-size-caption);
+  padding: 1px var(--gb-space-1);
+  border-radius: var(--gb-radius-sm);
+  background: var(--gb-badge-bg);
+  color: var(--gb-badge-fg);
+  white-space: nowrap;
+}
+.pill--veg { background: var(--gb-bg-surface-accent); color: var(--gb-text-on-accent); }
+.pill--egg,
+.pill--non_veg { background: var(--gb-bg-surface-warning); color: var(--gb-text-warning); }
+.pill--ok { background: var(--gb-bg-surface-accent); color: var(--gb-text-on-accent); }
+/* Border as well as fill: this marks missing safety data and must survive a high-contrast mode. */
+.pill--warn {
+  background: var(--gb-bg-surface-warning);
+  color: var(--gb-text-warning);
+  border: 1px solid currentColor;
+}
+.pill--off { background: var(--gb-bg-surface-muted); color: var(--gb-text-tertiary); }
+
+.menupill {
+  font-size: var(--gb-font-size-caption);
+  color: var(--gb-text-secondary);
+  white-space: nowrap;
+}
+.menupill b { color: var(--gb-text-price); font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------------------------- the drawer
+ *
+ * The reason editing is not inline. A panel over the list cannot move the list, so saving leaves
+ * the page exactly where it was — which is the complaint this screen exists to answer.
+ */
+.wb__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: var(--gb-bg-scrim);
+}
+
+.wb__drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  z-index: 40;
+  width: min(34rem, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--gb-bg-surface);
+  border-left: var(--gb-border-width-hairline) solid var(--gb-border-default);
+  box-shadow: var(--gb-elevation-3);
+  animation: wb-slide var(--gb-duration-base) var(--gb-ease-enter);
+}
+
+@keyframes wb-slide { from { transform: translateX(1.5rem); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* The slide is orientation — it says where the panel came from. Somebody who has asked not to be
+ * moved does not need telling twice. */
+@media (prefers-reduced-motion: reduce) {
+  .wb__drawer { animation: none; }
+}
+
+.wb__drawer-head {
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-3);
+  padding: var(--gb-space-3) var(--gb-space-4);
+  border-bottom: var(--gb-border-width-hairline) solid var(--gb-border-default);
+}
+.wb__drawer-title { margin: 0; flex: 1 1 auto; font-size: var(--gb-font-size-h3); font-weight: var(--gb-font-weight-h3); }
+.wb__drawer-sub { margin: var(--gb-space-5) 0 var(--gb-space-2); font-size: var(--gb-font-size-label); font-weight: var(--gb-font-weight-label); }
+/*
+ * `overscroll-behavior: contain` rather than locking the body.
+ *
+ * The usual way to stop the page scrolling behind a panel is `overflow: hidden` on `<body>`, and
+ * it is wrong here: taking the scrollbar away re-lays-out the page and **moves it**, which is the
+ * one thing this screen promises not to do. Containing the scroll chain at the drawer achieves the
+ * same thing and cannot move anything.
+ */
+.wb__drawer-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--gb-space-4);
+}
+
+/* The save confirmation. It stays until the next action rather than fading, because the whole
+ * point is that you are looking at the list, not at the panel, when it lands. */
+.wb__saved {
+  margin: 0 0 var(--gb-space-3);
+  padding: var(--gb-space-2) var(--gb-space-3);
+  background: var(--gb-bg-surface-accent);
+  color: var(--gb-text-on-accent);
+  border-radius: var(--gb-radius-sm);
+  font-size: var(--gb-font-size-body-sm);
+}
+
+
+@media (max-width: 40rem) {
+  .drow { grid-template-columns: auto 40px 1fr; }
+  .drow__img { width: 40px; height: 40px; }
+  .drow__menus { grid-column: 1 / -1; justify-content: flex-start; max-width: none; }
+  .wb__nav { margin-left: 0; }
+}
+
+/*
+ * `display` beats the `hidden` attribute, and every component above sets one.
+ *
+ * `[hidden]` is only `display: none` because the UA stylesheet says so, at the lowest possible
+ * specificity. Any class rule that sets `display: flex` silently wins, and the element that was
+ * supposed to be hidden is simply there — which is exactly what happened: the edit drawer and the
+ * bulk bar both rendered on first paint, the drawer covering the price column it exists to edit.
+ *
+ * Declared once, next to the components it applies to, rather than as a global `!important`.
+ */
+.wb__drawer[hidden],
+.wb__scrim[hidden],
+.wb__bulk[hidden] { display: none; }

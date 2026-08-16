@@ -4091,13 +4091,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/38</span>
+          <span class="meter-num">0/39</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 38 tasks</summary>
+        <summary>Context &amp; 39 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4403,6 +4403,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>check:launch</code> now catches a food type its own ingredients contradict.</strong> Six production dishes are marked <code>veg</code> while their ingredient lists name egg — including <strong>&quot;Boiled Eggs (3 pcs)&quot;, ingredients &quot;Eggs, salt&quot;</strong>. The unmarked-dish check cannot see this: the dish *is* marked, the count is complete, the report goes green. Reuses the classifier that generates <code>review/food-types.csv</code> and reports only <strong>high-confidence</strong> contradictions, so a mayonnaise caveat or a dish with no ingredient list never appears — what is left is a direct disagreement between the label and the ingredients. Only the misleading direction is a blocker; a dish marked <code>egg</code> whose list reads vegetarian is over-cautious and is left alone</span>
+      </li>
+      <li class="task" data-id="E10-40" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-40"></button>
+        <code class="tid">E10-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>/admin/menus</code> rebuilt as a dish workbench.</strong> Search that ranks (name-prefix &gt; substring &gt; category &gt; menu &gt; ingredient, every term must match), filters that are states with counts, sort, and a URL that carries the query. Editing moved from an inline <code>&lt;details&gt;</code> into a drawer, because a panel over the list cannot move the list — <strong>measured</strong>: open at scrollY 2400 with the row at y=1139, save, still 2400 and 1139. A dish appears once with its menu memberships and per-menu prices on it; the per-school repetition moved to <code>/admin/schools</code>. <strong>17,213px → 6,013px.</strong> Only changed fields are sent, so a no-op save makes no request — the old behaviour reported ten fields as saved and bumped <code>school_menu_version</code>, expiring every client&#39;s cached menu</span>
       </li></ul>
       </details>
     </article>
