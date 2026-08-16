@@ -26,6 +26,20 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
+## Closed 2026-08-17 — the two live home-page bugs
+
+Andy, on <https://graybag-web.netlify.app>: *"Nothing moves / transitions on the home page. 'Your
+school gets its own menu' has bad contrast with background and can't be read. Make pages somewheat
+dynamic / motion like grayspark.ai (not that color scheme - just motions)"*, then: *"Hope you
+understood to change this page: https://graybag-web.netlify.app - not really sub-pages right now"*.
+
+Both fixed, promoted to production and verified **on the live URL**, which is where they had to be
+verified — the whole failure was that the feature worked locally and was blocked in production by a
+CSP header a file server never sends. `E12-36`. Motion is on the home page only; no sub-page was
+touched.
+
+---
+
 ## Closed 2026-08-15 (night) — the production verification sweep
 
 Andy, 2026-08-15: *"'prod auth is configured' so you can run your verification sweep."*
