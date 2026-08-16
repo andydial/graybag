@@ -813,3 +813,75 @@
   letter-spacing: normal;
   text-transform: none;
 }
+
+/* ==================================================== the board on a phone (E09-37)
+ *
+ * Andy: *"used by staff on their feet, in a hurry, possibly on a phone. Different problem from
+ * the admin screens."*
+ *
+ * Measured on a 390×844 phone before any of this: the header took **540 of 844 pixels** — 64% of
+ * the first screen — before a single item of food appeared. The date wrapped to three lines, the
+ * filter line and Refresh each took a full 56px row, and the tray-count chips were clipped with a
+ * horizontal scrollbar.
+ *
+ * The rule this section follows: **maximise food per screen, and make the action you take on
+ * nineteen orders out of twenty impossible to miss.** The 56px targets stay — they are correct for
+ * this context and are not what was costing the space.
+ */
+
+/* The glyph is for the narrow layout only — at any other width the word is clearer. Declared
+ * before the media query so the query wins by source order rather than by specificity. */
+.kitchen__refresh-glyph { display: none; }
+
+@media (max-width: 30rem) {
+  /* One row: ‹ date › and Today. The date shrinks rather than wrapping to three lines. */
+  /*
+   * The bar's three-column grid becomes two rows: the day nav across the top, then the filter
+   * line and refresh sharing one. Stacked, those two took a 56px row each — 112px of a 844px
+   * screen spent on controls nobody touches once service starts.
+   */
+  .kitchen__bar-inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gb-space-2);
+  }
+  .daynav { flex: 1 1 100%; }
+  /* The count wraps to a second line at this width, which doubles the tallest thing in the bar
+   * for information that is already on the board below. */
+  .daynav__count { display: none; }
+
+  .daynav { gap: var(--gb-space-2); }
+  .daynav__date { font-size: var(--gb-font-size-body-strong); line-height: 1.2; }
+  .daynav__count { font-size: var(--gb-font-size-caption); }
+
+  /* The two controls share a row instead of taking one each. Refresh becomes its glyph: it is the
+   * least important control on the screen and it was the widest. */
+  .kitchen__filterline { flex: 1 1 auto; }
+  .kitchen__refresh { flex: 0 0 auto; width: 3.5rem; padding-inline: 0; }
+  .kitchen__refresh-word { display: none; }
+  .kitchen__refresh-glyph { display: inline; font-size: 1.25rem; }
+
+  /* Wrap rather than scroll sideways. A clipped tray count is a tray count nobody can act on, and
+   * a horizontal scrollbar inside a vertical list is a trap on a touch screen. */
+  .kitchen__totals { flex-wrap: wrap; overflow-x: visible; flex: 1 1 100%; }
+
+  /*
+   * Delivered gets a full-width row of its own, first; the rarer actions share the row under it.
+   *
+   * Flex with `order`, not a grid: the number of buttons depends on the order's status — a
+   * delivered order has different actions from one still to make — and a fixed two-column grid
+   * dropped them wherever the count happened to land.
+   */
+  .kitchen__actions { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); width: 100%; }
+  .kitchen__actions > .kitchen__btn { flex: 1 1 calc(50% - var(--gb-space-2)); }
+  /* `1 0 100%` — no shrink. With `1 1 100%` it collapsed onto the same row as Start, which is
+   * the compact outcome and the wrong one: the button pressed nineteen times out of twenty
+   * should be the one you cannot miss with a thumb. */
+  /*
+   * Selected through the parent so it out-specifies `.kitchen__actions > .kitchen__btn` above.
+   * As a bare class it lost — (0,1,0) against (0,2,0) — and Delivered quietly shared a row with
+   * Start, which is the compact outcome and the wrong one. Second specificity bug of the night;
+   * both were invisible in the code and obvious in the render.
+   */
+  .kitchen__actions > .kitchen__act--main { order: -1; flex: 1 0 100%; }
+}

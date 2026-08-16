@@ -3782,13 +3782,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/36</span>
+          <span class="meter-num">0/37</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 36 tasks</summary>
+        <summary>Context &amp; 37 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -4079,6 +4079,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Kitchen path verified against production and staging.</strong> Production has <strong>no paid order</strong> — one cancelled, one stuck in <code>pending_payment</code>, and the <code>payment</code> table is empty, so the smoke payment never completed. The board and packing sheet correctly show nothing for that day: <code>pending_payment</code> must not reach the kitchen (<code>L5</code>). A paid order was <strong>not</strong> fabricated on production; that would put unpaid revenue in the ledger. Badges and mark-delivered proved on staging through the real board as a signed-in operator — <code>Tara Bajwa MILK</code>, <code>Dhruv Ahluwalia GLUTEN</code>, and the Delivered button writing <code>paid -&gt; delivered | actor=kitchen</code>. Note for anyone testing this: the board has a <strong>ten-second undo window</strong>, so a click looks like a no-op if you read the database before it closes</span>
+      </li>
+      <li class="task" data-id="E09-37" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-37"></button>
+        <code class="tid">E09-37</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The kitchen board on a phone.</strong> Measured at 390×844: the header took <strong>540 of 844 pixels — 64% of the first screen — before any food</strong>, the date wrapped to three lines, the filter line and Refresh took a 56px row each, and the tray chips were clipped behind a horizontal scrollbar inside a vertical list. The 56px targets stay: they are right for wet hands in a hurry and were never what cost the space. The day nav takes one row, the filter line shares the next with Refresh collapsed to a glyph, the order count is dropped from the bar because it is already on the board below, and tray chips wrap. <strong>Delivered is ranked</strong> — it was one of three identical buttons and is the action taken on nineteen orders in twenty; now primary, first, and owning a full-width row. <strong>Bar 270 → 136 CSS px; food starts at 280px of 844, down from 540.</strong> Three bugs found: two CSS specificity (a child selector beating a bare class, and a declaration after a media query beating it by source order) and one the render could not show — hiding the word &quot;Refresh&quot; left the button with no accessible name at phone width, caught by <code>check:a11y</code></span>
       </li></ul>
       </details>
     </article>

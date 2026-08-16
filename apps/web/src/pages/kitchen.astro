@@ -72,7 +72,16 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
             <span class="kitchen__filterline-caret" aria-hidden="true">▾</span>
           </button>
 
-          <button id="k-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+          <!--
+            `aria-label` because the visible word is `display: none` on a phone and the glyph beside
+            it is `aria-hidden` — which left the button with **no accessible name at all** at 390px.
+            The a11y gate caught it; nothing in the visual review would have. The label matches the
+            visible text at the widths where there is visible text, so `label-in-name` still holds.
+          -->
+          <button id="k-reload" class="kitchen__btn kitchen__refresh" type="button" aria-label="Refresh">
+            <span class="kitchen__refresh-word">Refresh</span>
+            <span class="kitchen__refresh-glyph" aria-hidden="true">↻</span>
+          </button>
 
           <div class="kitchen__filters" id="k-filters" hidden></div>
         </div>
@@ -644,7 +653,10 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
             `<div class="kitchen__actions">` +
               actions
                 .map((a) =>
-                  `<button class="kitchen__btn${a === 'cancelled' ? ' kitchen__btn--danger' : ''}" ` +
+                  // `Delivered` is the action taken on all but a handful of orders in a service,
+                  // and it was one of three identical buttons. Ranking it is the difference
+                  // between reading a row and hitting the right thing in one look.
+                  `<button class="kitchen__btn${a === 'delivered' ? ' kitchen__btn--primary kitchen__act--main' : ''}${a === 'cancelled' ? ' kitchen__btn--danger' : ''}" ` +
                   `data-order="${o.id}" data-action="${a}" ${offline || busy.has(o.id) ? 'disabled' : ''}>` +
                   `${label[a]}<span class="visually-hidden"> ${esc(o.recipientName)}</span></button>`,
                 )
