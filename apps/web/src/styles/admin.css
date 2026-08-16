@@ -762,3 +762,113 @@
 .wb__drawer[hidden],
 .wb__scrim[hidden],
 .wb__bulk[hidden] { display: none; }
+
+/* ============================================================ school readiness (E10-41)
+ *
+ * A card per school whose body is a checklist. The point is that four independent things have to
+ * be true and any one of them missing looks identical to a parent, so the screen shows all four
+ * rather than one status somebody has to interpret.
+ */
+
+.sch {
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-lg);
+  padding: var(--gb-space-4);
+  margin-bottom: var(--gb-space-4);
+}
+
+/* A rail rather than a tint: the state has to be readable while scanning a column of cards, and a
+ * background wash would fight the text inside it. */
+.sch--incomplete { border-left: 4px solid var(--gb-border-danger); }
+.sch--scheduled  { border-left: 4px solid var(--gb-border-accent); }
+.sch--live       { border-left: 4px solid var(--gb-border-brand); }
+.sch--new        { box-shadow: var(--gb-elevation-2); }
+
+.sch__head { display: flex; align-items: baseline; gap: var(--gb-space-3); flex-wrap: wrap; }
+.sch__name { margin: 0; font-size: var(--gb-font-size-h3); font-weight: var(--gb-font-weight-h3); }
+.sch__meta { font-size: var(--gb-font-size-caption); color: var(--gb-text-tertiary); }
+.sch__why { margin: var(--gb-space-2) 0 0; font-size: var(--gb-font-size-body-sm); color: var(--gb-text-secondary); }
+
+.statepill {
+  font-size: var(--gb-font-size-caption);
+  font-weight: var(--gb-font-weight-label);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px var(--gb-space-2);
+  border-radius: var(--gb-radius-full);
+  border: 1px solid currentColor;
+}
+.statepill--live { background: var(--gb-bg-surface-accent); color: var(--gb-text-on-accent); }
+.statepill--scheduled { background: var(--gb-bg-surface-warning); color: var(--gb-text-warning); }
+.statepill--incomplete { background: var(--gb-bg-surface-danger); color: var(--gb-text-danger); }
+
+/* ------------------------------------------------------------------------------- the checklist */
+
+.gates { list-style: none; margin: var(--gb-space-3) 0 0; padding: 0; }
+
+.gate {
+  display: grid;
+  grid-template-columns: 1.5rem 9rem 1fr auto;
+  align-items: baseline;
+  gap: var(--gb-space-2);
+  padding: var(--gb-space-2) 0;
+  border-top: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  font-size: var(--gb-font-size-body-sm);
+}
+
+/* The mark carries weight and shape, never colour alone — this is the column somebody scans, and
+ * it has to survive a monochrome screenshot pasted into a message. */
+.gate__mark { font-weight: var(--gb-font-weight-h1); text-align: center; }
+.gate--ok .gate__mark { color: var(--gb-text-on-accent); }
+.gate--warning .gate__mark { color: var(--gb-text-warning); }
+.gate--missing .gate__mark { color: var(--gb-text-danger); }
+
+.gate__label { font-weight: var(--gb-font-weight-body-strong); }
+.gate__detail { color: var(--gb-text-secondary); }
+.gate--missing .gate__detail { color: var(--gb-text-primary); }
+
+.kitchen__btn--small { font-size: var(--gb-font-size-caption); padding: 0 var(--gb-space-2); }
+
+.sch__new { margin-top: var(--gb-space-8); }
+.sch__new summary { cursor: pointer; padding: var(--gb-space-2) 0; }
+.sch__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--gb-space-3);
+}
+
+@media (max-width: 40rem) {
+  .gate { grid-template-columns: 1.5rem 1fr; }
+  .gate__detail, .gate .kitchen__btn { grid-column: 2; }
+}
+
+/* ============================================ admin controls are not kitchen controls (E10-42)
+ *
+ * `.kitchen__btn` is **56px tall** — "bigger than the 48 floor. Wet hands, in a hurry." That is
+ * exactly right for a tablet propped on a steel bench and exactly wrong for an admin screen driven
+ * with a mouse and a keyboard, where it turns a nav bar into a row of lozenges and a small inline
+ * action into a circle with the label spilling out of it. Andy's brief says these are different
+ * problems; this is one of the places the sameness showed.
+ *
+ * Scoped to the admin shell rather than changed at source, so the kitchen keeps its 56px.
+ */
+.wb .kitchen__btn {
+  min-height: 2.25rem;
+  padding: var(--gb-space-1) var(--gb-space-3);
+  font-size: var(--gb-font-size-body-sm);
+  border-width: var(--gb-border-width-hairline);
+}
+
+.wb .kitchen__btn--primary { font-weight: var(--gb-font-weight-button); }
+
+.wb .kitchen__btn--small {
+  min-height: 1.75rem;
+  padding: 0 var(--gb-space-2);
+  font-size: var(--gb-font-size-caption);
+}
+
+/* The fix sits with the thing it fixes. Stranded in a right-hand column it read as unrelated to
+ * the row, and on a wide screen it was a hand's width away from the text explaining it. */
+.gate { grid-template-columns: 1.5rem 9rem 1fr; }
+.gate__detail { display: flex; align-items: baseline; gap: var(--gb-space-2); flex-wrap: wrap; }
