@@ -340,7 +340,7 @@
 .kitchen__total b {
   font-size: var(--gb-font-size-h3);
   line-height: var(--gb-line-height-h3);
-  font-weight: var(--gb-font-bold);
+  font-weight: var(--gb-font-weight-h1);
   font-variant-numeric: tabular-nums;
   color: var(--gb-text-on-accent);
 }
@@ -548,7 +548,7 @@
 
 .kline__qty {
   font-size: var(--gb-font-size-h3);
-  font-weight: var(--gb-font-bold);
+  font-weight: var(--gb-font-weight-h1);
   font-variant-numeric: tabular-nums;
   color: var(--gb-text-secondary);
   min-width: 1.5rem;
@@ -587,7 +587,7 @@
   text-transform: uppercase;
   letter-spacing: var(--gb-tracking-overline);
   font-size: var(--gb-font-size-caption);
-  font-weight: var(--gb-font-bold);
+  font-weight: var(--gb-font-weight-h1);
   margin-right: var(--gb-space-2);
 }
 
@@ -711,7 +711,7 @@
   border-radius: var(--gb-radius-full);
   background: var(--gb-bg-surface-inverse);
   color: var(--gb-text-on-brand);
-  box-shadow: var(--gb-shadow-lg, 0 8px 24px rgb(0 0 0 / 0.25));
+  box-shadow: var(--gb-elevation-3);
 }
 .kundo[hidden] { display: none; }
 
@@ -794,7 +794,7 @@
   background: var(--gb-ramp-amber-200);
   color: var(--gb-text-on-amber);
   font-size: var(--gb-font-size-caption);
-  font-weight: var(--gb-font-bold);
+  font-weight: var(--gb-font-weight-h1);
   letter-spacing: var(--gb-tracking-overline);
   vertical-align: middle;
   white-space: nowrap;

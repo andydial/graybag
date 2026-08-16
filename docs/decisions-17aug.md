@@ -288,3 +288,35 @@ Choco Muffin / Chocolate Muffin, Hot Choco Milk / Hot Chocolate Chocolate, Mango
 Shake (Seasonal), Rajma Rice / Rajma With Rice Or Prantha, Strawberry Shake / Strawberry Shake
 (Seasonal). Each matched its own id; both legacy records simply pointed at the same file. They
 look like duplicate dishes in the catalogue, which is worth a look but is not an image problem.
+
+---
+
+# The back-office UX review — 17/18 August
+
+Andy, away overnight: review and redesign every back-office and kitchen screen plus the marketing
+home page. Decide, record, keep going.
+
+## D-17L — the admin screens had no working type scale at all
+
+Before designing anything: **14 `var(--gb-…)` names used across every back-office stylesheet do
+not exist.** `--gb-text-muted`, `--gb-font-size-sm`, `--gb-font-weight-semibold`,
+`--gb-font-size-base`, `--gb-font-bold` and nine more. The real names are `--gb-text-secondary`,
+`--gb-font-size-body-sm`, `--gb-font-weight-body-strong`.
+
+An undefined custom property does not error. The declaration is dropped and the element keeps what
+it inherited, so the page renders — just not as written. The effect on `/admin/menus` was that
+**every line of every dish rendered at the same size, the same weight and the same colour**, which
+is precisely how it looked and precisely what makes it unscannable. "Everything is the same
+weight" was not a layout problem. It was that the type scale had never once been applied.
+
+Nothing could have caught it: not lint, not the build, not the a11y gate — inherited black on
+white passes contrast — and the page looks plausible, just flat. So
+`scripts/check-css-tokens.mjs` now fails on any `var(--gb-…)` that names a token which does not
+exist, and it is in `npm run smoke`.
+
+**A fallback is treated as a failure too.** `var(--gb-font-size-xs, 0.75rem)` works, which is
+worse: it looks deliberate, it hides the typo permanently, and the value stops tracking the design
+system. Two of the fourteen were that shape and both were mine.
+
+Fixing the names alone took the page from 17,213px to 14,539px and gave it a hierarchy. That is
+the floor the redesign starts from, not the redesign.

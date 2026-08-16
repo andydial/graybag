@@ -10,7 +10,7 @@
     "packages/*"
   ],
   "scripts": {
-    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm run check:maestro && npm run check:policy-docs && npm run check:company && npm run check:claims && npm run check:backlog && npm run check:writes && npm run check:mvp && npm test && npm run build:web",
+    "smoke": "npm run typecheck && npm run lint && npm run check:migrations && npm run check:fixtures && npm run check:maestro && npm run check:policy-docs && npm run check:company && npm run check:claims && npm run check:backlog && npm run check:writes && npm run check:css-tokens && npm run check:mvp && npm test && npm run build:web",
     "test:all": "npm run smoke && npm run check:a11y && npm run test:db",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
@@ -50,6 +50,7 @@
     "check:a11y": "npm --prefix apps/web run check:a11y",
     "check:mvp": "node scripts/check-mvp.mjs",
     "eas-build-pre-install": "npm config set ignore-scripts true",
+    "check:css-tokens": "node scripts/check-css-tokens.mjs",
     "check:placeholders": "node scripts/check-placeholders.mjs",
     "check:launch": "node scripts/check-launch.mjs",
     "check:company": "node scripts/build-company-identity.mjs --check"
