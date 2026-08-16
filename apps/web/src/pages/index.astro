@@ -116,7 +116,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
       </header>
 
       <div class="hero__grid">
-        <div class="hero__copy">
+        <div class="hero__copy" data-stagger>
           <p class="eyebrow">{HERO.eyebrow}</p>
           <h1 class="display lowercase">{HERO.headline}</h1>
           <p class="lead">{HERO.lead}</p>
@@ -220,7 +220,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
         else — the ordering, the money, the cooking and the delivery — sits with us.
       </p>
 
-      <ol class="steps">
+      <ol class="steps" data-stagger>
         {STEPS.map((step) => (
           <li class="step">
             <div class="step__n" aria-hidden="true"></div>
@@ -254,7 +254,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
         -->
         <div class="ledger" aria-hidden="true">
           <div class="ledger__col ledger__col--yours">
-            <p class="ledger__n">2</p>
+            <p class="ledger__n" data-count="2">2</p>
             <p class="ledger__who">Your school</p>
             <ul class="ledger__list">
               <li>Somewhere to hand food over</li>
@@ -262,7 +262,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
             </ul>
           </div>
           <div class="ledger__col ledger__col--ours">
-            <p class="ledger__n">7</p>
+            <p class="ledger__n" data-count="7">7</p>
             <p class="ledger__who">GrayBag</p>
             <ul class="ledger__list">
               <li>The menu</li><li>The ordering</li><li>The money</li><li>The cooking</li>
@@ -272,7 +272,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
         </div>
       </div>
 
-      <ul class="cards">
+      <ul class="cards" data-stagger>
         {BENEFITS.map((benefit) => (
           <li class="card">
             <div class="card__icon"><Icon name={benefit.icon} /></div>
@@ -447,52 +447,15 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
   </section>
 
   <!--
-    Reveal-on-scroll — `E12-35`.
+    Motion — `E12-36`.
 
-    The `js` class is set here rather than in the stylesheet so the reveal styles apply **only**
-    when this script runs. With scripting off, or if it throws, or on a browser without
-    `IntersectionObserver`, every section is simply visible — the page reads exactly as it did
-    before, which is the only acceptable failure mode for a marketing page.
-
-    No library. This is the whole implementation, and it is why the JS budget for the home page
-    barely moves.
+    A **bundled** script, not `is:inline`. The site sends `script-src 'self'`, so the inline version
+    was blocked by the browser and never ran: the page shipped with no motion at all and no error
+    anybody would see, because the design degrades silently. Every other script in this repository
+    is bundled; this one broke the convention and paid for it.
   -->
-  <script is:inline>
-    (() => {
-      if (!('IntersectionObserver' in window)) return;
-      const sections = document.querySelectorAll('[data-reveal]');
-      if (!sections.length) return;
-      document.documentElement.classList.add('js');
-
-      const reveal = (section) => section.classList.add('is-in');
-
-      const seen = new IntersectionObserver((entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          reveal(entry.target);
-          // Once only. A section that fades out again when you scroll back up is a section that
-          // fights you every time you re-read it.
-          seen.unobserve(entry.target);
-        }
-      }, { rootMargin: '0px 0px -10% 0px', threshold: 0.05 });
-
-      for (const section of sections) {
-        // Anything already on screen is revealed immediately, before the observer has run. A
-        // section that is visible at load must never be waiting to be told it can appear.
-        if (section.getBoundingClientRect().top < innerHeight) reveal(section);
-        else seen.observe(section);
-      }
-
-      /*
-       * The safety net, and the reason this is safe to ship on the page that sells the product.
-       *
-       * Hiding content until an observer says otherwise means any failure of that observer —
-       * a browser quirk, a thrown error elsewhere on the page, a section that never crosses the
-       * threshold because of some layout the author did not foresee — leaves the copy invisible.
-       * That is a far worse outcome than no animation, so after three seconds everything is
-       * revealed regardless of what the observer thinks.
-       */
-      setTimeout(() => { for (const section of sections) reveal(section); }, 3000);
-    })();
+  <script>
+    import { startMotion } from '../lib/site/motion.js';
+    startMotion();
   </script>
 </Base>

@@ -1204,41 +1204,35 @@ ul, ol { padding: 0; list-style: none; }
  */
 .footer__officer { margin-top: var(--gb-space-3); }
 
-/* ================================================================== motion and graphics (E12-35)
+/* ============================================================ motion and graphics (E12-35, E12-36)
  *
- * Andy: *"it's bland in places… add motion, graphics and visual interest — this is the page that
- * sells to schools. Motion should support the content, not decorate it."*
+ * Andy: *"add motion, graphics and visual interest… motion should support the content, not
+ * decorate it"*, and then, after the first attempt shipped dead: *"nothing moves / transitions."*
  *
- * Four devices, and each one is doing a job:
+ * ## The bug that made the first version worse than nothing
  *
- *   the reveal   — gives a long page a rhythm, and makes each section arrive as a unit rather
- *                  than as a wall that was always there
- *   the rail     — says the four steps are one sequence, which the copy asserts and the layout
- *                  did not
- *   the ledger   — draws the division of labour the prose describes, in the half of the section
- *                  that was empty white
- *   the lift     — tells you a card is a thing, not a paragraph in a box
+ * It opened with a blanket safety rule:
  *
- * There is no parallax, nothing autoplays, nothing loops forever and nothing moves that a person
- * is trying to read. Every one of them is off under `prefers-reduced-motion`.
+ *     [data-reveal] > * { opacity: 1; }
+ *
+ * Every panel on this page carries a `.pattern` child — a masked vegetable field at
+ * **`opacity: 0.11`**. That selector is (0,1,1) and `.pattern--deep` is (0,1,0), so the blanket
+ * rule won and rendered the pattern at **nine times** its intended strength. On "Your school gets
+ * its own menu" the copy became unreadable. A rule added to make failure safe is what caused it.
+ *
+ * Nothing here touches a descendant it does not name. The reveal applies to `.wrap` — the content
+ * column — and to nothing else, ever.
  */
 
-/* ------------------------------------------------------------------------------- scroll reveal */
+/* --------------------------------------------------------------------------------- the reveal */
 
 /*
- * Opt-in per section, never global — the hero is above the fold and must be there on the first
- * frame. `.is-in` is added by the observer; without JS the `:where(...)` default below never
- * applies, so the page is fully visible with scripting off. That is the important property: this
- * is progressive enhancement on a marketing page, not a requirement to run JS to read it.
+ * Hidden only under `html.js`, which the motion module adds. No script, blocked script, old
+ * browser — nothing is ever hidden and the page reads exactly as it would have.
  */
-[data-reveal] > * {
-  opacity: 1;
-  transform: none;
-}
-
 html.js [data-reveal]:not(.is-in) > .wrap {
   opacity: 0;
-  transform: translateY(1.25rem);
+  transform: translateY(1.5rem);
 }
 
 html.js [data-reveal] > .wrap {
@@ -1249,12 +1243,58 @@ html.js [data-reveal] > .wrap {
     transform var(--gb-duration-slow) var(--gb-ease-enter);
 }
 
-/* ---------------------------------------------------------------------------- the process rail */
+/*
+ * Staggered children. The delay is a custom property set once per element by the module, so there
+ * are no timers and no per-element rules — and a section with twenty children costs twenty
+ * integers rather than twenty `setTimeout`s.
+ */
+html.js [data-reveal]:not(.is-in) [data-stagger] > * {
+  opacity: 0;
+  transform: translateY(0.75rem);
+}
+
+html.js [data-reveal] [data-stagger] > * {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--gb-duration-base) var(--gb-ease-enter),
+    transform var(--gb-duration-base) var(--gb-ease-enter);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+
+/* ----------------------------------------------------------------------------- the hero, on load */
 
 /*
- * A line joining the four numbered steps. It only exists at the width where they sit in a row —
- * stacked, the vertical order already says "sequence" and a connector would just be a stripe.
+ * The hero plays once on load rather than on scroll: it is above the fold, and a hero that waits
+ * to be observed is a hero that is briefly missing. Slightly further and slower than the sections
+ * below, because it is the first thing and has the room.
  */
+html.js .hero:not(.is-in) [data-stagger] > * {
+  opacity: 0;
+  transform: translateY(1rem);
+}
+
+html.js .hero [data-stagger] > * {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--gb-duration-slow) var(--gb-ease-enter),
+    transform var(--gb-duration-slow) var(--gb-ease-enter);
+  transition-delay: calc(var(--i, 0) * 90ms);
+}
+
+html.js .hero:not(.is-in) .hero__device { opacity: 0; transform: translateY(2rem) scale(0.98); }
+
+.hero__device {
+  /* `--drift` is written by the scroll handler; it is zero until then and on every other page. */
+  transform: translateY(var(--drift, 0px));
+  transition:
+    opacity 700ms var(--gb-ease-enter) 180ms,
+    transform 700ms var(--gb-ease-enter) 180ms;
+}
+
+/* ---------------------------------------------------------------------------- the process rail */
+
 @media (min-width: 1040px) {
   .steps { position: relative; }
   .steps::before {
@@ -1265,31 +1305,73 @@ html.js [data-reveal] > .wrap {
     right: 1.25rem;
     height: 2px;
     background: var(--gb-border-subtle);
-    /* Behind the discs, which have their own background and so punch through it. */
     z-index: 0;
+    /* Drawn left to right when the section arrives — the order the steps happen in. */
+    transform-origin: left center;
+  }
+  html.js [data-reveal]:not(.is-in) .steps::before { transform: scaleX(0); }
+  html.js [data-reveal] .steps::before {
+    transform: scaleX(1);
+    transition: transform 700ms var(--gb-ease-enter) 120ms;
   }
   .step { position: relative; z-index: 1; }
 }
 
-.step__n {
-  position: relative;
-  transition: transform var(--gb-duration-base) var(--gb-ease-standard);
+.step__n { position: relative; }
+
+/* -------------------------------------------------------------------------------- the count-up */
+
+.ledger__n { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------------------------ the lift */
+
+.card {
+  transition:
+    transform var(--gb-duration-base) var(--gb-ease-standard),
+    box-shadow var(--gb-duration-base) var(--gb-ease-standard),
+    border-color var(--gb-duration-base) var(--gb-ease-standard);
 }
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--gb-elevation-1);
+  border-color: var(--gb-border-default);
+}
+.card__icon { transition: transform var(--gb-duration-base) var(--gb-ease-standard); }
+.card:hover .card__icon { transform: scale(1.08) rotate(-3deg); }
 
-/* The discs arrive in sequence once the section does, so the rail reads left to right — the order
- * the steps happen in. 90ms apart: enough to read as a sequence, not enough to wait for. */
-html.js [data-reveal].is-in .step:nth-child(1) .step__n { animation: gb-pop var(--gb-duration-base) var(--gb-ease-enter) 0ms both; }
-html.js [data-reveal].is-in .step:nth-child(2) .step__n { animation: gb-pop var(--gb-duration-base) var(--gb-ease-enter) 90ms both; }
-html.js [data-reveal].is-in .step:nth-child(3) .step__n { animation: gb-pop var(--gb-duration-base) var(--gb-ease-enter) 180ms both; }
-html.js [data-reveal].is-in .step:nth-child(4) .step__n { animation: gb-pop var(--gb-duration-base) var(--gb-ease-enter) 270ms both; }
+/* --------------------------------------------------------------------------- asked not to move */
 
-@keyframes gb-pop {
-  from { transform: scale(0.7); opacity: 0; }
-  to   { transform: none; opacity: 1; }
+/*
+ * Off, not reduced. The module returns before adding `html.js`, so none of the rules above can
+ * apply — this block is the second line of defence, for a preference that changes after load.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html.js [data-reveal]:not(.is-in) > .wrap,
+  html.js [data-reveal] > .wrap,
+  html.js [data-reveal]:not(.is-in) [data-stagger] > *,
+  html.js [data-reveal] [data-stagger] > *,
+  html.js .hero:not(.is-in) [data-stagger] > *,
+  html.js .hero [data-stagger] > *,
+  html.js .hero:not(.is-in) .hero__device {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  html.js [data-reveal]:not(.is-in) .steps::before,
+  html.js [data-reveal] .steps::before { transform: scaleX(1); transition: none; }
+  .hero__device { transform: none; transition: none; }
+  .card, .card__icon { transition: none; }
+  .card:hover { transform: none; }
+  .card:hover .card__icon { transform: none; }
 }
 
 /* ---------------------------------------------------------------------------------- the ledger */
 
+/*
+ * The division of labour, drawn. This section's right half was empty white; the prose already said
+ * the school's part is two things and everything else is ours, and a reader skimming never reached
+ * that sentence. Both numbers are counted from the lists beside them, never asserted.
+ */
 .split { display: grid; gap: var(--gb-space-8); align-items: center; }
 @media (min-width: 900px) { .split { grid-template-columns: 1fr 1fr; gap: var(--gb-space-12); } }
 
@@ -1304,13 +1386,17 @@ html.js [data-reveal].is-in .step:nth-child(4) .step__n { animation: gb-pop var(
 }
 
 .ledger__col { min-width: 0; }
-.ledger__col--yours { padding-right: var(--gb-space-6); border-right: var(--gb-border-width-hairline) solid var(--gb-border-subtle); }
+.ledger__col--yours {
+  padding-right: var(--gb-space-6);
+  border-right: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+}
 
 .ledger__n {
   font-size: var(--gb-font-size-display);
   font-weight: var(--gb-font-weight-display);
   line-height: 1;
   color: var(--gb-text-link);
+  font-variant-numeric: tabular-nums;
 }
 .ledger__col--yours .ledger__n { color: var(--gb-text-tertiary); }
 
@@ -1332,40 +1418,3 @@ html.js [data-reveal].is-in .step:nth-child(4) .step__n { animation: gb-pop var(
 }
 .ledger__list li { padding: 2px 0; }
 .ledger__col--ours .ledger__list li { color: var(--gb-text-primary); }
-
-/* ------------------------------------------------------------------------------------ the lift */
-
-.card {
-  transition:
-    transform var(--gb-duration-base) var(--gb-ease-standard),
-    box-shadow var(--gb-duration-base) var(--gb-ease-standard),
-    border-color var(--gb-duration-base) var(--gb-ease-standard);
-}
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--gb-elevation-1);
-  border-color: var(--gb-border-default);
-}
-
-.card__icon { transition: transform var(--gb-duration-base) var(--gb-ease-standard); }
-.card:hover .card__icon { transform: scale(1.06); }
-
-/* --------------------------------------------------------------------------- asked not to move */
-
-/*
- * Everything above, off. Not reduced — **off**. A person who has set this has usually set it for a
- * reason that a gentler animation does not solve, and the page loses nothing: the reveal is a
- * rhythm device, the pop is an ordering device, and both are said plainly by the layout anyway.
- */
-@media (prefers-reduced-motion: reduce) {
-  html.js [data-reveal]:not(.is-in) > .wrap,
-  html.js [data-reveal] > .wrap {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-  html.js [data-reveal].is-in .step:nth-child(n) .step__n { animation: none; }
-  .card, .card__icon, .step__n { transition: none; }
-  .card:hover { transform: none; }
-  .card:hover .card__icon { transform: none; }
-}

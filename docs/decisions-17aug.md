@@ -460,3 +460,60 @@ And one the render could not have caught: hiding the word "Refresh" left the but
 accessible name at all** at 390px, because the glyph beside it is `aria-hidden`. The a11y gate
 caught it. That is the second time tonight a gate has caught something a careful look at the screen
 would not.
+
+## The motion never ran, and the thing that hid it made a heading unreadable
+
+Andy, on the live site: *"Nothing moves / transitions on the home page. 'Your school gets its own
+menu' has bad contrast with background and can't be read."*
+
+I had reported this feature finished the previous night, with the reduced-motion behaviour verified
+by emulating the media query. All of that was true of the local build. **None of it was true of the
+site.** The lesson is narrow and worth keeping: I verified the artefact I produced, not the artefact
+a visitor receives, and those differ by the response headers.
+
+**Cause one — Content-Security-Policy.** `netlify.toml` sends `script-src 'self'`. The motion script
+was `is:inline`, so the browser refused to execute it. `html.js` was therefore never added, the
+stylesheet's hiding rules never applied, and nothing animated — and because the whole design
+degrades to *everything visible*, the page looked correct rather than broken. There was no console
+error to notice locally because a static file server sends no CSP at all. Found by attaching a
+CDP probe to `https://graybag-web.netlify.app/` and reading the console:
+
+```
+Executing inline script violates the following Content Security Policy directive 'script-src 'self''
+has js class: false
+```
+
+The code now lives in `apps/web/src/lib/site/motion.ts` and is imported by a bundled `<script>`, so
+it is served from the origin and satisfies the policy. **`check-build.mjs` now fails on any inline
+`<script>` without `src`** (JSON-LD excepted). Mine was the only one in the codebase.
+
+That guard nearly shipped useless. I first wrote it *below* the block that ends in `process.exit(1)`,
+so it could never run. I only found out because I injected `<script>console.log(1)</script>` into a
+built page to watch it fail — and it passed. **A guard that has never been seen to fail is not a
+guard.**
+
+**Cause two — specificity, again.** The reveal rule was `[data-reveal] > * { opacity: 1 }`,
+specificity (0,1,1). The decorative vegetable pattern behind that heading is `.pattern--deep` at
+`opacity: 0.11`, specificity (0,1,0). Mine won. The pattern painted at **nine times** its intended
+strength, directly behind dark green text. The rule is now scoped to `> .wrap`, the content column,
+so it cannot reach a decorative layer at all. This is the third specificity bug in two days
+(`[hidden]` on the dish drawer, `.kitchen__actions > .kitchen__btn` on the board). Descendant and
+child selectors in a shared stylesheet are how a rule written for one element silently acquires
+authority over another.
+
+**And the safety net was the off switch.** The failsafe that revealed every section after three
+seconds fired *before a reader had scrolled on any normal visit*, so even where the script did run
+it would have revealed the page wholesale and animated nothing. It is now ten seconds — still a
+guarantee that no observer failure leaves copy invisible, no longer a guarantee that the feature
+never plays. A timeout meant to bound a failure has to be longer than the success case, and three
+seconds is not.
+
+**What the motion is now**, per Andy's grayspark.ai reference, all transform and opacity only:
+hero staggering in on load; each section revealing with its children stepped by
+`calc(var(--i) * 70ms)`; the process rail drawing with `scaleX`; the ledger's *2* and *7* counting
+up on arrival; the hero device drifting a few pixels against scroll. Under `prefers-reduced-motion`
+it is **off**, not gentler.
+
+Verified against the built output rather than the source: 1 of 6 sections revealed at load and 6
+after scrolling, the pattern back at `0.11`, count-up sampling `0,2,3,5,6,7`, and under emulated
+reduced motion a single sample of `7` with no reveal at all.
