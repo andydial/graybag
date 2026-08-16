@@ -1716,13 +1716,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/29</span>
+          <span class="meter-num">0/30</span>
         </div>
       </header>
       <p class="summary">Written before any UI code exists. The motion catalogue is what produces &quot;fluid&quot; instead of &quot;flying bird&quot;.</p>
       
       <details>
-        <summary>Context &amp; 29 tasks</summary>
+        <summary>Context &amp; 30 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Source: <code>Graybag_Design Package</code> — VAG Rounded Next font family, primary <code>#00af52</code>, secondary <code>#145f48</code> / <code>#ffbb39</code>, accent <code>#b3cf3f</code> / <code>#e5ea98</code>, pattern assets, and the 06_App UI mocks.</p>
 <p>The motion system is a <strong>closed catalogue</strong>. New screens implement from it; it is only amended when a genuinely new kind of interaction appears, and that is a deliberate joint decision.</p></div>
@@ -1958,6 +1958,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Decide or delete five unused presentational options.</strong> <code>DishImage.aspectRatio</code>, <code>ListRow.leading</code>, <code>Lockup.children</code>, <code>RecipientListRow.last</code>, <code>SwipeRow.onHaptic</code> — each accepted by a component and passed by nothing outside a test. Either wanted and unwired, or dead. Surfaced by the extended orphan guard</span>
+      </li>
+      <li class="task" data-id="E13-30" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-30"></button>
+        <code class="tid">E13-30</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The back-office had no working type scale: 14 undefined CSS tokens.</strong> <code>--gb-text-muted</code>, <code>--gb-font-size-sm</code>, <code>--gb-font-weight-semibold</code> and eleven more are used across <code>admin.css</code>, <code>kitchen.css</code> and <code>sheet.css</code> and <strong>do not exist</strong> — the real names are <code>--gb-text-secondary</code>, <code>--gb-font-size-body-sm</code>, <code>--gb-font-weight-body-strong</code>. An undefined custom property does not error: the declaration is dropped and the element keeps what it inherited, so every line of every dish on <code>/admin/menus</code> rendered at the same size, weight and colour. Nothing could catch it — not lint, not the build, and not the a11y gate, since inherited black on white passes contrast. <code>scripts/check-css-tokens.mjs</code> now fails on any <code>var(--gb-…)</code> naming a token that does not exist, and treats a fallback as a failure too because a fallback hides the typo permanently and stops the value tracking the design system. Fixing the names alone took the page from 17,213px to 14,539px</span>
       </li></ul>
       </details>
     </article>

@@ -42,6 +42,11 @@ export default tseslint.config(
       '**/node_modules/**',
       '.claude/**',
       '**/dist/**',
+      // Build output pointed at a non-default environment. `apps/web` is built into `dist-prod`
+      // whenever a screen has to be rendered against production data — verifying the admin
+      // screens without disturbing the staging `.env`. It is generated, minified and gitignored,
+      // and linting it produced a thousand `'document' is not defined` errors from bundled code.
+      '**/dist-*/**',
       '**/build/**',
       '**/.expo/**',
       'planning/backlog.html',

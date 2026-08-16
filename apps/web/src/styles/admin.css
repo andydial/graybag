@@ -25,7 +25,7 @@
 }
 
 .admin__intro {
-  color: var(--gb-text-muted);
+  color: var(--gb-text-secondary);
   margin: 0 0 var(--gb-space-4);
   max-width: 46rem;
 }
@@ -40,8 +40,8 @@
 
 .admin__label {
   display: block;
-  font-size: var(--gb-font-size-sm);
-  font-weight: var(--gb-font-weight-semibold);
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body-strong);
   margin-bottom: var(--gb-space-1);
 }
 
@@ -52,7 +52,7 @@
   border: var(--gb-border-width-default) solid var(--gb-border-default);
   border-radius: var(--gb-radius-md);
   background: var(--gb-bg-surface);
-  color: var(--gb-text-default);
+  color: var(--gb-text-primary);
   min-height: 2.75rem;
 }
 
@@ -107,15 +107,15 @@
 }
 
 .setting__label {
-  font-weight: var(--gb-font-weight-semibold);
+  font-weight: var(--gb-font-weight-body-strong);
   margin: 0;
 }
 
 .setting__help {
   grid-column: 1 / -1;
   margin: 0;
-  color: var(--gb-text-muted);
-  font-size: var(--gb-font-size-sm);
+  color: var(--gb-text-secondary);
+  font-size: var(--gb-font-size-body-sm);
   max-width: 44rem;
 }
 
@@ -123,20 +123,20 @@
   margin: 0;
   text-align: right;
   font-variant-numeric: tabular-nums;
-  font-weight: var(--gb-font-weight-semibold);
+  font-weight: var(--gb-font-weight-body-strong);
 }
 
 .setting__source {
   grid-column: 2;
   margin: 0;
   text-align: right;
-  font-size: var(--gb-font-size-sm);
-  color: var(--gb-text-muted);
+  font-size: var(--gb-font-size-body-sm);
+  color: var(--gb-text-secondary);
 }
 
 .setting--school .setting__source {
-  color: var(--gb-text-brand);
-  font-weight: var(--gb-font-weight-semibold);
+  color: var(--gb-text-link);
+  font-weight: var(--gb-font-weight-body-strong);
 }
 
 /*
@@ -149,8 +149,8 @@
 .setting__reverts {
   grid-column: 1 / -1;
   margin: var(--gb-space-1) 0 0;
-  font-size: var(--gb-font-size-sm);
-  color: var(--gb-text-muted);
+  font-size: var(--gb-font-size-body-sm);
+  color: var(--gb-text-secondary);
 }
 
 .setting__actions {
@@ -179,21 +179,21 @@
   margin-bottom: var(--gb-space-2);
 }
 
-.breaks__label { font-weight: var(--gb-font-weight-semibold); }
-.breaks__time { color: var(--gb-text-muted); font-variant-numeric: tabular-nums; }
+.breaks__label { font-weight: var(--gb-font-weight-body-strong); }
+.breaks__time { color: var(--gb-text-secondary); font-variant-numeric: tabular-nums; }
 
 .admin__section {
   margin-top: var(--gb-space-6);
 }
 
 .admin__section > h2 {
-  font-size: var(--gb-font-size-lg);
+  font-size: var(--gb-font-size-body-lg);
   margin: 0 0 var(--gb-space-1);
 }
 
 .admin__section-note {
-  color: var(--gb-text-muted);
-  font-size: var(--gb-font-size-sm);
+  color: var(--gb-text-secondary);
+  font-size: var(--gb-font-size-body-sm);
   margin: 0 0 var(--gb-space-3);
   max-width: 44rem;
 }
@@ -226,10 +226,10 @@
 .srow__main { min-width: 16rem; flex: 1 1 20rem; }
 .srow__side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--gb-space-2); }
 
-.srow__name { margin: 0; font-weight: var(--gb-font-weight-semibold); }
-.srow__meta { margin: 0; font-size: var(--gb-font-size-sm); color: var(--gb-text-muted); }
-.srow__why  { margin: 0; font-size: var(--gb-font-size-sm); font-weight: var(--gb-font-weight-semibold); text-align: right; }
-.srow__ok   { margin: 0; font-size: var(--gb-font-size-sm); color: var(--gb-text-muted); }
+.srow__name { margin: 0; font-weight: var(--gb-font-weight-body-strong); }
+.srow__meta { margin: 0; font-size: var(--gb-font-size-body-sm); color: var(--gb-text-secondary); }
+.srow__why  { margin: 0; font-size: var(--gb-font-size-body-sm); font-weight: var(--gb-font-weight-body-strong); text-align: right; }
+.srow__ok   { margin: 0; font-size: var(--gb-font-size-body-sm); color: var(--gb-text-secondary); }
 
 /* ------------------------------------------------------------------ forms */
 
@@ -249,8 +249,8 @@
 
 .admin__hint {
   margin: var(--gb-space-1) 0 0;
-  font-size: var(--gb-font-size-sm);
-  color: var(--gb-text-muted);
+  font-size: var(--gb-font-size-body-sm);
+  color: var(--gb-text-secondary);
 }
 
 .admin__actions { grid-column: 1 / -1; display: flex; gap: var(--gb-space-2); }
@@ -261,7 +261,7 @@
   padding: var(--gb-space-3);
   background: var(--gb-bg-surface-danger);
   border-radius: var(--gb-radius-md);
-  font-weight: var(--gb-font-weight-semibold);
+  font-weight: var(--gb-font-weight-body-strong);
 }
 
 /* ------------------------------------------------------------------ the top bar */
@@ -305,9 +305,9 @@
 
 .setting__edit summary {
   cursor: pointer;
-  font-size: var(--gb-font-size-sm);
-  font-weight: var(--gb-font-weight-semibold);
-  color: var(--gb-text-brand);
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body-strong);
+  color: var(--gb-text-link);
   padding: var(--gb-space-1) 0;
 }
 
@@ -330,7 +330,7 @@
   align-items: center;
   gap: var(--gb-space-1);
   min-height: 2.75rem;
-  font-size: var(--gb-font-size-sm);
+  font-size: var(--gb-font-size-body-sm);
 }
 
 /* ------------------------------------------------------------------ bulk edit */
@@ -353,7 +353,7 @@
 }
 
 .bulkbar__picks, .bulkbar__apply { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); }
-.bulkbar__count { margin: 0; font-size: var(--gb-font-size-sm); }
+.bulkbar__count { margin: 0; font-size: var(--gb-font-size-body-sm); }
 
 /* A disabled apply button must read as unavailable rather than as merely quiet. */
 .bulkbar__apply .kitchen__btn[disabled] {
@@ -377,7 +377,7 @@
 .admin__plain li {
   padding: var(--gb-space-1) 0;
   border-bottom: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
-  font-size: var(--gb-font-size-sm);
+  font-size: var(--gb-font-size-body-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -409,7 +409,7 @@
   border-radius: var(--gb-radius-sm);
 }
 
-.placement > .admin__label { margin-top: 0; font-weight: var(--gb-font-weight-semibold); }
+.placement > .admin__label { margin-top: 0; font-weight: var(--gb-font-weight-body-strong); }
 
 /* --------------------------------------------------- staff and access (`E10-27`) */
 
@@ -417,8 +417,8 @@
  * qualify a line of text and colour alone would not survive a monochrome or high-contrast view. */
 .admin__tag {
   display: inline-block;
-  font-size: var(--gb-font-size-xs, 0.75rem);
-  font-weight: var(--gb-font-weight-semibold);
+  font-size: var(--gb-font-size-caption);
+  font-weight: var(--gb-font-weight-body-strong);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0 var(--gb-space-1);
@@ -429,7 +429,7 @@
 
 /* Revoke sits inline at the end of a grant, so it must not have the height of a primary action. */
 .kitchen__btn--small {
-  font-size: var(--gb-font-size-sm);
+  font-size: var(--gb-font-size-body-sm);
   padding: 0 var(--gb-space-2);
 }
 
@@ -452,7 +452,7 @@
   border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
   border-radius: var(--gb-radius-md);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--gb-font-size-sm);
+  font-size: var(--gb-font-size-body-sm);
   line-height: 1.5;
   white-space: pre;
   tab-size: 2;
@@ -468,7 +468,7 @@
 .guessbanner {
   padding: var(--gb-space-3) var(--gb-space-4);
   margin-bottom: var(--gb-space-4);
-  background: var(--gb-bg-warning-subtle, var(--gb-bg-surface-muted));
+  background: var(--gb-bg-surface-warning);
   border: var(--gb-border-width-default) solid var(--gb-border-strong, var(--gb-border-default));
   border-radius: var(--gb-radius-md);
 }
@@ -489,9 +489,9 @@
 
 .guesschip {
   display: block;
-  font-size: var(--gb-font-size-sm);
+  font-size: var(--gb-font-size-body-sm);
   font-style: italic;
-  color: var(--gb-text-muted);
+  color: var(--gb-text-secondary);
   margin-left: var(--gb-space-4);
 }
 

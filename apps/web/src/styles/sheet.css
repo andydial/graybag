@@ -31,8 +31,8 @@
 .sheet__date {
   margin: 0;
   flex: 1 1 auto;
-  color: var(--gb-text-on-inverse, #fff);
-  font-weight: var(--gb-font-weight-semibold);
+  color: var(--gb-text-on-brand);
+  font-weight: var(--gb-font-weight-body-strong);
 }
 
 .sheet {
@@ -41,7 +41,7 @@
   padding: var(--gb-space-4) var(--gb-space-3) var(--gb-space-8);
 }
 
-.sheet__note { color: var(--gb-text-muted); }
+.sheet__note { color: var(--gb-text-secondary); }
 
 .sheet__block {
   background: var(--gb-bg-surface);
@@ -51,8 +51,8 @@
   margin-bottom: var(--gb-space-5);
 }
 
-.sheet__head { margin: 0; font-size: var(--gb-font-size-lg); }
-.sheet__sub { margin: 0 0 var(--gb-space-3); color: var(--gb-text-muted); font-size: var(--gb-font-size-sm); }
+.sheet__head { margin: 0; font-size: var(--gb-font-size-body-lg); }
+.sheet__sub { margin: 0 0 var(--gb-space-3); color: var(--gb-text-secondary); font-size: var(--gb-font-size-body-sm); }
 
 /*
  * The tray count. First on the block because it is the first thing done — you count portions onto
@@ -69,8 +69,8 @@
 
 .sheet__totals caption {
   text-align: left;
-  font-size: var(--gb-font-size-sm);
-  font-weight: var(--gb-font-weight-semibold);
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body-strong);
   padding-bottom: var(--gb-space-1);
 }
 
@@ -78,7 +78,7 @@
 .sheet__qty {
   width: 3ch;
   text-align: right;
-  font-weight: var(--gb-font-weight-semibold);
+  font-weight: var(--gb-font-weight-body-strong);
   font-variant-numeric: tabular-nums;
 }
 
@@ -86,19 +86,19 @@
 
 .sheet__classname {
   margin: 0 0 var(--gb-space-1);
-  font-size: var(--gb-font-size-base);
+  font-size: var(--gb-font-size-body);
   border-bottom: var(--gb-border-width-default) solid var(--gb-border-default);
   padding-bottom: var(--gb-space-1);
   display: flex;
   justify-content: space-between;
 }
 
-.sheet__count { color: var(--gb-text-muted); font-weight: var(--gb-font-weight-regular); }
+.sheet__count { color: var(--gb-text-secondary); font-weight: var(--gb-font-weight-body); }
 
 .sheet__kids, .sheet__lines { list-style: none; margin: 0; padding: 0; }
 .sheet__kid { padding: var(--gb-space-2) 0; border-bottom: var(--gb-border-width-hairline) solid var(--gb-border-subtle); }
 .sheet__kid:last-child { border-bottom: 0; }
-.sheet__name { margin: 0; font-weight: var(--gb-font-weight-semibold); }
+.sheet__name { margin: 0; font-weight: var(--gb-font-weight-body-strong); }
 .sheet__lines { margin-left: var(--gb-space-3); }
 .sheet__lines li { font-variant-numeric: tabular-nums; }
 
@@ -109,8 +109,8 @@
  * kitchen printers are monochrome. A badge that only exists in colour does not exist on paper.
  */
 .sheet__allergens {
-  font-size: var(--gb-font-size-sm);
-  font-weight: var(--gb-font-weight-bold);
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-h1);
   border: 2px solid currentColor;
   border-radius: var(--gb-radius-sm);
   padding: 0 var(--gb-space-1);
@@ -118,7 +118,7 @@
 }
 
 .sheet__req {
-  font-size: var(--gb-font-size-sm);
+  font-size: var(--gb-font-size-body-sm);
   font-style: italic;
   border-bottom: 1px dotted currentColor;
 }
