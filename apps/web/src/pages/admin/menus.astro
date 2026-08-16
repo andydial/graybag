@@ -1,25 +1,38 @@
 ---
 /**
- * Dishes and menus, for changing one thing — `E10-20`.
+ * The dish workbench — `E10-40`.
  *
- * ## What this deliberately does not do
+ * ## What this screen is for
  *
- * It does not create dishes, create menus, or assign a menu to a school. That is
- * `tools/bulk-import`, it is documented in `docs/import-format.md`, and it is better at it: a
- * file can be prepared, dry-run, reviewed and applied in one pass, and it tells you what it would
- * do before it does it.
+ * Nobody opens the dish list to browse. They open it because **one dish is wrong** — a price, a
+ * food type, an allergen — and they know its name. The job is: reach it, change one field, see
+ * that it took, move on. Everything here serves that.
  *
- * This screen is the other case — the afternoon one price is wrong, or a dish turns out to
- * contain milk. Preparing a CSV for a four-character change is six minutes of ceremony, and the
- * ceremony is precisely what makes somebody open the database directly instead.
+ * The screen it replaces was a 17,000-pixel wall of 79 identical cards with no search, no filter
+ * and no sort, where editing expanded a `<details>` inline and saving re-rendered the list and
+ * threw you back to the top. Andy's words: *"I hunt for a dish, edit it, save, and get thrown back
+ * to the top to start again."*
  *
- * ## Two grants, and the screen says which
+ * ## Four decisions
  *
- * Changing what a dish *is* needs `dish.edit`. Changing what it *costs on a menu* needs
- * `menu.edit`. Separate in `permission` and separate in the endpoint, because the person who
- * corrects an allergen is not necessarily the person who sets prices (`D3`).
+ * **A row is one line.** Photo, name, state, menus and prices. 79 dishes fit in a few screens
+ * instead of forty, so scrolling is orientation rather than search.
  *
- * `?state=demo` renders fixtures, so `check:a11y` audits this rather than the sign-in redirect.
+ * **Editing happens in a drawer, not in the list.** Opening one cannot move anything behind it —
+ * that is the whole reason it is not inline. Saving updates the one row in place and leaves the
+ * drawer open with a confirmation; the list is never re-rendered and the scroll position is never
+ * touched.
+ *
+ * **A dish appears exactly once**, with its menu memberships and per-menu prices on it. The old
+ * page listed every dish again under each school it was served at, which is what made the lists
+ * enormous and made it unclear whether you were editing one thing or several. Which school gets
+ * which menu is a question about schools and lives on `/admin/schools`.
+ *
+ * **The filters are states, not taxonomies.** "No photo", "on no menu", "allergens not checked"
+ * are the reasons a person is looking. "Bakery" almost never is. Each carries its count, so the
+ * work left is visible without clicking anything.
+ *
+ * `?state=demo` renders fixtures so `check:a11y` audits the screen rather than the sign-in redirect.
  */
 import '../../styles/tokens.css';
 import '../../styles/site.css';
@@ -33,860 +46,619 @@ import '../../styles/admin.css';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Dishes and menus — GrayBag</title>
+    <title>Dishes — GrayBag</title>
     <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
   </head>
 
-  <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">Dishes and menus</h1>
+  <body class="wb">
+    <header class="wb__bar">
+      <div class="wb__bar-row">
+        <h1 class="wb__title">Dishes</h1>
+        <nav class="wb__nav" aria-label="Back office">
           <a class="kitchen__btn" href="/admin/schools">Schools</a>
-          <a class="kitchen__btn" href="/admin/config">Configuration</a>
-          <button id="m-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+          <a class="kitchen__btn" href="/admin/allergens">Allergens</a>
+          <a class="kitchen__btn" href="/admin/import">Import</a>
+          <a class="kitchen__btn" href="/admin/config">Config</a>
+        </nav>
+      </div>
+
+      <div class="wb__bar-row wb__controls">
+        <div class="wb__search">
+          <label class="visually-hidden" for="q">Search dishes</label>
+          <input class="wb__input" id="q" type="search" autocomplete="off" spellcheck="false"
+                 placeholder="Search dishes, ingredients or menus…   (press /)" />
         </div>
+        <label class="wb__field"><span>Menu</span><select class="wb__select" id="f-menu"></select></label>
+        <label class="wb__field"><span>Type</span><select class="wb__select" id="f-type"></select></label>
+        <label class="wb__field"><span>Allergens</span><select class="wb__select" id="f-allerg"></select></label>
+        <label class="wb__field"><span>Photo</span><select class="wb__select" id="f-photo"></select></label>
+        <label class="wb__field"><span>Sort</span><select class="wb__select" id="f-sort"></select></label>
+        <button class="kitchen__btn" id="f-clear" type="button" hidden>Clear</button>
+      </div>
+
+      <p class="wb__count" id="count" role="status" aria-live="polite"></p>
+      <div class="wb__bulk" id="bulk" hidden></div>
+    </header>
+
+    <main class="wb__main">
+      <ol class="wb__list" id="list"></ol>
+    </main>
+
+    <!--
+      One drawer, reused. A panel per dish would put 79 forms in the document and make every
+      keystroke in the search box re-render all of them.
+    -->
+    <div class="wb__scrim" id="scrim" hidden></div>
+    <aside class="wb__drawer" id="drawer" hidden aria-labelledby="drawer-title" role="dialog" aria-modal="true">
+      <header class="wb__drawer-head">
+        <h2 class="wb__drawer-title" id="drawer-title">Edit</h2>
+        <button class="kitchen__btn" id="drawer-close" type="button">Close</button>
       </header>
-
-      <main class="kitchen__wrap admin__wrap">
-        <div id="m-status" class="visually-hidden" role="status" aria-live="polite"></div>
-
-        <p class="admin__intro">
-          For changing <b>one</b> thing. Creating dishes and menus, and assigning a menu to a
-          school, is <code>tools/bulk-import</code> — it takes a CSV and tells you what it would do
-          before it does it. See <code>docs/import-format.md</code>.
-        </p>
-
-        <div id="m-body"></div>
-      </main>
-    </div>
+      <div class="wb__drawer-body" id="drawer-body"></div>
+    </aside>
 
     <script>
       import { api, money } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
-      import { serviceDateToday } from '../../lib/kitchen/view.js';
-      import {
-        ALL_DISHES, NO_MENU, filterDishes, menuFilterOptions, placementsFor, schoolMenuRows,
-      } from '../../lib/admin/catalogue-view.js';
       import { MAX_EDGE, prepareDishImage } from '../../lib/admin/dish-image.js';
+      import { EMPTY_QUERY, buildRows, facets, queryDishes } from '../../lib/admin/dish-index.js';
+      import type { DishQuery, DishRow } from '../../lib/admin/dish-index.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
-        body: $('m-body'), status: $('m-status'), reload: $<HTMLButtonElement>('m-reload'),
+        q: $<HTMLInputElement>('q'), list: $('list'), count: $('count'), bulk: $('bulk'),
+        drawer: $('drawer'), scrim: $('scrim'), body: $('drawer-body'), title: $('drawer-title'),
+        clear: $<HTMLButtonElement>('f-clear'),
+        menu: $<HTMLSelectElement>('f-menu'), type: $<HTMLSelectElement>('f-type'),
+        allerg: $<HTMLSelectElement>('f-allerg'), photo: $<HTMLSelectElement>('f-photo'),
+        sort: $<HTMLSelectElement>('f-sort'),
       };
 
       const esc = (s: string) =>
-        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-
+        String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+      const rupees = (p: number) => money.formatPaise(p);
       const demo = new URLSearchParams(location.search).has('state');
       const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const FOOD_TYPES = [
-        { value: '', label: 'Not set' },
-        { value: 'veg', label: 'Veg' },
-        { value: 'non_veg', label: 'Non-veg' },
-        { value: 'egg', label: 'Egg' },
-      ];
+      const PILL: Record<string, string> = { veg: 'Veg', egg: 'Egg', non_veg: 'Non-veg' };
 
       let dishes: api.AdminDish[] = [];
       let menus: api.AdminMenu[] = [];
-      let schools: api.AdminSchool[] = [];
-      let assignments: api.AdminMenuAssignment[] = [];
-      let allergens: string[] = [];
+      let allergenCodes: string[] = [];
+      let assetPaths = new Map<string, string>();
+      let rows: DishRow[] = [];
+      let shown: DishRow[] = [];
+      let openDishId: string | null = null;
       let loading = true;
       let error: string | null = null;
+      const picked = new Set<string>();
 
-      /**
-       * Which menu the dish list is showing. Held in the URL, not just in memory, so that a
-       * filtered view can be sent to somebody or reloaded without losing it — the screen's whole
-       * job this week is answering "is this menu seeded right?", and that answer gets shared.
-       */
-      let filter = new URLSearchParams(location.search).get('menu') ?? ALL_DISHES;
-
-      /** The IST service date. The day rolls at 18:30 UTC, and an assignment is live by date. */
-      const today = serviceDateToday(new Date());
-
-      async function load() {
-        loading = true; error = null; render();
-        try {
-          if (demo) {
-            dishes = MENUS_FIXTURE.dishes;
-            menus = MENUS_FIXTURE.menus;
-            schools = MENUS_FIXTURE.schools;
-            assignments = MENUS_FIXTURE.assignments;
-            allergens = ['gluten', 'milk', 'soy', 'tree_nut'];
-          } else {
-            configureBackofficeApi();
-            const [d, m, a, s, as, assets] = await Promise.all([
-              api.fetchAdminDishes(), api.fetchAdminMenus(), api.fetchAllergens(),
-              api.fetchAdminSchools(), api.fetchMenuAssignments(), api.fetchDishImageAssets(),
-            ]);
-            assetPaths = assets;
-            dishes = d;
-            menus = m;
-            schools = s;
-            assignments = as;
-            // Codes, not names. `dish_allergen` and `recipient_allergen` share this vocabulary,
-            // and the shared row id is the whole mechanism behind an allergen warning.
-            allergens = a.map((x) => x.code).sort();
-          }
-        } catch (cause) {
-          error = cause instanceof Error ? cause.message : 'The catalogue did not load.';
-          dishes = []; menus = []; schools = []; assignments = [];
-        } finally {
-          loading = false; render();
-        }
+      /** The query lives in the URL, so a filtered view survives a reload and can be sent to somebody. */
+      function readQuery(): DishQuery {
+        const p = new URLSearchParams(location.search);
+        return {
+          text: p.get('q') ?? '',
+          menu: p.get('menu') ?? 'any',
+          foodType: (p.get('type') ?? 'any') as DishQuery['foodType'],
+          allergens: (p.get('allerg') ?? 'any') as DishQuery['allergens'],
+          photo: (p.get('photo') ?? 'any') as DishQuery['photo'],
+          sort: (p.get('sort') ?? 'name') as DishQuery['sort'],
+        };
       }
+      let query = readQuery();
 
-      /** `4500` → `₹45.00`. Integer paise in, never a float (non-negotiable #3). */
-      const rupees = (p: number) => money.formatPaise(p);
-
-      /**
-       * Asset id → storage path, for the dishes that have a photo. Loaded alongside the catalogue
-       * because `dish` carries only the id, and a per-dish lookup would be 79 requests.
-       */
-      let assetPaths = new Map<string, string>();
+      function writeQuery() {
+        const url = new URL(location.href);
+        const set = (k: string, v: string, dflt: string) =>
+          v === dflt ? url.searchParams.delete(k) : url.searchParams.set(k, v);
+        set('q', query.text, '');
+        set('menu', query.menu, 'any');
+        set('type', query.foodType, 'any');
+        set('allerg', query.allergens, 'any');
+        set('photo', query.photo, 'any');
+        set('sort', query.sort, 'name');
+        history.replaceState(null, '', url);
+      }
 
       const imageUrl = (d: api.AdminDish) => {
         const path = d.imageAssetId ? assetPaths.get(d.imageAssetId) : null;
         return path ? api.storagePublicUrl(api.DISH_IMAGE_BUCKET, path) : null;
       };
 
-      /** Which dishes the bulk bar will act on. Survives a re-render, not a reload. */
-      const picked = new Set<string>();
-
-      /**
-       * Setting `food_type` on the whole catalogue in one action — `E10-21`.
-       *
-       * 79 dishes reached production with it null on every one. The realistic workflow is not
-       * "consider each dish": it is **select all, mark them veg, then correct the handful that
-       * are not** — which is three actions rather than seventy-nine, and is why "Select all" and
-       * the unmarked-only shortcut are the two prominent controls.
-       *
-       * The bar is placed above the list and repeats the count, because after a bulk apply the
-       * only thing worth knowing is how many are still unmarked.
-       */
-      function bulkBar(): string {
-        // Scoped to what the filter is showing, never to the whole catalogue. "Select all" while a
-        // menu filter is on must mean the dishes on screen — selecting rows somebody cannot see
-        // and then setting a food type on them is the kind of bulk action nobody would trust twice.
-        const visible = filterDishes(dishes, menus, filter);
-        const unmarked = visible.filter((d) => d.foodType === null);
-        return (
-          `<div class="bulkbar" role="group" aria-label="Set food type on several dishes">` +
-            `<div class="bulkbar__picks">` +
-              `<button class="kitchen__btn" type="button" data-select="all">Select all ${visible.length}</button>` +
-              (unmarked.length
-                ? `<button class="kitchen__btn" type="button" data-select="unmarked">` +
-                  `Select the ${unmarked.length} with no food type</button>`
-                : '') +
-              `<button class="kitchen__btn" type="button" data-select="none">Clear selection</button>` +
-            `</div>` +
-            `<p class="bulkbar__count" aria-live="polite">` +
-              (picked.size === 0
-                ? 'Nothing selected'
-                : `<b>${picked.size}</b> selected — set ${picked.size === 1 ? 'it' : 'them'} to:`) +
-            `</p>` +
-            `<div class="bulkbar__apply">` +
-              ['veg', 'egg', 'non_veg'].map((v) =>
-                `<button class="kitchen__btn kitchen__btn--primary" type="button" data-apply="${v}"` +
-                `${picked.size === 0 ? ' disabled' : ''}>${esc(v === 'non_veg' ? 'Non-veg' : v[0]!.toUpperCase() + v.slice(1))}</button>`,
-              ).join('') +
-              `<button class="kitchen__btn" type="button" data-apply=""` +
-              `${picked.size === 0 ? ' disabled' : ''}>Clear food type</button>` +
-            `</div>` +
-          `</div>`
-        );
-      }
-
-      /** Apply one food type to everything currently selected, in a single request. */
-      async function applyFoodType(value: string) {
-        if (picked.size === 0) return;
-        if (demo) {
-          el.status.textContent = 'This is the demo view — nothing is written.';
-          return;
-        }
-        const assignments = [...picked].map((id) => ({ id, foodType: value === '' ? null : value }));
+      async function load() {
+        loading = true; error = null; render();
         try {
-          await api.setFoodTypes(assignments);
-          el.status.textContent = `Set ${assignments.length} dish${assignments.length === 1 ? '' : 'es'}.`;
-          picked.clear();
-          await load();
+          if (demo) {
+            dishes = MENUS_FIXTURE.dishes; menus = MENUS_FIXTURE.menus;
+            allergenCodes = ['milk', 'egg', 'gluten', 'tree_nut', 'peanut', 'soy', 'sesame'];
+            assetPaths = new Map();
+          } else {
+            configureBackofficeApi();
+            const [d, m, a, assets] = await Promise.all([
+              api.fetchAdminDishes(), api.fetchAdminMenus(), api.fetchAllergens(), api.fetchDishImageAssets(),
+            ]);
+            dishes = d; menus = m; assetPaths = assets;
+            allergenCodes = a.map((x) => x.code).sort();
+          }
+          rows = buildRows(dishes, menus);
         } catch (cause) {
-          // Rendered where the bar is, not in a form: the failure belongs to the action, and the
-          // whole point of the endpoint being all-or-nothing is that nothing changed.
-          error = cause instanceof Error ? cause.message : 'The dishes were not changed.';
-          render();
+          error = cause instanceof Error ? cause.message : 'The catalogue did not load.';
+          dishes = []; menus = []; rows = [];
+        } finally {
+          loading = false; fillControls(); render();
         }
       }
 
-      const WEEKDAY_LABEL = (days: number[]) =>
-        days.length === 7 ? 'every day' : days.map((d) => WEEKDAYS[d - 1]).join(', ');
-
-      /**
-       * School → menu → dishes — `E10-22`, and the first thing on the page.
-       *
-       * The join that was missing. Menus and schools were each visible alone and nothing put them
-       * together, so "is Gem seeded correctly?" could only be answered against the database. Four
-       * days before parents arrive that is the only question anybody is asking, so it gets the top
-       * of the screen rather than a filter you have to know to apply.
-       *
-       * Each school shows what a **parent at that school would see today** — not what exists in
-       * the catalogue. Those differ whenever a dish is retired, parked, or unmarked, and every one
-       * of those differences is invisible from the menu alone.
-       */
-      function schoolsSection(): string {
-        const rows = schoolMenuRows(schools, assignments, menus, dishes, today);
-        if (rows.length === 0) {
-          return (
-            `<section class="admin__section"><h2>Schools and their menus</h2>` +
-            `<div class="kitchen__state"><h2>No schools yet</h2>` +
-            `<p>Onboard one on <a href="/admin/schools">Schools</a>.</p></div></section>`
-          );
-        }
-
-        const broken = rows.filter((r) => r.problems.length > 0).length;
-        return (
-          `<section class="admin__section" aria-labelledby="schools-h">` +
-            `<h2 id="schools-h">Schools and their menus</h2>` +
-            `<p class="admin__section-note">` +
-              `What a parent at each school would see <b>today</b> (${esc(today)}), not what is in ` +
-              `the catalogue. ` +
-              (broken > 0
-                ? `<b>${broken} of ${rows.length} cannot be ordered from.</b>`
-                : `All ${rows.length} can be ordered from.`) +
-            `</p>` +
-            rows.map((r) => {
-              const menu = r.live?.menu ?? null;
-              const total = menu ? menu.items.length : 0;
-              return (
-                `<div class="srow${r.problems.length ? ' srow--hidden' : ''}">` +
-                  `<div class="srow__main">` +
-                    `<p class="srow__name">${esc(r.school.name)}</p>` +
-                    `<p class="srow__meta">` +
-                      (r.live
-                        ? `Serving <b>${esc(r.live.assignment.menuName)}</b> since ` +
-                          `${esc(r.live.assignment.validFrom)}` +
-                          (r.live.assignment.validTo ? ` until ${esc(r.live.assignment.validTo)}` : '')
-                        : 'No menu in force today') +
-                    `</p>` +
-                    `<p class="srow__meta">` +
-                      (menu
-                        ? `${r.orderable} of ${total} dish${total === 1 ? '' : 'es'} orderable` +
-                          (r.orderable < total
-                            ? ` — ${total - r.orderable} inactive or with no food type`
-                            : '')
-                        : 'Nothing orderable') +
-                    `</p>` +
-                    r.problems.map((p) => `<p class="srow__why">${esc(p)}</p>`).join('') +
-                    (r.upcoming.length > 0 && r.live
-                      ? `<p class="srow__meta">Next: ${esc(r.upcoming[0]!.menuName)} from ` +
-                        `${esc(r.upcoming[0]!.validFrom)}</p>`
-                      : '') +
-                    (menu && total > 0
-                      ? `<details class="setting__edit">` +
-                          `<summary>The ${total} dish${total === 1 ? '' : 'es'} on ${esc(menu.name)}</summary>` +
-                          `<ul class="admin__plain">` +
-                            menu.items.map((i) => {
-                              const d = dishes.find((x) => x.id === i.dishId);
-                              const off: string[] = [];
-                              if (!i.isActive) off.push('not on the menu');
-                              if (d && !d.isActive) off.push('retired');
-                              if (d && d.foodType === null) off.push('no food type');
-                              return (
-                                `<li>${esc(i.dishName)} — ${esc(rupees(i.pricePaise))}, ` +
-                                `${esc(WEEKDAY_LABEL(i.availableDays))}` +
-                                (off.length ? ` <b>(${esc(off.join(', '))})</b>` : '') +
-                                `</li>`
-                              );
-                            }).join('') +
-                          `</ul>` +
-                          `<p class="setting__actions">` +
-                            // A button rather than a link: a link would reload, which drops
-                            // `?state=demo` and costs a full catalogue fetch to hide some rows.
-                            `<button class="kitchen__btn" type="button" ` +
-                              `data-filter="${esc(menu.id)}">Show only these in the dish list</button>` +
-                          `</p>` +
-                        `</details>`
-                      : '') +
-                  `</div>` +
-                `</div>`
-              );
-            }).join('') +
-          `</section>`
-        );
+      /** Options are built from the data, with counts, so the numbers show before anything is clicked. */
+      function fillControls() {
+        const f = facets(rows);
+        const opts = (select: HTMLSelectElement, list: [string, string][], current: string) => {
+          select.innerHTML = list
+            .map(([v, label]) => `<option value="${esc(v)}"${v === current ? ' selected' : ''}>${esc(label)}</option>`)
+            .join('');
+        };
+        opts(el.menu, [
+          ['any', `Any menu (${f.total})`],
+          ...menus.map((m) => [m.id, `${m.name} (${new Set(m.items.map((i) => i.dishId)).size})`] as [string, string]),
+          ['none', `On no menu (${f.noMenu})`],
+        ], query.menu);
+        opts(el.type, [
+          ['any', 'Any type'], ['veg', 'Veg'], ['egg', 'Egg'], ['non_veg', 'Non-veg'],
+          ['unset', `Not set (${f.noFoodType})`],
+        ], query.foodType);
+        opts(el.allerg, [
+          ['any', 'Any'], ['tagged', 'Tagged'], ['declared_none', 'Declared none'],
+          ['unchecked', `Not checked (${f.unchecked})`],
+        ], query.allergens);
+        opts(el.photo, [['any', 'Any'], ['has', 'Has one'], ['missing', `Missing (${f.noPhoto})`]], query.photo);
+        opts(el.sort, [
+          ['name', 'Name'], ['category', 'Category'],
+          ['price-asc', 'Price, low first'], ['price-desc', 'Price, high first'],
+          ['state', `Needs attention (${f.needsAttention})`],
+        ], query.sort);
+        el.q.value = query.text;
       }
 
-      /**
-       * Change what the dish list is showing, and put it in the URL.
-       *
-       * `replaceState` rather than a reload: the filtered view is worth sending to somebody, but
-       * re-fetching the whole catalogue to hide some rows is a round trip on the connection the
-       * performance priorities call the real constraint.
-       */
-      function setFilter(next: string) {
-        filter = next;
-        // The selection does not survive. Carrying it would leave dishes picked that the new
-        // filter hides, and the next bulk apply would silently include them.
-        picked.clear();
-        const url = new URL(location.href);
-        if (filter === ALL_DISHES) url.searchParams.delete('menu');
-        else url.searchParams.set('menu', filter);
-        history.replaceState(null, '', url);
-        render();
-      }
+      // ------------------------------------------------------------------------------- the row
 
-      /** The menu filter on the dish list. Counts are on the options, so the numbers read first. */
-      function filterBar(): string {
-        const options = menuFilterOptions(dishes, menus);
-        const active = options.find((o) => o.value === filter) ?? options[0]!;
-        return (
-          `<div class="bulkbar" role="group" aria-label="Filter the dish list by menu">` +
-            `<div class="admin__field">` +
-              `<label class="admin__label" for="m-filter">Show</label>` +
-              `<select class="admin__select" id="m-filter">` +
-                options.map((o) =>
-                  `<option value="${esc(o.value)}"${o.value === active.value ? ' selected' : ''}>` +
-                  `${esc(o.label)} (${o.count})</option>`,
-                ).join('') +
-              `</select>` +
-            `</div>` +
-            (active.value === NO_MENU && active.count > 0
-              ? `<p class="srow__why">These are in the catalogue but on no menu at all. ` +
-                `Nobody can order them.</p>`
-              : '') +
-          `</div>`
-        );
-      }
-
-      function dishRow(d: api.AdminDish): string {
-        const placements = placementsFor(d.id, menus);
-        const marks: string[] = [];
-        if (!d.isActive) marks.push('Retired — off every menu');
-        // The same call-out `tools/bulk-import` prints. `[DM-17]` leaves the column nullable
-        // because the source Excel had no such field, but a dish a parent cannot filter by
-        // veg/non-veg is close to unusable in this market.
-        if (d.foodType === null) marks.push('No food type — a parent cannot filter this dish');
+      function rowHtml(r: DishRow): string {
+        const d = r.dish;
+        const url = imageUrl(d);
+        const live = r.placements.filter((p) => p.isActive);
+        const parked = r.placements.length - live.length;
 
         return (
-          `<div class="srow${marks.length ? ' srow--hidden' : ''}">` +
-            `<div class="srow__main">` +
-              `<p class="srow__name">` +
-                `<label class="admin__day">` +
-                  `<input type="checkbox" data-pick="${esc(d.id)}"${picked.has(d.id) ? ' checked' : ''} ` +
-                    `aria-label="Select ${esc(d.name)}" /> ${esc(d.name)}` +
-                `</label>` +
-              `</p>` +
-              `<p class="srow__meta">${esc(d.categoryName)}` +
-                (d.foodType ? ` · ${esc(d.foodType.replace('_', '-'))}` : '') +
-                (d.caloriesKcal !== null ? ` · ${d.caloriesKcal} kcal` : '') +
-                (d.portionText ? ` · ${esc(d.portionText)}` : '') +
-              `</p>` +
-              `<p class="srow__meta">` +
+          `<li class="drow${r.problems.length ? ' drow--attention' : ''}" data-dish="${esc(d.id)}">` +
+            `<label class="drow__pick"><input type="checkbox" data-pick="${esc(d.id)}"${picked.has(d.id) ? ' checked' : ''} ` +
+              `aria-label="Select ${esc(d.name)}" /></label>` +
+            (url
+              ? `<img class="drow__img" src="${esc(url)}" alt="" loading="lazy" width="48" height="48" />`
+              : `<span class="drow__img drow__img--none" aria-hidden="true"></span>`) +
+            `<button class="drow__main" type="button" data-open="${esc(d.id)}">` +
+              `<span class="drow__name">${esc(d.name)}</span>` +
+              `<span class="drow__meta">` +
+                `<span class="drow__cat">${esc(d.categoryName)}</span>` +
+                (d.foodType
+                  ? `<span class="pill pill--${esc(d.foodType)}">${esc(PILL[d.foodType] ?? d.foodType)}</span>`
+                  : `<span class="pill pill--warn">No type</span>`) +
                 (d.allergens.length
-                  ? `Allergens: ${d.allergens.map((a) => esc(a.toUpperCase().replace('_', ' '))).join(', ')}`
-                  : 'No allergens recorded') +
-              `</p>` +
-              // Which menus it is on, and at what price. Printed on the dish rather than left to
-              // be inferred from the menu sections: a dish priced differently on two menus is
-              // legitimate, and it is invisible until the two numbers sit next to each other.
-              `<p class="srow__meta">` +
-                (placements.length === 0
-                  ? '<b>On no menu</b> — nobody can order this'
-                  : `On ${placements.map((p) =>
-                      `${esc(p.menuName)} at ${esc(rupees(p.pricePaise))}` +
-                      (p.isActive ? '' : ' (parked)')).join(', ')}`) +
-              `</p>` +
-              marks.map((m) => `<p class="srow__why">${esc(m)}</p>`).join('') +
-              dishEditor(d) +
-            `</div>` +
-          `</div>`
-        );
-      }
-
-      /**
-       * One dish, every attribute, one place — `E10-23`.
-       *
-       * Before this, a dish appeared **twice**: once under its menu where a price and days could
-       * be changed, and once under "All dishes" where a food type and allergens could be. Two
-       * forms, forty rows apart, for one thing — and the scroll between them is where a wrong
-       * price survives being looked at.
-       *
-       * So the price and the days move **onto the dish**, one block per menu it is on, and the
-       * per-menu list stops carrying editors. The dish is the thing; a menu is somewhere it
-       * appears at a price.
-       *
-       * ## Saved separately on purpose
-       *
-       * The dish form and each menu block submit on their own, because they are different writes
-       * behind different grants: what a dish **is** needs `dish.edit`, what it **costs** needs
-       * `menu.edit` (`D3`). One button spanning both would have to either demand both grants or
-       * half-fail, and half-failing a save is how somebody comes to believe a price stuck.
-       */
-      function dishEditor(d: api.AdminDish): string {
-        const on = new Set(d.allergens);
-        const placements = placementsFor(d.id, menus);
-        const f = (name: string) => `${name}-${esc(d.id)}`;
-
-        return (
-          `<details class="setting__edit">` +
-            `<summary>Edit this dish</summary>` +
-
-            `<form data-dish="${esc(d.id)}">` +
-              `<div class="admin__field">` +
-                `<label class="admin__label" for="${f('nm')}">Name</label>` +
-                `<input class="admin__input" id="${f('nm')}" name="name" type="text" required ` +
-                  `maxlength="200" value="${esc(d.name)}" />` +
-                `<p class="admin__hint">What a parent reads on the menu.</p>` +
-              `</div>` +
-
-              `<div class="admin__field">` +
-                `<label class="admin__label" for="${f('ft')}">Food type</label>` +
-                `<select class="admin__select" id="${f('ft')}" name="foodType">` +
-                  FOOD_TYPES.map((x) =>
-                    `<option value="${esc(x.value)}"${(d.foodType ?? '') === x.value ? ' selected' : ''}>${esc(x.label)}</option>`,
-                  ).join('') +
-                `</select>` +
-              `</div>` +
-
-              `<fieldset class="admin__days">` +
-                `<legend class="admin__label">Allergens</legend>` +
-                allergens.map((a) =>
-                  `<label class="admin__day">` +
-                    `<input type="checkbox" name="allergens" value="${esc(a)}"${on.has(a) ? ' checked' : ''} /> ` +
-                    `${esc(a.toUpperCase().replace('_', ' '))}` +
-                  `</label>`,
-                ).join('') +
-              `</fieldset>` +
-              `<p class="admin__hint">` +
-                `Ticking replaces the whole set. <b>An allergen removed here stops warning every ` +
-                `parent whose child has it</b> — the warning fires on this list and nothing else.` +
-              `</p>` +
-
-              `<div class="admin__field">` +
-                `<label class="admin__label" for="${f('ds')}">Description</label>` +
-                `<textarea class="admin__input" id="${f('ds')}" name="description" rows="2">` +
-                  `${esc(d.description ?? '')}</textarea>` +
-              `</div>` +
-
-              // Nutrition, and it is thinner than the word suggests — see the note below the
-              // fields. Four columns exist; macros do not.
-              `<fieldset class="admin__days admin__nutrition">` +
-                `<legend class="admin__label">Nutrition</legend>` +
-                `<div class="admin__field">` +
-                  `<label class="admin__label" for="${f('ck')}">Calories (kcal)</label>` +
-                  `<input class="admin__input" id="${f('ck')}" name="caloriesKcal" type="number" ` +
-                    `min="0" max="10000" step="1" value="${d.caloriesKcal ?? ''}" />` +
-                `</div>` +
-                `<div class="admin__field">` +
-                  `<label class="admin__label" for="${f('ct')}">Calories as text</label>` +
-                  `<input class="admin__input" id="${f('ct')}" name="caloriesText" type="text" ` +
-                    `value="${esc(d.caloriesText ?? '')}" />` +
-                  `<p class="admin__hint">For a range the number field cannot hold — <b>330-370</b>.</p>` +
-                `</div>` +
-                `<div class="admin__field">` +
-                  `<label class="admin__label" for="${f('pt')}">Portion</label>` +
-                  `<input class="admin__input" id="${f('pt')}" name="portionText" type="text" ` +
-                    `value="${esc(d.portionText ?? '')}" />` +
-                `</div>` +
-                `<div class="admin__field">` +
-                  `<label class="admin__label" for="${f('it')}">Ingredients</label>` +
-                  `<textarea class="admin__input" id="${f('it')}" name="ingredientsText" rows="2">` +
-                    `${esc(d.ingredientsText ?? '')}</textarea>` +
-                `</div>` +
-              `</fieldset>` +
-              `<p class="admin__hint">` +
-                `These four are all the schema holds. <b>There are no protein, fat or carbohydrate ` +
-                `columns</b> — they were not in the source data and have not been invented here.` +
-              `</p>` +
-
-              `<div class="admin__field">` +
-                `<label class="admin__day">` +
-                  `<input type="checkbox" name="isActive"${d.isActive ? ' checked' : ''} /> On the catalogue` +
-                `</label>` +
-              `</div>` +
-
-              // `E10-24`. The file is resized in the browser before it is sent — the audience is
-              // on mid-range Androids over unreliable connections, and a 4 MB phone photo is the
-              // easiest way to make a menu unusable.
-              `<div class="admin__field">` +
-                `<label class="admin__label" for="${f('img')}">Photo</label>` +
-                (imageUrl(d)
-                  ? `<img class="dishthumb" src="${esc(imageUrl(d)!)}" alt="" width="160" />`
-                  : `<p class="admin__hint">No photo yet.</p>`) +
-                `<input class="admin__input" id="${f('img')}" type="file" ` +
-                  `accept="image/jpeg,image/png,image/webp" data-image="${esc(d.id)}" />` +
-                `<p class="admin__hint">` +
-                  `Resized to ${MAX_EDGE}px and re-encoded here before uploading. ` +
-                  `HEIC from an iPhone needs converting to JPEG first.` +
-                `</p>` +
-                (d.imageAssetId
-                  ? `<div class="setting__actions">` +
-                      `<button class="kitchen__btn" type="button" data-image-remove="${esc(d.id)}">` +
-                        `Remove photo</button>` +
-                    `</div>`
-                  : '') +
-              `</div>` +
-
-              `<div class="setting__actions">` +
-                `<button class="kitchen__btn kitchen__btn--primary" type="submit">Save dish</button>` +
-              `</div>` +
-            `</form>` +
-
-            // One block per menu, on the dish. This is the half that used to live forty rows away.
-            (placements.length === 0
-              ? `<p class="admin__hint"><b>This dish is on no menu</b>, so it has no price. ` +
-                `Adding it to one is <code>tools/bulk-import</code>.</p>`
-              : placements.map((p) => menuPlacementForm(d, p)).join('')) +
-          `</details>`
-        );
-      }
-
-      /** Price and days for one dish on one menu. Its own form — a different grant writes it. */
-      function menuPlacementForm(d: api.AdminDish, p: ReturnType<typeof placementsFor>[number]): string {
-        const id = `${esc(p.menuId)}-${esc(d.id)}`;
-        return (
-          `<form class="placement" data-menu="${esc(p.menuId)}" data-dish-id="${esc(d.id)}">` +
-            `<p class="admin__label">On ${esc(p.menuName)}</p>` +
-            `<div class="admin__field">` +
-              `<label class="admin__label" for="p-${id}">Price in paise</label>` +
-              `<input class="admin__input" id="p-${id}" name="pricePaise" type="number" ` +
-                `min="0" step="1" value="${p.pricePaise}" required />` +
-              // Spelled out because this is the field most likely to be entered as rupees, and a
-              // price out by a factor of a hundred is not something a dry run catches here —
-              // there is no dry run on this screen.
-              `<p class="admin__hint">Whole paise. <b>₹45.00 is 4500</b>, not 45. ` +
-                `Currently ${esc(rupees(p.pricePaise))}.</p>` +
-            `</div>` +
-            `<fieldset class="admin__days">` +
-              `<legend class="admin__label">Available on</legend>` +
-              WEEKDAYS.map((w, i) =>
-                `<label class="admin__day">` +
-                  `<input type="checkbox" name="availableDays" value="${i + 1}"` +
-                  `${p.availableDays.includes(i + 1) ? ' checked' : ''} /> ${w}` +
-                `</label>`,
-              ).join('') +
-            `</fieldset>` +
-            `<div class="admin__field">` +
-              `<label class="admin__day">` +
-                `<input type="checkbox" name="isActive"${p.isActive ? ' checked' : ''} /> On this menu` +
-              `</label>` +
-            `</div>` +
-            (p.isActive ? '' : `<p class="srow__why">Parked — parents cannot order it here</p>`) +
-            `<div class="setting__actions">` +
-              `<button class="kitchen__btn" type="submit">Save price and days</button>` +
-            `</div>` +
-          `</form>`
+                  ? `<span class="pill">${d.allergens.map((a) => esc(a.replace('_', ' '))).join(' · ')}</span>`
+                  : d.allergensDeclaredNone
+                    ? `<span class="pill pill--ok">No allergens</span>`
+                    : `<span class="pill pill--warn">Not checked</span>`) +
+                (d.isActive ? '' : `<span class="pill pill--off">Retired</span>`) +
+              `</span>` +
+            `</button>` +
+            `<span class="drow__menus">` +
+              (live.length === 0
+                ? `<span class="pill pill--warn">On no menu</span>`
+                : live.map((p) => `<span class="menupill"><b>${esc(rupees(p.pricePaise))}</b> ${esc(p.menuName)}</span>`).join('')) +
+              (parked > 0 ? `<span class="pill pill--off">${parked} parked</span>` : '') +
+            `</span>` +
+          `</li>`
         );
       }
 
       function render() {
         if (loading) {
-          el.body.innerHTML = Array(4).fill('<div class="kitchen__skeleton"></div>').join('');
+          el.list.innerHTML = Array(8).fill('<li class="kitchen__skeleton"></li>').join('');
+          el.count.textContent = 'Loading…';
           return;
         }
         if (error) {
-          el.body.innerHTML =
-            `<div class="kitchen__state"><h2>We can't show the catalogue</h2>` +
-            `<p>${esc(error)}</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
-          return;
-        }
-        if (dishes.length === 0 && menus.length === 0) {
-          el.body.innerHTML =
-            `<div class="kitchen__state"><h2>Nothing in the catalogue yet</h2>` +
-            `<p>Import dishes and menus with <code>tools/bulk-import</code> — this screen edits ` +
-            `what is already there.</p></div>`;
+          el.list.innerHTML =
+            `<li class="kitchen__state"><h2>We can't show the catalogue</h2><p>${esc(error)}</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></li>`;
+          el.count.textContent = 'Could not load.';
           return;
         }
 
-        const noType = dishes.filter((d) => d.foodType === null).length;
-        const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-        el.status.textContent =
-          `${plural(dishes.length, 'dish', 'dishes')}, ${plural(menus.length, 'menu')}, ` +
-          `${noType} with no food type.`;
+        shown = queryDishes(rows, query);
+        const filtered = shown.length !== rows.length;
+        el.count.textContent = filtered ? `${shown.length} of ${rows.length} dishes` : `${rows.length} dishes`;
+        el.clear.hidden = !filtered && query.text === '';
 
-        const shown = filterDishes(dishes, menus, filter);
-        const activeMenu = menus.find((m) => m.id === filter) ?? null;
+        el.list.innerHTML = shown.length === 0
+          ? `<li class="kitchen__state"><h2>Nothing matches</h2>` +
+            `<p>No dish matches that search and those filters.</p>` +
+            `<button class="kitchen__btn" data-clear>Clear them</button></li>`
+          : shown.map(rowHtml).join('');
 
-        el.body.innerHTML =
-          schoolsSection() +
+        renderBulk();
+      }
 
-          menus.map((m) =>
-            `<section class="admin__section" aria-labelledby="menu-${esc(m.id)}">` +
-              `<h2 id="menu-${esc(m.id)}">${esc(m.name)}</h2>` +
-              `<p class="admin__section-note">` +
-                `${m.items.length} dish${m.items.length === 1 ? '' : 'es'} · status <code>${esc(m.status)}</code>` +
-                // Which schools serve this menu, on the menu itself — the same join as the section
-                // above, read from the other end, because "who gets this menu?" is asked here.
-                (() => {
-                  const serving = schoolMenuRows(schools, assignments, menus, dishes, today)
-                    .filter((r) => r.live?.assignment.menuId === m.id)
-                    .map((r) => r.school.name);
-                  return serving.length
-                    ? ` · served to <b>${serving.map(esc).join(', ')}</b>`
-                    : ' · <b>served to no school today</b>';
-                })() +
-                `. Prices are what a parent pays before GST — menu prices are tax-exclusive, and 5% ` +
-                `is added at checkout.` +
-              `</p>` +
-              (m.items.length === 0
-                ? `<div class="kitchen__state"><h2>No dishes on this menu</h2>` +
-                  `<p>Nothing here can be ordered. Add dishes with the importer.</p></div>`
-                // No editors, and no dish rows. Both moved onto the dish (`E10-23`) — a dish used
-                // to appear here *and* in the list below, forty rows apart, with half its fields
-                // in each. What is left is what a menu is: its name, its status, who it serves.
-                : `<p class="admin__section-note">` +
-                    `<button class="kitchen__btn" type="button" data-filter="${esc(m.id)}">` +
-                      `Show its ${m.items.length} dish${m.items.length === 1 ? '' : 'es'}</button>` +
-                  `</p>`) +
-            `</section>`,
-          ).join('') +
+      /** Re-draw one row only. This is what lets Save leave the page exactly where it was. */
+      function repaintRow(dishId: string) {
+        rows = buildRows(dishes, menus);
+        const r = rows.find((x) => x.dish.id === dishId);
+        const node = el.list.querySelector(`[data-dish="${CSS.escape(dishId)}"]`);
+        if (!r || !node) { render(); return; }
+        node.outerHTML = rowHtml(r);
+      }
 
-          `<section class="admin__section" aria-labelledby="dishes-h">` +
-            `<h2 id="dishes-h">` +
-              (activeMenu ? `Dishes on ${esc(activeMenu.name)}` : 'All dishes') +
-            `</h2>` +
-            `<p class="admin__section-note">` +
-              (activeMenu
-                ? `Showing the ${shown.length} dish${shown.length === 1 ? '' : 'es'} on this menu. `
-                : filter === NO_MENU
-                  ? `Showing the ${shown.length} in the catalogue that ${shown.length === 1 ? 'is' : 'are'} on no menu. `
-                  : `Everything in the kitchen's catalogue, whether or not it is on a menu. `) +
-              // Counted over what is on screen, not over the catalogue. "Showing 36" next to
-              // "79 have no food type" reads as though the 79 were the 36, and the number
-              // somebody is working through has to be the one in front of them.
-              (() => {
-                const n = shown.filter((d) => d.foodType === null).length;
-                if (n === 0) return '';
-                return (
-                  `<b>${n} of ${shown.length} ${n === 1 ? 'has' : 'have'} no food type.</b> ` +
-                  `A dish without one cannot be published to a menu, and a parent cannot tell ` +
-                  `whether it is vegetarian.`
-                );
-              })() +
-            `</p>` +
-            filterBar() +
-            bulkBar() +
-            (shown.length === 0
-              ? `<div class="kitchen__state"><h2>Nothing matches</h2>` +
-                `<p>No dish is in that group.</p></div>`
-              : shown.map(dishRow).join('')) +
-          `</section>` +
+      // ------------------------------------------------------------------------------ bulk bar
 
-          `<p class="kitchen__oneway kitchen__oneway--block">` +
-            `Editing a dish needs <b>dish.edit</b>; changing a price needs <b>menu.edit</b>. They ` +
-            `are separate permissions on purpose — the person who corrects an allergen is not ` +
-            `necessarily the person who sets prices. <b>A price change applies to orders placed ` +
-            `from now on</b>; orders already placed keep the price they were charged.` +
-          `</p>`;
+      function renderBulk() {
+        if (picked.size === 0) { el.bulk.hidden = true; el.bulk.innerHTML = ''; return; }
+        el.bulk.hidden = false;
+        el.bulk.innerHTML =
+          `<span class="wb__bulk-count"><b>${picked.size}</b> selected</span>` +
+          `<span class="wb__bulk-actions">Set food type: ` +
+            ['veg', 'egg', 'non_veg'].map((v) =>
+              `<button class="kitchen__btn kitchen__btn--primary" data-apply="${v}">${esc(PILL[v]!)}</button>`).join('') +
+          `</span>` +
+          `<button class="kitchen__btn" data-selall>Select all ${shown.length} shown</button>` +
+          `<button class="kitchen__btn" data-selnone>Clear selection</button>`;
+      }
+
+      async function applyFoodType(value: string) {
+        if (picked.size === 0) return;
+        if (demo) { el.count.textContent = 'Demo view — nothing is written.'; return; }
+        const assignments = [...picked].map((id) => ({ id, foodType: value }));
+        try {
+          await api.setFoodTypes(assignments);
+          for (const a of assignments) {
+            const d = dishes.find((x) => x.id === a.id);
+            if (d) d.foodType = a.foodType;
+          }
+          picked.clear();
+          rows = buildRows(dishes, menus);
+          fillControls();
+          render();
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'Nothing was changed.';
+          render();
+        }
+      }
+
+      // -------------------------------------------------------------------------------- drawer
+
+      function openDrawer(dishId: string) {
+        const r = rows.find((x) => x.dish.id === dishId);
+        if (!r) return;
+        openDishId = dishId;
+        el.title.textContent = r.dish.name;
+        el.body.innerHTML = drawerHtml(r);
+        el.drawer.hidden = false;
+        el.scrim.hidden = false;
+        (el.body.querySelector('input,select,textarea') as HTMLElement | null)?.focus();
+      }
+
+      function closeDrawer() {
+        const returning = openDishId;
+        openDishId = null;
+        el.drawer.hidden = true;
+        el.scrim.hidden = true;
+        // Focus goes back to the row that opened it, so a keyboard user is not dropped at the top.
+        if (returning) {
+          (el.list.querySelector(`[data-open="${CSS.escape(returning)}"]`) as HTMLElement | null)?.focus();
+        }
+      }
+
+      function drawerHtml(r: DishRow): string {
+        const d = r.dish;
+        const on = new Set(d.allergens);
+        const url = imageUrl(d);
+        const f = (k: string) => `${k}-${esc(d.id)}`;
+
+        return (
+          `<p class="wb__saved" data-saved hidden role="status"></p>` +
+
+          `<form data-dish="${esc(d.id)}" class="wb__form">` +
+            `<div class="admin__field">` +
+              `<label class="admin__label" for="${f('nm')}">Name</label>` +
+              `<input class="admin__input" id="${f('nm')}" name="name" type="text" required maxlength="200" value="${esc(d.name)}" />` +
+            `</div>` +
+
+            `<div class="admin__field">` +
+              `<label class="admin__label" for="${f('ft')}">Food type</label>` +
+              `<select class="admin__select" id="${f('ft')}" name="foodType">` +
+                ([['', 'Not set'], ['veg', 'Veg'], ['non_veg', 'Non-veg'], ['egg', 'Egg']] as [string, string][])
+                  .map(([v, l]) => `<option value="${esc(v)}"${(d.foodType ?? '') === v ? ' selected' : ''}>${esc(l)}</option>`).join('') +
+              `</select>` +
+              `<p class="admin__hint">What a family filters on. Separate from the egg <b>allergen</b> below — a cake made with egg is veg and contains egg.</p>` +
+            `</div>` +
+
+            `<fieldset class="admin__days">` +
+              `<legend class="admin__label">Allergens</legend>` +
+              allergenCodes.map((a) =>
+                `<label class="admin__day"><input type="checkbox" name="allergens" value="${esc(a)}"${on.has(a) ? ' checked' : ''} /> ${esc(a.replace('_', ' '))}</label>`).join('') +
+            `</fieldset>` +
+            `<label class="admin__day"><input type="checkbox" name="declaredNone"${d.allergensDeclaredNone ? ' checked' : ''} /> Checked — contains none</label>` +
+            `<p class="admin__hint">Ticking replaces the whole set. <b>Empty and unchecked means nobody has looked</b>, which is not the same as none.</p>` +
+
+            `<div class="admin__field">` +
+              `<label class="admin__label" for="${f('ds')}">Description</label>` +
+              `<textarea class="admin__input" id="${f('ds')}" name="description" rows="2">${esc(d.description ?? '')}</textarea>` +
+            `</div>` +
+
+            `<details class="setting__edit"><summary>Nutrition and portion</summary>` +
+              `<div class="admin__field"><label class="admin__label" for="${f('ck')}">Calories (kcal)</label>` +
+                `<input class="admin__input" id="${f('ck')}" name="caloriesKcal" type="number" min="0" max="10000" value="${d.caloriesKcal ?? ''}" /></div>` +
+              `<div class="admin__field"><label class="admin__label" for="${f('ct')}">Calories as text</label>` +
+                `<input class="admin__input" id="${f('ct')}" name="caloriesText" type="text" value="${esc(d.caloriesText ?? '')}" />` +
+                `<p class="admin__hint">For a range — <b>330-370</b>.</p></div>` +
+              `<div class="admin__field"><label class="admin__label" for="${f('pt')}">Portion</label>` +
+                `<input class="admin__input" id="${f('pt')}" name="portionText" type="text" value="${esc(d.portionText ?? '')}" /></div>` +
+              `<div class="admin__field"><label class="admin__label" for="${f('it')}">Ingredients</label>` +
+                `<textarea class="admin__input" id="${f('it')}" name="ingredientsText" rows="2">${esc(d.ingredientsText ?? '')}</textarea></div>` +
+              `<p class="admin__hint">These four are all the schema holds — there are no protein, fat or carbohydrate columns.</p>` +
+            `</details>` +
+
+            `<label class="admin__day"><input type="checkbox" name="isActive"${d.isActive ? ' checked' : ''} /> On the catalogue</label>` +
+
+            `<div class="setting__actions"><button class="kitchen__btn kitchen__btn--primary" type="submit">Save dish</button></div>` +
+          `</form>` +
+
+          `<div class="admin__field">` +
+            `<p class="admin__label">Photo</p>` +
+            (url ? `<img class="dishthumb" src="${esc(url)}" alt="" width="160" />` : `<p class="admin__hint">No photo.</p>`) +
+            `<input class="admin__input" type="file" accept="image/jpeg,image/png,image/webp" data-image="${esc(d.id)}" />` +
+            `<p class="admin__hint">Resized to ${MAX_EDGE}px here before uploading.</p>` +
+            (d.imageAssetId ? `<div class="setting__actions"><button class="kitchen__btn" type="button" data-image-remove="${esc(d.id)}">Remove photo</button></div>` : '') +
+          `</div>` +
+
+          `<h3 class="wb__drawer-sub">On ${r.placements.length} menu${r.placements.length === 1 ? '' : 's'}</h3>` +
+          (r.placements.length === 0
+            ? `<p class="admin__hint"><b>This dish is on no menu</b>, so it has no price and nobody can order it. Adding it to one is <code>tools/bulk-import</code>.</p>`
+            : r.placements.map((p) =>
+              `<form class="placement" data-menu="${esc(p.menuId)}" data-dish-id="${esc(d.id)}">` +
+                `<p class="admin__label">${esc(p.menuName)}</p>` +
+                `<div class="admin__field">` +
+                  `<label class="admin__label" for="p-${esc(p.menuId)}-${esc(d.id)}">Price in paise</label>` +
+                  `<input class="admin__input" id="p-${esc(p.menuId)}-${esc(d.id)}" name="pricePaise" type="number" min="0" step="1" value="${p.pricePaise}" required />` +
+                  `<p class="admin__hint">Whole paise. <b>₹45.00 is 4500</b>. Currently ${esc(rupees(p.pricePaise))}.</p>` +
+                `</div>` +
+                `<fieldset class="admin__days"><legend class="admin__label">Available on</legend>` +
+                  WEEKDAYS.map((w, i) =>
+                    `<label class="admin__day"><input type="checkbox" name="availableDays" value="${i + 1}"${p.availableDays.includes(i + 1) ? ' checked' : ''} /> ${w}</label>`).join('') +
+                `</fieldset>` +
+                `<label class="admin__day"><input type="checkbox" name="isActive"${p.isActive ? ' checked' : ''} /> On this menu</label>` +
+                `<div class="setting__actions"><button class="kitchen__btn" type="submit">Save price and days</button></div>` +
+              `</form>`).join('')) +
+
+          `<p class="kitchen__oneway kitchen__oneway--block">Editing a dish needs <b>dish.edit</b>; a price needs <b>menu.edit</b>. A price change applies from now on — orders already placed keep what they were charged.</p>`
+        );
+      }
+
+      function saidSaved(message: string) {
+        const box = el.body.querySelector('[data-saved]') as HTMLElement | null;
+        if (!box) return;
+        box.hidden = false;
+        box.textContent = message;
       }
 
       function showFormError(form: HTMLFormElement, message: string) {
         let box = form.querySelector('[data-err]') as HTMLElement | null;
         if (!box) {
           box = document.createElement('p');
-          box.setAttribute('data-err', '');
-          box.setAttribute('role', 'alert');
+          box.setAttribute('data-err', ''); box.setAttribute('role', 'alert');
           box.className = 'admin__error';
           form.append(box);
         }
         box.textContent = message;
       }
 
+      /**
+       * Save, and **do not move**.
+       *
+       * The row is repainted in place and the drawer stays open with a confirmation. Nothing here
+       * calls `render()`, nothing re-sorts and nothing touches scroll. That is the requirement, and
+       * it is why the local objects are updated rather than the catalogue being re-fetched.
+       */
       async function save(form: HTMLFormElement) {
-        if (demo) {
-          showFormError(form, 'This is the demo view — nothing is written. Sign in to make a change.');
-          return;
-        }
+        if (demo) { showFormError(form, 'Demo view — nothing is written.'); return; }
         const data = new FormData(form);
+        const text = (k: string) => { const v = String(data.get(k) ?? '').trim(); return v === '' ? null : v; };
+
         try {
-          let edit: Parameters<typeof api.updateCatalogue>[0];
-
           if (form.dataset.dish) {
-            const foodType = String(data.get('foodType') ?? '');
-            // An emptied text box means "clear it", which is a null rather than an omission —
-            // `admin-dish` treats absent as "leave alone" and null as "set to nothing", and a
-            // form that never sends null can never undo a typo.
-            const text = (name: string) => {
-              const raw = String(data.get(name) ?? '').trim();
-              return raw === '' ? null : raw;
-            };
-            const kcal = String(data.get('caloriesKcal') ?? '').trim();
-
             const name = String(data.get('name') ?? '').trim();
-            if (name === '') {
-              showFormError(form, 'A dish needs a name — this is what a parent reads on the menu.');
+            if (name === '') { showFormError(form, 'A dish needs a name.'); return; }
+            const foodType = String(data.get('foodType') ?? '');
+            const kcal = String(data.get('caloriesKcal') ?? '').trim();
+            const allergens = data.getAll('allergens').map(String);
+            const declaredNone = data.get('declaredNone') !== null && allergens.length === 0;
+
+            const patch = {
+              id: form.dataset.dish, name,
+              foodType: foodType === '' ? null : foodType,
+              description: text('description'),
+              ingredientsText: text('ingredientsText'),
+              caloriesText: text('caloriesText'),
+              portionText: text('portionText'),
+              caloriesKcal: kcal === '' ? null : Number(kcal),
+              allergens,
+              allergensDeclaredNone: declaredNone,
+              isActive: data.get('isActive') !== null,
+            };
+            const d = dishes.find((x) => x.id === form.dataset.dish)!;
+
+            /**
+             * Send only what actually differs, and send nothing at all when nothing does.
+             *
+             * Two reasons. The server reports every key it was handed as "changed", so a save that
+             * posts the whole form says "Saved food_type, name, description…" after a no-op — a
+             * confirmation that is wrong is worse than none. And `0001` §14 bumps
+             * `school_menu_version` on any `dish` update, which **expires every client's cached
+             * menu**; doing that because somebody opened a drawer and pressed Save is a real cost
+             * paid by people on bad connections.
+             */
+            const same = (a: unknown, b: unknown) =>
+              Array.isArray(a) && Array.isArray(b)
+                ? a.length === b.length && [...a].sort().join() === [...b].sort().join()
+                : a === b;
+            const changedKeys = (Object.keys(patch) as (keyof typeof patch)[])
+              .filter((k) => k !== 'id' && !same(patch[k], (d as unknown as Record<string, unknown>)[k]));
+
+            if (changedKeys.length === 0) {
+              saidSaved('Nothing to save — those are already the values.');
               return;
             }
 
-            edit = {
-              dish: {
-                id: form.dataset.dish,
-                name,
-                foodType: foodType === '' ? null : foodType,
-                description: text('description'),
-                ingredientsText: text('ingredientsText'),
-                caloriesText: text('caloriesText'),
-                portionText: text('portionText'),
-                caloriesKcal: kcal === '' ? null : Number(kcal),
-                allergens: data.getAll('allergens').map(String),
-                isActive: data.get('isActive') !== null,
-              },
-            };
+            const result = await api.updateCatalogue({
+              dish: Object.fromEntries([['id', patch.id], ...changedKeys.map((k) => [k, patch[k]])]) as typeof patch,
+            });
+
+            Object.assign(d, patch);
+            el.title.textContent = name;
+            repaintRow(d.id);
+            saidSaved(result.changed.length
+              ? `Saved ${result.changed.join(', ')}.`
+              : 'Nothing changed — those were already the values.');
           } else {
             const days = data.getAll('availableDays').map(Number).sort((a, b) => a - b);
-            if (days.length === 0) {
-              showFormError(form, 'Pick at least one day, or untick "On this menu" to take the dish off.');
+            if (days.length === 0) { showFormError(form, 'Pick at least one day, or untick "On this menu".'); return; }
+            const menuId = form.dataset.menu!, dishId = form.dataset.dishId!;
+            const pricePaise = Number(data.get('pricePaise'));
+            const isActive = data.get('isActive') !== null;
+            const before = menus.find((m) => m.id === menuId)?.items.find((i) => i.dishId === dishId);
+            if (before && before.pricePaise === pricePaise && before.isActive === isActive
+                && before.availableDays.join() === days.join()) {
+              saidSaved('Nothing to save — those are already the values.');
               return;
             }
-            edit = {
-              menuItem: {
-                menuId: form.dataset.menu!,
-                dishId: form.dataset.dishId!,
-                pricePaise: Number(data.get('pricePaise')),
-                availableDays: days,
-                isActive: data.get('isActive') !== null,
-              },
-            };
-          }
+            await api.updateCatalogue({ menuItem: { menuId, dishId, pricePaise, availableDays: days, isActive } });
 
-          const result = await api.updateCatalogue(edit);
-          el.status.textContent = result.changed.length
-            ? `Saved: ${result.changed.join(', ')}.`
-            : 'Nothing changed — those were already the values.';
-          await load();
+            const item = menus.find((m) => m.id === menuId)?.items.find((i) => i.dishId === dishId);
+            if (item) Object.assign(item, { pricePaise, availableDays: days, isActive });
+            repaintRow(dishId);
+            saidSaved('Saved the price and days.');
+            return;
+          }
         } catch (cause) {
           showFormError(form, cause instanceof Error ? cause.message : 'The change was not saved.');
         }
       }
 
+      // -------------------------------------------------------------------------------- images
 
-      /**
-       * Upload a photo for one dish — `E10-24`.
-       *
-       * Resized in the browser first. The status goes on the field rather than the page banner
-       * because on a list of 79 dishes the person needs to see which row is busy.
-       */
       async function uploadImage(dishId: string, input: HTMLInputElement) {
         const file = input.files?.[0];
         if (!file) return;
-        const field = input.closest('.admin__field');
-        const say = (message: string, isError = false) => {
-          let note = field?.querySelector('[data-img-note]') as HTMLElement | null;
-          if (!note && field) {
-            note = document.createElement('p');
-            note.setAttribute('data-img-note', '');
-            note.className = isError ? 'admin__error' : 'admin__hint';
-            if (isError) note.setAttribute('role', 'alert');
-            field.append(note);
-          }
-          if (note) { note.textContent = message; note.className = isError ? 'admin__error' : 'admin__hint'; }
-        };
-
-        if (demo) { say('This is the demo view — nothing is uploaded.'); return; }
-
+        if (demo) { saidSaved('Demo view — nothing is uploaded.'); return; }
         try {
-          say('Resizing…');
+          saidSaved('Resizing…');
           const prepared = await prepareDishImage(file);
-          say(`Uploading ${Math.round(prepared.bytes / 1024)} kB (from ${Math.round(file.size / 1024)} kB)…`);
-          await api.uploadDishImage({
-            dishId,
-            filename: file.name,
-            contentType: prepared.contentType,
-            dataBase64: prepared.dataBase64,
-            width: prepared.width,
-            height: prepared.height,
+          saidSaved(`Uploading ${Math.round(prepared.bytes / 1024)} kB…`);
+          const res = await api.uploadDishImage({
+            dishId, filename: file.name, contentType: prepared.contentType,
+            dataBase64: prepared.dataBase64, width: prepared.width, height: prepared.height,
           });
-          el.status.textContent = 'Photo uploaded.';
-          await load();
+          const d = dishes.find((x) => x.id === dishId)!;
+          d.imageAssetId = res.assetId;
+          assetPaths.set(res.assetId, res.path);
+          repaintRow(dishId);
+          openDrawer(dishId);
+          saidSaved('Photo uploaded.');
         } catch (cause) {
-          say(cause instanceof Error ? cause.message : 'The photo was not uploaded.', true);
+          saidSaved(cause instanceof Error ? cause.message : 'The photo was not uploaded.');
         }
       }
 
       async function removeImage(dishId: string) {
-        if (demo) { el.status.textContent = 'This is the demo view — nothing is written.'; return; }
-        if (!confirm('Remove this photo? The dish will show no image until another is uploaded.')) return;
+        if (demo) { saidSaved('Demo view — nothing is written.'); return; }
+        if (!confirm('Remove this photo? The dish shows no image until another is uploaded.')) return;
         try {
           await api.removeDishImage(dishId);
-          el.status.textContent = 'Photo removed.';
-          await load();
+          const d = dishes.find((x) => x.id === dishId)!;
+          d.imageAssetId = null;
+          repaintRow(dishId);
+          openDrawer(dishId);
+          saidSaved('Photo removed.');
         } catch (cause) {
-          error = cause instanceof Error ? cause.message : 'The photo was not removed.';
-          render();
+          saidSaved(cause instanceof Error ? cause.message : 'The photo was not removed.');
         }
       }
 
-      el.body.addEventListener('submit', (event) => {
-        const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;
-        if (!form || (!form.dataset.dish && !form.dataset.menu)) return;
-        event.preventDefault();
-        void save(form);
-      });
-      el.body.addEventListener('click', (event) => {
+      // -------------------------------------------------------------------------------- events
+
+      const onQueryChange = () => { writeQuery(); render(); };
+
+      el.q.addEventListener('input', () => { query = { ...query, text: el.q.value }; onQueryChange(); });
+      el.menu.addEventListener('change', () => { query = { ...query, menu: el.menu.value }; onQueryChange(); });
+      el.type.addEventListener('change', () => { query = { ...query, foodType: el.type.value as DishQuery['foodType'] }; onQueryChange(); });
+      el.allerg.addEventListener('change', () => { query = { ...query, allergens: el.allerg.value as DishQuery['allergens'] }; onQueryChange(); });
+      el.photo.addEventListener('change', () => { query = { ...query, photo: el.photo.value as DishQuery['photo'] }; onQueryChange(); });
+      el.sort.addEventListener('change', () => { query = { ...query, sort: el.sort.value as DishQuery['sort'] }; onQueryChange(); });
+
+      const clearAll = () => { query = { ...EMPTY_QUERY }; fillControls(); onQueryChange(); };
+      el.clear.addEventListener('click', clearAll);
+
+      el.list.addEventListener('click', (event) => {
         const t = event.target as HTMLElement;
         if (t.closest('[data-retry]')) { void load(); return; }
-
-        const jump = t.closest('[data-filter]') as HTMLElement | null;
-        if (jump) {
-          setFilter(jump.dataset.filter ?? ALL_DISHES);
-          // The dish list is below the school it was reached from, so scroll rather than leave
-          // somebody looking at an unchanged screen wondering whether the button did anything.
-          document.getElementById('dishes-h')?.scrollIntoView({ behavior: 'smooth' });
-          return;
-        }
-
-        const select = t.closest('[data-select]') as HTMLElement | null;
-        if (select) {
-          const mode = select.dataset.select;
-          const visible = filterDishes(dishes, menus, filter);
-          picked.clear();
-          if (mode === 'all') visible.forEach((d) => picked.add(d.id));
-          if (mode === 'unmarked') visible.filter((d) => d.foodType === null).forEach((d) => picked.add(d.id));
-          render();
-          return;
-        }
-
-        const apply = t.closest('[data-apply]') as HTMLElement | null;
-        if (apply) { void applyFoodType(apply.dataset.apply ?? ''); return; }
-
-        const removeImg = t.closest('[data-image-remove]') as HTMLElement | null;
-        if (removeImg) { void removeImage(removeImg.dataset.imageRemove!); return; }
+        if (t.closest('[data-clear]')) { clearAll(); return; }
+        const open = t.closest('[data-open]') as HTMLElement | null;
+        if (open) openDrawer(open.dataset.open!);
       });
 
-      // Not delegated through `click` on the label: a checkbox toggled by keyboard fires `change`
-      // and not a click on the input, and this list is long enough that somebody will tab it.
-      el.body.addEventListener('change', (event) => {
-        const target = event.target as HTMLElement;
-
-        if (target.id === 'm-filter') {
-          setFilter((target as HTMLSelectElement).value);
-          return;
-        }
-
-        const picker = event.target as HTMLInputElement;
-        if (picker.dataset?.image) { void uploadImage(picker.dataset.image, picker); return; }
-
+      el.list.addEventListener('change', (event) => {
         const box = event.target as HTMLInputElement;
         const id = box.dataset?.pick;
         if (!id) return;
-        if (box.checked) picked.add(id);
-        else picked.delete(id);
-        // Re-render only the bar's count, not the list — a full render would drop focus from the
-        // checkbox somebody just used, which makes tabbing through 79 rows impossible.
-        const count = el.body.querySelector('.bulkbar__count');
-        if (count) {
-          count.innerHTML = picked.size === 0
-            ? 'Nothing selected'
-            : `<b>${picked.size}</b> selected — set ${picked.size === 1 ? 'it' : 'them'} to:`;
-        }
-        el.body.querySelectorAll('[data-apply]').forEach((b) => {
-          (b as HTMLButtonElement).disabled = picked.size === 0;
-        });
+        if (box.checked) picked.add(id); else picked.delete(id);
+        renderBulk();
       });
-      el.reload.addEventListener('click', () => void load());
+
+      el.bulk.addEventListener('click', (event) => {
+        const t = event.target as HTMLElement;
+        const apply = t.closest('[data-apply]') as HTMLElement | null;
+        if (apply) { void applyFoodType(apply.dataset.apply!); return; }
+        if (t.closest('[data-selnone]')) { picked.clear(); render(); return; }
+        if (t.closest('[data-selall]')) { shown.forEach((r) => picked.add(r.dish.id)); render(); }
+      });
+
+      el.body.addEventListener('submit', (event) => {
+        const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;
+        if (!form) return;
+        event.preventDefault();
+        void save(form);
+      });
+      el.body.addEventListener('change', (event) => {
+        const input = event.target as HTMLInputElement;
+        if (input.dataset?.image) void uploadImage(input.dataset.image, input);
+      });
+      el.body.addEventListener('click', (event) => {
+        const rm = (event.target as HTMLElement).closest('[data-image-remove]') as HTMLElement | null;
+        if (rm) void removeImage(rm.dataset.imageRemove!);
+      });
+
+      $('drawer-close').addEventListener('click', closeDrawer);
+      el.scrim.addEventListener('click', closeDrawer);
+
+      addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !el.drawer.hidden) { closeDrawer(); return; }
+        // `/` to search is what every list-with-search does, and it is the difference between
+        // reaching for the mouse and not.
+        if (event.key === '/' && document.activeElement !== el.q) {
+          const tag = (document.activeElement as HTMLElement)?.tagName;
+          if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+            event.preventDefault(); el.q.focus(); el.q.select();
+          }
+        }
+      });
 
       void (async () => {
         try {

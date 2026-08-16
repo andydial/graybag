@@ -320,3 +320,41 @@ system. Two of the fourteen were that shape and both were mine.
 
 Fixing the names alone took the page from 17,213px to 14,539px and gave it a hierarchy. That is
 the floor the redesign starts from, not the redesign.
+
+## D-17M — `/admin/menus` is a workbench, not a list
+
+**What the screen is for.** Nobody opens it to browse. They open it because *one* dish is wrong and
+they know its name. Reach it, change one field, confirm, leave. Every decision below serves that.
+
+**A row is one line.** Photo, name, category, food type, allergen state, and every menu it is on
+with the price there. 79 dishes went from **17,213px to 6,013px** — 13 rows visible at once instead
+of 4. Scrolling became orientation instead of search.
+
+**Editing is a drawer, not an inline `<details>`.** A panel over the list physically cannot move
+the list, which is the whole reason for it. Saving repaints one row and leaves the drawer open with
+a confirmation; nothing re-renders, nothing re-sorts, nothing touches scroll. Measured rather than
+asserted: open at scrollY 2400 with the row at viewport y=1139, save, and both are still 2400 and
+1139.
+
+**No body-scroll lock.** The usual `overflow: hidden` on `<body>` while a panel is open takes the
+scrollbar away, re-lays out the page and *moves it* — the one thing this screen promises not to do.
+`overscroll-behavior: contain` on the drawer achieves the same containment and cannot move anything.
+
+**Search ranks rather than filters.** Name-prefix beats name-substring beats category beats menu
+beats ingredient, and every term must match so a second word narrows. Typing "pan" puts *Pancakes*
+first, ahead of seven *Paneer* dishes it also matches — an alphabetical filter would have buried it.
+Ingredients are searchable because some dishes are remembered as "the one with paneer".
+
+**Filters are states, not taxonomies**, and each carries its count: "Not checked (79)",
+"Missing (2)", "On no menu (0)". The work left is visible without clicking. The query lives in the
+URL, so a filtered view survives a reload and can be sent to somebody.
+
+**Only what changed is sent.** Posting the whole form made the server report ten fields as saved
+after a no-op — a confirmation that is wrong is worse than none — and `0001` §14 bumps
+`school_menu_version` on any `dish` update, **expiring every client's cached menu**. Paying that
+because somebody opened a drawer and pressed Save is a real cost on the connections this product is
+built for. An unchanged save now makes no request at all.
+
+**Two bugs found by looking at it.** The drawer and the bulk bar both rendered on first paint:
+`[hidden]` is `display: none` only at UA specificity, and any class rule setting `display: flex`
+silently beats it. The drawer was covering the price column it exists to edit.
