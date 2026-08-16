@@ -97,3 +97,86 @@ describe('the three states MI1 says must never be conflated', () => {
     expect(allergenState({ allergens: ['milk'], allergensDeclaredNone: true })).toBe('tagged');
   });
 });
+
+describe('egg, peanut and sesame — `0064`', () => {
+  it('suggests egg from the ingredient list', () => {
+    expect(codes('Omelette w Toast', 'Eggs, onion, tomato, bread')).toContain('egg');
+  });
+
+  it('egg-the-allergen is independent of egg-the-food-type', () => {
+    // A cake made with egg is sold as `food_type: 'veg'` and still contains egg. This module has
+    // no opinion on food type at all — collapsing the two would either mislabel cakes as egg
+    // dishes or leave egg-allergic children with nothing to match on.
+    expect(codes('Chocolate Muffin', 'Flour, cocoa powder, milk, eggs')).toEqual(
+      expect.arrayContaining(['egg', 'gluten', 'milk']),
+    );
+  });
+
+  it('flags mayonnaise for egg, and says to ask', () => {
+    // Deliberately the opposite lean from the food-type classifier: there, eggless is the likelier
+    // truth so the dish is proposed veg. Here a miss is the failure that matters, so it is
+    // suggested — and caveated, because it genuinely is a guess.
+    const egg = suggestAllergens({ name: 'Veg Sandwich', ingredientsText: 'Capsicum, Corn, Mayo' })
+      .find((s) => s.code === 'egg');
+    expect(egg?.caveat).toMatch(/ask/i);
+  });
+
+  it('a peanut is not a tree nut', () => {
+    // `0064`: a peanut is a legume, and a great many people are allergic to one and not the other.
+    // Tagging a peanut dish `tree_nut` tells a peanut-allergic family nothing and alarms a family
+    // that only avoids cashews.
+    const found = codes('Satay Wrap', 'Groundnut sauce, roti, veggies');
+    expect(found).toContain('peanut');
+    expect(found).not.toContain('tree_nut');
+  });
+
+  it('a cashew is still a tree nut and not a peanut', () => {
+    const found = codes('Kaju Barfi', 'Kaju, sugar, ghee');
+    expect(found).toContain('tree_nut');
+    expect(found).not.toContain('peanut');
+  });
+
+  it('suggests sesame, including from a bun that does not name it', () => {
+    expect(codes('Til Chikki', 'Sesame, jaggery')).toContain('sesame');
+    const bun = suggestAllergens({ name: 'Veg Burger', ingredientsText: 'Burger bun, patty, sauce' })
+      .find((s) => s.code === 'sesame');
+    expect(bun?.caveat).toMatch(/sesame-topped/i);
+  });
+
+  it('every suggested code is one the database actually has', () => {
+    // `dish_allergen` references `allergen`; an invented code is a tag that silently never matches.
+    const all = suggestAllergens({
+      name: 'Everything',
+      ingredientsText: 'milk egg wheat cashew peanut soy sesame',
+    });
+    expect(all.map((s) => s.code).sort()).toEqual(
+      ['egg', 'gluten', 'milk', 'peanut', 'sesame', 'soy', 'tree_nut'],
+    );
+  });
+});
+
+describe('words hiding inside other words', () => {
+  it('"veggies" does not contain egg', () => {
+    // The bug that mattered. Matching was substring-based, "veggies" contains "egg", and every
+    // vegetable dish in the catalogue would have been suggested as containing egg — on the screen
+    // whose entire job is to be trusted about allergens. A test caught it; a menu would not have.
+    expect(codes('Veggie Wrap', 'Roti, lettuce, cucumber, carrot, veggies')).not.toContain('egg');
+  });
+
+  it('a real egg still matches when the word stands alone', () => {
+    // The other half: making it whole-word must not stop it finding the thing it exists to find.
+    expect(codes('Boiled Eggs (3 pcs)', 'Eggs, salt')).toContain('egg');
+    expect(codes('Egg Roll', 'Egg omelette with veggies')).toContain('egg');
+  });
+
+  it('"til" as a whole word is sesame, but "until" and "utensil" are not', () => {
+    expect(codes('Til Laddoo', 'Til, jaggery')).toContain('sesame');
+    expect(codes('Prep Note', 'Rest until set in a clean utensil')).not.toContain('sesame');
+  });
+
+  it('"tofu" matches but "tofurkey-free" style noise does not trip other codes', () => {
+    expect(codes('Tofu Salad', 'Tofu, cucumber, sesame')).toEqual(
+      expect.arrayContaining(['soy', 'sesame']),
+    );
+  });
+});

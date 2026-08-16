@@ -47,6 +47,30 @@ const MIGRATIONS = join(ROOT, 'supabase', 'migrations');
 // Files that legitimately reference seed data instead of creating their own.
 const ASSERTS_THE_SEED = new Set(['seed.test.sql']);
 
+/**
+ * Migration-seeded UUIDs a test may name without carrying the test marker.
+ *
+ * The same accommodation `SHARED_ON_PURPOSE` already makes for the `milk` and `tree_nut` codes,
+ * and for the same reason: **reference data belongs to the schema, not to the fixtures.** A test
+ * that seeds its own copy of the allergen vocabulary stops testing the vocabulary people run —
+ * and once `0064` made `peanut` real, a second row for it violated `allergen_code_key` and took
+ * the whole authorization file down. Two rows for one allergen is also precisely the state that
+ * lets a warning match one copy and miss the other.
+ *
+ * ## Why an allowlist and not "only ids the test inserts"
+ *
+ * That is the rule this check *states*, and it is the right one — but these ids appear inside
+ * `insert into recipient_allergen` and `insert into dish_allergen` as **foreign keys**, so
+ * inserts-only would not exempt them. Telling a foreign key from a primary key needs the insert's
+ * column list parsed, which this file already calls out as real work and files as `E02-25`.
+ *
+ * Until then: an entry here is a decision with a reason attached, which is the same bargain the
+ * slug list makes. Adding one should feel deliberate.
+ */
+const SEEDED_BY_MIGRATION = new Map([
+  ['a1000000-0000-0000-0000-000000000006', 'allergen `peanut`, seeded by 0064 — referenced as an FK, never inserted'],
+]);
+
 const MARKER = '7e57';
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
 const PHONE = /\+[1-9][0-9]{7,14}/g;
@@ -185,13 +209,15 @@ if (testFiles.length === 0) {
 for (const file of testFiles) {
   const found = uuidsIn(join(TESTS, file));
 
-  // 2. Every fixture id must carry the marker.
-  const unmarked = [...found].filter((u) => secondGroup(u) !== MARKER);
+  // 2. Every fixture id must carry the marker — except reference data the schema owns.
+  const unmarked = [...found].filter((u) => secondGroup(u) !== MARKER && !SEEDED_BY_MIGRATION.has(u));
   if (unmarked.length > 0) {
     failures.push(
       `supabase/tests/${file} has ${unmarked.length} fixture id(s) without the ${MARKER} marker:\n` +
         unmarked.map((u) => `    ${u}`).join('\n') +
-        `\n  Put ${MARKER} in the second group, e.g. a0000000-${MARKER}-0000-0000-000000000001`,
+        `\n  Put ${MARKER} in the second group, e.g. a0000000-${MARKER}-0000-0000-000000000001` +
+        `\n  — or, if this is reference data a migration seeds and the test only references,` +
+        `\n  add it to SEEDED_BY_MIGRATION with the reason.`,
     );
   }
 
