@@ -427,3 +427,36 @@ with `prefers-reduced-motion: reduce` every transition reports `0s` and the step
 
 **Cost:** home page JS **1,034 B gzipped** against a 10,000 budget, no library, no third-party
 request. CSS 13,123 of 18,000. First load 229 kB of 400 kB.
+
+## D-17Q — the kitchen board on a phone
+
+Andy: *"used by staff on their feet, in a hurry, possibly on a phone. Different problem from the
+admin screens."*
+
+Measured at 390×844 before touching it: **the header took 540 of 844 device pixels — 64% of the
+first screen — before a single item of food.** The date wrapped to three lines, the filter line and
+Refresh took a full 56px row each, and the tray-count chips were clipped behind a horizontal
+scrollbar inside a vertically-scrolling list.
+
+The **56px targets stay.** They are correct for this context — the comment in the stylesheet says
+"wet hands, in a hurry" and it is right. They were never what cost the space.
+
+What changed: the day nav takes one row and the filter line shares the next with Refresh, which
+collapses to a glyph because it is the least important control on the screen and was the widest.
+The order count is dropped from the bar because it is already on the board below and was wrapping
+to a second line. Tray chips wrap instead of scrolling sideways.
+
+**Delivered is ranked.** It was one of three identical buttons; it is the action taken on nineteen
+orders in twenty. It is now primary, ordered first, and owns a full-width row.
+
+**Bar 270 CSS px → 136. Food starts at 280px of 844 — 33% of the screen, down from 64%.**
+
+Two bugs, both invisible in the code and obvious in the render, both **specificity**:
+`.kitchen__actions > .kitchen__btn` (0,2,0) silently beat `.kitchen__act--main` (0,1,0) so Delivered
+kept sharing its row; and a `display: none` on the glyph declared *after* the media query beat the
+query by source order. The same shape as the `[hidden]` bug on the dish workbench earlier tonight.
+
+And one the render could not have caught: hiding the word "Refresh" left the button with **no
+accessible name at all** at 390px, because the glyph beside it is `aria-hidden`. The a11y gate
+caught it. That is the second time tonight a gate has caught something a careful look at the screen
+would not.
