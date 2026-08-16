@@ -8,7 +8,7 @@ const clean = (over = {}) => ({
   schools: [
     { id: 's-1', code: 'amity', name: 'Amity', isActive: true, onboardedAt: '2026-08-01', serviceDays: [1, 2, 3, 4, 5] },
   ],
-  dishes: [{ id: 'd-1', name: 'Veg Sandwich', foodType: 'veg', isActive: true }],
+  dishes: [{ id: 'd-1', name: 'Veg Sandwich', foodType: 'veg', isActive: true, ingredientsText: 'Capsicum, corn', description: null }],
   menus: [{ id: 'm-1', name: 'Term 1', status: 'active' }],
   menuItems: [{ menuId: 'm-1', dishId: 'd-1', isActive: true }],
   assignments: [{ schoolId: 's-1', menuId: 'm-1', isLive: true }],
@@ -245,4 +245,46 @@ test('with no allergen vocabulary at all, only the vocabulary is reported', () =
   const found = findings(clean({ allergens: [], dishAllergens: [], declaredNone: [] }));
   assert.equal(found.filter((f) => /nobody has checked/.test(f.title)).length, 0);
   assert.match(found[0].title, /no allergens exist/);
+});
+
+// --------------------------------------------------- the label contradicting the ingredients
+
+test('a dish marked veg whose ingredients name egg is a blocker', () => {
+  // The error an unmarked-dish check cannot see: the dish IS marked, the count is complete, and
+  // the report is otherwise green. Six production dishes were in this state, including
+  // "Boiled Eggs (3 pcs)" with ingredients "Eggs, salt".
+  const found = findings(clean({
+    dishes: [{ id: 'd-1', name: 'Boiled Eggs (3 pcs)', foodType: 'veg', isActive: true,
+               ingredientsText: 'Eggs, salt', description: null }],
+  }));
+  const f = found.find((x) => /ingredients say otherwise/.test(x.title));
+  assert.ok(f, 'expected a contradiction finding');
+  assert.equal(f.level, BLOCKER);
+  assert.match(f.names[0], /Boiled Eggs/);
+});
+
+test('a correctly marked egg dish is not reported', () => {
+  assert.equal(findings(clean({
+    dishes: [{ id: 'd-1', name: 'Boiled Eggs', foodType: 'egg', isActive: true,
+               ingredientsText: 'Eggs, salt', description: null }],
+  })).filter((f) => /ingredients say otherwise/.test(f.title)).length, 0);
+});
+
+test('a low-confidence disagreement is NOT reported', () => {
+  // Mayonnaise is the caveated case: the classifier proposes veg but says to ask. Reporting it
+  // here would put a judgement call in a list of factual contradictions, and a blocker list with
+  // arguable entries stops being read.
+  assert.equal(findings(clean({
+    dishes: [{ id: 'd-1', name: 'Veg Sandwich', foodType: 'veg', isActive: true,
+               ingredientsText: 'Capsicum, Corn, Mayo', description: null }],
+  })).filter((f) => /ingredients say otherwise/.test(f.title)).length, 0);
+});
+
+test('over-caution is not a blocker', () => {
+  // A dish marked `egg` whose list reads vegetarian is the safe direction. Only the misleading
+  // one is reported.
+  assert.equal(findings(clean({
+    dishes: [{ id: 'd-1', name: 'Fruit Bowl', foodType: 'egg', isActive: true,
+               ingredientsText: 'Seasonal fruit', description: null }],
+  })).filter((f) => /ingredients say otherwise/.test(f.title)).length, 0);
 });

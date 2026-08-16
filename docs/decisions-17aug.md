@@ -190,3 +190,46 @@ matching is deferred, the tags are the entire mechanism.** A kitchen hand reads 
 on it — that is a person doing the matching, and on day one it is the only thing doing it. That
 makes an untagged dish a bigger problem in v1 than it would be with matching switched on, not a
 smaller one.
+
+---
+
+## D-17I — six dishes are marked veg and contain egg; I reported it and did not change it
+
+Found by the final `check:launch`. All 79 dishes are now marked — 76 `veg`, 3 `egg` — and six of
+the `veg` ones name egg in their own ingredient list:
+
+| Dish | Ingredients |
+|---|---|
+| **Boiled Eggs (3 pcs)** | **Eggs, salt** |
+| Scrambled Egg w Toast | Eggs, milk, butter, bread |
+| Boiled Egg Mix In Brown Wheat Multigrain Sub Sandwich | Boiled Egg, Cucumber, … |
+| French Toast with Choco Syrup | Bread, eggs, milk, sugar |
+| Pancakes w Honey | Flour, milk, eggs, sugar, honey |
+| Chocolate Muffin | Flour, cocoa powder, milk, eggs |
+
+`review/food-types.csv` proposed **`egg` at high confidence for every one of them**, so whatever
+was applied overrode the proposal rather than missing it.
+
+**I did not change them.** Food type is Andy's data and he said so explicitly; a wrong veg marking
+is the worst error this product can make and that cuts both ways — me silently relabelling six
+dishes on production would be the same class of act. So it is reported, precisely, and left.
+
+What I did add is the check that catches it. The unmarked-dish blocker could never have: the dish
+*is* marked, the count is complete, the report goes green. `check:launch` now runs the same
+classifier that generates the proposal CSV and reports **high-confidence contradictions only** — a
+mayonnaise caveat or a dish with no ingredient list never appears, so what is left is a direct
+disagreement between the label and the ingredients. Only the misleading direction blocks; a dish
+marked `egg` whose list reads vegetarian is over-cautious, and over-cautious is not a blocker.
+
+The three arguable ones are arguable in one direction only. Indian bakeries label *eggless*
+explicitly precisely because egg-containing baked goods are not vegetarian to the people checking.
+"Boiled Eggs (3 pcs)" is not arguable at all.
+
+---
+
+## D-17J — still no captured payment on production
+
+`payment` now has one row, `status = created`, `captured_at` null. All three orders are
+`cancelled`. So the checkout reaches Razorpay and the order is created, and nothing comes back —
+the same shape as yesterday, one step further along. There is still no paid order and therefore
+nothing on the kitchen board.
