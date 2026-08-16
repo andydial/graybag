@@ -236,6 +236,35 @@ for (const page of html) {
   }
 }
 
+/**
+ * No inline `<script>` anywhere in the build — `E12-36`.
+ *
+ * `netlify.toml` sends `Content-Security-Policy: … script-src 'self'`, so the browser **refuses**
+ * an inline script. There is no console error a visitor would see and no visual failure if the
+ * script was progressive enhancement: the page simply behaves as though the code was never
+ * written. That is exactly what happened to the home page's motion, which shipped dead — and it
+ * passed every check, because a local file server sends no CSP and the page still rendered.
+ *
+ * `application/ld+json` is data, not script, and is not covered by `script-src`.
+ */
+const inlineScripts = [];
+for (const page of html) {
+  const source = readFileSync(page.path, 'utf8');
+  for (const tag of source.matchAll(/<script\b([^>]*)>/gi)) {
+    const attrs = tag[1] ?? '';
+    if (/\bsrc=/i.test(attrs)) continue;
+    if (/type=["']application\/ld\+json["']/i.test(attrs)) continue;
+    inlineScripts.push(`${page.rel}  <script${attrs}>`);
+  }
+}
+if (inlineScripts.length > 0) {
+  fail(
+    `${inlineScripts.length} inline <script> tag(s), which the site's CSP (script-src 'self') ` +
+      `refuses to execute:\n    ${inlineScripts.join('\n    ')}\n` +
+      `  Drop \`is:inline\` so Astro bundles it to a file served from the origin.`,
+  );
+}
+
 // ------------------------------------------------------------------- report
 
 console.log('Build checks:');
@@ -246,5 +275,6 @@ if (problems.length) {
   for (const problem of problems) console.error(`  - ${problem}`);
   process.exit(1);
 }
+
 
 console.log(`  no store links, no third-party assets, ${html.length} page(s) with sound internal links.`);

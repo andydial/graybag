@@ -2898,3 +2898,24 @@ is untested no matter how many assertions surround it.
 
 Found by exercising the real endpoint against production as a real parent. No amount of staring at
 the suite would have surfaced it, because the suite was green and honest.
+
+## A local build and a deployed site differ by their response headers
+
+2026-08-17. Home-page motion was reported finished and verified — locally. In production it had
+never run once: `netlify.toml` sends `script-src 'self'` and the script was inline, so the browser
+refused it. A static file server sends no CSP, so the local check could not have caught it and the
+console was clean.
+
+Two things follow.
+
+**Verify the artefact the visitor receives.** For anything that depends on headers — CSP, CORS,
+caching, `X-Robots-Tag` — a local render proves nothing. Probe the deployed URL.
+
+**Silent degradation hides its own failure.** The design was deliberately fail-open: nothing is
+hidden unless the script adds `html.js`, so if the script dies the page still reads. That is the
+right behaviour, and it is exactly why nobody noticed for a day — a fail-open feature that is
+entirely broken looks identical to one that is switched off. Where a feature degrades silently,
+something else has to assert it is alive. Here it is a build-time guard on inline scripts.
+
+Related: a build guard placed after the block that ends in `process.exit(1)` never runs. Prove a
+new guard fails by feeding it the thing it is meant to catch, before trusting it.
