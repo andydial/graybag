@@ -56,7 +56,7 @@ try {
     await Promise.all([
       rows(db.from('school').select('id,code,name,is_active,onboarded_at'), 'schools'),
       rows(db.from('school_config').select('school_id,service_days'), 'school config'),
-      rows(db.from('dish').select('id,name,food_type,is_active'), 'dishes'),
+      rows(db.from('dish').select('id,name,food_type,is_active,ingredients_text,description'), 'dishes'),
       rows(db.from('menu').select('id,name,status'), 'menus'),
       rows(db.from('menu_item').select('menu_id,dish_id,is_active'), 'menu items'),
       rows(db.from('menu_assignment').select('school_id,menu_id,valid_from,valid_to,revoked_at'), 'assignments'),
@@ -80,6 +80,10 @@ try {
     })),
     dishes: dishes.map((d) => ({
       id: d.id, name: d.name, foodType: d.food_type ?? null, isActive: d.is_active !== false,
+      // Read so the contradiction check can compare the label against the ingredients. Same two
+      // fields `review/food-types.csv` is generated from, and the same classifier reads them.
+      ingredientsText: d.ingredients_text ?? null,
+      description: d.description ?? null,
     })),
     menus: menus.map((m) => ({ id: m.id, name: m.name, status: m.status })),
     menuItems: menuItems.map((i) => ({

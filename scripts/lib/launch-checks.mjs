@@ -13,6 +13,8 @@
 // alone, and "3 schools have no menu" without the command to fix it is half an answer.
 
 /** `blocker` stops ordering outright. `warning` degrades it. Nothing else exists on purpose. */
+import { HIGH, proposeFoodType } from './food-type.mjs';
+
 export const BLOCKER = 'blocker';
 export const WARNING = 'warning';
 
@@ -49,6 +51,46 @@ export function findings(s) {
       names: [],
       more: 0,
       fix: 'Apply supabase/migrations/0063_allergen_vocabulary.sql. Tagging which dish contains what is separate, and is yours.',
+    });
+  }
+
+  // ------------------------------------------------- a food type the ingredients contradict
+  //
+  // Not "unmarked" — **marked, and marked wrongly**. A dish whose own ingredient list names egg
+  // or meat while `food_type` says `veg`.
+  //
+  // This is the error Andy named as the worst this product can make, and it is the one an
+  // unmarked-dish check cannot see: the dish is marked, the count is complete, the report is
+  // green. "Boiled Eggs (3 pcs)", ingredients "Eggs, salt", marked `veg` is not a judgement call
+  // about Indian labelling convention — it is a vegetarian family being told a boiled egg is
+  // vegetarian, on our say-so.
+  //
+  // Only **high-confidence** contradictions are reported, from the same classifier that generates
+  // `review/food-types.csv` — so a mayonnaise caveat or a dish with no ingredient list never
+  // appears here. What is left is a direct disagreement between the label and the ingredients.
+  const contradicted = s.dishes
+    .filter((d) => d.isActive && d.foodType !== null)
+    .map((d) => ({ dish: d, proposal: proposeFoodType(d) }))
+    .filter(
+      ({ dish, proposal }) =>
+        proposal.confidence === HIGH &&
+        proposal.foodType !== null &&
+        proposal.foodType !== dish.foodType &&
+        // Only the direction that misleads. A dish marked `egg` whose list happens to read
+        // vegetarian is over-cautious, and over-cautious is not a launch blocker.
+        dish.foodType === 'veg',
+    );
+  if (contradicted.length > 0) {
+    out.push({
+      level: BLOCKER,
+      title: `${plural(contradicted.length, 'dish', 'dishes')} marked veg whose ingredients say otherwise`,
+      detail:
+        'The ingredient list names egg or meat and the dish is labelled vegetarian. In this ' +
+        'market that is the first thing many families check, and being wrong about it is worse ' +
+        'than saying nothing.',
+      names: contradicted.slice(0, 8).map(({ dish, proposal }) => `${dish.name} (${proposal.why})`),
+      more: Math.max(0, contradicted.length - 8),
+      fix: 'Check these on /admin/menus. review/food-types.csv proposed `egg` for each of them at high confidence.',
     });
   }
 
