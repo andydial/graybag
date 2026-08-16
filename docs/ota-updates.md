@@ -42,7 +42,12 @@ Production · 394dd2f · OTA 4625c38    ← a downloaded update, id shown
 ```
 
 `394dd2f` is the commit the **binary** was built from and never moves when an update lands —
-that is why the third segment exists. Match the `OTA` id against:
+that is why the third segment exists.
+
+**The id shown is the platform update id, not the group id.** `eas update` and `eas update:list`
+print the *group*; each platform inside a group has its own id, and the app reports the one it is
+running. They are different strings for the same publish, so matching on the prefix will look
+like a mismatch when nothing is wrong. Match on the publish message or timestamp:
 
 ```sh
 npx eas update:list --branch production
