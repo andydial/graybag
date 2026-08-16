@@ -392,3 +392,38 @@ spilling out of it**, which is how I noticed.
 Overridden inside the admin shell rather than changed at source, so the kitchen keeps its 56px.
 This is the first concrete instance of Andy's "the kitchen screens are a different problem" — the
 two had been sharing one control vocabulary and it fitted neither.
+
+## D-17P — motion on the home page, and the failure mode it must not have
+
+Andy: *"it's bland in places… motion should support the content, not decorate it."*
+
+The **hero was already strong** — real product, real dish photography, a clear proposition — so it
+is untouched and deliberately does not animate: it is above the fold and must be there on the
+first frame. What was bland was everything below it, and the worst of it was the "For your school"
+section, where the argument occupied the left half and the right half was **empty white**.
+
+Four devices, each doing a job:
+
+| | |
+|---|---|
+| **Reveal on scroll** | gives a 6,500px page a rhythm; each section arrives as a unit rather than being a wall that was always there |
+| **The process rail** | a line joining the four numbered steps, only at the width where they sit in a row — the copy asserts a sequence and the layout did not |
+| **The ledger** | *2* things your school does, *7* things we do — drawn, in the half of the section that was empty. Both numbers are counted from the lists beside them, never asserted |
+| **The card lift** | tells you a card is a thing rather than a paragraph in a box |
+
+No parallax, nothing autoplays, nothing loops, and nothing moves that a person is trying to read.
+
+**The failure mode that mattered more than the animation.** Hiding content until an observer says
+otherwise means any failure of that observer leaves the copy invisible — on the page that sells the
+product. Three defences: the hiding rule applies only under `html.js`, which the script itself adds
+(scripting off ⇒ nothing is ever hidden); anything already on screen at load is revealed
+immediately without waiting to be observed; and a **three-second timeout reveals everything
+regardless**. I caught a real instance of this in a screenshot — a section mid-reveal with its text
+washed out — which is exactly what a permanently stuck section would look like.
+
+**Reduced motion is off, not gentler.** Verified by emulating it rather than trusting the branch:
+with `prefers-reduced-motion: reduce` every transition reports `0s` and the step animation reports
+`none`; without it, `0.32s` and `gb-pop`. Content is fully opaque in both.
+
+**Cost:** home page JS **1,034 B gzipped** against a 10,000 budget, no library, no third-party
+request. CSS 13,123 of 18,000. First load 229 kB of 400 kB.
