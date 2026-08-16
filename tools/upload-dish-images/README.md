@@ -1,5 +1,33 @@
 # upload-dish-images
 
+> ## Use `upload-via-api.mjs`. `upload.mjs` is superseded.
+>
+> ```bash
+> set -a; . ~/.graybag-secrets/prod.env; set +a
+> node tools/upload-dish-images/upload-via-api.mjs            # dry run
+> node tools/upload-dish-images/upload-via-api.mjs --apply
+> ```
+>
+> `upload.mjs` — everything described below — writes to Storage and to `asset` **itself**, with the
+> service role. It predates `admin-dish-image` (`E10-24`) and is now a **second write path** into
+> the bucket, the `asset` row and `dish.image_asset_id`. Two paths mean two sets of rules about
+> what a valid image is, and the one a person uses from `/admin/menus` would not be the one that
+> put the photos on production.
+>
+> `upload-via-api.mjs` drives that Edge Function instead: same `dish.edit` check, same
+> content-type allowlist, same 3 MB ceiling, same `asset` row shape, same orphan cleanup if the
+> row fails after the object is stored. It writes to **no** table itself.
+>
+> It reuses this file's `matchDishes` and `readDimensions` rather than reimplementing them, so the
+> matching rules below still describe what happens — including that a wrong photo on a dish is
+> worse than no photo.
+>
+> **Run on production 2026-08-17** (`E16-55`): 77 of 79 dishes matched on `legacy_bubble_id`,
+> 77 uploaded, 0 failed, every stored checksum verified against the manifest entry for that dish's
+> own id. Two dishes have no photo — see below.
+
+## The original tool, kept for its history
+
 Takes the 82 dish photographs that `E16-28` mirrored off the dying Bubble CDN and puts them
 where the app can read them: the public `dish-images` bucket, an `asset` row each, and
 `dish.image_asset_id` pointing at it so `public_menu.image_path` stops being null (`E16-43`).
@@ -110,11 +138,33 @@ images will then join on the id, exactly, and the remaining 78 images become liv
 Name matching is exact after collapsing whitespace and case, never fuzzy. A wrong photo on a
 dish is worse than no photo, so "Paneer Wraps" does not match "Paneer Wrap".
 
-## The three that are missing
+## The three that are missing — and why only two matter
 
 Aloo Channa Chat, the Tomato/Cucumber cheese sandwich and the brown-wheat mushroom-pesto pasta
-return a permanent 403 at the legacy CDN and were never mirrored. They stay without photos
-until `E16-29` (`owner:andy`) decides between re-shooting them and shipping a placeholder.
+return a permanent 403 at the legacy CDN and were never mirrored.
+
+**Only two of the three affect production.** The legacy catalogue holds *two* records for the
+Tomato/Cucumber sandwich under different Bubble ids; the mirror of one failed and the other
+succeeded, and the dish that was imported into production carries the id that succeeded. The
+`legacy_bubble_id` join picked it up correctly — a name match would have found two candidates and
+had to guess.
+
+So the two production dishes with no photo are **Aloo Channa Chat (White And Black Channa)** and
+**Brown Wheat Pasta With Mushroom And Pesto Cream Sauce**, pending `E16-29` (`owner:andy`).
+
+## What the photos actually are
+
+**120 pixels tall.** Every one of the 82 — 72 are 120×120, the rest 120 tall and up to 213 wide.
+That is what the legacy CDN stores: fetching the original URL with no size parameter returns
+180×120, and `?w=1200` returns the identical bytes. There is no larger original to fetch, and the
+Bubble export is CSVs of URLs rather than binaries.
+
+They are therefore uploaded **unmodified**. `prepareDishImage` downscales only above 1280px, so
+the rule is a no-op on all of them, and re-encoding a 120px thumbnail would lose quality for
+nothing. Median 22 kB, largest 34 kB, 1.5 MB for the set.
+
+This reaches parity with the app parents use today, because these are the images that app shows.
+It is still soft on a modern phone, and that is a re-shoot decision rather than a code one.
 
 ## Tests
 
