@@ -4091,13 +4091,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/39</span>
+          <span class="meter-num">0/41</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 39 tasks</summary>
+        <summary>Context &amp; 41 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4411,6 +4411,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>/admin/menus</code> rebuilt as a dish workbench.</strong> Search that ranks (name-prefix &gt; substring &gt; category &gt; menu &gt; ingredient, every term must match), filters that are states with counts, sort, and a URL that carries the query. Editing moved from an inline <code>&lt;details&gt;</code> into a drawer, because a panel over the list cannot move the list — <strong>measured</strong>: open at scrollY 2400 with the row at y=1139, save, still 2400 and 1139. A dish appears once with its menu memberships and per-menu prices on it; the per-school repetition moved to <code>/admin/schools</code>. <strong>17,213px → 6,013px.</strong> Only changed fields are sent, so a no-op save makes no request — the old behaviour reported ten fields as saved and bumped <code>school_menu_version</code>, expiring every client&#39;s cached menu</span>
+      </li>
+      <li class="task" data-id="E10-41" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-41"></button>
+        <code class="tid">E10-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>/admin/schools</code> rebuilt as a readiness checklist.</strong> Five gates per school — in the app, menu, break windows, service days, report contact — each showing what is actually true rather than a tick, each failing gate carrying the link that fixes it. Replaces a single &quot;Open to parents&quot; label derived from <code>onboarded_at</code> and <code>is_active</code> alone, which a school could carry with no menu, no break windows and no service days. <code>missing</code> blocks and <code>warning</code> informs, so a menu that starts next term reads as <strong>scheduled</strong> rather than broken. Schools needing work sort first. The create form, used perhaps three times a year, moved from the top of the page into a collapsed disclosure at the bottom; creating a school now scrolls to its checklist rather than congratulating you</span>
+      </li>
+      <li class="task" data-id="E10-42" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-42"></button>
+        <code class="tid">E10-42</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Admin controls sized for a pointer.</strong> <code>.kitchen__btn</code> is 56px tall by design — &quot;wet hands, in a hurry&quot; — and every admin screen was reusing it, which turned the nav into a row of lozenges and an inline action into a circle with the label spilling out. Overridden inside the admin shell so the kitchen keeps its 56px. The first concrete instance of the kitchen and the back office being different problems that had been sharing one control vocabulary</span>
       </li></ul>
       </details>
     </article>

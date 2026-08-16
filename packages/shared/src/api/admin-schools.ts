@@ -202,3 +202,52 @@ export interface SchoolUpdateResult {
 export async function updateSchool(edit: SchoolEdit): Promise<SchoolUpdateResult> {
   return invokeFunction<SchoolUpdateResult>('admin-school', edit, 'PATCH');
 }
+
+// ------------------------------------------------------------- readiness reads (`E10-41`)
+
+export interface SchoolBreakWindow {
+  schoolId: string;
+  label: string;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+}
+
+/**
+ * Every school's break windows in one request.
+ *
+ * `fetchBreakTimes` takes a school id and is right for the parent-facing picker, which only ever
+ * cares about one. The readiness view needs all of them at once, and doing that as one request per
+ * school is a round trip per row on the connection the performance priorities call the real
+ * constraint.
+ */
+export async function fetchAllBreakTimes(): Promise<SchoolBreakWindow[]> {
+  const rows = await runQuery<unknown>((t) =>
+    t.from('break_time').select('school_id,label,starts_at,ends_at,is_active').order('sort_order'),
+  );
+  return rows.filter(isRecord).map((r) => ({
+    schoolId: str(r.school_id) ?? '',
+    label: str(r.label) ?? '',
+    startsAt: str(r.starts_at) ?? '',
+    endsAt: str(r.ends_at) ?? '',
+    isActive: r.is_active !== false,
+  }));
+}
+
+/**
+ * `school_id → service_days`, for every school that has a config row.
+ *
+ * A school with no row, or a null value, **inherits** — which is a different fact from "set to
+ * every day" and is the one `D5` exists to keep visible. Absent from this map means inherited.
+ */
+export async function fetchServiceDaysBySchool(): Promise<Map<string, number[]>> {
+  const rows = await runQuery<unknown>((t) =>
+    t.from('school_config').select('school_id,service_days'),
+  );
+  const out = new Map<string, number[]>();
+  for (const r of rows.filter(isRecord)) {
+    const id = str(r.school_id);
+    if (id && Array.isArray(r.service_days)) out.set(id, r.service_days.map(Number));
+  }
+  return out;
+}

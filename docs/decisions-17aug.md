@@ -358,3 +358,37 @@ built for. An unchanged save now makes no request at all.
 **Two bugs found by looking at it.** The drawer and the bulk bar both rendered on first paint:
 `[hidden]` is `display: none` only at UA specificity, and any class rule setting `display: flex`
 silently beats it. The drawer was covering the price column it exists to edit.
+
+## D-17N — `/admin/schools` is a readiness checklist, not a create form
+
+**What the screen is for.** Answering "can a parent at this school order lunch, and if not, what is
+missing?" — daily. Creating a school happens perhaps three times a year, and it led the page.
+
+**A checklist, not a status.** The old screen showed one label, **"Open to parents"**, derived from
+`onboarded_at` and `is_active` alone. A school could carry it with no menu, no break windows and no
+service days. Five gates now, each saying what is *actually true* rather than passing silently —
+"Sky Bites - Amity — 47 of 47 orderable", "Morning break 10:40–11:15 · Second break 11:15–11:40" —
+and each failing gate carries the link to the screen that fixes it.
+
+That is the guided sequence Andy asked for, and it is deliberately **not** a wizard: it works
+identically for a school created ten minutes ago and one that has been live a month and just lost
+its menu. A wizard only helps the first.
+
+**`missing` blocks, `warning` informs.** A menu that starts next term is a blocking gate in a
+warning state — not wrong, not yet — and counting it as a blocker made a correctly configured school
+read as broken. Service days and the report contact are gaps that never block: you can order
+without them.
+
+**Schools that need work sort first.** The opposite of alphabetical, because the screen exists to
+show what needs doing.
+
+## D-17O — admin controls are not kitchen controls
+
+`.kitchen__btn` is **56px tall** — its own comment says "bigger than the 48 floor. Wet hands, in a
+hurry." Correct for a tablet on a steel bench; wrong for an admin screen driven with a mouse, where
+it turned the nav into a row of lozenges and a small inline action into a **circle with the label
+spilling out of it**, which is how I noticed.
+
+Overridden inside the admin shell rather than changed at source, so the kitchen keeps its 56px.
+This is the first concrete instance of Andy's "the kitchen screens are a different problem" — the
+two had been sharing one control vocabulary and it fitted neither.
