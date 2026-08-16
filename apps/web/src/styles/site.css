@@ -1203,3 +1203,169 @@ ul, ol { padding: 0; list-style: none; }
  * statutory detail, not supporting text.
  */
 .footer__officer { margin-top: var(--gb-space-3); }
+
+/* ================================================================== motion and graphics (E12-35)
+ *
+ * Andy: *"it's bland in places… add motion, graphics and visual interest — this is the page that
+ * sells to schools. Motion should support the content, not decorate it."*
+ *
+ * Four devices, and each one is doing a job:
+ *
+ *   the reveal   — gives a long page a rhythm, and makes each section arrive as a unit rather
+ *                  than as a wall that was always there
+ *   the rail     — says the four steps are one sequence, which the copy asserts and the layout
+ *                  did not
+ *   the ledger   — draws the division of labour the prose describes, in the half of the section
+ *                  that was empty white
+ *   the lift     — tells you a card is a thing, not a paragraph in a box
+ *
+ * There is no parallax, nothing autoplays, nothing loops forever and nothing moves that a person
+ * is trying to read. Every one of them is off under `prefers-reduced-motion`.
+ */
+
+/* ------------------------------------------------------------------------------- scroll reveal */
+
+/*
+ * Opt-in per section, never global — the hero is above the fold and must be there on the first
+ * frame. `.is-in` is added by the observer; without JS the `:where(...)` default below never
+ * applies, so the page is fully visible with scripting off. That is the important property: this
+ * is progressive enhancement on a marketing page, not a requirement to run JS to read it.
+ */
+[data-reveal] > * {
+  opacity: 1;
+  transform: none;
+}
+
+html.js [data-reveal]:not(.is-in) > .wrap {
+  opacity: 0;
+  transform: translateY(1.25rem);
+}
+
+html.js [data-reveal] > .wrap {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--gb-duration-slow) var(--gb-ease-enter),
+    transform var(--gb-duration-slow) var(--gb-ease-enter);
+}
+
+/* ---------------------------------------------------------------------------- the process rail */
+
+/*
+ * A line joining the four numbered steps. It only exists at the width where they sit in a row —
+ * stacked, the vertical order already says "sequence" and a connector would just be a stripe.
+ */
+@media (min-width: 1040px) {
+  .steps { position: relative; }
+  .steps::before {
+    content: '';
+    position: absolute;
+    top: 1.25rem;                 /* the vertical centre of a 2.5rem numbered disc */
+    left: 1.25rem;
+    right: 1.25rem;
+    height: 2px;
+    background: var(--gb-border-subtle);
+    /* Behind the discs, which have their own background and so punch through it. */
+    z-index: 0;
+  }
+  .step { position: relative; z-index: 1; }
+}
+
+.step__n {
+  position: relative;
+  transition: transform var(--gb-duration-base) var(--gb-ease-standard);
+}
+
+/* The discs arrive in sequence once the section does, so the rail reads left to right — the order
+ * the steps happen in. 90ms apart: enough to read as a sequence, not enough to wait for. */
+html.js [data-reveal].is-in .step:nth-child(1) .step__n { animation: gb-pop var(--gb-duration-base) var(--gb-ease-enter) 0ms both; }
+html.js [data-reveal].is-in .step:nth-child(2) .step__n { animation: gb-pop var(--gb-duration-base) var(--gb-ease-enter) 90ms both; }
+html.js [data-reveal].is-in .step:nth-child(3) .step__n { animation: gb-pop var(--gb-duration-base) var(--gb-ease-enter) 180ms both; }
+html.js [data-reveal].is-in .step:nth-child(4) .step__n { animation: gb-pop var(--gb-duration-base) var(--gb-ease-enter) 270ms both; }
+
+@keyframes gb-pop {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
+/* ---------------------------------------------------------------------------------- the ledger */
+
+.split { display: grid; gap: var(--gb-space-8); align-items: center; }
+@media (min-width: 900px) { .split { grid-template-columns: 1fr 1fr; gap: var(--gb-space-12); } }
+
+.ledger {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--gb-space-6);
+  padding: var(--gb-space-6);
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-2xl);
+}
+
+.ledger__col { min-width: 0; }
+.ledger__col--yours { padding-right: var(--gb-space-6); border-right: var(--gb-border-width-hairline) solid var(--gb-border-subtle); }
+
+.ledger__n {
+  font-size: var(--gb-font-size-display);
+  font-weight: var(--gb-font-weight-display);
+  line-height: 1;
+  color: var(--gb-text-link);
+}
+.ledger__col--yours .ledger__n { color: var(--gb-text-tertiary); }
+
+.ledger__who {
+  margin-top: var(--gb-space-1);
+  font-size: var(--gb-font-size-label);
+  font-weight: var(--gb-font-weight-label);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gb-text-tertiary);
+}
+
+.ledger__list {
+  margin: var(--gb-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--gb-font-size-body-sm);
+  color: var(--gb-text-secondary);
+}
+.ledger__list li { padding: 2px 0; }
+.ledger__col--ours .ledger__list li { color: var(--gb-text-primary); }
+
+/* ------------------------------------------------------------------------------------ the lift */
+
+.card {
+  transition:
+    transform var(--gb-duration-base) var(--gb-ease-standard),
+    box-shadow var(--gb-duration-base) var(--gb-ease-standard),
+    border-color var(--gb-duration-base) var(--gb-ease-standard);
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--gb-elevation-1);
+  border-color: var(--gb-border-default);
+}
+
+.card__icon { transition: transform var(--gb-duration-base) var(--gb-ease-standard); }
+.card:hover .card__icon { transform: scale(1.06); }
+
+/* --------------------------------------------------------------------------- asked not to move */
+
+/*
+ * Everything above, off. Not reduced — **off**. A person who has set this has usually set it for a
+ * reason that a gentler animation does not solve, and the page loses nothing: the reveal is a
+ * rhythm device, the pop is an ordering device, and both are said plainly by the layout anyway.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html.js [data-reveal]:not(.is-in) > .wrap,
+  html.js [data-reveal] > .wrap {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  html.js [data-reveal].is-in .step:nth-child(n) .step__n { animation: none; }
+  .card, .card__icon, .step__n { transition: none; }
+  .card:hover { transform: none; }
+  .card:hover .card__icon { transform: none; }
+}

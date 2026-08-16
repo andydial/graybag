@@ -211,7 +211,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
   </section>
 
   <!-- ==================================================== how it works -->
-  <section class="section" id="how" aria-labelledby="how-heading">
+  <section data-reveal class="section" id="how" aria-labelledby="how-heading">
     <div class="wrap">
       <p class="eyebrow">How it works</p>
       <h2 class="heading" id="how-heading">Four steps, and three of them are ours</h2>
@@ -233,15 +233,44 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
   </section>
 
   <!-- ================================================= for your school -->
-  <section class="section panel-surface" id="schools-benefits" aria-labelledby="benefits-heading">
+  <section data-reveal class="section panel-surface" id="schools-benefits" aria-labelledby="benefits-heading">
     <div class="wrap">
-      <p class="eyebrow">For your school</p>
-      <h2 class="heading" id="benefits-heading">What your school stops dealing with</h2>
-      <p class="lead">
-        A canteen is a small business your school did not ask to run. This removes the parts of
-        it that take staff time and create risk — the money, the queue, the stock — and leaves
-        the part you actually wanted: children fed at the break.
-      </p>
+      <div class="split">
+        <div class="split__say">
+          <p class="eyebrow">For your school</p>
+          <h2 class="heading" id="benefits-heading">What your school stops dealing with</h2>
+          <p class="lead">
+            A canteen is a small business your school did not ask to run. This removes the parts of
+            it that take staff time and create risk — the money, the queue, the stock — and leaves
+            the part you actually wanted: children fed at the break.
+          </p>
+        </div>
+
+        <!--
+          The division of labour, drawn rather than described. The prose already says the school's
+          part is two things and everything else is ours; a reader skimming the page never reaches
+          that sentence, and the right-hand half of this section was empty white. Both numbers are
+          counted from the list beside them, not asserted.
+        -->
+        <div class="ledger" aria-hidden="true">
+          <div class="ledger__col ledger__col--yours">
+            <p class="ledger__n">2</p>
+            <p class="ledger__who">Your school</p>
+            <ul class="ledger__list">
+              <li>Somewhere to hand food over</li>
+              <li>Agreed break times</li>
+            </ul>
+          </div>
+          <div class="ledger__col ledger__col--ours">
+            <p class="ledger__n">7</p>
+            <p class="ledger__who">GrayBag</p>
+            <ul class="ledger__list">
+              <li>The menu</li><li>The ordering</li><li>The money</li><li>The cooking</li>
+              <li>The packing</li><li>The delivery</li><li>The monthly report</li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
       <ul class="cards">
         {BENEFITS.map((benefit) => (
@@ -264,7 +293,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
     The photographs are 120px at source and cannot be made appetising at any size, so they are
     demoted to supporting images beside the copy rather than being asked to carry the section.
   -->
-  <section class="section panel-pale" id="food" aria-labelledby="food-heading">
+  <section data-reveal class="section panel-pale" id="food" aria-labelledby="food-heading">
     <div class="pattern pattern--deep" aria-hidden="true"></div>
 
     <div class="wrap">
@@ -327,7 +356,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
     The invitation to come and watch a delivery is the better substitute anyway: for a
     principal weighing a food partner, seeing the kitchen beats a logo strip.
   -->
-  <section class="section panel-deep on-dark" id="schools" aria-labelledby="schools-heading">
+  <section data-reveal class="section panel-deep on-dark" id="schools" aria-labelledby="schools-heading">
     <div class="pattern" aria-hidden="true"></div>
 
     <div class="wrap">
@@ -347,7 +376,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
   </section>
 
   <!-- ========================================================== report -->
-  <section class="section" id="report" aria-labelledby="report-heading">
+  <section data-reveal class="section" id="report" aria-labelledby="report-heading">
     <div class="wrap">
       <div class="report">
         <div>
@@ -373,7 +402,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
   </section>
 
   <!-- ======================================================= questions -->
-  <section class="section panel-surface" id="questions" aria-labelledby="faq-heading">
+  <section data-reveal class="section panel-surface" id="questions" aria-labelledby="faq-heading">
     <div class="wrap">
       <p class="eyebrow">Questions</p>
       <h2 class="heading" id="faq-heading">What administrators ask us</h2>
@@ -416,4 +445,54 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
       </div>
     </div>
   </section>
+
+  <!--
+    Reveal-on-scroll — `E12-35`.
+
+    The `js` class is set here rather than in the stylesheet so the reveal styles apply **only**
+    when this script runs. With scripting off, or if it throws, or on a browser without
+    `IntersectionObserver`, every section is simply visible — the page reads exactly as it did
+    before, which is the only acceptable failure mode for a marketing page.
+
+    No library. This is the whole implementation, and it is why the JS budget for the home page
+    barely moves.
+  -->
+  <script is:inline>
+    (() => {
+      if (!('IntersectionObserver' in window)) return;
+      const sections = document.querySelectorAll('[data-reveal]');
+      if (!sections.length) return;
+      document.documentElement.classList.add('js');
+
+      const reveal = (section) => section.classList.add('is-in');
+
+      const seen = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          reveal(entry.target);
+          // Once only. A section that fades out again when you scroll back up is a section that
+          // fights you every time you re-read it.
+          seen.unobserve(entry.target);
+        }
+      }, { rootMargin: '0px 0px -10% 0px', threshold: 0.05 });
+
+      for (const section of sections) {
+        // Anything already on screen is revealed immediately, before the observer has run. A
+        // section that is visible at load must never be waiting to be told it can appear.
+        if (section.getBoundingClientRect().top < innerHeight) reveal(section);
+        else seen.observe(section);
+      }
+
+      /*
+       * The safety net, and the reason this is safe to ship on the page that sells the product.
+       *
+       * Hiding content until an observer says otherwise means any failure of that observer —
+       * a browser quirk, a thrown error elsewhere on the page, a section that never crosses the
+       * threshold because of some layout the author did not foresee — leaves the copy invisible.
+       * That is a far worse outcome than no animation, so after three seconds everything is
+       * revealed regardless of what the observer thinks.
+       */
+      setTimeout(() => { for (const section of sections) reveal(section); }, 3000);
+    })();
+  </script>
 </Base>

@@ -4520,13 +4520,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/34</span>
+          <span class="meter-num">0/35</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 34 tasks</summary>
+        <summary>Context &amp; 35 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4801,6 +4801,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Production could take a payment and send nothing.</strong> <code>ORDER_EMAIL_FROM</code> on production was an address at <code>graybag.com</code>; the only domain verified in Resend is <code>mail.graybag.com</code>, so <strong>every</strong> transactional send failed <code>403</code> — order confirmations, tax invoices, refund notices and enquiry notifications. The request still succeeded and the 403 appeared only in the Edge Function log, so an order looked completely normal while the parent was told nothing. Fixed: <code>ORDER_EMAIL_FROM</code> is now <code>GrayBag &lt;hello@mail.graybag.com&gt;</code>, proven by sending the same message from both addresses on the production key (403 vs 200) and then by a real enquiry producing a real email to <code>support@graybag.com</code>. Found only because the check was &quot;did it arrive&quot;, not &quot;did the row land&quot; — every earlier check confirmed the row, which was never the broken half. <code>check:launch</code> now reports Resend&#39;s verified domains and blocks when none is verified</span>
+      </li>
+      <li class="task" data-id="E12-35" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-35"></button>
+        <code class="tid">E12-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Motion and graphics on the home page.</strong> Reveal-on-scroll per section, a rail joining the four numbered steps, a card lift, and a <strong>ledger</strong> filling the empty right half of &quot;For your school&quot; — *2* things the school does against *7* we do, both counted from the lists beside them rather than asserted. The hero is untouched and deliberately does not animate: it is above the fold. <strong>The failure mode got more attention than the animation</strong> — the hiding rule applies only under <code>html.js</code> which the script adds itself, anything on screen at load is revealed without waiting, and a three-second timeout reveals everything regardless, so no observer failure can leave copy invisible on the page that sells the product. <code>prefers-reduced-motion</code> turns it <strong>off</strong>, not gentler, verified by emulating the query: <code>0s</code>/<code>none</code> with it, <code>0.32s</code>/<code>gb-pop</code> without. 1,034 B of JS gzipped against a 10,000 budget, no library</span>
       </li></ul>
       </details>
     </article>
