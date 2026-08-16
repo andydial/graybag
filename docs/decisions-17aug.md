@@ -233,3 +233,58 @@ explicitly precisely because egg-containing baked goods are not vegetarian to th
 `cancelled`. So the checkout reaches Razorpay and the order is created, and nothing comes back —
 the same shape as yesterday, one step further along. There is still no paid order and therefore
 nothing on the kitchen board.
+
+---
+
+## D-17K — 77 dish photos on production, through the app's own upload path
+
+`E16-55`. Production had zero dish images and the parent-facing menu rendered every dish blank —
+a visible downgrade from the app parents use today.
+
+**Matching is by `legacy_bubble_id`, and it cannot be wrong.** All 79 production dishes carry one
+and every manifest entry carries the same Bubble id, so this is an exact join, not a name match.
+`matchDishes` is reused from `upload.mjs` rather than reimplemented; it takes the id outright and
+only ever falls back to an exact — never fuzzy — name where no id exists. None did.
+
+Proven rather than asserted: after the run, every dish's stored `asset.checksum_sha256` was
+compared against the manifest entry **for that dish's own legacy id**. 77 matched, 0 mismatched.
+A contact sheet of all 79 name-and-photo pairs was rendered and read; every photo suits its dish.
+
+### Through the Edge Function, not around it
+
+`upload.mjs` already existed and would have done this in one command — but it writes to Storage
+and `asset` itself with the service role, which since `E10-24` is a **second write path** into the
+same three places. So `upload-via-api.mjs` drives `admin-dish-image`, the same function
+`/admin/menus` calls: same `dish.edit` check under a real operator session, same allowlist, same
+ceiling, same orphan cleanup. It writes to no table. `upload.mjs` is marked superseded rather than
+deleted — it carries the history and the tests.
+
+Checksums are verified against the manifest **before** anything uploads, and one mismatch aborts
+the whole run. The manifest is the only auditable record that these bytes came off the legacy CDN.
+
+### The photos are 120 pixels tall, and that is the ceiling
+
+Every one of the 82. Fetching the original URL with no size parameter returns 180×120, and
+`?w=1200` returns identical bytes — there is no larger original, and the Bubble export is CSVs of
+URLs rather than binaries. So "resized" is a no-op here: `prepareDishImage` downscales only above
+1280px, and re-encoding a thumbnail would lose quality for nothing. They are uploaded unmodified.
+
+This reaches parity with the current app, because these are the images it shows. It will still
+look soft on a modern phone. **That is a re-shoot decision, not a code one.**
+
+### What has no photo
+
+Two dishes: **Aloo Channa Chat (White And Black Channa)** and **Brown Wheat Pasta With Mushroom
+And Pesto Cream Sauce**. Both 403 permanently at the legacy CDN and were never mirrored.
+
+The README said three. Only two reach production: the legacy catalogue holds two records for the
+Tomato/Cucumber sandwich under different ids, one mirror failed and one succeeded, and the dish
+that was imported carries the id that succeeded. The id join resolved that; a name match would
+have had two candidates and had to guess.
+
+### Five pairs share a photo, legitimately
+
+Choco Muffin / Chocolate Muffin, Hot Choco Milk / Hot Chocolate Chocolate, Mango Shake / Mango
+Shake (Seasonal), Rajma Rice / Rajma With Rice Or Prantha, Strawberry Shake / Strawberry Shake
+(Seasonal). Each matched its own id; both legacy records simply pointed at the same file. They
+look like duplicate dishes in the catalogue, which is worth a look but is not an image problem.

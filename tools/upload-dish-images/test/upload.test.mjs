@@ -109,3 +109,45 @@ test('every uploadable manifest entry has the fields the upload needs', async ()
   // Storage keys must be unique or one upload would overwrite another's bytes.
   assert.equal(new Set(ok.map((i) => i.file)).size, ok.length, 'duplicate filenames would collide in the bucket')
 })
+
+// ------------------------------------------------------ the resize rule (`E16-55`)
+
+import { MAX_EDGE, resizePlan } from '../upload-via-api.mjs';
+
+test('a thumbnail is not touched', () => {
+  // Every one of the 82 mirrored files is 120px tall. Re-encoding them would lose quality and
+  // gain nothing, so the rule has to be "shrink if too big", never "always re-encode".
+  const plan = resizePlan({ width: 180, height: 120 });
+  assert.equal(plan.needed, false);
+  assert.equal(plan.width, 180);
+});
+
+test('a file exactly at the ceiling is not touched', () => {
+  assert.equal(resizePlan({ width: MAX_EDGE, height: 800 }).needed, false);
+});
+
+test('an oversized file is scaled by its LONG edge, preserving aspect', () => {
+  // A phone photo. Scaling by the wrong edge is how a portrait shot comes back still too big.
+  const plan = resizePlan({ width: 4032, height: 3024 });
+  assert.equal(plan.needed, true);
+  assert.equal(plan.width, MAX_EDGE);
+  assert.equal(plan.height, 960);
+});
+
+test('a portrait photo scales by height', () => {
+  const plan = resizePlan({ width: 3024, height: 4032 });
+  assert.equal(plan.height, MAX_EDGE);
+  assert.equal(plan.width, 960);
+});
+
+test('it never scales UP', () => {
+  // `prepareDishImage` uses `Math.min(1, …)` for the same reason: enlarging a thumbnail makes a
+  // bigger blurry file, which is worse on every axis.
+  assert.equal(resizePlan({ width: 10, height: 10 }).needed, false);
+});
+
+test('unknown dimensions are left alone rather than guessed', () => {
+  // `readDimensions` returns null for a format it cannot parse. Sending the file untouched is
+  // right; inventing a size and resizing to it is not.
+  assert.equal(resizePlan({}).needed, false);
+});

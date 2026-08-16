@@ -4785,13 +4785,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/53</span>
+          <span class="meter-num">0/56</span>
         </div>
       </header>
       <p class="summary">Move ~400 users, dependents and full order history off Bubble. Rehearsed at least twice before the real thing.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E04</code> <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 53 tasks</summary>
+        <summary>Context &amp; 56 tasks</summary>
         <div class="context"><h4>Known constraints</h4>
 <p>Verified against the real export on 2026-08-08 (<code>E19-04</code>). Full evidence in</p>
 <p><strong><code>docs/bubble-recon-findings.md</code></strong> — read it before writing <code>E16-01</code>. Several constraints below</p>
@@ -5309,6 +5309,30 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:high) <strong>Production has no allergen data at all — zero rows in <code>allergen</code>, zero in <code>dish_allergen</code>.</strong> Found on production 2026-08-15. The reference table is empty, so there is nothing to tag dishes with and nothing for the allergen watchlist to match against; every dish therefore renders with no allergen information, which reads as *&quot;contains nothing&quot;*. This is the same shape as <code>E16-52</code> (no <code>food_type</code> on any of 79 dishes) and the same reason: <code>catalogue.sql</code> will not invent it. It is a validation only the kitchen can supply — which allergens are declared, and which dishes contain them. Non-negotiable #4 makes this the highest-consequence data gap of the three, because the failure mode is a child eating something they are allergic to rather than a complaint. The app-side machinery is built and tested (<code>useAllergenWatchlist</code>, the cart warnings wired in <code>E05-45</code>); it has nothing to work with. <strong>Scope, corrected 2026-08-17:</strong> the automatic match is fast-follow (<code>E05-25</code>, <code>E05-31</code>) but the *data* is v1 — a parent recording allergies (<code>E05-01</code>), the kitchen tagging dishes (<code>E10-33</code>) and the kitchen seeing the child&#39;s allergens on the board and packing sheet (<code>E09-33</code>). With the matching deferred the tags are the entire mechanism, not a nicety on top of one, so this gap is worse in v1 than it would be with matching switched on</span>
+      </li>
+      <li class="task" data-id="E16-55" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-55"></button>
+        <code class="tid">E16-55</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The 77 legacy dish photos are on production, uploaded through <code>admin-dish-image</code>.</strong> Production had zero images and every dish rendered blank — a visible downgrade from the app parents use today. Matched on <code>legacy_bubble_id</code>, which all 79 dishes carry and every manifest entry supplies, so it is an exact join and not a name match; <code>matchDishes</code> is reused from <code>upload.mjs</code> rather than reimplemented. Verified after the fact by comparing each dish&#39;s stored <code>asset.checksum_sha256</code> against the manifest entry for <strong>that dish&#39;s own id</strong> — 77 matched, 0 mismatched — and by reading a rendered contact sheet of all 79 name-and-photo pairs. Driven through the Edge Function rather than <code>upload.mjs</code>&#39;s direct service-role write, because that is now a second write path into the bucket, <code>asset</code> and <code>dish.image_asset_id</code>; <code>upload.mjs</code> is marked superseded. <code>public_menu</code> went from 0 to 117 of 119 rows carrying an <code>image_path</code></span>
+      </li>
+      <li class="task" data-id="E16-56" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-56"></button>
+        <code class="tid">E16-56</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The legacy photos are 120 pixels tall, and there is no larger original.</strong> All 82 are 120px tall (72 are 120×120). Fetching the source URL with no size parameter returns 180×120 and <code>?w=1200</code> returns identical bytes; the Bubble export is CSVs of URLs, not binaries. They are uploaded unmodified because re-encoding a thumbnail loses quality for nothing, and they reach parity with the app parents use today — but they will look soft on a modern phone. A re-shoot decision, alongside the two dishes with no photo at all (<code>E16-29</code>)</span>
+      </li>
+      <li class="task" data-id="E16-57" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-57"></button>
+        <code class="tid">E16-57</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Five pairs of dishes share one photo because they look like duplicate catalogue entries.</strong> Choco Muffin / Chocolate Muffin, Hot Choco Milk / Hot Chocolate Chocolate, Mango Shake / Mango Shake (Seasonal), Rajma Rice / Rajma With Rice Or Prantha, Strawberry Shake / Strawberry Shake (Seasonal). Each matched its own <code>legacy_bubble_id</code> and both legacy records pointed at the same file, so the images are correct — but a menu showing two near-identical entries is worth consolidating</span>
       </li></ul>
       </details>
     </article>
