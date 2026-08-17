@@ -135,7 +135,35 @@ The name persists because `order.recipient_name_snapshot` is deliberately not to
 (`0026`: the snapshot is the record of what was ordered, with its own retention schedule). It is
 correct behaviour on a fictional child, and it looks like a real one to a kitchen operator.
 
-**Not acted on, because it is a production data change beyond what was approved.** The options:
+### Resolved, 2026-08-17 — approved and done
+
+Andy approved option (1). The three cancelled orders were moved to `service_date = 2026-08-01`,
+a date already past.
+
+Checked before acting: no check constraint ties `service_date` to `cutoff_at`, and
+`write_order_event` returns early when the status is unchanged — so the update wrote **no new
+events**, confirmed by the count staying at 6.
+
+**`cutoff_at` was deliberately left alone** (17, 19, 20 Aug). It records the cutoff that applied
+when each order was placed; rewriting it would be inventing history rather than clearing a board,
+and nothing derives from it on a cancelled order.
+
+Boards after the change:
+
+| Date | Rows |
+|---|---|
+| 17 Aug (today) | **0** |
+| 18 Aug | **0** |
+| **19 Aug (launch day)** | **0** |
+| 20 Aug | **0** |
+| 21 Aug | **0** |
+
+Every remaining order now sits on 2026-08-01. Integrity re-checked afterwards: all three
+`order_group` rows still `cancelled`, `payable_paise` still matches the sum of its orders on all
+three, `order_event` still 6, `invoice_sequence` 0, `invoice` 0, `ledger_entry` 0, `payment` 0,
+and the ledger still balances to zero.
+
+The options that were considered:
 
 1. **Move the three `service_date`s into the past.** `order` has no protected-column guard, so
    this works; it fires `write_order_event`, adding one more event each. Clears every future
@@ -144,9 +172,9 @@ correct behaviour on a fictional child, and it looks like a real one to a kitche
 3. **Have the board hide cancelled orders with no other orders on that date** — a change in
    `apps/web`, which is the web thread's, and a product decision rather than a cleanup.
 
-Recommendation: **(1)**, moving them to a date already past, e.g. 2026-08-01. It is the only one
-that clears launch day without touching an immutability guard or the web code, and the field it
-rewrites carries no money and no invoice number.
+Recommendation was **(1)**, and it is what was done — the only option that clears launch day
+without touching an immutability guard or the web code, rewriting a field that carries no money
+and no invoice number.
 
 ## Confirmation 2 — what still references `+parent@`
 
