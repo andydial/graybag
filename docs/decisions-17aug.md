@@ -299,3 +299,43 @@ orders on production as `system` so Andy starts clean, but a parent has no such 
 
 `payments-create-order` already supports this — it is per-attempt and returns `attempt_no` — so a
 "Pay now" button on a pending order is a small change, not a redesign.
+
+## D51
+
+**No test data is ever created in production** — Andy's standing rule, 2026-08-17, now
+non-negotiable **#8** in `CLAUDE.md` rather than only here. Verification happens on staging.
+Anything that can only be proven on production needs his explicit go-ahead *and* a statement of
+exactly what it will write, before it runs.
+
+Enforced where enforcement is cheap: `scripts/lib/prod-write-guard.mjs` refuses any write to the
+production project ref, recognising both the REST host and the pooler URI — the latter matters
+because most writing scripts use `psql`, and a guard that only knew the REST form would have
+covered almost nothing. Wired into `order-path-check.mjs`, which signs up a parent, adds a child
+and places an order, and is exactly how this problem happened.
+
+**The escape hatch is a sentence, not a boolean.** `GRAYBAG_PROD_WRITE=1` is refused, as are
+`true`, `yes`, `ok` and `go`, because a boolean is set once during a legitimate approved run and
+then lives in a shell profile forever. It must be at least 30 characters and is echoed to stderr,
+so the terminal history records what was done and on whose authority. Nine tests.
+
+**`grant-operator.mjs` was deliberately left unguarded.** It writes to production by design —
+granting Andy's back-office permissions is real administration, not test data — and blocking it
+would break a legitimate workflow to enforce a rule about something else. It already carries the
+narrower guard this one was modelled on.
+
+**And the limit is stated in `CLAUDE.md` rather than glossed:** every one of the rows this rule
+exists because of was created by hand, with `curl` and `psql`, by someone who knew exactly which
+project it was. No script guard can refuse that. The paragraph is the control; the code only
+closes the automatable half.
+
+## D52
+
+**Cleanup is not a substitute for not writing, and production proved it.** The three test orders
+**cannot be deleted**: `order_event` is append-only and cascades from `order`, so the delete
+aborts, and `order.recipient_id` is `RESTRICT`, which pins the children behind them. What reaches
+production is generally kept.
+
+That is the strongest argument for D51 and it was discovered by trying. The cleanup that *was*
+possible — webhook events, the payment row, idempotency keys, the enquiry and its rate rows —
+went through; `Sweep Two` was erased through `DELETE /functions/v1/recipients`, deliberately not
+by SQL, so it exercised the same code a real erasure request would.

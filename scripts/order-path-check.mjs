@@ -38,6 +38,8 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
+import { assertNotProductionWrite } from './lib/prod-write-guard.mjs';
+
 import { kitchen } from '../packages/shared/src/index.ts';
 
 const args = process.argv.slice(2);
@@ -55,6 +57,18 @@ if (!url || !anonKey || !serviceKey) {
     'SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY must all be set.\n' +
       'The service key creates the parent; the anon key is what the app itself would use.',
   );
+  process.exit(2);
+}
+
+/**
+ * This script signs up a parent, adds a child and places an order. That is precisely the test
+ * data Andy's 2026-08-17 rule forbids on production, and it is how three cancelled orders and
+ * two children ended up on the live project. Staging is where this belongs.
+ */
+try {
+  assertNotProductionWrite(url, 'a parent account, a child, and an order');
+} catch (error) {
+  console.error(`\n${error.message}`);
   process.exit(2);
 }
 

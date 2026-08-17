@@ -1,7 +1,10 @@
 # What test data is on production — audit of 2026-08-17
 
-**Nothing has been deleted.** This is the inventory and the recommendation; the decision is
-Andy's.
+> **Status: acted on.** This began as an inventory with nothing deleted. Andy approved the
+> recommendation on 2026-08-17 and it was carried out — see **"Acted on"** at the foot of this
+> file for what was removed, what was erased through the app, and what remains. The inventory
+> below is preserved as the state *before* that cleanup, because the reasoning about what could
+> and could not be deleted is the useful part.
 
 ## The headline answers
 
@@ -93,3 +96,73 @@ references, no triggers.
 
 **Do not touch** the payment row unless the order group is going too — on its own it is a
 harmless record of a Razorpay order that was created and never paid.
+
+
+---
+
+# Acted on, 2026-08-17
+
+Andy approved the recommendation. What was done:
+
+**Deleted** — `payment_webhook_event` (3), `payment` (1), `idempotency_key` (3),
+`enquiry_rate` (5), `enquiry` (1). All now zero. Nothing referenced them.
+
+**Erased** — `Sweep Two`, through `DELETE /functions/v1/recipients/<id>` as the parent, not by
+SQL, so it exercised the same path a real erasure request would. Both children now read
+`Removed`, anonymised, with no class, no section, no active guardian links and no
+`recipient_allergen` rows.
+
+**Kept** — the three cancelled orders, their 6 `order_event` rows, and the 3 consent records.
+No money, no invoice number, and the immutability guards stay.
+
+## Confirmation 1 — the kitchen board
+
+`KITCHEN_STATUSES` in `packages/shared/src/api/kitchen.ts` is
+`['paid', 'preparing', 'delivered', 'cancelled']`, so **a cancelled order does appear on the
+board**. Each of the three sits on its own date:
+
+| Date | Board shows |
+|---|---|
+| **17 Aug** (today) | 1 row — `GB-94Q6JD`, cancelled, "Sweep Two" |
+| **19 Aug** (launch day) | 1 row — `GB-0DDW8Q`, cancelled, "Sweep Testchild" |
+| 20 Aug | 1 row — `GB-APGY7Q`, cancelled, "Sweep Two" |
+
+So the answer to *"does it read sensibly"* is: it reads correctly and it is still not what you
+want on day one. **19 August is the one that matters** — the Amity board opens on launch day
+showing a single cancelled order for a child called "Sweep Testchild", and nothing else.
+
+The name persists because `order.recipient_name_snapshot` is deliberately not touched by erasure
+(`0026`: the snapshot is the record of what was ordered, with its own retention schedule). It is
+correct behaviour on a fictional child, and it looks like a real one to a kitchen operator.
+
+**Not acted on, because it is a production data change beyond what was approved.** The options:
+
+1. **Move the three `service_date`s into the past.** `order` has no protected-column guard, so
+   this works; it fires `write_order_event`, adding one more event each. Clears every future
+   board. Rewrites a field on a historical record, which is the objection.
+2. **Leave them and tell the kitchen** that anything named "Sweep" on 19–20 August is ours.
+3. **Have the board hide cancelled orders with no other orders on that date** — a change in
+   `apps/web`, which is the web thread's, and a product decision rather than a cleanup.
+
+Recommendation: **(1)**, moving them to a date already past, e.g. 2026-08-01. It is the only one
+that clears launch day without touching an immutability guard or the web code, and the field it
+rewrites carries no money and no invoice number.
+
+## Confirmation 2 — what still references `+parent@`
+
+Six places, all of them consequences of what we agreed to keep:
+
+| Reference | Rows | Why |
+|---|---|---|
+| `app_user.id` | 1 | The account itself |
+| `consent_record.user_id` | 3 | Kept — append-only, §6.1.5 evidence |
+| `order.customer_user_id` | 3 | Kept — the cancelled orders |
+| `order_group.customer_user_id` | 3 | Kept — same |
+| `guardian_link.user_id` | 2 | Revoked links to the two anonymised children |
+| `recipient.created_by_user_id` | 2 | The two anonymised children |
+
+Plus one row each in `app_user` and `auth.users` for the address itself. **Nothing else**: no
+payment, no invoice, no ledger entry, no notification, no enquiry, no webhook event.
+
+Invariants re-checked after the cleanup: `invoice_sequence` 0 rows, `invoice` 0, `ledger_entry`
+0, `payment` 0. The first real invoice still reads **`GB/26-27/000001`**.

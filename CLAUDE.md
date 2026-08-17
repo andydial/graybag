@@ -252,7 +252,41 @@ Anything not in that list is fast-follow, including anything you add later.
 5. **Never commit the `.bubble` export.** It contains live secrets.
 6. **Nothing merges without the smoke test green.** The full suite runs nightly.
 7. **Mohali-only, 5% flat GST, no passwords, no push, six compliance tasks.** Do not drift.
-8. **A migration applied to production by hand is recorded in the ledger in the same
+8. **No test data is ever created in production.** Not by you, not by CI, not by a smoke
+   script, not "just once to verify". Andy's rule, 2026-08-17. **Verification happens on
+   staging.**
+
+   This covers anything a person or a job writes that is not real: accounts, children, orders,
+   payments, enquiries, webhook probes, uploaded files, config rows. If you are about to write
+   to `bdamkuugbqjajbndjoxn` and the thing you are writing is not a real customer's, stop.
+
+   **If something genuinely can only be proven on production** — a live payment, a real webhook
+   signature, an email actually leaving the building — it needs **Andy's explicit go-ahead
+   first**, and you tell him *exactly what it will write* before you do it. Not "I need to test
+   payments"; "this will create one order group, one order, one payment row and consume no
+   invoice number".
+
+   `scripts/lib/prod-write-guard.mjs` enforces it where a script is involved:
+
+   ```js
+   import { assertNotProductionWrite } from './lib/prod-write-guard.mjs';
+   assertNotProductionWrite(url, 'a parent account, a child, and an order');
+   ```
+
+   It refuses unless `GRAYBAG_PROD_WRITE` holds a **sentence** describing the approval — a
+   boolean would be set once and forgotten, so `1`, `true` and `yes` are rejected. Wire it into
+   anything new that writes. `order-path-check.mjs` is the worked example.
+
+   **The guard cannot save you from a terminal**, and that is the honest limit of it: the three
+   cancelled orders, two children, three consent records, a payment, an enquiry and three
+   webhook events on production were all created by hand with `curl` and `psql`, by someone who
+   knew exactly which project it was. Code cannot refuse that. This paragraph is the control.
+
+   Cleaning up afterwards is not a substitute either — it turned out the orders **cannot be
+   deleted**, because `order_event` is append-only and `order.recipient_id` is `RESTRICT`. What
+   you write to production, you generally keep. See `docs/prod-test-data-audit.md`.
+
+9. **A migration applied to production by hand is recorded in the ledger in the same
    operation.** One command, both effects — never the SQL now and the bookkeeping later:
 
    ```bash
