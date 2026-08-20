@@ -54,10 +54,20 @@ import '../../styles/admin.css';
       <main class="kitchen__wrap admin__wrap">
         <div id="a-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
+        <!--
+          Leads with the task, not the model — `E10-45`.
+
+          This paragraph used to open "Back-office access is a grant, never a role — there is no
+          role column anywhere", which is true, is the reason the rest of the system works, and is
+          of no use whatsoever to somebody trying to let a cook sign in. Andy: *"privileges one is
+          a large list that does not make much sense to me."* The architecture note now sits at the
+          bottom of the screen, next to the revoke warning where it explains something.
+        -->
         <p class="admin__intro">
-          Back-office access is a <b>grant</b>, never a role — there is no role column anywhere.
-          Somebody has to <b>sign in once</b> before they can be given anything; they appear here
-          the moment they do.
+          Give somebody a <b>job</b> and they get the permissions that job needs. Each one says
+          exactly what it grants before you give it, and you can still grant a single permission on
+          its own. Somebody has to <b>sign in once</b> before they can be given anything — they
+          appear here the moment they do.
         </p>
 
         <div id="a-body"></div>
@@ -67,6 +77,7 @@ import '../../styles/admin.css';
     <script>
       import { mountNav } from '../../lib/backoffice/nav-mount.js';
       import { api } from '@graybag/shared';
+      import { JOBS, describeAccess, jobByKey } from '../../lib/admin/jobs.js';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { PEOPLE_FIXTURE } from '../../lib/admin/people-fixture.js';
 
@@ -135,10 +146,21 @@ import '../../styles/admin.css';
               `</p>` +
               `<p class="srow__meta">` +
                 (a.displayName ? `${esc(a.displayName)} · ` : '') +
-                (a.held.length === 0
-                  ? '<b>No access</b> — signed in, holds nothing'
-                  : `${a.held.length} permission${a.held.length === 1 ? '' : 's'}` +
-                    (sensitive > 0 ? `, ${sensitive} sensitive` : '')) +
+                /*
+                 * The job, not the count — `E10-45`. "2 permissions, 1 sensitive" told you the
+                 * size of a list, never what the person can do. `describeAccess` answers the
+                 * question actually being asked, and says **Custom** rather than guessing when
+                 * the grants match no job.
+                 */
+                (() => {
+                  const summary = describeAccess(
+                    a.held.map((g) => ({ permissionCode: g.permissionCode, scopeType: g.scopeType })),
+                  );
+                  const where = summary.scopeType && summary.scopeType !== 'platform'
+                    ? ` at ${esc(summary.scopeType)}` : '';
+                  return `<b>${esc(summary.label)}</b>${where}` +
+                    (sensitive > 0 ? ` · ${sensitive} sensitive` : '');
+                })() +
               `</p>` +
               marks.map((m) => `<p class="srow__why">${esc(m)}</p>`).join('') +
 
@@ -203,8 +225,45 @@ import '../../styles/admin.css';
         }
 
         return (
+          /*
+           * Two ways in, in the order they are wanted — `E10-45`.
+           *
+           * Andy: *"I want to be able to promote people to Kitchen staff so they can login and
+           * view orders and promote orders."* That is one action, and it used to be five trips
+           * through a thirty-one-item dropdown with a scope to get right each time — which is
+           * both tedious and the shape of mistake that hands somebody `orders.refund` by
+           * mis-click.
+           *
+           * The individual picker stays, nested, because `D3`'s whole argument is that a grant
+           * can be split off on its own. It is now the second thing rather than the only thing.
+           */
           `<details class="setting__edit">` +
-            `<summary>Grant something to ${esc(a.email)}</summary>` +
+            `<summary>Give ${esc(a.email)} a job</summary>` +
+            `<form data-job="${esc(a.userId)}">` +
+              `<div class="admin__field">` +
+                `<label class="admin__label" for="job-${esc(a.userId)}">Job</label>` +
+                `<select class="admin__select" id="job-${esc(a.userId)}" name="jobKey" required>` +
+                  JOBS.map((j) =>
+                    `<option value="${esc(j.key)}">${esc(j.label)}</option>`).join('') +
+                `</select>` +
+                `<div class="jobnote" id="jobnote-${esc(a.userId)}"></div>` +
+              `</div>` +
+              `<div class="admin__field">` +
+                `<label class="admin__label" for="jscope-${esc(a.userId)}">Where</label>` +
+                `<select class="admin__select" id="jscope-${esc(a.userId)}" name="scopeType" required></select>` +
+              `</div>` +
+              `<div class="admin__field">` +
+                `<label class="admin__label" for="jsid-${esc(a.userId)}">Kitchen or school id</label>` +
+                `<input class="admin__input" id="jsid-${esc(a.userId)}" name="scopeId" type="text" ` +
+                  `placeholder="leave empty for platform" />` +
+              `</div>` +
+              `<div class="setting__actions">` +
+                `<button class="kitchen__btn kitchen__btn--primary" type="submit">Give this job</button>` +
+              `</div>` +
+            `</form>` +
+
+            `<details class="setting__edit">` +
+            `<summary>Or grant one permission at a time</summary>` +
             `<form data-grant="${esc(a.userId)}">` +
               `<div class="admin__field">` +
                 `<label class="admin__label" for="perm-${esc(a.userId)}">Permission</label>` +
@@ -243,6 +302,7 @@ import '../../styles/admin.css';
                 `<button class="kitchen__btn kitchen__btn--primary" type="submit">Grant</button>` +
               `</div>` +
             `</form>` +
+            `</details>` +
           `</details>`
         );
       }
@@ -281,7 +341,15 @@ import '../../styles/admin.css';
             `Revoking is <b>not</b> a delete — the row is kept with who revoked it and when, so ` +
             `access history survives. Granting and revoking both need <b>grants.manage</b> at ` +
             `platform scope.` +
+            `<br><br>` +
+            `A job is a <b>shortcut, not a role</b> — there is no role column anywhere (<b>D3</b>). ` +
+            `Giving one writes the same individual permission rows you would have picked by hand, ` +
+            `and the job name above is read back from those rows. That is what lets a single ` +
+            `permission be taken away from somebody without the rest going with it.` +
           `</p>`;
+
+        // The forms were just written from a string, so nothing is describing its job yet.
+        syncJobNotes();
       }
 
       function showFormError(form: HTMLFormElement, message: string) {
@@ -294,6 +362,50 @@ import '../../styles/admin.css';
           form.append(box);
         }
         box.textContent = message;
+      }
+
+      /**
+       * Apply every grant a job names — `E10-45`.
+       *
+       * **One `permission_grant` row per permission, exactly as picking them by hand would write.**
+       * Nothing records that a job was used: `D3` keeps roles out of the schema, and the job is a
+       * presentation over the rows, derived back by `describeAccess`. If that were stored, the
+       * split-a-grant-off case `E09-09` depends on would stop working the moment somebody edited
+       * one permission of a job.
+       *
+       * Sequential rather than `Promise.all`: these are writes to the permission table, the list
+       * is short, and a half-applied job whose failure order is unknowable is far worse than a
+       * slightly slower one. The first failure stops the rest and says which grant it was, so the
+       * person is left in a state that can be read off the screen.
+       */
+      async function giveJob(form: HTMLFormElement) {
+        if (demo) {
+          showFormError(form, 'This is the demo view — nothing is written. Sign in to make a change.');
+          return;
+        }
+        const data = new FormData(form);
+        const job = jobByKey(String(data.get('jobKey') ?? ''));
+        if (!job) return showFormError(form, 'Pick a job.');
+
+        const scopeType = String(data.get('scopeType') ?? 'platform');
+        const rawScopeId = String(data.get('scopeId') ?? '').trim();
+        const scopeId = rawScopeId === '' ? null : rawScopeId;
+
+        let done = 0;
+        try {
+          for (const permissionCode of job.grants) {
+            await api.grantPermission({ userId: form.dataset.job!, permissionCode, scopeType, scopeId });
+            done += 1;
+          }
+          el.status.textContent = `${job.label} granted — ${job.grants.length} permissions.`;
+          await load();
+        } catch (cause) {
+          // Name the count that landed. "It failed" after four of five writes leaves somebody
+          // guessing whether to retry, and retrying is safe here only because they can see this.
+          const why = cause instanceof Error ? cause.message : 'The job was not granted.';
+          showFormError(form, `${why} ${done} of ${job.grants.length} permissions were granted before this failed.`);
+          await load();
+        }
       }
 
       async function grant(form: HTMLFormElement) {
@@ -337,8 +449,47 @@ import '../../styles/admin.css';
         }
       }
 
+      /**
+       * Keep each job form describing the job that is selected — `E10-45`.
+       *
+       * The summary and the scope options both come from the job table, so choosing "Kitchen
+       * staff" narrows *Where* to the scopes that job makes sense at. Offering `platform` for a
+       * kitchen job would be offering a mistake with real consequences: it is the difference
+       * between one kitchen's staff and every kitchen's.
+       */
+      function syncJobNotes() {
+        for (const select of el.body.querySelectorAll<HTMLSelectElement>('select[name=jobKey]')) {
+          const form = select.closest('form') as HTMLFormElement | null;
+          if (!form) continue;
+          const job = jobByKey(select.value);
+          const note = form.querySelector('.jobnote') as HTMLElement | null;
+          const scope = form.querySelector('select[name=scopeType]') as HTMLSelectElement | null;
+          if (!job || !note || !scope) continue;
+
+          note.innerHTML =
+            `<p class="jobnote__what">${esc(job.summary)}</p>` +
+            (job.sensitive ? `<p class="jobnote__warn">${esc(job.sensitive)}</p>` : '') +
+            `<p class="jobnote__grants">Grants ${job.grants.length} permissions: ` +
+              job.grants.map((g) => `<code>${esc(g)}</code>`).join(' ') +
+            `</p>`;
+
+          const previous = scope.value;
+          scope.innerHTML = job.scopes.map((sc) => `<option value="${esc(sc)}">${esc(sc)}</option>`).join('');
+          if (job.scopes.includes(previous as never)) scope.value = previous;
+        }
+      }
+
+      el.body.addEventListener('change', (event) => {
+        if ((event.target as HTMLElement).matches('select[name=jobKey]')) syncJobNotes();
+      });
+
       el.body.addEventListener('submit', (event) => {
         const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;
+        if (form?.dataset.job) {
+          event.preventDefault();
+          void giveJob(form);
+          return;
+        }
         if (!form?.dataset.grant) return;
         event.preventDefault();
         void grant(form);
