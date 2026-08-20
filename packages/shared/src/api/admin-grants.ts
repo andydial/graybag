@@ -84,13 +84,75 @@ export async function fetchPermissions(): Promise<PermissionInfo[]> {
  * cook signs in once, which creates the row (`0018`), and then appears here to be given access. A
  * list of only privileged accounts would have no way to reach the person you are onboarding.
  */
+/**
+ * Find an account by email or name — `E10-46`.
+ *
+ * The onboarding path. A new cook signs in once, holds nothing, and has to be found so they can be
+ * given a job; before this the screen listed **every** account so they would be in it somewhere,
+ * which stops working the day parents outnumber staff a hundred to one.
+ *
+ * **Searched in the database, not the browser.** Fetching every account to filter it client-side
+ * is the same unbounded read wearing a search box.
+ *
+ * `LIMIT` is deliberate and low: this answers "give me that person", not "browse the user table".
+ * If a search returns twenty rows the query was too vague, and the answer is a better search term
+ * rather than a longer list.
+ */
+export const ACCOUNT_SEARCH_LIMIT = 20;
+
+export async function searchAccounts(query: string): Promise<AccessAccount[]> {
+  const term = query.trim();
+  // Two characters is the floor. One letter matches most of the table and is never what somebody
+  // means; an empty box must return nothing rather than everybody.
+  if (term.length < 2) return [];
+
+  // `%` and `_` are wildcards in `ilike`. A parent whose email contains one would otherwise widen
+  // the search rather than narrow it, and `\` is escaped first or it would escape our escapes.
+  const safe = term.replace(/\\/g, '\\\\').replace(/[%_]/g, (c) => `\\${c}`);
+  const pattern = `%${safe}%`;
+
+  const rows = await runQuery<unknown>((t) =>
+    t
+      .from('app_user')
+      .select(ACCESS_USER_COLUMNS)
+      .or(`email.ilike.${pattern},first_name.ilike.${pattern},last_name.ilike.${pattern}`)
+      .is('deleted_at', null)
+      .order('email')
+      .limit(ACCOUNT_SEARCH_LIMIT),
+  );
+
+  return rows.filter(isRecord).map((u) => {
+    const first = str(u.first_name) ?? '';
+    const last = str(u.last_name) ?? '';
+    return {
+      userId: str(u.id) ?? '',
+      email: str(u.email) ?? '',
+      displayName: `${first} ${last}`.trim(),
+      isDisabled: u.is_disabled === true,
+      // A search result carries no grants: this is the "who is this person" lookup, and the
+      // screen re-reads their access from `fetchAccess` once they have some.
+      held: [],
+    };
+  });
+}
+
+/**
+ * Everyone who holds back-office access — `E10-46`.
+ *
+ * **Grants first, then the accounts they name.** This used to select every `app_user` row,
+ * unbounded, so the screen could render a card each. That was fine at four accounts and wrong the
+ * moment parents register: at 400 it fetches 400 rows to show three staff. Andy: *"how will this
+ * list look like in 1 week where 400 people have registered?"*
+ *
+ * Now it returns exactly as many rows as there are people with access, whatever the size of the
+ * user table. Reaching somebody who holds **nothing** — the onboarding case the old version was
+ * right to care about — is `searchAccounts`, because searching is how you find one person among
+ * hundreds, and listing everybody is not.
+ */
 export async function fetchAccess(): Promise<AccessAccount[]> {
-  const [users, grants] = await Promise.all([
-    runQuery<unknown>((t) => t.from('app_user').select(ACCESS_USER_COLUMNS).order('email')),
-    runQuery<unknown>((t) =>
-      t.from('permission_grant').select(ACCESS_GRANT_COLUMNS).is('revoked_at', null),
-    ),
-  ]);
+  const grants = await runQuery<unknown>((t) =>
+    t.from('permission_grant').select(ACCESS_GRANT_COLUMNS).is('revoked_at', null),
+  );
 
   const byUser = new Map<string, HeldGrant[]>();
   for (const g of grants.filter(isRecord)) {
@@ -111,6 +173,13 @@ export async function fetchAccess(): Promise<AccessAccount[]> {
       grantedByEmail: str(grantedBy.email),
     });
   }
+
+  const holderIds = [...byUser.keys()];
+  const users = holderIds.length === 0
+    ? []
+    : await runQuery<unknown>((t) =>
+        t.from('app_user').select(ACCESS_USER_COLUMNS).in('id', holderIds).order('email'),
+      );
 
   return users
     .filter(isRecord)

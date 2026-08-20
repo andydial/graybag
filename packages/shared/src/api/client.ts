@@ -84,6 +84,25 @@ export interface SelectBuilder extends PromiseLike<QueryResult> {
    * project names first. The screen shows upcoming and recent; it has never needed everything.
    */
   limit(count: number): SelectBuilder;
+  /**
+   * `IN (…)`. Added for `fetchAccess` (`E10-46`), and widening this interface is deliberately a
+   * visible diff rather than a method appearing at a call site.
+   *
+   * That function reads the grants first and then only the accounts those grants name. Without
+   * `in` it had to select every `app_user` row and filter in the browser, which is fine at four
+   * accounts and is an unbounded read the moment parents register.
+   */
+  in(column: string, values: readonly unknown[]): SelectBuilder;
+  /**
+   * A disjunction, in PostgREST's own syntax: `or('email.ilike.%a%,first_name.ilike.%a%')`.
+   *
+   * Added for `searchAccounts` (`E10-46`) — finding one person by email **or** either name, which
+   * cannot be expressed as a chain of `eq`, because chained filters are `AND`.
+   *
+   * The caller builds the string, so the caller is responsible for escaping `%` and `_` in
+   * anything a person typed. `searchAccounts` does that and says why.
+   */
+  or(filters: string): SelectBuilder;
 }
 
 export interface TableRef {
