@@ -4,6 +4,8 @@ import { setApiTransport } from './client.js';
 import { fakeTransport } from './test-support.js';
 import { ADMIN_ORDER_COLUMNS } from './admin-orders.js';
 import {
+  groupRows,
+  totalOf,
   MAX_REPORT_MONTHS,
   REPORT_ORDER_COLUMNS,
   ReportError,
@@ -70,15 +72,21 @@ describe('monthOf', () => {
 });
 
 describe('summarise', () => {
-  it('groups by month and school', () => {
+  it('groups by day and school — the finest grain the source has', () => {
+    // **Changed in `E11-10`**, deliberately: this used to group by month and school, which meant
+    // a per-day or per-school view had to re-read the orders and could disagree with the monthly
+    // one about a total. Every view the screen offers is now a fold of these rows, so they
+    // cannot. `groupRows` is what folds them.
     const rows = summarise([
       order(),
       order({ service_date: '2026-08-18' }),
       order({ service_date: '2026-09-01' }),
       order({ school_id: 's-2', school_name_snapshot: 'Gem' }),
     ]);
-    expect(rows).toHaveLength(3);
-    expect(rows.find((r) => r.month === '2026-08' && r.schoolId === 's-1')!.orders).toBe(2);
+    // Two on the default date (one per school), plus 08-18, plus 09-01.
+    expect(rows).toHaveLength(4);
+    expect(groupRows(rows, 'month').find((b) => b.key === '2026-08')!.orders).toBe(3);
+    expect(groupRows(rows, 'school').find((b) => b.label === 'Gem')!.orders).toBe(1);
   });
 
   it('sums money as integer paise throughout', () => {
@@ -199,5 +207,95 @@ describe('fetchMonthlyRevenue', () => {
     // The aggregation is client-side, so an unbounded range on a school-gate connection is the
     // performance priority this project names first. Thirteen months so year-on-year fits.
     expect(MAX_REPORT_MONTHS).toBe(13);
+  });
+});
+
+describe('unpaid orders are not revenue (E11-10)', () => {
+  const order = (over: Record<string, unknown> = {}) => ({
+    service_date: '2026-08-17', status: 'paid', school_id: 's-1', school_name_snapshot: 'Amity',
+    subtotal_paise: 10000, tax_cgst_paise: 250, tax_sgst_paise: 250, discount_paise: 0,
+    total_paise: 10500, refunded_total_paise: 0, ...over,
+  });
+
+  it('keeps a pending_payment order out of gross', () => {
+    // The bug this replaces. The old code was `if cancelled or refunded … else count as gross`,
+    // so an order nobody had paid for was reported as money. On production that was ₹228.92 of
+    // takings that did not exist — and a number being too big is the one error nobody queries.
+    const [row] = summarise([order(), order({ status: 'pending_payment' })]);
+    expect(row!.orders).toBe(2);
+    expect(row!.grossPaise).toBe(10500);
+    expect(row!.pending).toBe(1);
+    expect(row!.pendingPaise).toBe(10500);
+  });
+
+  it('keeps a draft order out of gross too', () => {
+    const [row] = summarise([order({ status: 'draft' })]);
+    expect(row!.grossPaise).toBe(0);
+    expect(row!.pendingPaise).toBe(10500);
+  });
+
+  it('counts preparing and delivered as earned — payment settled before the kitchen saw them', () => {
+    const [row] = summarise([order({ status: 'preparing' }), order({ status: 'delivered' })]);
+    expect(row!.grossPaise).toBe(21000);
+    expect(row!.pending).toBe(0);
+  });
+
+  it('never adds pending money into gross, whatever the mix', () => {
+    const [row] = summarise([
+      order(), order({ status: 'pending_payment' }), order({ status: 'cancelled' }),
+    ]);
+    expect(row!.grossPaise).toBe(10500);
+    expect(row!.netPaise).toBe(10500);
+    expect(row!.orders).toBe(3);
+  });
+
+  it('refuses a status it has never heard of rather than guessing a side of the ledger', () => {
+    // Guessing is precisely how `pending_payment` ended up in revenue. A new status must break
+    // this loudly, in a test run, not quietly in a number somebody trusts.
+    expect(() => summarise([order({ status: 'awaiting_something_new' })])).toThrow(/unknown status/);
+  });
+});
+
+describe('groupRows and totalOf (E11-10)', () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    service_date: '2026-08-17', status: 'paid', school_id: 's-1', school_name_snapshot: 'Amity',
+    subtotal_paise: 10000, tax_cgst_paise: 250, tax_sgst_paise: 250, discount_paise: 0,
+    total_paise: 10500, refunded_total_paise: 0, ...over,
+  });
+
+  const rows = summarise([
+    row(),
+    row({ service_date: '2026-08-18' }),
+    // 50000 so Gem genuinely outranks Amity's two orders at 10500 each — the first version of
+    // this used 20000, which made Amity the bigger school and the ranking test was asserting
+    // the wrong intent rather than catching a wrong sort.
+    row({ service_date: '2026-09-02', school_id: 's-2', school_name_snapshot: 'Gem', total_paise: 50000 }),
+  ]);
+
+  it('folds to the same total however it is grouped', () => {
+    // The property that makes three views trustworthy: they are folds of one set of rows, so a
+    // per-school total and a per-month total cannot disagree.
+    const totals = (['day', 'month', 'school'] as const).map((by) => totalOf(groupRows(rows, by)));
+    expect(new Set(totals.map((t) => t.grossPaise)).size).toBe(1);
+    expect(new Set(totals.map((t) => t.orders)).size).toBe(1);
+    expect(totals[0]!.grossPaise).toBe(71000);
+  });
+
+  it('runs time forwards so a chart reads left to right', () => {
+    expect(groupRows(rows, 'day').map((b) => b.key)).toEqual(['2026-08-17', '2026-08-18', '2026-09-02']);
+    expect(groupRows(rows, 'month').map((b) => b.key)).toEqual(['2026-08', '2026-09']);
+  });
+
+  it('ranks schools by what they are worth, not alphabetically', () => {
+    // A school breakdown is asked in order to see who the biggest is. Alphabetical buries it.
+    expect(groupRows(rows, 'school').map((b) => b.label)).toEqual(['Gem', 'Amity']);
+  });
+
+  it('labels a school bucket with its name, not its id', () => {
+    expect(groupRows(rows, 'school')[0]!.label).toBe('Gem');
+  });
+
+  it('totals an empty report to zeroes rather than throwing', () => {
+    expect(totalOf([])).toMatchObject({ orders: 0, grossPaise: 0, netPaise: 0 });
   });
 });

@@ -969,13 +969,25 @@
   background: var(--gb-bg-surface);
 }
 
+/*
+ * The figure shrinks to fit rather than overflowing its card.
+ *
+ * At a flat 2rem, "₹21,925.00" ran off the edge of its card and was clipped mid-glyph — the
+ * number on a revenue screen, unreadable. `clamp` keeps a count like "209" at full size and lets
+ * a long money string come down to something that fits, which is the correct trade: a slightly
+ * smaller total you can read beats a large one you cannot.
+ */
 .gstat__n {
   margin: 0;
-  font-size: var(--gb-font-size-display);
+  font-size: clamp(1.25rem, 2.6cqi + 0.5rem, var(--gb-font-size-display));
   font-weight: var(--gb-font-weight-display);
-  line-height: 1;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
+
+/* `cqi` above needs a container to be relative to; without this it silently falls back. */
+.gstat { container-type: inline-size; }
 
 .gstat__l { margin: var(--gb-space-1) 0 0; font-weight: var(--gb-font-semibold); }
 .gstat__note { margin: var(--gb-space-1) 0 0; color: var(--gb-text-secondary); font-size: var(--gb-font-size-caption); }
@@ -1030,3 +1042,83 @@
 }
 
 .gbar__pc { color: var(--gb-text-secondary); font-size: var(--gb-font-size-body-sm); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------- charts (`E11-10`)
+ *
+ * One vocabulary for both the growth and the revenue screens. `chart.ts` emits the geometry; this
+ * decides what it looks like, so a change of palette never means editing a coordinate.
+ */
+
+.cx {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: var(--gb-space-3) 0 var(--gb-space-2);
+  /* Room for the tooltip and the top gridline label to breathe. */
+  overflow: visible;
+}
+
+/* Gridlines sit behind everything and must never compete with the data. */
+.cx__grid { stroke: var(--gb-border-subtle); stroke-width: 1; }
+.cx__axis { stroke: var(--gb-border-strong); stroke-width: 1; }
+
+.cx__ytick,
+.cx__xtick {
+  fill: var(--gb-text-secondary);
+  font-family: var(--gb-font-family);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cx__bar { fill: var(--gb-ramp-forest-500); }
+.cx__bar:hover { fill: var(--gb-ramp-forest-700); }
+
+.cx__line {
+  stroke: var(--gb-ramp-forest-700);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+/* The fill is the reason a cumulative series reads as accumulation rather than as a wiggle. */
+.cx__area { fill: var(--gb-ramp-forest-200); opacity: 0.55; }
+
+.cx__dot { fill: var(--gb-ramp-forest-700); }
+.cx__dot:hover { r: 4; }
+
+/* A second series drawn over the first — pending money against earned. */
+.cx__bar--pending { fill: var(--gb-ramp-amber-300); }
+.cx__bar--pending:hover { fill: var(--gb-ramp-amber-500); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .cx__bar, .cx__dot { transition: fill var(--gb-duration-fast) var(--gb-ease-standard); }
+}
+
+/* ------------------------------------------------- the revenue controls (`E11-10`) */
+
+.rctl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--gb-space-4);
+  margin-bottom: var(--gb-space-4);
+  padding: var(--gb-space-3);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-lg);
+  background: var(--gb-bg-surface);
+}
+
+.rctl__presets { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); }
+
+.rctl__dates,
+.rctl__group { display: flex; align-items: center; gap: var(--gb-space-2); }
+
+/* The labels sit inline with their inputs here, so the stacked block margin would break the row. */
+.rctl .admin__label { margin: 0; white-space: nowrap; }
+.rctl .admin__input, .rctl .admin__select { width: auto; }
+
+/* Unpaid money is the one figure on the screen that must not read as a success. */
+.gstat--warn {
+  border-color: var(--gb-border-danger);
+  background: var(--gb-bg-surface-warning);
+}

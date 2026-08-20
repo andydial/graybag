@@ -1,26 +1,35 @@
 ---
 /**
- * Orders and revenue, by school, by month — `E10-10`.
+ * Orders and revenue — `E10-10`, rebuilt in `E11-10`.
  *
- * The narrow report Andy asked for and nothing more. No cohort retention, no active-user counts,
- * no revenue-share payout view: those are `E10-17` and `E10-09`, they are not in v1, and a screen
- * that grows them quietly is a screen nobody agreed to.
+ * ## What was wrong with it
  *
- * ## No child appears anywhere on this page
+ * Andy: *"The /reports is very bad and does not even show the right data. It shows orders and I
+ * updated date to at least include 1 more order from the new range and it didn't change any
+ * numbers. Also reports does not have option to do per school or per month etc."*
  *
- * `admin-reports.ts` reads no recipient, class or section column — non-negotiable #4 — and this
- * page could not show one if it tried, because the data is not fetched. That is deliberate: a
- * report is aggregate by definition, and a name on this screen is one screenshot away from a
- * school's inbox.
+ * Three separate faults, and the first is the serious one:
  *
- * ## `reports.view`, and why the empty state matters
+ * 1. **Unpaid orders were counted as revenue.** `summarise` did `if cancelled or refunded … else
+ *    add to gross`, which swept `draft` and `pending_payment` in. On production that was ₹228.92
+ *    of "takings" nobody had paid. A number being too large is the one error on a report that
+ *    never gets questioned.
+ * 2. **Changing a date did nothing until you pressed Show.** The query was correct all along —
+ *    extending the range to `2026-08-21` does return one more order — but the form only applied
+ *    on submit, so changing a date and reading the numbers showed the previous answer. It now
+ *    applies on change, and the presets mean the common ranges need no typing at all.
+ * 3. **No grouping.** Month, school and day are now a control rather than a rebuild.
  *
- * `0002` scopes what a caller reads. A school viewer sees their own school; a platform admin sees
- * all of them. Neither is enforced here — there is no client-side school filter, because a filter
- * written in a browser is a second, weaker copy of a rule the database already holds.
+ * ## One set of rows, three views
  *
- * Which means an **empty report is ambiguous**: no orders, or no permission to see them. The page
- * says both possibilities rather than picking one, which is `[AUTH-01]`.
+ * `summarise` returns (day, school) rows — the finest grain the source has — and every view is a
+ * fold of those via `groupRows`. Three separate queries would let the per-school total disagree
+ * with the per-month one, and a report whose own totals disagree is worse than no report.
+ *
+ * ## Still no child, anywhere
+ *
+ * `REPORT_ORDER_COLUMNS` reads no recipient, class or section (non-negotiable #4). None of this
+ * rebuild widens it.
  */
 import BackofficeNav from '../components/BackofficeNav.astro';
 
@@ -36,7 +45,7 @@ import '../styles/admin.css';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Reports — GrayBag</title>
+    <title>Revenue — GrayBag</title>
     <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
   </head>
@@ -45,7 +54,7 @@ import '../styles/admin.css';
     <div class="kitchen">
       <header class="kitchen__bar">
         <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">Reports</h1>
+          <h1 class="kitchen__title">Revenue</h1>
           <button id="r-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
           <BackofficeNav current="/reports" />
         </div>
@@ -54,25 +63,36 @@ import '../styles/admin.css';
       <main class="kitchen__wrap admin__wrap">
         <div id="r-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
-        <p class="admin__intro">
-          Orders and revenue by school, by month. <b>Cancelled and refunded orders are counted but
-          are not revenue</b>, so the order count and the money deliberately do not agree —
-          the cancelled column is what reconciles them.
-        </p>
+        <!--
+          The controls apply on change. There is no Show button, deliberately: one existed, and
+          changing a date without pressing it showed the previous answer while looking like the
+          new one. A control that silently does nothing is worse than no control.
+        -->
+        <div class="rctl">
+          <div class="rctl__presets" role="group" aria-label="Range">
+            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="7">7 days</button>
+            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="30">30 days</button>
+            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="month">This month</button>
+            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="last">Last month</button>
+            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="180">6 months</button>
+          </div>
 
-        <form class="admin__picker" id="r-range">
-          <div>
+          <div class="rctl__dates">
             <label class="admin__label" for="r-from">From</label>
             <input class="admin__input" id="r-from" type="date" required />
-          </div>
-          <div>
             <label class="admin__label" for="r-to">To</label>
             <input class="admin__input" id="r-to" type="date" required />
           </div>
-          <div>
-            <button class="kitchen__btn kitchen__btn--primary" type="submit">Show</button>
+
+          <div class="rctl__group">
+            <label class="admin__label" for="r-by">Group by</label>
+            <select class="admin__select" id="r-by">
+              <option value="day">Day</option>
+              <option value="month" selected>Month</option>
+              <option value="school">School</option>
+            </select>
           </div>
-        </form>
+        </div>
 
         <div id="r-body"></div>
       </main>
@@ -81,6 +101,7 @@ import '../styles/admin.css';
     <script>
       import { mountNav } from '../lib/backoffice/nav-mount.js';
       import { api, money } from '@graybag/shared';
+      import { area, columns } from '../lib/admin/chart.js';
       import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
       import { serviceDateToday } from '../lib/kitchen/view.js';
       import { REPORTS_FIXTURE } from '../lib/admin/reports-fixture.js';
@@ -88,51 +109,70 @@ import '../styles/admin.css';
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
         body: $('r-body'), status: $('r-status'), reload: $<HTMLButtonElement>('r-reload'),
-        form: $<HTMLFormElement>('r-range'),
         from: $<HTMLInputElement>('r-from'), to: $<HTMLInputElement>('r-to'),
+        by: $<HTMLSelectElement>('r-by'),
       };
-
       const esc = (s: string) =>
-        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+        String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+      const rupees = (p: number) => money.formatPaise(p);
 
       const demo = new URLSearchParams(location.search).has('state');
-
       let rows: api.ReportRow[] = [];
       let loading = true;
       let error: string | null = null;
 
-      /**
-       * The default range: this month and the five before it.
-       *
-       * Built from `serviceDateToday`, not `new Date().toISOString()`. IST is UTC+5:30, so before
-       * 05:30 the UTC date is yesterday — and at a month boundary that opens the report on the
-       * wrong month. `E09-32` shipped exactly that bug once already.
-       */
-      function defaultRange(): { from: string; to: string } {
-        const today = serviceDateToday(new Date());
-        const [y, m] = today.split('-').map(Number) as [number, number];
-        // Six months back, wrapping the year by hand rather than through a Date, for the same
-        // reason: no timezone gets a chance to move it.
-        const startMonth = m - 5;
-        const from = startMonth > 0
-          ? `${y}-${String(startMonth).padStart(2, '0')}-01`
-          : `${y - 1}-${String(startMonth + 12).padStart(2, '0')}-01`;
-        return { from, to: today };
-      }
-
-      /** `2026-08` as "August 2026". Formatted from the parts — never through a Date. */
       const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'];
-      function monthName(month: string): string {
-        const [y, m] = month.split('-');
-        return `${MONTHS[Number(m) - 1] ?? month} ${y}`;
+
+      /** `2026-08` as "August 2026", `2026-08-17` as "17 Aug". Formatted from parts, never a Date. */
+      function label(key: string, by: api.GroupBy): string {
+        if (by === 'month') {
+          const [y, m] = key.split('-');
+          return `${MONTHS[Number(m) - 1] ?? key} ${y}`;
+        }
+        if (by === 'day') {
+          const [, m, d] = key.split('-');
+          return `${Number(d)} ${(MONTHS[Number(m) - 1] ?? '').slice(0, 3)}`;
+        }
+        return key;
+      }
+
+      /**
+       * Shift a `YYYY-MM-DD` by whole days, without a `Date`.
+       *
+       * `E09-32` cost this project a morning: parsing a date string gives UTC midnight, and in
+       * IST — UTC+5:30 — formatting it back can land on the previous day. Every date on this
+       * screen is arithmetic on the epoch at noon, which no timezone can move across a boundary.
+       */
+      function shift(date: string, days: number): string {
+        const t = Date.parse(`${date}T12:00:00Z`) + days * 86_400_000;
+        return new Date(t).toISOString().slice(0, 10);
+      }
+
+      function applyPreset(preset: string) {
+        const today = serviceDateToday(new Date());
+        const [y, m] = today.split('-').map(Number) as [number, number];
+        if (preset === 'month') {
+          el.from.value = `${y}-${String(m).padStart(2, '0')}-01`;
+          el.to.value = today;
+        } else if (preset === 'last') {
+          const py = m === 1 ? y - 1 : y;
+          const pm = m === 1 ? 12 : m - 1;
+          el.from.value = `${py}-${String(pm).padStart(2, '0')}-01`;
+          // The last day of the previous month is the day before the first of this one.
+          el.to.value = shift(`${y}-${String(m).padStart(2, '0')}-01`, -1);
+        } else {
+          el.from.value = shift(today, -Number(preset));
+          el.to.value = today;
+        }
+        void load();
       }
 
       async function load() {
         loading = true; error = null; render();
         try {
           if (demo) {
-            rows = REPORTS_FIXTURE.rows;
+            rows = REPORTS_FIXTURE.rows as unknown as api.ReportRow[];
           } else {
             configureBackofficeApi();
             rows = await api.fetchMonthlyRevenue(el.from.value, el.to.value);
@@ -145,116 +185,170 @@ import '../styles/admin.css';
         }
       }
 
+      const stat = (value: string, label: string, note = '', tone = '') =>
+        `<div class="gstat${tone ? ` gstat--${tone}` : ''}">` +
+        `<p class="gstat__n">${esc(value)}</p><p class="gstat__l">${esc(label)}</p>` +
+        (note ? `<p class="gstat__note">${esc(note)}</p>` : '') + `</div>`;
+
       function render() {
         if (loading) {
           el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
           return;
         }
-
         if (error) {
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>We can't show this report</h2>` +
-            `<p>${esc(error)}</p>` +
+            `<div class="kitchen__state"><h2>We can't show the report</h2><p>${esc(error)}</p>` +
             `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
           return;
         }
-
         if (rows.length === 0) {
-          // Both possibilities, because they are indistinguishable from here and picking one
-          // would be a guess presented as a fact. `[AUTH-01]`.
+          // Both possibilities, because they are indistinguishable from here (`[AUTH-01]`).
           el.body.innerHTML =
             `<div class="kitchen__state"><h2>Nothing in this range</h2>` +
-            `<p>Either no orders were placed between these dates, or this account cannot see ` +
-            `them — reading orders needs <b>reports.view</b>, and what it shows you is scoped to ` +
-            `the schools you are granted. Those two look identical from here, so neither is ` +
-            `being claimed.</p></div>`;
+            `<p>Either no orders were served between <b>${esc(el.from.value)}</b> and ` +
+            `<b>${esc(el.to.value)}</b>, or this account cannot read them — that needs ` +
+            `<b>reports.view</b>, and what it shows is scoped to the schools you are granted.</p></div>`;
           return;
         }
 
-        const months = api.totalsByMonth(rows);
+        const by = el.by.value as api.GroupBy;
+        const buckets = api.groupRows(rows, by);
+        const t = api.totalOf(buckets);
+
         el.status.textContent =
-          `${rows.length} school-months across ${months.length} months.`;
+          `${t.orders} orders, ${rupees(t.netPaise)} net, across ${buckets.length} ${by}s.`;
 
-        el.body.innerHTML = months.map((m) => {
-          const forMonth = rows.filter((r) => r.month === m.month);
-          return (
-            `<section class="admin__section" aria-labelledby="m-${esc(m.month)}">` +
-              `<h2 id="m-${esc(m.month)}">${esc(monthName(m.month))}</h2>` +
-              `<p class="kitchen__counts">` +
-                `<span><b>${m.orders}</b> orders</span>` +
-                `<span><b>${money.formatPaise(m.grossPaise)}</b> revenue</span>` +
-                (m.refundedPaise ? `<span><b>${money.formatPaise(m.refundedPaise)}</b> refunded</span>` : '') +
-                `<span><b>${money.formatPaise(m.netPaise)}</b> net</span>` +
-                (m.cancelled ? `<span><b>${m.cancelled}</b> cancelled</span>` : '') +
-              `</p>` +
-              `<table class="otable">` +
-                `<caption class="visually-hidden">` +
-                  `Orders and revenue by school for ${esc(monthName(m.month))}` +
-                `</caption>` +
-                `<thead><tr>` +
-                  `<th scope="col">School</th>` +
-                  `<th scope="col" class="otable__num">Orders</th>` +
-                  `<th scope="col" class="otable__num">Cancelled</th>` +
-                  `<th scope="col" class="otable__num">Revenue</th>` +
-                  `<th scope="col" class="otable__num">Refunded</th>` +
-                  `<th scope="col" class="otable__num">Net</th>` +
-                `</tr></thead>` +
-                `<tbody>` +
-                  forMonth.map((r) =>
-                    `<tr>` +
-                      `<th scope="row">${esc(r.schoolName)}</th>` +
-                      `<td class="otable__num">${r.orders}</td>` +
-                      `<td class="otable__num">${r.cancelled || '—'}</td>` +
-                      `<td class="otable__num">${money.formatPaise(r.grossPaise)}</td>` +
-                      `<td class="otable__num">${r.refundedPaise ? money.formatPaise(r.refundedPaise) : '—'}</td>` +
-                      `<td class="otable__num">${money.formatPaise(r.netPaise)}</td>` +
-                    `</tr>`,
-                  ).join('') +
-                `</tbody>` +
-                `<tfoot><tr>` +
-                  `<th scope="row">All schools</th>` +
-                  `<td class="otable__num">${m.orders}</td>` +
-                  `<td class="otable__num">${m.cancelled || '—'}</td>` +
-                  `<td class="otable__num">${money.formatPaise(m.grossPaise)}</td>` +
-                  `<td class="otable__num">${m.refundedPaise ? money.formatPaise(m.refundedPaise) : '—'}</td>` +
-                  `<td class="otable__num">${money.formatPaise(m.netPaise)}</td>` +
-                `</tr></tfoot>` +
-              `</table>` +
+        // Two series on one axis: what was earned, and what is placed but unpaid. Stacking them
+        // would restate the bug this rebuild fixes — that unpaid money looks like revenue.
+        const earned = buckets.map((b) => ({
+          label: label(b.key, by), value: b.netPaise,
+          title: `${label(b.key, by)}: ${rupees(b.netPaise)} net from ${b.orders - b.cancelled - b.pending} paid orders`,
+        }));
+        const pending = buckets.map((b) => ({
+          label: label(b.key, by), value: b.pendingPaise,
+          title: `${label(b.key, by)}: ${rupees(b.pendingPaise)} placed but not paid`,
+        }));
+
+        const chart = by === 'school'
+          ? columns(earned, { label: `Net revenue by school`, format: rupees })
+          : columns(earned, { label: `Net revenue by ${by}`, format: rupees });
+
+        const orderChart = columns(
+          buckets.map((b) => ({ label: label(b.key, by), value: b.orders,
+            title: `${label(b.key, by)}: ${b.orders} orders (${b.cancelled} cancelled, ${b.pending} unpaid)` })),
+          { label: `Orders by ${by}` },
+        );
+
+        const pendingChart = t.pendingPaise > 0
+          ? `<section class="admin__section"><h2>Placed but not paid</h2>` +
+            `<p class="admin__section-note">` +
+              `<b>${rupees(t.pendingPaise)}</b> across ${t.pending} order` +
+              `${t.pending === 1 ? '' : 's'}. <b>This is not revenue</b> — it is what those orders ` +
+              `would be worth if they were paid.</p>` +
+            columns(pending, { label: 'Unpaid order value', format: rupees }).replace(/cx__bar/g, 'cx__bar cx__bar--pending') +
             `</section>`
-          );
-        }).join('');
+          : '';
 
-        el.body.innerHTML +=
-          `<p class="kitchen__oneway kitchen__oneway--block">` +
-            `Revenue is what was charged, GST included. It is not a payout — the school's share ` +
-            `(<code>revenue_share_bps</code>) is applied at settlement, and the payout report is ` +
-            `<code>E10-09</code>. <b>Do not send these figures to a school as an invoice.</b>` +
-          `</p>`;
+        el.body.innerHTML =
+          `<div class="gstats">` +
+            stat(rupees(t.netPaise), 'Net revenue', `${rupees(t.grossPaise)} gross`) +
+            stat(String(t.orders - t.cancelled - t.pending), 'Paid orders', `${t.orders} placed in total`) +
+            stat(rupees(t.taxPaise), 'GST collected', 'CGST + SGST, 5%') +
+            stat(String(t.cancelled), 'Cancelled', t.refundedPaise > 0 ? `${rupees(t.refundedPaise)} refunded` : 'nothing refunded') +
+            stat(String(t.pending), 'Unpaid', rupees(t.pendingPaise), t.pending > 0 ? 'warn' : '') +
+          `</div>` +
+
+          `<section class="admin__section" aria-labelledby="rev-h">` +
+            `<h2 id="rev-h">Net revenue by ${esc(by)}</h2>` +
+            chart +
+          `</section>` +
+
+          `<section class="admin__section" aria-labelledby="ord-h">` +
+            `<h2 id="ord-h">Orders by ${esc(by)}</h2>` +
+            orderChart +
+          `</section>` +
+
+          pendingChart +
+
+          `<section class="admin__section" aria-labelledby="tbl-h">` +
+            `<h2 id="tbl-h">The numbers</h2>` +
+            `<table class="otable">` +
+              `<thead><tr>` +
+                `<th scope="col">${by === 'school' ? 'School' : by === 'month' ? 'Month' : 'Day'}</th>` +
+                `<th scope="col">Paid</th><th scope="col">Unpaid</th><th scope="col">Cancelled</th>` +
+                `<th scope="col">Gross</th><th scope="col">GST</th>` +
+                `<th scope="col">Refunded</th><th scope="col">Net</th>` +
+              `</tr></thead>` +
+              `<tbody>` +
+                buckets.map((b) =>
+                  `<tr>` +
+                    `<th scope="row">${esc(by === 'school' ? b.label : label(b.key, by))}</th>` +
+                    `<td class="otable__num">${b.orders - b.cancelled - b.pending}</td>` +
+                    `<td class="otable__num">${b.pending || '—'}</td>` +
+                    `<td class="otable__num">${b.cancelled || '—'}</td>` +
+                    `<td class="otable__num">${esc(rupees(b.grossPaise))}</td>` +
+                    `<td class="otable__num">${esc(rupees(b.taxPaise))}</td>` +
+                    `<td class="otable__num">${b.refundedPaise ? esc(rupees(b.refundedPaise)) : '—'}</td>` +
+                    `<td class="otable__num"><b>${esc(rupees(b.netPaise))}</b></td>` +
+                  `</tr>`).join('') +
+              `</tbody>` +
+              // The total is a `<tfoot>`, so it stays with the table when it scrolls and is
+              // announced as a summary rather than as one more row of data.
+              `<tfoot><tr>` +
+                `<th scope="row">Total</th>` +
+                `<td class="otable__num">${t.orders - t.cancelled - t.pending}</td>` +
+                `<td class="otable__num">${t.pending || '—'}</td>` +
+                `<td class="otable__num">${t.cancelled || '—'}</td>` +
+                `<td class="otable__num">${esc(rupees(t.grossPaise))}</td>` +
+                `<td class="otable__num">${esc(rupees(t.taxPaise))}</td>` +
+                `<td class="otable__num">${t.refundedPaise ? esc(rupees(t.refundedPaise)) : '—'}</td>` +
+                `<td class="otable__num"><b>${esc(rupees(t.netPaise))}</b></td>` +
+              `</tr></tfoot>` +
+            `</table>` +
+            `<p class="admin__hint">` +
+              `<b>Unpaid orders are not counted as revenue.</b> Cancelled orders are counted in ` +
+              `the order total so it reconciles with the kitchen, and excluded from gross.` +
+            `</p>` +
+          `</section>`;
       }
 
       el.body.addEventListener('click', (event) => {
         if ((event.target as HTMLElement).closest('[data-retry]')) void load();
       });
       el.reload.addEventListener('click', () => void load());
-      el.form.addEventListener('submit', (event) => {
-        event.preventDefault();
-        void load();
-      });
+
+      // Apply on change. No Show button — see the markup.
+      el.from.addEventListener('change', () => void load());
+      el.to.addEventListener('change', () => void load());
+      el.by.addEventListener('change', render);
+
+      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-preset]')) {
+        button.addEventListener('click', () => applyPreset(button.dataset.preset!));
+      }
 
       void (async () => {
-        const range = defaultRange();
-        el.from.value = demo ? REPORTS_FIXTURE.from : range.from;
-        el.to.value = demo ? REPORTS_FIXTURE.to : range.to;
+        if (demo) {
+          el.from.value = REPORTS_FIXTURE.from;
+          el.to.value = REPORTS_FIXTURE.to;
+        } else {
+          const today = serviceDateToday(new Date());
+          // Thirty days, ending **tomorrow** rather than today: an order for tomorrow's lunch is
+          // already placed and paid for, and a revenue report that hides it is the "why is this
+          // number stale" question that started this rebuild.
+          el.from.value = shift(today, -30);
+          el.to.value = shift(today, 1);
+        }
 
         try {
           if (!demo && !(await currentUser())) {
             location.assign(`/signin?next=${encodeURIComponent('/reports')}`);
             return;
           }
-        } catch { /* an unconfigured build falls through to the error state */ }
+        } catch { /* fall through and let the read fail visibly */ }
         await load();
       })();
-    void mountNav();
+
+      void mountNav();
     </script>
   </body>
 </html>

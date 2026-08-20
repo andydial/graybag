@@ -131,9 +131,13 @@ export {
   REPORT_ORDER_COLUMNS,
   ReportError,
   fetchMonthlyRevenue,
+  groupRows,
   monthOf,
   summarise,
+  totalOf,
   totalsByMonth,
+  type Bucket,
+  type GroupBy,
   type MonthTotals,
   type ReportRow,
 } from './admin-reports.js';
