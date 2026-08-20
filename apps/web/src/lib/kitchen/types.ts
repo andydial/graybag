@@ -135,8 +135,22 @@ export interface KitchenTransport {
     to: KitchenAction;
     /** Required when `to` is `cancelled`; a cancellation without a reason loses *why*. */
     reasonCode?: string;
+    /**
+     * Required when `to` is `cancelled` — `E09-38`. What the operator typed, sent verbatim to the
+     * customer in the cancellation email. A code alone reads as "Dish unavailable", which does not
+     * tell a parent whether their child ate.
+     */
+    reasonDetail?: string;
   }): Promise<{ updated: string[] }>;
 }
+
+/**
+ * The shortest typed explanation a cancellation may carry — `E09-38`.
+ *
+ * Mirrors `MIN_CANCEL_DETAIL` in the API module and the floor in the Edge Function, which is the
+ * check that actually holds. Stated here so the board can validate without importing the client.
+ */
+export const MIN_CANCEL_DETAIL = 4;
 
 /**
  * Cancellation reasons the kitchen may pick, from `reason_code` where `category = 'cancellation'`.

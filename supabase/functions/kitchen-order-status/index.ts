@@ -44,6 +44,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // Function docs use for this driver.
 import postgres from 'npm:postgres@3.4.4';
 
+import { sendCancellationNotice } from '../_shared/cancellation-notice.ts';
+
 // `_shared/cors.ts`, not a local copy. This function is where the preflight bug was found, and
 // it kept its own inline headers for a few hours until the payments thread generalised the fix
 // across all seven functions (`E09-20`). Two implementations of one convention is how the next
@@ -99,7 +101,7 @@ Deno.serve(async (request: Request) => {
   if (userError || !user) return json(401, { error: 'not_authenticated' });
 
   // ------------------------------------------------------------------------- body
-  let body: { orderIds?: unknown; to?: unknown; reasonCode?: unknown };
+  let body: { orderIds?: unknown; to?: unknown; reasonCode?: unknown; reasonDetail?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -121,6 +123,29 @@ Deno.serve(async (request: Request) => {
   // refund is later explained. `order-lifecycle.md` forbids `paid -> refunded` directly for
   // exactly this reason.
   if (to === 'cancelled' && !reasonCode) return json(422, { error: 'reason_required' });
+
+  /*
+   * The typed detail — `E09-38`, and it is **required** to cancel.
+   *
+   * Andy: *"the available cancel reasons are also not enough — please add a text box where Kitchen
+   * staff should have to type in reason and details."* A code alone reaches the parent as "Dish
+   * unavailable", which does not tell them whether their child ate. This is the sentence that
+   * does, and it is sent to them verbatim.
+   *
+   * Required rather than optional because an optional explanation on a screen used in a hurry is
+   * an empty one. `MIN_DETAIL` exists so that requirement cannot be satisfied with "x" — short
+   * enough not to fight somebody typing "Van broke down", long enough to refuse a keystroke.
+   *
+   * **Never logged.** It is free text and may name a child whatever the box asked for
+   * (non-negotiable #4), so it does not appear in any `console.*` on this path, including the
+   * catch below, which logs an opaque code only.
+   */
+  const reasonDetail =
+    typeof body.reasonDetail === 'string' ? body.reasonDetail.trim().slice(0, 500) : '';
+  const MIN_DETAIL = 4;
+  if (to === 'cancelled' && reasonDetail.length < MIN_DETAIL) {
+    return json(422, { error: 'reason_detail_required', minLength: MIN_DETAIL });
+  }
 
   // ------------------------------------------------------------------ authorization
   //
@@ -187,7 +212,7 @@ Deno.serve(async (request: Request) => {
              set status = ${to},
                  ${sql(stampColumn)} = now(),
                  ${to === 'delivered' ? sql`delivered_by_user_id = ${user.id},` : sql``}
-                 ${to === 'cancelled' ? sql`cancelled_by_user_id = ${user.id}, cancel_reason_code = ${reasonCode},` : sql``}
+                 ${to === 'cancelled' ? sql`cancelled_by_user_id = ${user.id}, cancel_reason_code = ${reasonCode}, cancel_reason_detail = ${reasonDetail},` : sql``}
                  updated_at = now()
            where id = any(${updated}::uuid[])
         `;
@@ -199,6 +224,36 @@ Deno.serve(async (request: Request) => {
     if ('illegal' in result) {
       return json(409, { error: 'illegal_transition', orderIds: result.illegal });
     }
+
+    /*
+     * Tell each parent their order is cancelled — `E09-38`.
+     *
+     * **After the commit, never inside it.** The transaction is the record; an email is not, and a
+     * provider having a bad minute must not roll back a cancellation the kitchen has already acted
+     * on. This is the same rule `docs/enquiry-submission-contract.md` §6 sets for the enquiry
+     * notice, for the same reason.
+     *
+     * **One per order, not per group.** Sibling orders in a group are cancelled independently, and
+     * `uq_notification_one_per_order` (`0065`) is what stops a retried request sending a second.
+     *
+     * **Failures are swallowed deliberately.** `sendCancellationNotice` already records its own
+     * outcome on `notification_delivery`, which is the durable evidence of who was told; throwing
+     * here would turn "we could not email one of thirty parents" into "the whole cancellation
+     * failed", and the kitchen would cancel again.
+     */
+    if (to === 'cancelled' && result.updated.length > 0) {
+      const admin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        { auth: { persistSession: false } },
+      );
+      await Promise.all(
+        result.updated.map((orderId) =>
+          sendCancellationNotice(admin, { orderId, reasonCode, reasonDetail }).catch(() => 'failed'),
+        ),
+      );
+    }
+
     return json(200, result);
   } catch (cause) {
     // Never echo the database's message: it can quote a column value, and a value here is a

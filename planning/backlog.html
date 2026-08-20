@@ -3782,13 +3782,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/37</span>
+          <span class="meter-num">0/39</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 37 tasks</summary>
+        <summary>Context &amp; 39 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -4087,6 +4087,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The kitchen board on a phone.</strong> Measured at 390×844: the header took <strong>540 of 844 pixels — 64% of the first screen — before any food</strong>, the date wrapped to three lines, the filter line and Refresh took a 56px row each, and the tray chips were clipped behind a horizontal scrollbar inside a vertical list. The 56px targets stay: they are right for wet hands in a hurry and were never what cost the space. The day nav takes one row, the filter line shares the next with Refresh collapsed to a glyph, the order count is dropped from the bar because it is already on the board below, and tray chips wrap. <strong>Delivered is ranked</strong> — it was one of three identical buttons and is the action taken on nineteen orders in twenty; now primary, first, and owning a full-width row. <strong>Bar 270 → 136 CSS px; food starts at 280px of 844, down from 540.</strong> Three bugs found: two CSS specificity (a child selector beating a bare class, and a declaration after a media query beating it by source order) and one the render could not show — hiding the word &quot;Refresh&quot; left the button with no accessible name at phone width, caught by <code>check:a11y</code></span>
+      </li>
+      <li class="task" data-id="E09-38" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-38"></button>
+        <code class="tid">E09-38</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Cancelling an order now tells the parent, and says why in the operator&#39;s own words.</strong> Andy, with orders live: *&quot;if the staff intends to cancel — and the system does not send a notification — they don&#39;t know how to notify the person who ordered.&quot;* He asked for the customer&#39;s contact on the board; <strong>that is the one fix this must not be</strong>, because <code>0002</code> withholds <code>app_user</code> from kitchen scope deliberately (§13.3 rule 4: *&quot;If <code>app_user</code> is ever opened to kitchen scope, rule 4 is broken and <code>E20-09</code> fails&quot;*). The real gap was upstream: <strong>neither cancellation path sent any email at all</strong> — not <code>kitchen-order-status</code>, not <code>cancel-order</code> — so an order cancelled at 9am simply stopped existing from the parent&#39;s side. <code>0065</code> adds <code>order.cancel_reason_detail</code> (the <code>requires_note</code> flag on <code>reason_code</code> has been inert since <code>0001</code> because no table ever had a column for the note it forces) and <code>uq_notification_one_per_order</code>, because the existing dedupe index is partial on <code>order_group_id is not null</code> and would never have fired for a per-order notice — the trap <code>0056</code> documented. The dialog now <strong>requires</strong> a typed sentence, sent verbatim: a code alone reaches a parent as &quot;Dish unavailable&quot;, which does not tell them whether their child ate. The text is escaped into the mail, capped at 500, and <strong>never logged</strong> — it is free text that may name a child whatever the box asked for. <code>formnovalidate</code> on &quot;Keep the order&quot;, or the required field would have demanded an explanation for the cancellation you decided *not* to make. The email promises no refund: <code>orders.refund</code> is a separate grant and <code>refund-notice</code> is what says the money moved, once it has</span>
+      </li>
+      <li class="task" data-id="E09-39" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-39"></button>
+        <code class="tid">E09-39</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Decide whether kitchen staff should see who placed an order.</strong> Andy asked for this directly; <code>E09-38</code> solves the problem he hit without it, so it is now a preference rather than a blocker. It cannot be done without opening <code>app_user</code> to kitchen scope, which <code>0002</code> forbids in terms and which <code>E20-09</code> depends on. If the answer is yes it needs a deliberate policy change and a note in the DPDP record, not a column added to a query. On <code>/orders</code> there is no conflict — a platform admin already holds <code>users.view</code></span>
       </li></ul>
       </details>
     </article>
