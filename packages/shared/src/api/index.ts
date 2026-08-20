@@ -138,6 +138,17 @@ export {
   type ReportRow,
 } from './admin-reports.js';
 
+// Growth (`E11-08`). The column lists are the privacy control: a platform admin may read every
+// column on every child, and this selects three that identify nobody. Same reasoning as
+// `REPORT_ORDER_COLUMNS` above.
+export {
+  GROWTH_CHILD_COLUMNS,
+  GROWTH_LINK_COLUMNS,
+  GROWTH_USER_COLUMNS,
+  fetchGrowth,
+  type GrowthData,
+} from './admin-growth.js';
+
 // Per-school configuration with visible inheritance (`E10-06`). Deliberately does NOT call
 // `resolve_effective_config`: that returns one scalar per setting, and a scalar cannot tell an
 // operator whether somebody chose this school's cutoff or whether it is the default every school

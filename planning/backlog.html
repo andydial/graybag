@@ -4491,13 +4491,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/7</span>
+          <span class="meter-num">0/9</span>
         </div>
       </header>
       <p class="summary">A monthly PDF emailed to each school. Aggregates only, no child-level PII. Designed to sell the benefit of the partnership.</p>
       <p class="deps">Depends on <code>E07</code></p>
       <details>
-        <summary>Context &amp; 7 tasks</summary>
+        <summary>Context &amp; 9 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Decided against a school login portal — the PDF lands in the principal&#39;s inbox instead of waiting to be discovered.</p></div>
         <ul class="tasks">
@@ -4556,6 +4556,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Reports computed from the <strong>partitioned and indexed</strong> tables of <code>E02-11</code>. Materialised aggregates stay deferred to <code>E18-22</code> until volume demands them</span>
+      </li>
+      <li class="task" data-id="E11-08" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-08"></button>
+        <code class="tid">E11-08</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A growth report — registrations over time and by school.</strong> Andy: *&quot;All registered users - registrations per date - registrations per school etc. Want to be able to see exactly how the registrations / growth is tracking. Would be good to have some basic graphs / visuals.&quot;* <code>/admin/growth</code>, requiring <code>users.view</code> at platform scope, deliberately separate from <code>/reports</code> — that one answers &quot;what did this school order&quot; for a school, this answers &quot;is the product growing&quot; for us, and <code>E10-10</code> exists to stop the monthly report quietly growing into something nobody agreed to. <strong>Every number is a count and nobody is named</strong>: <code>fetchGrowth</code> selects three columns per child (<code>id</code>, <code>school_id</code>, <code>created_at</code>) and the types have nowhere to put a name, so non-negotiable #4 is enforced at the boundary rather than in a template — <code>recipient_read_admin</code> *would* return every column. Five headline figures, a cumulative line with a per-day bar row on the same axis, and a per-school table. <strong>A family is counted once per school</strong>, however many children they have there: two siblings is one family, and counting two overstates reach by exactly the families most likely to be a reference. Days with no signups are plotted, because charting only the days that had one turns a flat fortnight into steady growth. Dates are <strong>IST calendar dates</strong> — bucketing a <code>timestamptz</code> by its UTC date files every signup after 18:30 IST under yesterday. Charts are hand-rolled inline SVG: the site ships zero third-party assets and the CSP is <code>script-src &#39;self&#39;</code>, so a chart library is not an option, and a polyline is twenty lines. <strong>&quot;Signed up, no child yet&quot; is on the headline row</strong> because <code>AR7</code> makes signup-to-first-order a primary goal and an account with no child cannot order at all — that number is whether onboarding works. 3,230 B of JS against a 10,000 budget</span>
+      </li>
+      <li class="task" data-id="E11-09" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-09"></button>
+        <code class="tid">E11-09</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Growth by <strong>month</strong> as well as by day, once there is more than one month of data to compare. Deliberately not built now: with seventeen days of history a month view is one bar</span>
       </li></ul>
       </details>
     </article>
