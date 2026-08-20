@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 63 open of 72.
+Your tasks only — 64 open of 73.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -46,6 +46,7 @@ in VS Code or on GitHub without opening anything.
 
 - [ ] `E09-12` _(fast-follow)_ Decision parked: default delivery mode (classroom bulk vs counter pickup) until real usage data exists. Both are supported
 - [x] `E09-15` _(fast-follow)_ (risk:high) Decide whether the kitchen packing list and per-class delivery sheet surface a parent's per-line note. Answered 2026-08-10: yes — P12
+- [ ] `E09-39` _(fast-follow)_ Decide whether kitchen staff should see who placed an order. Andy asked for this directly; E09-38 solves the problem he hit without it, so it is now a preference rather than a blocker. It cannot be done without opening app_user to kitchen scope, which 0002 forbids in terms and which E20-09 depends on. If the answer is yes it needs a deliberate policy change and a note in the DPDP record, not a column added to a query. On /orders there is no conflict — a platform admin already holds users.view
 - [ ] `E18-01` _(fast-follow)_ Decide: parent subscribes in-app vs school buys in bulk and bills through school fees
 - [ ] `E18-02` _(fast-follow)_ Decide: auto-generate daily orders vs subscription acts as prepaid credit with daily dish selection
 - [ ] `E18-03` _(fast-follow)_ Decide: meal-pack composition (e.g. 20 meals = main + drink + dessert) and whether the customer chooses dishes

@@ -296,20 +296,43 @@ export interface KitchenStatusResult {
  * and a cancellation without one loses *why* the food was not delivered — which is exactly what
  * `order-lifecycle.md` refuses to allow when it forbids `paid → refunded` directly.
  */
+/**
+ * The shortest typed explanation a cancellation is allowed to carry — `E09-38`.
+ *
+ * Long enough to refuse a keystroke, short enough not to argue with "Van broke down". The same
+ * floor is enforced in the Edge Function, which is the check that actually holds.
+ */
+export const MIN_CANCEL_DETAIL = 4;
+
 export async function updateKitchenOrderStatus(input: {
   orderIds: string[];
   to: KitchenStatusAction;
   reasonCode?: string;
+  /**
+   * What the person cancelling typed — `E09-38`. **Required to cancel**, and sent verbatim to the
+   * customer in the cancellation email, because a code alone arrives as "Dish unavailable" and
+   * does not tell a parent whether their child ate.
+   */
+  reasonDetail?: string;
 }): Promise<KitchenStatusResult> {
   if (input.orderIds.length === 0) return { updated: [], skipped: [] };
   if (input.to === 'cancelled' && !input.reasonCode) {
     throw new ApiError('A cancellation needs a reason code.', 'reason_required');
+  }
+  // Mirrors the Edge Function's own floor. Checked here too so the screen can say so without a
+  // round trip; the server check is the one that holds.
+  if (input.to === 'cancelled' && (input.reasonDetail ?? '').trim().length < MIN_CANCEL_DETAIL) {
+    throw new ApiError(
+      'A cancellation needs a sentence saying what happened — it is sent to the customer.',
+      'reason_detail_required',
+    );
   }
 
   const payload = await invokeFunction<unknown>('kitchen-order-status', {
     orderIds: input.orderIds,
     to: input.to,
     ...(input.reasonCode ? { reasonCode: input.reasonCode } : {}),
+    ...(input.reasonDetail ? { reasonDetail: input.reasonDetail.trim().slice(0, 500) } : {}),
   });
 
   if (!isRecord(payload) || !Array.isArray(payload.updated)) {

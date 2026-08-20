@@ -112,11 +112,14 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       `<dialog>` brings the focus trap, Esc-to-close and the inert backdrop with it, so none of
       that is hand-rolled.
 
-      The warning is the important part. Cancelling today records that food was not delivered and
-      why; **no money moves and the parent is not told**. A kitchen that presses this and believes
-      it has refunded somebody leaves a parent who has paid, has no food and has had no message.
-      `docs/kitchen-write-contract.md` §2 specifies the refund (`E06`) and the email (`E08`), and
-      this paragraph is deleted in the PR that lands them — not before.
+      The warning is the important part, and half of it is now obsolete: since `E09-38` the parent
+      **is** emailed, with the sentence typed below. What is still true is that **no money moves** —
+      `orders.refund` is a separate grant and a separate act, and a kitchen that presses this
+      believing it has refunded somebody leaves a parent who has paid and has no food.
+
+      The typed detail is required rather than optional. An optional explanation, on a screen used
+      in a hurry, is an empty one — and this one is not for us, it is the whole content of the
+      message a parent receives.
     -->
     <!--
       The undo strip. Fixed to the bottom so it is thumb-reachable on a tablet and never shifts
@@ -134,7 +137,8 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
         <div class="kdialog__warn" role="note">
           <b>This does not refund anyone.</b> Cancelling records that the food was not delivered
-          and why. No money moves and the parent is not told — someone will have to contact them.
+          and why, and <b>emails the person who ordered</b>. No money moves — a refund is a
+          separate action.
         </div>
 
         <fieldset class="kdialog__reasons">
@@ -147,8 +151,38 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           ))}
         </fieldset>
 
+        <!--
+          The typed detail. `required` and `minlength` are on the element, so the browser refuses
+          the submit and points at the field without any of this being hand-rolled — and the Edge
+          Function refuses it again, which is the check that holds.
+
+          The label says where the words go. Somebody who knows a parent will read this writes a
+          different sentence from somebody filling in an internal field, and that difference is
+          the entire value of the box.
+        -->
+        <div class="kdialog__detail">
+          <label class="kdialog__detail-label" for="k-cancel-detail">
+            What happened? <span class="kdialog__detail-hint">Sent to the person who ordered, in your words.</span>
+          </label>
+          <textarea
+            class="kdialog__detail-input"
+            id="k-cancel-detail"
+            name="detail"
+            rows="3"
+            required
+            minlength="4"
+            maxlength="500"
+            placeholder="The van broke down and we could not get to the school in time."
+          ></textarea>
+        </div>
+
         <div class="kdialog__actions">
-          <button type="submit" value="" class="kitchen__btn">Keep the order</button>
+          <!--
+            `formnovalidate`, or the required detail field blocks the way *out* of the dialog:
+            constraint validation runs on `method="dialog"` submits too, so backing out would have
+            demanded an explanation for the cancellation you decided not to make.
+          -->
+          <button type="submit" value="" class="kitchen__btn" formnovalidate>Keep the order</button>
           <button type="submit" value="cancel" class="kitchen__btn kitchen__btn--danger" id="k-cancel-go">
             Cancel the order
           </button>
@@ -161,7 +195,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       import { fixtureTransport } from '../lib/kitchen/fixture.js';
       import { liveTransport } from '../lib/kitchen/live.js';
       import { currentUser } from '../lib/backoffice/session.js';
-      import { CANCEL_REASONS } from '../lib/kitchen/types.js';
+      import { CANCEL_REASONS, MIN_CANCEL_DETAIL } from '../lib/kitchen/types.js';
       import type { KitchenAction, KitchenDay, KitchenFilters, KitchenStatus } from '../lib/kitchen/types.js';
       import {
         STATUS_LABEL,
@@ -256,6 +290,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
       const cancelDialog = $<HTMLDialogElement>('k-cancel');
       const cancelWho = $('k-cancel-who');
+      const cancelDetail = $<HTMLTextAreaElement>('k-cancel-detail');
 
       const sel = { serviceDate: today, schoolId: '', breakId: '', status: '' };
 
@@ -337,12 +372,21 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
        */
       const UNDO_WINDOW_MS = 10_000;
 
+      /** What `askWhyCancelled` resolves with — `E09-38`. Both halves reach the customer. */
+      interface CancelReason {
+        code: string;
+        /** Typed by the operator, sent verbatim in the cancellation email. */
+        detail: string;
+      }
+
       interface Pending {
         orderIds: string[];
         to: KitchenAction;
         // `| undefined` rather than `?:` — `exactOptionalPropertyTypes` distinguishes "absent"
         // from "present and undefined", and this is built by spreading a value that may be either.
         reasonCode: string | undefined;
+        /** What the operator typed. Sent to the customer verbatim (`E09-38`). */
+        reasonDetail: string | undefined;
         /** The statuses to restore on undo — the real ones, from before the optimistic change. */
         previous: Map<string, KitchenStatus>;
         timer: ReturnType<typeof setTimeout>;
@@ -360,7 +404,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
        */
       const committed = new Set<string>();
 
-      function queueUpdate(orderIds: string[], to: KitchenAction, reasonCode?: string) {
+      function queueUpdate(
+        orderIds: string[], to: KitchenAction, reasonCode?: string, reasonDetail?: string,
+      ) {
         if (!orderIds.length || !day) return;
 
         // Whatever was waiting goes now. Its window is over the moment attention moves on.
@@ -371,7 +417,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
         const deadline = Date.now() + UNDO_WINDOW_MS;
         pending = {
-          orderIds, to, reasonCode, previous, deadline,
+          orderIds, to, reasonCode, reasonDetail, previous, deadline,
           timer: setTimeout(() => void flushPending(), UNDO_WINDOW_MS),
           // Anchored to a deadline rather than counted down, for the same reason the OTP resend
           // is: a backgrounded tab stops firing intervals, and a kitchen tablet is backgrounded
@@ -396,7 +442,12 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 
         try {
           await transport.updateStatus(
-            p.reasonCode ? { orderIds: p.orderIds, to: p.to, reasonCode: p.reasonCode } : { orderIds: p.orderIds, to: p.to },
+            p.reasonCode
+              ? {
+                  orderIds: p.orderIds, to: p.to, reasonCode: p.reasonCode,
+                  ...(p.reasonDetail ? { reasonDetail: p.reasonDetail } : {}),
+                }
+              : { orderIds: p.orderIds, to: p.to },
           );
           if (p.to !== 'cancelled') p.orderIds.forEach((id) => committed.add(id));
           say(`${p.orderIds.length} order${p.orderIds.length === 1 ? '' : 's'} marked ${STATUS_LABEL[p.to].toLowerCase()}.`);
@@ -941,24 +992,29 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           // schema will not take one — `cancel_reason_code` is how a refund is later explained.
           const reason = await askWhyCancelled(orderId);
           if (!reason) return;
-          return queueUpdate([orderId], 'cancelled', reason);
+          return queueUpdate([orderId], 'cancelled', reason.code, reason.detail);
         }
 
         queueUpdate([orderId], action);
       });
 
       /**
-       * Ask why, and return the reason code — or `null` if the operator backed out.
+       * Ask why, and return the code **and the typed sentence** — or `null` if the operator
+       * backed out.
        *
        * The child's name goes into the dialog so the operator can see who they are cancelling
        * for, and is written with `textContent` rather than into the markup: it is tier P, and it
        * is the one string on this screen that comes from a person rather than from us.
        */
-      function askWhyCancelled(orderId: string): Promise<string | null> {
+      function askWhyCancelled(orderId: string): Promise<CancelReason | null> {
         const order = day?.orders.find((o) => o.id === orderId);
         cancelWho.textContent = order
           ? `${order.recipientName} · ${order.lines.map((l) => `${l.quantity} × ${l.dishName}`).join(', ')}`
           : '';
+
+        // Cleared on every open. A sentence left over from the previous cancellation would be
+        // sent, unread, to a different parent about a different order.
+        cancelDetail.value = '';
 
         cancelDialog.showModal();
         return new Promise((resolve) => {
@@ -969,7 +1025,12 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
               // with an empty one, so backing out and "Keep the order" are the same path.
               if (cancelDialog.returnValue !== 'cancel') return resolve(null);
               const chosen = cancelDialog.querySelector<HTMLInputElement>('input[name=reason]:checked');
-              resolve(chosen?.value ?? null);
+              const detail = cancelDetail.value.trim();
+              // The browser will not submit with an empty required field, so reaching here with
+              // one means validation was bypassed. Treat it as backing out rather than sending a
+              // parent an empty explanation.
+              if (!chosen?.value || detail.length < MIN_CANCEL_DETAIL) return resolve(null);
+              resolve({ code: chosen.value, detail });
             },
             { once: true },
           );
