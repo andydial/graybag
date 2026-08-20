@@ -66,9 +66,31 @@ import '../../styles/admin.css';
         <p class="admin__intro">
           Give somebody a <b>job</b> and they get the permissions that job needs. Each one says
           exactly what it grants before you give it, and you can still grant a single permission on
-          its own. Somebody has to <b>sign in once</b> before they can be given anything — they
-          appear here the moment they do.
+          its own. Somebody has to <b>sign in once</b> before they can be given anything — after
+          that, search for them by email.
         </p>
+
+        <!--
+          Search, not a list — `E10-46`.
+
+          This screen used to render a card for **every account that had ever signed in**. At four
+          accounts that was a feature: the person you wanted to onboard was somewhere on it. At 400
+          registered parents it is 400 cards, of which three are staff, each carrying a job select
+          and a 31-option permission select — roughly fourteen thousand `<option>` elements.
+
+          So the list is now the people who hold access, and anyone else is found by typing their
+          address. Andy: *"how will this list look like in 1 week where 400 people have registered?"*
+        -->
+        <div class="admin__field psearch">
+          <label class="admin__label" for="a-search">Find someone to give access to</label>
+          <input class="admin__input" id="a-search" type="search" autocomplete="off"
+                 placeholder="Their email address, or a name" />
+          <p class="admin__hint">
+            They must have <b>signed in once</b> before they can be given anything. Two letters
+            minimum; the newest accounts are the ones that just signed up.
+          </p>
+          <div id="a-results"></div>
+        </div>
 
         <div id="a-body"></div>
       </main>
@@ -82,7 +104,10 @@ import '../../styles/admin.css';
       import { PEOPLE_FIXTURE } from '../../lib/admin/people-fixture.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-      const el = { body: $('a-body'), status: $('a-status'), reload: $<HTMLButtonElement>('a-reload') };
+      const el = {
+        body: $('a-body'), status: $('a-status'), reload: $<HTMLButtonElement>('a-reload'),
+        search: $<HTMLInputElement>('a-search'), results: $('a-results'),
+      };
 
       const esc = (s: string) =>
         s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -99,7 +124,10 @@ import '../../styles/admin.css';
         loading = true; error = null; render();
         try {
           if (demo) {
-            accounts = PEOPLE_FIXTURE.accounts;
+            // Filtered to holders, because that is what `fetchAccess` now returns — `E10-46`.
+            // A demo that shows a state production cannot produce is a demo that gets designed
+            // against, and the a11y gate walks this page.
+            accounts = PEOPLE_FIXTURE.accounts.filter((a) => a.held.length > 0);
             permissions = PEOPLE_FIXTURE.permissions;
             meId = 'u-1';
           } else {
@@ -320,19 +348,26 @@ import '../../styles/admin.css';
           return;
         }
 
-        const withAccess = accounts.filter((a) => a.held.length > 0);
         el.status.textContent =
-          `${accounts.length} account${accounts.length === 1 ? '' : 's'}, ` +
-          `${withAccess.length} with back-office access.`;
+          `${accounts.length} account${accounts.length === 1 ? '' : 's'} with back-office access.`;
+
+        if (accounts.length === 0) {
+          // Reachable, and not an error: every grant could have been revoked. It is also what a
+          // caller without `grants.manage` sees, so it must not claim the first as a fact.
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>Nobody holds back-office access</h2>` +
+            `<p>Either no grants exist yet, or this account cannot read them — that needs ` +
+            `<b>grants.manage</b> and <b>users.view</b>. Search above to give somebody a job.</p></div>`;
+          return;
+        }
 
         el.body.innerHTML =
           `<section class="admin__section" aria-labelledby="access-h">` +
-            `<h2 id="access-h">Everyone who has signed in</h2>` +
+            `<h2 id="access-h">Who has access</h2>` +
             `<p class="admin__section-note">` +
-              `${accounts.length} account${accounts.length === 1 ? '' : 's'}, ` +
-              `<b>${withAccess.length}</b> with back-office access. Accounts holding nothing are ` +
-              `listed too — that is the state everybody starts in, and it is how you reach ` +
-              `somebody to onboard them.` +
+              `<b>${accounts.length}</b> account${accounts.length === 1 ? '' : 's'} with ` +
+              `back-office access. Parents are not listed here — <b>search above</b> to find ` +
+              `anyone else and give them a job.` +
             `</p>` +
             accounts.map(accountRow).join('') +
           `</section>` +
@@ -481,6 +516,73 @@ import '../../styles/admin.css';
 
       el.body.addEventListener('change', (event) => {
         if ((event.target as HTMLElement).matches('select[name=jobKey]')) syncJobNotes();
+      });
+
+      /**
+       * Find an account to give access to — `E10-46`.
+       *
+       * Debounced, because this is a database query per keystroke otherwise. 250ms is long enough
+       * that typing an address is one query rather than twenty, and short enough that it feels
+       * like it is keeping up.
+       *
+       * A stale response is discarded by sequence number: on a slow connection the answer for
+       * "pri" can land after the answer for "priya", and showing the wrong list for the right
+       * query is worse than showing nothing.
+       */
+      let searchSeq = 0;
+      let searchTimer: ReturnType<typeof setTimeout> | undefined;
+
+      async function runSearch(term: string) {
+        const mine = ++searchSeq;
+        if (term.trim().length < 2) {
+          el.results.innerHTML = '';
+          return;
+        }
+        if (demo) {
+          el.results.innerHTML =
+            `<p class="admin__hint">Demo view — search reads the live account list.</p>`;
+          return;
+        }
+        try {
+          configureBackofficeApi();
+          const found = await api.searchAccounts(term);
+          if (mine !== searchSeq) return;
+
+          const holders = new Set(accounts.map((a) => a.userId));
+          // Somebody already on the list below is not a search result worth repeating; say so
+          // rather than offering a second, emptier card for the same person.
+          const fresh = found.filter((f) => !holders.has(f.userId));
+
+          if (found.length === 0) {
+            el.results.innerHTML =
+              `<p class="admin__hint">No account matches that. They have to sign in once first.</p>`;
+            return;
+          }
+          el.results.innerHTML =
+            (found.length - fresh.length > 0
+              ? `<p class="admin__hint">${found.length - fresh.length} already listed below.</p>`
+              : '') +
+            fresh.map(accountRow).join('');
+          syncJobNotes();
+        } catch (cause) {
+          if (mine !== searchSeq) return;
+          el.results.innerHTML =
+            `<p class="admin__error" role="alert">${esc(cause instanceof Error ? cause.message : 'The search failed.')}</p>`;
+        }
+      }
+
+      el.search.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => void runSearch(el.search.value), 250);
+      });
+
+      el.results.addEventListener('change', (event) => {
+        if ((event.target as HTMLElement).matches('select[name=jobKey]')) syncJobNotes();
+      });
+      el.results.addEventListener('submit', (event) => {
+        const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;
+        if (form?.dataset.job) { event.preventDefault(); void giveJob(form); return; }
+        if (form?.dataset.grant) { event.preventDefault(); void grant(form); }
       });
 
       el.body.addEventListener('submit', (event) => {

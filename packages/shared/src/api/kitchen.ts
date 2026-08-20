@@ -130,11 +130,12 @@ function readAllergenCodes(recipient: unknown): AllergenFlags {
  * which in a kitchen has the worst possible misreading, because the response to it is that
  * nobody cooks.
  *
- * **The status filter is applied here rather than in the query**, and that is a deliberate
- * limitation rather than an oversight: `SelectBuilder` has `eq`, `is` and `order` but no `in`,
- * and widening that interface means editing `client.ts` — outside what this thread was handed.
- * Filtering in memory costs one extra pass over a few hundred rows and keeps the change to two
- * files. When `in()` is added for another caller, this should move into the query.
+ * **The status filter is applied here rather than in the query.** It was written this way because
+ * `SelectBuilder` had no `in()`, and said it should move into the query when one was added.
+ * `E10-46` has since added `in()` for `fetchAccess` — so the blocker is gone and this is now
+ * simply not done yet. Deliberately not changed as a drive-by: it alters the query behind the
+ * live kitchen board, which is worth its own task and its own verification rather than riding
+ * along with an unrelated one. `E09-40`.
  */
 export async function fetchKitchenOrders(serviceDate: string): Promise<ApiKitchenOrder[]> {
   const rows = await runQuery<unknown>((t) =>

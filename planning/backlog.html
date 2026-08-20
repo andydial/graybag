@@ -4115,13 +4115,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/44</span>
+          <span class="meter-num">0/46</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 44 tasks</summary>
+        <summary>Context &amp; 46 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4475,6 +4475,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Access as a job, not thirty-one checkboxes.</strong> Andy: *&quot;Currently privileges one is a large list that does not make much sense to me. I want to be able to promote people to Kitchen staff so they can login and view orders and promote orders etc.&quot;* Five jobs — Delivery, Kitchen staff, Kitchen manager, School office, Platform admin — each stating in a sentence what the person can do, what it exposes, and the exact codes it grants, with the scope narrowed to the ones that job makes sense at (offering <code>platform</code> for a kitchen job is offering the difference between one kitchen and all of them). <strong>A job is derived, never stored.</strong> Granting one writes the same individual <code>permission_grant</code> rows you would have picked by hand; the name on the card is read back from those rows by <code>describeAccess</code>. <code>D3</code> keeps roles out of the schema for a concrete reason — it is what let <code>orders.mark_delivered</code> be split from <code>orders.refund</code> so a courier can hand food over without touching money (<code>E09-09</code>) — and storing a role would take that back. An account matching no bundle is <strong>Custom</strong>, a first-class answer rather than an error. <code>orders.refund</code> and <code>orders.view_financials</code> are in no kitchen job, asserted by a test. Another test removes each grant from each job in turn and requires the job to stop matching, so a partial set can never be labelled as the whole. The screen used to open with &quot;access is a grant, never a role — there is no role column anywhere&quot;, which is true and is no use to somebody trying to let a cook sign in; that note moved to the bottom, beside the revoke warning, where it explains something</span>
+      </li>
+      <li class="task" data-id="E10-46" data-seed="1" data-risk="medium" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-46"></button>
+        <code class="tid">E10-46</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>/admin/people</code> did not survive contact with real parents.</strong> Andy: *&quot;How bad is UX for /admin/people — how will this list look like in 1 week where 400 people have registered?&quot;* Badly. <code>fetchAccess</code> selected <strong>every</strong> <code>app_user</code> row, unbounded, and the screen rendered a card per account, each carrying a five-option job select and a thirty-one-option permission select — at 400 registered parents that is roughly <strong>fourteen thousand <code>&lt;option&gt;</code> elements</strong> to show three members of staff. The old section note argued that listing accounts holding nothing was how you reach somebody to onboard them, which was true at four accounts and is exactly backwards at four hundred. Now: <strong>grants are read first and only the accounts they name are fetched</strong>, so the list is as long as the number of people with access and no longer; and finding anyone else is a <strong>debounced database search</strong> on email or either name, capped at 20, with stale responses discarded by sequence number because on a slow connection the answer for &quot;pri&quot; can land after the answer for &quot;priya&quot;. Searching in the browser was rejected for the obvious reason — fetching every account to filter it client-side is the same unbounded read wearing a search box. <code>SelectBuilder</code> gained <code>in()</code> and <code>or()</code>, each documented at the interface as <code>client.ts</code> asks. <code>%</code> and <code>_</code> in a typed term are escaped, or an address containing one would widen the search rather than narrow it</span>
+      </li>
+      <li class="task" data-id="E09-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-40"></button>
+        <code class="tid">E09-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Move the kitchen board&#39;s status filter into the query.</strong> <code>fetchKitchenOrders</code> filters status in memory and its comment says it should move into the query once <code>SelectBuilder</code> has <code>in()</code> — which <code>E10-46</code> has now added. Left alone deliberately: it changes the query behind the live kitchen board and deserves its own verification rather than riding along with an unrelated change</span>
       </li></ul>
       </details>
     </article>
