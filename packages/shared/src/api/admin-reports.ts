@@ -59,16 +59,38 @@ function paise(value: unknown, field: string, where: string): number {
   return value;
 }
 
+/**
+ * Which statuses are money we have actually taken — `E11-10`.
+ *
+ * The bug this replaces: the old code did `if cancelled or refunded … else count it as gross`,
+ * which swept **`draft` and `pending_payment` into revenue**. An order nobody has paid for was
+ * being reported as money. On production on 2026-08-20 that was ₹228.92 of two unpaid orders
+ * shown as takings — and it is the single hardest error to notice on a report, because a bigger
+ * number never looks wrong.
+ *
+ * `preparing` and `delivered` are earned: payment settled before the kitchen ever saw them.
+ */
+const EARNED = new Set(['paid', 'preparing', 'delivered']);
+/** Placed, not paid. Real demand, not yet money — so it is its own column, never folded in. */
+const IN_FLIGHT = new Set(['draft', 'pending_payment']);
+const LOST = new Set(['cancelled', 'refunded']);
+
 export interface ReportRow {
   /** `YYYY-MM`. */
   month: string;
+  /** The service date, `YYYY-MM-DD`. Kept so the same rows can be grouped by day. */
+  day: string;
   schoolId: string;
   schoolName: string;
   orders: number;
   /** Orders that were cancelled or refunded. Counted, never in `grossPaise`. */
   cancelled: number;
-  /** All integer paise (non-negotiable #3). */
+  /** Placed but unpaid. Counted, and **never** in `grossPaise`. */
+  pending: number;
+  /** All integer paise (non-negotiable #3). Paid, preparing and delivered only. */
   grossPaise: number;
+  /** What unpaid orders would be worth if they were paid. Never added to gross. */
+  pendingPaise: number;
   taxPaise: number;
   refundedPaise: number;
   /** `gross - refunded`. What was actually kept. */
@@ -106,15 +128,17 @@ export function summarise(orders: unknown[]): ReportRow[] {
     const serviceDate = typeof row.service_date === 'string' ? row.service_date : '';
     const month = monthOf(serviceDate);
     const schoolId = typeof row.school_id === 'string' ? row.school_id : '';
-    const key = `${month}::${schoolId}`;
-    const where = `${month} ${schoolId}`;
+    const key = `${serviceDate}::${schoolId}`;
+    const where = `${serviceDate} ${schoolId}`;
 
     if (!groups.has(key)) {
       groups.set(key, {
         month,
+        day: serviceDate,
         schoolId,
         schoolName: typeof row.school_name_snapshot === 'string' ? row.school_name_snapshot : '',
-        orders: 0, cancelled: 0, grossPaise: 0, taxPaise: 0, refundedPaise: 0, netPaise: 0,
+        orders: 0, cancelled: 0, pending: 0,
+        grossPaise: 0, pendingPaise: 0, taxPaise: 0, refundedPaise: 0, netPaise: 0,
       });
     }
 
@@ -122,14 +146,24 @@ export function summarise(orders: unknown[]): ReportRow[] {
     const status = typeof row.status === 'string' ? row.status : '';
 
     group.orders += 1;
-    if (status === 'cancelled' || status === 'refunded') {
+    if (LOST.has(status)) {
       group.cancelled += 1;
-    } else {
+    } else if (IN_FLIGHT.has(status)) {
+      // Counted and valued, in its own column. Somebody looking at a day wants to know there are
+      // twelve unpaid orders on it; what they must not be told is that it is revenue.
+      group.pending += 1;
+      group.pendingPaise += paise(row.total_paise, 'total', where);
+    } else if (EARNED.has(status)) {
       group.grossPaise += paise(row.total_paise, 'total', where);
       // CGST and SGST are held separately and rounded independently (`G1`). Summing for display
       // is the one safe direction; never split a stored total back into halves.
       group.taxPaise +=
         paise(row.tax_cgst_paise, 'CGST', where) + paise(row.tax_sgst_paise, 'SGST', where);
+    } else {
+      // A status this module has never heard of. Counted in `orders` so the total still
+      // reconciles with the kitchen, and in no money column — guessing which side of the ledger
+      // a new status belongs on is exactly how the `pending_payment` bug happened.
+      throw new ReportError(`${where} has an unknown status "${status}"`);
     }
     group.refundedPaise += paise(row.refunded_total_paise, 'refunded total', where);
   }
@@ -152,6 +186,79 @@ export interface MonthTotals {
   taxPaise: number;
   refundedPaise: number;
   netPaise: number;
+}
+
+/**
+ * One bucket of the report, whatever it is bucketed by — `E11-10`.
+ *
+ * Andy: *"reports does not have option to do per school or per month etc."* The rows coming out
+ * of `summarise` are keyed by (day, school), which is the finest grain the source data has; every
+ * view the screen offers is a fold of those, so the three groupings cannot disagree with each
+ * other about a total. That is the reason for one function rather than three.
+ */
+export interface Bucket {
+  /** `2026-08-17`, `2026-08`, or a school id — whatever `by` selected. */
+  key: string;
+  /** What to print. A month name, a date, or the school's name. */
+  label: string;
+  orders: number;
+  cancelled: number;
+  pending: number;
+  grossPaise: number;
+  pendingPaise: number;
+  taxPaise: number;
+  refundedPaise: number;
+  netPaise: number;
+}
+
+export type GroupBy = 'day' | 'month' | 'school';
+
+export function groupRows(rows: readonly ReportRow[], by: GroupBy): Bucket[] {
+  const out = new Map<string, Bucket>();
+  for (const row of rows) {
+    const key = by === 'day' ? row.day : by === 'month' ? row.month : row.schoolId;
+    const label = by === 'school' ? row.schoolName : key;
+    if (!out.has(key)) {
+      out.set(key, {
+        key, label, orders: 0, cancelled: 0, pending: 0,
+        grossPaise: 0, pendingPaise: 0, taxPaise: 0, refundedPaise: 0, netPaise: 0,
+      });
+    }
+    const b = out.get(key)!;
+    b.orders += row.orders;
+    b.cancelled += row.cancelled;
+    b.pending += row.pending;
+    b.grossPaise += row.grossPaise;
+    b.pendingPaise += row.pendingPaise;
+    b.taxPaise += row.taxPaise;
+    b.refundedPaise += row.refundedPaise;
+    b.netPaise += row.netPaise;
+  }
+  const list = [...out.values()];
+  // Time runs forwards so a chart reads left to right; schools rank by what they are worth,
+  // because that is the question being asked of a school breakdown.
+  return by === 'school'
+    ? list.sort((a, b) => b.netPaise - a.netPaise || a.label.localeCompare(b.label))
+    : list.sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/** Every bucket added up. The row that has to reconcile with the kitchen. */
+export function totalOf(buckets: readonly Bucket[]): Bucket {
+  return buckets.reduce<Bucket>(
+    (t, b) => ({
+      key: 'total', label: 'Total',
+      orders: t.orders + b.orders,
+      cancelled: t.cancelled + b.cancelled,
+      pending: t.pending + b.pending,
+      grossPaise: t.grossPaise + b.grossPaise,
+      pendingPaise: t.pendingPaise + b.pendingPaise,
+      taxPaise: t.taxPaise + b.taxPaise,
+      refundedPaise: t.refundedPaise + b.refundedPaise,
+      netPaise: t.netPaise + b.netPaise,
+    }),
+    { key: 'total', label: 'Total', orders: 0, cancelled: 0, pending: 0,
+      grossPaise: 0, pendingPaise: 0, taxPaise: 0, refundedPaise: 0, netPaise: 0 },
+  );
 }
 
 export function totalsByMonth(rows: ReportRow[]): MonthTotals[] {

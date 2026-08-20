@@ -4491,13 +4491,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/9</span>
+          <span class="meter-num">0/11</span>
         </div>
       </header>
       <p class="summary">A monthly PDF emailed to each school. Aggregates only, no child-level PII. Designed to sell the benefit of the partnership.</p>
       <p class="deps">Depends on <code>E07</code></p>
       <details>
-        <summary>Context &amp; 9 tasks</summary>
+        <summary>Context &amp; 11 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Decided against a school login portal — the PDF lands in the principal&#39;s inbox instead of waiting to be discovered.</p></div>
         <ul class="tasks">
@@ -4572,6 +4572,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Growth by <strong>month</strong> as well as by day, once there is more than one month of data to compare. Deliberately not built now: with seventeen days of history a month view is one bar</span>
+      </li>
+      <li class="task" data-id="E11-10" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-10"></button>
+        <code class="tid">E11-10</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>/reports</code> was counting unpaid orders as revenue, and its date control did nothing.</strong> Andy: *&quot;The /reports is very bad and does not even show the right data. It shows orders and I updated date to at least include 1 more order from the new range and it didn&#39;t change any numbers. Also reports does not have option to do per school or per month etc.&quot;* Three faults. <strong>(1) The money was wrong.</strong> <code>summarise</code> did <code>if cancelled or refunded … else add to gross</code>, which swept <code>draft</code> and <code>pending_payment</code> into revenue — on production that was ₹228.92 of takings nobody had paid, and a number being too big is the one error on a report that never gets questioned. Statuses are now explicit sets: <code>paid</code>/<code>preparing</code>/<code>delivered</code> are earned, <code>draft</code>/<code>pending_payment</code> are counted and valued in their <strong>own</strong> column, <code>cancelled</code>/<code>refunded</code> counted and excluded, and <strong>an unrecognised status throws</strong> rather than being guessed onto a side of the ledger — guessing is exactly how this happened. <strong>(2) The date control applied only on submit.</strong> The query was always correct (extending to <code>2026-08-21</code> does return one more order, confirmed read-only against production); the form just showed the previous answer until you pressed Show. It now applies on change, and five presets mean the common ranges need no typing. <strong>(3) No grouping.</strong> Day, month and school are a control, and all three are folds of one set of (day, school) rows via <code>groupRows</code> — three queries would let the per-school total disagree with the per-month one, which is worse than no report. Verified by a test that every grouping folds to the same total. <code>REPORT_ORDER_COLUMNS</code> is unchanged: still no recipient, class or section</span>
+      </li>
+      <li class="task" data-id="E11-11" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-11"></button>
+        <code class="tid">E11-11</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Charts worth looking at.</strong> Andy: *&quot;The graph in growth is abysmal to say the least… These can be made so impressive.&quot;* The first attempt drew the data and nothing else — no y axis, no dates, no baseline, and <code>preserveAspectRatio=&quot;none&quot;</code>, which stretches the drawing to its container and distorts every slope in it, throwing away the one thing a line chart communicates. <code>lib/admin/chart.ts</code> now gives both screens <code>columns()</code> and <code>area()</code> with a <strong>rounded axis</strong> (<code>niceScale</code> picks 1/2/5 × a power of ten so the top gridline is a number a person would choose, and always starts at zero — a truncated axis exaggerates every change on it), <strong>thinned x labels</strong> that always keep the last one, gridlines, a baseline, and a <code>&lt;title&gt;</code> on every mark, which is a native tooltip with no JavaScript and is what a screen reader announces. Still zero third-party assets: a chart library is impossible under <code>script-src &#39;self&#39;</code> and unnecessary at twenty lines of geometry. 21 tests, including that the escaping holds when a school name contains markup</span>
       </li></ul>
       </details>
     </article>

@@ -71,7 +71,8 @@ import '../../styles/admin.css';
     <script>
       import { mountNav } from '../../lib/backoffice/nav-mount.js';
       import { api } from '@graybag/shared';
-      import { growth, linePath } from '../../lib/admin/growth.js';
+      import { growth } from '../../lib/admin/growth.js';
+      import { area, columns } from '../../lib/admin/chart.js';
       import type { Growth } from '../../lib/admin/growth.js';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { GROWTH_FIXTURE } from '../../lib/admin/growth-fixture.js';
@@ -81,6 +82,14 @@ import '../../styles/admin.css';
       const el = { body: $('g-body'), status: $('g-status'), reload: $<HTMLButtonElement>('g-reload') };
       const esc = (s: string) =>
         String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      /** `2026-08-17` as `17 Aug`. From the parts, never through a Date (`E09-32`). */
+      const shortDate = (iso: string) => {
+        const [, m, d] = iso.split('-');
+        return `${Number(d)} ${MONTHS[Number(m) - 1] ?? ''}`;
+      };
 
       const demo = new URLSearchParams(location.search).has('state');
       const today = serviceDateToday(new Date());
@@ -121,44 +130,41 @@ import '../../styles/admin.css';
         (note ? `<p class="gstat__note">${esc(note)}</p>` : '') + `</div>`;
 
       /**
-       * The cumulative line.
+       * Two charts, sharing an axis width — `E11-10`.
        *
-       * Cumulative rather than per-day, because at these numbers a per-day bar chart is mostly
-       * zeroes and reads as failure. The per-day figures are in the table below it, where the
-       * shape of a week is legible without being the headline.
+       * The first version of this drew a bare polyline with `preserveAspectRatio="none"`, no y
+       * axis, no dates and no baseline. Andy: *"the graph in growth is abysmal."* It was: a line
+       * with no scale says "it went up" and nothing else, and the stretching distorted the one
+       * thing a line is for.
+       *
+       * Cumulative as an **area**, because a running total is the rare case where the area under
+       * the curve means something. Per-day as **columns**, because at these numbers a day with
+       * three signups next to a day with none is legible as bars and invisible as a step.
        */
       function chart(g: Growth): string {
         if (g.daily.length === 0) return '';
-        const W = 640, H = 140;
-        const points = linePath(g.daily.map((d) => d.cumulative), W, H);
         const last = g.daily.at(-1)!;
-        const peak = Math.max(...g.daily.map((d) => d.cumulative), 1);
 
-        // A bar per day beneath the line — same axis, so a spike lines up with the step it caused.
-        const barW = Math.max(1, W / Math.max(g.daily.length, 1) - 1);
-        const maxDay = Math.max(...g.daily.map((d) => d.registrations), 1);
-        const bars = g.daily.map((d, i) => {
-          const h = (d.registrations / maxDay) * 34;
-          const x = (i * W) / Math.max(g.daily.length, 1);
-          return `<rect x="${x.toFixed(1)}" y="${(34 - h).toFixed(1)}" width="${barW.toFixed(1)}" ` +
-            `height="${h.toFixed(1)}" rx="1" class="gchart__bar"></rect>`;
-        }).join('');
+        const cumulative = g.daily.map((d) => ({
+          label: shortDate(d.date), value: d.cumulative,
+          title: `${d.date}: ${d.cumulative} accounts in total`,
+        }));
+        const perDay = g.daily.map((d) => ({
+          label: shortDate(d.date), value: d.registrations,
+          title: `${d.date}: ${d.registrations} new account${d.registrations === 1 ? '' : 's'}`,
+        }));
 
         return (
           `<section class="admin__section" aria-labelledby="chart-h">` +
-            `<h2 id="chart-h">Registrations over time</h2>` +
+            `<h2 id="chart-h">Total accounts</h2>` +
             `<p class="admin__section-note">` +
-              `${esc(g.daily[0]!.date)} to ${esc(last.date)} · <b>${last.cumulative}</b> accounts` +
+              `${esc(g.daily[0]!.date)} to ${esc(last.date)} · ending at <b>${last.cumulative}</b>` +
             `</p>` +
-            // `role="img"` with a label: the shape is decorative for a screen reader, and the
-            // numbers it draws are in the table below in full.
-            `<svg class="gchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" ` +
-                `aria-label="Cumulative registrations from ${esc(g.daily[0]!.date)} to ${esc(last.date)}, ending at ${last.cumulative}">` +
-              `<polyline class="gchart__line" points="${points}" fill="none"></polyline>` +
-            `</svg>` +
-            `<svg class="gchart gchart--bars" viewBox="0 0 ${W} 34" preserveAspectRatio="none" ` +
-                `role="img" aria-label="Registrations per day, highest ${maxDay}">${bars}</svg>` +
-            `<p class="admin__hint">Peak total ${peak}. Each bar is one day.</p>` +
+            area(cumulative, { label: `Total registered accounts, ending at ${last.cumulative}` }) +
+          `</section>` +
+          `<section class="admin__section" aria-labelledby="perday-h">` +
+            `<h2 id="perday-h">New accounts per day</h2>` +
+            columns(perDay, { label: 'New registrations per day' }) +
           `</section>`
         );
       }
