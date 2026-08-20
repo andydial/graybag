@@ -952,3 +952,81 @@
   font-size: var(--gb-font-size-caption);
   line-height: var(--gb-line-height-caption);
 }
+
+/* --------------------------------------------------------------- growth (`E11-08`) */
+
+.gstats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--gb-space-3);
+  margin-bottom: var(--gb-space-5);
+}
+
+.gstat {
+  padding: var(--gb-layout-card-padding);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-lg);
+  background: var(--gb-bg-surface);
+}
+
+.gstat__n {
+  margin: 0;
+  font-size: var(--gb-font-size-display);
+  font-weight: var(--gb-font-weight-display);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.gstat__l { margin: var(--gb-space-1) 0 0; font-weight: var(--gb-font-semibold); }
+.gstat__note { margin: var(--gb-space-1) 0 0; color: var(--gb-text-secondary); font-size: var(--gb-font-size-caption); }
+
+/*
+ * `preserveAspectRatio="none"` stretches the drawing to whatever width it is given, which is what
+ * makes this responsive without measuring anything in JavaScript. It distorts the line's slope —
+ * acceptable, because the slope is not the reading; the numbers beside it are.
+ */
+.gchart {
+  display: block;
+  width: 100%;
+  height: 8.75rem;
+  overflow: visible;
+}
+
+.gchart--bars { height: 2.125rem; margin-top: var(--gb-space-2); }
+
+.gchart__line {
+  stroke: var(--gb-ramp-forest-600);
+  stroke-width: 2;
+  /* Non-scaling so the stroke stays 2px however far the viewBox is stretched. */
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+
+.gchart__bar { fill: var(--gb-ramp-lime-500); }
+
+/*
+ * A track with a fill inside it, rather than a bare bar whose width is the value.
+ *
+ * At 0% a bare bar is invisible, and "no families at this school yet" is the most actionable row
+ * the table can carry — it has to look like an empty bar, not like a rendering failure.
+ */
+.gtrack {
+  display: inline-block;
+  width: 5rem;
+  height: 0.5rem;
+  margin-right: var(--gb-space-2);
+  border-radius: var(--gb-radius-full);
+  background: var(--gb-bg-surface-muted);
+  vertical-align: middle;
+  overflow: hidden;
+}
+
+.gfill {
+  display: block;
+  width: var(--w, 0%);
+  height: 100%;
+  border-radius: var(--gb-radius-full);
+  background: var(--gb-ramp-forest-500);
+}
+
+.gbar__pc { color: var(--gb-text-secondary); font-size: var(--gb-font-size-body-sm); font-variant-numeric: tabular-nums; }

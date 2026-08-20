@@ -178,6 +178,17 @@ export const NAV: NavItem[] = [
     requires: ['reports.view'],
     description: 'The monthly school report.',
   },
+  {
+    /**
+     * `E11-08`. Separate from `/reports`, which answers "what did this school order" for a
+     * school. This answers "is the product growing" for us, and needs `users.view` because it
+     * counts accounts — a school viewer must not reach it.
+     */
+    href: '/admin/growth',
+    label: 'Growth',
+    requires: ['users.view'],
+    description: 'Registrations over time and by school. Counts only — nobody is named.',
+  },
 ];
 
 export function canReach(item: NavItem, operator: Operator): boolean {

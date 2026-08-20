@@ -73,6 +73,9 @@ const PAGES = [
   // ones, so the audit sees the guess chips and the three states rather than an empty list.
   '/admin/allergens.html?state=demo',
   '/reports.html?state=demo',
+  // `E11-08`. Its fixture carries quiet days, a school with nobody at it, siblings and a second
+  // guardian, so the audit sees the charts and the tables rather than an empty state.
+  '/admin/growth.html?state=demo',
   // `E10-43`. The demo state reveals every route, so this audits the full navigation — the panel
   // it opens is audited here too, because the toggle is on every one of the pages above.
   '/dashboard.html?state=demo',

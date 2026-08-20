@@ -1,0 +1,286 @@
+---
+/**
+ * How registration is tracking — `E11-08`.
+ *
+ * Andy: *"All registered users — registrations per date — registrations per school etc. Want to be
+ * able to see exactly how the registrations / growth is tracking. Would be good to have some basic
+ * graphs / visuals as well to reflect the data."*
+ *
+ * ## Separate from `/reports`
+ *
+ * `/reports` answers "what did this school order and what is it worth", for a school. This answers
+ * "is the product growing", for us. They share no row and no audience, and `E10-10` is explicit
+ * that the monthly report is the narrow thing Andy asked for and nothing more — growing it
+ * quietly is the failure that task exists to prevent.
+ *
+ * ## No child, and no parent, appears on this page
+ *
+ * Every number here is a count. `fetchGrowth` selects three columns per child, none of which
+ * identifies anybody (non-negotiable #4), and the account read carries no name or address either —
+ * a growth chart needs magnitudes, and a list of who signed up is a different screen with a
+ * different justification.
+ *
+ * ## The charts are inline SVG
+ *
+ * No chart library. The site ships **zero** third-party assets — `check-build.mjs` fails the build
+ * on one — and the CSP is `script-src 'self'`. A polyline and a row of `<rect>`s cost nothing at
+ * runtime and are readable by a screen reader when the numbers are in a table beside them, which
+ * they are.
+ */
+import BackofficeNav from '../../components/BackofficeNav.astro';
+
+import '../../styles/tokens.css';
+import '../../styles/site.css';
+import '../../styles/kitchen.css';
+import '../../styles/admin.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Growth — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
+          <h1 class="kitchen__title">Growth</h1>
+          <button id="g-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+          <BackofficeNav current="/admin/growth" />
+        </div>
+      </header>
+
+      <main class="kitchen__wrap admin__wrap">
+        <div id="g-status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <p class="admin__intro">
+          Registered accounts, when they registered, and which schools they are at.
+          <b>Every number here is a count</b> — no child and no parent is named on this page.
+        </p>
+
+        <div id="g-body"></div>
+      </main>
+    </div>
+
+    <script>
+      import { mountNav } from '../../lib/backoffice/nav-mount.js';
+      import { api } from '@graybag/shared';
+      import { growth, linePath } from '../../lib/admin/growth.js';
+      import type { Growth } from '../../lib/admin/growth.js';
+      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { GROWTH_FIXTURE } from '../../lib/admin/growth-fixture.js';
+      import { serviceDateToday } from '../../lib/kitchen/view.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = { body: $('g-body'), status: $('g-status'), reload: $<HTMLButtonElement>('g-reload') };
+      const esc = (s: string) =>
+        String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const demo = new URLSearchParams(location.search).has('state');
+      const today = serviceDateToday(new Date());
+
+      let data: Growth | null = null;
+      let loading = true;
+      let error: string | null = null;
+
+      async function load() {
+        loading = true; error = null; render();
+        try {
+          if (demo) {
+            data = growth(
+              GROWTH_FIXTURE.users, GROWTH_FIXTURE.children, GROWTH_FIXTURE.links,
+              GROWTH_FIXTURE.schools, GROWTH_FIXTURE.today,
+            );
+          } else {
+            configureBackofficeApi();
+            const [g, schools] = await Promise.all([api.fetchGrowth(), api.fetchAdminSchools()]);
+            data = growth(
+              g.users, g.children, g.links,
+              schools.map((s) => ({ id: s.id, name: s.name })),
+              today,
+            );
+          }
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The growth figures did not load.';
+          data = null;
+        } finally {
+          loading = false; render();
+        }
+      }
+
+      /** A number and what it means, for the row of headline figures. */
+      const stat = (value: string, label: string, note = '') =>
+        `<div class="gstat"><p class="gstat__n">${esc(value)}</p>` +
+        `<p class="gstat__l">${esc(label)}</p>` +
+        (note ? `<p class="gstat__note">${esc(note)}</p>` : '') + `</div>`;
+
+      /**
+       * The cumulative line.
+       *
+       * Cumulative rather than per-day, because at these numbers a per-day bar chart is mostly
+       * zeroes and reads as failure. The per-day figures are in the table below it, where the
+       * shape of a week is legible without being the headline.
+       */
+      function chart(g: Growth): string {
+        if (g.daily.length === 0) return '';
+        const W = 640, H = 140;
+        const points = linePath(g.daily.map((d) => d.cumulative), W, H);
+        const last = g.daily.at(-1)!;
+        const peak = Math.max(...g.daily.map((d) => d.cumulative), 1);
+
+        // A bar per day beneath the line — same axis, so a spike lines up with the step it caused.
+        const barW = Math.max(1, W / Math.max(g.daily.length, 1) - 1);
+        const maxDay = Math.max(...g.daily.map((d) => d.registrations), 1);
+        const bars = g.daily.map((d, i) => {
+          const h = (d.registrations / maxDay) * 34;
+          const x = (i * W) / Math.max(g.daily.length, 1);
+          return `<rect x="${x.toFixed(1)}" y="${(34 - h).toFixed(1)}" width="${barW.toFixed(1)}" ` +
+            `height="${h.toFixed(1)}" rx="1" class="gchart__bar"></rect>`;
+        }).join('');
+
+        return (
+          `<section class="admin__section" aria-labelledby="chart-h">` +
+            `<h2 id="chart-h">Registrations over time</h2>` +
+            `<p class="admin__section-note">` +
+              `${esc(g.daily[0]!.date)} to ${esc(last.date)} · <b>${last.cumulative}</b> accounts` +
+            `</p>` +
+            // `role="img"` with a label: the shape is decorative for a screen reader, and the
+            // numbers it draws are in the table below in full.
+            `<svg class="gchart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" ` +
+                `aria-label="Cumulative registrations from ${esc(g.daily[0]!.date)} to ${esc(last.date)}, ending at ${last.cumulative}">` +
+              `<polyline class="gchart__line" points="${points}" fill="none"></polyline>` +
+            `</svg>` +
+            `<svg class="gchart gchart--bars" viewBox="0 0 ${W} 34" preserveAspectRatio="none" ` +
+                `role="img" aria-label="Registrations per day, highest ${maxDay}">${bars}</svg>` +
+            `<p class="admin__hint">Peak total ${peak}. Each bar is one day.</p>` +
+          `</section>`
+        );
+      }
+
+      function schoolTable(g: Growth): string {
+        if (g.bySchool.length === 0) return '';
+        return (
+          `<section class="admin__section" aria-labelledby="school-h">` +
+            `<h2 id="school-h">By school</h2>` +
+            `<p class="admin__section-note">` +
+              `A family is counted <b>once per school</b>, however many children they have there.` +
+            `</p>` +
+            `<table class="otable">` +
+              `<thead><tr><th scope="col">School</th><th scope="col">Families</th>` +
+              `<th scope="col">Children</th><th scope="col">Share</th></tr></thead>` +
+              `<tbody>` +
+                g.bySchool.map((s) =>
+                  `<tr>` +
+                    `<th scope="row">${esc(s.name)}</th>` +
+                    `<td class="otable__num">${s.guardians}</td>` +
+                    `<td class="otable__num">${s.children}</td>` +
+                    `<td>` +
+                      // A track with a fill, not a bare bar: at 0% a bare bar is invisible, and
+                      // "no families here" is the most actionable row on this table.
+                      `<span class="gtrack"><span class="gfill" style="--w:${(s.share * 100).toFixed(1)}%"></span></span>` +
+                      `<span class="gbar__pc">${(s.share * 100).toFixed(0)}%</span>` +
+                    `</td>` +
+                  `</tr>`,
+                ).join('') +
+              `</tbody>` +
+            `</table>` +
+          `</section>`
+        );
+      }
+
+      function dayTable(g: Growth): string {
+        // Newest first, and only the last 28. The whole series is on the chart; this is for
+        // reading exact numbers off recent days, which is what it is actually used for.
+        const recent = [...g.daily].reverse().slice(0, 28);
+        if (recent.length === 0) return '';
+        return (
+          `<details class="admin__section">` +
+            `<summary><b>Day by day</b> — the last ${recent.length} days</summary>` +
+            `<table class="otable">` +
+              `<thead><tr><th scope="col">Date</th><th scope="col">New</th><th scope="col">Total</th></tr></thead>` +
+              `<tbody>` +
+                recent.map((d) =>
+                  `<tr><th scope="row">${esc(d.date)}</th>` +
+                  `<td class="otable__num">${d.registrations}</td>` +
+                  `<td class="otable__num">${d.cumulative}</td></tr>`).join('') +
+              `</tbody>` +
+            `</table>` +
+          `</details>`
+        );
+      }
+
+      function render() {
+        if (loading) {
+          el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
+          return;
+        }
+        if (error) {
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>We can't show growth</h2><p>${esc(error)}</p>` +
+            `<p>This screen needs <b>users.view</b> at platform scope.</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+        const g = data;
+        if (!g) return;
+
+        if (g.totalUsers === 0) {
+          // Ambiguous by nature, exactly like `/reports`: no registrations, or no permission to
+          // count them. Say both rather than picking one (`[AUTH-01]`).
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>No registrations to show</h2>` +
+            `<p>Either nobody has registered yet, or this account cannot read the user list — ` +
+            `it needs <b>users.view</b> at platform scope.</p></div>`;
+          return;
+        }
+
+        const week = g.recent.find((r) => r.days === 7)!;
+        const month = g.recent.find((r) => r.days === 28)!;
+        const delta = (r: { now: number; previous: number }) =>
+          r.previous === 0 ? (r.now > 0 ? 'first ones' : 'none before') :
+          `${r.now >= r.previous ? '+' : ''}${Math.round(((r.now - r.previous) / r.previous) * 100)}% on the previous`;
+
+        el.status.textContent = `${g.totalUsers} registered accounts.`;
+
+        el.body.innerHTML =
+          `<div class="gstats">` +
+            stat(String(g.totalUsers), 'Registered accounts') +
+            stat(String(g.totalChildren), 'Children added') +
+            stat(String(week.now), 'Last 7 days', delta(week)) +
+            stat(String(month.now), 'Last 28 days', delta(month)) +
+            // The conversion gap. `AR7` makes signup-to-first-order a primary goal, and an
+            // account with no child cannot order at all — so this is the number that says
+            // whether onboarding works, not a curiosity.
+            stat(String(g.usersWithoutChildren), 'Signed up, no child yet',
+              g.totalUsers > 0 ? `${Math.round((g.usersWithoutChildren / g.totalUsers) * 100)}% of accounts` : '') +
+          `</div>` +
+          chart(g) +
+          schoolTable(g) +
+          dayTable(g);
+      }
+
+      el.reload.addEventListener('click', () => void load());
+      el.body.addEventListener('click', (event) => {
+        if ((event.target as HTMLElement).closest('[data-retry]')) void load();
+      });
+
+      (async () => {
+        try {
+          if (!demo && !(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent('/admin/growth')}`);
+            return;
+          }
+        } catch { /* fall through and let the read fail visibly */ }
+        await load();
+      })();
+
+      void mountNav();
+    </script>
+  </body>
+</html>
