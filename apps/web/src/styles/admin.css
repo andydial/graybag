@@ -920,3 +920,35 @@
 @media (prefers-reduced-motion: reduce) {
   .dash__card { transition: none; }
 }
+
+/* --------------------------------------------------- giving somebody a job (`E10-45`) */
+
+.jobnote {
+  margin-top: var(--gb-space-2);
+  padding: var(--gb-space-3);
+  border-radius: var(--gb-radius-md);
+  background: var(--gb-bg-surface-muted);
+}
+
+.jobnote__what { margin: 0; font-size: var(--gb-font-size-body-sm); line-height: var(--gb-line-height-body-sm); }
+
+/*
+ * The consequence, called out rather than left in the list of codes. Somebody being made kitchen
+ * staff is being given children's names; that should be a sentence, not an inference.
+ */
+.jobnote__warn {
+  margin: var(--gb-space-2) 0 0;
+  padding: var(--gb-space-2);
+  border-radius: var(--gb-radius-sm);
+  background: var(--gb-bg-surface-warning);
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-semibold);
+}
+
+/* The exact codes stay visible. The bundle is a convenience, never a thing you cannot inspect. */
+.jobnote__grants {
+  margin: var(--gb-space-2) 0 0;
+  color: var(--gb-text-secondary);
+  font-size: var(--gb-font-size-caption);
+  line-height: var(--gb-line-height-caption);
+}
