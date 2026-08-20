@@ -2945,3 +2945,25 @@ and a migration recorded in `supabase_migrations.schema_migrations` are differen
 the second one survives a new shell.
 
 Worth pairing with the `E12-36` lesson: verify the deployed artefact, not the one you produced.
+
+## Test data on production is an accounting entry, not clutter
+
+2026-08-20. Three test orders I created on 2026-08-15 were still on production five days later,
+after I had reported that production test data was cleaned up. That report was wrong. Production
+began taking real orders on the 18th, so by the time they were found they sat in the same table as
+money somebody has to reconcile.
+
+Two lessons, and the second is the one that nearly cost something.
+
+**Don't create it in the first place.** A write path can be exercised against production with a
+non-existent uuid: every guard, every 4xx and the 200 shape are reachable, and nothing real is
+touched. `E09-38`'s cancellation guards were verified that way — `422`, `422`, `200 updated:[]`,
+`200` — with no row created. There was never a reason to make an order.
+
+**Check the premise before acting on a destructive instruction.** Asked to delete "the test orders
+you created today", the correct first move was the query, not the delete: nothing had been created
+that day, and the newest rows were real customer orders including a `paid` one. Complying would
+have destroyed money-bearing data on the strength of a mistaken belief. Showing the output resolved
+it in one exchange.
+
+Now non-negotiable #8 in `CLAUDE.md`.

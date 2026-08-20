@@ -252,6 +252,23 @@ Anything not in that list is fast-follow, including anything you add later.
 5. **Never commit the `.bubble` export.** It contains live secrets.
 6. **Nothing merges without the smoke test green.** The full suite runs nightly.
 7. **Mohali-only, 5% flat GST, no passwords, no push, six compliance tasks.** Do not drift.
+8. **Never write production *data* without asking Andy first.** Added 2026-08-20, the day after
+   production started taking real orders. Deploys and migrations are fine — say you are doing
+   them. Creating, cancelling or deleting **rows** is not, without an explicit yes. An order row
+   is money somebody has to reconcile, so a test order is a false entry in the accounts, not
+   clutter.
+
+   To exercise a write path against production, call it with a **non-existent uuid**
+   (`00000000-0000-0000-0000-000000000000`). Every guard, every 4xx and the 200 shape are all
+   reachable that way and nothing real is touched — that is how `E09-38`'s cancellation guards
+   were verified. Otherwise verify with reads: `supabase migration list`, a PostgREST `select`,
+   `notification_delivery`.
+
+   **And check the premise before deleting anything.** Andy asked for "the test orders you
+   created today" to be removed; there were none from that day, and the newest rows were real —
+   one of them `paid`. Running the query and showing the output is what stopped a real paid order
+   being deleted. A destructive instruction resting on a wrong belief is not consent to the
+   destruction.
 
 ## Performance priorities
 
