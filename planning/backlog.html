@@ -4099,13 +4099,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/41</span>
+          <span class="meter-num">0/43</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 41 tasks</summary>
+        <summary>Context &amp; 43 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4435,6 +4435,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Admin controls sized for a pointer.</strong> <code>.kitchen__btn</code> is 56px tall by design — &quot;wet hands, in a hurry&quot; — and every admin screen was reusing it, which turned the nav into a row of lozenges and an inline action into a circle with the label spilling out. Overridden inside the admin shell so the kitchen keeps its 56px. The first concrete instance of the kitchen and the back office being different problems that had been sharing one control vocabulary</span>
+      </li>
+      <li class="task" data-id="E10-43" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-43"></button>
+        <code class="tid">E10-43</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Navigation, and a dashboard to land on.</strong> Andy: *&quot;I should login into a dashboard and should have options to navigate to all other available web screens / reports etc. Currently I need to find and paste URL endpoints to open some / many of those.&quot;* <code>nav.ts</code> has modelled this correctly since <code>E10-12</code> — every route, its required grants, a description, and the argument for omitting rather than disabling what cannot be reached — and <strong>nothing imported it.</strong> Each screen hand-rolled links instead: <code>/admin/menus</code> offered four, <code>/orders</code> offered one, six offered none, and <code>/kitchen/sheet</code>, <code>/admin/allergens</code> and <code>/admin/people</code> were reachable from no link anywhere. The table had also drifted — it pointed at <code>/admin/orders</code>, which has never existed, and a nav item pointing at nothing is indistinguishable from one correctly hidden from you, so nobody could see it. Now: one <code>BackofficeNav</code> component generated from <code>NAV</code> on all ten screens, a <code>/dashboard</code> carrying each route&#39;s one-line description, and <code>/signin</code> landing there instead of hard-coding <code>/kitchen</code> (an account holding only <code>reports.view</code> used to arrive at a board it could not read). Items ship <code>hidden</code> and are revealed by <code>fetchMyGrants()</code> — the opposite order from render-then-hide, which flashes the whole system at somebody entitled to one screen of it. <strong>Two tests close the loop in both directions:</strong> every <code>href</code> must resolve to a page on disk, and every back-office page must appear in <code>NAV</code>, so neither a renamed route nor an orphaned screen can recur. Sign-out existed on no page at all and is now in the panel with the signed-in address beside it. A button-and-panel at every width rather than inline tabs, because nine items wrapped to a second row and <code>E09-37</code> had just cut that bar from 270px to 136 — measured back at 136 after this</span>
+      </li>
+      <li class="task" data-id="E10-44" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-44"></button>
+        <code class="tid">E10-44</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Consider a keyboard shortcut for the navigation panel (<code>g</code> then a letter, or <code>⌘K</code>), once there is evidence anyone moves between screens often enough to want it. Deliberately not built now: a shortcut nobody uses is a thing to maintain, and the panel is two taps</span>
       </li></ul>
       </details>
     </article>

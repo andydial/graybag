@@ -21,6 +21,8 @@
  * `?state=demo` renders fixtures instead of reaching the backend, the same trick `/kitchen` uses,
  * so `check:a11y` can audit this page rather than being bounced to `/signin`.
  */
+import BackofficeNav from '../../components/BackofficeNav.astro';
+
 import '../../styles/tokens.css';
 import '../../styles/site.css';
 import '../../styles/kitchen.css';
@@ -43,9 +45,8 @@ import '../../styles/admin.css';
       <header class="kitchen__bar">
         <div class="kitchen__bar-inner kitchen__bar-inner--admin">
           <h1 class="kitchen__title">School configuration</h1>
-          <a class="kitchen__btn" href="/kitchen">Kitchen board</a>
-          <a class="kitchen__btn" href="/orders">Orders</a>
           <button id="c-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+          <BackofficeNav current="/admin/config" />
         </div>
       </header>
 
@@ -72,6 +73,7 @@ import '../../styles/admin.css';
     </div>
 
     <script>
+      import { mountNav } from '../../lib/backoffice/nav-mount.js';
       import { api } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { CONFIG_FIXTURE } from '../../lib/admin/config-fixture.js';
@@ -459,6 +461,7 @@ import '../../styles/admin.css';
         }
         await load();
       })();
+    void mountNav();
     </script>
   </body>
 </html>

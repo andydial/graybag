@@ -32,6 +32,8 @@
  *
  * `?state=demo` renders a worked example, so `check:a11y` audits this rather than the redirect.
  */
+import BackofficeNav from '../../components/BackofficeNav.astro';
+
 import '../../styles/tokens.css';
 import '../../styles/site.css';
 import '../../styles/kitchen.css';
@@ -54,9 +56,7 @@ import '../../styles/admin.css';
       <header class="kitchen__bar">
         <div class="kitchen__bar-inner kitchen__bar-inner--admin">
           <h1 class="kitchen__title">Check an import file</h1>
-          <a class="kitchen__btn" href="/admin/menus">Dishes and menus</a>
-          <a class="kitchen__btn" href="/admin/schools">Schools</a>
-          <a class="kitchen__btn" href="/admin/people">Staff</a>
+          <BackofficeNav current="/admin/import" />
         </div>
       </header>
 
@@ -94,6 +94,7 @@ import '../../styles/admin.css';
     </div>
 
     <script>
+      import { mountNav } from '../../lib/backoffice/nav-mount.js';
       import { api } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { snapshotReader } from '../../lib/admin/import-snapshot.js';
@@ -370,6 +371,7 @@ import '../../styles/admin.css';
           }
         } catch { /* an unconfigured build falls through to the empty state */ }
       })();
+    void mountNav();
     </script>
   </body>
 </html>

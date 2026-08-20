@@ -28,6 +28,8 @@
  *
  * `?state=demo` renders fixtures, so `check:a11y` audits this rather than the sign-in redirect.
  */
+import BackofficeNav from '../../components/BackofficeNav.astro';
+
 import '../../styles/tokens.css';
 import '../../styles/site.css';
 import '../../styles/kitchen.css';
@@ -50,11 +52,11 @@ import '../../styles/admin.css';
       <header class="kitchen__bar">
         <div class="kitchen__bar-inner kitchen__bar-inner--admin">
           <h1 class="kitchen__title">Allergen tagging</h1>
-          <a class="kitchen__btn" href="/admin/menus">Dishes and menus</a>
           <button id="g-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
           <button id="g-save" class="kitchen__btn kitchen__btn--primary" type="button" disabled>
             Save
           </button>
+          <BackofficeNav current="/admin/allergens" />
         </div>
       </header>
 
@@ -78,6 +80,7 @@ import '../../styles/admin.css';
     </div>
 
     <script>
+      import { mountNav } from '../../lib/backoffice/nav-mount.js';
       import { api } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
@@ -337,6 +340,7 @@ import '../../styles/admin.css';
         } catch { /* an unconfigured build falls through to the error state */ }
         await load();
       })();
+    void mountNav();
     </script>
   </body>
 </html>

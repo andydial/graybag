@@ -843,7 +843,7 @@
   .gate__detail, .gate .kitchen__btn { grid-column: 2; }
 }
 
-/* ============================================ admin controls are not kitchen controls (E10-42)
+/* ============================================ admin controls are not kitchen controls (E10-43)
  *
  * `.kitchen__btn` is **56px tall** — "bigger than the 48 floor. Wet hands, in a hurry." That is
  * exactly right for a tablet propped on a steel bench and exactly wrong for an admin screen driven
@@ -872,3 +872,51 @@
  * the row, and on a wide screen it was a hand's width away from the text explaining it. */
 .gate { grid-template-columns: 1.5rem 9rem 1fr; }
 .gate__detail { display: flex; align-items: baseline; gap: var(--gb-space-2); flex-wrap: wrap; }
+
+/* ---------------------------------------------------------------------------------------------
+ * The dashboard — `E10-43`. Cards carrying the description, not just the label.
+ * ------------------------------------------------------------------------------------------- */
+
+.dash {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--gb-space-3);
+  margin-top: var(--gb-space-4);
+}
+
+.dash__card[hidden] { display: none; }
+
+.dash__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gb-space-1);
+  padding: var(--gb-layout-card-padding);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-lg);
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+  text-decoration: none;
+  transition: border-color var(--gb-duration-fast) var(--gb-ease-standard),
+              box-shadow var(--gb-duration-fast) var(--gb-ease-standard);
+}
+
+.dash__card:hover {
+  border-color: var(--gb-border-brand);
+  box-shadow: var(--gb-elevation-1);
+}
+
+.dash__label {
+  font-size: var(--gb-font-size-h3);
+  font-weight: var(--gb-font-semibold);
+  line-height: var(--gb-line-height-h3);
+}
+
+.dash__desc {
+  color: var(--gb-text-secondary);
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash__card { transition: none; }
+}
