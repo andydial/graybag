@@ -2919,3 +2919,16 @@ something else has to assert it is alive. Here it is a build-time guard on inlin
 
 Related: a build guard placed after the block that ends in `process.exit(1)` never runs. Prove a
 new guard fails by feeding it the thing it is meant to catch, before trusting it.
+
+## `check:a11y` does not build — a stale `dist/` makes it lie in both directions
+
+2026-08-20. Fixed a contrast violation, re-ran `npm run check:a11y`, and got the identical failure
+back. The fix was correct; the gate was auditing the previous build. `check:a11y` is
+`node scripts/check-a11y.mjs` and nothing in it runs Astro — it refuses only if `dist/` is missing
+entirely, never if it is old.
+
+It fails the other way too, which is worse: edit a page, run the gate, watch it pass, and you have
+tested the version before your edit.
+
+Always `npm --prefix apps/web run build` first. `npm run smoke` does build, which is why this has
+never bitten CI — only local iteration, where the gate is run directly and repeatedly.

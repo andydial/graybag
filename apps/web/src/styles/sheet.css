@@ -11,11 +11,22 @@
 
 .sheetpage { background: var(--gb-bg-canvas); }
 
+/*
+ * The foreground is declared here, not only on the children — `E10-43`.
+ *
+ * This bar set an inverse background and left the text colour to inherit from the body, which is
+ * dark. It looked correct because every child happened to set its own colour: `.sheet__date` names
+ * `--gb-text-on-brand`, and `.kitchen__btn` carries its own. The first element placed here that
+ * inherited instead — the navigation toggle — came out at a contrast ratio of 2.37, and the a11y
+ * gate caught it. A dark surface has to declare what sits on it, or it is a trap for the next
+ * thing added to it.
+ */
 .sheet__bar {
   position: sticky;
   top: 0;
   z-index: 2;
   background: var(--gb-bg-surface-inverse);
+  color: var(--gb-text-on-brand);
   padding: var(--gb-space-2) var(--gb-space-3);
 }
 

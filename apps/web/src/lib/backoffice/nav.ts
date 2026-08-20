@@ -101,7 +101,21 @@ export const NAV: NavItem[] = [
     description: "Today's orders, what to cook, and handing food over.",
   },
   {
-    href: '/admin/orders',
+    // `E09-34`. The board is where you change things; this is what you pack from, on paper or on
+    // a phone. It was reachable from no link anywhere in the app — you had to know the URL.
+    href: '/kitchen/sheet',
+    label: 'Packing sheet',
+    requires: ['orders.view'],
+    description: "One day, grouped the way you physically pack it. Printable, and nothing on it is a button.",
+  },
+  {
+    /**
+     * `/orders`, not `/admin/orders`. This entry named a route that has never existed, and
+     * because an unreachable nav item is indistinguishable from a correctly hidden one, nothing
+     * failed — exactly the shape of the `user.view` bug recorded above. `nav.test.ts` now asserts
+     * every href against the pages on disk, so a route that is renamed breaks a test.
+     */
+    href: '/orders',
     label: 'Orders',
     requires: ['orders.view', 'orders.view_financials'],
     description: 'Every kitchen, with refunds. Separate from the kitchen list because it shows money.',
@@ -139,6 +153,15 @@ export const NAV: NavItem[] = [
     label: 'Check an import file',
     requires: ['menu.import'],
     description: 'See exactly what a CSV would change, before running it.',
+  },
+  {
+    // `E09-33`. Tagging a dish with what it contains is `menu.edit` work — it is an attribute of
+    // the dish, edited by the same person on the same data, and it is only a separate screen
+    // because tagging 79 dishes at once is a different job from editing one.
+    href: '/admin/allergens',
+    label: 'Allergens',
+    requires: ['menu.edit'],
+    description: 'Tag dishes with what they contain, in bulk.',
   },
   {
     href: '/admin/people',

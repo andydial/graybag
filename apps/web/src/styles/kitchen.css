@@ -885,3 +885,160 @@
    */
   .kitchen__actions > .kitchen__act--main { order: -1; flex: 1 0 100%; }
 }
+
+/* ---------------------------------------------------------------------------------------------
+ * The back-office navigation — `E10-43`.
+ *
+ * A button and a panel, at every width. The first attempt showed the links inline above 860px and
+ * collapsed them below, which is the ordinary responsive nav — and it was wrong here for two
+ * reasons the render made obvious:
+ *
+ * **Nine items wrap.** They took two rows of the bar at 1400px, and `E09-37` had just spent real
+ * effort getting the kitchen bar from 270px of chrome down to 136 so that food, not furniture,
+ * fills a phone. A permanent second row hands that straight back.
+ *
+ * **Discovery already has a home.** `/dashboard` shows every screen at once, with the sentence
+ * saying what each is for. The bar only has to answer "take me to another one", and a button does
+ * that in the same number of clicks as a tab once you know where you are going.
+ *
+ * Colours are inherited rather than named, because this sits on three different bars: `.wb__bar`
+ * is a light surface, `.kitchen__bar` and `.sheet__bar` are inverse. `currentcolor` is correct on
+ * all three; a token would have been legible on one and nearly invisible on the others, which is
+ * exactly how it first rendered.
+ * ------------------------------------------------------------------------------------------- */
+
+.bonav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.bonav__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gb-space-2);
+  min-height: var(--gb-touch-min);
+  padding: var(--gb-space-2) var(--gb-space-4);
+  border: var(--gb-border-width-default) solid currentcolor;
+  border-radius: var(--gb-radius-full);
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--gb-font-size-button);
+  font-weight: var(--gb-font-semibold);
+  cursor: pointer;
+}
+
+.bonav__burger,
+.bonav__burger::before,
+.bonav__burger::after {
+  display: block;
+  width: 1rem;
+  height: 2px;
+  background: currentcolor;
+  border-radius: var(--gb-radius-full);
+}
+
+.bonav__burger { position: relative; }
+
+.bonav__burger::before,
+.bonav__burger::after {
+  content: '';
+  position: absolute;
+  left: 0;
+}
+
+.bonav__burger::before { top: -5px; }
+.bonav__burger::after { top: 5px; }
+
+/*
+ * The panel is always a light surface, whatever bar it hangs from, so its own text colour is
+ * stated rather than inherited — inheriting here is what would put dark-on-dark back.
+ */
+.bonav__panel {
+  position: absolute;
+  top: calc(100% + var(--gb-space-2));
+  right: 0;
+  z-index: var(--gb-z-dialog);
+  display: none;
+  min-width: 16rem;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: var(--gb-space-2);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-lg);
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+  box-shadow: var(--gb-elevation-2);
+}
+
+.bonav__panel.is-open { display: block; }
+
+.bonav__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * `[hidden]` is `display: none` only at UA specificity, and any rule below that sets `display` on
+ * these elements beats it. That has already caught the drawer, the bulk bar and the kitchen
+ * filters. Here it would show every route to every account for the life of the page.
+ */
+.bonav__item[hidden] { display: none; }
+
+.bonav__link {
+  display: block;
+  padding: var(--gb-space-3);
+  border-radius: var(--gb-radius-md);
+  color: var(--gb-text-primary);
+  font-weight: var(--gb-font-medium);
+  text-decoration: none;
+}
+
+.bonav__link:hover { background: var(--gb-bg-surface-muted); }
+
+.bonav__link[aria-current='page'] {
+  background: var(--gb-bg-surface-accent);
+  color: var(--gb-text-on-accent);
+  font-weight: var(--gb-font-semibold);
+}
+
+.bonav__account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gb-space-2);
+  margin-top: var(--gb-space-2);
+  padding-top: var(--gb-space-2);
+  border-top: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+}
+
+.bonav__who {
+  font-size: var(--gb-font-size-caption);
+  color: var(--gb-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.bonav__signout {
+  min-height: var(--gb-touch-min);
+  padding: var(--gb-space-1) var(--gb-space-3);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-md);
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.bonav__signout[hidden] { display: none; }
+
+.bonav__empty {
+  margin: 0 0 var(--gb-space-2);
+  padding: var(--gb-space-2);
+  border-radius: var(--gb-radius-md);
+  background: var(--gb-bg-surface-warning);
+  color: var(--gb-text-primary);
+  font-size: var(--gb-font-size-body-sm);
+}

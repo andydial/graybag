@@ -15,6 +15,8 @@
  * `mark-delivered` and back-office sign-in — belong to another thread, so the screen is built and
  * reviewable now and the swap is one line in the script below.
  */
+import BackofficeNav from '../components/BackofficeNav.astro';
+
 import '../styles/tokens.css';
 import '../styles/site.css';
 import '../styles/kitchen.css';
@@ -83,6 +85,13 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
             <span class="kitchen__refresh-glyph" aria-hidden="true">↻</span>
           </button>
 
+          <!--
+            Beside Refresh, not after the filters. The bar is a grid whose second line belongs to
+            the filter chips, and placing the nav after them put it on a row of its own — 60px of
+            a sticky bar `E09-37` had just cut from 270 to 136, for one button.
+          -->
+          <BackofficeNav current="/kitchen" />
+
           <div class="kitchen__filters" id="k-filters" hidden></div>
         </div>
       </header>
@@ -148,6 +157,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
     </dialog>
 
     <script>
+      import { mountNav } from '../lib/backoffice/nav-mount.js';
       import { fixtureTransport } from '../lib/kitchen/fixture.js';
       import { liveTransport } from '../lib/kitchen/live.js';
       import { currentUser } from '../lib/backoffice/session.js';
@@ -1012,6 +1022,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         // populate here — which is also why a school appearing tomorrow needs no code change.
         await load();
       })();
+    void mountNav();
     </script>
   </body>
 </html>

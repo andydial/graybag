@@ -34,6 +34,8 @@
  *
  * `?state=demo` renders fixtures so `check:a11y` audits the screen rather than the sign-in redirect.
  */
+import BackofficeNav from '../../components/BackofficeNav.astro';
+
 import '../../styles/tokens.css';
 import '../../styles/site.css';
 import '../../styles/kitchen.css';
@@ -55,12 +57,7 @@ import '../../styles/admin.css';
     <header class="wb__bar">
       <div class="wb__bar-row">
         <h1 class="wb__title">Dishes</h1>
-        <nav class="wb__nav" aria-label="Back office">
-          <a class="kitchen__btn" href="/admin/schools">Schools</a>
-          <a class="kitchen__btn" href="/admin/allergens">Allergens</a>
-          <a class="kitchen__btn" href="/admin/import">Import</a>
-          <a class="kitchen__btn" href="/admin/config">Config</a>
-        </nav>
+        <BackofficeNav current="/admin/menus" />
       </div>
 
       <div class="wb__bar-row wb__controls">
@@ -99,6 +96,7 @@ import '../../styles/admin.css';
     </aside>
 
     <script>
+      import { mountNav } from '../../lib/backoffice/nav-mount.js';
       import { api, money } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
@@ -669,6 +667,7 @@ import '../../styles/admin.css';
         } catch { /* an unconfigured build falls through to the error state */ }
         await load();
       })();
+    void mountNav();
     </script>
   </body>
 </html>

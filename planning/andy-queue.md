@@ -18,11 +18,26 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
-## Open — 1 item
+## Open — 7 items
+
+Items 2–6 were **added 2026-08-20** and are listed in the order they will be done. Item 2 was
+already in flight when 3–6 arrived; the rest follow in the order Andy wrote them, except that the
+permission grouping is pulled ahead of the reports because it is the one blocking a person from
+doing their job (nobody can be made kitchen staff today).
+
+**Production is now taking real orders.** Everything below ships behind the same gate as always —
+smoke green, verified on a preview that sends production's headers, promoted deliberately — and
+nothing touches the ordering or payment path.
 
 | # | Ask | Asked | Status |
 |---|---|---|---|
 | 1 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine). The job has **still never been observed green**; its last run was cancelled. `E14-36` fixed the Gradle metaspace OOM and the 781-second emulator boot and is on `main` |
+| 2 | **Navigation and a dashboard for the back office** | 2026-08-20 | **In progress.** Sign in lands on a dashboard; every screen reachable from every screen, filtered by grant. Today `/kitchen/sheet`, `/admin/allergens` and `/admin/people` are reachable from no link at all, and `nav.ts` — which has modelled this correctly since `E10-12` — is imported by nothing |
+| 3 | **Group and clarify the permissions** | 2026-08-20 | Queued. *"Currently privileges one is a large list that does not make much sense… I want to be able to promote people to Kitchen staff so they can login and view orders and promote orders."* Bundles presented as jobs, still stored as individual grants — `D3` keeps roles out of the schema, and this is a presentation layer over it, not a role column |
+| 3b | **Show who placed the order, on `/kitchen` and `/orders`** | 2026-08-20 | Queued, **pulled ahead of the reports**. *"If the staff intends to cancel — and the system does not send a notification — they don't know how to notify the person who ordered."* This is the only item on the list with a live operational consequence: orders are arriving now, and cancelling one today leaves a parent uninformed with no way for staff to reach them. It is also small. `orders.view_pii` already exists for exactly this and is already read by both screens; the parent's contact detail is not a child's, so non-negotiable #4 is not in tension — the grant is |
+| 4 | **A registrations and growth report** | 2026-08-20 | Queued. Registered users, registrations per date, per school, with graphs. **Aggregate only** — non-negotiable #4 means no child's name, class or section reaches this screen |
+| 5 | **An orders and revenue report** | 2026-08-20 | Queued. Per day, per month, per school, with visuals. Extends `/reports`, which today shows a month table and no trend |
+| 6 | **UX review of the screens other than Kitchen and Orders** | 2026-08-20 | Queued. Those two were rebuilt on 2026-08-17; `/admin/config`, `/admin/import`, `/admin/people`, `/admin/allergens` and `/reports` have never had that treatment |
 
 ---
 

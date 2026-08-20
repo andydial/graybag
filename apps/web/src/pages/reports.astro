@@ -22,6 +22,8 @@
  * Which means an **empty report is ambiguous**: no orders, or no permission to see them. The page
  * says both possibilities rather than picking one, which is `[AUTH-01]`.
  */
+import BackofficeNav from '../components/BackofficeNav.astro';
+
 import '../styles/tokens.css';
 import '../styles/site.css';
 import '../styles/kitchen.css';
@@ -44,9 +46,8 @@ import '../styles/admin.css';
       <header class="kitchen__bar">
         <div class="kitchen__bar-inner kitchen__bar-inner--admin">
           <h1 class="kitchen__title">Reports</h1>
-          <a class="kitchen__btn" href="/admin/schools">Schools</a>
-          <a class="kitchen__btn" href="/orders">Orders</a>
           <button id="r-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+          <BackofficeNav current="/reports" />
         </div>
       </header>
 
@@ -78,6 +79,7 @@ import '../styles/admin.css';
     </div>
 
     <script>
+      import { mountNav } from '../lib/backoffice/nav-mount.js';
       import { api, money } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
       import { serviceDateToday } from '../lib/kitchen/view.js';
@@ -252,6 +254,7 @@ import '../styles/admin.css';
         } catch { /* an unconfigured build falls through to the error state */ }
         await load();
       })();
+    void mountNav();
     </script>
   </body>
 </html>
