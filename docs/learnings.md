@@ -2932,3 +2932,16 @@ tested the version before your edit.
 
 Always `npm --prefix apps/web run build` first. `npm run smoke` does build, which is why this has
 never bitten CI — only local iteration, where the gate is run directly and repeatedly.
+
+## A migration reported as applied to production was not
+
+2026-08-20. `supabase migration list --linked` against `graybag-prod` showed `0064` with an empty
+remote column — the egg/peanut/sesame allergen vocabulary had never landed, despite being reported
+in this thread on 2026-08-17 as applied alongside `0063`. `0063` was there; `0064` was not.
+
+Both are now applied. The lesson is the check, not the miss: **`migration list` is the only thing
+that answers "is it on production", and it takes ten seconds.** A migration that ran in a session
+and a migration recorded in `supabase_migrations.schema_migrations` are different claims, and only
+the second one survives a new shell.
+
+Worth pairing with the `E12-36` lesson: verify the deployed artefact, not the one you produced.
