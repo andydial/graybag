@@ -112,6 +112,14 @@ import '../../styles/admin.css';
       const esc = (s: string) =>
         s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
+      /** `platform` is jargon on a screen aimed at somebody hiring a cook. */
+      const SCOPE_LABEL: Record<string, string> = {
+        platform: 'Everywhere', kitchen: 'One kitchen', school: 'One school', city: 'One city',
+      };
+
+      let schools: { id: string; name: string }[] = [];
+      let kitchens: { id: string; name: string }[] = [];
+
       const demo = new URLSearchParams(location.search).has('state');
 
       let accounts: api.AccessAccount[] = [];
@@ -130,13 +138,22 @@ import '../../styles/admin.css';
             accounts = PEOPLE_FIXTURE.accounts.filter((a) => a.held.length > 0);
             permissions = PEOPLE_FIXTURE.permissions;
             meId = 'u-1';
+            schools = [
+              { id: 'demo-s1', name: 'Amity International, Mohali' },
+              { id: 'demo-s2', name: 'Gem Public School' },
+            ];
+            kitchens = [{ id: 'demo-k1', name: 'Mohali Central' }];
           } else {
             configureBackofficeApi();
-            const [a, p, me] = await Promise.all([
+            const [a, p, me, sc, kt] = await Promise.all([
               api.fetchAccess(), api.fetchPermissions(), currentUser(),
+              // Named, so "Which one" can offer Amity rather than a UUID (`E10-47`).
+              api.fetchAdminSchools(), api.fetchKitchens(),
             ]);
             accounts = a;
             permissions = p;
+            schools = sc.map((x) => ({ id: x.id, name: x.name }));
+            kitchens = kt.map((x) => ({ id: x.id, name: x.name }));
             // Needed to disable your own controls before the server refuses them. The server is
             // still the authority — this only avoids offering an action that cannot succeed.
             meId = me?.id ?? null;
@@ -280,10 +297,9 @@ import '../../styles/admin.css';
                 `<label class="admin__label" for="jscope-${esc(a.userId)}">Where</label>` +
                 `<select class="admin__select" id="jscope-${esc(a.userId)}" name="scopeType" required></select>` +
               `</div>` +
-              `<div class="admin__field">` +
-                `<label class="admin__label" for="jsid-${esc(a.userId)}">Kitchen or school id</label>` +
-                `<input class="admin__input" id="jsid-${esc(a.userId)}" name="scopeId" type="text" ` +
-                  `placeholder="leave empty for platform" />` +
+              `<div class="admin__field" data-scope-target hidden>` +
+                `<label class="admin__label" for="jsid-${esc(a.userId)}">Which one</label>` +
+                `<select class="admin__select" id="jsid-${esc(a.userId)}" name="scopeId"></select>` +
               `</div>` +
               `<div class="setting__actions">` +
                 `<button class="kitchen__btn kitchen__btn--primary" type="submit">Give this job</button>` +
@@ -426,6 +442,13 @@ import '../../styles/admin.css';
         const rawScopeId = String(data.get('scopeId') ?? '').trim();
         const scopeId = rawScopeId === '' ? null : rawScopeId;
 
+        // The server enforces the biconditional — platform must carry no scope id, anything
+        // narrower must carry one — and refuses otherwise. Saying so here means the person is
+        // told what to pick instead of being handed a rejection after five writes have landed.
+        if (scopeType !== 'platform' && scopeId === null) {
+          return showFormError(form, `Choose which ${scopeType} this applies to.`);
+        }
+
         let done = 0;
         try {
           for (const permissionCode of job.grants) {
@@ -493,7 +516,20 @@ import '../../styles/admin.css';
        * between one kitchen's staff and every kitchen's.
        */
       function syncJobNotes() {
-        for (const select of el.body.querySelectorAll<HTMLSelectElement>('select[name=jobKey]')) {
+        /*
+         * **`document`, not `el.body`** — the bug Andy hit.
+         *
+         * The job forms exist in two places: the access list in `#a-body`, and search results in
+         * `#a-results`. This scanned only the first, so a form reached **by searching for
+         * somebody** — which is the entire onboarding path, and the only way to reach a person
+         * who holds nothing — got a *Where* select that was never populated. An empty `<select>`
+         * with no options cannot be opened, so it read as a dead control: *"not selectable or
+         * clickable to provide any value"*, and no job could be granted to anybody new.
+         *
+         * The lesson is narrower than "use document": `E10-46` added a second place these forms
+         * render and did not extend the one function that fills them in.
+         */
+        for (const select of document.querySelectorAll<HTMLSelectElement>('select[name=jobKey]')) {
           const form = select.closest('form') as HTMLFormElement | null;
           if (!form) continue;
           const job = jobByKey(select.value);
@@ -509,9 +545,46 @@ import '../../styles/admin.css';
             `</p>`;
 
           const previous = scope.value;
-          scope.innerHTML = job.scopes.map((sc) => `<option value="${esc(sc)}">${esc(sc)}</option>`).join('');
+          scope.innerHTML = job.scopes
+            .map((sc) => `<option value="${esc(sc)}">${esc(SCOPE_LABEL[sc] ?? sc)}</option>`)
+            .join('');
           if (job.scopes.includes(previous as never)) scope.value = previous;
+
+          syncScopePicker(form);
         }
+      }
+
+      /**
+       * Which kitchen, or which school — by **name** — `E10-47`.
+       *
+       * This was a free-text box asking for a "Kitchen or school id", which meant a UUID nobody
+       * has memorised and which is not shown anywhere on this screen. It was unusable for every
+       * job except Platform admin, and Platform admin only worked because the field is meant to
+       * be left empty for it.
+       *
+       * Now the options come from the schools and kitchens already loaded, filtered to the scope
+       * the chosen job actually applies at, and the whole field disappears for a platform-scoped
+       * job — where a value is not merely unnecessary but is refused by the server.
+       */
+      function syncScopePicker(form: HTMLFormElement) {
+        const scope = form.querySelector('select[name=scopeType]') as HTMLSelectElement | null;
+        const wrap = form.querySelector('[data-scope-target]') as HTMLElement | null;
+        const picker = form.querySelector('select[name=scopeId]') as HTMLSelectElement | null;
+        if (!scope || !wrap || !picker) return;
+
+        if (scope.value === 'platform') {
+          // Hidden **and** cleared. A stale value left in a hidden control is the classic way a
+          // form submits something nobody can see they are sending.
+          wrap.hidden = true;
+          picker.innerHTML = '';
+          return;
+        }
+
+        const options = scope.value === 'kitchen' ? kitchens : schools;
+        wrap.hidden = false;
+        picker.innerHTML =
+          `<option value="">Choose a ${esc(scope.value)}…</option>` +
+          options.map((o) => `<option value="${esc(o.id)}">${esc(o.name)}</option>`).join('');
       }
 
       el.body.addEventListener('change', (event) => {
@@ -577,7 +650,12 @@ import '../../styles/admin.css';
       });
 
       el.results.addEventListener('change', (event) => {
-        if ((event.target as HTMLElement).matches('select[name=jobKey]')) syncJobNotes();
+        const target = event.target as HTMLElement;
+        if (target.matches('select[name=jobKey]')) syncJobNotes();
+        if (target.matches('select[name=scopeType]')) {
+          const form = target.closest('form') as HTMLFormElement | null;
+          if (form) syncScopePicker(form);
+        }
       });
       el.results.addEventListener('submit', (event) => {
         const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;

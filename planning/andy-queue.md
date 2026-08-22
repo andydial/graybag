@@ -18,7 +18,7 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
-## Open — 5 items
+## Open — 4 items
 
 Items 2–6 were **added 2026-08-20** and are listed in the order they will be done. Item 2 was
 already in flight when 3–6 arrived; the rest follow in the order Andy wrote them, except that the
@@ -36,6 +36,9 @@ nothing touches the ordering or payment path.
 | 4 | **A registrations and growth report** | 2026-08-20 | Queued. Registered users, registrations per date, per school, with graphs. **Aggregate only** — non-negotiable #4 means no child's name, class or section reaches this screen |
 | 5 | **An orders and revenue report** | 2026-08-20 | Queued. Per day, per month, per school, with visuals. Extends `/reports`, which today shows a month table and no trend |
 | 6 | **UX review of the screens other than Kitchen and Orders** | 2026-08-20 | Queued. Those two were rebuilt on 2026-08-17; `/admin/config`, `/admin/import`, `/admin/people`, `/admin/allergens` and `/reports` have never had that treatment |
+| 7 | **Order alert emails** | 2026-08-23 | **Added 2026-08-23.** Email a configurable list when an order is paid. Recipients managed in the admin UI — not code, not an env var — with add, remove and an off switch that does not delete the list. Content: order code, school, break, service date, items with quantities, total incl. GST, and the running count for that service date ("order 14 of today"). **No child name, class or section** — tier-S under DPDP and email is not a controlled channel. Through the existing Resend path and failure-alert plumbing, not a second mechanism. Per-order by default, with a daily digest as the shape for later |
+| 8 | **A growth and adoption dashboard** | 2026-08-23 | **Added 2026-08-23.** Separate page; `/admin/people` stays a grants screen. The funnel is the point: registered → added a child → first order → ordered again, with the **drop-off as a number**, not only a percentage, because a parent who registered and never added a child is someone to email. Plus registrations per day over 30 days (≈400 Bubble users migrating, so the curve matters), children by school, parents with zero children, orders and revenue per day and per school, average order value, and parents active in the last 7 days. Aggregates only, no child names; where an individual must be actionable show **their email and nothing about the child**. Authenticated session, never the service role, gated on an existing permission. Fast and readable on a phone |
+
 
 ---
 
