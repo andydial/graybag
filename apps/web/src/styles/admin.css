@@ -245,6 +245,13 @@
 }
 
 .admin__field { display: flex; flex-direction: column; }
+/*
+ * `[hidden]` is `display: none` only at UA specificity, so the rule above beats it. This is the
+ * fifth place in this codebase that has needed saying — the drawer, the bulk bar, the kitchen
+ * filters, the nav items, and now the scope picker. Whenever a class sets `display`, its hidden
+ * state has to be restated or the element renders regardless.
+ */
+.admin__field[hidden] { display: none; }
 .admin__field .admin__input, .admin__field .admin__select { width: 100%; }
 
 .admin__hint {

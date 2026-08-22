@@ -4115,13 +4115,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/46</span>
+          <span class="meter-num">0/47</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 46 tasks</summary>
+        <summary>Context &amp; 47 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4491,6 +4491,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Move the kitchen board&#39;s status filter into the query.</strong> <code>fetchKitchenOrders</code> filters status in memory and its comment says it should move into the query once <code>SelectBuilder</code> has <code>in()</code> — which <code>E10-46</code> has now added. Left alone deliberately: it changes the query behind the live kitchen board and deserves its own verification rather than riding along with an unrelated change</span>
+      </li>
+      <li class="task" data-id="E10-47" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-47"></button>
+        <code class="tid">E10-47</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>No job could be granted to anybody new.</strong> Andy: *&quot;I am trying to give just one more user Platform Admin role but it&#39;s not allowing me to because selection of &#39;Where&#39; field with Kitchen or school ID is not selectable or clickable.&quot;* Two faults, and the first made the whole onboarding path dead. <strong>(1)</strong> <code>syncJobNotes</code> — which fills the *Where* select from the chosen job — scanned <code>el.body</code> only. <code>E10-46</code> had just added a <strong>second</strong> place these forms render, <code>#a-results</code>, and did not extend it, so a form reached by <strong>searching for somebody</strong> got a select with zero options. A <code>&lt;select&gt;</code> with no options cannot be opened, which is exactly &quot;not selectable or clickable&quot;, and searching is the only way to reach a person who holds nothing. Now scans <code>document</code>. Proven with a probe that renders a form into the results container: <strong>0 options before, populated after.</strong> <strong>(2)</strong> *Which one* was a free-text box asking for a &quot;Kitchen or school id&quot; — a UUID nobody has memorised and which appears nowhere on the screen. It is now a picker of kitchens and schools <strong>by name</strong>, filtered to the scope the job applies at, and it disappears entirely for a platform-scoped job, where the server refuses a value anyway. Scope types are labelled in English (*Everywhere*, *One kitchen*) rather than as <code>platform</code>/<code>kitchen</code>. Submitting a narrow scope with nothing chosen is refused client-side with the reason, rather than after several grants have already landed. <code>.admin__field</code> sets <code>display: flex</code> and therefore beat <code>[hidden]</code> — the <strong>fifth</strong> place in this codebase to need that restated</span>
       </li></ul>
       </details>
     </article>
