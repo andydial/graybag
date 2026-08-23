@@ -1031,8 +1031,9 @@ select is_empty($$ select tablename || '.' || policyname from pg_policies
                       and policyname <> 'deny_dead_accounts' $$,
                 '§5 Rule 5: deny_dead_accounts is the only restrictive policy in the schema');
 
-select is((select count(*)::int from pg_policies where schemaname = 'public'), 192,
-          '§12 item 5: 192 policies in public — 153 permissive (140 from §7 + [AUTH-01]''s 12 + 0027''s break_time) + 39 restrictive');
+select is((select count(*)::int from pg_policies where schemaname = 'public'), 193,
+          '§12 item 5: 193 policies in public — 154 permissive (140 from §7 + [AUTH-01]''s 12 + 0027''s break_time '
+          '+ 0066''s kitchen_alert_recipient) + 39 restrictive');
 
 -- Catches a table added to the schema without being classified in §8 at all.
 select set_eq(
@@ -1055,13 +1056,21 @@ select set_eq(
     ('school_config'),('school_menu_version'),('school_report'),('user_policy_acceptance'),
     ('wallet_balance'),
     -- Added by `0055` (E12-15). Both are class 3 — see tests_class3 above.
-    ('enquiry'),('enquiry_rate')
+    ('enquiry'),('enquiry_rate'),
+    -- Added by `0066` (E08-16). **Class 2**, not 3: the back office reads it under
+    -- `kitchen.edit` at that kitchen, which is a real persona-facing read policy — unlike
+    -- `ops_alert` or `enquiry`, where service_role is the only intended reader. No customer
+    -- policy exists, so a parent cannot see who is alerted about their order, and there is no
+    -- write policy at all: writes go through `admin-alert-recipients`.
+    ('kitchen_alert_recipient')
   $$,
-  '§8: public contains exactly the 64 tables the matrix classifies — a new table must be added to the matrix. '
+  '§8: public contains exactly the 65 tables the matrix classifies — a new table must be added to the matrix. '
   '61 -> 62: ops_alert (E06-39), which is class 3 by the strictest reading — no persona may read or write it, '
   'because it names payment ids and failure counts and service_role (which bypasses RLS) is the only intended reader. '
   '62 -> 64: enquiry and enquiry_rate (E12-15), class 3 for the same reason — an enquiry names a member of staff '
-  'at a school and carries their direct line');
+  'at a school and carries their direct line. '
+  '64 -> 65: kitchen_alert_recipient (E08-16), class 2 — the back office reads it under kitchen.edit, no customer '
+  'policy exists, and writes go through an Edge Function');
 
 
 -- =============================================================================
