@@ -27,6 +27,7 @@
 import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 
 import { sendOrderConfirmation } from './order-confirmation.ts';
+import { sendOrderAlerts } from './order-alert.ts';
 import { sendRefundNotice } from './refund-notice.ts';
 import { sendMoneyAlert } from './money-alert.ts';
 
@@ -187,7 +188,12 @@ export async function drainPendingEvents(
       // Best effort, and never allowed to fail the settlement — `0050`'s unique index means the
       // app's poller and this cannot both send one.
       const groupId = await groupFor(admin, String(payment.order_id ?? entity.orderId));
-      if (groupId) await sendOrderConfirmation(admin, { orderGroupId: groupId, correlationId: null });
+      if (groupId) {
+        await sendOrderConfirmation(admin, { orderGroupId: groupId, correlationId: null });
+        // The kitchen's alert (`E08-16`). After the customer's confirmation and, like it, unable
+        // to fail settlement — it returns an outcome and never throws.
+        await sendOrderAlerts(admin, { orderGroupId: groupId });
+      }
     } catch (thrown) {
       console.error('settle-from-events: threw', String(thrown));
       await bumpAttempt(admin, id, row.attempt_count as number, String(thrown));

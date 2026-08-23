@@ -92,6 +92,11 @@ describe('every browser-callable Edge Function', () => {
     // reimplementation would let the browser write something subtly different from what the dry
     // run promised, on the tables the whole product sits on.
     'admin-import',
+    // `E08-16`. The write half of `/admin/alerts`. `kitchen_alert_recipient` has a read policy
+    // and no write policy, so adding, pausing and removing a recipient run here behind
+    // `kitchen.config_edit` on that kitchen — checked per kitchen, because the request names one
+    // and a caller must not be able to edit a kitchen they hold nothing on.
+    'admin-alert-recipients',
     // `E10-27`. The write half of `/admin/people`. `permission_grant` has read policies and no
     // write policy at all, deliberately — a table that grants access must not be writable by the
     // thing whose access it grants — so granting and revoking run here behind `grants.manage`.

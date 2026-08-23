@@ -3650,13 +3650,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/14</span>
+          <span class="meter-num">0/16</span>
         </div>
       </header>
       <p class="summary">Push and email as primary, with a narrow SMS fallback. No WhatsApp for now.</p>
       <p class="deps">Depends on <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 14 tasks</summary>
+        <summary>Context &amp; 16 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E08-01" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
@@ -3747,7 +3747,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Email deliverability: warm the domain, monitor bounces</span>
       </li>
-      <li class="task" data-id="E08-12" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E08-12" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E08-12"></button>
         <code class="tid">E08-12</code>
         
@@ -3763,13 +3763,29 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>SMS fallback</strong> for users with no app installed or push disabled — order confirmation and pickup code only. Uses the DLT templates registered in <code>E00-08</code>, which otherwise have no consumer</span>
       </li>
-      <li class="task" data-id="E08-14" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E08-14" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E08-14"></button>
         <code class="tid">E08-14</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext">Decide per-template whether SMS is worth the cost, and cut unused DLT templates rather than leaving them dormant</span>
+      </li>
+      <li class="task" data-id="E08-16" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E08-16"></button>
+        <code class="tid">E08-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Order alerts, with the recipient list in the admin UI.</strong> Andy: *&quot;Recipients are configured in the admin UI, not in environment variables. Per kitchen, not global… Each recipient has an on/off toggle that stops alerts without deleting the address.&quot;* <code>/admin/alerts</code>, one block per kitchen. <code>0066</code> adds <code>kitchen_alert_recipient</code> (read policy only — writes go through <code>admin-alert-recipients</code>, <code>A4</code>) and <code>order.staff_alert_sent_at</code>. <strong>The toggle is a column, not a delete</strong>, for the same reason <code>permission_grant.revoked_at</code> is: &quot;pause my alerts&quot; and &quot;this person has left&quot; are different acts and collapsing them loses the address. <strong>No child name, class or section is in the email</strong> — the alert&#39;s column list omits them entirely, the same technique as <code>REPORT_ORDER_COLUMNS</code>, so it is the control rather than a template that remembers not to print something. Carries the order code, school, break, service date, items with quantities, total incl. GST, and <strong>&quot;order 14 of today&quot;</strong>, counted per kitchen for that service date *after* the claim so the order counts itself. Dedupe is a <strong>conditional update</strong> on <code>staff_alert_sent_at</code> rather than <code>notification_delivery</code> — that table&#39;s <code>user_id</code> is <code>NOT NULL</code> and sits in the DPDP erasure story, which is exactly why <code>0056</code> gave ops alerts their own home. A failed send <strong>releases</strong> the claim, and a kitchen with nobody switched on leaves the order unclaimed, so switching somebody on does not silently skip the orders that arrived while the list was empty. <strong><code>kitchen.edit</code>, not <code>kitchen.config_edit</code>:</strong> the catalogue pins <code>config_edit</code> to <code>{platform}</code> and a trigger enforces it, so it cannot express &quot;this kitchen&#39;s manager&quot; — found on staging by the grant being refused. Verified end to end on staging: add, duplicate → 409, bad address → 422, unauthenticated → 401, <strong>a kitchen the caller has no grant on → 403</strong>, RLS read scoped to the caller&#39;s kitchen, no session → default deny, the alert fires and Resend accepts it, three further polls send nothing, and all-recipients-off leaves the order retryable</span>
+      </li>
+      <li class="task" data-id="E08-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E08-17"></button>
+        <code class="tid">E08-17</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A daily digest as an alternative to per-order alerts.</strong> Andy: *&quot;if fifty orders land in a morning I want fifty emails to be a choice, not an accident.&quot;* Per-order is the default and is right at today&#39;s volume; the digest is the shape to add when a morning&#39;s count makes fifty separate emails the wrong answer. Needs a per-kitchen choice of per-order / digest / both, and a scheduled send</span>
       </li></ul>
       </details>
     </article>

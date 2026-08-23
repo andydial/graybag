@@ -142,6 +142,18 @@ export {
   type ReportRow,
 } from './admin-reports.js';
 
+// Order alert recipients (`E08-12`). Reads under the caller's session and scoped by
+// `kitchen.config_edit`; writes through the Edge Function, because the table has no write policy.
+export {
+  ALERT_RECIPIENT_COLUMNS,
+  AlertRecipientError,
+  addAlertRecipient,
+  fetchAlertRecipients,
+  removeAlertRecipient,
+  setAlertRecipientEnabled,
+  type AlertRecipient,
+} from './admin-alerts.js';
+
 // Growth (`E11-08`). The column lists are the privacy control: a platform admin may read every
 // column on every child, and this selects three that identify nobody. Same reasoning as
 // `REPORT_ORDER_COLUMNS` above.
