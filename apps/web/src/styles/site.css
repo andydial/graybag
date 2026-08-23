@@ -1418,3 +1418,64 @@ html.js .hero:not(.is-in) .hero__device { opacity: 0; transform: translateY(2rem
 }
 .ledger__list li { padding: 2px 0; }
 .ledger__col--ours .ledger__list li { color: var(--gb-text-primary); }
+
+/* =============================================================== get the app (`E12-05`)
+ *
+ * A parent-facing strip between two school-facing sections, so it needs to read as a change of
+ * address rather than as more of the same pitch — hence its own tonal band.
+ */
+
+.band-app { background: var(--gb-bg-surface-accent); }
+
+.app__wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gb-space-6);
+}
+
+.app__copy { flex: 1 1 22rem; max-width: 34rem; }
+.app__copy .lead { margin-bottom: 0; }
+
+.heading--sm { font-size: var(--gb-font-size-h2); line-height: var(--gb-line-height-h2); }
+
+.app__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gb-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * The two-line lockup every store badge uses — a small line over a large one — because that is
+ * the shape people recognise from a decade of seeing it, even without the official artwork.
+ */
+.storebtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gb-space-3);
+  min-height: var(--gb-touch-min);
+  padding: var(--gb-space-3) var(--gb-space-5);
+  border: var(--gb-border-width-default) solid var(--gb-border-strong);
+  border-radius: var(--gb-radius-lg);
+  background: var(--gb-bg-surface-inverse);
+  color: var(--gb-text-on-brand);
+  text-decoration: none;
+  transition: transform var(--gb-duration-fast) var(--gb-ease-standard);
+}
+
+.storebtn:hover { transform: translateY(-2px); }
+.storebtn:focus-visible { outline: var(--gb-focus-ring); outline-offset: 2px; }
+
+.storebtn__mark { display: flex; }
+.storebtn__text { display: flex; flex-direction: column; line-height: 1.15; }
+.storebtn__small { font-size: var(--gb-font-size-caption); }
+.storebtn__big { font-size: var(--gb-font-size-body-lg); font-weight: var(--gb-font-semibold); }
+
+@media (prefers-reduced-motion: reduce) {
+  .storebtn { transition: none; }
+  .storebtn:hover { transform: none; }
+}
