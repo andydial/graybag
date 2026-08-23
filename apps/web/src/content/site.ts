@@ -27,6 +27,33 @@ export const SITE = {
   city: 'Mohali, Punjab',
 } as const;
 
+/**
+ * The published apps — `E12-05`.
+ *
+ * Both went live on 2026-08-22 and were verified before these links were added: the iOS listing
+ * through Apple's own lookup API (`GrayBag`, Graycord Pty Ltd, v4.0.0) and the Play listing by
+ * fetching it. `check-build.mjs` refused any store host until then, on the grounds that **a dead
+ * download button is worse than none** — that reasoning was right and simply stopped applying
+ * when the apps shipped. The check now asserts these exact URLs instead, so a typo or a
+ * placeholder still fails the build.
+ *
+ * The Android package is mixed-case on purpose. `com.gracord.graybag` is a 404 on Play;
+ * `com.Gracord.Graybag` is the listing. Both were tried.
+ */
+export const APPS = {
+  ios: {
+    href: 'https://apps.apple.com/in/app/graybag/id6749555467',
+    label: 'Download on the App Store',
+    /** What a screen reader should say — the visible text is a lockup, not a sentence. */
+    aria: 'Download GrayBag on the App Store, opens the App Store',
+  },
+  android: {
+    href: 'https://play.google.com/store/apps/details?id=com.Gracord.Graybag',
+    label: 'Get it on Google Play',
+    aria: 'Get GrayBag on Google Play, opens the Play Store',
+  },
+} as const;
+
 export const NAV = [
   { href: '#how', label: 'How it works' },
   { href: '#schools', label: 'For your school' },

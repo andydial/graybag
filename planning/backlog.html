@@ -4640,13 +4640,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/36</span>
+          <span class="meter-num">0/37</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 36 tasks</summary>
+        <summary>Context &amp; 37 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4682,13 +4682,21 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Privacy policy, refund policy, terms, and the <strong>DPDP grievance officer contact</strong> (<code>E20-07</code>) — required by both app stores and by law</span>
       </li>
-      <li class="task" data-id="E12-05" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E12-05" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-05"></button>
         <code class="tid">E12-05</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">App store badges and deep links to the mobile app</span>
+        <span class="ttext"><strong>App store badges on the home page.</strong> Andy asked for them on the grounds that graybag.com has them — <strong>it does not</strong>: rendering the live Bubble site and searching the whole DOM found no store link and no store word on any page. What was true is the thing that mattered: <strong>both apps went live on 2026-08-22</strong>, verified before a link was written — the iOS listing through Apple&#39;s lookup API (<code>GrayBag</code>, Graycord Pty Ltd, v4.0.0) and the Play listing by fetching it. A parent-facing band sits directly under the hero, separate from the school CTAs on purpose: the hero sells to a decision-maker and a parent needs one thing from this page. <code>check-build.mjs</code> <strong>forbade every store host</strong> until now — *&quot;a dead download button is worse than none&quot;* — and that rule was not deleted but narrowed to an allowlist of the two verified URLs, so a placeholder, a stray TestFlight link, or the Play package typo still fails the build. That typo is real: <code>com.gracord.graybag</code> is a 404 and <code>com.Gracord.Graybag</code> is the listing, and the guard was proven by injecting the wrong one and watching it fail</span>
+      </li>
+      <li class="task" data-id="E12-37" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-37"></button>
+        <code class="tid">E12-37</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Swap the drawn hero device for a real screenshot, and consider the official store badge artwork.</strong> The illustration&#39;s comment said the app was unpublished; that reason expired on 2026-08-22, but a mock is still a mock and it stays until there is a real screenshot. The badges are currently a self-authored lockup in the site&#39;s own palette rather than Apple&#39;s and Google&#39;s supplied artwork — deliberate, because both stores have brand guidelines governing their badges and using them is a decision to take knowingly rather than by copying an SVG. <code>(owner:andy)</code> if you want the official artwork</span>
       </li>
       <li class="task" data-id="E12-06" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-06"></button>
