@@ -995,9 +995,15 @@ select set_eq(
     -- anywhere. Withholding it until sign-in would mean a visitor identifies themselves in
     -- order to be turned away. Break times are not personal data; `0002`'s own comment on
     -- `break_time_read_all` says so.
-    ('break_time.anon_break_time_of_visible_school')
+    ('break_time.anon_break_time_of_visible_school'),
+    -- `0066` / `E08-16`. Who is emailed when an order is paid, per kitchen. One SELECT policy and
+    -- deliberately no write policy: writes go through `admin-alert-recipients` behind an explicit
+    -- `kitchen.edit` check, like every other back-office write. There is no parent-facing policy
+    -- of any kind — this table holds staff addresses and a customer has no business reading who
+    -- is alerted about their order.
+    ('kitchen_alert_recipient.kitchen_alert_recipient_read_admin')
   $$,
-  '§12 item 5: the set of permissive policies in public is EXACTLY the 152 in §7 of the authorization model plus [AUTH-01]''s twelve and 0027''s break_time');
+  '§12 item 5: the set of permissive policies in public is EXACTLY the 152 in §7 of the authorization model plus [AUTH-01]''s twelve, 0027''s break_time and 0066''s kitchen_alert_recipient');
 
 -- §5 Rule 5. Restrictive, so it ANDs with everything else and cannot be defeated by
 -- adding a permissive policy later. This is what makes "account deletion stops
