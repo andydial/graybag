@@ -164,6 +164,14 @@ export const NAV: NavItem[] = [
     description: 'Tag dishes with what they contain, in bulk.',
   },
   {
+    // `E08-16`. `kitchen.edit` rather than a platform grant, so a kitchen manager can
+    // maintain their own kitchen's list without being able to see anybody else's.
+    href: '/admin/alerts',
+    label: 'Order alerts',
+    requires: ['kitchen.edit'],
+    description: 'Who is emailed when an order is paid, per kitchen. Switch a person off without losing the address.',
+  },
+  {
     href: '/admin/people',
     label: 'People',
     // The two the screen actually needs: `grants.manage` reads and writes `permission_grant` and

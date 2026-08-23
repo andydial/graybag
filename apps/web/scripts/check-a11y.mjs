@@ -76,6 +76,9 @@ const PAGES = [
   // `E11-08`. Its fixture carries quiet days, a school with nobody at it, siblings and a second
   // guardian, so the audit sees the charts and the tables rather than an empty state.
   '/admin/growth.html?state=demo',
+  // `E08-16`. Its fixture carries a paused recipient and a kitchen with nobody listed — the two
+  // states that mean "no email will arrive", which is what this screen exists to make visible.
+  '/admin/alerts.html?state=demo',
   // `E10-43`. The demo state reveals every route, so this audits the full navigation — the panel
   // it opens is audited here too, because the toggle is on every one of the pages above.
   '/dashboard.html?state=demo',
