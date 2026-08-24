@@ -4531,13 +4531,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/11</span>
+          <span class="meter-num">0/13</span>
         </div>
       </header>
       <p class="summary">A monthly PDF emailed to each school. Aggregates only, no child-level PII. Designed to sell the benefit of the partnership.</p>
       <p class="deps">Depends on <code>E07</code></p>
       <details>
-        <summary>Context &amp; 11 tasks</summary>
+        <summary>Context &amp; 13 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Decided against a school login portal — the PDF lands in the principal&#39;s inbox instead of waiting to be discovered.</p></div>
         <ul class="tasks">
@@ -4628,6 +4628,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Charts worth looking at.</strong> Andy: *&quot;The graph in growth is abysmal to say the least… These can be made so impressive.&quot;* The first attempt drew the data and nothing else — no y axis, no dates, no baseline, and <code>preserveAspectRatio=&quot;none&quot;</code>, which stretches the drawing to its container and distorts every slope in it, throwing away the one thing a line chart communicates. <code>lib/admin/chart.ts</code> now gives both screens <code>columns()</code> and <code>area()</code> with a <strong>rounded axis</strong> (<code>niceScale</code> picks 1/2/5 × a power of ten so the top gridline is a number a person would choose, and always starts at zero — a truncated axis exaggerates every change on it), <strong>thinned x labels</strong> that always keep the last one, gridlines, a baseline, and a <code>&lt;title&gt;</code> on every mark, which is a native tooltip with no JavaScript and is what a screen reader announces. Still zero third-party assets: a chart library is impossible under <code>script-src &#39;self&#39;</code> and unnecessary at twenty lines of geometry. 21 tests, including that the escaping holds when a school name contains markup</span>
+      </li>
+      <li class="task" data-id="E11-12" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-12"></button>
+        <code class="tid">E11-12</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A sales report, by the day the order was taken.</strong> Andy: *&quot;Currently orders are only seen for the day the delivery is requested for, I want to see sales (orders) placed for a given day. That way I can see when a large order day comes — I want to be able to see growth or reduction in orders.&quot;* <code>/admin/sales</code>, gated on <code>reports.view</code> <strong>and</strong> <code>orders.view_financials</code> — the same pair <code>/orders</code> uses, because growth percentages and average order value are our commercial view and do not belong in a school office&#39;s navigation. Day, week and month grains, plus by school. <strong>The design decision that mattered was the timestamp.</strong> <code>placed_at</code> is set at checkout and is populated on 100% of real orders; <code>confirmed_at</code> is null on every unpaid one, so bucketing by it would have silently dropped demand; <code>created_at</code> is a row-lifecycle field, not a business fact. <strong>And the day must be IST</strong>: of the first real production orders, <strong>three of four were placed after 18:30 UTC</strong> — parents order in the evening — so a UTC bucket would have put most orders on the wrong day, in the one report whose purpose is to say which day was busy. The query shifts both bounds by 5h30 and makes the upper one <strong>exclusive</strong>, or an order at midnight would count as the previous day&#39;s last. Every figure carries its change against the window of the same length immediately before, so a shorter month never reads as a decline, and a rise from zero is shown as &quot;first in this period&quot; rather than as an infinite percentage. <strong>Kept as one row set:</strong> <code>summarise</code> now keys by service day, placed day and school, so all six axes fold from the same rows and a test asserts their totals are identical — two separate queries would have let the sales total disagree with the revenue total. Rejected: folding this into <code>/reports</code> behind a basis toggle, because the two have different defaults (this range ends today, that one ends tomorrow), different comparisons and different audiences, and a number whose meaning depends on a control above it is how a report gets quoted wrongly</span>
+      </li>
+      <li class="task" data-id="E11-13" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-13"></button>
+        <code class="tid">E11-13</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Lead time — how far ahead people order.</strong> The natural next question once <code>E11-12</code> shows when orders arrive: the gap between <code>placed_at</code> and <code>service_date</code>, which says whether the cutoff is set in the right place and whether a menu published on Friday is being ordered from over the weekend. Both columns are already read</span>
       </li></ul>
       </details>
     </article>

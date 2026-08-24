@@ -187,6 +187,23 @@ export const NAV: NavItem[] = [
     description: 'The monthly school report.',
   },
   {
+    // `E11-12`. Orders by the day they were **placed**, which is the growth question. `/reports`
+    // is the same money by service date, which is the operational one.
+    href: '/admin/sales',
+    label: 'Sales',
+    /*
+     * `orders.view_financials` as well as `reports.view` — the same pair `/orders` uses.
+     *
+     * A school viewer holds `reports.view` alone so they can read their own school's monthly
+     * report. RLS would already scope this screen to their school, so nothing leaks either way —
+     * but "Sales", with growth percentages and average order value, is our commercial view of the
+     * business and does not belong in a school office's navigation. Caught by the nav test, which
+     * asserts a school viewer sees exactly one item.
+     */
+    requires: ['reports.view', 'orders.view_financials'],
+    description: 'Orders by the day they were taken, with the change on the period before.',
+  },
+  {
     /**
      * `E11-08`. Separate from `/reports`, which answers "what did this school order" for a
      * school. This answers "is the product growing" for us, and needs `users.view` because it

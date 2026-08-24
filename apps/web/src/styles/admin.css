@@ -1197,3 +1197,8 @@
 }
 
 .aform .admin__field { flex: 1 1 14rem; }
+
+/* Direction on a growth figure — `E11-12`. Arrow and words carry it together; colour alone
+ * would fail anyone who cannot distinguish it, on the one screen whose job is up or down. */
+.gstat__note--up { color: var(--gb-status-success); font-weight: var(--gb-font-semibold); }
+.gstat__note--down { color: var(--gb-text-danger); font-weight: var(--gb-font-semibold); }

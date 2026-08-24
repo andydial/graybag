@@ -94,6 +94,15 @@ export interface SelectBuilder extends PromiseLike<QueryResult> {
    */
   in(column: string, values: readonly unknown[]): SelectBuilder;
   /**
+   * `<`, strictly. Added for `fetchOrdersPlaced` (`E11-12`), and widening this interface is
+   * deliberately a visible diff rather than a method appearing at a call site.
+   *
+   * `lte` is not the same query here. The window's upper bound is midnight IST on the day after
+   * the range ends, and an inclusive comparison against that instant would pull in an order
+   * placed exactly at midnight — counting one day's first order as the previous day's last.
+   */
+  lt(column: string, value: unknown): SelectBuilder;
+  /**
    * A disjunction, in PostgREST's own syntax: `or('email.ilike.%a%,first_name.ilike.%a%')`.
    *
    * Added for `searchAccounts` (`E10-46`) — finding one person by email **or** either name, which
