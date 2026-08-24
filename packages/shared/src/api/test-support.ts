@@ -28,6 +28,7 @@ export interface RecordedQuery {
   /** Row caps asked for, in order. */
   limits: number[];
   inFilters: { column: string; values: unknown[] }[];
+  ltFilters: { column: string; value: unknown }[];
   orFilters: string[];
 }
 
@@ -64,6 +65,7 @@ export function fakeTransport(
             orders: [],
             limits: [],
             inFilters: [],
+            ltFilters: [],
             orFilters: [],
           };
           queries.push(record);
@@ -87,6 +89,10 @@ export function fakeTransport(
             },
             not(column, operator, value) {
               record.notFilters.push({ column, operator, value });
+              return builder;
+            },
+            lt(column, value) {
+              record.ltFilters.push({ column, value });
               return builder;
             },
             in(column, values) {

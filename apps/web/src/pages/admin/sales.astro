@@ -1,0 +1,396 @@
+---
+/**
+ * When orders were taken — `E11-12`.
+ *
+ * Andy: *"Currently orders are only seen for the day the delivery is requested for, I want to see
+ * sales (orders) placed for a given day. That way I can see when a large order day comes — I want
+ * to be able to see growth or reduction in orders."*
+ *
+ * ## Why this is not a toggle on `/reports`
+ *
+ * The two screens read the same rows and answer opposite questions.
+ *
+ * `/reports` is bucketed by **service date**: what are we cooking on Thursday, and what did that
+ * day earn. It is the operational and GST view, and its default range ends tomorrow because
+ * tomorrow's lunch is already sold.
+ *
+ * This one is bucketed by **placement date**: was yesterday busy, is demand rising. Its default
+ * range ends today, because a day cannot be busy in the future.
+ *
+ * Same numbers, different axis — and folding both into one screen behind a selector was the first
+ * design considered and rejected: the two have different defaults, different comparisons and
+ * different audiences, and a single screen would have to caption every figure with which basis it
+ * was on. A number whose meaning depends on a control somewhere above it is how a report gets
+ * quoted wrongly in a meeting.
+ *
+ * They cannot disagree, because both fold from one set of rows — `summarise` keys by service day,
+ * placed day and school, and every view is a `groupRows` of that. A test asserts the totals match
+ * across all six axes.
+ *
+ * ## No child appears here either
+ *
+ * `REPORT_ORDER_COLUMNS` gained exactly one field for this screen — `placed_at`, a business
+ * timestamp. Still no recipient, class or section.
+ */
+import BackofficeNav from '../../components/BackofficeNav.astro';
+
+import '../../styles/tokens.css';
+import '../../styles/site.css';
+import '../../styles/kitchen.css';
+import '../../styles/admin.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Sales — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
+          <h1 class="kitchen__title">Sales</h1>
+          <button id="s-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+          <BackofficeNav current="/admin/sales" />
+        </div>
+      </header>
+
+      <main class="kitchen__wrap admin__wrap">
+        <div id="s-status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <p class="admin__intro">
+          Orders by <b>the day they were placed</b>, not the day the food is served — so a busy
+          evening shows up on the evening it happened. Days are <b>IST</b>: an order taken at 11pm
+          counts for that night, which is when most of them arrive.
+          <a href="/reports">The revenue report</a> is the same money by service date.
+        </p>
+
+        <div class="rctl">
+          <div class="rctl__presets" role="group" aria-label="Range">
+            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="7">7 days</button>
+            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="30">30 days</button>
+            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="90">90 days</button>
+            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="month">This month</button>
+            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="last">Last month</button>
+          </div>
+
+          <div class="rctl__dates">
+            <label class="admin__label" for="s-from">From</label>
+            <input class="admin__input" id="s-from" type="date" required />
+            <label class="admin__label" for="s-to">To</label>
+            <input class="admin__input" id="s-to" type="date" required />
+          </div>
+
+          <div class="rctl__group">
+            <label class="admin__label" for="s-by">Show by</label>
+            <select class="admin__select" id="s-by">
+              <option value="placedDay" selected>Day</option>
+              <option value="placedWeek">Week</option>
+              <option value="placedMonth">Month</option>
+              <option value="school">School</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="s-body"></div>
+      </main>
+    </div>
+
+    <script>
+      import { mountNav } from '../../lib/backoffice/nav-mount.js';
+      import { api, money } from '@graybag/shared';
+      import { columns } from '../../lib/admin/chart.js';
+      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { serviceDateToday } from '../../lib/kitchen/view.js';
+      import { SALES_FIXTURE } from '../../lib/admin/sales-fixture.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = {
+        body: $('s-body'), status: $('s-status'), reload: $<HTMLButtonElement>('s-reload'),
+        from: $<HTMLInputElement>('s-from'), to: $<HTMLInputElement>('s-to'),
+        by: $<HTMLSelectElement>('s-by'),
+      };
+      const esc = (s: string) =>
+        String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+      const rupees = (p: number) => money.formatPaise(p);
+
+      const demo = new URLSearchParams(location.search).has('state');
+
+      let rows: api.ReportRow[] = [];
+      let previous: api.ReportRow[] = [];
+      let loading = true;
+      let error: string | null = null;
+
+      const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+
+      /** From the parts, never through a `Date` — `E09-32`. */
+      function label(key: string, by: string): string {
+        if (by === 'placedMonth') {
+          const [y, m] = key.split('-');
+          return `${MONTHS[Number(m) - 1] ?? key} ${y}`;
+        }
+        if (by === 'placedWeek') {
+          const [, m, d] = key.split('-');
+          return `w/c ${Number(d)} ${(MONTHS[Number(m) - 1] ?? '').slice(0, 3)}`;
+        }
+        if (by === 'placedDay') {
+          const [, m, d] = key.split('-');
+          return `${Number(d)} ${(MONTHS[Number(m) - 1] ?? '').slice(0, 3)}`;
+        }
+        return key;
+      }
+
+      function shift(date: string, days: number): string {
+        return new Date(Date.parse(`${date}T12:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+      }
+
+      function applyPreset(preset: string) {
+        const today = serviceDateToday(new Date());
+        const [y, m] = today.split('-').map(Number) as [number, number];
+        if (preset === 'month') {
+          el.from.value = `${y}-${String(m).padStart(2, '0')}-01`;
+          el.to.value = today;
+        } else if (preset === 'last') {
+          const py = m === 1 ? y - 1 : y;
+          const pm = m === 1 ? 12 : m - 1;
+          el.from.value = `${py}-${String(pm).padStart(2, '0')}-01`;
+          el.to.value = shift(`${y}-${String(m).padStart(2, '0')}-01`, -1);
+        } else {
+          el.from.value = shift(today, -(Number(preset) - 1));
+          el.to.value = today;
+        }
+        void load();
+      }
+
+      async function load() {
+        loading = true; error = null; render();
+        try {
+          if (demo) {
+            rows = SALES_FIXTURE.rows as unknown as api.ReportRow[];
+            previous = SALES_FIXTURE.previous as unknown as api.ReportRow[];
+          } else {
+            configureBackofficeApi();
+            const prev = api.previousWindow(el.from.value, el.to.value);
+            // Both windows in one go. The comparison is the whole point of the screen, and
+            // fetching it lazily would mean the headline figures arrive without their context.
+            [rows, previous] = await Promise.all([
+              api.fetchOrdersPlaced(el.from.value, el.to.value),
+              api.fetchOrdersPlaced(prev.from, prev.to),
+            ]);
+          }
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The sales figures did not load.';
+          rows = []; previous = [];
+        } finally {
+          loading = false; render();
+        }
+      }
+
+      /**
+       * A figure with its change on the previous window of the same length.
+       *
+       * The arrow and the words carry the direction together — colour alone would fail anyone who
+       * cannot distinguish it, and this is the screen whose entire job is up or down.
+       */
+      /** Green for a real rise, red for a real fall, and neither when it rounded to nothing. */
+      function toneOf(c: api.Comparison | null): string {
+        if (!c || c.change === null) return '';
+        const pct = Math.round(c.change * 100);
+        if (pct === 0) return '';
+        return pct > 0 ? ' gstat__note--up' : ' gstat__note--down';
+      }
+
+      function stat(value: string, title: string, c: api.Comparison | null, note = ''): string {
+        let delta = '';
+        if (c) {
+          if (c.change === null) {
+            delta = c.previous === 0 && c.now > 0 ? 'first in this period' : 'nothing before';
+          } else {
+            const pct = Math.round(c.change * 100);
+            // Rounded to nothing is "unchanged", not "▲ 0% up". An arrow claiming a direction the
+            // number does not support is the kind of small dishonesty that makes a whole
+            // dashboard feel approximate.
+            delta = pct === 0
+              ? 'about the same as the previous period'
+              : `${pct > 0 ? '▲' : '▼'} ${Math.abs(pct)}% ${pct > 0 ? 'up on' : 'down on'} the previous period`;
+          }
+        }
+        return (
+          `<div class="gstat">` +
+            `<p class="gstat__n">${esc(value)}</p>` +
+            `<p class="gstat__l">${esc(title)}</p>` +
+            (delta
+              ? `<p class="gstat__note${toneOf(c)}">${esc(delta)}</p>`
+              : '') +
+            (note ? `<p class="gstat__note">${esc(note)}</p>` : '') +
+          `</div>`
+        );
+      }
+
+      function render() {
+        if (loading) {
+          el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
+          return;
+        }
+        if (error) {
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>We can't show sales</h2><p>${esc(error)}</p>` +
+            `<p>This screen needs <b>reports.view</b> and <b>orders.view_financials</b>.</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+        if (rows.length === 0) {
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>No orders placed in this range</h2>` +
+            `<p>Nothing was ordered between <b>${esc(el.from.value)}</b> and ` +
+            `<b>${esc(el.to.value)}</b> — or this account cannot read orders, which needs ` +
+            `<b>reports.view</b>. Those look the same from here.</p></div>`;
+          return;
+        }
+
+        const by = el.by.value as api.GroupBy;
+        const buckets = api.groupRows(rows, by);
+        const t = api.totalOf(buckets);
+        const p = api.totalOf(api.groupRows(previous, by));
+
+        const paid = t.orders - t.cancelled - t.pending;
+        const paidPrev = p.orders - p.cancelled - p.pending;
+        // Average order value across the orders that were actually paid. Dividing by every order
+        // placed would let a run of unpaid ones look like a fall in what people spend.
+        const aov = paid === 0 ? 0 : Math.round(t.netPaise / paid);
+        const aovPrev = paidPrev === 0 ? 0 : Math.round(p.netPaise / paidPrev);
+
+        // The busiest bucket, named. "When a large order day comes" is the literal ask, and a
+        // chart shows the shape without saying which one it was.
+        const best = [...buckets].sort((a, b) => b.orders - a.orders)[0];
+
+        el.status.textContent =
+          `${t.orders} orders placed, ${rupees(t.netPaise)} net, across ${buckets.length} ${by === 'school' ? 'schools' : 'periods'}.`;
+
+        const ordersChart = columns(
+          buckets.map((b) => ({
+            label: label(b.key, by),
+            value: b.orders,
+            title: `${label(b.key, by)}: ${b.orders} placed — ${b.orders - b.cancelled - b.pending} paid, ${b.pending} unpaid, ${b.cancelled} cancelled`,
+          })),
+          { label: `Orders placed by ${by === 'school' ? 'school' : by.replace('placed', '').toLowerCase()}` },
+        );
+
+        const moneyChart = columns(
+          buckets.map((b) => ({
+            label: label(b.key, by),
+            value: b.netPaise,
+            title: `${label(b.key, by)}: ${rupees(b.netPaise)} net`,
+          })),
+          { label: 'Net revenue from orders placed', format: rupees },
+        );
+
+        el.body.innerHTML =
+          `<div class="gstats">` +
+            stat(String(t.orders), 'Orders placed', api.compare(t.orders, p.orders)) +
+            stat(rupees(t.netPaise), 'Net revenue', api.compare(t.netPaise, p.netPaise)) +
+            stat(rupees(aov), 'Average order', api.compare(aov, aovPrev), `${paid} paid orders`) +
+            stat(String(t.pending), 'Unpaid', null, t.pending > 0 ? rupees(t.pendingPaise) : 'none') +
+            (best
+              ? stat(String(best.orders), 'Busiest ' + (by === 'school' ? 'school' : 'period'), null, label(best.key, by))
+              : '') +
+          `</div>` +
+
+          `<section class="admin__section" aria-labelledby="oc-h">` +
+            `<h2 id="oc-h">Orders placed</h2>` +
+            ordersChart +
+          `</section>` +
+
+          `<section class="admin__section" aria-labelledby="mc-h">` +
+            `<h2 id="mc-h">Net revenue from those orders</h2>` +
+            moneyChart +
+          `</section>` +
+
+          `<section class="admin__section" aria-labelledby="st-h">` +
+            `<h2 id="st-h">The numbers</h2>` +
+            `<table class="otable">` +
+              `<thead><tr>` +
+                `<th scope="col">${by === 'school' ? 'School' : 'Placed'}</th>` +
+                `<th scope="col">Placed</th><th scope="col">Paid</th>` +
+                `<th scope="col">Unpaid</th><th scope="col">Cancelled</th>` +
+                `<th scope="col">Gross</th><th scope="col">Net</th><th scope="col">Average</th>` +
+              `</tr></thead>` +
+              `<tbody>` +
+                // Newest first: the question is nearly always about the last few days.
+                [...buckets].reverse().map((b) => {
+                  const bp = b.orders - b.cancelled - b.pending;
+                  return `<tr>` +
+                    `<th scope="row">${esc(label(b.key, by))}</th>` +
+                    `<td class="otable__num">${b.orders}</td>` +
+                    `<td class="otable__num">${bp}</td>` +
+                    `<td class="otable__num">${b.pending || '—'}</td>` +
+                    `<td class="otable__num">${b.cancelled || '—'}</td>` +
+                    `<td class="otable__num">${esc(rupees(b.grossPaise))}</td>` +
+                    `<td class="otable__num"><b>${esc(rupees(b.netPaise))}</b></td>` +
+                    `<td class="otable__num">${bp ? esc(rupees(Math.round(b.netPaise / bp))) : '—'}</td>` +
+                  `</tr>`;
+                }).join('') +
+              `</tbody>` +
+              `<tfoot><tr>` +
+                `<th scope="row">Total</th>` +
+                `<td class="otable__num">${t.orders}</td>` +
+                `<td class="otable__num">${paid}</td>` +
+                `<td class="otable__num">${t.pending || '—'}</td>` +
+                `<td class="otable__num">${t.cancelled || '—'}</td>` +
+                `<td class="otable__num">${esc(rupees(t.grossPaise))}</td>` +
+                `<td class="otable__num"><b>${esc(rupees(t.netPaise))}</b></td>` +
+                `<td class="otable__num">${esc(rupees(aov))}</td>` +
+              `</tr></tfoot>` +
+            `</table>` +
+            `<p class="admin__hint">` +
+              `Compared against <b>${esc(api.previousWindow(el.from.value, el.to.value).from)}</b> to ` +
+              `<b>${esc(api.previousWindow(el.from.value, el.to.value).to)}</b> — the window of the same ` +
+              `length immediately before this one, so a shorter month never reads as a decline. ` +
+              `<b>Unpaid orders are counted but are not revenue.</b>` +
+            `</p>` +
+          `</section>`;
+      }
+
+      el.body.addEventListener('click', (event) => {
+        if ((event.target as HTMLElement).closest('[data-retry]')) void load();
+      });
+      el.reload.addEventListener('click', () => void load());
+      el.from.addEventListener('change', () => void load());
+      el.to.addEventListener('change', () => void load());
+      el.by.addEventListener('change', render);
+      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-preset]')) {
+        button.addEventListener('click', () => applyPreset(button.dataset.preset!));
+      }
+
+      void (async () => {
+        if (demo) {
+          el.from.value = SALES_FIXTURE.from;
+          el.to.value = SALES_FIXTURE.to;
+        } else {
+          const today = serviceDateToday(new Date());
+          // Ends **today**, not tomorrow. A day cannot be busy in the future — that is the one
+          // default that differs from the revenue report, and it is the difference between the
+          // two screens in miniature.
+          el.from.value = shift(today, -29);
+          el.to.value = today;
+        }
+        try {
+          if (!demo && !(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent('/admin/sales')}`);
+            return;
+          }
+        } catch { /* fall through and let the read fail visibly */ }
+        await load();
+      })();
+
+      void mountNav();
+    </script>
+  </body>
+</html>

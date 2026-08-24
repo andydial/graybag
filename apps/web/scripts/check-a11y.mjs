@@ -79,6 +79,9 @@ const PAGES = [
   // `E08-16`. Its fixture carries a paused recipient and a kitchen with nobody listed — the two
   // states that mean "no email will arrive", which is what this screen exists to make visible.
   '/admin/alerts.html?state=demo',
+  // `E11-12`. Its fixture carries late-night orders, a spike, a quiet weekend and unpaid rows —
+  // the cases the screen exists to show, rather than a clean climb.
+  '/admin/sales.html?state=demo',
   // `E10-43`. The demo state reveals every route, so this audits the full navigation — the panel
   // it opens is audited here too, because the toggle is on every one of the pages above.
   '/dashboard.html?state=demo',
