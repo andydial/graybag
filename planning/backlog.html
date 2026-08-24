@@ -4531,13 +4531,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/13</span>
+          <span class="meter-num">0/14</span>
         </div>
       </header>
       <p class="summary">A monthly PDF emailed to each school. Aggregates only, no child-level PII. Designed to sell the benefit of the partnership.</p>
       <p class="deps">Depends on <code>E07</code></p>
       <details>
-        <summary>Context &amp; 13 tasks</summary>
+        <summary>Context &amp; 14 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Decided against a school login portal — the PDF lands in the principal&#39;s inbox instead of waiting to be discovered.</p></div>
         <ul class="tasks">
@@ -4644,6 +4644,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Lead time — how far ahead people order.</strong> The natural next question once <code>E11-12</code> shows when orders arrive: the gap between <code>placed_at</code> and <code>service_date</code>, which says whether the cutoff is set in the right place and whether a menu published on Friday is being ordered from over the weekend. Both columns are already read</span>
+      </li>
+      <li class="task" data-id="E11-14" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-14"></button>
+        <code class="tid">E11-14</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Sales shows paid orders only, and schools by their code.</strong> Three things Andy reported. <strong>(1) &quot;Date filter is not working.&quot;</strong> It works — driving the live page with a real session, <code>2026-08-22</code>–<code>24</code> gives &quot;No paid orders in this range&quot; and <code>15</code>–<code>16</code> gives 3. It *looked* broken because all six production orders were placed inside one week, so every wide range returns the same set, and because the screen said &quot;6 orders placed&quot; beside &quot;₹42.00 net&quot; — one paid order&#39;s worth. That contradiction was the real complaint, and (3) removes it. The status line now echoes the active range so a change is visible even when the numbers are unchanged. <strong>(2) School labels.</strong> <code>groupRows</code> labelled school buckets with the full name, and &quot;Amity International, Mohali&quot; on a chart axis beside &quot;Gem Public School&quot; is unreadable at any width. The axis now shows <code>school.code</code> upper-cased — short, unique and already the identifier the importer matches on — while the table and every tooltip keep the full name. A refused school read falls back to the name rather than showing a bare uuid. <strong>(3) Unpaid orders removed.</strong> *&quot;This report is &#39;Sales&#39; — it does not make sense to show unpaid orders here.&quot;* Correct: <code>grossPaise</code> had always excluded them, but the <strong>counts</strong> did not, which is exactly why the screen contradicted itself. <code>Bucket</code> gains an explicit <code>paid</code> — stated rather than derived, because three screens were each computing <code>orders - cancelled - pending</code> and that subtraction becomes quietly wrong the day a status is added. Headline, charts and table are all paid-only; the Unpaid and Cancelled columns are gone. Also fixed: the table reversed its rows for &quot;newest first&quot;, which on the school axis inverted the value ranking and put the smallest school above the largest, contradicting the chart beside it</span>
       </li></ul>
       </details>
     </article>
