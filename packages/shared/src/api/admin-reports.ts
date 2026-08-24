@@ -253,6 +253,14 @@ export interface Bucket {
   /** What to print. A month name, a date, or the school's name. */
   label: string;
   orders: number;
+  /**
+   * Orders in an **earned** status — paid, preparing or delivered — `E11-14`.
+   *
+   * Stated rather than derived. Every caller that wanted "how many actually sold" was computing
+   * `orders - cancelled - pending`, which is a subtraction three places can get subtly wrong and
+   * which silently becomes false the day a new status appears.
+   */
+  paid: number;
   cancelled: number;
   pending: number;
   grossPaise: number;
@@ -290,12 +298,13 @@ export function groupRows(rows: readonly ReportRow[], by: GroupBy): Bucket[] {
     const label = by === 'school' ? row.schoolName : key;
     if (!out.has(key)) {
       out.set(key, {
-        key, label, orders: 0, cancelled: 0, pending: 0,
+        key, label, orders: 0, paid: 0, cancelled: 0, pending: 0,
         grossPaise: 0, pendingPaise: 0, taxPaise: 0, refundedPaise: 0, netPaise: 0,
       });
     }
     const b = out.get(key)!;
     b.orders += row.orders;
+    b.paid += row.orders - row.cancelled - row.pending;
     b.cancelled += row.cancelled;
     b.pending += row.pending;
     b.grossPaise += row.grossPaise;
@@ -318,6 +327,7 @@ export function totalOf(buckets: readonly Bucket[]): Bucket {
     (t, b) => ({
       key: 'total', label: 'Total',
       orders: t.orders + b.orders,
+      paid: t.paid + b.paid,
       cancelled: t.cancelled + b.cancelled,
       pending: t.pending + b.pending,
       grossPaise: t.grossPaise + b.grossPaise,
@@ -326,7 +336,7 @@ export function totalOf(buckets: readonly Bucket[]): Bucket {
       refundedPaise: t.refundedPaise + b.refundedPaise,
       netPaise: t.netPaise + b.netPaise,
     }),
-    { key: 'total', label: 'Total', orders: 0, cancelled: 0, pending: 0,
+    { key: 'total', label: 'Total', orders: 0, paid: 0, cancelled: 0, pending: 0,
       grossPaise: 0, pendingPaise: 0, taxPaise: 0, refundedPaise: 0, netPaise: 0 },
   );
 }

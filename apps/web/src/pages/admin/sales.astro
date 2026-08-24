@@ -65,10 +65,11 @@ import '../../styles/admin.css';
         <div id="s-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
         <p class="admin__intro">
-          Orders by <b>the day they were placed</b>, not the day the food is served — so a busy
-          evening shows up on the evening it happened. Days are <b>IST</b>: an order taken at 11pm
-          counts for that night, which is when most of them arrive.
-          <a href="/reports">The revenue report</a> is the same money by service date.
+          <b>Paid orders only</b>, by the day they were placed rather than the day the food is
+          served — so a busy evening shows up on the evening it happened. Days are <b>IST</b>: an
+          order taken at 11pm counts for that night, which is when most of them arrive.
+          Unpaid and cancelled orders are not sales and are not counted here;
+          <a href="/reports">the revenue report</a> shows them against the service date.
         </p>
 
         <div class="rctl">
@@ -124,6 +125,18 @@ import '../../styles/admin.css';
 
       let rows: api.ReportRow[] = [];
       let previous: api.ReportRow[] = [];
+      /**
+       * School id to its short code — `E11-14`.
+       *
+       * Andy: *"instead of showing school's name — it should a like unique ID sort of label."*
+       * Full names are long enough that a chart axis with three of them is unreadable, and
+       * "Amity International, Mohali" beside "Gem Public School" wastes the width the bars need.
+       * `school.code` is short, unique and already the identifier the importer matches on.
+       *
+       * The full name stays in the table and in every tooltip — the code is a label, not a
+       * replacement for knowing which school it is.
+       */
+      let schoolCodes = new Map<string, string>();
       let loading = true;
       let error: string | null = null;
 
@@ -144,7 +157,14 @@ import '../../styles/admin.css';
           const [, m, d] = key.split('-');
           return `${Number(d)} ${(MONTHS[Number(m) - 1] ?? '').slice(0, 3)}`;
         }
-        return key;
+        // A school bucket's key is its id. Show the short code; fall back to the name only if the
+        // code could not be read, because an unlabelled uuid on an axis is worse than a long name.
+        return schoolCodes.get(key)?.toUpperCase() ?? key;
+      }
+
+      /** The full name, for tooltips and the table — the code is a label, not a substitute. */
+      function fullName(b: api.Bucket, by: string): string {
+        return by === 'school' ? b.label : label(b.key, by);
       }
 
       function shift(date: string, days: number): string {
@@ -175,15 +195,21 @@ import '../../styles/admin.css';
           if (demo) {
             rows = SALES_FIXTURE.rows as unknown as api.ReportRow[];
             previous = SALES_FIXTURE.previous as unknown as api.ReportRow[];
+            schoolCodes = new Map(SALES_FIXTURE.schoolCodes);
           } else {
             configureBackofficeApi();
             const prev = api.previousWindow(el.from.value, el.to.value);
             // Both windows in one go. The comparison is the whole point of the screen, and
             // fetching it lazily would mean the headline figures arrive without their context.
-            [rows, previous] = await Promise.all([
+            const [now, before, schools] = await Promise.all([
               api.fetchOrdersPlaced(el.from.value, el.to.value),
               api.fetchOrdersPlaced(prev.from, prev.to),
+              // Codes for the axis labels. Refused reads are survivable: the chart falls back to
+              // the school name, which is worse to read but never wrong.
+              api.fetchAdminSchools().catch(() => []),
             ]);
+            rows = now; previous = before;
+            schoolCodes = new Map(schools.map((x) => [x.id, x.code]));
           }
         } catch (cause) {
           error = cause instanceof Error ? cause.message : 'The sales figures did not load.';
@@ -248,8 +274,8 @@ import '../../styles/admin.css';
         }
         if (rows.length === 0) {
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>No orders placed in this range</h2>` +
-            `<p>Nothing was ordered between <b>${esc(el.from.value)}</b> and ` +
+            `<div class="kitchen__state"><h2>No paid orders in this range</h2>` +
+            `<p>Nothing was paid for between <b>${esc(el.from.value)}</b> and ` +
             `<b>${esc(el.to.value)}</b> — or this account cannot read orders, which needs ` +
             `<b>reports.view</b>. Those look the same from here.</p></div>`;
           return;
@@ -260,8 +286,8 @@ import '../../styles/admin.css';
         const t = api.totalOf(buckets);
         const p = api.totalOf(api.groupRows(previous, by));
 
-        const paid = t.orders - t.cancelled - t.pending;
-        const paidPrev = p.orders - p.cancelled - p.pending;
+        const paid = t.paid;
+        const paidPrev = p.paid;
         // Average order value across the orders that were actually paid. Dividing by every order
         // placed would let a run of unpaid ones look like a fall in what people spend.
         const aov = paid === 0 ? 0 : Math.round(t.netPaise / paid);
@@ -269,42 +295,43 @@ import '../../styles/admin.css';
 
         // The busiest bucket, named. "When a large order day comes" is the literal ask, and a
         // chart shows the shape without saying which one it was.
-        const best = [...buckets].sort((a, b) => b.orders - a.orders)[0];
+        // Busiest by **paid** orders, matching everything else on the screen.
+        const best = [...buckets].sort((a, b) => b.paid - a.paid)[0];
 
         el.status.textContent =
-          `${t.orders} orders placed, ${rupees(t.netPaise)} net, across ${buckets.length} ${by === 'school' ? 'schools' : 'periods'}.`;
+          `${paid} paid orders, ${rupees(t.netPaise)} net, ` +
+          `${esc(el.from.value)} to ${esc(el.to.value)}, across ${buckets.length} ${by === 'school' ? 'schools' : 'periods'}.`;
 
         const ordersChart = columns(
           buckets.map((b) => ({
             label: label(b.key, by),
-            value: b.orders,
-            title: `${label(b.key, by)}: ${b.orders} placed — ${b.orders - b.cancelled - b.pending} paid, ${b.pending} unpaid, ${b.cancelled} cancelled`,
+            value: b.paid,
+            title: `${fullName(b, by)}: ${b.paid} paid order${b.paid === 1 ? '' : 's'}, ${rupees(b.netPaise)} net`,
           })),
-          { label: `Orders placed by ${by === 'school' ? 'school' : by.replace('placed', '').toLowerCase()}` },
+          { label: `Paid orders by ${by === 'school' ? 'school' : by.replace('placed', '').toLowerCase()}` },
         );
 
         const moneyChart = columns(
           buckets.map((b) => ({
             label: label(b.key, by),
             value: b.netPaise,
-            title: `${label(b.key, by)}: ${rupees(b.netPaise)} net`,
+            title: `${fullName(b, by)}: ${rupees(b.netPaise)} net`,
           })),
           { label: 'Net revenue from orders placed', format: rupees },
         );
 
         el.body.innerHTML =
           `<div class="gstats">` +
-            stat(String(t.orders), 'Orders placed', api.compare(t.orders, p.orders)) +
+            stat(String(paid), 'Paid orders', api.compare(paid, paidPrev)) +
             stat(rupees(t.netPaise), 'Net revenue', api.compare(t.netPaise, p.netPaise)) +
-            stat(rupees(aov), 'Average order', api.compare(aov, aovPrev), `${paid} paid orders`) +
-            stat(String(t.pending), 'Unpaid', null, t.pending > 0 ? rupees(t.pendingPaise) : 'none') +
+            stat(rupees(aov), 'Average order', api.compare(aov, aovPrev)) +
             (best
-              ? stat(String(best.orders), 'Busiest ' + (by === 'school' ? 'school' : 'period'), null, label(best.key, by))
+              ? stat(String(best.paid), 'Busiest ' + (by === 'school' ? 'school' : 'period'), null, fullName(best, by))
               : '') +
           `</div>` +
 
           `<section class="admin__section" aria-labelledby="oc-h">` +
-            `<h2 id="oc-h">Orders placed</h2>` +
+            `<h2 id="oc-h">Paid orders</h2>` +
             ordersChart +
           `</section>` +
 
@@ -318,33 +345,35 @@ import '../../styles/admin.css';
             `<table class="otable">` +
               `<thead><tr>` +
                 `<th scope="col">${by === 'school' ? 'School' : 'Placed'}</th>` +
-                `<th scope="col">Placed</th><th scope="col">Paid</th>` +
-                `<th scope="col">Unpaid</th><th scope="col">Cancelled</th>` +
-                `<th scope="col">Gross</th><th scope="col">Net</th><th scope="col">Average</th>` +
+                `<th scope="col">Paid orders</th>` +
+                `<th scope="col">Gross</th><th scope="col">GST</th>` +
+                `<th scope="col">Refunded</th><th scope="col">Net</th><th scope="col">Average</th>` +
               `</tr></thead>` +
               `<tbody>` +
-                // Newest first: the question is nearly always about the last few days.
-                [...buckets].reverse().map((b) => {
-                  const bp = b.orders - b.cancelled - b.pending;
-                  return `<tr>` +
-                    `<th scope="row">${esc(label(b.key, by))}</th>` +
-                    `<td class="otable__num">${b.orders}</td>` +
-                    `<td class="otable__num">${bp}</td>` +
-                    `<td class="otable__num">${b.pending || '—'}</td>` +
-                    `<td class="otable__num">${b.cancelled || '—'}</td>` +
+                /*
+                 * Newest first on a time axis — the question is nearly always about the last few
+                 * days. **Not** on the school axis: `groupRows` already ranks schools biggest
+                 * first, and reversing that put the smallest at the top, directly contradicting
+                 * the chart beside it.
+                 */
+                (by === 'school' ? buckets : [...buckets].reverse()).map((b) =>
+                  `<tr>` +
+                    // The table is where the full name belongs — the code is for the axis.
+                    `<th scope="row">${esc(by === 'school' ? b.label : label(b.key, by))}</th>` +
+                    `<td class="otable__num">${b.paid}</td>` +
                     `<td class="otable__num">${esc(rupees(b.grossPaise))}</td>` +
+                    `<td class="otable__num">${esc(rupees(b.taxPaise))}</td>` +
+                    `<td class="otable__num">${b.refundedPaise ? esc(rupees(b.refundedPaise)) : '—'}</td>` +
                     `<td class="otable__num"><b>${esc(rupees(b.netPaise))}</b></td>` +
-                    `<td class="otable__num">${bp ? esc(rupees(Math.round(b.netPaise / bp))) : '—'}</td>` +
-                  `</tr>`;
-                }).join('') +
+                    `<td class="otable__num">${b.paid ? esc(rupees(Math.round(b.netPaise / b.paid))) : '—'}</td>` +
+                  `</tr>`).join('') +
               `</tbody>` +
               `<tfoot><tr>` +
                 `<th scope="row">Total</th>` +
-                `<td class="otable__num">${t.orders}</td>` +
                 `<td class="otable__num">${paid}</td>` +
-                `<td class="otable__num">${t.pending || '—'}</td>` +
-                `<td class="otable__num">${t.cancelled || '—'}</td>` +
                 `<td class="otable__num">${esc(rupees(t.grossPaise))}</td>` +
+                `<td class="otable__num">${esc(rupees(t.taxPaise))}</td>` +
+                `<td class="otable__num">${t.refundedPaise ? esc(rupees(t.refundedPaise)) : '—'}</td>` +
                 `<td class="otable__num"><b>${esc(rupees(t.netPaise))}</b></td>` +
                 `<td class="otable__num">${esc(rupees(aov))}</td>` +
               `</tr></tfoot>` +
@@ -353,7 +382,8 @@ import '../../styles/admin.css';
               `Compared against <b>${esc(api.previousWindow(el.from.value, el.to.value).from)}</b> to ` +
               `<b>${esc(api.previousWindow(el.from.value, el.to.value).to)}</b> — the window of the same ` +
               `length immediately before this one, so a shorter month never reads as a decline. ` +
-              `<b>Unpaid orders are counted but are not revenue.</b>` +
+              `<b>Only paid orders appear here</b> — unpaid and cancelled ones are not sales. ` +
+              `Refunds are deducted from net.` +
             `</p>` +
           `</section>`;
       }

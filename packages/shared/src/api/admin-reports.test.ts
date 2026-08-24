@@ -409,3 +409,44 @@ describe('fetchOrdersPlaced windows in IST (E11-12)', () => {
     await expect(fetchOrdersPlaced('2026-08-20', '2026-08-01')).rejects.toThrow(/ends .* before it starts/);
   });
 });
+
+describe('the paid count is stated, not derived (E11-14)', () => {
+  const order = (over: Record<string, unknown> = {}) => ({
+    service_date: '2026-08-26', status: 'paid', school_id: 's-1', school_name_snapshot: 'Amity',
+    placed_at: '2026-08-19T15:30:00Z',
+    subtotal_paise: 12000, tax_cgst_paise: 300, tax_sgst_paise: 300, discount_paise: 0,
+    total_paise: 12600, refunded_total_paise: 0, ...over,
+  });
+
+  it('counts only earned statuses as paid', () => {
+    const rows = summarise([
+      order(), order({ status: 'preparing' }), order({ status: 'delivered' }),
+      order({ status: 'pending_payment' }), order({ status: 'cancelled' }),
+    ]);
+    const b = totalOf(groupRows(rows, 'placedDay'));
+    expect(b.orders).toBe(5);
+    expect(b.paid).toBe(3);
+    expect(b.pending).toBe(1);
+    expect(b.cancelled).toBe(1);
+  });
+
+  it('keeps paid consistent with the money, which is the point', () => {
+    // The contradiction this fixes: a sales screen showing "6 orders" beside one order's worth of
+    // revenue, because the count included orders nobody had paid for.
+    const rows = summarise([order(), order({ status: 'pending_payment' })]);
+    const b = totalOf(groupRows(rows, 'placedDay'));
+    expect(b.paid).toBe(1);
+    expect(b.grossPaise).toBe(12600);
+    expect(b.netPaise).toBe(12600);
+  });
+
+  it('totals paid identically on every axis', () => {
+    const rows = summarise([
+      order(), order({ status: 'pending_payment' }),
+      order({ school_id: 's-2', school_name_snapshot: 'Gem', placed_at: '2026-08-20T15:30:00Z' }),
+    ]);
+    const axes = ['day', 'month', 'school', 'placedDay', 'placedWeek', 'placedMonth'] as const;
+    expect(new Set(axes.map((by) => totalOf(groupRows(rows, by)).paid)).size).toBe(1);
+    expect(totalOf(groupRows(rows, 'placedDay')).paid).toBe(2);
+  });
+});

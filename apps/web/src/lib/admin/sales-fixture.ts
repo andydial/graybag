@@ -54,7 +54,11 @@ const PREVIOUS = [
   ...evening('2026-08-13', 5), ...evening('2026-08-15', 2),
 ];
 
+/** Codes for the axis labels, as `/admin/sales` reads them from `school.code` in production. */
+const SCHOOL_CODES: [string, string][] = [['demo-1', 'amity'], ['demo-2', 'gem']];
+
 export const SALES_FIXTURE = {
+  schoolCodes: SCHOOL_CODES,
   rows: api.summarise(CURRENT),
   previous: api.summarise(PREVIOUS),
   from: '2026-08-17',
