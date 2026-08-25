@@ -1,4 +1,4 @@
-// `ops-heartbeat` — is production working, and say so either way. `E15-12`.
+// `ops-heartbeat` — is production working, and say so either way. `E15-15`.
 //
 //   GET /functions/v1/ops-heartbeat?mode=probe    reachability only, fast, for a frequent schedule
 //   GET /functions/v1/ops-heartbeat?mode=digest   probes + yesterday's numbers, and emails them
