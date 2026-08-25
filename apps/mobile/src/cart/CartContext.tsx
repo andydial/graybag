@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { track } from '../analytics/analytics';
 import { cart as cartDomain } from '@graybag/shared';
 
 /**
@@ -67,7 +68,22 @@ export function CartProvider({
   }, []);
 
   const add = useCallback(
-    (input: CartLineInput) => guarded((current) => cartDomain.addToCart(current, input)),
+    (input: CartLineInput) =>
+      guarded((current) => {
+        const next = cartDomain.addToCart(current, input);
+        /**
+         * `E15-20`. **Once per cart, not once per tap.** `cart_started` marks the funnel step
+         * "this parent began building an order"; firing it on every add would make the step
+         * meaningless and is the one event here that could run away on volume.
+         *
+         * No dish and no child — `docs/posthog.md` §3. Which dishes a *specific* child eats is
+         * exactly the profile s.9(3) forbids building.
+         */
+        if (current.lines.length === 0 && next.lines.length > 0) {
+          track('cart_started', { line_count: next.lines.length });
+        }
+        return next;
+      }),
     [guarded],
   );
 

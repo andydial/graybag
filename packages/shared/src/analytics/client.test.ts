@@ -52,14 +52,14 @@ describe('nothing undeclared leaves the device', () => {
   it('sends a declared event with the common properties attached', async () => {
     const { analytics, sent } = harness();
     analytics.identify('u-1');
-    analytics.capture('payment_completed', { attempt_no: 2 });
+    analytics.capture('payment_completed');
     await analytics.flush();
 
     const body = sent[0] as { api_key: string; batch: { event: string; properties: Record<string, unknown> }[] };
     expect(body.api_key).toBe('phc_test');
     expect(body.batch[0]?.event).toBe('payment_completed');
     expect(body.batch[0]?.properties).toMatchObject({
-      distinct_id: 'u-1', app_version: '4.0.0', platform: 'ios', app_env: 'production', attempt_no: 2,
+      distinct_id: 'u-1', app_version: '4.0.0', platform: 'ios', app_env: 'production',
     });
   });
 
@@ -124,7 +124,7 @@ describe('a build with no key is silent', () => {
     const fetchImpl = vi.fn() as unknown as typeof fetch;
     const analytics = createAnalytics({ apiKey: '', commonProperties: {}, fetchImpl });
     analytics.identify('u-1');
-    analytics.capture('payment_completed', { attempt_no: 1 });
+    analytics.capture('payment_completed');
     await analytics.flush();
     expect(fetchImpl).not.toHaveBeenCalled();
   });

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { track } from '../analytics/analytics';
 import {
   AppState,
   Pressable,
@@ -119,6 +120,18 @@ export function SignInScreen({
   readClipboard?: () => Promise<string | null> | string | null;
   testID?: string;
 }) {
+  /**
+   * `E15-20`. The funnel's "reached the gate" step, once per mount.
+   *
+   * `method` is `email_otp` because that is the only route the app offers today — Google
+   * one-tap and Sign in with Apple are `E03`'s and not built. Stating the constant rather than
+   * inferring one keeps the property honest when they arrive: whoever wires them changes this
+   * line, and the allowlist already permits the other two values.
+   */
+  useEffect(() => {
+    track('signin_started', { method: 'email_otp' });
+  }, []);
+
   const { setSession } = useSession();
 
   const [step, setStep] = useState<'email' | 'code'>(() =>

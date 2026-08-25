@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode, useRef } from 'react';
+import { identifyParent, track } from '../analytics/analytics';
 import { api } from '@graybag/shared';
 
 /**
@@ -69,6 +70,25 @@ export function SessionProvider({
   initial?: Session;
 }) {
   const [session, setSession] = useState<Session>(initial);
+
+  /**
+   * `E15-20`. Identify and mark the funnel step the first time a session appears.
+   *
+   * **The parent's user id and nothing else** — never the email, which the session is holding
+   * right here and which `checkIdentify` would refuse anyway. Andy can join to his own database
+   * when he needs to know who somebody is; PostHog does not need to be able to.
+   *
+   * Guarded by a ref so a token refresh — which produces the same `userId` — does not re-emit
+   * the step and make sign-ins look twice as common as they are.
+   */
+  const identified = useRef<string | null>(null);
+  useEffect(() => {
+    if (session.status !== 'signedIn' || session.userId === null) return;
+    if (identified.current === session.userId) return;
+    identified.current = session.userId;
+    identifyParent(session.userId);
+    track('signin_completed', { method: 'email_otp' });
+  }, [session.status, session.userId]);
 
   /**
    * Restore the session from where it actually lives.

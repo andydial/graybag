@@ -63,7 +63,14 @@ export const EVENT_PROPERTIES: Record<AllowedEvent, readonly string[]> = {
   menu_browsed: ['item_count'],
   cart_started: ['line_count'],
   payment_started: ['attempt_no', 'resumed'],
-  payment_completed: ['attempt_no'],
+  /**
+   * **No `attempt_no`, and the reason is worth recording.** It is emitted where settlement is
+   * CONFIRMED — `checkout-status` answering `paid` — and that response does not carry the
+   * attempt number. Sending a hardcoded `1` would be a lie in exactly the case the funnel cares
+   * about: a parent who resumed. The retry count is answerable from `payment_started`, which
+   * does know it.
+   */
+  payment_completed: [],
   payment_abandoned: ['reason'],
 };
 

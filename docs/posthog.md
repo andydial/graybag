@@ -102,7 +102,7 @@ Autocapture is off; nothing is sent that is not on this list.**
 | `menu_browsed` | A school's menu renders with items | `item_count` (int, bucketed) |
 | `cart_started` | First line added to an empty cart | `line_count` (int) |
 | `payment_started` | The Razorpay sheet opens | `attempt_no` (int), `resumed` (bool) |
-| `payment_completed` | `checkout-status` returns `paid` | `attempt_no` (int) |
+| `payment_completed` | `checkout-status` returns `paid` | *(none — the settlement response does not carry the attempt, and a hardcoded `1` would be a lie for a resumed payment; ask `payment_started`)* |
 | `payment_abandoned` | Sheet dismissed, or checkout expired | `reason` (`dismissed` \| `expired` \| `failed`) |
 
 ### The common set, on every event
@@ -198,3 +198,45 @@ step is the least interesting to keep.
 Emitters at the nine call sites, which is `E15-20`'s remaining half. The contract, the client and
 the guard are in place, so each is one `analytics.capture(...)` line at the point the step
 happens — and the allowlist refuses anything that drifts from the table in §3.
+
+---
+
+## 6. The key, and how to turn this on
+
+**Blocked on the key.** `~/.graybag-secrets/prod.env` holds eleven variables and none of them is
+a PostHog key — no `POSTHOG_KEY`, and nothing matching `*posthog*` under any name. So the
+emitters are built, tested and shipped, and they are **sending nothing**.
+
+That is the designed state rather than a broken one: with no key `createAnalytics` returns a
+no-op that makes no network call, which is what keeps staging and local builds out of the funnel.
+
+### Turning it on takes two steps, not one
+
+`EXPO_PUBLIC_*` variables are **inlined by Metro at bundle time**, not read at runtime. Setting
+the key in EAS does nothing on its own — the JS already on phones has no key baked into it.
+
+```sh
+# 1. put the key in the EAS production environment (Andy, once)
+npx eas env:create --scope project --environment production \
+  --name EXPO_PUBLIC_POSTHOG_KEY --value "phc_…" --type string --visibility plaintext
+
+# 2. republish, so the key is inlined into the bundle
+npm run ship:ota -- "enable PostHog"
+```
+
+Then confirm arrival — the check that actually proves it, rather than assuming:
+
+```sh
+curl -s -H "Authorization: Bearer <personal-api-key>" \
+  "https://eu.posthog.com/api/projects/<id>/events/?limit=5" | jq '.results[].event'
+```
+
+### Sharing with the web thread
+
+**One project, one key.** `PUBLIC_POSTHOG_KEY` for them, `EXPO_PUBLIC_POSTHOG_KEY` for the app —
+different names because each framework has its own prefix for "safe to ship to the client", same
+value. It is a *write-only project* key: it can send events and cannot read them, which is why
+it belongs in a bundle at all.
+
+`app_env` is on every event from both apps, so one project can still separate production from
+staging without separate keys.

@@ -25,6 +25,9 @@ jest.mock('@graybag/shared', () => {
     }
   }
   return {
+    // `E15-20`. The emitters call this; a partial mock would make the module undefined and
+    // take the whole suite down before a single assertion ran.
+    analyticsClient: { createAnalytics: () => ({ capture: () => {}, identify: () => {}, flush: async () => {} }), disabledAnalytics: () => ({ capture: () => {}, identify: () => {}, flush: async () => {} }) },
     api: {
       ApiError: MockApiError,
       createCheckout: (...a: unknown[]) => mockCreateCheckout(...a),

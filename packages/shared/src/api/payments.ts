@@ -28,6 +28,12 @@ export interface PaymentOrder {
   correlationId: string;
   /** 1 for the first attempt. A retry after a decline is 2, and is not a duplicate order. */
   attemptNo: number;
+  /**
+   * `E05-54`. True when the server handed back an EXISTING Razorpay order rather than minting a
+   * new one — a parent finishing a checkout they had left. Read by the funnel to tell a resumed
+   * payment from a first attempt.
+   */
+  resumed: boolean;
 }
 
 /**
@@ -58,6 +64,7 @@ export async function createPaymentOrder(orderGroupId: string): Promise<PaymentO
     orderGroupId: String(data.order_group_id ?? orderGroupId),
     correlationId: String(data.correlation_id ?? ''),
     attemptNo: Number(data.attempt_no ?? 1),
+    resumed: data.resumed === true,
   };
 }
 

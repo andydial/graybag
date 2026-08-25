@@ -19,6 +19,7 @@ import { useCallback, useRef, useState } from 'react';
 import { api } from '@graybag/shared';
 
 import { openRazorpayCheckout, type RazorpaySheetResult } from './razorpay';
+import { track } from '../analytics/analytics';
 
 /**
  * One line per step, so a tap on a handset tells us which of three calls failed and why.
@@ -164,6 +165,13 @@ export async function runCheckout(
     // ------------------------------------------------------------------------- 3. the sheet
     setPhase({ kind: 'opening', orderGroupId });
     log('opening sheet', { providerOrderId: providerOrder.providerOrderId });
+    // `E15-20`. The attempt number is the interesting property here: `resumed` distinguishes a
+    // parent finishing an abandoned checkout from one paying for the first time, which is the
+    // whole reason `E05-54` exists. No amount and no order id — see `docs/posthog.md` §3.
+    track('payment_started', {
+      attempt_no: providerOrder.attemptNo,
+      resumed: providerOrder.resumed === true,
+    });
 
     const sheet: RazorpaySheetResult = await openRazorpayCheckout({
       keyId: providerOrder.keyId,
@@ -178,12 +186,16 @@ export async function runCheckout(
     if (sheet.outcome === 'cancelled') {
       // §10.2. The order stays unpaid and the cart is intact — tapping Pay again is attempt 2
       // against the same group, which is why `placedGroupId` is NOT cleared here.
+      track('payment_abandoned', { reason: 'dismissed' });
       const next: CheckoutPhase = { kind: 'dismissed', orderGroupId };
       setPhase(next);
       return next;
     }
 
     if (sheet.outcome === 'failed') {
+      // `failed`, not `dismissed` — a declined card and a closed sheet are different questions
+      // about the funnel, and collapsing them would hide which one is losing orders.
+      track('payment_abandoned', { reason: 'failed' });
       const next: CheckoutPhase = {
         kind: 'failed',
         orderGroupId,

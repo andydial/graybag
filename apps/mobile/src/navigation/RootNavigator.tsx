@@ -39,6 +39,7 @@ import { useCart } from '../cart/CartContext';
 import { OrderPlacedScreen, placedOrder } from '../checkout/OrderPlacedScreen';
 import { PENDING_AFTER_MS, PaymentWaitingScreen } from '../checkout/PaymentWaitingScreen';
 import { useCheckout } from '../checkout/useCheckout';
+import { track } from '../analytics/analytics';
 import { useBreakTimes } from '../cart/useBreakTimes';
 import { clashingAllergens, useAllergenWatchlist } from '../menu/useAllergenWatchlist';
 import { PolicyGateContainer } from '../policy/PolicyGateContainer';
@@ -412,6 +413,17 @@ function CartTabScreen() {
           setPollGroupId(null);
           // The cart has become an order. Emptying it any earlier would lose it on a decline.
           if (result.status === 'paid') {
+            /**
+             * `E15-20`. **Here, not when the Razorpay sheet said yes.** `R8`: a sheet's success
+             * is a handset's word. This is `checkout-status` confirming settlement against the
+             * provider, which is the only place the funnel's bottom is real — emitting on the sheet
+             * would overstate completions by every payment that later failed to settle.
+             *
+             * No properties at all: no amount, no order id — revenue lives in the ledger, which
+             * does not leave the country — and no attempt number, because this response does not
+             * carry one and a hardcoded 1 would be a lie for a resumed payment.
+             */
+            track('payment_completed');
             setPlaced(result.order ?? null);
             clearCart();
             resetCheckout();

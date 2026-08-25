@@ -3,6 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { CartProvider } from './src/cart/CartContext';
 import { configureApiFromEnvironment, missingClientEnvNames } from './src/env/configure';
+import { track } from './src/analytics/analytics';
 import { guardFromEnvironment } from './src/env/guard';
 import { installMenuCache } from './src/menu/installMenuCache';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -45,6 +46,16 @@ guardFromEnvironment();
 // and names the problem at the call site rather than dying with a stack trace in front of
 // a parent (`AR7` — nothing should be a wall in front of browsing).
 const apiConfigured = configureApiFromEnvironment();
+
+/**
+ * `E15-20`. Module scope, so it fires exactly once per cold start — the funnel's first step.
+ *
+ * `is_first_open` is `false` here rather than guessed: telling a genuine first launch from a
+ * relaunch needs persisted state, and the app has no key/value store yet (`installMenuCache`
+ * has the same limitation for the same reason). A property that is sometimes wrong is worse
+ * than one that is consistently conservative, and PostHog derives first-seen itself.
+ */
+track('app_opened', { is_first_open: false });
 
 // And install the menu cache, which nothing did until now — `setMenuCache` existed and was
 // exported and was called only from tests, so every real build ran with `cache === null` and

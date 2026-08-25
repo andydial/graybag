@@ -50,6 +50,15 @@ export interface ClientEnv {
   /** Public half of the Razorpay pair; the checkout SDK needs it client-side. */
   razorpayKeyId: string;
   sentryDsn?: string;
+  /**
+   * PostHog's **project** key (`E15-20`). Write-only and publishable — it can send events and
+   * cannot read them, which is why it ships in the bundle like `supabaseAnonKey` does.
+   *
+   * **Optional on purpose.** Absent, `createAnalytics` returns a no-op and the app sends
+   * nothing: staging and local builds have no key, and a funnel polluted by a developer's
+   * tap-through is worse than no funnel because it looks like data.
+   */
+  posthogKey?: string;
 }
 
 export interface ServerEnv extends ClientEnv {
@@ -152,6 +161,9 @@ export function loadClientEnv(source: Source = process.env): ClientEnv {
   const dsn = optional(source, 'SENTRY_DSN');
   if (dsn !== undefined) env.sentryDsn = dsn;
 
+  const posthog = optional(source, 'POSTHOG_KEY');
+  if (posthog !== undefined) env.posthogKey = posthog;
+
   if (problems.length > 0) throw new EnvError(problems);
   return env;
 }
@@ -179,6 +191,9 @@ export function loadServerEnv(source: Source = process.env): ServerEnv {
 
   const dsn = optional(source, 'SENTRY_DSN');
   if (dsn !== undefined) env.sentryDsn = dsn;
+
+  const posthog = optional(source, 'POSTHOG_KEY');
+  if (posthog !== undefined) env.posthogKey = posthog;
 
   if (problems.length > 0) throw new EnvError(problems);
   return env;

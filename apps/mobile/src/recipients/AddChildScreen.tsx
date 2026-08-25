@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { track } from '../analytics/analytics';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api, design } from '@graybag/shared';
 
@@ -284,6 +285,13 @@ export function AddChildScreen({
         appVersion,
       });
       setSaved(true);
+      /**
+       * `E15-20`. **No properties.** Not the school, not the class, not how many children this
+       * parent now has — every one of those is an attribute of a child, and the funnel question
+       * is only whether the step happened. `checkEvent` refuses them anyway; this is the call
+       * site agreeing with the rule rather than testing it.
+       */
+      track('child_added');
       onAdded({ recipientId: created.recipientId, firstName: created.firstName });
     } catch (error) {
       setFailure(describeFailure(error, isSelf));
