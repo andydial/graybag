@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { track } from '../analytics/analytics';
 import type { menu as menuDomain } from '@graybag/shared';
 
 import { useConnectivity } from '../net/ConnectivityContext';
@@ -176,6 +177,25 @@ export function useCachedMenu(schoolId: string | null): {
   }, [schoolId, attempt, report]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
+
+  /**
+   * `E15-20`. **Once per menu that actually rendered with items**, which is what
+   * `docs/posthog.md` §3 specifies — and the one event flagged there as able to run away on
+   * volume if it fired per scroll or per school switch.
+   *
+   * Keyed on the school so switching schools counts once each, and guarded by a ref so a
+   * re-render does not re-emit. No dish list, no counts per dish: `item_count` only.
+   */
+  const browsed = useRef<string | null>(null);
+  useEffect(() => {
+    if (state !== 'ready' || payload === null) return;
+    const dishes = payload.dishes?.length ?? 0;
+    if (dishes === 0) return;
+    const key = `${schoolId}`;
+    if (browsed.current === key) return;
+    browsed.current = key;
+    track('menu_browsed', { item_count: dishes });
+  }, [state, payload, schoolId]);
 
   return { state, payload, stale, retry, diagnostic };
 }

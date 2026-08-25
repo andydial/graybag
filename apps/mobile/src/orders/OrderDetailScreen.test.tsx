@@ -344,7 +344,7 @@ describe('OrderDetailScreen', () => {
   });
 
   describe('refunds', () => {
-    it('says a refund is on its way and how long it takes', async () => {
+    it('names the amount and says the refund is approved, without promising a date', async () => {
       await renderScreen(
         <OrderDetailScreen
           order={detail({ status: 'cancelled', refund: 'pending' })}
@@ -352,8 +352,11 @@ describe('OrderDetailScreen', () => {
         />,
       );
 
-      expect(screen.getByTestId('screen-order-detail-refund')).toHaveTextContent(/₹162\.76/);
-      expect(screen.getByText('Your refund is on its way')).toBeTruthy();
+      // The notice by id, not by a word the screen now says twice — the timeline step and the
+      // notice share the title, exactly as they already do for "Refunded" below.
+      const notice = screen.getByTestId('screen-order-detail-refund');
+      expect(notice).toHaveTextContent(/₹162\.76/);
+      expect(notice).toHaveTextContent(/Refund approved/);
     });
 
     // Twice over: the timeline step and the notice. Both are "Refunded", which is why this
@@ -708,5 +711,42 @@ describe('OrderDetailScreen — an unpaid checkout', () => {
       />,
     );
     expect(screen.queryByText(/close by itself/)).toBeNull();
+  });
+});
+
+/**
+ * `E05-56`. **The sweep Andy asked for after `E05-54`: tests that assert copy rather than
+ * behaviour, and would stay green while the screen tells a lie.**
+ *
+ * The pattern to look for is a sentence describing a *mechanism* — "it will close by itself",
+ * "we have sent your money" — where the assertion checks the words and nothing checks that the
+ * mechanism exists. Two were found in the money screens. This is the second.
+ *
+ * `cancel_order` records a refund at `pending` and disbursement is **manual** (`E06-46`); no
+ * code calls Razorpay's refund API. So a `pending` refund must never claim money has moved, and
+ * must not start a clock that has not started.
+ */
+describe('a pending refund never claims the money has moved', () => {
+  const refunded = (state: 'pending' | 'completed') =>
+    detail({ status: 'cancelled', refund: state, pickupCode: null });
+
+  it('does not say the money was sent while it is only approved', async () => {
+    await renderScreen(<OrderDetailScreen order={refunded('pending')} now={BEFORE} />);
+    expect(screen.queryByText(/we have sent/i)).toBeNull();
+    expect(screen.queryByText(/has gone back/i)).toBeNull();
+  });
+
+  it('quotes no day count from a clock that has not started', async () => {
+    // Disbursement is manual, so "5–7 working days" measured from cancellation is a deadline we
+    // invented. The number returns when something actually disburses on a schedule.
+    await renderScreen(<OrderDetailScreen order={refunded('pending')} now={BEFORE} />);
+    expect(screen.queryByText(/working days|business days/i)).toBeNull();
+  });
+
+  it('still distinguishes approved from actually refunded', async () => {
+    // The fix must not flatten the two states into one vague message — `completed` is the one
+    // where the parent really does have their money.
+    await renderScreen(<OrderDetailScreen order={refunded('completed')} now={BEFORE} />);
+    expect(screen.getByText(/has gone back to the way you paid/i)).toBeOnTheScreen();
   });
 });
