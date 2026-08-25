@@ -3,6 +3,8 @@ import { design } from '@graybag/shared';
 
 import { BrandPanel, Lockup, Skeleton } from '../components';
 import { Button } from '../components/Button';
+import { NON_ROUTE_SCREENS } from '../analytics/screens';
+import { useScreenView } from '../analytics/useScreenView';
 
 const { bg, text, scale, space, radius, layout, touchTarget, opacity } = design;
 
@@ -144,6 +146,8 @@ export function PaymentWaitingScreen({
   onRetry,
   testID = PAYMENT_WAITING_TEST_ID,
 }: PaymentWaitingScreenProps) {
+  useScreenView(NON_ROUTE_SCREENS.paymentWaiting);
+
   const state = paymentWaitingState({ pending, elapsedMs, failed, dismissed });
   const copy = COPY[state];
 

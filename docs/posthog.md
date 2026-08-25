@@ -105,6 +105,85 @@ Autocapture is off; nothing is sent that is not on this list.**
 | `payment_completed` | `checkout-status` returns `paid` | *(none — the settlement response does not carry the attempt, and a hardcoded `1` would be a lie for a resumed payment; ask `payment_started`)* |
 | `payment_abandoned` | Sheet dismissed, or checkout expired | `reason` (`dismissed` \| `expired` \| `failed`) |
 
+### `E15-21` — the path, not just the milestones
+
+Andy, 2026-08-26: *"so I can read a parent's whole path in sequence, not just the funnel
+milestones … enough that I can see someone reach checkout and turn back."*
+
+| Event | When | Properties beyond the common set |
+|---|---|---|
+| `screen_viewed` | Every screen, on focus | `screen` — a **closed vocabulary**, see below |
+| `add_to_cart_tapped` | Add control pressed | `line_count` (resulting) |
+| `remove_from_cart_tapped` | Remove pressed | `line_count` (resulting) |
+| `break_time_selected` | A break window chosen | *(none)* |
+| `place_order_tapped` | Place order pressed | `line_count` |
+| `payment_sheet_closed` | The Razorpay sheet closes, however it closes | `outcome` (`completed` \| `dismissed` \| `failed`) |
+| `add_child_submitted` | Add-child form submitted | *(none)* |
+
+**Turning back is `payment_sheet_closed` with `outcome: dismissed`**, followed by whatever
+`screen_viewed` comes next. That pair is the shape Andy asked to be able to see, and neither
+half is visible from the funnel milestones alone.
+
+#### Property VALUES are now checked, not just keys
+
+`screen` is the first string property in the schema, and a screen name is exactly where a
+child's name would reach a vendor — `screen: "Aarav's orders"` passes a key check perfectly. So
+enumerated properties are validated against a closed vocabulary and anything else is refused:
+
+- `screen`: `home`, `menu`, `school_picker`, `dish_detail`, `cart`, `orders`, `order_detail`,
+  `account`, `children`, `add_child`, `sign_in`, `sign_in_code`, `support`, `policy`,
+  `policy_gate`, `delete_account`, `payment_waiting`, `order_placed`, `update_required`,
+  `cant_connect`
+- `method`: `google`, `apple`, `email_otp`
+- `reason`: `dismissed`, `expired`, `failed`
+- `outcome`: `completed`, `dismissed`, `failed`
+
+This also catches the subtler version — a screen name built by interpolation rather than chosen
+from the list.
+
+#### Where `screen_viewed` is emitted from — two places, not one
+
+Fourteen screens are navigator routes, and one `onStateChange` listener in `RootNavigator`
+reports all of them. **Five are not routes at all** — `payment_waiting` and `order_placed` are
+states of the checkout flow, `update_required` and `cant_connect` are gates rendered above the
+whole app, and `school_picker` replaces the menu's body until a school is chosen — plus
+`sign_in_code`, which is a state of the sign-in screen. Those six emit themselves, through
+`useScreenView`.
+
+`screens.test.ts` asserts both directions: every name in the vocabulary is reachable from some
+emitter, and every route the navigator can reach has a name. A declared-but-unemitted screen
+would read on the dashboard as *a screen no parent ever visited*, which is worse than a missing
+row because it looks like data.
+
+#### Reading a zero: `cant_connect` will almost never arrive
+
+`App.tsx` renders that screen when the environment is incomplete — and that is the same
+condition that makes `readExpoClientEnv()` throw, which puts the analytics client on its no-op
+fallback. **The screen meaning "this build is misconfigured" is reported by a client the same
+misconfiguration switched off.** It is emitted anyway, because it costs nothing and becomes
+correct if the environment check ever becomes partial rather than all-or-nothing.
+
+Written down because an absent event and an impossible event look identical on a dashboard.
+Zero `cant_connect` rows is not evidence that nobody hit it.
+
+#### What the cart events deliberately do NOT carry
+
+`add_to_cart_tapped` is the event that would most naturally carry a dish, and *"which dish did
+they add"* is the obvious product question. It carries a **count**. `dish_name` and `dish_id`
+are in `FORBIDDEN_KEYS`, and the reason is that a cart belongs to a **child** — the parent is
+only the account holder. Dish-by-dish popularity is answerable from our own database, where the
+child is not the subject of an analytics profile.
+
+`break_time_selected` carries neither the break nor the school, for the same reason: *whether* a
+choice was made is the stall signal; *which* one is a detail about a child's day.
+
+#### Session replay remains OFF
+
+Andy, again, and it is worth repeating next to a change that adds screen tracking: replay
+records the screen, which on this app means **children's names and allergy notes as video**.
+`screen_viewed` sends a name from a fixed list of twenty strings. Those are not the same thing
+and the second is not a step towards the first.
+
 ### The common set, on every event
 
 | Property | Example | Why it is safe |

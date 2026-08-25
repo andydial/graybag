@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { track } from '../analytics/analytics';
+import { NON_ROUTE_SCREENS } from '../analytics/screens';
 import {
   AppState,
   Pressable,
@@ -132,11 +133,23 @@ export function SignInScreen({
     track('signin_started', { method: 'email_otp' });
   }, []);
 
+
   const { setSession } = useSession();
 
   const [step, setStep] = useState<'email' | 'code'>(() =>
     pending?.resendAt != null ? 'code' : 'email',
   );
+  /**
+   * `E15-21`. The code screen is a **state** of this screen, not a route, so the navigator's
+   * listener will never emit it — and it is the single most likely place to give up: the code
+   * has not arrived, or it went to the wrong inbox.
+   *
+   * Emitted on entering the step rather than on every render of it.
+   */
+  useEffect(() => {
+    if (step !== 'code') return;
+    track('screen_viewed', { screen: NON_ROUTE_SCREENS.signInCode });
+  }, [step]);
   const [email, setEmail] = useState(() => pending?.email ?? '');
   const [code, setCode] = useState(() => pending?.code ?? '');
   const [attemptsLeft, setAttemptsLeft] = useState(() => pending?.attemptsLeft ?? MAX_ATTEMPTS);

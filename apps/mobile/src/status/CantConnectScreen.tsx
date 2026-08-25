@@ -3,6 +3,8 @@ import { design } from '@graybag/shared';
 
 import { BrandPanel, Lockup } from '../components';
 import { Button } from '../components/Button';
+import { NON_ROUTE_SCREENS } from '../analytics/screens';
+import { useScreenView } from '../analytics/useScreenView';
 
 const { text, space, scale, radius, layout } = design;
 
@@ -50,6 +52,8 @@ export function CantConnectScreen({
   onRetry?: () => void;
   testID?: string;
 }) {
+  useScreenView(NON_ROUTE_SCREENS.cantConnect);
+
   return (
     <BrandPanel radius={radius.none} style={styles.panel} testID={testID}>
       <View style={styles.body}>

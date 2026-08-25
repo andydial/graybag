@@ -182,6 +182,19 @@ export async function runCheckout(
     });
 
     log('sheet closed', { outcome: sheet.outcome });
+    /**
+     * `E15-21`. **The sheet closing, however it closed** — the other half of `payment_started`.
+     *
+     * `outcome: 'dismissed'` paired with whatever `screen_viewed` follows IS the "reached
+     * checkout and turned back" shape Andy asked to be able to see, and neither half is visible
+     * from the funnel milestones alone.
+     *
+     * Distinct from `payment_completed`, which fires only when settlement is CONFIRMED against
+     * the provider. `completed` here means the handset said yes (`R8`) and nothing more.
+     */
+    track('payment_sheet_closed', {
+      outcome: sheet.outcome === 'cancelled' ? 'dismissed' : sheet.outcome,
+    });
 
     if (sheet.outcome === 'cancelled') {
       // §10.2. The order stays unpaid and the cart is intact — tapping Pay again is attempt 2

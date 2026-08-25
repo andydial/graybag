@@ -28,6 +28,19 @@
 /** Every event that may be sent. Adding one here is the deliberate act; nothing else is sendable. */
 export const ALLOWED_EVENTS = [
   'app_opened',
+  /**
+   * `E15-21`. Every screen, so a parent's path reads in sequence rather than as milestones —
+   * "reached checkout and turned back" is a *shape*, and it is invisible if only the funnel's
+   * corners are recorded.
+   */
+  'screen_viewed',
+  // The controls where somebody can stall or give up.
+  'add_to_cart_tapped',
+  'remove_from_cart_tapped',
+  'break_time_selected',
+  'place_order_tapped',
+  'payment_sheet_closed',
+  'add_child_submitted',
   'signin_started',
   'signin_completed',
   'child_added',
@@ -72,6 +85,48 @@ export const EVENT_PROPERTIES: Record<AllowedEvent, readonly string[]> = {
    */
   payment_completed: [],
   payment_abandoned: ['reason'],
+
+  // --- `E15-21` ---
+  screen_viewed: ['screen'],
+  /**
+   * Counts, never dishes. `dish_name` and `dish_id` are in `FORBIDDEN_KEYS`, and this is the
+   * event that would most naturally carry one — "which dish did they add" is the obvious
+   * product question and is exactly the per-child food profile s.9(3) forbids building. The
+   * cart belongs to a child; the parent is only the account holder.
+   */
+  add_to_cart_tapped: ['line_count'],
+  remove_from_cart_tapped: ['line_count'],
+  /** No break id and no school: whether a choice was made is the stall signal, not which. */
+  break_time_selected: [],
+  place_order_tapped: ['line_count'],
+  /** The other half of `payment_started`. `outcome` is where turning back becomes visible. */
+  payment_sheet_closed: ['outcome'],
+  /** Nothing, for the same reason `child_added` carries nothing. */
+  add_child_submitted: [],
+};
+
+/**
+ * **Allowed VALUES for the enumerated properties. `E15-21`.**
+ *
+ * Until now `checkEvent` validated property *keys* and let any value through, which was
+ * survivable while every property was a number or a bool. `screen` changes that: it is a
+ * string, and a screen name is exactly where a child's name reaches an analytics vendor —
+ * `screen: "Aarav's orders"` passes a key check perfectly.
+ *
+ * So enumerated properties are checked against a closed vocabulary. Anything else is refused,
+ * which also catches the subtler version: a screen name built by interpolation rather than
+ * chosen from a list.
+ */
+export const ENUM_VALUES: Record<string, readonly string[]> = {
+  screen: [
+    'home', 'menu', 'school_picker', 'dish_detail', 'cart', 'orders', 'order_detail',
+    'account', 'children', 'add_child', 'sign_in', 'sign_in_code', 'support', 'policy',
+    'policy_gate', 'delete_account', 'payment_waiting', 'order_placed', 'update_required',
+    'cant_connect',
+  ],
+  method: ['google', 'apple', 'email_otp'],
+  reason: ['dismissed', 'expired', 'failed'],
+  outcome: ['completed', 'dismissed', 'failed'],
 };
 
 /**
@@ -94,7 +149,7 @@ export const FORBIDDEN_KEYS = [
 const FORBIDDEN = new Set<string>(FORBIDDEN_KEYS.map((k) => k.toLowerCase()));
 
 export interface EventRejection {
-  reason: 'unknown_event' | 'forbidden_property' | 'undeclared_property';
+  reason: 'unknown_event' | 'forbidden_property' | 'undeclared_property' | 'forbidden_value';
   detail: string;
 }
 
@@ -120,11 +175,21 @@ export function checkEvent(
     ...EVENT_PROPERTIES[event as AllowedEvent],
   ]);
 
-  for (const key of Object.keys(properties)) {
+  for (const [key, value] of Object.entries(properties)) {
     if (FORBIDDEN.has(key.toLowerCase())) {
       rejections.push({ reason: 'forbidden_property', detail: key });
-    } else if (!allowed.has(key)) {
+      continue;
+    }
+    if (!allowed.has(key)) {
       rejections.push({ reason: 'undeclared_property', detail: key });
+      continue;
+    }
+    // A closed vocabulary where one exists — see `ENUM_VALUES`. The detail names the key, never
+    // the offending value: a rejection message is a log line, and the value is the thing we are
+    // refusing to let out.
+    const vocabulary = ENUM_VALUES[key];
+    if (vocabulary !== undefined && !vocabulary.includes(String(value))) {
+      rejections.push({ reason: 'forbidden_value', detail: key });
     }
   }
 

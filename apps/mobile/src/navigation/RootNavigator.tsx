@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useEffect, useMemo, useState, type ComponentType, useRef } from 'react';
 import { Platform } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -40,6 +40,7 @@ import { OrderPlacedScreen, placedOrder } from '../checkout/OrderPlacedScreen';
 import { PENDING_AFTER_MS, PaymentWaitingScreen } from '../checkout/PaymentWaitingScreen';
 import { useCheckout } from '../checkout/useCheckout';
 import { track } from '../analytics/analytics';
+import { screenNameFor } from '../analytics/screens';
 import { useBreakTimes } from '../cart/useBreakTimes';
 import { clashingAllergens, useAllergenWatchlist } from '../menu/useAllergenWatchlist';
 import { PolicyGateContainer } from '../policy/PolicyGateContainer';
@@ -728,8 +729,38 @@ function Tabs() {
  * resuming. The `intent` param is what lets the flow resume.
  */
 export function RootNavigator() {
+  /**
+   * `E15-21`. One listener for every screen, rather than a `useEffect` in each.
+   *
+   * `onStateChange` fires after every navigation, and `getCurrentRoute()` is the screen the
+   * parent is now looking at — including a tab switch, which is a screen change even though the
+   * stack did not move.
+   *
+   * **A route with no mapping sends nothing.** `screenNameFor` returns `null` for anything not
+   * vetted, which is the safe direction: a missing row in a path costs a question, an unvetted
+   * name is how a screen titled from data would reach a vendor.
+   *
+   * The ref guards a real case rather than a theoretical one: React Navigation emits state
+   * changes for reasons other than the route changing — a param update, a gesture that settles
+   * back — and each would otherwise be a duplicate row in the path.
+   */
+  const lastScreen = useRef<string | null>(null);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      onStateChange={(state) => {
+        if (state === undefined) return;
+        const route = state.routes[state.index ?? 0];
+        // The tab INSIDE `Tabs`, not the container: counting the container would double every
+        // tab view, and `Tabs` is not a screen anyone is on.
+        const nested = route?.state as { index?: number; routes?: { name: string }[] } | undefined;
+        const name = nested?.routes?.[nested.index ?? 0]?.name ?? route?.name;
+        const screen = screenNameFor(name);
+        if (screen === null || screen === lastScreen.current) return;
+        lastScreen.current = screen;
+        track('screen_viewed', { screen });
+      }}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {/* `Tabs` is deliberately not framed: the frame belongs to each tab's screen, below
             the tab bar's own inset handling. Framing here would put the status-bar padding
