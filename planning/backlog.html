@@ -5693,13 +5693,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/53</span>
+          <span class="meter-num">0/54</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 53 tasks</summary>
+        <summary>Context &amp; 54 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -6130,6 +6130,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A <code>production-apk</code> profile and a verified sideload build, so Andy can test today without Play.</strong> <code>production</code> emits an <code>.aab</code> for the Play Console, which cannot be installed directly, and Play submission is blocked on a service-account key (<code>E17-51</code>). <code>production-apk</code> extends it — same production environment, same <code>production</code> update channel, same live Razorpay key — and emits an APK. Built as <code>db632eb3</code> (version code 1786591934, from <code>0f5f89c</code>) and <strong>inspected before sending</strong>: the JS bundle carries the production Supabase host, <strong>zero</strong> occurrences of the staging host, and the live key, with the one <code>rzp_test</code> hit being <code>env.ts</code>&#39;s prefix constant. That check is not ceremony — <code>E17-57</code> was exactly this failure going unnoticed. <code>docs/android-sideload.md</code> carries the link, what to expect on the Account footer, and the two things that will otherwise waste his morning: pay in one flow because there is no resume path (<code>E05-54</code>), and Sunday is refused with the wrong message (<code>E05-55</code>)</span>
+      </li>
+      <li class="task" data-id="E17-59" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-59"></button>
+        <code class="tid">E17-59</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>ship-ota.sh</code> clears the bundler cache, because a warm one carries the previous build&#39;s environment.</strong> Found while pre-flighting <code>E15-21</code>: a local <code>expo export</code> run with <code>EXPO_NO_DOTENV=1</code> and three deliberate control values — a fake PostHog key, a fake Supabase URL, a fake anon key — produced a bundle carrying <strong>the real production key and the real production project ref</strong>, with all three controls absent. <code>EXPO_PUBLIC_*</code> values are inlined by Metro <strong>at transform time</strong>, so they are compiled into cached module output and a warm cache serves last time&#39;s values. Re-running with <code>--clear</code> produced all three controls and none of the stale values, which is how it was confirmed rather than assumed. This is the <code>.env</code> hazard <code>ship-ota.sh</code> already documents, through a different door and pointing the <strong>other way</strong> — that one leaked staging into production, this leaks production into a build that asked for something else, and the second is harder to catch because nothing on the command line is wrong. <code>--clear-cache</code> costs a couple of minutes per publish and removes the class. Two things carried into <code>docs/learnings.md</code>: the control strings are what caught it, the same technique that caught an earlier false negative on this exact check; and the seven new events were correctly present in <strong>both</strong> bundles because they were new and so could not be cached — the cache only lies about what did not change, which is exactly the set nobody re-checks</span>
       </li></ul>
       </details>
     </article>
