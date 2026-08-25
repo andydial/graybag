@@ -45,3 +45,41 @@ every parent and erased nothing.
 | # | Decision | Why |
 |---|---|---|
 | C20 | **`D10` ("guardian_link is the only path to a recipient") applies to live recipients only. An anonymised recipient is exempt** (`0062`, `assert_recipient_guardian_links`) | Erasure anonymises in place and revokes every guardian_link; the deferred `D10` constraint then refused at commit because zero links remained. Both halves were right in isolation, so one had to yield, and `D10` is a *reachability* rule — it exists so no recipient is orphaned where a guardian should be able to reach them. An anonymised row is not supposed to be reachable by anybody; it survives only so an invoice from March still resolves (`D15`). Requiring it to keep a guardian is requiring a deleted child to still belong to someone. The alternative — setting `deleted_at` instead — was rejected because `recipient_erasure.test.sql` pins `deleted_at is null` deliberately: *"an anonymised row is a live financial reference, a deleted one is a dangling key waiting to be cascaded away"*. The exemption is narrow: orphaning a live, un-anonymised child still fails, and that is asserted |
+
+## `C21` · analytics property **values** are a closed vocabulary, not just the keys — `E15-21`
+
+**2026-08-26.** `checkEvent` validated property *keys* against the allowlist and let any value
+through. That was survivable only while every declared property was a number or a boolean.
+
+`screen_viewed` broke the assumption. `screen` is the schema's first **string** property, and a
+screen name is precisely where a child's name reaches a vendor:
+
+```
+track('screen_viewed', { screen: "Aarav's orders" })   // passes a key check perfectly
+```
+
+So `ENUM_VALUES` declares the permitted values for the enumerated properties — `screen`,
+`method`, `reason`, `outcome` — and anything else is refused with a new `forbidden_value`
+reason. This also catches the subtler form, a name built by interpolation rather than chosen
+from a list.
+
+**The rejection names the key and never the value.** A rejection is a log line, and echoing the
+offending value would write the child's name into our own logs in order to explain why we kept
+it out of PostHog's. That is the same mistake one layer down, and it is tested.
+
+### Why the screen name is mapped rather than derived
+
+`screenNameFor` maps route names through a table and returns `null` for anything unmapped —
+rather than `route.name.toLowerCase()`, which would produce most of them correctly. **The map is
+the review.** Derivation would make the vocabulary decorative: whatever a navigator happened to
+be called would become an analytics value, and a route added next month would arrive unvetted.
+A missing screen costs one row in a path; an unvetted name is how a route ever titled from data
+would leak it.
+
+### Session replay stays off, and is now pinned rather than merely absent
+
+Replay records the screen, which on this app means children's names and allergy notes **as
+video** — the thing the whole design avoids, and squarely the behavioural monitoring of a child
+that s.9(3) prohibits. `$snapshot` is refused, as is anything `$`-prefixed, so replay and
+autocapture cannot be enabled without someone adding a name to the allowlist. Supersedes
+nothing; it makes explicit what `C19` assumed.
