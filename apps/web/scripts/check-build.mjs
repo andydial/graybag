@@ -166,6 +166,31 @@ if (home) {
   }
 }
 
+// ------------------------------------------------------------------ analytics placement
+//
+// `E12-38`. Andy: *"nothing on authenticated pages."*
+//
+// Analytics is imported by `index.astro` and must stay there. This asserts it, because "we only
+// imported it in one place" is a fact about today and a guard is a fact about every day — and the
+// pages it must never reach are the ones a parent signs in to.
+{
+  const analytics = files.filter((f) => f.rel.endsWith('.js') && readFileSync(f.path, 'utf8').includes('posthog'));
+  const AUTHENTICATED = ['signin', 'kitchen', 'orders', 'reports', 'dashboard', 'admin/'];
+
+  for (const page of html) {
+    const source = readFileSync(page.path, 'utf8');
+    const loadsAnalytics = analytics.some((a) => source.includes(a.rel));
+    const isAuthenticated = AUTHENTICATED.some((p) => page.rel.includes(p));
+
+    if (loadsAnalytics && isAuthenticated) {
+      fail(
+        `${page.rel} loads analytics. Authenticated pages must never be measured (E12-38) — ` +
+          `remove the import; it belongs on the marketing site only.`,
+      );
+    }
+  }
+}
+
 // --------------------------------------------------- third parties and stores
 
 for (const page of html) {

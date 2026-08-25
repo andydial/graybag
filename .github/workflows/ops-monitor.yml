@@ -1,0 +1,106 @@
+# Is production working — `E15-15`.
+#
+# Andy: *"Three times this month a complete outage was invisible until a human found it by reading
+# a log by hand."*
+#
+# ## Why GitHub Actions and not pg_cron
+#
+# `pg_cron` would need a migration, and migration numbers are held by the mobile thread this week.
+# It is also the wrong place for a reachability check: a scheduler that lives *inside* the database
+# cannot tell you the database is unreachable, and one that lives inside Supabase cannot tell you
+# Supabase is down. This runs somewhere else, which is the entire point of a monitor.
+#
+# ## Two schedules, deliberately
+#
+# **Every fifteen minutes**, the probes only — cheap, and fast enough that an outage is minutes old
+# when it is found rather than a day old. `ops-heartbeat` dedupes its own alerting to one email per
+# kind per IST day, so a sustained outage is one message, not ninety-six.
+#
+# **Once a day at 07:00 IST**, the digest — before the kitchen starts, so a bad night is known
+# before anyone cooks for it.
+#
+# ## The job fails loudly when a probe fails
+#
+# The email is the primary signal; a red workflow is the backstop, because the third outage on
+# Andy's list was a test suite that ran zero files and reported success. A monitor that can pass
+# without having checked anything is the same bug.
+
+name: Ops monitor
+
+on:
+  schedule:
+    # Every 15 minutes — reachability.
+    - cron: '*/15 * * * *'
+    # 01:30 UTC is 07:00 IST — the daily digest, before the kitchen starts.
+    - cron: '30 1 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'probe or digest'
+        required: false
+        default: 'probe'
+
+concurrency:
+  # A slow run must not stack up behind the next tick.
+  group: ops-monitor
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Decide the mode
+        id: mode
+        run: |
+          set -euo pipefail
+          # The daily cron is the only one that sends the digest; every other trigger probes.
+          if [ "${{ github.event.schedule }}" = "30 1 * * *" ]; then
+            echo "mode=digest" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=${{ github.event.inputs.mode || 'probe' }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run the heartbeat
+        env:
+          URL: ${{ secrets.PRODUCTION_SUPABASE_URL }}
+          SECRET: ${{ secrets.OPS_HEARTBEAT_SECRET }}
+          # Public by definition — it is shipped in the browser bundle. Sent only to satisfy the
+          # Supabase gateway, which verifies a JWT before the function runs. The real gate is
+          # OPS_HEARTBEAT_SECRET above.
+          ANON: ${{ secrets.PRODUCTION_SUPABASE_ANON_KEY }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${URL:-}" ] || [ -z "${SECRET:-}" ] || [ -z "${ANON:-}" ]; then
+            # Said out loud rather than skipped silently. A monitor that quietly does nothing is
+            # the exact failure being guarded against — see the header.
+            echo "::error::PRODUCTION_SUPABASE_URL, OPS_HEARTBEAT_SECRET or PRODUCTION_SUPABASE_ANON_KEY is not set. This monitor is NOT running."
+            exit 1
+          fi
+
+          body=$(mktemp)
+          status=$(curl -sS -o "$body" -w '%{http_code}' --max-time 60 \
+            -H "Authorization: Bearer ${ANON}" \
+            -H "apikey: ${ANON}" \
+            -H "x-ops-secret: ${SECRET}" \
+            "${URL}/functions/v1/ops-heartbeat?mode=${{ steps.mode.outputs.mode }}" || echo 000)
+
+          echo "HTTP ${status}"
+          cat "$body" | head -c 4000
+          echo
+
+          if [ "$status" = "000" ]; then
+            echo "::error::The heartbeat function could not be reached at all. Supabase may be down."
+            exit 1
+          fi
+          if [ "$status" = "401" ]; then
+            echo "::error::The heartbeat rejected the secret. Rotate OPS_HEARTBEAT_SECRET in both places."
+            exit 1
+          fi
+          if [ "$status" != "200" ]; then
+            # 503 is the function telling us a probe failed. It has already emailed; this makes it
+            # visible in a second place.
+            echo "::error::Production is not healthy — see the probe output above and the alert email."
+            exit 1
+          fi

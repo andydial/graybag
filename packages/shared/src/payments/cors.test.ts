@@ -127,6 +127,10 @@ describe('every browser-callable Edge Function', () => {
     'recipients',
   ];
   const NOT_BROWSER_CALLABLE = [
+    // `E15-15`. The health check and daily digest. Authenticated by a shared secret and called by
+    // a scheduler, never by a browser — advertising a preflight would describe a surface that
+    // must not exist, and it reads aggregates under the service role.
+    'ops-heartbeat',
     'payments-webhook',
     // `E06-37`. Settles orders, authenticated by the service-role key. Nothing in a browser may
     // call it, so advertising a preflight would describe a surface that must not exist.

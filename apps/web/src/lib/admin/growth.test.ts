@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { growth, istDate, linePath } from './growth.js';
+import { STUCK_LIMIT, growth, istDate, linePath } from './growth.js';
 import type { GrowthChild, GrowthLink, GrowthUser } from './growth.js';
 
 const TODAY = '2026-08-20';
 
-const user = (id: string, createdAt: string): GrowthUser => ({ id, createdAt });
+const user = (id: string, createdAt: string, email: string | null = `${id}@example.invalid`): GrowthUser =>
+  ({ id, createdAt, email });
 const child = (id: string, schoolId: string, createdAt = '2026-08-01T00:00:00Z'): GrowthChild =>
   ({ id, schoolId, createdAt });
 const link = (userId: string, recipientId: string): GrowthLink => ({ userId, recipientId });
@@ -167,5 +168,103 @@ describe('linePath', () => {
 
   it('returns nothing for an empty series', () => {
     expect(linePath([], 100, 50)).toBe('');
+  });
+});
+
+describe('the funnel (E11-15)', () => {
+  const paid = (userId: string, day: string, status = 'paid') =>
+    ({ customerUserId: userId, placedAt: `${day}T09:00:00Z`, status, totalPaise: 10000 });
+
+  const base = () => ({
+    users: [user('u1', '2026-08-01T06:00:00Z'), user('u2', '2026-08-01T06:00:00Z'),
+            user('u3', '2026-08-01T06:00:00Z'), user('u4', '2026-08-01T06:00:00Z')],
+    children: [child('c1', 's1'), child('c2', 's1'), child('c3', 's1')],
+    links: [link('u1', 'c1'), link('u2', 'c2'), link('u3', 'c3')],
+  });
+
+  const stepOf = (g: ReturnType<typeof growth>, key: string) => g.funnel.find((f) => f.key === key)!;
+
+  it('counts each step and the drop-off between them as a number', () => {
+    // Andy: "Show the drop-off between each step as a number, not just a percentage."
+    const b = base();
+    const g = growth(b.users, b.children, b.links, SCHOOLS, TODAY, [
+      paid('u1', '2026-08-05'), paid('u1', '2026-08-12'), paid('u2', '2026-08-06'),
+    ]);
+    expect(stepOf(g, 'registered').reached).toBe(4);
+    expect(stepOf(g, 'addedChild').reached).toBe(3);
+    expect(stepOf(g, 'addedChild').lost).toBe(1);
+    expect(stepOf(g, 'firstOrder').reached).toBe(2);
+    expect(stepOf(g, 'firstOrder').lost).toBe(1);
+    expect(stepOf(g, 'orderedAgain').reached).toBe(1);
+    expect(stepOf(g, 'orderedAgain').lost).toBe(1);
+  });
+
+  it('does not count an unpaid order as a conversion', () => {
+    // Reaching checkout and never paying is not buying anything. Counting it would make the
+    // funnel flatter than the business actually is, which is the one direction it must not lie in.
+    const b = base();
+    const g = growth(b.users, b.children, b.links, SCHOOLS, TODAY, [
+      paid('u1', '2026-08-05', 'pending_payment'), paid('u2', '2026-08-05', 'cancelled'),
+    ]);
+    expect(stepOf(g, 'firstOrder').reached).toBe(0);
+  });
+
+  it('counts preparing and delivered as having ordered', () => {
+    const b = base();
+    const g = growth(b.users, b.children, b.links, SCHOOLS, TODAY, [
+      paid('u1', '2026-08-05', 'preparing'), paid('u2', '2026-08-05', 'delivered'),
+    ]);
+    expect(stepOf(g, 'firstOrder').reached).toBe(2);
+  });
+
+  it('gives every step something to do about the people who dropped', () => {
+    // "Every alert must name what to do about it" applies to a funnel too — a step that only
+    // states a number is a step nobody acts on.
+    const b = base();
+    const g = growth(b.users, b.children, b.links, SCHOOLS, TODAY, []);
+    for (const s of g.funnel) expect(s.action.length, s.key).toBeGreaterThan(20);
+  });
+
+  it('has no rate on the first step, and none when the step before was empty', () => {
+    const g = growth([], [], [], SCHOOLS, TODAY, []);
+    expect(stepOf(g, 'registered').rate).toBeNull();
+    expect(stepOf(g, 'addedChild').rate).toBeNull();
+  });
+
+  it('counts a parent active only if they ordered in the last seven days', () => {
+    const b = base();
+    const g = growth(b.users, b.children, b.links, SCHOOLS, TODAY, [
+      paid('u1', '2026-08-19'),  // within 7 of 2026-08-20
+      paid('u2', '2026-08-01'),  // long before
+    ]);
+    expect(g.activeParents).toBe(1);
+  });
+
+  it('lists stuck parents by email, newest first, and nothing about a child', () => {
+    const users = [
+      user('old', '2026-08-01T06:00:00Z', 'old@example.invalid'),
+      user('new', '2026-08-19T06:00:00Z', 'new@example.invalid'),
+      user('has', '2026-08-10T06:00:00Z', 'has@example.invalid'),
+    ];
+    const g = growth(users, [child('c1', 's1')], [link('has', 'c1')], SCHOOLS, TODAY, []);
+    expect(g.stuck.map((s) => s.email)).toEqual(['new@example.invalid', 'old@example.invalid']);
+    // The shape carries an address and a date. There is nowhere to put a child even by mistake.
+    expect(Object.keys(g.stuck[0]!).sort()).toEqual(['email', 'registered']);
+  });
+
+  it('caps the stuck list, because it is a worklist and not an export', () => {
+    const many = Array.from({ length: 60 }, (_, i) =>
+      user(`u${i}`, '2026-08-01T06:00:00Z', `p${i}@example.invalid`));
+    const g = growth(many, [], [], SCHOOLS, TODAY, []);
+    expect(g.stuck).toHaveLength(STUCK_LIMIT);
+  });
+
+  it('averages only over orders that were paid', () => {
+    const b = base();
+    const g = growth(b.users, b.children, b.links, SCHOOLS, TODAY, [
+      { customerUserId: 'u1', placedAt: '2026-08-05T09:00:00Z', status: 'paid', totalPaise: 20000 },
+      { customerUserId: 'u2', placedAt: '2026-08-05T09:00:00Z', status: 'pending_payment', totalPaise: 99999 },
+    ]);
+    expect(g.averageOrderPaise).toBe(20000);
   });
 });

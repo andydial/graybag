@@ -1978,13 +1978,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/18</span>
+          <span class="meter-num">0/20</span>
         </div>
       </header>
       <p class="summary">Because Andy is not a developer, the system has to be able to explain its own failures in plain English.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 18 tasks</summary>
+        <summary>Context &amp; 20 tasks</summary>
         <div class="context"><h4>Approach</h4>
 <p>Sentry for errors across app/web/backend, Supabase dashboard for query performance, Better Stack for uptime. The multiplier is that <strong>Sentry and Supabase both have MCP servers</strong> — wired into Claude Code, a plain-English question like &quot;orders from St. Xavier&#39;s stopped going through around 9pm yesterday, find out why&quot; can be answered by querying errors, logs and the database directly.</p></div>
         <ul class="tasks">
@@ -2044,7 +2044,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Performance monitoring: slow queries, slow API calls, app cold start, tracked over time</span>
       </li>
-      <li class="task" data-id="E15-08" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E15-08" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-08"></button>
         <code class="tid">E15-08</code>
         
@@ -2076,7 +2076,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Product analytics: install -&gt; signup -&gt; first order funnel, checkout drop-off, OTP completion rate. Privacy-respecting, with children&#39;s data explicitly excluded (<code>E20-10</code>)</span>
       </li>
-      <li class="task" data-id="E15-12" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E15-12" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-12"></button>
         <code class="tid">E15-12</code>
         
@@ -2106,11 +2106,27 @@
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>The PII guard for crash reporting, built before the reporter.</strong> Andy, 2026-08-16: *&quot;assert no child&#39;s name, class, section or allergy can reach it. That guard matters more than the reporting.&quot;* <code>packages/shared/src/observability/scrub.ts</code> removes tier P and tier S fields <strong>by key, at any depth</strong>, plus emails and Indian phone numbers by value. By key rather than by value because value-matching cannot work: a child called &quot;Sweep&quot; and a dish called &quot;Sweet corn&quot; are both just words, and the filter that tries to tell them apart misses real names and mangles innocent text. The structure is what we know, because our own schema chose the field names. Nine tests, and the one that matters most reads <code>0001_initial_schema.sql</code> and <strong>fails when a <code>recipient</code> column carrying a name, class, section, allergy, phone or email is not covered</strong> — the real failure mode is a migration adding a personal column and nobody updating the list. Also asserted: it keeps what makes a report worth having (screen, error code, HTTP status, order ref, total, dish name), survives a cycle rather than hanging (a crash reporter that hangs on a crash is worse than none), preserves an <code>Error</code>&#39;s message and stack (spreading one loses exactly what the report is for), and bounds depth. The free-text limit is stated as a limit, not papered over: <code>Aarav</code> in a message is indistinguishable from any other word, so the defence there is that we do not put a child&#39;s name into messages</span>
+        <span class="ttext"><strong>Know production is broken before a parent says so.</strong> Andy: *&quot;Three times this month a complete outage was invisible until a human found it by reading a log by hand — settlement failing on every attempt, every confirmation email 403ing, an entire test suite running zero files.&quot;* All three share one shape: <strong>the system reported nothing, and nothing is what a healthy system reports.</strong> So the rule everything here is built on is that <strong>silence must be impossible</strong> — every run produces a verdict and the digest is sent on a quiet day too, one line saying it was quiet. <strong><code>ops-heartbeat</code></strong>, one Edge Function, two modes. <code>?mode=probe</code> runs seven checks that <strong>exercise rather than ping</strong>: the marketing page must contain its own headline, <code>/signin</code> and <code>/kitchen</code> must render, two Edge Functions must answer in the shape their callers expect, a database read must return a row, and <strong>Resend must report the <code>ORDER_EMAIL_FROM</code> domain as verified</strong> — which is precisely the outage that 403&#39;d every confirmation for a day (<code>E12-34</code>) and would have been caught in fifteen minutes. <code>?mode=digest</code> adds yesterday&#39;s orders, revenue, failed payments, drain depth and alerts raised, and emails it to <code>SUPPORT_ALERT_EMAIL</code>. Escalation reuses <code>sendMoneyAlert</code>, which dedupes once per kind per IST day, so a sustained outage is one email rather than ninety-six: a down endpoint, a <strong>captured payment with no order</strong>, a drain backlog over 20, and the digest itself failing to send. <strong>Every probe carries a <code>remedy</code> and the type makes it awkward to add one without.</strong> Scheduled by GitHub Actions — every 15 minutes for the probes, 07:00 IST for the digest — deliberately <strong>outside</strong> Supabase, because a scheduler living inside the thing it watches cannot report that the thing is down, and because <code>pg_cron</code> would have needed a migration in a week when migration numbers are held elsewhere. <strong>No migration was written:</strong> <code>ops_alert.kind</code> is free text by design (<code>0056</code>), so five new alert kinds were a code change. Verified end to end on staging: gateway 401 without a token, <strong>my own 401 with a wrong secret</strong>, seven probes green, a genuine failure escalating to a <code>sent</code> <code>ops_alert</code>, and a quiet-day digest delivered. The first version of the <code>policy</code> probe expected a GET 200 and failed against a healthy staging — the false alarm that teaches people to ignore a monitor, caught here rather than at 3am</span>
       </li>
       <li class="task" data-id="E15-16" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-16"></button>
         <code class="tid">E15-16</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Set <code>OPS_HEARTBEAT_SECRET</code>, <code>PRODUCTION_SUPABASE_URL</code> and <code>PRODUCTION_SUPABASE_ANON_KEY</code> as GitHub Actions secrets.</strong> Until they exist the monitor <strong>fails loudly on every run</strong> rather than skipping quietly, which is deliberate — a monitor that silently does nothing is the exact failure it exists to prevent. The same secret must be set on the production Supabase project; the deploy below does that half</span>
+      </li>
+      <li class="task" data-id="E15-18" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-18"></button>
+        <code class="tid">E15-18</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The PII guard for crash reporting, built before the reporter.</strong> Andy, 2026-08-16: *&quot;assert no child&#39;s name, class, section or allergy can reach it. That guard matters more than the reporting.&quot;* <code>packages/shared/src/observability/scrub.ts</code> removes tier P and tier S fields <strong>by key, at any depth</strong>, plus emails and Indian phone numbers by value. By key rather than by value because value-matching cannot work: a child called &quot;Sweep&quot; and a dish called &quot;Sweet corn&quot; are both just words, and the filter that tries to tell them apart misses real names and mangles innocent text. The structure is what we know, because our own schema chose the field names. Nine tests, and the one that matters most reads <code>0001_initial_schema.sql</code> and <strong>fails when a <code>recipient</code> column carrying a name, class, section, allergy, phone or email is not covered</strong> — the real failure mode is a migration adding a personal column and nobody updating the list. Also asserted: it keeps what makes a report worth having (screen, error code, HTTP status, order ref, total, dish name), survives a cycle rather than hanging (a crash reporter that hangs on a crash is worse than none), preserves an <code>Error</code>&#39;s message and stack (spreading one loses exactly what the report is for), and bounds depth. The free-text limit is stated as a limit, not papered over: <code>Aarav</code> in a message is indistinguishable from any other word, so the defence there is that we do not put a child&#39;s name into messages</span>
+      </li>
+      <li class="task" data-id="E15-19" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-19"></button>
+        <code class="tid">E15-19</code>
         
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
@@ -2124,9 +2140,9 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The analytics contract, as an allowlist, before any event is wired.</strong> Andy, 2026-08-25: *&quot;No child&#39;s identity or attributes may ever reach PostHog … A test must fail if a child field can be attached to any event, property, or person profile.&quot;* <code>packages/shared/src/analytics/events.ts</code> declares nine events and their exact properties; anything not on the list is refused. <strong>An allowlist rather than a denylist, and the distinction is the whole design</strong>: <code>observability/scrub.ts</code> filters a crash payload, which is whatever the runtime hands you, so stripping what you recognise is the best available move. Analytics is the opposite — we author every event, so an undeclared property is a mistake, not an unknown. A denylist fails *open* on a field nobody thought of (<code>nickname</code>, <code>birthday</code>, <code>class_teacher</code>) and the first anyone knows is a child&#39;s name in a third-party dashboard; an allowlist fails closed. 22 tests, including: every child field refused on every event; <strong>any</strong> person property refused, because <code>identify()</code> attaches a property to every event that identity ever sends, past and future; camelCase caught as well as snake_case, since the API layer and the components disagree about which they speak; and the <code>FORBIDDEN_KEYS</code> list checked against the real <code>recipient</code> columns in <code>0001</code>, so a migration adding a personal column cannot open a hole by nobody noticing. <code>child_added</code> deliberately carries <strong>no</strong> properties — it is the one event whose name invites a school, a class, a count, and each of those is an attribute of a child when the funnel question is only whether the step happened</span>
       </li>
-      <li class="task" data-id="E15-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-18"></button>
-        <code class="tid">E15-18</code>
+      <li class="task" data-id="E15-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-20"></button>
+        <code class="tid">E15-20</code>
         
         
         <span class="badge r-later">later</span>
@@ -4603,13 +4619,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/14</span>
+          <span class="meter-num">0/15</span>
         </div>
       </header>
       <p class="summary">A monthly PDF emailed to each school. Aggregates only, no child-level PII. Designed to sell the benefit of the partnership.</p>
       <p class="deps">Depends on <code>E07</code></p>
       <details>
-        <summary>Context &amp; 14 tasks</summary>
+        <summary>Context &amp; 15 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Decided against a school login portal — the PDF lands in the principal&#39;s inbox instead of waiting to be discovered.</p></div>
         <ul class="tasks">
@@ -4724,6 +4740,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Sales shows paid orders only, and schools by their code.</strong> Three things Andy reported. <strong>(1) &quot;Date filter is not working.&quot;</strong> It works — driving the live page with a real session, <code>2026-08-22</code>–<code>24</code> gives &quot;No paid orders in this range&quot; and <code>15</code>–<code>16</code> gives 3. It *looked* broken because all six production orders were placed inside one week, so every wide range returns the same set, and because the screen said &quot;6 orders placed&quot; beside &quot;₹42.00 net&quot; — one paid order&#39;s worth. That contradiction was the real complaint, and (3) removes it. The status line now echoes the active range so a change is visible even when the numbers are unchanged. <strong>(2) School labels.</strong> <code>groupRows</code> labelled school buckets with the full name, and &quot;Amity International, Mohali&quot; on a chart axis beside &quot;Gem Public School&quot; is unreadable at any width. The axis now shows <code>school.code</code> upper-cased — short, unique and already the identifier the importer matches on — while the table and every tooltip keep the full name. A refused school read falls back to the name rather than showing a bare uuid. <strong>(3) Unpaid orders removed.</strong> *&quot;This report is &#39;Sales&#39; — it does not make sense to show unpaid orders here.&quot;* Correct: <code>grossPaise</code> had always excluded them, but the <strong>counts</strong> did not, which is exactly why the screen contradicted itself. <code>Bucket</code> gains an explicit <code>paid</code> — stated rather than derived, because three screens were each computing <code>orders - cancelled - pending</code> and that subtraction becomes quietly wrong the day a status is added. Headline, charts and table are all paid-only; the Unpaid and Cancelled columns are gone. Also fixed: the table reversed its rows for &quot;newest first&quot;, which on the school axis inverted the value ranking and put the smallest school above the largest, contradicting the chart beside it</span>
+      </li>
+      <li class="task" data-id="E11-15" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-15"></button>
+        <code class="tid">E11-15</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The adoption funnel, with the drop-off as a count.</strong> Andy: *&quot;Registered parents → parents who added at least one child → parents who placed a first order → parents who ordered again. Show the drop-off between each step as a number, not just a percentage. A parent who registered and never added a child is someone I can email.&quot;* Added to <code>/admin/growth</code> rather than a new screen — it is already the separate page <code>/admin/people</code> was told to stay out of. Every step counts <strong>accounts</strong>, carries the number who stopped there, and names <strong>what to do about them</strong>, because a step that states only a number is a step nobody acts on. <strong>An unpaid order is not a conversion:</strong> counting a parent who reached checkout and never paid would make the funnel flatter than the business is, which is the one direction it must not lie in. Plus parents active in the last 7 days, paid orders per day, and average order value over paid orders only. <strong>The stuck list is the one place a personal detail appears</strong> — an email, capped at 25, newest first, and its shape has nowhere to put anything about a child even by accident. The page intro used to promise &quot;no parent is named&quot;, which stopped being true the moment that list existed, and now says exactly what is shown and why</span>
       </li></ul>
       </details>
     </article>
@@ -4736,13 +4760,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/37</span>
+          <span class="meter-num">0/39</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 37 tasks</summary>
+        <summary>Context &amp; 39 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -5041,6 +5065,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The home page motion never ran in production, and the fix for it had made a heading unreadable.</strong> Andy, on the live site: *&quot;Nothing moves / transitions on the home page. &#39;Your school gets its own menu&#39; has bad contrast with background and can&#39;t be read.&quot;* Two unrelated causes, both found by probing the deployed site rather than the local build. <strong>(1)</strong> <code>netlify.toml</code> sends <code>script-src &#39;self&#39;</code> and <code>E12-35</code>&#39;s script was <code>is:inline</code>, so the browser refused it — <code>html.js</code> was never added, nothing was ever hidden, and nothing ever animated. It worked locally because a static file server sends no CSP. The code moved to <code>src/lib/site/motion.ts</code> and is now imported by a bundled <code>&lt;script&gt;</code>, served from the origin. <code>check-build.mjs</code> fails the build on any inline <code>&lt;script&gt;</code> without <code>src</code> (JSON-LD excepted), so this cannot come back — and that guard was itself first written *after* the <code>process.exit(1)</code> that ends the report, where it could never fire; it was proven by injecting a script into <code>dist/</code> and watching it fail. <strong>(2)</strong> The reveal rule was <code>[data-reveal] &gt; *</code>, specificity (0,1,1), which beat <code>.pattern--deep</code>&#39;s <code>opacity: 0.11</code> at (0,1,0) and painted the decorative vegetable pattern at <strong>nine times</strong> its intended strength directly behind that heading. Scoped to <code>&gt; .wrap</code>, so it can only ever touch the content column. Also: the failsafe went from three seconds to ten, because at three it fired before a reader had scrolled and revealed every section — the safety net was switching the feature off on every normal visit. Motion is now richer per Andy&#39;s grayspark.ai reference: hero stagger on load, per-child stagger via <code>--i</code>, the process rail drawing with <code>scaleX</code>, count-up on the ledger&#39;s 2 and 7, and hero device drift on scroll — all transform/opacity only. Verified on the built output: 1 of 6 sections revealed at load and 6 after scrolling, pattern back at <code>0.11</code>, count-up sampling <code>0,2,3,5,6,7</code>, and under emulated <code>prefers-reduced-motion</code> a single sample of <code>7</code> with no reveal at all</span>
+      </li>
+      <li class="task" data-id="E12-38" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-38"></button>
+        <code class="tid">E12-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Marketing analytics, into the shared PostHog project.</strong> Andy: *&quot;enough to tell me where school enquiries come from. Privacy-respecting, no third-party tracking of parents, and nothing on authenticated pages&quot;*, then *&quot;Use PostHog… the mobile thread is standing it up, so share one project and one account.&quot;* <strong>The SDK was tried and rejected by the performance budget.</strong> <code>posthog-js</code> is <strong>88 KB gzipped</strong> — 8.8× the per-page JavaScript budget — and took the home page&#39;s first load from 244 KB to 507 KB, past the 400 KB ceiling. <code>check-build.mjs</code> refused it, correctly: that budget exists for a mid-range Android on patchy mobile data (<code>P11</code>), and 88 KB of analytics on the page that sells to schools is the exact trade it was written to prevent. PostHog&#39;s capture endpoint is a plain JSON POST, so two events are <strong>1,936 B</strong> of our own code into the same project the app uses. **Proxied through <code>/ingest/*</code>** by <code>netlify.toml</code>, so the browser only ever talks to graybag: <code>script-src &#39;self&#39;</code> untouched, <code>connect-src</code> unwidened, no third-party host in the HTML, and it survives the ad-blockers that drop <code>*.posthog.com</code>. <strong>No cookies and no storage</strong> — nothing to consent to under DPDP and no banner; the honest cost is that a returning visitor counts as a new one, and &quot;where do enquiries come from&quot; does not need people counts. <code>navigator.doNotTrack</code> is honoured. The referrer is reduced to its <strong>host</strong>, because a full referrer can carry a search query somebody typed, and no field an enquirer typed is ever sent. <strong>Marketing pages only</strong>, and <code>check-build.mjs</code> now fails the build if an authenticated page ever loads it — a guard rather than an intention</span>
+      </li>
+      <li class="task" data-id="E12-39" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-39"></button>
+        <code class="tid">E12-39</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Share the PostHog project key</strong> as <code>PUBLIC_POSTHOG_KEY</code> in Netlify (production context). Until it is set the analytics code returns immediately and nothing is collected, so the site is unaffected. The mobile thread owns the project; this needs the same one</span>
       </li></ul>
       </details>
     </article>

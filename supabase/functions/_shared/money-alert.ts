@@ -44,7 +44,15 @@ import type { SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 export type MoneyAlertKind =
   | 'settlement_stuck'
   | 'refund_unrecordable'
-  | 'partial_refund_refused';
+  | 'partial_refund_refused'
+  // `E15-15`. Raised by `ops-heartbeat` rather than by a money path, but they belong in the same
+  // channel and the same once-per-day dedupe: they are the things that must reach Andy today.
+  // `ops_alert.kind` is deliberately free text (`0056`), so adding one needs no migration.
+  | 'endpoint_down'
+  | 'payment_without_order'
+  | 'settlement_retried'
+  | 'email_undelivered'
+  | 'drain_backlog';
 
 export interface MoneyAlert {
   kind: MoneyAlertKind;
@@ -58,6 +66,11 @@ const SUBJECTS: Record<MoneyAlertKind, string> = {
   settlement_stuck: 'GrayBag: money captured and not recorded',
   refund_unrecordable: 'GrayBag: a refund could not be recorded',
   partial_refund_refused: 'GrayBag: a partial refund was refused and is unrecorded',
+  endpoint_down: 'GrayBag: something customers use is not responding',
+  payment_without_order: 'GrayBag: a payment was captured with no order',
+  settlement_retried: 'GrayBag: a settlement has failed more than once',
+  email_undelivered: 'GrayBag: transactional email is not being delivered',
+  drain_backlog: 'GrayBag: the payment drain queue is backing up',
 };
 
 /** The IST calendar date, as `YYYY-MM-DD`. See the header for why not UTC. */

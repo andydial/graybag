@@ -166,9 +166,11 @@ export {
 export {
   GROWTH_CHILD_COLUMNS,
   GROWTH_LINK_COLUMNS,
+  GROWTH_ORDER_COLUMNS,
   GROWTH_USER_COLUMNS,
   fetchGrowth,
   type GrowthData,
+  type GrowthOrder,
 } from './admin-growth.js';
 
 // Per-school configuration with visible inheritance (`E10-06`). Deliberately does NOT call
