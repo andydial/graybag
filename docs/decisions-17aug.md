@@ -148,6 +148,384 @@ time.
 
 ---
 
+## D-17G — egg, peanut and sesame added; and why egg needed adding twice over
+
+`0064`. `0063` seeded the four codes that happened to be sitting in `supabase/seed.sql` — a list a
+fixture carried, not one anybody chose.
+
+**Egg is the one that mattered.** Nine production dishes visibly contain egg and there was no code
+to tag them with: `admin-dish` would have refused `egg` as unknown, correctly and uselessly.
+
+`dish.food_type = 'egg'` and `allergen.code = 'egg'` are **different facts and both are needed**:
+
+- `food_type` is a dietary classification of the whole dish — the thing an Indian menu filters on,
+  read by a family deciding whether the dish is for them at all;
+- `allergen` is a safety fact about an ingredient, and the half a specific child's record is
+  matched against.
+
+A cake made with egg is `food_type: 'veg'` and carries the egg allergen. Collapsing the two would
+mean either mislabelling cakes as egg dishes or leaving egg-allergic children nothing to match on.
+
+**Peanut is its own code, not a kind of tree nut.** A peanut is a legume; a great many people are
+allergic to one and not the other. `tree_nut` on a groundnut sauce tells a peanut-allergic family
+nothing while alarming a family that only avoids cashews.
+
+### The bug adding egg exposed
+
+The guesser matched **substrings**, and `"veggies"` contains `"egg"`. Every vegetable dish in the
+catalogue would have been suggested as containing egg — on the screen whose entire job is to be
+trusted about allergens. A test caught it; a menu would not have. Short and collision-prone words
+now match whole-word only, and `nut` is cancelled on "peanut"/"groundnut".
+
+---
+
+## D-17H — allergens: the data is v1, the matching is not
+
+Andy's correction. The scope doc read "allergen blocking warnings (tags still import)", which was
+being read as *allergens are deferred*. The split is:
+
+**In v1** — a parent recording their child's allergies (`E05-01`), the kitchen tagging dishes
+(`E10-33`), and the kitchen *seeing* those allergens on the board and the packing sheet (`E09-33`).
+`E09-33` and `E10-33` were added to the MVP list on this instruction; both markdown tags and
+`check-mvp.mjs` updated together, since the script asserts the two agree and rewrites neither.
+
+**Fast-follow** — the automatic match: the cart warning, the menu filter, the blocking
+(`E05-25`, `E05-31`).
+
+`check:launch` said an untagged dish means "a menu shows no warning", which implied the automatic
+warning exists. Reworded, and the reasoning inverted to the one that actually holds: **because the
+matching is deferred, the tags are the entire mechanism.** A kitchen hand reads the badge and acts
+on it — that is a person doing the matching, and on day one it is the only thing doing it. That
+makes an untagged dish a bigger problem in v1 than it would be with matching switched on, not a
+smaller one.
+
+---
+
+## D-17I — six dishes are marked veg and contain egg; I reported it and did not change it
+
+Found by the final `check:launch`. All 79 dishes are now marked — 76 `veg`, 3 `egg` — and six of
+the `veg` ones name egg in their own ingredient list:
+
+| Dish | Ingredients |
+|---|---|
+| **Boiled Eggs (3 pcs)** | **Eggs, salt** |
+| Scrambled Egg w Toast | Eggs, milk, butter, bread |
+| Boiled Egg Mix In Brown Wheat Multigrain Sub Sandwich | Boiled Egg, Cucumber, … |
+| French Toast with Choco Syrup | Bread, eggs, milk, sugar |
+| Pancakes w Honey | Flour, milk, eggs, sugar, honey |
+| Chocolate Muffin | Flour, cocoa powder, milk, eggs |
+
+`review/food-types.csv` proposed **`egg` at high confidence for every one of them**, so whatever
+was applied overrode the proposal rather than missing it.
+
+**I did not change them.** Food type is Andy's data and he said so explicitly; a wrong veg marking
+is the worst error this product can make and that cuts both ways — me silently relabelling six
+dishes on production would be the same class of act. So it is reported, precisely, and left.
+
+What I did add is the check that catches it. The unmarked-dish blocker could never have: the dish
+*is* marked, the count is complete, the report goes green. `check:launch` now runs the same
+classifier that generates the proposal CSV and reports **high-confidence contradictions only** — a
+mayonnaise caveat or a dish with no ingredient list never appears, so what is left is a direct
+disagreement between the label and the ingredients. Only the misleading direction blocks; a dish
+marked `egg` whose list reads vegetarian is over-cautious, and over-cautious is not a blocker.
+
+The three arguable ones are arguable in one direction only. Indian bakeries label *eggless*
+explicitly precisely because egg-containing baked goods are not vegetarian to the people checking.
+"Boiled Eggs (3 pcs)" is not arguable at all.
+
+---
+
+## D-17J — still no captured payment on production
+
+`payment` now has one row, `status = created`, `captured_at` null. All three orders are
+`cancelled`. So the checkout reaches Razorpay and the order is created, and nothing comes back —
+the same shape as yesterday, one step further along. There is still no paid order and therefore
+nothing on the kitchen board.
+
+---
+
+## D-17K — 77 dish photos on production, through the app's own upload path
+
+`E16-55`. Production had zero dish images and the parent-facing menu rendered every dish blank —
+a visible downgrade from the app parents use today.
+
+**Matching is by `legacy_bubble_id`, and it cannot be wrong.** All 79 production dishes carry one
+and every manifest entry carries the same Bubble id, so this is an exact join, not a name match.
+`matchDishes` is reused from `upload.mjs` rather than reimplemented; it takes the id outright and
+only ever falls back to an exact — never fuzzy — name where no id exists. None did.
+
+Proven rather than asserted: after the run, every dish's stored `asset.checksum_sha256` was
+compared against the manifest entry **for that dish's own legacy id**. 77 matched, 0 mismatched.
+A contact sheet of all 79 name-and-photo pairs was rendered and read; every photo suits its dish.
+
+### Through the Edge Function, not around it
+
+`upload.mjs` already existed and would have done this in one command — but it writes to Storage
+and `asset` itself with the service role, which since `E10-24` is a **second write path** into the
+same three places. So `upload-via-api.mjs` drives `admin-dish-image`, the same function
+`/admin/menus` calls: same `dish.edit` check under a real operator session, same allowlist, same
+ceiling, same orphan cleanup. It writes to no table. `upload.mjs` is marked superseded rather than
+deleted — it carries the history and the tests.
+
+Checksums are verified against the manifest **before** anything uploads, and one mismatch aborts
+the whole run. The manifest is the only auditable record that these bytes came off the legacy CDN.
+
+### The photos are 120 pixels tall, and that is the ceiling
+
+Every one of the 82. Fetching the original URL with no size parameter returns 180×120, and
+`?w=1200` returns identical bytes — there is no larger original, and the Bubble export is CSVs of
+URLs rather than binaries. So "resized" is a no-op here: `prepareDishImage` downscales only above
+1280px, and re-encoding a thumbnail would lose quality for nothing. They are uploaded unmodified.
+
+This reaches parity with the current app, because these are the images it shows. It will still
+look soft on a modern phone. **That is a re-shoot decision, not a code one.**
+
+### What has no photo
+
+Two dishes: **Aloo Channa Chat (White And Black Channa)** and **Brown Wheat Pasta With Mushroom
+And Pesto Cream Sauce**. Both 403 permanently at the legacy CDN and were never mirrored.
+
+The README said three. Only two reach production: the legacy catalogue holds two records for the
+Tomato/Cucumber sandwich under different ids, one mirror failed and one succeeded, and the dish
+that was imported carries the id that succeeded. The id join resolved that; a name match would
+have had two candidates and had to guess.
+
+### Five pairs share a photo, legitimately
+
+Choco Muffin / Chocolate Muffin, Hot Choco Milk / Hot Chocolate Chocolate, Mango Shake / Mango
+Shake (Seasonal), Rajma Rice / Rajma With Rice Or Prantha, Strawberry Shake / Strawberry Shake
+(Seasonal). Each matched its own id; both legacy records simply pointed at the same file. They
+look like duplicate dishes in the catalogue, which is worth a look but is not an image problem.
+
+---
+
+# The back-office UX review — 17/18 August
+
+Andy, away overnight: review and redesign every back-office and kitchen screen plus the marketing
+home page. Decide, record, keep going.
+
+## D-17L — the admin screens had no working type scale at all
+
+Before designing anything: **14 `var(--gb-…)` names used across every back-office stylesheet do
+not exist.** `--gb-text-muted`, `--gb-font-size-sm`, `--gb-font-weight-semibold`,
+`--gb-font-size-base`, `--gb-font-bold` and nine more. The real names are `--gb-text-secondary`,
+`--gb-font-size-body-sm`, `--gb-font-weight-body-strong`.
+
+An undefined custom property does not error. The declaration is dropped and the element keeps what
+it inherited, so the page renders — just not as written. The effect on `/admin/menus` was that
+**every line of every dish rendered at the same size, the same weight and the same colour**, which
+is precisely how it looked and precisely what makes it unscannable. "Everything is the same
+weight" was not a layout problem. It was that the type scale had never once been applied.
+
+Nothing could have caught it: not lint, not the build, not the a11y gate — inherited black on
+white passes contrast — and the page looks plausible, just flat. So
+`scripts/check-css-tokens.mjs` now fails on any `var(--gb-…)` that names a token which does not
+exist, and it is in `npm run smoke`.
+
+**A fallback is treated as a failure too.** `var(--gb-font-size-xs, 0.75rem)` works, which is
+worse: it looks deliberate, it hides the typo permanently, and the value stops tracking the design
+system. Two of the fourteen were that shape and both were mine.
+
+Fixing the names alone took the page from 17,213px to 14,539px and gave it a hierarchy. That is
+the floor the redesign starts from, not the redesign.
+
+## D-17M — `/admin/menus` is a workbench, not a list
+
+**What the screen is for.** Nobody opens it to browse. They open it because *one* dish is wrong and
+they know its name. Reach it, change one field, confirm, leave. Every decision below serves that.
+
+**A row is one line.** Photo, name, category, food type, allergen state, and every menu it is on
+with the price there. 79 dishes went from **17,213px to 6,013px** — 13 rows visible at once instead
+of 4. Scrolling became orientation instead of search.
+
+**Editing is a drawer, not an inline `<details>`.** A panel over the list physically cannot move
+the list, which is the whole reason for it. Saving repaints one row and leaves the drawer open with
+a confirmation; nothing re-renders, nothing re-sorts, nothing touches scroll. Measured rather than
+asserted: open at scrollY 2400 with the row at viewport y=1139, save, and both are still 2400 and
+1139.
+
+**No body-scroll lock.** The usual `overflow: hidden` on `<body>` while a panel is open takes the
+scrollbar away, re-lays out the page and *moves it* — the one thing this screen promises not to do.
+`overscroll-behavior: contain` on the drawer achieves the same containment and cannot move anything.
+
+**Search ranks rather than filters.** Name-prefix beats name-substring beats category beats menu
+beats ingredient, and every term must match so a second word narrows. Typing "pan" puts *Pancakes*
+first, ahead of seven *Paneer* dishes it also matches — an alphabetical filter would have buried it.
+Ingredients are searchable because some dishes are remembered as "the one with paneer".
+
+**Filters are states, not taxonomies**, and each carries its count: "Not checked (79)",
+"Missing (2)", "On no menu (0)". The work left is visible without clicking. The query lives in the
+URL, so a filtered view survives a reload and can be sent to somebody.
+
+**Only what changed is sent.** Posting the whole form made the server report ten fields as saved
+after a no-op — a confirmation that is wrong is worse than none — and `0001` §14 bumps
+`school_menu_version` on any `dish` update, **expiring every client's cached menu**. Paying that
+because somebody opened a drawer and pressed Save is a real cost on the connections this product is
+built for. An unchanged save now makes no request at all.
+
+**Two bugs found by looking at it.** The drawer and the bulk bar both rendered on first paint:
+`[hidden]` is `display: none` only at UA specificity, and any class rule setting `display: flex`
+silently beats it. The drawer was covering the price column it exists to edit.
+
+## D-17N — `/admin/schools` is a readiness checklist, not a create form
+
+**What the screen is for.** Answering "can a parent at this school order lunch, and if not, what is
+missing?" — daily. Creating a school happens perhaps three times a year, and it led the page.
+
+**A checklist, not a status.** The old screen showed one label, **"Open to parents"**, derived from
+`onboarded_at` and `is_active` alone. A school could carry it with no menu, no break windows and no
+service days. Five gates now, each saying what is *actually true* rather than passing silently —
+"Sky Bites - Amity — 47 of 47 orderable", "Morning break 10:40–11:15 · Second break 11:15–11:40" —
+and each failing gate carries the link to the screen that fixes it.
+
+That is the guided sequence Andy asked for, and it is deliberately **not** a wizard: it works
+identically for a school created ten minutes ago and one that has been live a month and just lost
+its menu. A wizard only helps the first.
+
+**`missing` blocks, `warning` informs.** A menu that starts next term is a blocking gate in a
+warning state — not wrong, not yet — and counting it as a blocker made a correctly configured school
+read as broken. Service days and the report contact are gaps that never block: you can order
+without them.
+
+**Schools that need work sort first.** The opposite of alphabetical, because the screen exists to
+show what needs doing.
+
+## D-17O — admin controls are not kitchen controls
+
+`.kitchen__btn` is **56px tall** — its own comment says "bigger than the 48 floor. Wet hands, in a
+hurry." Correct for a tablet on a steel bench; wrong for an admin screen driven with a mouse, where
+it turned the nav into a row of lozenges and a small inline action into a **circle with the label
+spilling out of it**, which is how I noticed.
+
+Overridden inside the admin shell rather than changed at source, so the kitchen keeps its 56px.
+This is the first concrete instance of Andy's "the kitchen screens are a different problem" — the
+two had been sharing one control vocabulary and it fitted neither.
+
+## D-17P — motion on the home page, and the failure mode it must not have
+
+Andy: *"it's bland in places… motion should support the content, not decorate it."*
+
+The **hero was already strong** — real product, real dish photography, a clear proposition — so it
+is untouched and deliberately does not animate: it is above the fold and must be there on the
+first frame. What was bland was everything below it, and the worst of it was the "For your school"
+section, where the argument occupied the left half and the right half was **empty white**.
+
+Four devices, each doing a job:
+
+| | |
+|---|---|
+| **Reveal on scroll** | gives a 6,500px page a rhythm; each section arrives as a unit rather than being a wall that was always there |
+| **The process rail** | a line joining the four numbered steps, only at the width where they sit in a row — the copy asserts a sequence and the layout did not |
+| **The ledger** | *2* things your school does, *7* things we do — drawn, in the half of the section that was empty. Both numbers are counted from the lists beside them, never asserted |
+| **The card lift** | tells you a card is a thing rather than a paragraph in a box |
+
+No parallax, nothing autoplays, nothing loops, and nothing moves that a person is trying to read.
+
+**The failure mode that mattered more than the animation.** Hiding content until an observer says
+otherwise means any failure of that observer leaves the copy invisible — on the page that sells the
+product. Three defences: the hiding rule applies only under `html.js`, which the script itself adds
+(scripting off ⇒ nothing is ever hidden); anything already on screen at load is revealed
+immediately without waiting to be observed; and a **three-second timeout reveals everything
+regardless**. I caught a real instance of this in a screenshot — a section mid-reveal with its text
+washed out — which is exactly what a permanently stuck section would look like.
+
+**Reduced motion is off, not gentler.** Verified by emulating it rather than trusting the branch:
+with `prefers-reduced-motion: reduce` every transition reports `0s` and the step animation reports
+`none`; without it, `0.32s` and `gb-pop`. Content is fully opaque in both.
+
+**Cost:** home page JS **1,034 B gzipped** against a 10,000 budget, no library, no third-party
+request. CSS 13,123 of 18,000. First load 229 kB of 400 kB.
+
+## D-17Q — the kitchen board on a phone
+
+Andy: *"used by staff on their feet, in a hurry, possibly on a phone. Different problem from the
+admin screens."*
+
+Measured at 390×844 before touching it: **the header took 540 of 844 device pixels — 64% of the
+first screen — before a single item of food.** The date wrapped to three lines, the filter line and
+Refresh took a full 56px row each, and the tray-count chips were clipped behind a horizontal
+scrollbar inside a vertically-scrolling list.
+
+The **56px targets stay.** They are correct for this context — the comment in the stylesheet says
+"wet hands, in a hurry" and it is right. They were never what cost the space.
+
+What changed: the day nav takes one row and the filter line shares the next with Refresh, which
+collapses to a glyph because it is the least important control on the screen and was the widest.
+The order count is dropped from the bar because it is already on the board below and was wrapping
+to a second line. Tray chips wrap instead of scrolling sideways.
+
+**Delivered is ranked.** It was one of three identical buttons; it is the action taken on nineteen
+orders in twenty. It is now primary, ordered first, and owns a full-width row.
+
+**Bar 270 CSS px → 136. Food starts at 280px of 844 — 33% of the screen, down from 64%.**
+
+Two bugs, both invisible in the code and obvious in the render, both **specificity**:
+`.kitchen__actions > .kitchen__btn` (0,2,0) silently beat `.kitchen__act--main` (0,1,0) so Delivered
+kept sharing its row; and a `display: none` on the glyph declared *after* the media query beat the
+query by source order. The same shape as the `[hidden]` bug on the dish workbench earlier tonight.
+
+And one the render could not have caught: hiding the word "Refresh" left the button with **no
+accessible name at all** at 390px, because the glyph beside it is `aria-hidden`. The a11y gate
+caught it. That is the second time tonight a gate has caught something a careful look at the screen
+would not.
+
+## The motion never ran, and the thing that hid it made a heading unreadable
+
+Andy, on the live site: *"Nothing moves / transitions on the home page. 'Your school gets its own
+menu' has bad contrast with background and can't be read."*
+
+I had reported this feature finished the previous night, with the reduced-motion behaviour verified
+by emulating the media query. All of that was true of the local build. **None of it was true of the
+site.** The lesson is narrow and worth keeping: I verified the artefact I produced, not the artefact
+a visitor receives, and those differ by the response headers.
+
+**Cause one — Content-Security-Policy.** `netlify.toml` sends `script-src 'self'`. The motion script
+was `is:inline`, so the browser refused to execute it. `html.js` was therefore never added, the
+stylesheet's hiding rules never applied, and nothing animated — and because the whole design
+degrades to *everything visible*, the page looked correct rather than broken. There was no console
+error to notice locally because a static file server sends no CSP at all. Found by attaching a
+CDP probe to `https://graybag-web.netlify.app/` and reading the console:
+
+```
+Executing inline script violates the following Content Security Policy directive 'script-src 'self''
+has js class: false
+```
+
+The code now lives in `apps/web/src/lib/site/motion.ts` and is imported by a bundled `<script>`, so
+it is served from the origin and satisfies the policy. **`check-build.mjs` now fails on any inline
+`<script>` without `src`** (JSON-LD excepted). Mine was the only one in the codebase.
+
+That guard nearly shipped useless. I first wrote it *below* the block that ends in `process.exit(1)`,
+so it could never run. I only found out because I injected `<script>console.log(1)</script>` into a
+built page to watch it fail — and it passed. **A guard that has never been seen to fail is not a
+guard.**
+
+**Cause two — specificity, again.** The reveal rule was `[data-reveal] > * { opacity: 1 }`,
+specificity (0,1,1). The decorative vegetable pattern behind that heading is `.pattern--deep` at
+`opacity: 0.11`, specificity (0,1,0). Mine won. The pattern painted at **nine times** its intended
+strength, directly behind dark green text. The rule is now scoped to `> .wrap`, the content column,
+so it cannot reach a decorative layer at all. This is the third specificity bug in two days
+(`[hidden]` on the dish drawer, `.kitchen__actions > .kitchen__btn` on the board). Descendant and
+child selectors in a shared stylesheet are how a rule written for one element silently acquires
+authority over another.
+
+**And the safety net was the off switch.** The failsafe that revealed every section after three
+seconds fired *before a reader had scrolled on any normal visit*, so even where the script did run
+it would have revealed the page wholesale and animated nothing. It is now ten seconds — still a
+guarantee that no observer failure leaves copy invisible, no longer a guarantee that the feature
+never plays. A timeout meant to bound a failure has to be longer than the success case, and three
+seconds is not.
+
+**What the motion is now**, per Andy's grayspark.ai reference, all transform and opacity only:
+hero staggering in on load; each section revealing with its children stepped by
+`calc(var(--i) * 70ms)`; the process rail drawing with `scaleX`; the ledger's *2* and *7* counting
+up on arrival; the hero device drifting a few pixels against scroll. Under `prefers-reduced-motion`
+it is **off**, not gentler.
+
+Verified against the built output rather than the source: 1 of 6 sections revealed at load and 6
+after scrolling, the pattern back at `0.11`, count-up sampling `0,2,3,5,6,7`, and under emulated
+reduced motion a single sample of `7` with no reveal at all.
+
 ## D41
 
 **The ledger rule is a non-negotiable in `CLAUDE.md`, not an entry here.** Andy asked for it as a

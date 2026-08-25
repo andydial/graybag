@@ -1,23 +1,32 @@
 ---
 /**
- * Schools — the list, and onboarding a new one. `E10-01`.
+ * School readiness — `E10-41`.
  *
- * ## What this screen is careful to distinguish
+ * ## What this screen is for
  *
- * A school can be in three states that look identical in a list of names, and all three happen:
+ * Answering "can a parent at this school order lunch, and if not, what is missing?" — every day,
+ * for every school. Creating a school happens perhaps three times a year.
  *
- *   - **onboarded and active** — parents can see it and order from it
- *   - **created but never onboarded** — `onboarded_at` is null, so it is invisible in the app's
- *     picker (`P1`). This is what a school looks like between being set up and being opened.
- *   - **deactivated** — `is_active` false. `supabase/seeds/catalogue.sql` does this deliberately
- *     to the synthetic schools so they cannot appear beside real ones.
+ * The screen it replaces led with an empty create form taking two thirds of the page, and showed
+ * one label per school: **"Open to parents"**, derived from `onboarded_at` and `is_active` alone.
+ * A school could carry that label with no menu, no break windows and no service days. Andy: *"I
+ * can't tell at a glance what state a school is in."*
  *
- * Every one of those is a *reason a parent cannot order*, and an operator investigating "why can
- * nobody at Gem order" needs to be told which. So the list labels the state rather than showing a
- * name and leaving it to be inferred.
+ * ## A checklist, not a status
  *
- * `?state=demo` renders fixtures instead of reaching the backend, so `check:a11y` can audit this.
+ * Four things have to be true, they fail independently, each has a different fix on a different
+ * screen — and **any one of them missing looks identical to a parent**: the school is there and
+ * nothing can be bought. So each school shows its gates, each gate says what is actually true
+ * rather than just passing, and each failing gate carries the link to the screen that fixes it.
+ * That is the "guided sequence" — it works for a school created ten minutes ago and for one that
+ * has been live a month and just lost its menu, which a wizard would not.
+ *
+ * Schools that need work sort **first**. The opposite of alphabetical, deliberately.
+ *
+ * `?state=demo` renders fixtures so `check:a11y` audits the screen rather than the redirect.
  */
+import BackofficeNav from '../../components/BackofficeNav.astro';
+
 import '../../styles/tokens.css';
 import '../../styles/site.css';
 import '../../styles/kitchen.css';
@@ -35,63 +44,49 @@ import '../../styles/admin.css';
     <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
   </head>
 
-  <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">Schools</h1>
-          <a class="kitchen__btn" href="/admin/config">Configuration</a>
-          <a class="kitchen__btn" href="/kitchen">Kitchen board</a>
-          <button id="s-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
-        </div>
-      </header>
+  <body class="wb">
+    <header class="wb__bar">
+      <div class="wb__bar-row">
+        <h1 class="wb__title">Schools</h1>
+        <button class="kitchen__btn kitchen__refresh" id="s-reload" type="button">Refresh</button>
+        <BackofficeNav current="/admin/schools" />
+      </div>
+      <p class="wb__count" id="s-summary" role="status" aria-live="polite"></p>
+    </header>
 
-      <main class="kitchen__wrap admin__wrap">
-        <div id="s-status" class="visually-hidden" role="status" aria-live="polite"></div>
+    <main class="wb__main">
+      <div id="s-list"></div>
 
-        <p class="admin__intro">
-          A school appears in the app only when it is <b>onboarded</b>, <b>active</b>, and has at
-          least one break window. All three are listed below, because any one of them missing looks
-          the same to a parent: the school is not there.
+      <!--
+        Last, and collapsed. Onboarding a school is rare; checking one is constant. Leading with
+        the form was the old screen's central mistake.
+      -->
+      <details class="admin__section sch__new" id="s-new">
+        <summary><b>Onboard a new school</b></summary>
+        <p class="admin__hint">
+          For more than a handful use <code>tools/bulk-import</code> — it takes a CSV and tells you
+          what it would do first. See <code>docs/import-format.md</code>.
         </p>
-
-        <div id="s-banner"></div>
-
-        <section class="admin__section" aria-labelledby="s-new-h">
-          <h2 id="s-new-h">Onboard a school</h2>
-          <p class="admin__section-note">
-            For more than a handful, use <code>tools/bulk-import</code> — it takes a CSV and tells
-            you what it would do before it does it. See <code>docs/import-format.md</code>.
-          </p>
-          <form id="s-form" class="admin__form">
+        <form id="s-form">
+          <div class="sch__grid">
             <div class="admin__field">
               <label class="admin__label" for="s-code">Code</label>
-              <input class="admin__input" id="s-code" name="code" required
-                     pattern="[a-z0-9][a-z0-9_\-]*"
-                     aria-describedby="s-code-help" autocomplete="off" />
-              <p class="admin__hint" id="s-code-help">
-                Lower-case letters, digits, <code>-</code> and <code>_</code>.
-                <b>Permanent</b> — the importer matches on it, and changing it later would create a
-                second school rather than update this one.
-              </p>
+              <input class="admin__input" id="s-code" name="code" required pattern="[a-z0-9_-]+" />
+              <p class="admin__hint">Lower-case letters, digits, <code>-</code> and <code>_</code>. <b>Permanent</b> — the importer matches on it.</p>
             </div>
-
             <div class="admin__field">
               <label class="admin__label" for="s-name">Name</label>
-              <input class="admin__input" id="s-name" name="name" required autocomplete="off" />
+              <input class="admin__input" id="s-name" name="name" required />
               <p class="admin__hint">What parents see in the picker.</p>
             </div>
-
             <div class="admin__field">
               <label class="admin__label" for="s-city">City</label>
-              <select class="admin__select" id="s-city" name="cityCode" required></select>
+              <select class="admin__select" id="s-city" name="cityId" required></select>
             </div>
-
             <div class="admin__field">
               <label class="admin__label" for="s-kitchen">Kitchen</label>
-              <select class="admin__select" id="s-kitchen" name="kitchenCode" required></select>
+              <select class="admin__select" id="s-kitchen" name="kitchenId" required></select>
             </div>
-
             <div class="admin__field">
               <label class="admin__label" for="s-type">Type</label>
               <select class="admin__select" id="s-type" name="institutionType">
@@ -99,198 +94,184 @@ import '../../styles/admin.css';
                 <option value="college">College</option>
               </select>
             </div>
-
             <div class="admin__field">
-              <label class="admin__label" for="s-contact">Contact name</label>
-              <input class="admin__input" id="s-contact" name="contactName" autocomplete="off" />
+              <label class="admin__label" for="s-contact-email">Report contact email</label>
+              <input class="admin__input" id="s-contact-email" name="contactEmail" type="email" />
+              <p class="admin__hint">Where the monthly report goes. Can be added later.</p>
             </div>
-
-            <div class="admin__field">
-              <label class="admin__label" for="s-email">Contact email</label>
-              <input class="admin__input" id="s-email" name="contactEmail" type="email" autocomplete="off" />
-              <p class="admin__hint">Where the monthly report goes.</p>
-            </div>
-
-            <div class="admin__field">
-              <label class="admin__label" for="s-phone">Contact phone</label>
-              <input class="admin__input" id="s-phone" name="contactPhone" autocomplete="off" />
-            </div>
-
-            <div class="admin__actions">
-              <button class="kitchen__btn kitchen__btn--primary" id="s-submit" type="submit">
-                Onboard school
-              </button>
-            </div>
-            <div id="s-form-error" role="alert"></div>
-          </form>
-        </section>
-
-        <section class="admin__section" aria-labelledby="s-list-h">
-          <h2 id="s-list-h">All schools</h2>
-          <div id="s-list"></div>
-        </section>
-      </main>
-    </div>
+          </div>
+          <p class="admin__error" id="s-form-error" role="alert" hidden></p>
+          <div class="setting__actions">
+            <button class="kitchen__btn kitchen__btn--primary" id="s-submit" type="submit">Onboard school</button>
+          </div>
+        </form>
+      </details>
+    </main>
 
     <script>
+      import { mountNav } from '../../lib/backoffice/nav-mount.js';
       import { api } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { SCHOOLS_FIXTURE } from '../../lib/admin/schools-fixture.js';
+      import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
+      import { serviceDateToday } from '../../lib/kitchen/view.js';
+      import { estate, readiness } from '../../lib/admin/school-readiness.js';
+      import type { Gate, SchoolReadiness } from '../../lib/admin/school-readiness.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
-        list: $('s-list'), banner: $('s-banner'), status: $('s-status'),
+        list: $('s-list'), summary: $('s-summary'), reload: $<HTMLButtonElement>('s-reload'),
         form: $<HTMLFormElement>('s-form'), formError: $('s-form-error'),
-        submit: $<HTMLButtonElement>('s-submit'), reload: $<HTMLButtonElement>('s-reload'),
+        submit: $<HTMLButtonElement>('s-submit'), newBox: $<HTMLDetailsElement>('s-new'),
         city: $<HTMLSelectElement>('s-city'), kitchen: $<HTMLSelectElement>('s-kitchen'),
       };
 
       const esc = (s: string) =>
-        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-
+        String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
       const demo = new URLSearchParams(location.search).has('state');
+      const today = serviceDateToday(new Date());
 
-      let schools: api.AdminSchool[] = [];
+      let list: SchoolReadiness[] = [];
+      let cities: api.City[] = [];
+      let kitchens: api.Kitchen[] = [];
       let loading = true;
       let error: string | null = null;
-
-      /**
-       * Why a parent cannot see this school, when they cannot.
-       *
-       * Returns null when it is fully open. Three separate causes with one symptom — the school is
-       * absent from the picker — and the operator's fix is different for each.
-       */
-      function whyHidden(s: api.AdminSchool): string | null {
-        if (!s.isActive) return 'Deactivated — hidden from parents and from the kitchen filter';
-        if (s.onboardedAt === null) return 'Not onboarded — created, but invisible in the app';
-        return null;
-      }
+      /** A school created in this session, so the checklist that follows can be pointed at. */
+      let justCreated: string | null = null;
 
       async function load() {
         loading = true; error = null; render();
         try {
           if (demo) {
-            schools = SCHOOLS_FIXTURE.schools;
-            fillPickers(SCHOOLS_FIXTURE.cities, SCHOOLS_FIXTURE.kitchens);
+            cities = SCHOOLS_FIXTURE.cities; kitchens = SCHOOLS_FIXTURE.kitchens;
+            list = readiness(
+              SCHOOLS_FIXTURE.schools, MENUS_FIXTURE.assignments, MENUS_FIXTURE.menus,
+              MENUS_FIXTURE.dishes, [], new Map(), today,
+            );
           } else {
             configureBackofficeApi();
-            const [list, cities, kitchens] = await Promise.all([
-              api.fetchAdminSchools(), api.fetchCities(), api.fetchKitchens(),
+            const [schools, assignments, menus, dishes, breaks, days, c, k] = await Promise.all([
+              api.fetchAdminSchools(), api.fetchMenuAssignments(), api.fetchAdminMenus(),
+              api.fetchAdminDishes(), api.fetchAllBreakTimes(), api.fetchServiceDaysBySchool(),
+              api.fetchCities(), api.fetchKitchens(),
             ]);
-            schools = list;
-            fillPickers(cities, kitchens);
+            cities = c; kitchens = k;
+            list = readiness(schools, assignments, menus, dishes, breaks, days, today);
           }
         } catch (cause) {
           error = cause instanceof Error ? cause.message : 'The school list did not load.';
-          schools = [];
+          list = [];
         } finally {
-          loading = false; render();
+          loading = false; fillSelects(); render();
         }
       }
 
-      function fillPickers(cities: api.City[], kitchens: api.Kitchen[]) {
-        el.city.innerHTML = cities
-          .map((c) => `<option value="${esc(c.code)}">${esc(c.name)}</option>`).join('');
-        el.kitchen.innerHTML = kitchens
-          .map((k) => `<option value="${esc(k.code)}">${esc(k.name)}</option>`).join('');
+      function fillSelects() {
+        el.city.innerHTML = cities.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+        el.kitchen.innerHTML = kitchens.map((k) => `<option value="${esc(k.id)}">${esc(k.name)}</option>`).join('');
+      }
+
+      const STATE_WORD = { live: 'Live', scheduled: 'Scheduled', incomplete: 'Not live' } as const;
+
+      function gateHtml(g: Gate): string {
+        const mark = g.state === 'ok' ? '✓' : g.state === 'warning' ? '!' : '×';
+        return (
+          `<li class="gate gate--${esc(g.state)}">` +
+            `<span class="gate__mark" aria-hidden="true">${mark}</span>` +
+            `<span class="gate__label">${esc(g.label)}</span>` +
+            `<span class="gate__detail">${esc(g.detail)}` +
+              (g.fix ? `<a class="kitchen__btn kitchen__btn--small" href="${esc(g.fix.href)}">${esc(g.fix.label)}</a>` : '') +
+            `</span>` +
+          `</li>`
+        );
+      }
+
+      function cardHtml(r: SchoolReadiness): string {
+        const s = r.school;
+        return (
+          `<section class="sch sch--${esc(r.state)}${justCreated === s.id ? ' sch--new' : ''}" aria-labelledby="sch-${esc(s.id)}">` +
+            `<header class="sch__head">` +
+              `<h2 class="sch__name" id="sch-${esc(s.id)}">${esc(s.name)}</h2>` +
+              `<span class="statepill statepill--${esc(r.state)}">${esc(STATE_WORD[r.state])}</span>` +
+              `<span class="sch__meta">${esc(s.code)} · ${esc(s.cityName)} · ${esc(s.kitchenName)}</span>` +
+            `</header>` +
+            (justCreated === s.id
+              ? `<p class="wb__saved">Created. Work down the list below — a parent cannot order until every <b>×</b> is cleared.</p>`
+              : '') +
+            (r.blockers.length > 0
+              ? `<p class="sch__why"><b>${r.blockers.length} thing${r.blockers.length === 1 ? '' : 's'} stopping orders.</b> ` +
+                `Every one of them looks the same to a parent: the school is there and nothing can be bought.</p>`
+              : r.state === 'scheduled'
+                ? `<p class="sch__why">Set up correctly — its menu has not started yet.</p>`
+                : '') +
+            `<ol class="gates">${r.gates.map(gateHtml).join('')}</ol>` +
+          `</section>`
+        );
       }
 
       function render() {
-        if (loading) {
-          el.list.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
-          return;
-        }
+        if (loading) { el.list.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join(''); return; }
         if (error) {
           el.list.innerHTML =
-            `<div class="kitchen__state"><h2>We can't show the schools</h2>` +
-            `<p>${esc(error)}</p>` +
+            `<div class="kitchen__state"><h2>We can't show the schools</h2><p>${esc(error)}</p>` +
             `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
           return;
         }
-        if (schools.length === 0) {
+        if (list.length === 0) {
           el.list.innerHTML =
             `<div class="kitchen__state"><h2>No schools yet</h2>` +
-            `<p>Onboard one above, or import a list with <code>tools/bulk-import</code>.</p></div>`;
+            `<p>Onboard one below, or import a CSV with <code>tools/bulk-import</code>.</p></div>`;
+          el.summary.textContent = 'No schools.';
           return;
         }
 
-        const hidden = schools.filter((s) => whyHidden(s) !== null).length;
-        el.status.textContent =
-          `${schools.length} schools, ${hidden} not currently visible to parents.`;
-
-        el.list.innerHTML = schools.map((s) => {
-          const why = whyHidden(s);
-          return (
-            `<div class="srow${why ? ' srow--hidden' : ''}">` +
-              `<div class="srow__main">` +
-                `<p class="srow__name">${esc(s.name)}</p>` +
-                `<p class="srow__meta">` +
-                  `<code>${esc(s.code)}</code> · ${esc(s.cityName)} · ${esc(s.kitchenName)}` +
-                  (s.institutionType === 'college' ? ' · College' : '') +
-                `</p>` +
-                (s.contactName || s.contactEmail
-                  ? `<p class="srow__meta">${esc([s.contactName, s.contactEmail].filter(Boolean).join(' · '))}</p>`
-                  : `<p class="srow__meta">No contact recorded — the monthly report has nowhere to go</p>`) +
-              `</div>` +
-              `<div class="srow__side">` +
-                (why
-                  ? `<p class="srow__why">${esc(why)}</p>`
-                  : `<p class="srow__ok">Open to parents</p>`) +
-                `<a class="kitchen__btn" href="/admin/config?school=${encodeURIComponent(s.id)}">Configure</a>` +
-              `</div>` +
-            `</div>`
-          );
-        }).join('');
+        const e = estate(list);
+        el.summary.textContent =
+          `${e.total} schools — ${e.live} live` +
+          (e.scheduled ? `, ${e.scheduled} scheduled` : '') +
+          (e.incomplete ? `, ${e.incomplete} not live` : '');
+        el.list.innerHTML = list.map(cardHtml).join('');
       }
 
-      /**
-       * Only the fields the operator actually filled in are sent.
-       *
-       * An empty text input is `''`, and sending that as a value would write an empty string where
-       * the column means "not recorded". `null` and `''` are different facts and the second one is
-       * never what somebody meant by leaving a box alone.
-       */
-      function formBody(): Record<string, unknown> {
-        const data = new FormData(el.form);
-        const body: Record<string, unknown> = {};
-        for (const [key, value] of data.entries()) {
-          const text = String(value).trim();
-          if (text !== '') body[key] = text;
-        }
-        return body;
-      }
+      // ------------------------------------------------------------------------------- creating
 
-      el.form.addEventListener('submit', async (event) => {
+      async function create(event: SubmitEvent) {
         event.preventDefault();
-        el.formError.innerHTML = '';
-        el.submit.disabled = true;
+        el.formError.hidden = true;
+        if (demo) { el.formError.hidden = false; el.formError.textContent = 'Demo view — nothing is written.'; return; }
 
+        const data = new FormData(el.form);
+        const value = (k: string) => { const v = String(data.get(k) ?? '').trim(); return v === '' ? null : v; };
+        el.submit.disabled = true;
         try {
-          if (demo) {
-            el.formError.innerHTML =
-              `<p class="admin__error">This is the demo view — nothing is written. ` +
-              `Sign in to onboard a school.</p>`;
-            return;
-          }
-          const created = await api.createSchool(formBody() as unknown as api.NewSchool);
+          const created = await api.createSchool({
+            code: String(data.get('code') ?? '').trim(),
+            name: String(data.get('name') ?? '').trim(),
+            cityId: String(data.get('cityId') ?? ''),
+            kitchenId: String(data.get('kitchenId') ?? ''),
+            institutionType: String(data.get('institutionType') ?? 'school'),
+            contactEmail: value('contactEmail'),
+          } as unknown as api.NewSchool);
+          justCreated = created.id;
           el.form.reset();
-          el.status.textContent = `Onboarded ${created.code}.`;
+          el.newBox.open = false;
           await load();
+          // Straight to the new school's checklist, which is the next thing to do rather than a
+          // congratulation. This is the "guided sequence": the gaps are the guide.
+          document.getElementById(`sch-${created.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
         } catch (cause) {
-          // The server's own refusal, not a generic one. `admin-school` answers `code_taken` with
-          // the code named and `validation_failed` with the field named, and both are things the
-          // operator can act on without opening a log.
-          const message = cause instanceof Error ? cause.message : 'The school was not created.';
-          el.formError.innerHTML = `<p class="admin__error">${esc(message)}</p>`;
+          el.formError.hidden = false;
+          el.formError.textContent = cause instanceof Error ? cause.message : 'The school was not created.';
         } finally {
           el.submit.disabled = false;
         }
-      });
+      }
 
+      el.form.addEventListener('submit', (e) => void create(e as SubmitEvent));
+      el.reload.addEventListener('click', () => { justCreated = null; void load(); });
       el.list.addEventListener('click', (event) => {
         if ((event.target as HTMLElement).closest('[data-retry]')) void load();
       });
-      el.reload.addEventListener('click', () => void load());
 
       void (async () => {
         try {
@@ -301,6 +282,7 @@ import '../../styles/admin.css';
         } catch { /* an unconfigured build falls through to the error state */ }
         await load();
       })();
+    void mountNav();
     </script>
   </body>
 </html>

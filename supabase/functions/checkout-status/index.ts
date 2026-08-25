@@ -31,6 +31,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 import { corsHeaders, preflight } from '../_shared/cors.ts';
 import { sendOrderConfirmation } from '../_shared/order-confirmation.ts';
+import { sendOrderAlerts } from '../_shared/order-alert.ts';
 
 const CORS = corsHeaders('GET');
 
@@ -116,6 +117,8 @@ Deno.serve(async (request: Request) => {
      * Telling a parent late is a nuisance. Never telling them is the failure.
      */
     await sendOrderConfirmation(admin, { orderGroupId: group, correlationId: null });
+    // `E08-16`. Idempotent per order, so reaching here twice sends one alert.
+    await sendOrderAlerts(admin, { orderGroupId: group });
     return json(200, { status: 'paid' satisfies Status, group, order: await summarise(admin, group) });
   }
   if (row.status === 'cancelled') return json(200, { status: 'cancelled' satisfies Status, group });
@@ -184,6 +187,8 @@ Deno.serve(async (request: Request) => {
       // torn down the moment it responds, so a floating promise here is an email that sometimes
       // sends. It never throws and never blocks — see `order-confirmation.ts`.
       await sendOrderConfirmation(admin, { orderGroupId: group, correlationId: null });
+    // `E08-16`. Idempotent per order, so reaching here twice sends one alert.
+    await sendOrderAlerts(admin, { orderGroupId: group });
 
       return json(200, {
         status: 'paid' satisfies Status,

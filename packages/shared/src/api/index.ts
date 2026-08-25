@@ -71,6 +71,8 @@ export {
   AdminSchoolError,
   createSchool,
   fetchAdminSchools,
+  fetchAllBreakTimes,
+  fetchServiceDaysBySchool,
   fetchCities,
   fetchKitchens,
   updateSchool,
@@ -79,6 +81,7 @@ export {
   type CreatedSchool,
   type Kitchen,
   type NewSchool,
+  type SchoolBreakWindow,
   type SchoolConfigInput,
   type SchoolEdit,
   type SchoolUpdateResult,
@@ -127,13 +130,46 @@ export {
   MAX_REPORT_MONTHS,
   REPORT_ORDER_COLUMNS,
   ReportError,
+  compare,
   fetchMonthlyRevenue,
+  fetchOrdersPlaced,
+  groupRows,
+  istDayOf,
   monthOf,
+  previousWindow,
+  weekOf,
   summarise,
+  totalOf,
   totalsByMonth,
+  type Bucket,
+  type Comparison,
+  type GroupBy,
   type MonthTotals,
   type ReportRow,
 } from './admin-reports.js';
+
+// Order alert recipients (`E08-12`). Reads under the caller's session and scoped by
+// `kitchen.config_edit`; writes through the Edge Function, because the table has no write policy.
+export {
+  ALERT_RECIPIENT_COLUMNS,
+  AlertRecipientError,
+  addAlertRecipient,
+  fetchAlertRecipients,
+  removeAlertRecipient,
+  setAlertRecipientEnabled,
+  type AlertRecipient,
+} from './admin-alerts.js';
+
+// Growth (`E11-08`). The column lists are the privacy control: a platform admin may read every
+// column on every child, and this selects three that identify nobody. Same reasoning as
+// `REPORT_ORDER_COLUMNS` above.
+export {
+  GROWTH_CHILD_COLUMNS,
+  GROWTH_LINK_COLUMNS,
+  GROWTH_USER_COLUMNS,
+  fetchGrowth,
+  type GrowthData,
+} from './admin-growth.js';
 
 // Per-school configuration with visible inheritance (`E10-06`). Deliberately does NOT call
 // `resolve_effective_config`: that returns one scalar per setting, and a scalar cannot tell an
@@ -300,7 +336,9 @@ export {
   ACCESS_USER_COLUMNS,
   AdminAccessError,
   PERMISSION_COLUMNS,
+  ACCOUNT_SEARCH_LIMIT,
   fetchAccess,
+  searchAccounts,
   fetchPermissions,
   grantPermission,
   revokePermission,

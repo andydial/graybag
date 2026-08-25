@@ -340,7 +340,7 @@
 .kitchen__total b {
   font-size: var(--gb-font-size-h3);
   line-height: var(--gb-line-height-h3);
-  font-weight: var(--gb-font-bold);
+  font-weight: var(--gb-font-weight-h1);
   font-variant-numeric: tabular-nums;
   color: var(--gb-text-on-accent);
 }
@@ -548,7 +548,7 @@
 
 .kline__qty {
   font-size: var(--gb-font-size-h3);
-  font-weight: var(--gb-font-bold);
+  font-weight: var(--gb-font-weight-h1);
   font-variant-numeric: tabular-nums;
   color: var(--gb-text-secondary);
   min-width: 1.5rem;
@@ -587,7 +587,7 @@
   text-transform: uppercase;
   letter-spacing: var(--gb-tracking-overline);
   font-size: var(--gb-font-size-caption);
-  font-weight: var(--gb-font-bold);
+  font-weight: var(--gb-font-weight-h1);
   margin-right: var(--gb-space-2);
 }
 
@@ -711,7 +711,7 @@
   border-radius: var(--gb-radius-full);
   background: var(--gb-bg-surface-inverse);
   color: var(--gb-text-on-brand);
-  box-shadow: var(--gb-shadow-lg, 0 8px 24px rgb(0 0 0 / 0.25));
+  box-shadow: var(--gb-elevation-3);
 }
 .kundo[hidden] { display: none; }
 
@@ -794,7 +794,7 @@
   background: var(--gb-ramp-amber-200);
   color: var(--gb-text-on-amber);
   font-size: var(--gb-font-size-caption);
-  font-weight: var(--gb-font-bold);
+  font-weight: var(--gb-font-weight-h1);
   letter-spacing: var(--gb-tracking-overline);
   vertical-align: middle;
   white-space: nowrap;
@@ -813,3 +813,268 @@
   letter-spacing: normal;
   text-transform: none;
 }
+
+/* ==================================================== the board on a phone (E09-37)
+ *
+ * Andy: *"used by staff on their feet, in a hurry, possibly on a phone. Different problem from
+ * the admin screens."*
+ *
+ * Measured on a 390×844 phone before any of this: the header took **540 of 844 pixels** — 64% of
+ * the first screen — before a single item of food appeared. The date wrapped to three lines, the
+ * filter line and Refresh each took a full 56px row, and the tray-count chips were clipped with a
+ * horizontal scrollbar.
+ *
+ * The rule this section follows: **maximise food per screen, and make the action you take on
+ * nineteen orders out of twenty impossible to miss.** The 56px targets stay — they are correct for
+ * this context and are not what was costing the space.
+ */
+
+/* The glyph is for the narrow layout only — at any other width the word is clearer. Declared
+ * before the media query so the query wins by source order rather than by specificity. */
+.kitchen__refresh-glyph { display: none; }
+
+@media (max-width: 30rem) {
+  /* One row: ‹ date › and Today. The date shrinks rather than wrapping to three lines. */
+  /*
+   * The bar's three-column grid becomes two rows: the day nav across the top, then the filter
+   * line and refresh sharing one. Stacked, those two took a 56px row each — 112px of a 844px
+   * screen spent on controls nobody touches once service starts.
+   */
+  .kitchen__bar-inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gb-space-2);
+  }
+  .daynav { flex: 1 1 100%; }
+  /* The count wraps to a second line at this width, which doubles the tallest thing in the bar
+   * for information that is already on the board below. */
+  .daynav__count { display: none; }
+
+  .daynav { gap: var(--gb-space-2); }
+  .daynav__date { font-size: var(--gb-font-size-body-strong); line-height: 1.2; }
+  .daynav__count { font-size: var(--gb-font-size-caption); }
+
+  /* The two controls share a row instead of taking one each. Refresh becomes its glyph: it is the
+   * least important control on the screen and it was the widest. */
+  .kitchen__filterline { flex: 1 1 auto; }
+  .kitchen__refresh { flex: 0 0 auto; width: 3.5rem; padding-inline: 0; }
+  .kitchen__refresh-word { display: none; }
+  .kitchen__refresh-glyph { display: inline; font-size: 1.25rem; }
+
+  /* Wrap rather than scroll sideways. A clipped tray count is a tray count nobody can act on, and
+   * a horizontal scrollbar inside a vertical list is a trap on a touch screen. */
+  .kitchen__totals { flex-wrap: wrap; overflow-x: visible; flex: 1 1 100%; }
+
+  /*
+   * Delivered gets a full-width row of its own, first; the rarer actions share the row under it.
+   *
+   * Flex with `order`, not a grid: the number of buttons depends on the order's status — a
+   * delivered order has different actions from one still to make — and a fixed two-column grid
+   * dropped them wherever the count happened to land.
+   */
+  .kitchen__actions { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); width: 100%; }
+  .kitchen__actions > .kitchen__btn { flex: 1 1 calc(50% - var(--gb-space-2)); }
+  /* `1 0 100%` — no shrink. With `1 1 100%` it collapsed onto the same row as Start, which is
+   * the compact outcome and the wrong one: the button pressed nineteen times out of twenty
+   * should be the one you cannot miss with a thumb. */
+  /*
+   * Selected through the parent so it out-specifies `.kitchen__actions > .kitchen__btn` above.
+   * As a bare class it lost — (0,1,0) against (0,2,0) — and Delivered quietly shared a row with
+   * Start, which is the compact outcome and the wrong one. Second specificity bug of the night;
+   * both were invisible in the code and obvious in the render.
+   */
+  .kitchen__actions > .kitchen__act--main { order: -1; flex: 1 0 100%; }
+}
+
+/* ---------------------------------------------------------------------------------------------
+ * The back-office navigation — `E10-43`.
+ *
+ * A button and a panel, at every width. The first attempt showed the links inline above 860px and
+ * collapsed them below, which is the ordinary responsive nav — and it was wrong here for two
+ * reasons the render made obvious:
+ *
+ * **Nine items wrap.** They took two rows of the bar at 1400px, and `E09-37` had just spent real
+ * effort getting the kitchen bar from 270px of chrome down to 136 so that food, not furniture,
+ * fills a phone. A permanent second row hands that straight back.
+ *
+ * **Discovery already has a home.** `/dashboard` shows every screen at once, with the sentence
+ * saying what each is for. The bar only has to answer "take me to another one", and a button does
+ * that in the same number of clicks as a tab once you know where you are going.
+ *
+ * Colours are inherited rather than named, because this sits on three different bars: `.wb__bar`
+ * is a light surface, `.kitchen__bar` and `.sheet__bar` are inverse. `currentcolor` is correct on
+ * all three; a token would have been legible on one and nearly invisible on the others, which is
+ * exactly how it first rendered.
+ * ------------------------------------------------------------------------------------------- */
+
+.bonav {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.bonav__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gb-space-2);
+  min-height: var(--gb-touch-min);
+  padding: var(--gb-space-2) var(--gb-space-4);
+  border: var(--gb-border-width-default) solid currentcolor;
+  border-radius: var(--gb-radius-full);
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: var(--gb-font-size-button);
+  font-weight: var(--gb-font-semibold);
+  cursor: pointer;
+}
+
+.bonav__burger,
+.bonav__burger::before,
+.bonav__burger::after {
+  display: block;
+  width: 1rem;
+  height: 2px;
+  background: currentcolor;
+  border-radius: var(--gb-radius-full);
+}
+
+.bonav__burger { position: relative; }
+
+.bonav__burger::before,
+.bonav__burger::after {
+  content: '';
+  position: absolute;
+  left: 0;
+}
+
+.bonav__burger::before { top: -5px; }
+.bonav__burger::after { top: 5px; }
+
+/*
+ * The panel is always a light surface, whatever bar it hangs from, so its own text colour is
+ * stated rather than inherited — inheriting here is what would put dark-on-dark back.
+ */
+.bonav__panel {
+  position: absolute;
+  top: calc(100% + var(--gb-space-2));
+  right: 0;
+  z-index: var(--gb-z-dialog);
+  display: none;
+  min-width: 16rem;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: var(--gb-space-2);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-lg);
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+  box-shadow: var(--gb-elevation-2);
+}
+
+.bonav__panel.is-open { display: block; }
+
+.bonav__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * `[hidden]` is `display: none` only at UA specificity, and any rule below that sets `display` on
+ * these elements beats it. That has already caught the drawer, the bulk bar and the kitchen
+ * filters. Here it would show every route to every account for the life of the page.
+ */
+.bonav__item[hidden] { display: none; }
+
+.bonav__link {
+  display: block;
+  padding: var(--gb-space-3);
+  border-radius: var(--gb-radius-md);
+  color: var(--gb-text-primary);
+  font-weight: var(--gb-font-medium);
+  text-decoration: none;
+}
+
+.bonav__link:hover { background: var(--gb-bg-surface-muted); }
+
+.bonav__link[aria-current='page'] {
+  background: var(--gb-bg-surface-accent);
+  color: var(--gb-text-on-accent);
+  font-weight: var(--gb-font-semibold);
+}
+
+.bonav__account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gb-space-2);
+  margin-top: var(--gb-space-2);
+  padding-top: var(--gb-space-2);
+  border-top: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+}
+
+.bonav__who {
+  font-size: var(--gb-font-size-caption);
+  color: var(--gb-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.bonav__signout {
+  min-height: var(--gb-touch-min);
+  padding: var(--gb-space-1) var(--gb-space-3);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-md);
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.bonav__signout[hidden] { display: none; }
+
+.bonav__empty {
+  margin: 0 0 var(--gb-space-2);
+  padding: var(--gb-space-2);
+  border-radius: var(--gb-radius-md);
+  background: var(--gb-bg-surface-warning);
+  color: var(--gb-text-primary);
+  font-size: var(--gb-font-size-body-sm);
+}
+
+/* --------------------------------------------------- the typed cancellation detail (`E09-38`) */
+
+.kdialog__detail { margin-top: var(--gb-space-4); }
+
+.kdialog__detail-label {
+  display: block;
+  margin-bottom: var(--gb-space-2);
+  font-weight: var(--gb-font-semibold);
+}
+
+/*
+ * The hint is the load-bearing half of the label. "What happened?" alone gets an internal note;
+ * "sent to the person who ordered" gets a sentence written to a parent.
+ */
+.kdialog__detail-hint {
+  display: block;
+  color: var(--gb-text-secondary);
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body);
+}
+
+.kdialog__detail-input {
+  width: 100%;
+  padding: var(--gb-space-3);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-md);
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-primary);
+  font-family: inherit;
+  font-size: var(--gb-font-size-body);
+  line-height: var(--gb-line-height-body);
+  resize: vertical;
+}
+
+.kdialog__detail-input:focus-visible { outline: var(--gb-focus-ring); }

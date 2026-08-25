@@ -34,7 +34,23 @@ const BUDGETS = {
   thirdPartyRequests: 0,
 };
 
-/** Store links. Neither app is published; a dead download button is worse than none. */
+/**
+ * Store links — `E12-05`.
+ *
+ * This list used to forbid every store host outright, because **a dead download button is worse
+ * than none** and neither app was published. Both shipped on 2026-08-22, so the rule changed
+ * shape rather than being deleted: exactly two URLs are permitted, and any other store host still
+ * fails.
+ *
+ * That keeps the original protection where it still bites — a placeholder, a typo in the Play
+ * package (`com.gracord.graybag` is a 404; the listing is `com.Gracord.Graybag`), a TestFlight
+ * link left in by accident — while letting the two real ones through.
+ */
+const ALLOWED_STORE_URLS = [
+  'https://apps.apple.com/in/app/graybag/id6749555467',
+  'https://play.google.com/store/apps/details?id=com.Gracord.Graybag',
+];
+
 const FORBIDDEN_HOSTS = [
   'apps.apple.com',
   'itunes.apple.com',
@@ -155,12 +171,25 @@ if (home) {
 for (const page of html) {
   const source = readFileSync(page.path, 'utf8');
 
+  /*
+   * Every store URL on the page must be one of the two verified listings.
+   *
+   * Matching the whole URL rather than the host is the point: the host alone would let a typo in
+   * the Play package through, and that typo is a 404 — a dead download button, which is the
+   * failure this check has always existed to prevent.
+   */
   for (const host of FORBIDDEN_HOSTS) {
-    if (source.includes(host)) {
-      fail(
-        `${page.rel} links to ${host}. Neither app is published (E12-05) and a dead download ` +
-          `button is worse than no button.`,
-      );
+    if (!source.includes(host)) continue;
+    for (const match of source.matchAll(/https?:\/\/[^"'\s<>]+/g)) {
+      const url = match[0].replace(/&amp;/g, '&').replace(/[.,)]+$/, '');
+      if (!url.includes(host)) continue;
+      if (!ALLOWED_STORE_URLS.includes(url)) {
+        fail(
+          `${page.rel} links to an unverified store URL: ${url}. Only the two listings in ` +
+            `ALLOWED_STORE_URLS are permitted — a dead download button is worse than no button ` +
+            `(E12-05).`,
+        );
+      }
     }
   }
 
@@ -236,6 +265,35 @@ for (const page of html) {
   }
 }
 
+/**
+ * No inline `<script>` anywhere in the build — `E12-36`.
+ *
+ * `netlify.toml` sends `Content-Security-Policy: … script-src 'self'`, so the browser **refuses**
+ * an inline script. There is no console error a visitor would see and no visual failure if the
+ * script was progressive enhancement: the page simply behaves as though the code was never
+ * written. That is exactly what happened to the home page's motion, which shipped dead — and it
+ * passed every check, because a local file server sends no CSP and the page still rendered.
+ *
+ * `application/ld+json` is data, not script, and is not covered by `script-src`.
+ */
+const inlineScripts = [];
+for (const page of html) {
+  const source = readFileSync(page.path, 'utf8');
+  for (const tag of source.matchAll(/<script\b([^>]*)>/gi)) {
+    const attrs = tag[1] ?? '';
+    if (/\bsrc=/i.test(attrs)) continue;
+    if (/type=["']application\/ld\+json["']/i.test(attrs)) continue;
+    inlineScripts.push(`${page.rel}  <script${attrs}>`);
+  }
+}
+if (inlineScripts.length > 0) {
+  fail(
+    `${inlineScripts.length} inline <script> tag(s), which the site's CSP (script-src 'self') ` +
+      `refuses to execute:\n    ${inlineScripts.join('\n    ')}\n` +
+      `  Drop \`is:inline\` so Astro bundles it to a file served from the origin.`,
+  );
+}
+
 // ------------------------------------------------------------------- report
 
 console.log('Build checks:');
@@ -247,4 +305,8 @@ if (problems.length) {
   process.exit(1);
 }
 
-console.log(`  no store links, no third-party assets, ${html.length} page(s) with sound internal links.`);
+
+console.log(
+  `  store links verified against ${ALLOWED_STORE_URLS.length} listing(s), no third-party assets, ` +
+    `${html.length} page(s) with sound internal links.`,
+);

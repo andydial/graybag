@@ -2761,7 +2761,76 @@ it had **explicitly declined to resolve**, conflict markers and all.
 Two files went in that way and survived two further rebases:
 
 - `packages/shared/src/payments/cors.test.ts`, caught only when `tsc` finally refused to parse it
-- `PROGRESS.md`, which would **never** have been caught: markdown with `<<<<<<< HEAD` in it
+- `PROGRESS.md`, which would **never** have been caught: markdown with `## A local build and a deployed site differ by their response headers
+
+2026-08-17. Home-page motion was reported finished and verified — locally. In production it had
+never run once: `netlify.toml` sends `script-src 'self'` and the script was inline, so the browser
+refused it. A static file server sends no CSP, so the local check could not have caught it and the
+console was clean.
+
+Two things follow.
+
+**Verify the artefact the visitor receives.** For anything that depends on headers — CSP, CORS,
+caching, `X-Robots-Tag` — a local render proves nothing. Probe the deployed URL.
+
+**Silent degradation hides its own failure.** The design was deliberately fail-open: nothing is
+hidden unless the script adds `html.js`, so if the script dies the page still reads. That is the
+right behaviour, and it is exactly why nobody noticed for a day — a fail-open feature that is
+entirely broken looks identical to one that is switched off. Where a feature degrades silently,
+something else has to assert it is alive. Here it is a build-time guard on inline scripts.
+
+Related: a build guard placed after the block that ends in `process.exit(1)` never runs. Prove a
+new guard fails by feeding it the thing it is meant to catch, before trusting it.
+
+## `check:a11y` does not build — a stale `dist/` makes it lie in both directions
+
+2026-08-20. Fixed a contrast violation, re-ran `npm run check:a11y`, and got the identical failure
+back. The fix was correct; the gate was auditing the previous build. `check:a11y` is
+`node scripts/check-a11y.mjs` and nothing in it runs Astro — it refuses only if `dist/` is missing
+entirely, never if it is old.
+
+It fails the other way too, which is worse: edit a page, run the gate, watch it pass, and you have
+tested the version before your edit.
+
+Always `npm --prefix apps/web run build` first. `npm run smoke` does build, which is why this has
+never bitten CI — only local iteration, where the gate is run directly and repeatedly.
+
+## A migration reported as applied to production was not
+
+2026-08-20. `supabase migration list --linked` against `graybag-prod` showed `0064` with an empty
+remote column — the egg/peanut/sesame allergen vocabulary had never landed, despite being reported
+in this thread on 2026-08-17 as applied alongside `0063`. `0063` was there; `0064` was not.
+
+Both are now applied. The lesson is the check, not the miss: **`migration list` is the only thing
+that answers "is it on production", and it takes ten seconds.** A migration that ran in a session
+and a migration recorded in `supabase_migrations.schema_migrations` are different claims, and only
+the second one survives a new shell.
+
+Worth pairing with the `E12-36` lesson: verify the deployed artefact, not the one you produced.
+
+## Test data on production is an accounting entry, not clutter
+
+2026-08-20. Three test orders I created on 2026-08-15 were still on production five days later,
+after I had reported that production test data was cleaned up. That report was wrong. Production
+began taking real orders on the 18th, so by the time they were found they sat in the same table as
+money somebody has to reconcile.
+
+Two lessons, and the second is the one that nearly cost something.
+
+**Don't create it in the first place.** A write path can be exercised against production with a
+non-existent uuid: every guard, every 4xx and the 200 shape are reachable, and nothing real is
+touched. `E09-38`'s cancellation guards were verified that way — `422`, `422`, `200 updated:[]`,
+`200` — with no row created. There was never a reason to make an order.
+
+**Check the premise before acting on a destructive instruction.** Asked to delete "the test orders
+you created today", the correct first move was the query, not the delete: nothing had been created
+that day, and the newest rows were real customer orders including a `paid` one. Complying would
+have destroyed money-bearing data on the strength of a mistaken belief. Showing the output resolved
+it in one exchange.
+
+Now non-negotiable #8 in `CLAUDE.md`.
+
+ in it
   renders without complaint
 
 The failure was not the resolver's narrow scope — narrow is fine and honest. It was that

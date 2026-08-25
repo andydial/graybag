@@ -25,6 +25,8 @@ node_modules
 .secrets.*.env
 .DS_Store
 dist/
+# Build output for a non-default environment — see eslint.config.js.
+dist-*/
 build/
 .expo/
 *.log

@@ -13,6 +13,8 @@
 // alone, and "3 schools have no menu" without the command to fix it is half an answer.
 
 /** `blocker` stops ordering outright. `warning` degrades it. Nothing else exists on purpose. */
+import { HIGH, proposeFoodType } from './food-type.mjs';
+
 export const BLOCKER = 'blocker';
 export const WARNING = 'warning';
 
@@ -52,6 +54,46 @@ export function findings(s) {
     });
   }
 
+  // ------------------------------------------------- a food type the ingredients contradict
+  //
+  // Not "unmarked" — **marked, and marked wrongly**. A dish whose own ingredient list names egg
+  // or meat while `food_type` says `veg`.
+  //
+  // This is the error Andy named as the worst this product can make, and it is the one an
+  // unmarked-dish check cannot see: the dish is marked, the count is complete, the report is
+  // green. "Boiled Eggs (3 pcs)", ingredients "Eggs, salt", marked `veg` is not a judgement call
+  // about Indian labelling convention — it is a vegetarian family being told a boiled egg is
+  // vegetarian, on our say-so.
+  //
+  // Only **high-confidence** contradictions are reported, from the same classifier that generates
+  // `review/food-types.csv` — so a mayonnaise caveat or a dish with no ingredient list never
+  // appears here. What is left is a direct disagreement between the label and the ingredients.
+  const contradicted = s.dishes
+    .filter((d) => d.isActive && d.foodType !== null)
+    .map((d) => ({ dish: d, proposal: proposeFoodType(d) }))
+    .filter(
+      ({ dish, proposal }) =>
+        proposal.confidence === HIGH &&
+        proposal.foodType !== null &&
+        proposal.foodType !== dish.foodType &&
+        // Only the direction that misleads. A dish marked `egg` whose list happens to read
+        // vegetarian is over-cautious, and over-cautious is not a launch blocker.
+        dish.foodType === 'veg',
+    );
+  if (contradicted.length > 0) {
+    out.push({
+      level: BLOCKER,
+      title: `${plural(contradicted.length, 'dish', 'dishes')} marked veg whose ingredients say otherwise`,
+      detail:
+        'The ingredient list names egg or meat and the dish is labelled vegetarian. In this ' +
+        'market that is the first thing many families check, and being wrong about it is worse ' +
+        'than saying nothing.',
+      names: contradicted.slice(0, 8).map(({ dish, proposal }) => `${dish.name} (${proposal.why})`),
+      more: Math.max(0, contradicted.length - 8),
+      fix: 'Check these on /admin/menus. review/food-types.csv proposed `egg` for each of them at high confidence.',
+    });
+  }
+
   // -------------------------------------------------------------- dishes nobody has looked at
   //
   // `MI1` and `0006`: an empty tag list means one of two OPPOSITE things, and only
@@ -62,9 +104,13 @@ export function findings(s) {
   //     none, declared_none = false      NOBODY HAS LOOKED
   //
   // The third state is what every production dish is in, and on a menu it renders exactly like the
-  // second: a parent reads "no allergens" and is reassured by an absence that means nothing. A
-  // blocker for the same reason `food_type` is one — it does not stop an order being placed, it
-  // makes the order WRONG, and in the way that matters most on a children's food product.
+  // second: a parent reads "no allergens" and is reassured by an absence that means nothing.
+  //
+  // **The automatic match is deferred, and that is exactly why this is a blocker.** v1 does not
+  // warn a parent when their child's allergen meets a dish's (`E05-25`, `E05-31` are fast-follow);
+  // what v1 does is put the child's allergens in front of the person handing the bag over
+  // (`E09-33`). That only works if the dishes are tagged. With the matching deferred, the tags are
+  // not a convenience feature whose absence degrades a warning — they are the whole mechanism.
   const tagged = new Set((s.dishAllergens ?? []).map((t) => t.dishId));
   const declared = new Set(s.declaredNone ?? []);
   const unchecked = s.dishes.filter((d) => d.isActive && !tagged.has(d.id) && !declared.has(d.id));
@@ -75,8 +121,10 @@ export function findings(s) {
       level: live.length > 0 ? BLOCKER : WARNING,
       title: `${plural(unchecked.length, 'dish', 'dishes')} nobody has checked for allergens`,
       detail:
-        `Neither tagged nor declared to contain none — which the app treats as unknown, and a ` +
-        `menu shows as no warning. ` +
+        `Neither tagged nor declared to contain none, which the app treats as unknown. ` +
+        `v1 does not match a child's allergens against a dish automatically — the kitchen reads ` +
+        `the child's allergens off the board and the packing sheet and acts on them, so the tags ` +
+        `ARE the mechanism, not a nicety on top of one. ` +
         (live.length > 0
           ? `${plural(live.length, 'is', 'are')} on a live menu right now.`
           : 'None is on a live menu yet.'),

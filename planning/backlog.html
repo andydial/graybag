@@ -1716,13 +1716,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/29</span>
+          <span class="meter-num">0/30</span>
         </div>
       </header>
       <p class="summary">Written before any UI code exists. The motion catalogue is what produces &quot;fluid&quot; instead of &quot;flying bird&quot;.</p>
       
       <details>
-        <summary>Context &amp; 29 tasks</summary>
+        <summary>Context &amp; 30 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Source: <code>Graybag_Design Package</code> — VAG Rounded Next font family, primary <code>#00af52</code>, secondary <code>#145f48</code> / <code>#ffbb39</code>, accent <code>#b3cf3f</code> / <code>#e5ea98</code>, pattern assets, and the 06_App UI mocks.</p>
 <p>The motion system is a <strong>closed catalogue</strong>. New screens implement from it; it is only amended when a genuinely new kind of interaction appears, and that is a deliberate joint decision.</p></div>
@@ -1958,6 +1958,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Decide or delete five unused presentational options.</strong> <code>DishImage.aspectRatio</code>, <code>ListRow.leading</code>, <code>Lockup.children</code>, <code>RecipientListRow.last</code>, <code>SwipeRow.onHaptic</code> — each accepted by a component and passed by nothing outside a test. Either wanted and unwired, or dead. Surfaced by the extended orphan guard</span>
+      </li>
+      <li class="task" data-id="E13-30" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E13-30"></button>
+        <code class="tid">E13-30</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The back-office had no working type scale: 14 undefined CSS tokens.</strong> <code>--gb-text-muted</code>, <code>--gb-font-size-sm</code>, <code>--gb-font-weight-semibold</code> and eleven more are used across <code>admin.css</code>, <code>kitchen.css</code> and <code>sheet.css</code> and <strong>do not exist</strong> — the real names are <code>--gb-text-secondary</code>, <code>--gb-font-size-body-sm</code>, <code>--gb-font-weight-body-strong</code>. An undefined custom property does not error: the declaration is dropped and the element keeps what it inherited, so every line of every dish on <code>/admin/menus</code> rendered at the same size, weight and colour. Nothing could catch it — not lint, not the build, and not the a11y gate, since inherited black on white passes contrast. <code>scripts/check-css-tokens.mjs</code> now fails on any <code>var(--gb-…)</code> naming a token that does not exist, and treats a fallback as a failure too because a fallback hides the typo permanently and stops the value tracking the design system. Fixing the names alone took the page from 17,213px to 14,539px</span>
       </li></ul>
       </details>
     </article>
@@ -2520,7 +2528,7 @@
         <span class="badge r-critical">critical</span>
         
         <span class="badge r-later">later</span>
-        <span class="ttext">Audit every allergen surface against a null child — dish card flag, dish detail, cart line. A warning naming a child must be impossible to render when no child is selected (ux-spec §5.6)</span>
+        <span class="ttext"><strong>Fast-follow, not v1</strong> (scope confirmed 2026-08-17 — the automatic match is deferred; capture and kitchen visibility are not). Audit every allergen surface against a null child — dish card flag, dish detail, cart line. A warning naming a child must be impossible to render when no child is selected (ux-spec §5.6)</span>
       </li>
       <li class="task" data-id="E05-26" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-26"></button>
@@ -3690,13 +3698,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/15</span>
+          <span class="meter-num">0/17</span>
         </div>
       </header>
       <p class="summary">Push and email as primary, with a narrow SMS fallback. No WhatsApp for now.</p>
       <p class="deps">Depends on <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 15 tasks</summary>
+        <summary>Context &amp; 17 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E08-01" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
@@ -3787,7 +3795,7 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Email deliverability: warm the domain, monitor bounces</span>
       </li>
-      <li class="task" data-id="E08-12" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E08-12" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E08-12"></button>
         <code class="tid">E08-12</code>
         
@@ -3803,13 +3811,29 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>SMS fallback</strong> for users with no app installed or push disabled — order confirmation and pickup code only. Uses the DLT templates registered in <code>E00-08</code>, which otherwise have no consumer</span>
       </li>
-      <li class="task" data-id="E08-14" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E08-14" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E08-14"></button>
         <code class="tid">E08-14</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext">Decide per-template whether SMS is worth the cost, and cut unused DLT templates rather than leaving them dormant</span>
+      </li>
+      <li class="task" data-id="E08-16" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E08-16"></button>
+        <code class="tid">E08-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Order alerts, with the recipient list in the admin UI.</strong> Andy: *&quot;Recipients are configured in the admin UI, not in environment variables. Per kitchen, not global… Each recipient has an on/off toggle that stops alerts without deleting the address.&quot;* <code>/admin/alerts</code>, one block per kitchen. <code>0066</code> adds <code>kitchen_alert_recipient</code> (read policy only — writes go through <code>admin-alert-recipients</code>, <code>A4</code>) and <code>order.staff_alert_sent_at</code>. <strong>The toggle is a column, not a delete</strong>, for the same reason <code>permission_grant.revoked_at</code> is: &quot;pause my alerts&quot; and &quot;this person has left&quot; are different acts and collapsing them loses the address. <strong>No child name, class or section is in the email</strong> — the alert&#39;s column list omits them entirely, the same technique as <code>REPORT_ORDER_COLUMNS</code>, so it is the control rather than a template that remembers not to print something. Carries the order code, school, break, service date, items with quantities, total incl. GST, and <strong>&quot;order 14 of today&quot;</strong>, counted per kitchen for that service date *after* the claim so the order counts itself. Dedupe is a <strong>conditional update</strong> on <code>staff_alert_sent_at</code> rather than <code>notification_delivery</code> — that table&#39;s <code>user_id</code> is <code>NOT NULL</code> and sits in the DPDP erasure story, which is exactly why <code>0056</code> gave ops alerts their own home. A failed send <strong>releases</strong> the claim, and a kitchen with nobody switched on leaves the order unclaimed, so switching somebody on does not silently skip the orders that arrived while the list was empty. <strong><code>kitchen.edit</code>, not <code>kitchen.config_edit</code>:</strong> the catalogue pins <code>config_edit</code> to <code>{platform}</code> and a trigger enforces it, so it cannot express &quot;this kitchen&#39;s manager&quot; — found on staging by the grant being refused. Verified end to end on staging: add, duplicate → 409, bad address → 422, unauthenticated → 401, <strong>a kitchen the caller has no grant on → 403</strong>, RLS read scoped to the caller&#39;s kitchen, no session → default deny, the alert fires and Resend accepts it, three further polls send nothing, and all-recipients-off leaves the order retryable</span>
+      </li>
+      <li class="task" data-id="E08-17" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E08-17"></button>
+        <code class="tid">E08-17</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A daily digest as an alternative to per-order alerts.</strong> Andy: *&quot;if fifty orders land in a morning I want fifty emails to be a choice, not an accident.&quot;* Per-order is the default and is right at today&#39;s volume; the digest is the shape to add when a morning&#39;s count makes fifty separate emails the wrong answer. Needs a per-kitchen choice of per-order / digest / both, and a scheduled send</span>
       </li>
       <li class="task" data-id="E08-15" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E08-15"></button>
@@ -3830,13 +3854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/36</span>
+          <span class="meter-num">0/39</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 36 tasks</summary>
+        <summary>Context &amp; 39 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -4096,13 +4120,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>No Edge Function handled a CORS preflight</strong>, so every one of them was correct for the app and unreachable from any web page. React Native&#39;s <code>fetch</code> sends no <code>OPTIONS</code>, which is why nothing failed and nothing was logged for months. A <code>POST</code> with <code>content-type: application/json</code> and an <code>Authorization</code> header is not a simple request, so a browser sends <code>OPTIONS</code> first — and <code>OPTIONS</code> was answered <code>405</code>. Found by the web thread on the back office&#39;s first real click. Fixed once in <code>_shared/cors.ts</code> for all six browser-callable functions rather than six times as six bugs; <code>payments-webhook</code> is deliberately excluded and the exclusion is asserted, because Razorpay calls it server to server and advertising a preflight would describe a browser surface that should not exist. 20 assertions, including one that fails when a seventh function appears unclassified</span>
       </li>
-      <li class="task" data-id="E09-33" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+      <li class="task" data-id="E09-33" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-33"></button>
         <code class="tid">E09-33</code>
-        <span class="badge r-high">high</span>
         
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Kitchen-visible allergy flags.</strong> Staff hand a physical bag to a named child and were previously told nothing; Andy accepted the privacy cost deliberately (2026-08-14), with the constraints as part of the requirement rather than advice. <strong>Structured data only</strong> — the enumerated <code>allergen</code> table, badged beside the child&#39;s name as <code>MILK</code>, <code>TREE NUT</code>. No parent note, no severity, no medical detail, and codes are shortened but never renamed: mapping <code>tree_nut</code> onto &quot;NUT&quot; would create a second vocabulary to keep in step with the first. <strong>A child with no record renders &quot;No allergies provided&quot;, never blank</strong> (§5.21) — and &quot;not readable&quot; renders the same, because both mean &quot;you have not been told&quot; and a permissions failure must not look like a clean bill of health. <code>allergenWarning</code>&#39;s <code>warn: &#39;unknown&#39;</code> is untouched. <strong>No migration was needed</strong>: <code>recipient_allergen_read_fulfilment</code> already required <code>orders.view_pii</code> at the order&#39;s own school or its kitchen. Four constraints tested in <code>allergen-handling.test.ts</code> (never logged, never exported or in a URL, not persisted client-side) and the scoping proved in <code>supabase/tests/kitchen_allergen_flags.test.sql</code> <strong>through an authenticated client</strong>, asserting the harness first so a deny cannot pass for the wrong reason. The terms&#39; allergy clause is updated in the same change, because it said the kitchen sees nothing and that became false</span>
+        
+        <span class="badge r-mvp">v1</span>
+        <span class="ttext">(risk:high) <strong>Kitchen-visible allergy flags.</strong> Staff hand a physical bag to a named child and were previously told nothing; Andy accepted the privacy cost deliberately (2026-08-14), with the constraints as part of the requirement rather than advice. <strong>Structured data only</strong> — the enumerated <code>allergen</code> table, badged beside the child&#39;s name as <code>MILK</code>, <code>TREE NUT</code>. No parent note, no severity, no medical detail, and codes are shortened but never renamed: mapping <code>tree_nut</code> onto &quot;NUT&quot; would create a second vocabulary to keep in step with the first. <strong>A child with no record renders &quot;No allergies provided&quot;, never blank</strong> (§5.21) — and &quot;not readable&quot; renders the same, because both mean &quot;you have not been told&quot; and a permissions failure must not look like a clean bill of health. <code>allergenWarning</code>&#39;s <code>warn: &#39;unknown&#39;</code> is untouched. <strong>No migration was needed</strong>: <code>recipient_allergen_read_fulfilment</code> already required <code>orders.view_pii</code> at the order&#39;s own school or its kitchen. Four constraints tested in <code>allergen-handling.test.ts</code> (never logged, never exported or in a URL, not persisted client-side) and the scoping proved in <code>supabase/tests/kitchen_allergen_flags.test.sql</code> <strong>through an authenticated client</strong>, asserting the harness first so a deny cannot pass for the wrong reason. The terms&#39; allergy clause is updated in the same change, because it said the kitchen sees nothing and that became false</span>
       </li>
       <li class="task" data-id="E09-34" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-34"></button>
@@ -4127,6 +4151,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Kitchen path verified against production and staging.</strong> Production has <strong>no paid order</strong> — one cancelled, one stuck in <code>pending_payment</code>, and the <code>payment</code> table is empty, so the smoke payment never completed. The board and packing sheet correctly show nothing for that day: <code>pending_payment</code> must not reach the kitchen (<code>L5</code>). A paid order was <strong>not</strong> fabricated on production; that would put unpaid revenue in the ledger. Badges and mark-delivered proved on staging through the real board as a signed-in operator — <code>Tara Bajwa MILK</code>, <code>Dhruv Ahluwalia GLUTEN</code>, and the Delivered button writing <code>paid -&gt; delivered | actor=kitchen</code>. Note for anyone testing this: the board has a <strong>ten-second undo window</strong>, so a click looks like a no-op if you read the database before it closes</span>
+      </li>
+      <li class="task" data-id="E09-37" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-37"></button>
+        <code class="tid">E09-37</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The kitchen board on a phone.</strong> Measured at 390×844: the header took <strong>540 of 844 pixels — 64% of the first screen — before any food</strong>, the date wrapped to three lines, the filter line and Refresh took a 56px row each, and the tray chips were clipped behind a horizontal scrollbar inside a vertical list. The 56px targets stay: they are right for wet hands in a hurry and were never what cost the space. The day nav takes one row, the filter line shares the next with Refresh collapsed to a glyph, the order count is dropped from the bar because it is already on the board below, and tray chips wrap. <strong>Delivered is ranked</strong> — it was one of three identical buttons and is the action taken on nineteen orders in twenty; now primary, first, and owning a full-width row. <strong>Bar 270 → 136 CSS px; food starts at 280px of 844, down from 540.</strong> Three bugs found: two CSS specificity (a child selector beating a bare class, and a declaration after a media query beating it by source order) and one the render could not show — hiding the word &quot;Refresh&quot; left the button with no accessible name at phone width, caught by <code>check:a11y</code></span>
+      </li>
+      <li class="task" data-id="E09-38" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-38"></button>
+        <code class="tid">E09-38</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Cancelling an order now tells the parent, and says why in the operator&#39;s own words.</strong> Andy, with orders live: *&quot;if the staff intends to cancel — and the system does not send a notification — they don&#39;t know how to notify the person who ordered.&quot;* He asked for the customer&#39;s contact on the board; <strong>that is the one fix this must not be</strong>, because <code>0002</code> withholds <code>app_user</code> from kitchen scope deliberately (§13.3 rule 4: *&quot;If <code>app_user</code> is ever opened to kitchen scope, rule 4 is broken and <code>E20-09</code> fails&quot;*). The real gap was upstream: <strong>neither cancellation path sent any email at all</strong> — not <code>kitchen-order-status</code>, not <code>cancel-order</code> — so an order cancelled at 9am simply stopped existing from the parent&#39;s side. <code>0065</code> adds <code>order.cancel_reason_detail</code> (the <code>requires_note</code> flag on <code>reason_code</code> has been inert since <code>0001</code> because no table ever had a column for the note it forces) and <code>uq_notification_one_per_order</code>, because the existing dedupe index is partial on <code>order_group_id is not null</code> and would never have fired for a per-order notice — the trap <code>0056</code> documented. The dialog now <strong>requires</strong> a typed sentence, sent verbatim: a code alone reaches a parent as &quot;Dish unavailable&quot;, which does not tell them whether their child ate. The text is escaped into the mail, capped at 500, and <strong>never logged</strong> — it is free text that may name a child whatever the box asked for. <code>formnovalidate</code> on &quot;Keep the order&quot;, or the required field would have demanded an explanation for the cancellation you decided *not* to make. The email promises no refund: <code>orders.refund</code> is a separate grant and <code>refund-notice</code> is what says the money moved, once it has</span>
+      </li>
+      <li class="task" data-id="E09-39" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-39"></button>
+        <code class="tid">E09-39</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Decide whether kitchen staff should see who placed an order.</strong> Andy asked for this directly; <code>E09-38</code> solves the problem he hit without it, so it is now a preference rather than a blocker. It cannot be done without opening <code>app_user</code> to kitchen scope, which <code>0002</code> forbids in terms and which <code>E20-09</code> depends on. If the answer is yes it needs a deliberate policy change and a note in the DPDP record, not a column added to a query. On <code>/orders</code> there is no conflict — a platform admin already holds <code>users.view</code></span>
       </li></ul>
       </details>
     </article>
@@ -4139,13 +4187,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/35</span>
+          <span class="meter-num">0/47</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 35 tasks</summary>
+        <summary>Context &amp; 47 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4396,12 +4444,12 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Service days Mon–Sat, and 79 food types proposed without being written.</strong> Andy&#39;s decision applied through <code>admin-school</code> as his own session so the config audit trigger has an actor. <code>scripts/propose-food-types.mjs</code> proposes and writes nothing: 37 confident veg, 9 egg, 22 veg-worth-a-glance, 11 with <strong>no proposal at all</strong> because they have no ingredient list and the name alone is not evidence. The CSV carries only name, kitchen, category and food_type, so applying it cannot change anything else — dry run confirms 68 changes, every one <code>changing: foodType</code></span>
       </li>
-      <li class="task" data-id="E10-33" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+      <li class="task" data-id="E10-33" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-33"></button>
         <code class="tid">E10-33</code>
         
         
-        <span class="badge r-later">later</span>
+        <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Allergen tagging — <code>/admin/allergens</code>, suggestions only.</strong> Every production dish is in <code>MI1</code>&#39;s third state (no tags, no declaration), which the app must warn about and which reads to a parent as &quot;contains nothing&quot;. Suggestions come from ingredient keywords, are <strong>never pre-applied</strong>, are drawn dashed with their evidence, and nothing is written until Save with a confirmation naming how many dishes will be tagged and how many recorded as containing none. <code>admin-dish</code> gained a bulk <code>dishAllergens</code> path and <code>allergensDeclaredNone</code>; it refuses tags and declaredNone together, refuses unknown codes, and is all-or-nothing — on this table a partial write is worse than a failure because the half that succeeded looks complete</span>
       </li>
       <li class="task" data-id="E10-30" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
@@ -4427,6 +4475,102 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>check:launch</code> now reports dishes nobody has checked for allergens.</strong> It knew the vocabulary existed and stopped there, so 79 dishes in <code>MI1</code>&#39;s unknown state — which a menu renders as no warning at all — were invisible to it. A blocker for the same reason <code>food_type</code> is: it does not stop an order being placed, it makes the order wrong. Reported first, and suppressed entirely when the vocabulary is empty, so the report never says &quot;tag your dishes&quot; while tagging is impossible</span>
+      </li>
+      <li class="task" data-id="E10-37" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-37"></button>
+        <code class="tid">E10-37</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Egg, peanut and sesame added to the allergen vocabulary.</strong> <code>0063</code> seeded the four codes that happened to be sitting in <code>supabase/seed.sql</code> — a list a fixture carried, not one anybody chose. <strong>Egg</strong> is the serious omission: nine production dishes visibly contain egg and there was no code to tag them with, so <code>admin-dish</code> would have refused <code>egg</code> as unknown — correctly, and uselessly. <strong><code>food_type = &#39;egg&#39;</code> and <code>allergen = &#39;egg&#39;</code> are different facts and both are needed</strong>: one is a dietary classification of the whole dish that an Indian menu filters on, the other is a safety fact about an ingredient that a specific child&#39;s record is matched against. A cake made with egg is <code>food_type: &#39;veg&#39;</code> and carries the egg allergen. <strong>Peanut is its own code, never folded into tree nut</strong> — a peanut is a legume, and tagging a peanut dish <code>tree_nut</code> tells a peanut-allergic family nothing while alarming one that only avoids cashews. Applied to production with in-transaction proof and idempotence; tags no dish</span>
+      </li>
+      <li class="task" data-id="E10-38" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-38"></button>
+        <code class="tid">E10-38</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The allergen guesser matched substrings, and &quot;veggies&quot; contains &quot;egg&quot;.</strong> Adding the <code>egg</code> code exposed it: every vegetable dish in the catalogue would have been suggested as containing egg, on the screen whose entire job is to be trusted about allergens. Short and collision-prone words now match whole-word only, and <code>nut</code> is cancelled on &quot;peanut&quot;/&quot;groundnut&quot; so a groundnut sauce is not tagged as a tree nut. Both found by tests, neither would have been visible on the screen</span>
+      </li>
+      <li class="task" data-id="E10-39" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-39"></button>
+        <code class="tid">E10-39</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>check:launch</code> now catches a food type its own ingredients contradict.</strong> Six production dishes are marked <code>veg</code> while their ingredient lists name egg — including <strong>&quot;Boiled Eggs (3 pcs)&quot;, ingredients &quot;Eggs, salt&quot;</strong>. The unmarked-dish check cannot see this: the dish *is* marked, the count is complete, the report goes green. Reuses the classifier that generates <code>review/food-types.csv</code> and reports only <strong>high-confidence</strong> contradictions, so a mayonnaise caveat or a dish with no ingredient list never appears — what is left is a direct disagreement between the label and the ingredients. Only the misleading direction is a blocker; a dish marked <code>egg</code> whose list reads vegetarian is over-cautious and is left alone</span>
+      </li>
+      <li class="task" data-id="E10-40" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-40"></button>
+        <code class="tid">E10-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>/admin/menus</code> rebuilt as a dish workbench.</strong> Search that ranks (name-prefix &gt; substring &gt; category &gt; menu &gt; ingredient, every term must match), filters that are states with counts, sort, and a URL that carries the query. Editing moved from an inline <code>&lt;details&gt;</code> into a drawer, because a panel over the list cannot move the list — <strong>measured</strong>: open at scrollY 2400 with the row at y=1139, save, still 2400 and 1139. A dish appears once with its menu memberships and per-menu prices on it; the per-school repetition moved to <code>/admin/schools</code>. <strong>17,213px → 6,013px.</strong> Only changed fields are sent, so a no-op save makes no request — the old behaviour reported ten fields as saved and bumped <code>school_menu_version</code>, expiring every client&#39;s cached menu</span>
+      </li>
+      <li class="task" data-id="E10-41" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-41"></button>
+        <code class="tid">E10-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>/admin/schools</code> rebuilt as a readiness checklist.</strong> Five gates per school — in the app, menu, break windows, service days, report contact — each showing what is actually true rather than a tick, each failing gate carrying the link that fixes it. Replaces a single &quot;Open to parents&quot; label derived from <code>onboarded_at</code> and <code>is_active</code> alone, which a school could carry with no menu, no break windows and no service days. <code>missing</code> blocks and <code>warning</code> informs, so a menu that starts next term reads as <strong>scheduled</strong> rather than broken. Schools needing work sort first. The create form, used perhaps three times a year, moved from the top of the page into a collapsed disclosure at the bottom; creating a school now scrolls to its checklist rather than congratulating you</span>
+      </li>
+      <li class="task" data-id="E10-42" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-42"></button>
+        <code class="tid">E10-42</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Admin controls sized for a pointer.</strong> <code>.kitchen__btn</code> is 56px tall by design — &quot;wet hands, in a hurry&quot; — and every admin screen was reusing it, which turned the nav into a row of lozenges and an inline action into a circle with the label spilling out. Overridden inside the admin shell so the kitchen keeps its 56px. The first concrete instance of the kitchen and the back office being different problems that had been sharing one control vocabulary</span>
+      </li>
+      <li class="task" data-id="E10-43" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-43"></button>
+        <code class="tid">E10-43</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Navigation, and a dashboard to land on.</strong> Andy: *&quot;I should login into a dashboard and should have options to navigate to all other available web screens / reports etc. Currently I need to find and paste URL endpoints to open some / many of those.&quot;* <code>nav.ts</code> has modelled this correctly since <code>E10-12</code> — every route, its required grants, a description, and the argument for omitting rather than disabling what cannot be reached — and <strong>nothing imported it.</strong> Each screen hand-rolled links instead: <code>/admin/menus</code> offered four, <code>/orders</code> offered one, six offered none, and <code>/kitchen/sheet</code>, <code>/admin/allergens</code> and <code>/admin/people</code> were reachable from no link anywhere. The table had also drifted — it pointed at <code>/admin/orders</code>, which has never existed, and a nav item pointing at nothing is indistinguishable from one correctly hidden from you, so nobody could see it. Now: one <code>BackofficeNav</code> component generated from <code>NAV</code> on all ten screens, a <code>/dashboard</code> carrying each route&#39;s one-line description, and <code>/signin</code> landing there instead of hard-coding <code>/kitchen</code> (an account holding only <code>reports.view</code> used to arrive at a board it could not read). Items ship <code>hidden</code> and are revealed by <code>fetchMyGrants()</code> — the opposite order from render-then-hide, which flashes the whole system at somebody entitled to one screen of it. <strong>Two tests close the loop in both directions:</strong> every <code>href</code> must resolve to a page on disk, and every back-office page must appear in <code>NAV</code>, so neither a renamed route nor an orphaned screen can recur. Sign-out existed on no page at all and is now in the panel with the signed-in address beside it. A button-and-panel at every width rather than inline tabs, because nine items wrapped to a second row and <code>E09-37</code> had just cut that bar from 270px to 136 — measured back at 136 after this</span>
+      </li>
+      <li class="task" data-id="E10-44" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-44"></button>
+        <code class="tid">E10-44</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Consider a keyboard shortcut for the navigation panel (<code>g</code> then a letter, or <code>⌘K</code>), once there is evidence anyone moves between screens often enough to want it. Deliberately not built now: a shortcut nobody uses is a thing to maintain, and the panel is two taps</span>
+      </li>
+      <li class="task" data-id="E10-45" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-45"></button>
+        <code class="tid">E10-45</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Access as a job, not thirty-one checkboxes.</strong> Andy: *&quot;Currently privileges one is a large list that does not make much sense to me. I want to be able to promote people to Kitchen staff so they can login and view orders and promote orders etc.&quot;* Five jobs — Delivery, Kitchen staff, Kitchen manager, School office, Platform admin — each stating in a sentence what the person can do, what it exposes, and the exact codes it grants, with the scope narrowed to the ones that job makes sense at (offering <code>platform</code> for a kitchen job is offering the difference between one kitchen and all of them). <strong>A job is derived, never stored.</strong> Granting one writes the same individual <code>permission_grant</code> rows you would have picked by hand; the name on the card is read back from those rows by <code>describeAccess</code>. <code>D3</code> keeps roles out of the schema for a concrete reason — it is what let <code>orders.mark_delivered</code> be split from <code>orders.refund</code> so a courier can hand food over without touching money (<code>E09-09</code>) — and storing a role would take that back. An account matching no bundle is <strong>Custom</strong>, a first-class answer rather than an error. <code>orders.refund</code> and <code>orders.view_financials</code> are in no kitchen job, asserted by a test. Another test removes each grant from each job in turn and requires the job to stop matching, so a partial set can never be labelled as the whole. The screen used to open with &quot;access is a grant, never a role — there is no role column anywhere&quot;, which is true and is no use to somebody trying to let a cook sign in; that note moved to the bottom, beside the revoke warning, where it explains something</span>
+      </li>
+      <li class="task" data-id="E10-46" data-seed="1" data-risk="medium" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-46"></button>
+        <code class="tid">E10-46</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>/admin/people</code> did not survive contact with real parents.</strong> Andy: *&quot;How bad is UX for /admin/people — how will this list look like in 1 week where 400 people have registered?&quot;* Badly. <code>fetchAccess</code> selected <strong>every</strong> <code>app_user</code> row, unbounded, and the screen rendered a card per account, each carrying a five-option job select and a thirty-one-option permission select — at 400 registered parents that is roughly <strong>fourteen thousand <code>&lt;option&gt;</code> elements</strong> to show three members of staff. The old section note argued that listing accounts holding nothing was how you reach somebody to onboard them, which was true at four accounts and is exactly backwards at four hundred. Now: <strong>grants are read first and only the accounts they name are fetched</strong>, so the list is as long as the number of people with access and no longer; and finding anyone else is a <strong>debounced database search</strong> on email or either name, capped at 20, with stale responses discarded by sequence number because on a slow connection the answer for &quot;pri&quot; can land after the answer for &quot;priya&quot;. Searching in the browser was rejected for the obvious reason — fetching every account to filter it client-side is the same unbounded read wearing a search box. <code>SelectBuilder</code> gained <code>in()</code> and <code>or()</code>, each documented at the interface as <code>client.ts</code> asks. <code>%</code> and <code>_</code> in a typed term are escaped, or an address containing one would widen the search rather than narrow it</span>
+      </li>
+      <li class="task" data-id="E09-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-40"></button>
+        <code class="tid">E09-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Move the kitchen board&#39;s status filter into the query.</strong> <code>fetchKitchenOrders</code> filters status in memory and its comment says it should move into the query once <code>SelectBuilder</code> has <code>in()</code> — which <code>E10-46</code> has now added. Left alone deliberately: it changes the query behind the live kitchen board and deserves its own verification rather than riding along with an unrelated change</span>
+      </li>
+      <li class="task" data-id="E10-47" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-47"></button>
+        <code class="tid">E10-47</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>No job could be granted to anybody new.</strong> Andy: *&quot;I am trying to give just one more user Platform Admin role but it&#39;s not allowing me to because selection of &#39;Where&#39; field with Kitchen or school ID is not selectable or clickable.&quot;* Two faults, and the first made the whole onboarding path dead. <strong>(1)</strong> <code>syncJobNotes</code> — which fills the *Where* select from the chosen job — scanned <code>el.body</code> only. <code>E10-46</code> had just added a <strong>second</strong> place these forms render, <code>#a-results</code>, and did not extend it, so a form reached by <strong>searching for somebody</strong> got a select with zero options. A <code>&lt;select&gt;</code> with no options cannot be opened, which is exactly &quot;not selectable or clickable&quot;, and searching is the only way to reach a person who holds nothing. Now scans <code>document</code>. Proven with a probe that renders a form into the results container: <strong>0 options before, populated after.</strong> <strong>(2)</strong> *Which one* was a free-text box asking for a &quot;Kitchen or school id&quot; — a UUID nobody has memorised and which appears nowhere on the screen. It is now a picker of kitchens and schools <strong>by name</strong>, filtered to the scope the job applies at, and it disappears entirely for a platform-scoped job, where the server refuses a value anyway. Scope types are labelled in English (*Everywhere*, *One kitchen*) rather than as <code>platform</code>/<code>kitchen</code>. Submitting a narrow scope with nothing chosen is refused client-side with the reason, rather than after several grants have already landed. <code>.admin__field</code> sets <code>display: flex</code> and therefore beat <code>[hidden]</code> — the <strong>fifth</strong> place in this codebase to need that restated</span>
       </li></ul>
       </details>
     </article>
@@ -4443,13 +4587,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/7</span>
+          <span class="meter-num">0/14</span>
         </div>
       </header>
       <p class="summary">A monthly PDF emailed to each school. Aggregates only, no child-level PII. Designed to sell the benefit of the partnership.</p>
       <p class="deps">Depends on <code>E07</code></p>
       <details>
-        <summary>Context &amp; 7 tasks</summary>
+        <summary>Context &amp; 14 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Decided against a school login portal — the PDF lands in the principal&#39;s inbox instead of waiting to be discovered.</p></div>
         <ul class="tasks">
@@ -4508,6 +4652,62 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Reports computed from the <strong>partitioned and indexed</strong> tables of <code>E02-11</code>. Materialised aggregates stay deferred to <code>E18-22</code> until volume demands them</span>
+      </li>
+      <li class="task" data-id="E11-08" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-08"></button>
+        <code class="tid">E11-08</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A growth report — registrations over time and by school.</strong> Andy: *&quot;All registered users - registrations per date - registrations per school etc. Want to be able to see exactly how the registrations / growth is tracking. Would be good to have some basic graphs / visuals.&quot;* <code>/admin/growth</code>, requiring <code>users.view</code> at platform scope, deliberately separate from <code>/reports</code> — that one answers &quot;what did this school order&quot; for a school, this answers &quot;is the product growing&quot; for us, and <code>E10-10</code> exists to stop the monthly report quietly growing into something nobody agreed to. <strong>Every number is a count and nobody is named</strong>: <code>fetchGrowth</code> selects three columns per child (<code>id</code>, <code>school_id</code>, <code>created_at</code>) and the types have nowhere to put a name, so non-negotiable #4 is enforced at the boundary rather than in a template — <code>recipient_read_admin</code> *would* return every column. Five headline figures, a cumulative line with a per-day bar row on the same axis, and a per-school table. <strong>A family is counted once per school</strong>, however many children they have there: two siblings is one family, and counting two overstates reach by exactly the families most likely to be a reference. Days with no signups are plotted, because charting only the days that had one turns a flat fortnight into steady growth. Dates are <strong>IST calendar dates</strong> — bucketing a <code>timestamptz</code> by its UTC date files every signup after 18:30 IST under yesterday. Charts are hand-rolled inline SVG: the site ships zero third-party assets and the CSP is <code>script-src &#39;self&#39;</code>, so a chart library is not an option, and a polyline is twenty lines. <strong>&quot;Signed up, no child yet&quot; is on the headline row</strong> because <code>AR7</code> makes signup-to-first-order a primary goal and an account with no child cannot order at all — that number is whether onboarding works. 3,230 B of JS against a 10,000 budget</span>
+      </li>
+      <li class="task" data-id="E11-09" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-09"></button>
+        <code class="tid">E11-09</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext">Growth by <strong>month</strong> as well as by day, once there is more than one month of data to compare. Deliberately not built now: with seventeen days of history a month view is one bar</span>
+      </li>
+      <li class="task" data-id="E11-10" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-10"></button>
+        <code class="tid">E11-10</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>/reports</code> was counting unpaid orders as revenue, and its date control did nothing.</strong> Andy: *&quot;The /reports is very bad and does not even show the right data. It shows orders and I updated date to at least include 1 more order from the new range and it didn&#39;t change any numbers. Also reports does not have option to do per school or per month etc.&quot;* Three faults. <strong>(1) The money was wrong.</strong> <code>summarise</code> did <code>if cancelled or refunded … else add to gross</code>, which swept <code>draft</code> and <code>pending_payment</code> into revenue — on production that was ₹228.92 of takings nobody had paid, and a number being too big is the one error on a report that never gets questioned. Statuses are now explicit sets: <code>paid</code>/<code>preparing</code>/<code>delivered</code> are earned, <code>draft</code>/<code>pending_payment</code> are counted and valued in their <strong>own</strong> column, <code>cancelled</code>/<code>refunded</code> counted and excluded, and <strong>an unrecognised status throws</strong> rather than being guessed onto a side of the ledger — guessing is exactly how this happened. <strong>(2) The date control applied only on submit.</strong> The query was always correct (extending to <code>2026-08-21</code> does return one more order, confirmed read-only against production); the form just showed the previous answer until you pressed Show. It now applies on change, and five presets mean the common ranges need no typing. <strong>(3) No grouping.</strong> Day, month and school are a control, and all three are folds of one set of (day, school) rows via <code>groupRows</code> — three queries would let the per-school total disagree with the per-month one, which is worse than no report. Verified by a test that every grouping folds to the same total. <code>REPORT_ORDER_COLUMNS</code> is unchanged: still no recipient, class or section</span>
+      </li>
+      <li class="task" data-id="E11-11" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-11"></button>
+        <code class="tid">E11-11</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Charts worth looking at.</strong> Andy: *&quot;The graph in growth is abysmal to say the least… These can be made so impressive.&quot;* The first attempt drew the data and nothing else — no y axis, no dates, no baseline, and <code>preserveAspectRatio=&quot;none&quot;</code>, which stretches the drawing to its container and distorts every slope in it, throwing away the one thing a line chart communicates. <code>lib/admin/chart.ts</code> now gives both screens <code>columns()</code> and <code>area()</code> with a <strong>rounded axis</strong> (<code>niceScale</code> picks 1/2/5 × a power of ten so the top gridline is a number a person would choose, and always starts at zero — a truncated axis exaggerates every change on it), <strong>thinned x labels</strong> that always keep the last one, gridlines, a baseline, and a <code>&lt;title&gt;</code> on every mark, which is a native tooltip with no JavaScript and is what a screen reader announces. Still zero third-party assets: a chart library is impossible under <code>script-src &#39;self&#39;</code> and unnecessary at twenty lines of geometry. 21 tests, including that the escaping holds when a school name contains markup</span>
+      </li>
+      <li class="task" data-id="E11-12" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-12"></button>
+        <code class="tid">E11-12</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A sales report, by the day the order was taken.</strong> Andy: *&quot;Currently orders are only seen for the day the delivery is requested for, I want to see sales (orders) placed for a given day. That way I can see when a large order day comes — I want to be able to see growth or reduction in orders.&quot;* <code>/admin/sales</code>, gated on <code>reports.view</code> <strong>and</strong> <code>orders.view_financials</code> — the same pair <code>/orders</code> uses, because growth percentages and average order value are our commercial view and do not belong in a school office&#39;s navigation. Day, week and month grains, plus by school. <strong>The design decision that mattered was the timestamp.</strong> <code>placed_at</code> is set at checkout and is populated on 100% of real orders; <code>confirmed_at</code> is null on every unpaid one, so bucketing by it would have silently dropped demand; <code>created_at</code> is a row-lifecycle field, not a business fact. <strong>And the day must be IST</strong>: of the first real production orders, <strong>three of four were placed after 18:30 UTC</strong> — parents order in the evening — so a UTC bucket would have put most orders on the wrong day, in the one report whose purpose is to say which day was busy. The query shifts both bounds by 5h30 and makes the upper one <strong>exclusive</strong>, or an order at midnight would count as the previous day&#39;s last. Every figure carries its change against the window of the same length immediately before, so a shorter month never reads as a decline, and a rise from zero is shown as &quot;first in this period&quot; rather than as an infinite percentage. <strong>Kept as one row set:</strong> <code>summarise</code> now keys by service day, placed day and school, so all six axes fold from the same rows and a test asserts their totals are identical — two separate queries would have let the sales total disagree with the revenue total. Rejected: folding this into <code>/reports</code> behind a basis toggle, because the two have different defaults (this range ends today, that one ends tomorrow), different comparisons and different audiences, and a number whose meaning depends on a control above it is how a report gets quoted wrongly</span>
+      </li>
+      <li class="task" data-id="E11-13" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-13"></button>
+        <code class="tid">E11-13</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Lead time — how far ahead people order.</strong> The natural next question once <code>E11-12</code> shows when orders arrive: the gap between <code>placed_at</code> and <code>service_date</code>, which says whether the cutoff is set in the right place and whether a menu published on Friday is being ordered from over the weekend. Both columns are already read</span>
+      </li>
+      <li class="task" data-id="E11-14" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-14"></button>
+        <code class="tid">E11-14</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Sales shows paid orders only, and schools by their code.</strong> Three things Andy reported. <strong>(1) &quot;Date filter is not working.&quot;</strong> It works — driving the live page with a real session, <code>2026-08-22</code>–<code>24</code> gives &quot;No paid orders in this range&quot; and <code>15</code>–<code>16</code> gives 3. It *looked* broken because all six production orders were placed inside one week, so every wide range returns the same set, and because the screen said &quot;6 orders placed&quot; beside &quot;₹42.00 net&quot; — one paid order&#39;s worth. That contradiction was the real complaint, and (3) removes it. The status line now echoes the active range so a change is visible even when the numbers are unchanged. <strong>(2) School labels.</strong> <code>groupRows</code> labelled school buckets with the full name, and &quot;Amity International, Mohali&quot; on a chart axis beside &quot;Gem Public School&quot; is unreadable at any width. The axis now shows <code>school.code</code> upper-cased — short, unique and already the identifier the importer matches on — while the table and every tooltip keep the full name. A refused school read falls back to the name rather than showing a bare uuid. <strong>(3) Unpaid orders removed.</strong> *&quot;This report is &#39;Sales&#39; — it does not make sense to show unpaid orders here.&quot;* Correct: <code>grossPaise</code> had always excluded them, but the <strong>counts</strong> did not, which is exactly why the screen contradicted itself. <code>Bucket</code> gains an explicit <code>paid</code> — stated rather than derived, because three screens were each computing <code>orders - cancelled - pending</code> and that subtraction becomes quietly wrong the day a status is added. Headline, charts and table are all paid-only; the Unpaid and Cancelled columns are gone. Also fixed: the table reversed its rows for &quot;newest first&quot;, which on the school axis inverted the value ranking and put the smallest school above the largest, contradicting the chart beside it</span>
       </li></ul>
       </details>
     </article>
@@ -4520,13 +4720,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/34</span>
+          <span class="meter-num">0/37</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 34 tasks</summary>
+        <summary>Context &amp; 37 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -4562,13 +4762,21 @@
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Privacy policy, refund policy, terms, and the <strong>DPDP grievance officer contact</strong> (<code>E20-07</code>) — required by both app stores and by law</span>
       </li>
-      <li class="task" data-id="E12-05" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E12-05" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-05"></button>
         <code class="tid">E12-05</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext">App store badges and deep links to the mobile app</span>
+        <span class="ttext"><strong>App store badges on the home page.</strong> Andy asked for them on the grounds that graybag.com has them — <strong>it does not</strong>: rendering the live Bubble site and searching the whole DOM found no store link and no store word on any page. What was true is the thing that mattered: <strong>both apps went live on 2026-08-22</strong>, verified before a link was written — the iOS listing through Apple&#39;s lookup API (<code>GrayBag</code>, Graycord Pty Ltd, v4.0.0) and the Play listing by fetching it. A parent-facing band sits directly under the hero, separate from the school CTAs on purpose: the hero sells to a decision-maker and a parent needs one thing from this page. <code>check-build.mjs</code> <strong>forbade every store host</strong> until now — *&quot;a dead download button is worse than none&quot;* — and that rule was not deleted but narrowed to an allowlist of the two verified URLs, so a placeholder, a stray TestFlight link, or the Play package typo still fails the build. That typo is real: <code>com.gracord.graybag</code> is a 404 and <code>com.Gracord.Graybag</code> is the listing, and the guard was proven by injecting the wrong one and watching it fail</span>
+      </li>
+      <li class="task" data-id="E12-37" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-37"></button>
+        <code class="tid">E12-37</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Swap the drawn hero device for a real screenshot, and consider the official store badge artwork.</strong> The illustration&#39;s comment said the app was unpublished; that reason expired on 2026-08-22, but a mock is still a mock and it stays until there is a real screenshot. The badges are currently a self-authored lockup in the site&#39;s own palette rather than Apple&#39;s and Google&#39;s supplied artwork — deliberate, because both stores have brand guidelines governing their badges and using them is a decision to take knowingly rather than by copying an SVG. <code>(owner:andy)</code> if you want the official artwork</span>
       </li>
       <li class="task" data-id="E12-06" data-seed="0" data-risk="" data-owner="build" data-mvp="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-06"></button>
@@ -4801,6 +5009,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Production could take a payment and send nothing.</strong> <code>ORDER_EMAIL_FROM</code> on production was an address at <code>graybag.com</code>; the only domain verified in Resend is <code>mail.graybag.com</code>, so <strong>every</strong> transactional send failed <code>403</code> — order confirmations, tax invoices, refund notices and enquiry notifications. The request still succeeded and the 403 appeared only in the Edge Function log, so an order looked completely normal while the parent was told nothing. Fixed: <code>ORDER_EMAIL_FROM</code> is now <code>GrayBag &lt;hello@mail.graybag.com&gt;</code>, proven by sending the same message from both addresses on the production key (403 vs 200) and then by a real enquiry producing a real email to <code>support@graybag.com</code>. Found only because the check was &quot;did it arrive&quot;, not &quot;did the row land&quot; — every earlier check confirmed the row, which was never the broken half. <code>check:launch</code> now reports Resend&#39;s verified domains and blocks when none is verified</span>
+      </li>
+      <li class="task" data-id="E12-35" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-35"></button>
+        <code class="tid">E12-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Motion and graphics on the home page.</strong> Reveal-on-scroll per section, a rail joining the four numbered steps, a card lift, and a <strong>ledger</strong> filling the empty right half of &quot;For your school&quot; — *2* things the school does against *7* we do, both counted from the lists beside them rather than asserted. <strong>The failure mode got more attention than the animation</strong> — the hiding rule applies only under <code>html.js</code> which the script adds itself, anything on screen at load is revealed without waiting, and a timeout reveals everything regardless, so no observer failure can leave copy invisible on the page that sells the product. <code>prefers-reduced-motion</code> turns it <strong>off</strong>, not gentler, verified by emulating the query: <code>0s</code>/<code>none</code> with it, <code>0.32s</code>/<code>gb-pop</code> without. 1,034 B of JS gzipped against a 10,000 budget, no library. <strong>Two claims in this entry were wrong and are corrected by <code>E12-36</code>:</strong> none of it ran in production at all, and the three-second failsafe defeated the feature rather than protecting it. The hero, described here as deliberately not animating, now does — on load, not on scroll</span>
+      </li>
+      <li class="task" data-id="E12-36" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-36"></button>
+        <code class="tid">E12-36</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The home page motion never ran in production, and the fix for it had made a heading unreadable.</strong> Andy, on the live site: *&quot;Nothing moves / transitions on the home page. &#39;Your school gets its own menu&#39; has bad contrast with background and can&#39;t be read.&quot;* Two unrelated causes, both found by probing the deployed site rather than the local build. <strong>(1)</strong> <code>netlify.toml</code> sends <code>script-src &#39;self&#39;</code> and <code>E12-35</code>&#39;s script was <code>is:inline</code>, so the browser refused it — <code>html.js</code> was never added, nothing was ever hidden, and nothing ever animated. It worked locally because a static file server sends no CSP. The code moved to <code>src/lib/site/motion.ts</code> and is now imported by a bundled <code>&lt;script&gt;</code>, served from the origin. <code>check-build.mjs</code> fails the build on any inline <code>&lt;script&gt;</code> without <code>src</code> (JSON-LD excepted), so this cannot come back — and that guard was itself first written *after* the <code>process.exit(1)</code> that ends the report, where it could never fire; it was proven by injecting a script into <code>dist/</code> and watching it fail. <strong>(2)</strong> The reveal rule was <code>[data-reveal] &gt; *</code>, specificity (0,1,1), which beat <code>.pattern--deep</code>&#39;s <code>opacity: 0.11</code> at (0,1,0) and painted the decorative vegetable pattern at <strong>nine times</strong> its intended strength directly behind that heading. Scoped to <code>&gt; .wrap</code>, so it can only ever touch the content column. Also: the failsafe went from three seconds to ten, because at three it fired before a reader had scrolled and revealed every section — the safety net was switching the feature off on every normal visit. Motion is now richer per Andy&#39;s grayspark.ai reference: hero stagger on load, per-child stagger via <code>--i</code>, the process rail drawing with <code>scaleX</code>, count-up on the ledger&#39;s 2 and 7, and hero device drift on scroll — all transform/opacity only. Verified on the built output: 1 of 6 sections revealed at load and 6 after scrolling, pattern back at <code>0.11</code>, count-up sampling <code>0,2,3,5,6,7</code>, and under emulated <code>prefers-reduced-motion</code> a single sample of <code>7</code> with no reveal at all</span>
       </li></ul>
       </details>
     </article>
@@ -4817,13 +5041,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/53</span>
+          <span class="meter-num">0/56</span>
         </div>
       </header>
       <p class="summary">Move ~400 users, dependents and full order history off Bubble. Rehearsed at least twice before the real thing.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E04</code> <code>E05</code> <code>E06</code></p>
       <details>
-        <summary>Context &amp; 53 tasks</summary>
+        <summary>Context &amp; 56 tasks</summary>
         <div class="context"><h4>Known constraints</h4>
 <p>Verified against the real export on 2026-08-08 (<code>E19-04</code>). Full evidence in</p>
 <p><strong><code>docs/bubble-recon-findings.md</code></strong> — read it before writing <code>E16-01</code>. Several constraints below</p>
@@ -5341,6 +5565,30 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:high) <strong>No dish on production carries an allergen tag — <code>dish_allergen</code> is empty for all 79.</strong> Found 2026-08-15 during the verification sweep, when both <code>allergen</code> and <code>dish_allergen</code> were empty. <strong>The vocabulary half is now done by the web thread</strong> — <code>0063_allergen_vocabulary</code> seeds milk, gluten, tree nut and soy, and those four are live on production. What remains is the half only the kitchen can answer: <strong>which of the 79 dishes contain which of them.</strong> Until that exists every dish renders with no allergen information, which reads as *&quot;contains nothing&quot;*. Same shape as <code>E16-52</code> (no <code>food_type</code> on any dish) and the same reason — <code>catalogue.sql</code> will not invent it. Non-negotiable #4 makes this the highest-consequence of the data gaps, because the failure mode is a child eating something they are allergic to rather than a complaint. The app-side machinery is built and tested (<code>useAllergenWatchlist</code>, the cart warnings wired in <code>E05-45</code>) and has nothing to work with. <strong>Ledger note</strong>: <code>0063</code> was applied to production without being recorded in <code>supabase_migrations.schema_migrations</code> — verified byte-for-byte (the four ids match the migration exactly) and recorded, so a later <code>db push</code> does not replay it. Same class as the <code>0060</code> discrepancy, opposite direction; worth the web thread knowing</span>
+      </li>
+      <li class="task" data-id="E16-55" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-55"></button>
+        <code class="tid">E16-55</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The 77 legacy dish photos are on production, uploaded through <code>admin-dish-image</code>.</strong> Production had zero images and every dish rendered blank — a visible downgrade from the app parents use today. Matched on <code>legacy_bubble_id</code>, which all 79 dishes carry and every manifest entry supplies, so it is an exact join and not a name match; <code>matchDishes</code> is reused from <code>upload.mjs</code> rather than reimplemented. Verified after the fact by comparing each dish&#39;s stored <code>asset.checksum_sha256</code> against the manifest entry for <strong>that dish&#39;s own id</strong> — 77 matched, 0 mismatched — and by reading a rendered contact sheet of all 79 name-and-photo pairs. Driven through the Edge Function rather than <code>upload.mjs</code>&#39;s direct service-role write, because that is now a second write path into the bucket, <code>asset</code> and <code>dish.image_asset_id</code>; <code>upload.mjs</code> is marked superseded. <code>public_menu</code> went from 0 to 117 of 119 rows carrying an <code>image_path</code></span>
+      </li>
+      <li class="task" data-id="E16-56" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-56"></button>
+        <code class="tid">E16-56</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The legacy photos are 120 pixels tall, and there is no larger original.</strong> All 82 are 120px tall (72 are 120×120). Fetching the source URL with no size parameter returns 180×120 and <code>?w=1200</code> returns identical bytes; the Bubble export is CSVs of URLs, not binaries. They are uploaded unmodified because re-encoding a thumbnail loses quality for nothing, and they reach parity with the app parents use today — but they will look soft on a modern phone. A re-shoot decision, alongside the two dishes with no photo at all (<code>E16-29</code>)</span>
+      </li>
+      <li class="task" data-id="E16-57" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E16-57"></button>
+        <code class="tid">E16-57</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Five pairs of dishes share one photo because they look like duplicate catalogue entries.</strong> Choco Muffin / Chocolate Muffin, Hot Choco Milk / Hot Chocolate Chocolate, Mango Shake / Mango Shake (Seasonal), Rajma Rice / Rajma With Rice Or Prantha, Strawberry Shake / Strawberry Shake (Seasonal). Each matched its own <code>legacy_bubble_id</code> and both legacy records pointed at the same file, so the images are correct — but a menu showing two near-identical entries is worth consolidating</span>
       </li></ul>
       </details>
     </article>

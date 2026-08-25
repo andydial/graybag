@@ -1560,27 +1560,6 @@ Every dish therefore renders with no allergen information, which reads as "conta
 Given non-negotiable #4 this is the highest-consequence of the three data gaps, and the app-side
 machinery for it is already built and tested with nothing to work with.
 
-<<<<<<< HEAD
-## D40
-
-**Recorded `0063` in production's migration ledger, which the web thread had applied but not
-recorded.** Found while checking whether their PR #77 overlapped my `E16-54`: production held
-exactly the four allergen rows `0063_allergen_vocabulary` inserts, with ids matching the
-migration byte-for-byte, while `supabase_migrations.schema_migrations` stopped at `0062`.
-
-Same class as the `0060` discrepancy earlier today, in the opposite direction — that one was
-recorded without being applied, this one applied without being recorded. Left alone, the ledger
-stays permanently one behind and a later `db push` replays the migration. `0063` is
-`on conflict do nothing`, so the replay would be harmless *this* time; the drift is the hazard,
-not this row.
-
-I verified the content was genuinely applied before recording it — four ids, four codes, all
-matching. I did not touch their migration, their code, or the data.
-
-**Worth them knowing**, because it is now twice in one day and the mechanism is the same both
-times: applying migration SQL to production by hand and letting the ledger and the database
-disagree. `E16-54` carries the note too.
-=======
 ---
 
 ## D-16T — every permission granted to Andy on production, and the standing "don't grant" rule set aside
@@ -1628,4 +1607,23 @@ its row (it read empty before), schools and dishes list, and `PATCH /functions/v
 the call that was returning `not_permitted` — returned `200 {"changed":["description"]}`. The
 description was restored to its exact original text and re-read to confirm. Re-running the grant
 is a clean no-op.
->>>>>>> origin/main
+
+## D40
+
+**Recorded `0063` in production's migration ledger, which the web thread had applied but not
+recorded.** Found while checking whether their PR #77 overlapped my `E16-54`: production held
+exactly the four allergen rows `0063_allergen_vocabulary` inserts, with ids matching the
+migration byte-for-byte, while `supabase_migrations.schema_migrations` stopped at `0062`.
+
+Same class as the `0060` discrepancy earlier today, in the opposite direction — that one was
+recorded without being applied, this one applied without being recorded. Left alone, the ledger
+stays permanently one behind and a later `db push` replays the migration. `0063` is
+`on conflict do nothing`, so the replay would be harmless *this* time; the drift is the hazard,
+not this row.
+
+I verified the content was genuinely applied before recording it — four ids, four codes, all
+matching. I did not touch their migration, their code, or the data.
+
+**Worth them knowing**, because it is now twice in one day and the mechanism is the same both
+times: applying migration SQL to production by hand and letting the ledger and the database
+disagree. `E16-54` carries the note too.

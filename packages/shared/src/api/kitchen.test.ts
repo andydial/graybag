@@ -7,6 +7,7 @@ import {
   fetchKitchenSchools,
   fetchMyGrants,
   setApiTransport,
+  updateKitchenOrderStatus,
 } from './index.js';
 import { fakeTransport } from './test-support.js';
 
@@ -330,5 +331,54 @@ describe('fetchMyGrants', () => {
   it('returns nothing for an account with no grants, rather than failing', async () => {
     install([]);
     expect(await fetchMyGrants()).toEqual([]);
+  });
+});
+
+describe('updateKitchenOrderStatus — a cancellation must say what happened (E09-38)', () => {
+  const cancel = (over: Record<string, unknown> = {}) =>
+    updateKitchenOrderStatus({
+      orderIds: ['11111111-1111-1111-1111-111111111111'],
+      to: 'cancelled',
+      reasonCode: 'dish_unavailable',
+      ...over,
+    } as never);
+
+  it('refuses a cancellation with no typed detail', async () => {
+    // The whole point of E09-38: the customer is emailed, and a reason code alone reaches them
+    // as "Dish unavailable", which does not tell a parent whether their child ate.
+    await expect(cancel()).rejects.toThrow(/sentence saying what happened/i);
+  });
+
+  it('refuses whitespace, which is how a required field gets satisfied in a hurry', async () => {
+    await expect(cancel({ reasonDetail: '   ' })).rejects.toThrow(/sentence saying what happened/i);
+  });
+
+  it('refuses a single keystroke', async () => {
+    await expect(cancel({ reasonDetail: 'x' })).rejects.toThrow(/sentence saying what happened/i);
+  });
+
+  it('still refuses a cancellation with no reason code, and says so distinctly', async () => {
+    // Two different faults with two different fixes; one message for both would be worse than
+    // either. The code check comes first because it is the older contract.
+    await expect(
+      cancel({ reasonCode: undefined, reasonDetail: 'The van broke down.' }),
+    ).rejects.toThrow(/reason code/i);
+  });
+
+  it('accepts a short but real sentence', async () => {
+    // "Van broke" is four characters past the floor and is a perfectly good explanation. The
+    // guard exists to refuse a keystroke, not to demand an essay — so this must get past
+    // validation and fail later, on the transport, which is not installed here.
+    await expect(cancel({ reasonDetail: 'Van broke down' })).rejects.not.toThrow(
+      /sentence saying what happened/i,
+    );
+  });
+
+  it('asks nothing extra of the other transitions', async () => {
+    // Marking delivered is the action taken nineteen times in twenty. It must not acquire a
+    // dialog because cancelling did.
+    await expect(
+      updateKitchenOrderStatus({ orderIds: [], to: 'delivered' }),
+    ).resolves.toEqual({ updated: [], skipped: [] });
   });
 });

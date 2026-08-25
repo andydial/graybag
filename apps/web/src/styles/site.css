@@ -1203,3 +1203,279 @@ ul, ol { padding: 0; list-style: none; }
  * statutory detail, not supporting text.
  */
 .footer__officer { margin-top: var(--gb-space-3); }
+
+/* ============================================================ motion and graphics (E12-35, E12-36)
+ *
+ * Andy: *"add motion, graphics and visual interest… motion should support the content, not
+ * decorate it"*, and then, after the first attempt shipped dead: *"nothing moves / transitions."*
+ *
+ * ## The bug that made the first version worse than nothing
+ *
+ * It opened with a blanket safety rule:
+ *
+ *     [data-reveal] > * { opacity: 1; }
+ *
+ * Every panel on this page carries a `.pattern` child — a masked vegetable field at
+ * **`opacity: 0.11`**. That selector is (0,1,1) and `.pattern--deep` is (0,1,0), so the blanket
+ * rule won and rendered the pattern at **nine times** its intended strength. On "Your school gets
+ * its own menu" the copy became unreadable. A rule added to make failure safe is what caused it.
+ *
+ * Nothing here touches a descendant it does not name. The reveal applies to `.wrap` — the content
+ * column — and to nothing else, ever.
+ */
+
+/* --------------------------------------------------------------------------------- the reveal */
+
+/*
+ * Hidden only under `html.js`, which the motion module adds. No script, blocked script, old
+ * browser — nothing is ever hidden and the page reads exactly as it would have.
+ */
+html.js [data-reveal]:not(.is-in) > .wrap {
+  opacity: 0;
+  transform: translateY(1.5rem);
+}
+
+html.js [data-reveal] > .wrap {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--gb-duration-slow) var(--gb-ease-enter),
+    transform var(--gb-duration-slow) var(--gb-ease-enter);
+}
+
+/*
+ * Staggered children. The delay is a custom property set once per element by the module, so there
+ * are no timers and no per-element rules — and a section with twenty children costs twenty
+ * integers rather than twenty `setTimeout`s.
+ */
+html.js [data-reveal]:not(.is-in) [data-stagger] > * {
+  opacity: 0;
+  transform: translateY(0.75rem);
+}
+
+html.js [data-reveal] [data-stagger] > * {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--gb-duration-base) var(--gb-ease-enter),
+    transform var(--gb-duration-base) var(--gb-ease-enter);
+  transition-delay: calc(var(--i, 0) * 70ms);
+}
+
+/* ----------------------------------------------------------------------------- the hero, on load */
+
+/*
+ * The hero plays once on load rather than on scroll: it is above the fold, and a hero that waits
+ * to be observed is a hero that is briefly missing. Slightly further and slower than the sections
+ * below, because it is the first thing and has the room.
+ */
+html.js .hero:not(.is-in) [data-stagger] > * {
+  opacity: 0;
+  transform: translateY(1rem);
+}
+
+html.js .hero [data-stagger] > * {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--gb-duration-slow) var(--gb-ease-enter),
+    transform var(--gb-duration-slow) var(--gb-ease-enter);
+  transition-delay: calc(var(--i, 0) * 90ms);
+}
+
+html.js .hero:not(.is-in) .hero__device { opacity: 0; transform: translateY(2rem) scale(0.98); }
+
+.hero__device {
+  /* `--drift` is written by the scroll handler; it is zero until then and on every other page. */
+  transform: translateY(var(--drift, 0px));
+  transition:
+    opacity 700ms var(--gb-ease-enter) 180ms,
+    transform 700ms var(--gb-ease-enter) 180ms;
+}
+
+/* ---------------------------------------------------------------------------- the process rail */
+
+@media (min-width: 1040px) {
+  .steps { position: relative; }
+  .steps::before {
+    content: '';
+    position: absolute;
+    top: 1.25rem;                 /* the vertical centre of a 2.5rem numbered disc */
+    left: 1.25rem;
+    right: 1.25rem;
+    height: 2px;
+    background: var(--gb-border-subtle);
+    z-index: 0;
+    /* Drawn left to right when the section arrives — the order the steps happen in. */
+    transform-origin: left center;
+  }
+  html.js [data-reveal]:not(.is-in) .steps::before { transform: scaleX(0); }
+  html.js [data-reveal] .steps::before {
+    transform: scaleX(1);
+    transition: transform 700ms var(--gb-ease-enter) 120ms;
+  }
+  .step { position: relative; z-index: 1; }
+}
+
+.step__n { position: relative; }
+
+/* -------------------------------------------------------------------------------- the count-up */
+
+.ledger__n { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------------------------ the lift */
+
+.card {
+  transition:
+    transform var(--gb-duration-base) var(--gb-ease-standard),
+    box-shadow var(--gb-duration-base) var(--gb-ease-standard),
+    border-color var(--gb-duration-base) var(--gb-ease-standard);
+}
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--gb-elevation-1);
+  border-color: var(--gb-border-default);
+}
+.card__icon { transition: transform var(--gb-duration-base) var(--gb-ease-standard); }
+.card:hover .card__icon { transform: scale(1.08) rotate(-3deg); }
+
+/* --------------------------------------------------------------------------- asked not to move */
+
+/*
+ * Off, not reduced. The module returns before adding `html.js`, so none of the rules above can
+ * apply — this block is the second line of defence, for a preference that changes after load.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html.js [data-reveal]:not(.is-in) > .wrap,
+  html.js [data-reveal] > .wrap,
+  html.js [data-reveal]:not(.is-in) [data-stagger] > *,
+  html.js [data-reveal] [data-stagger] > *,
+  html.js .hero:not(.is-in) [data-stagger] > *,
+  html.js .hero [data-stagger] > *,
+  html.js .hero:not(.is-in) .hero__device {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  html.js [data-reveal]:not(.is-in) .steps::before,
+  html.js [data-reveal] .steps::before { transform: scaleX(1); transition: none; }
+  .hero__device { transform: none; transition: none; }
+  .card, .card__icon { transition: none; }
+  .card:hover { transform: none; }
+  .card:hover .card__icon { transform: none; }
+}
+
+/* ---------------------------------------------------------------------------------- the ledger */
+
+/*
+ * The division of labour, drawn. This section's right half was empty white; the prose already said
+ * the school's part is two things and everything else is ours, and a reader skimming never reached
+ * that sentence. Both numbers are counted from the lists beside them, never asserted.
+ */
+.split { display: grid; gap: var(--gb-space-8); align-items: center; }
+@media (min-width: 900px) { .split { grid-template-columns: 1fr 1fr; gap: var(--gb-space-12); } }
+
+.ledger {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--gb-space-6);
+  padding: var(--gb-space-6);
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-2xl);
+}
+
+.ledger__col { min-width: 0; }
+.ledger__col--yours {
+  padding-right: var(--gb-space-6);
+  border-right: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+}
+
+.ledger__n {
+  font-size: var(--gb-font-size-display);
+  font-weight: var(--gb-font-weight-display);
+  line-height: 1;
+  color: var(--gb-text-link);
+  font-variant-numeric: tabular-nums;
+}
+.ledger__col--yours .ledger__n { color: var(--gb-text-tertiary); }
+
+.ledger__who {
+  margin-top: var(--gb-space-1);
+  font-size: var(--gb-font-size-label);
+  font-weight: var(--gb-font-weight-label);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gb-text-tertiary);
+}
+
+.ledger__list {
+  margin: var(--gb-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--gb-font-size-body-sm);
+  color: var(--gb-text-secondary);
+}
+.ledger__list li { padding: 2px 0; }
+.ledger__col--ours .ledger__list li { color: var(--gb-text-primary); }
+
+/* =============================================================== get the app (`E12-05`)
+ *
+ * A parent-facing strip between two school-facing sections, so it needs to read as a change of
+ * address rather than as more of the same pitch — hence its own tonal band.
+ */
+
+.band-app { background: var(--gb-bg-surface-accent); }
+
+.app__wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gb-space-6);
+}
+
+.app__copy { flex: 1 1 22rem; max-width: 34rem; }
+.app__copy .lead { margin-bottom: 0; }
+
+.heading--sm { font-size: var(--gb-font-size-h2); line-height: var(--gb-line-height-h2); }
+
+.app__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gb-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * The two-line lockup every store badge uses — a small line over a large one — because that is
+ * the shape people recognise from a decade of seeing it, even without the official artwork.
+ */
+.storebtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gb-space-3);
+  min-height: var(--gb-touch-min);
+  padding: var(--gb-space-3) var(--gb-space-5);
+  border: var(--gb-border-width-default) solid var(--gb-border-strong);
+  border-radius: var(--gb-radius-lg);
+  background: var(--gb-bg-surface-inverse);
+  color: var(--gb-text-on-brand);
+  text-decoration: none;
+  transition: transform var(--gb-duration-fast) var(--gb-ease-standard);
+}
+
+.storebtn:hover { transform: translateY(-2px); }
+.storebtn:focus-visible { outline: var(--gb-focus-ring); outline-offset: 2px; }
+
+.storebtn__mark { display: flex; }
+.storebtn__text { display: flex; flex-direction: column; line-height: 1.15; }
+.storebtn__small { font-size: var(--gb-font-size-caption); }
+.storebtn__big { font-size: var(--gb-font-size-body-lg); font-weight: var(--gb-font-semibold); }
+
+@media (prefers-reduced-motion: reduce) {
+  .storebtn { transition: none; }
+  .storebtn:hover { transform: none; }
+}

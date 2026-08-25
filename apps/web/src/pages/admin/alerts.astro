@@ -1,0 +1,275 @@
+---
+/**
+ * Who gets told when an order comes in — `E08-16`.
+ *
+ * Andy: *"Recipients are configured in the admin UI, not in environment variables. Per kitchen,
+ * not global… Each recipient has an on/off toggle that stops alerts without deleting the address."*
+ *
+ * ## Its own page, not a section of `/admin/config`
+ *
+ * `/admin/config` is **per school** — cutoffs, break windows, service days. This is **per
+ * kitchen**, which is a different axis, and folding a kitchen-scoped list into a school picker
+ * would mean choosing a school in order to edit something a school has nothing to do with. It is
+ * also the screen somebody opens when alerts are arriving wrongly, which is a different errand
+ * from configuring a school.
+ *
+ * ## The toggle is the point
+ *
+ * Off and removed look the same from an inbox and are completely different decisions. A paused
+ * recipient stays on the list, greyed, with the switch that put it there — so "turn my alerts
+ * back on" is one tap and does not require remembering an address.
+ */
+import BackofficeNav from '../../components/BackofficeNav.astro';
+
+import '../../styles/tokens.css';
+import '../../styles/site.css';
+import '../../styles/kitchen.css';
+import '../../styles/admin.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Order alerts — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
+          <h1 class="kitchen__title">Order alerts</h1>
+          <button id="al-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+          <BackofficeNav current="/admin/alerts" />
+        </div>
+      </header>
+
+      <main class="kitchen__wrap admin__wrap">
+        <div id="al-status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <p class="admin__intro">
+          When an order is paid, everyone switched on below is emailed — the order code, school,
+          break, service date, items and total, plus <b>which number it is that day</b>.
+          <b>No child’s name is ever in the alert</b>; email is not a controlled channel and the
+          kitchen board is where names belong.
+        </p>
+
+        <div id="al-body"></div>
+      </main>
+    </div>
+
+    <script>
+      import { mountNav } from '../../lib/backoffice/nav-mount.js';
+      import { api } from '@graybag/shared';
+      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { ALERTS_FIXTURE } from '../../lib/admin/alerts-fixture.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = { body: $('al-body'), status: $('al-status'), reload: $<HTMLButtonElement>('al-reload') };
+      const esc = (s: string) =>
+        String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+
+      const demo = new URLSearchParams(location.search).has('state');
+
+      let kitchens: { id: string; name: string }[] = [];
+      let recipients: api.AlertRecipient[] = [];
+      let loading = true;
+      let error: string | null = null;
+
+      async function load() {
+        loading = true; error = null; render();
+        try {
+          if (demo) {
+            kitchens = [...ALERTS_FIXTURE.kitchens];
+            recipients = [...ALERTS_FIXTURE.recipients];
+          } else {
+            configureBackofficeApi();
+            const [k, r] = await Promise.all([api.fetchKitchens(), api.fetchAlertRecipients()]);
+            kitchens = k.map((x) => ({ id: x.id, name: x.name }));
+            recipients = r;
+          }
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The alert list did not load.';
+          recipients = [];
+        } finally {
+          loading = false; render();
+        }
+      }
+
+      function kitchenBlock(kitchen: { id: string; name: string }): string {
+        const mine = recipients.filter((r) => r.kitchenId === kitchen.id);
+        const on = mine.filter((r) => r.isEnabled).length;
+
+        return (
+          `<section class="admin__section" aria-labelledby="k-${esc(kitchen.id)}">` +
+            `<h2 id="k-${esc(kitchen.id)}">${esc(kitchen.name)}</h2>` +
+            `<p class="admin__section-note">` +
+              (mine.length === 0
+                // The state that matters most, said plainly. An empty list is silence, and
+                // silence is indistinguishable from a broken mail provider from the outside.
+                ? `<b>Nobody is alerted for this kitchen.</b> Orders will arrive with no email.`
+                : on === 0
+                  ? `<b>All ${mine.length} recipient${mine.length === 1 ? '' : 's'} are switched off.</b> ` +
+                    `Orders will arrive with no email.`
+                  : `${on} of ${mine.length} switched on.`) +
+            `</p>` +
+
+            (mine.length > 0
+              ? `<ul class="alist">` +
+                  mine.map((r) =>
+                    `<li class="alist__row${r.isEnabled ? '' : ' alist__row--off'}">` +
+                      `<label class="alist__toggle">` +
+                        `<input type="checkbox" data-toggle="${esc(r.id)}"${r.isEnabled ? ' checked' : ''} />` +
+                        `<span class="visually-hidden">Alerts to ${esc(r.email)}</span>` +
+                      `</label>` +
+                      `<span class="alist__who">` +
+                        `<b>${esc(r.email)}</b>` +
+                        (r.label ? `<span class="alist__label">${esc(r.label)}</span>` : '') +
+                      `</span>` +
+                      `<span class="alist__state">${r.isEnabled ? 'On' : 'Paused'}</span>` +
+                      `<button class="kitchen__btn kitchen__btn--small" type="button" ` +
+                        `data-remove="${esc(r.id)}" data-email="${esc(r.email)}">Remove</button>` +
+                    `</li>`).join('') +
+                `</ul>`
+              : '') +
+
+            `<form class="aform" data-add="${esc(kitchen.id)}">` +
+              `<div class="admin__field">` +
+                `<label class="admin__label" for="em-${esc(kitchen.id)}">Add an address</label>` +
+                `<input class="admin__input" id="em-${esc(kitchen.id)}" name="email" type="email" ` +
+                  `required placeholder="name@example.com" autocomplete="off" />` +
+              `</div>` +
+              `<div class="admin__field">` +
+                `<label class="admin__label" for="lb-${esc(kitchen.id)}">Who is it (optional)</label>` +
+                `<input class="admin__input" id="lb-${esc(kitchen.id)}" name="label" type="text" ` +
+                  `maxlength="80" placeholder="Kitchen lead" />` +
+              `</div>` +
+              `<button class="kitchen__btn kitchen__btn--primary" type="submit">Add</button>` +
+            `</form>` +
+            `<p class="admin__error" data-err="${esc(kitchen.id)}" role="alert" hidden></p>` +
+          `</section>`
+        );
+      }
+
+      function render() {
+        if (loading) {
+          el.body.innerHTML = Array(2).fill('<div class="kitchen__skeleton"></div>').join('');
+          return;
+        }
+        if (error) {
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>We can't show the alert list</h2><p>${esc(error)}</p>` +
+            `<p>This screen needs <b>kitchen.edit</b>.</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+        if (kitchens.length === 0) {
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>No kitchens</h2>` +
+            `<p>Either none exist, or this account cannot see them — that needs ` +
+            `<b>kitchen.edit</b>.</p></div>`;
+          return;
+        }
+
+        const total = recipients.filter((r) => r.isEnabled).length;
+        el.status.textContent = `${total} recipient${total === 1 ? '' : 's'} switched on.`;
+        el.body.innerHTML = kitchens.map(kitchenBlock).join('');
+      }
+
+      function showError(kitchenId: string, message: string) {
+        const box = el.body.querySelector(`[data-err="${kitchenId}"]`) as HTMLElement | null;
+        if (!box) return;
+        box.hidden = false;
+        box.textContent = message;
+      }
+
+      const blocked = () => {
+        if (!demo) return false;
+        el.status.textContent = 'Demo view — nothing is written.';
+        return true;
+      };
+
+      el.body.addEventListener('submit', (event) => {
+        const form = (event.target as HTMLElement).closest('form[data-add]') as HTMLFormElement | null;
+        if (!form) return;
+        event.preventDefault();
+        const kitchenId = form.dataset.add!;
+        if (blocked()) return showError(kitchenId, 'Demo view — nothing is written.');
+
+        const data = new FormData(form);
+        void (async () => {
+          try {
+            configureBackofficeApi();
+            await api.addAlertRecipient({
+              kitchenId,
+              email: String(data.get('email') ?? ''),
+              label: String(data.get('label') ?? '').trim() || null,
+            });
+            await load();
+          } catch (cause) {
+            showError(kitchenId, cause instanceof Error ? cause.message : 'The address was not added.');
+          }
+        })();
+      });
+
+      el.body.addEventListener('change', (event) => {
+        const box = event.target as HTMLInputElement;
+        const id = box.dataset.toggle;
+        if (!id) return;
+        if (blocked()) { box.checked = !box.checked; return; }
+        void (async () => {
+          try {
+            configureBackofficeApi();
+            await api.setAlertRecipientEnabled(id, box.checked);
+            await load();
+          } catch {
+            // Put the switch back. A control that reports a state the server did not accept is
+            // worse than one that refuses, because nobody checks a toggle twice.
+            box.checked = !box.checked;
+            el.status.textContent = 'That change was not saved.';
+          }
+        })();
+      });
+
+      el.body.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('[data-retry]')) { void load(); return; }
+
+        const button = target.closest('[data-remove]') as HTMLElement | null;
+        if (!button) return;
+        const id = button.dataset.remove!;
+        if (blocked()) return;
+        // Removing loses the address; pausing does not. Worth one question, because the two are
+        // one row apart and the switch is the one people usually mean.
+        if (!confirm(`Remove ${button.dataset.email} from the alert list? To stop alerts without losing the address, switch it off instead.`)) return;
+        void (async () => {
+          try {
+            configureBackofficeApi();
+            await api.removeAlertRecipient(id);
+            await load();
+          } catch {
+            el.status.textContent = 'That address was not removed.';
+          }
+        })();
+      });
+
+      el.reload.addEventListener('click', () => void load());
+
+      void (async () => {
+        try {
+          if (!demo && !(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent('/admin/alerts')}`);
+            return;
+          }
+        } catch { /* fall through and let the read fail visibly */ }
+        await load();
+      })();
+
+      void mountNav();
+    </script>
+  </body>
+</html>

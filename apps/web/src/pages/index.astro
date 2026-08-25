@@ -13,6 +13,7 @@ import EnquiryForm from '../components/EnquiryForm.astro';
 import Icon from '../components/Icon.astro';
 import {
   BENEFITS,
+  APPS,
   ENQUIRY,
   FACTS,
   FAQ,
@@ -116,7 +117,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
       </header>
 
       <div class="hero__grid">
-        <div class="hero__copy">
+        <div class="hero__copy" data-stagger>
           <p class="eyebrow">{HERO.eyebrow}</p>
           <h1 class="display lowercase">{HERO.headline}</h1>
           <p class="lead">{HERO.lead}</p>
@@ -130,8 +131,12 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
         </div>
 
         <!--
-          One drawn frame, not a screenshot. The app is not published, and a mocked screenshot of
-          software a visitor cannot download is a claim this page should not make.
+          One drawn frame, not a screenshot.
+
+          Written when the app was unpublished, on the grounds that a mocked screenshot of software
+          a visitor cannot download is a claim this page should not make. Both apps shipped on
+          2026-08-22, so that reason has expired — but the drawing stays until there is a **real**
+          screenshot to replace it with, because a mock is still a mock. `E12-37`.
 
           It shows the **menu**, because food sells food: a grid of real dishes with veg marks and
           prices is the first thing on the page that looks like a real operation. It replaced the
@@ -210,8 +215,71 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
     </div>
   </section>
 
+  <!--
+    ==================================================== get the app
+
+    A band for **parents**, deliberately separate from the hero.
+
+    The hero sells to a school — "book a call", "how it works" — and a parent whose school already
+    uses GrayBag needs one thing from this page: the app. Putting store badges among the school
+    CTAs would give a decision-maker four buttons and dilute both errands, so this is its own strip
+    with its own sentence naming who it is for.
+
+    Placed immediately after the hero rather than in the footer, because a parent arriving from a
+    school's newsletter should not have to read the whole pitch first.
+
+    `E12-05`. Both listings were verified before these links existed — `check-build.mjs` permits
+    exactly these two URLs and fails the build on any other store link, which is the same
+    protection as the old outright ban, kept where it still matters.
+  -->
+  <section data-reveal class="section band-app" id="app" aria-labelledby="app-heading">
+    <div class="wrap app__wrap">
+      <div class="app__copy">
+        <p class="eyebrow">For parents</p>
+        <h2 class="heading heading--sm" id="app-heading">Already at a GrayBag school?</h2>
+        <p class="lead">
+          Order the week ahead, see what your child is eating, and pay once. Nothing to set up —
+          sign in and pick your school.
+        </p>
+      </div>
+
+      <ul class="app__badges" data-stagger>
+        <li>
+          <!--
+            `rel="noopener"` on every external link, and the label says the store opens — a link
+            that leaves the site without saying so is the one thing a badge must not do.
+          -->
+          <a class="storebtn" href={APPS.ios.href} rel="noopener" aria-label={APPS.ios.aria}>
+            <span class="storebtn__mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" focusable="false">
+                <path fill="currentColor" d="M16.6 12.9c0-2.2 1.8-3.3 1.9-3.3-1-1.5-2.6-1.7-3.2-1.7-1.4-.1-2.7.8-3.3.8-.7 0-1.7-.8-2.8-.8-1.5 0-2.8.8-3.6 2.1-1.5 2.6-.4 6.5 1.1 8.7.7 1 1.6 2.2 2.7 2.2 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7c1.2 0 1.9-1.1 2.6-2.1.8-1.2 1.2-2.4 1.2-2.4s-2.2-.9-2.2-3.5zM14.6 5.7c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.6-1.1 1.6-.9 2.6 1 .1 2-.5 2.6-1.2z"/>
+              </svg>
+            </span>
+            <span class="storebtn__text">
+              <span class="storebtn__small">Download on the</span>
+              <span class="storebtn__big">App Store</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="storebtn" href={APPS.android.href} rel="noopener" aria-label={APPS.android.aria}>
+            <span class="storebtn__mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" focusable="false">
+                <path fill="currentColor" d="M3.6 2.2a1 1 0 0 0-.5.9v17.8a1 1 0 0 0 .5.9l9.3-9.8L3.6 2.2zm10.7 8.1 2.6-2.7-9.2-5.2 6.6 7.9zm0 3.4-6.6 7.9 9.2-5.2-2.6-2.7zm1.3-1.7 3 3.1c.6-.4 1-.9 1-1.6s-.4-1.2-1-1.6l-3 3.1-1.4-1.5 1.4-1.5z"/>
+              </svg>
+            </span>
+            <span class="storebtn__text">
+              <span class="storebtn__small">Get it on</span>
+              <span class="storebtn__big">Google Play</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </section>
+
   <!-- ==================================================== how it works -->
-  <section class="section" id="how" aria-labelledby="how-heading">
+  <section data-reveal class="section" id="how" aria-labelledby="how-heading">
     <div class="wrap">
       <p class="eyebrow">How it works</p>
       <h2 class="heading" id="how-heading">Four steps, and three of them are ours</h2>
@@ -220,7 +288,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
         else — the ordering, the money, the cooking and the delivery — sits with us.
       </p>
 
-      <ol class="steps">
+      <ol class="steps" data-stagger>
         {STEPS.map((step) => (
           <li class="step">
             <div class="step__n" aria-hidden="true"></div>
@@ -233,17 +301,46 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
   </section>
 
   <!-- ================================================= for your school -->
-  <section class="section panel-surface" id="schools-benefits" aria-labelledby="benefits-heading">
+  <section data-reveal class="section panel-surface" id="schools-benefits" aria-labelledby="benefits-heading">
     <div class="wrap">
-      <p class="eyebrow">For your school</p>
-      <h2 class="heading" id="benefits-heading">What your school stops dealing with</h2>
-      <p class="lead">
-        A canteen is a small business your school did not ask to run. This removes the parts of
-        it that take staff time and create risk — the money, the queue, the stock — and leaves
-        the part you actually wanted: children fed at the break.
-      </p>
+      <div class="split">
+        <div class="split__say">
+          <p class="eyebrow">For your school</p>
+          <h2 class="heading" id="benefits-heading">What your school stops dealing with</h2>
+          <p class="lead">
+            A canteen is a small business your school did not ask to run. This removes the parts of
+            it that take staff time and create risk — the money, the queue, the stock — and leaves
+            the part you actually wanted: children fed at the break.
+          </p>
+        </div>
 
-      <ul class="cards">
+        <!--
+          The division of labour, drawn rather than described. The prose already says the school's
+          part is two things and everything else is ours; a reader skimming the page never reaches
+          that sentence, and the right-hand half of this section was empty white. Both numbers are
+          counted from the list beside them, not asserted.
+        -->
+        <div class="ledger" aria-hidden="true">
+          <div class="ledger__col ledger__col--yours">
+            <p class="ledger__n" data-count="2">2</p>
+            <p class="ledger__who">Your school</p>
+            <ul class="ledger__list">
+              <li>Somewhere to hand food over</li>
+              <li>Agreed break times</li>
+            </ul>
+          </div>
+          <div class="ledger__col ledger__col--ours">
+            <p class="ledger__n" data-count="7">7</p>
+            <p class="ledger__who">GrayBag</p>
+            <ul class="ledger__list">
+              <li>The menu</li><li>The ordering</li><li>The money</li><li>The cooking</li>
+              <li>The packing</li><li>The delivery</li><li>The monthly report</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <ul class="cards" data-stagger>
         {BENEFITS.map((benefit) => (
           <li class="card">
             <div class="card__icon"><Icon name={benefit.icon} /></div>
@@ -264,7 +361,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
     The photographs are 120px at source and cannot be made appetising at any size, so they are
     demoted to supporting images beside the copy rather than being asked to carry the section.
   -->
-  <section class="section panel-pale" id="food" aria-labelledby="food-heading">
+  <section data-reveal class="section panel-pale" id="food" aria-labelledby="food-heading">
     <div class="pattern pattern--deep" aria-hidden="true"></div>
 
     <div class="wrap">
@@ -327,7 +424,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
     The invitation to come and watch a delivery is the better substitute anyway: for a
     principal weighing a food partner, seeing the kitchen beats a logo strip.
   -->
-  <section class="section panel-deep on-dark" id="schools" aria-labelledby="schools-heading">
+  <section data-reveal class="section panel-deep on-dark" id="schools" aria-labelledby="schools-heading">
     <div class="pattern" aria-hidden="true"></div>
 
     <div class="wrap">
@@ -347,7 +444,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
   </section>
 
   <!-- ========================================================== report -->
-  <section class="section" id="report" aria-labelledby="report-heading">
+  <section data-reveal class="section" id="report" aria-labelledby="report-heading">
     <div class="wrap">
       <div class="report">
         <div>
@@ -373,7 +470,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
   </section>
 
   <!-- ======================================================= questions -->
-  <section class="section panel-surface" id="questions" aria-labelledby="faq-heading">
+  <section data-reveal class="section panel-surface" id="questions" aria-labelledby="faq-heading">
     <div class="wrap">
       <p class="eyebrow">Questions</p>
       <h2 class="heading" id="faq-heading">What administrators ask us</h2>
@@ -416,4 +513,17 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
       </div>
     </div>
   </section>
+
+  <!--
+    Motion — `E12-36`.
+
+    A **bundled** script, not `is:inline`. The site sends `script-src 'self'`, so the inline version
+    was blocked by the browser and never ran: the page shipped with no motion at all and no error
+    anybody would see, because the design degrades silently. Every other script in this repository
+    is bundled; this one broke the convention and paid for it.
+  -->
+  <script>
+    import { startMotion } from '../lib/site/motion.js';
+    startMotion();
+  </script>
 </Base>

@@ -27,6 +27,9 @@ export interface RecordedQuery {
   orders: { column: string; ascending: boolean }[];
   /** Row caps asked for, in order. */
   limits: number[];
+  inFilters: { column: string; values: unknown[] }[];
+  ltFilters: { column: string; value: unknown }[];
+  orFilters: string[];
 }
 
 export interface FakeTransport {
@@ -61,6 +64,9 @@ export function fakeTransport(
             notFilters: [],
             orders: [],
             limits: [],
+            inFilters: [],
+            ltFilters: [],
+            orFilters: [],
           };
           queries.push(record);
 
@@ -83,6 +89,20 @@ export function fakeTransport(
             },
             not(column, operator, value) {
               record.notFilters.push({ column, operator, value });
+              return builder;
+            },
+            lt(column, value) {
+              record.ltFilters.push({ column, value });
+              return builder;
+            },
+            in(column, values) {
+              // Recorded so a test can assert that `fetchAccess` asks only for the accounts its
+              // grants name, rather than for every row and a filter in the browser.
+              record.inFilters.push({ column, values: [...values] });
+              return builder;
+            },
+            or(filters) {
+              record.orFilters.push(filters);
               return builder;
             },
             limit(count) {

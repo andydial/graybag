@@ -14,7 +14,16 @@ the production build unless the tip commit's subject carries the marker, so the 
 stays as it was. When you are ready to ship what is on `main`, run `git checkout -b promote-$(date
 +%F) && git commit --allow-empty -m "[promote] release" && git push -u origin HEAD`, open the PR,
 and merge it with **`--squash --subject "[promote] release 2026-08-19"`** — the squash subject is
-what lands on `main`, and that is the line the gate reads. If you would rather not touch git at
+what lands on `main`, and that is the line the gate reads.
+
+> **Never merge a promotion with `--rebase`.** `git rebase` drops empty commits, so the marker
+> commit vanishes and `main` ends up tipped by the previous, unmarked commit — the gate reads no
+> marker and production is not built. It fails **silently and safe**: the PR shows as merged, the
+> live site simply does not change. This happened on 2026-08-17 with #88, which merged cleanly and
+> promoted nothing. `--rebase` is the right default for every *other* pull request in this repo,
+> which is exactly why it is easy to reach for here.
+
+If you would rather not touch git at
 all, open the Netlify dashboard, choose **Trigger deploy → Deploy site** and set
 `PROMOTE_TO_PRODUCTION=true` for that run; the gate accepts either. Both are deliberate acts by
 you, and neither can be caused by merging an ordinary pull request.

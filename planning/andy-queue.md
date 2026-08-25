@@ -18,6 +18,62 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
+## Open — 4 items
+
+Items 2–6 were **added 2026-08-20** and are listed in the order they will be done. Item 2 was
+already in flight when 3–6 arrived; the rest follow in the order Andy wrote them, except that the
+permission grouping is pulled ahead of the reports because it is the one blocking a person from
+doing their job (nobody can be made kitchen staff today).
+
+**Production is now taking real orders.** Everything below ships behind the same gate as always —
+smoke green, verified on a preview that sends production's headers, promoted deliberately — and
+nothing touches the ordering or payment path.
+
+| # | Ask | Asked | Status |
+|---|---|---|---|
+| 1 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine). The job has **still never been observed green**; its last run was cancelled. `E14-36` fixed the Gradle metaspace OOM and the 781-second emulator boot and is on `main` |
+| 3 | **Group and clarify the permissions** | 2026-08-20 | Queued. *"Currently privileges one is a large list that does not make much sense… I want to be able to promote people to Kitchen staff so they can login and view orders and promote orders."* Bundles presented as jobs, still stored as individual grants — `D3` keeps roles out of the schema, and this is a presentation layer over it, not a role column |
+| 4 | **A registrations and growth report** | 2026-08-20 | Queued. Registered users, registrations per date, per school, with graphs. **Aggregate only** — non-negotiable #4 means no child's name, class or section reaches this screen |
+| 5 | **An orders and revenue report** | 2026-08-20 | Queued. Per day, per month, per school, with visuals. Extends `/reports`, which today shows a month table and no trend |
+| 6 | **UX review of the screens other than Kitchen and Orders** | 2026-08-20 | Queued. Those two were rebuilt on 2026-08-17; `/admin/config`, `/admin/import`, `/admin/people`, `/admin/allergens` and `/reports` have never had that treatment |
+| 7 | **Order alert emails** | 2026-08-23 | **Added 2026-08-23.** Email a configurable list when an order is paid. Recipients managed in the admin UI — not code, not an env var — with add, remove and an off switch that does not delete the list. Content: order code, school, break, service date, items with quantities, total incl. GST, and the running count for that service date ("order 14 of today"). **No child name, class or section** — tier-S under DPDP and email is not a controlled channel. Through the existing Resend path and failure-alert plumbing, not a second mechanism. Per-order by default, with a daily digest as the shape for later |
+| 8 | **A growth and adoption dashboard** | 2026-08-23 | **Added 2026-08-23.** Separate page; `/admin/people` stays a grants screen. The funnel is the point: registered → added a child → first order → ordered again, with the **drop-off as a number**, not only a percentage, because a parent who registered and never added a child is someone to email. Plus registrations per day over 30 days (≈400 Bubble users migrating, so the curve matters), children by school, parents with zero children, orders and revenue per day and per school, average order value, and parents active in the last 7 days. Aggregates only, no child names; where an individual must be actionable show **their email and nothing about the child**. Authenticated session, never the service role, gated on an existing permission. Fast and readable on a phone |
+
+
+---
+
+## Closed 2026-08-20 — navigation, and the cancellation that told nobody
+
+**`E10-43` — a dashboard to land on, and navigation everywhere.** `nav.ts` had modelled this
+correctly since `E10-12` and was imported by nothing; `/kitchen/sheet`, `/admin/allergens` and
+`/admin/people` were reachable from no link in the app, and the route table pointed at
+`/admin/orders`, which has never existed. Sign-in now lands on `/dashboard` rather than dumping a
+reports-only account on the kitchen board. Sign-out existed on no page at all.
+
+**`E09-38` — cancelling an order emails the parent, in the operator's own words.** Andy asked for
+the customer's contact on the board; `0002` forbids that for kitchen scope in terms, and the real
+gap was that **no cancellation email existed on either path**. The dialog now requires a typed
+sentence and sends it verbatim. `E09-39` leaves the kitchen-staff-sees-the-customer question with
+Andy, since it is now a preference rather than a blocker.
+
+Both live on production: migrations `0064` and `0065` applied, web promoted, `kitchen-order-status`
+deployed, and the new guards exercised against production with a real session and a non-existent
+order id so nothing real was touched.
+
+---
+
+## Closed 2026-08-17 — the two live home-page bugs
+
+Andy, on <https://graybag-web.netlify.app>: *"Nothing moves / transitions on the home page. 'Your
+school gets its own menu' has bad contrast with background and can't be read. Make pages somewheat
+dynamic / motion like grayspark.ai (not that color scheme - just motions)"*, then: *"Hope you
+understood to change this page: https://graybag-web.netlify.app - not really sub-pages right now"*.
+
+Both fixed, promoted to production and verified **on the live URL**, which is where they had to be
+verified — the whole failure was that the feature worked locally and was blocked in production by a
+CSP header a file server never sends. `E12-36`. Motion is on the home page only; no sub-page was
+touched.
+
 ## Open — nothing
 
 The queue is empty. `Maestro in CI` (asked 2026-08-10) closed on 2026-08-16: `[Passed] cart

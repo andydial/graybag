@@ -4,6 +4,13 @@ import { setApiTransport } from './client.js';
 import { fakeTransport } from './test-support.js';
 import { ADMIN_ORDER_COLUMNS } from './admin-orders.js';
 import {
+  compare,
+  fetchOrdersPlaced,
+  groupRows,
+  istDayOf,
+  previousWindow,
+  totalOf,
+  weekOf,
   MAX_REPORT_MONTHS,
   REPORT_ORDER_COLUMNS,
   ReportError,
@@ -70,15 +77,21 @@ describe('monthOf', () => {
 });
 
 describe('summarise', () => {
-  it('groups by month and school', () => {
+  it('groups by day and school — the finest grain the source has', () => {
+    // **Changed in `E11-10`**, deliberately: this used to group by month and school, which meant
+    // a per-day or per-school view had to re-read the orders and could disagree with the monthly
+    // one about a total. Every view the screen offers is now a fold of these rows, so they
+    // cannot. `groupRows` is what folds them.
     const rows = summarise([
       order(),
       order({ service_date: '2026-08-18' }),
       order({ service_date: '2026-09-01' }),
       order({ school_id: 's-2', school_name_snapshot: 'Gem' }),
     ]);
-    expect(rows).toHaveLength(3);
-    expect(rows.find((r) => r.month === '2026-08' && r.schoolId === 's-1')!.orders).toBe(2);
+    // Two on the default date (one per school), plus 08-18, plus 09-01.
+    expect(rows).toHaveLength(4);
+    expect(groupRows(rows, 'month').find((b) => b.key === '2026-08')!.orders).toBe(3);
+    expect(groupRows(rows, 'school').find((b) => b.label === 'Gem')!.orders).toBe(1);
   });
 
   it('sums money as integer paise throughout', () => {
@@ -199,5 +212,241 @@ describe('fetchMonthlyRevenue', () => {
     // The aggregation is client-side, so an unbounded range on a school-gate connection is the
     // performance priority this project names first. Thirteen months so year-on-year fits.
     expect(MAX_REPORT_MONTHS).toBe(13);
+  });
+});
+
+describe('unpaid orders are not revenue (E11-10)', () => {
+  const order = (over: Record<string, unknown> = {}) => ({
+    service_date: '2026-08-17', status: 'paid', school_id: 's-1', school_name_snapshot: 'Amity',
+    subtotal_paise: 10000, tax_cgst_paise: 250, tax_sgst_paise: 250, discount_paise: 0,
+    total_paise: 10500, refunded_total_paise: 0, ...over,
+  });
+
+  it('keeps a pending_payment order out of gross', () => {
+    // The bug this replaces. The old code was `if cancelled or refunded … else count as gross`,
+    // so an order nobody had paid for was reported as money. On production that was ₹228.92 of
+    // takings that did not exist — and a number being too big is the one error nobody queries.
+    const [row] = summarise([order(), order({ status: 'pending_payment' })]);
+    expect(row!.orders).toBe(2);
+    expect(row!.grossPaise).toBe(10500);
+    expect(row!.pending).toBe(1);
+    expect(row!.pendingPaise).toBe(10500);
+  });
+
+  it('keeps a draft order out of gross too', () => {
+    const [row] = summarise([order({ status: 'draft' })]);
+    expect(row!.grossPaise).toBe(0);
+    expect(row!.pendingPaise).toBe(10500);
+  });
+
+  it('counts preparing and delivered as earned — payment settled before the kitchen saw them', () => {
+    const [row] = summarise([order({ status: 'preparing' }), order({ status: 'delivered' })]);
+    expect(row!.grossPaise).toBe(21000);
+    expect(row!.pending).toBe(0);
+  });
+
+  it('never adds pending money into gross, whatever the mix', () => {
+    const [row] = summarise([
+      order(), order({ status: 'pending_payment' }), order({ status: 'cancelled' }),
+    ]);
+    expect(row!.grossPaise).toBe(10500);
+    expect(row!.netPaise).toBe(10500);
+    expect(row!.orders).toBe(3);
+  });
+
+  it('refuses a status it has never heard of rather than guessing a side of the ledger', () => {
+    // Guessing is precisely how `pending_payment` ended up in revenue. A new status must break
+    // this loudly, in a test run, not quietly in a number somebody trusts.
+    expect(() => summarise([order({ status: 'awaiting_something_new' })])).toThrow(/unknown status/);
+  });
+});
+
+describe('groupRows and totalOf (E11-10)', () => {
+  const row = (over: Record<string, unknown> = {}) => ({
+    service_date: '2026-08-17', status: 'paid', school_id: 's-1', school_name_snapshot: 'Amity',
+    subtotal_paise: 10000, tax_cgst_paise: 250, tax_sgst_paise: 250, discount_paise: 0,
+    total_paise: 10500, refunded_total_paise: 0, ...over,
+  });
+
+  const rows = summarise([
+    row(),
+    row({ service_date: '2026-08-18' }),
+    // 50000 so Gem genuinely outranks Amity's two orders at 10500 each — the first version of
+    // this used 20000, which made Amity the bigger school and the ranking test was asserting
+    // the wrong intent rather than catching a wrong sort.
+    row({ service_date: '2026-09-02', school_id: 's-2', school_name_snapshot: 'Gem', total_paise: 50000 }),
+  ]);
+
+  it('folds to the same total however it is grouped', () => {
+    // The property that makes three views trustworthy: they are folds of one set of rows, so a
+    // per-school total and a per-month total cannot disagree.
+    const totals = (['day', 'month', 'school'] as const).map((by) => totalOf(groupRows(rows, by)));
+    expect(new Set(totals.map((t) => t.grossPaise)).size).toBe(1);
+    expect(new Set(totals.map((t) => t.orders)).size).toBe(1);
+    expect(totals[0]!.grossPaise).toBe(71000);
+  });
+
+  it('runs time forwards so a chart reads left to right', () => {
+    expect(groupRows(rows, 'day').map((b) => b.key)).toEqual(['2026-08-17', '2026-08-18', '2026-09-02']);
+    expect(groupRows(rows, 'month').map((b) => b.key)).toEqual(['2026-08', '2026-09']);
+  });
+
+  it('ranks schools by what they are worth, not alphabetically', () => {
+    // A school breakdown is asked in order to see who the biggest is. Alphabetical buries it.
+    expect(groupRows(rows, 'school').map((b) => b.label)).toEqual(['Gem', 'Amity']);
+  });
+
+  it('labels a school bucket with its name, not its id', () => {
+    expect(groupRows(rows, 'school')[0]!.label).toBe('Gem');
+  });
+
+  it('totals an empty report to zeroes rather than throwing', () => {
+    expect(totalOf([])).toMatchObject({ orders: 0, grossPaise: 0, netPaise: 0 });
+  });
+});
+
+describe('placement-date reporting (E11-12)', () => {
+  const order = (over: Record<string, unknown> = {}) => ({
+    service_date: '2026-08-21', status: 'paid', school_id: 's-1', school_name_snapshot: 'Amity',
+    placed_at: '2026-08-19T23:11:57Z',
+    subtotal_paise: 10000, tax_cgst_paise: 250, tax_sgst_paise: 250, discount_paise: 0,
+    total_paise: 10500, refunded_total_paise: 0, ...over,
+  });
+
+  it('buckets an evening order into the IST day, not the UTC one', () => {
+    // The real data this was built from: 3 of the first 4 production orders were placed after
+    // 18:30 UTC. Bucketing by the UTC date would put most orders on the wrong day, in the one
+    // report whose whole purpose is to say which day was busy.
+    expect(istDayOf('2026-08-19T23:11:57Z')).toBe('2026-08-20');
+    expect(istDayOf('2026-08-18T22:48:23Z')).toBe('2026-08-19');
+    // Just before the boundary stays put.
+    expect(istDayOf('2026-08-19T18:29:00Z')).toBe('2026-08-19');
+    // Exactly on it rolls over.
+    expect(istDayOf('2026-08-19T18:30:00Z')).toBe('2026-08-20');
+  });
+
+  it('returns empty rather than a phantom day for a missing timestamp', () => {
+    expect(istDayOf(null)).toBe('');
+    expect(istDayOf('')).toBe('');
+    expect(istDayOf('nonsense')).toBe('');
+  });
+
+  it('separates orders for one service date placed on different days', () => {
+    // The reason the row key had to get finer. Two orders for Friday's lunch, taken on different
+    // evenings, are two facts to a demand report.
+    const rows = summarise([
+      order({ placed_at: '2026-08-18T22:00:00Z' }),
+      order({ placed_at: '2026-08-19T23:00:00Z' }),
+    ]);
+    expect(rows).toHaveLength(2);
+    expect(groupRows(rows, 'placedDay').map((b) => b.key)).toEqual(['2026-08-19', '2026-08-20']);
+    // ...and the service-date view still sees one day with both.
+    expect(groupRows(rows, 'day')).toHaveLength(1);
+    expect(groupRows(rows, 'day')[0]!.orders).toBe(2);
+  });
+
+  it('folds to the same totals on every axis, placement included', () => {
+    const rows = summarise([
+      order({ placed_at: '2026-08-18T22:00:00Z' }),
+      order({ placed_at: '2026-08-19T23:00:00Z', service_date: '2026-08-22' }),
+      order({ placed_at: '2026-08-24T05:00:00Z', school_id: 's-2', school_name_snapshot: 'Gem' }),
+    ]);
+    const axes = ['day', 'month', 'school', 'placedDay', 'placedWeek', 'placedMonth'] as const;
+    const totals = axes.map((by) => totalOf(groupRows(rows, by)));
+    expect(new Set(totals.map((t) => t.grossPaise)).size).toBe(1);
+    expect(new Set(totals.map((t) => t.orders)).size).toBe(1);
+    expect(totals[0]!.orders).toBe(3);
+  });
+
+  it('drops a row with no placed_at from the placement axes only', () => {
+    // A draft that never reached checkout is not demand. It must not appear under an empty-string
+    // key, which would sort to the top of every chart as a phantom period.
+    const rows = summarise([order(), order({ placed_at: null })]);
+    expect(totalOf(groupRows(rows, 'placedDay')).orders).toBe(1);
+    expect(totalOf(groupRows(rows, 'day')).orders).toBe(2);
+  });
+
+  it('starts weeks on Monday, matching Mon–Sat service', () => {
+    expect(weekOf('2026-08-24')).toBe('2026-08-24');  // a Monday
+    expect(weekOf('2026-08-26')).toBe('2026-08-24');  // Wednesday
+    expect(weekOf('2026-08-23')).toBe('2026-08-17');  // Sunday belongs to the week before
+    expect(weekOf('2026-08-22')).toBe('2026-08-17');  // Saturday
+  });
+
+  it('compares against the window immediately before, of the same length', () => {
+    // "Last 30 days" must be measured against the 30 before it, not a calendar month of a
+    // different length — otherwise February always looks like a decline.
+    expect(previousWindow('2026-08-18', '2026-08-24')).toEqual({ from: '2026-08-11', to: '2026-08-17' });
+    expect(previousWindow('2026-08-24', '2026-08-24')).toEqual({ from: '2026-08-23', to: '2026-08-23' });
+  });
+
+  it('refuses to express growth from nothing as a percentage', () => {
+    // A rise from zero is not a percentage, and rendering it as one is the infinity that makes a
+    // dashboard untrustworthy.
+    expect(compare(5, 0).change).toBeNull();
+    expect(compare(0, 0).change).toBeNull();
+    expect(compare(6, 4).change).toBeCloseTo(0.5);
+    expect(compare(2, 4).change).toBeCloseTo(-0.5);
+  });
+});
+
+describe('fetchOrdersPlaced windows in IST (E11-12)', () => {
+  it('shifts both bounds by 5h30, and makes the upper one exclusive', async () => {
+    const fake = fakeTransport([]);
+    setApiTransport(fake.transport);
+    await fetchOrdersPlaced('2026-08-20', '2026-08-20');
+
+    const q = fake.queries[0]!;
+    // 00:00 IST on the 20th is 18:30 UTC on the 19th.
+    expect(q.gteFilters).toContainEqual({ column: 'placed_at', value: '2026-08-19T18:30:00.000Z' });
+    // 00:00 IST on the 21st, exclusive — so the whole of the 20th is inside the window and an
+    // order placed exactly at midnight belongs to the 21st, not to this day.
+    expect(q.ltFilters).toContainEqual({ column: 'placed_at', value: '2026-08-20T18:30:00.000Z' });
+  });
+
+  it('refuses a backwards range', async () => {
+    setApiTransport(fakeTransport([]).transport);
+    await expect(fetchOrdersPlaced('2026-08-20', '2026-08-01')).rejects.toThrow(/ends .* before it starts/);
+  });
+});
+
+describe('the paid count is stated, not derived (E11-14)', () => {
+  const order = (over: Record<string, unknown> = {}) => ({
+    service_date: '2026-08-26', status: 'paid', school_id: 's-1', school_name_snapshot: 'Amity',
+    placed_at: '2026-08-19T15:30:00Z',
+    subtotal_paise: 12000, tax_cgst_paise: 300, tax_sgst_paise: 300, discount_paise: 0,
+    total_paise: 12600, refunded_total_paise: 0, ...over,
+  });
+
+  it('counts only earned statuses as paid', () => {
+    const rows = summarise([
+      order(), order({ status: 'preparing' }), order({ status: 'delivered' }),
+      order({ status: 'pending_payment' }), order({ status: 'cancelled' }),
+    ]);
+    const b = totalOf(groupRows(rows, 'placedDay'));
+    expect(b.orders).toBe(5);
+    expect(b.paid).toBe(3);
+    expect(b.pending).toBe(1);
+    expect(b.cancelled).toBe(1);
+  });
+
+  it('keeps paid consistent with the money, which is the point', () => {
+    // The contradiction this fixes: a sales screen showing "6 orders" beside one order's worth of
+    // revenue, because the count included orders nobody had paid for.
+    const rows = summarise([order(), order({ status: 'pending_payment' })]);
+    const b = totalOf(groupRows(rows, 'placedDay'));
+    expect(b.paid).toBe(1);
+    expect(b.grossPaise).toBe(12600);
+    expect(b.netPaise).toBe(12600);
+  });
+
+  it('totals paid identically on every axis', () => {
+    const rows = summarise([
+      order(), order({ status: 'pending_payment' }),
+      order({ school_id: 's-2', school_name_snapshot: 'Gem', placed_at: '2026-08-20T15:30:00Z' }),
+    ]);
+    const axes = ['day', 'month', 'school', 'placedDay', 'placedWeek', 'placedMonth'] as const;
+    expect(new Set(axes.map((by) => totalOf(groupRows(rows, by)).paid)).size).toBe(1);
+    expect(totalOf(groupRows(rows, 'placedDay')).paid).toBe(2);
   });
 });

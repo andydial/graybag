@@ -10,6 +10,8 @@
  *
  * `noindex`, like every back-office page.
  */
+import BackofficeNav from '../components/BackofficeNav.astro';
+
 import '../styles/tokens.css';
 import '../styles/site.css';
 import '../styles/kitchen.css';
@@ -39,8 +41,8 @@ import '../styles/kitchen.css';
             <button class="daynav__step" id="o-next" type="button" aria-label="Next day">›</button>
             <button class="kitchen__btn daynav__today" id="o-today" type="button" hidden>Today</button>
           </div>
-          <a class="kitchen__btn" href="/kitchen">Kitchen board</a>
           <button id="o-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+          <BackofficeNav current="/orders" />
         </div>
       </header>
 
@@ -53,6 +55,7 @@ import '../styles/kitchen.css';
     </div>
 
     <script>
+      import { mountNav } from '../lib/backoffice/nav-mount.js';
       import { api, money } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
       import { describeDate, serviceDateToday, shiftDate } from '../lib/kitchen/view.js';
@@ -243,6 +246,7 @@ import '../styles/kitchen.css';
         }
         await load();
       })();
+    void mountNav();
     </script>
   </body>
 </html>

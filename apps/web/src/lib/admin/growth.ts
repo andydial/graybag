@@ -1,0 +1,204 @@
+/**
+ * How registration is tracking — `E11-08`.
+ *
+ * Andy: *"All registered users — registrations per date — registrations per school etc. Want to be
+ * able to see exactly how the registrations / growth is tracking."*
+ *
+ * ## No child appears in the output of this file
+ *
+ * RLS **would** let a platform admin read every recipient row: `recipient_read_admin` grants it on
+ * `users.view`. That is not permission to put one on a screen. Non-negotiable #4 covers names,
+ * class and section, and `E10-10` already holds the line that a report is aggregate by definition.
+ *
+ * So the input type takes `{ id, schoolId, createdAt }` and **has nowhere to put a name** — the
+ * fetch selects those three columns and the compiler refuses the rest. A report that could show a
+ * child only by someone adding a field is safer than one that merely does not today.
+ *
+ * ## A guardian is counted once per school, not once per child
+ *
+ * Two siblings at one school is one family, and counting it as two overstates reach by exactly the
+ * families most likely to be a reference. The distinction matters most at the small numbers this
+ * report will show for months.
+ *
+ * ## Dates are IST calendar dates
+ *
+ * `created_at` is a `timestamptz`. Bucketing by its UTC date puts every evening signup after
+ * 18:30 IST on the previous day, which is wrong on the axis that people read as "yesterday".
+ */
+
+/** A registered account. Deliberately carries no name, phone or email. */
+export interface GrowthUser {
+  id: string;
+  /** `app_user.created_at`, ISO 8601 with a zone. */
+  createdAt: string;
+}
+
+/** A child. Three columns, none of which identify anybody — see the header. */
+export interface GrowthChild {
+  id: string;
+  schoolId: string;
+  createdAt: string;
+}
+
+export interface GrowthLink {
+  userId: string;
+  recipientId: string;
+}
+
+export interface GrowthSchool {
+  id: string;
+  name: string;
+}
+
+export interface DayPoint {
+  /** `YYYY-MM-DD`, IST. */
+  date: string;
+  registrations: number;
+  /** Running total at the end of this day. */
+  cumulative: number;
+}
+
+export interface SchoolRow {
+  schoolId: string;
+  name: string;
+  /** Distinct accounts with at least one child here. */
+  guardians: number;
+  children: number;
+  /** Share of all guardians, 0–1. Rendered as a bar. */
+  share: number;
+}
+
+export interface Growth {
+  totalUsers: number;
+  /** Accounts with no child yet — signed up and stopped. The conversion gap, named. */
+  usersWithoutChildren: number;
+  totalChildren: number;
+  daily: DayPoint[];
+  bySchool: SchoolRow[];
+  /** Registrations in the last 7 and 28 days, against the 7 and 28 before them. */
+  recent: { days: number; now: number; previous: number }[];
+}
+
+/**
+ * The IST calendar date of an instant.
+ *
+ * `+05:30` is fixed — India has no daylight saving and one zone — so this is an addition rather
+ * than a timezone library. `sv-SE` gives `YYYY-MM-DD` from `toLocaleDateString` without any
+ * parsing, but shifting the epoch is exact and needs no ICU data in a test runner.
+ */
+export function istDate(iso: string): string {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return '';
+  return new Date(t + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/** Every date from `from` to `to` inclusive, so a day with no signups is a gap in the line. */
+function dateRange(from: string, to: string): string[] {
+  const out: string[] = [];
+  const end = Date.parse(`${to}T00:00:00Z`);
+  for (let t = Date.parse(`${from}T00:00:00Z`); t <= end; t += 86_400_000) {
+    out.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return out;
+}
+
+export function growth(
+  // `readonly` throughout: nothing here mutates its inputs, and the demo fixture is `as const`,
+  // so a mutable signature made the one caller that proves the screen renders fail to typecheck.
+  users: readonly GrowthUser[],
+  children: readonly GrowthChild[],
+  links: readonly GrowthLink[],
+  schools: readonly GrowthSchool[],
+  today: string,
+): Growth {
+  const byDate = new Map<string, number>();
+  for (const u of users) {
+    const d = istDate(u.createdAt);
+    if (d) byDate.set(d, (byDate.get(d) ?? 0) + 1);
+  }
+
+  const dates = [...byDate.keys()].sort();
+  // A continuous axis, from the first signup to today. Plotting only the days that had one turns
+  // a quiet fortnight into a line that looks like steady growth.
+  const span = dates.length > 0 ? dateRange(dates[0]!, today) : [];
+
+  let running = 0;
+  const daily: DayPoint[] = span.map((date) => {
+    const registrations = byDate.get(date) ?? 0;
+    running += registrations;
+    return { date, registrations, cumulative: running };
+  });
+
+  const childById = new Map(children.map((c) => [c.id, c]));
+
+  // school -> the accounts with a child there. A Set, because two siblings are one family.
+  const guardiansBySchool = new Map<string, Set<string>>();
+  for (const link of links) {
+    const child = childById.get(link.recipientId);
+    if (!child) continue;
+    const set = guardiansBySchool.get(child.schoolId) ?? new Set<string>();
+    set.add(link.userId);
+    guardiansBySchool.set(child.schoolId, set);
+  }
+
+  const childrenBySchool = new Map<string, number>();
+  for (const c of children) {
+    childrenBySchool.set(c.schoolId, (childrenBySchool.get(c.schoolId) ?? 0) + 1);
+  }
+
+  const linkedUsers = new Set(
+    links.filter((l) => childById.has(l.recipientId)).map((l) => l.userId),
+  );
+
+  const totalGuardians = [...guardiansBySchool.values()].reduce((n, s) => n + s.size, 0);
+
+  const bySchool: SchoolRow[] = schools
+    .map((s) => {
+      const guardians = guardiansBySchool.get(s.id)?.size ?? 0;
+      return {
+        schoolId: s.id,
+        name: s.name,
+        guardians,
+        children: childrenBySchool.get(s.id) ?? 0,
+        share: totalGuardians === 0 ? 0 : guardians / totalGuardians,
+      };
+    })
+    // Biggest first. This is a "where are we" screen, and alphabetical buries the answer.
+    .sort((a, b) => b.guardians - a.guardians || a.name.localeCompare(b.name));
+
+  const since = (days: number, offset: number) => {
+    const end = Date.parse(`${today}T00:00:00Z`) - offset * 86_400_000;
+    const start = end - days * 86_400_000;
+    return users.filter((u) => {
+      const t = Date.parse(`${istDate(u.createdAt)}T00:00:00Z`);
+      return t > start && t <= end;
+    }).length;
+  };
+
+  return {
+    totalUsers: users.length,
+    // The number that says whether signup converts. An account with no child cannot order, so
+    // this is the drop-off `AR7` cares about, not a curiosity.
+    usersWithoutChildren: users.filter((u) => !linkedUsers.has(u.id)).length,
+    totalChildren: children.length,
+    daily,
+    bySchool,
+    recent: [7, 28].map((days) => ({ days, now: since(days, 0), previous: since(days, days) })),
+  };
+}
+
+/**
+ * An SVG polyline for a series, scaled to a viewBox.
+ *
+ * Hand-rolled because a chart library is a third-party script, and the site ships **zero** of them
+ * — `check-build.mjs` fails on any external asset, and the CSP is `script-src 'self'`. A polyline
+ * is twenty lines and needs no runtime.
+ */
+export function linePath(values: readonly number[], width: number, height: number): string {
+  if (values.length === 0) return '';
+  const max = Math.max(...values, 1);
+  const step = values.length === 1 ? 0 : width / (values.length - 1);
+  return values
+    .map((v, i) => `${(i * step).toFixed(1)},${(height - (v / max) * height).toFixed(1)}`)
+    .join(' ');
+}

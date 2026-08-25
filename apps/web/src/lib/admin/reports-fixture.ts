@@ -32,6 +32,16 @@ const ORDERS = [
   // July, so the screen has more than one month to compare.
   ...Array.from({ length: 41 }, () => order({ service_date: '2026-07-15', ...AMITY })),
   ...Array.from({ length: 12 }, () => order({ service_date: '2026-07-15', ...GEM })),
+  // **Unpaid orders** — `E11-10`. The case the old report got wrong by counting them as revenue,
+  // so the demo has to show them being kept out of it. Dated after the paid ones because that is
+  // where they cluster in reality: today's and tomorrow's lunches, placed and not yet settled.
+  ...Array.from({ length: 6 }, () => order({ service_date: '2026-08-17', ...AMITY, status: 'pending_payment' })),
+  ...Array.from({ length: 3 }, () => order({ service_date: '2026-08-18', ...GEM, status: 'pending_payment' })),
+  // A few more paid days so the Day view has a shape rather than three columns.
+  ...Array.from({ length: 27 }, () => order({ service_date: '2026-08-15', ...AMITY })),
+  ...Array.from({ length: 9 }, () => order({ service_date: '2026-08-15', ...GEM })),
+  ...Array.from({ length: 31 }, () => order({ service_date: '2026-08-17', ...AMITY, status: 'delivered' })),
+  ...Array.from({ length: 14 }, () => order({ service_date: '2026-08-18', ...GEM, status: 'delivered' })),
 ];
 
 export const REPORTS_FIXTURE = {

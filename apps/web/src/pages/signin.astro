@@ -100,9 +100,17 @@ import '../styles/kitchen.css';
 
       /** Where to go after signing in. Same-origin paths only — an open redirect on a login page. */
       const nextParam = new URLSearchParams(location.search).get('next');
+      /*
+       * `/dashboard`, not `/kitchen` — `E10-43`.
+       *
+       * Signing in used to land everybody on the kitchen board whatever they held, so an account
+       * with only `reports.view` arrived at a screen it could not read, with no link to the one it
+       * could. The dashboard is the only page that is correct for every account, because it is
+       * built from what the account can actually reach.
+       */
       const next = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')
         ? nextParam
-        : '/kitchen';
+        : '/dashboard';
 
       let sentAt = 0;
       let timer: ReturnType<typeof setInterval> | undefined;
