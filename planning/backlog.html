@@ -1978,13 +1978,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/20</span>
+          <span class="meter-num">0/21</span>
         </div>
       </header>
       <p class="summary">Because Andy is not a developer, the system has to be able to explain its own failures in plain English.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 20 tasks</summary>
+        <summary>Context &amp; 21 tasks</summary>
         <div class="context"><h4>Approach</h4>
 <p>Sentry for errors across app/web/backend, Supabase dashboard for query performance, Better Stack for uptime. The multiplier is that <strong>Sentry and Supabase both have MCP servers</strong> — wired into Claude Code, a plain-English question like &quot;orders from St. Xavier&#39;s stopped going through around 9pm yesterday, find out why&quot; can be answered by querying errors, logs and the database directly.</p></div>
         <ul class="tasks">
@@ -2140,13 +2140,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The analytics contract, as an allowlist, before any event is wired.</strong> Andy, 2026-08-25: *&quot;No child&#39;s identity or attributes may ever reach PostHog … A test must fail if a child field can be attached to any event, property, or person profile.&quot;* <code>packages/shared/src/analytics/events.ts</code> declares nine events and their exact properties; anything not on the list is refused. <strong>An allowlist rather than a denylist, and the distinction is the whole design</strong>: <code>observability/scrub.ts</code> filters a crash payload, which is whatever the runtime hands you, so stripping what you recognise is the best available move. Analytics is the opposite — we author every event, so an undeclared property is a mistake, not an unknown. A denylist fails *open* on a field nobody thought of (<code>nickname</code>, <code>birthday</code>, <code>class_teacher</code>) and the first anyone knows is a child&#39;s name in a third-party dashboard; an allowlist fails closed. 22 tests, including: every child field refused on every event; <strong>any</strong> person property refused, because <code>identify()</code> attaches a property to every event that identity ever sends, past and future; camelCase caught as well as snake_case, since the API layer and the components disagree about which they speak; and the <code>FORBIDDEN_KEYS</code> list checked against the real <code>recipient</code> columns in <code>0001</code>, so a migration adding a personal column cannot open a hole by nobody noticing. <code>child_added</code> deliberately carries <strong>no</strong> properties — it is the one event whose name invites a school, a class, a count, and each of those is an attribute of a child when the funnel question is only whether the step happened</span>
       </li>
-      <li class="task" data-id="E15-20" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E15-20" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-20"></button>
         <code class="tid">E15-20</code>
         
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Wire the PostHog emitters — JS-only, over the air.</strong> Blocked on Andy confirming <code>docs/posthog.md</code>, which he asked to review before emitters are built. The evaluation is done and the finding that shapes it: <strong><code>posthog-react-native</code> needs a native build</strong> — it requires <code>expo-file-system</code>, <code>expo-application</code>, <code>expo-device</code> and <code>expo-localization</code>, or async-storage plus device-info, and <strong>none of the six is currently a dependency</strong>. So the SDK costs a binary and an App Store review. A <code>fetch</code> client against PostHog&#39;s HTTP capture endpoint ships <strong>over the air</strong> instead, and the features that would be lost are exactly the ones Andy is switching off — autocapture, session replay, automatic device properties. What genuinely remains is offline queueing and retry, perhaps forty lines. Residency recommendation is <strong>Cloud EU</strong>: DPDP s.16 restricts transfer only to notified countries and none are notified, and the payload carries no child data and no direct identifiers. Self-hosting in India is the fallback if that changes — not a licence to send more</span>
+      </li>
+      <li class="task" data-id="E15-21" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-21"></button>
+        <code class="tid">E15-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Expand the events so a parent&#39;s whole path reads in sequence.</strong> Andy, 2026-08-26: *&quot;so I can read a parent&#39;s whole path in sequence, not just the funnel milestones … enough that I can see someone reach checkout and turn back.&quot;* Seven new events — <code>screen_viewed</code> on every screen, plus <code>add_to_cart_tapped</code>, <code>remove_from_cart_tapped</code>, <code>break_time_selected</code>, <code>place_order_tapped</code>, <code>payment_sheet_closed</code> and <code>add_child_submitted</code> — the controls where somebody stalls or gives up. <strong>Turning back is <code>payment_sheet_closed</code> with <code>outcome: dismissed</code> followed by the next <code>screen_viewed</code></strong>, and neither half is visible from the milestones alone. The change that mattered most is not an event: <code>screen</code> is the schema&#39;s first *string* property, and a screen name is exactly where a child&#39;s name would reach a vendor — <code>screen: &quot;Aarav&#39;s orders&quot;</code> passes a key check perfectly — so <code>ENUM_VALUES</code> now validates property <strong>values</strong> against a closed vocabulary, with a new <code>forbidden_value</code> rejection whose detail names the key and never the value, because a rejection is a log line and echoing it would write the child&#39;s name into the log to explain keeping it out of the vendor. Emitted from two places: one <code>onStateChange</code> listener covers the fourteen navigator routes, and <code>useScreenView</code> covers the six screens that are states rather than routes. <code>screens.test.ts</code> asserts both directions — every vocabulary entry reachable from an emitter, every route named — because a declared-but-unemitted screen reads on the dashboard as *a screen nobody visited*, which is worse than a missing row since it looks like data. Both assertions were mutation-checked rather than trusted. Session replay stays <strong>off</strong> and is now pinned by a test: <code>$snapshot</code> is refused, as is anything <code>$</code>-prefixed, so autocapture and replay cannot be switched on without adding a name to the allowlist. Also recorded: <code>cant_connect</code> can essentially never arrive, because the misconfiguration that renders it is the one that puts the analytics client on its no-op fallback — written into <code>docs/posthog.md</code> so a zero there is not read as &quot;nobody hit it&quot;</span>
       </li></ul>
       </details>
     </article>

@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { track } from '../analytics/analytics';
 import { api, design } from '@graybag/shared';
 
 const { bg, text, border, space, scale, radius, borderWidth, touchTarget, clampRadius } = design;
@@ -49,7 +50,12 @@ export function BreakTimePicker({
         return (
           <Pressable
             key={window.id}
-            onPress={() => onSelect(window.id)}
+            onPress={() => {
+              // `E15-21`. No break id and no school — WHETHER a choice was made is the stall
+              // signal; which one is a detail about a child's day.
+              track('break_time_selected');
+              onSelect(window.id);
+            }}
             accessibilityRole="radio"
             accessibilityState={{ selected }}
             // The window is part of the label, not only visible text: a screen-reader user

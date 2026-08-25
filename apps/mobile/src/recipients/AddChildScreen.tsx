@@ -242,6 +242,10 @@ export function AddChildScreen({
   const blocked = !consentGranted || offline || saved;
 
   const submit = useCallback(async () => {
+    // `E15-21`. The SUBMIT, not the success. A parent who submits and does not reach
+    // `child_added` hit a validation wall or a failure, and that gap is the whole signal.
+    // Nothing about the child, exactly as `child_added` carries nothing.
+    track('add_child_submitted');
     if (blocked || submitting || audience === null) return;
 
     const missingName = firstName.trim() === '';

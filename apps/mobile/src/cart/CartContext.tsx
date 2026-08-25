@@ -82,6 +82,10 @@ export function CartProvider({
         if (current.lines.length === 0 && next.lines.length > 0) {
           track('cart_started', { line_count: next.lines.length });
         }
+        // `E15-21`. Every add, where `cart_started` is only the first. Counts, never the dish —
+        // the cart belongs to a child, and "which dish did they add" is the per-child food
+        // profile s.9(3) forbids. Dish popularity is answerable from our own database.
+        track('add_to_cart_tapped', { line_count: next.lines.length });
         return next;
       }),
     [guarded],
@@ -100,7 +104,14 @@ export function CartProvider({
   );
 
   const remove = useCallback(
-    (key: string) => guarded((current) => cartDomain.removeLine(current, key)),
+    (key: string) =>
+      guarded((current) => {
+        const next = cartDomain.removeLine(current, key);
+        // `E15-21`. Removing is a giving-up signal: a parent emptying a cart line by line before
+        // abandoning reads very differently from one who never started.
+        track('remove_from_cart_tapped', { line_count: next.lines.length });
+        return next;
+      }),
     [guarded],
   );
 

@@ -11,6 +11,8 @@ import { NameCapture } from '../account/NameCapture';
 // date must not change shape between the two.
 import { formatServiceDateLong } from '../orders/OrderDetailScreen';
 import { BrandAction } from './PaymentWaitingScreen';
+import { NON_ROUTE_SCREENS } from '../analytics/screens';
+import { useScreenView } from '../analytics/useScreenView';
 
 const { bg, text, border, scale, space, radius, layout, borderWidth } = design;
 
@@ -168,6 +170,8 @@ export function OrderPlacedScreen({
   onBackToMenu,
   testID = ORDER_PLACED_TEST_ID,
 }: OrderPlacedScreenProps) {
+  useScreenView(NON_ROUTE_SCREENS.orderPlaced);
+
   const whose = order.recipientName === null ? 'Your' : `${order.recipientName}’s`;
   const theirName = order.recipientName === null ? 'your name' : `${order.recipientName}’s name`;
   const items = order.itemCount === 1 ? '1 item' : `${order.itemCount} items`;

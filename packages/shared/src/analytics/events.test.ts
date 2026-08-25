@@ -7,6 +7,7 @@ import {
   COMMON_PROPERTIES,
   EVENT_PROPERTIES,
   FORBIDDEN_KEYS,
+  ENUM_VALUES,
   checkEvent,
   checkIdentify,
   isEventSafe,
@@ -165,5 +166,84 @@ describe('an unknown event name cannot smuggle a child field', () => {
     for (const event of ALLOWED_EVENTS) {
       expect(EVENT_PROPERTIES[event as AllowedEvent]).toBeDefined();
     }
+  });
+});
+
+describe('E15-21 — property VALUES are a closed vocabulary, not just keys', () => {
+  it('refuses a screen name that is not on the list', () => {
+    // The reason this check exists. `screen` is the schema's first string property, and a screen
+    // name is exactly where a child's name reaches a vendor. A key check passes this happily.
+    const rejections = checkEvent('screen_viewed', { distinct_id: 'u-1', screen: "Aarav's orders" });
+    expect(rejections).toEqual([{ reason: 'forbidden_value', detail: 'screen' }]);
+  });
+
+  it('names the key and never the value it refused', () => {
+    // A rejection is a log line. Echoing the offending value would write the child's name into
+    // the log to explain why it was kept out of the vendor.
+    const [rejection] = checkEvent('screen_viewed', { distinct_id: 'u-1', screen: 'Aarav' });
+    expect(JSON.stringify(rejection)).not.toContain('Aarav');
+  });
+
+  it('catches an interpolated screen name, which is the subtler version', () => {
+    const child = 'Aarav';
+    expect(isEventSafe('screen_viewed', { screen: `orders_for_${child}` })).toBe(false);
+  });
+
+  it('accepts every name that is on the list', () => {
+    for (const screen of ENUM_VALUES.screen ?? []) {
+      expect(isEventSafe('screen_viewed', { distinct_id: 'u-1', screen })).toBe(true);
+    }
+  });
+
+  it('checks the other enumerated properties too', () => {
+    expect(isEventSafe('payment_sheet_closed', { outcome: 'dismissed' })).toBe(true);
+    expect(isEventSafe('payment_sheet_closed', { outcome: 'whatever' })).toBe(false);
+    expect(isEventSafe('signin_started', { method: 'email_otp' })).toBe(true);
+    expect(isEventSafe('signin_started', { method: 'magic_wand' })).toBe(false);
+  });
+
+  it('leaves non-enumerated properties alone', () => {
+    // `line_count` is a number and has no vocabulary; the check must not become a general
+    // whitelist of values or every count would need declaring.
+    expect(isEventSafe('add_to_cart_tapped', { line_count: 7 })).toBe(true);
+  });
+
+  it('still carries no dish on the cart events', () => {
+    // The event that would most naturally carry one, and the obvious product question.
+    expect(isEventSafe('add_to_cart_tapped', { line_count: 1, dish_name: 'Wheat Jaggery Cake' }))
+      .toBe(false);
+    expect(isEventSafe('add_to_cart_tapped', { line_count: 1, dish_id: 'd-1' })).toBe(false);
+  });
+
+  it('add_child_submitted carries nothing, like child_added', () => {
+    expect(EVENT_PROPERTIES.add_child_submitted).toEqual([]);
+    expect(isEventSafe('add_child_submitted', { distinct_id: 'u-1', class_label: '5' })).toBe(false);
+  });
+});
+
+describe('session replay can never be turned on through this client', () => {
+  /**
+   * Andy, twice, and worth pinning next to a change that adds screen tracking: replay records
+   * the screen, which on this app means **children's names and allergy notes as video**. It is
+   * the thing the whole design avoids.
+   *
+   * The allowlist already refuses it — PostHog's replay payloads arrive as `$snapshot` — but
+   * "already refuses it" is a property of today's list. This makes it a property of the suite.
+   */
+  it('refuses $snapshot, which is how replay data would arrive', () => {
+    expect(isEventSafe('$snapshot', {})).toBe(false);
+    expect(checkEvent('$snapshot', {})[0]?.reason).toBe('unknown_event');
+  });
+
+  it('refuses every PostHog reserved event, not just that one', () => {
+    for (const reserved of ['$snapshot', '$pageview', '$autocapture', '$rageclick', '$exception']) {
+      expect(isEventSafe(reserved, {})).toBe(false);
+    }
+  });
+
+  it('and the allowlist contains nothing beginning with $', () => {
+    // Autocapture, pageviews and replay all arrive under `$`-prefixed names. If one ever appears
+    // in ALLOWED_EVENTS, somebody has turned on a vendor feature rather than declared an event.
+    expect(ALLOWED_EVENTS.filter((e) => e.startsWith('$'))).toEqual([]);
   });
 });

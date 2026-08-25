@@ -14,6 +14,8 @@ import {
   Skeleton,
   TextField,
 } from '../components';
+import { NON_ROUTE_SCREENS } from '../analytics/screens';
+import { useScreenView } from '../analytics/useScreenView';
 
 const {
   bg, text, scale, space, radius, layout, touchTarget, borderWidth, border, icon,
@@ -112,6 +114,8 @@ export function SchoolPicker({
   welcome?: boolean;
   testID?: string;
 }) {
+  useScreenView(NON_ROUTE_SCREENS.schoolPicker);
+
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [schools, setSchools] = useState<api.ApiSchool[]>([]);
   const [stale, setStale] = useState(false);

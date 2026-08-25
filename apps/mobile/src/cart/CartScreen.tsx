@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { track } from '../analytics/analytics';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api, cart as cartDomain, design, money } from '@graybag/shared';
 
@@ -382,7 +383,13 @@ export function CartScreen({
             wired: onPlaceOrder !== undefined,
           })}
           testID="cart-place-order"
-          onPress={() => onPlaceOrder?.()}
+          onPress={() => {
+            // `E15-21`. The tap, not the outcome. A parent who presses this and then dismisses
+            // the sheet is the "reached checkout and turned back" shape — and it is invisible
+            // if only successful checkouts are recorded.
+            track('place_order_tapped', { line_count: cart.lines.length });
+            onPlaceOrder?.();
+          }}
         />
         {signedOut ? (
           /*
