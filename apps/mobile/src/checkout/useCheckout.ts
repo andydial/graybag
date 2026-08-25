@@ -216,7 +216,27 @@ export function useCheckout() {
     [],
   );
 
-  return { phase, start, reset };
+  /**
+   * **Resume an order that is already placed but never paid — `E05-54`.**
+   *
+   * Nothing new is needed below: `runCheckout` already skips step 1 when the session carries a
+   * `placedGroupId`, which is how a retry after a declined card works. Resuming is that same
+   * path entered from Orders instead of from the cart, so this seeds the session and runs.
+   *
+   * `lines` is empty on purpose — it is read only by step 1, which will not run. The order and
+   * its prices already exist server-side, and re-sending lines from a screen that never had
+   * them is how a resumed payment would come to disagree with the order it is paying for.
+   *
+   * The anti-double-charge guarantee is NOT here: `payments-create-order` returns the existing
+   * Razorpay attempt rather than minting a second one (`reusable_payment_attempt`, `0067`).
+   * That belongs on the server, where it holds however the client behaves.
+   */
+  const resume = useCallback((orderGroupId: string) => {
+    session.current.placedGroupId = orderGroupId;
+    return runCheckout(session.current, { lines: [], expectedTotalPaise: 0 }, setPhase);
+  }, []);
+
+  return { phase, start, resume, reset };
 }
 
 /** The failed variant, so callers can read `message` and `code` without re-narrowing. */

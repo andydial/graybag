@@ -52,9 +52,11 @@ export function OrderDetailScreen({
   order = null,
   state = 'ready',
   cancelling = false,
+  resuming = false,
   stale = false,
   now = new Date(),
   onCancel,
+  onResumePayment,
   onRetry,
   onBackToMenu,
   onContactSupport,
@@ -211,6 +213,54 @@ export function OrderDetailScreen({
         </View>
       ) : null}
 
+      {/*
+        `E05-54`. The unpaid checkout, with both ways out real.
+
+        Two buttons rather than a notice, because the previous version of this screen WAS a
+        notice — it said the order would "close by itself if the payment does not come through",
+        which nothing did. A parent who dismissed the Razorpay sheet had no route forward and no
+        route back, and the order also blocked deleting the child it named.
+
+        "Finish paying" disappears once the checkout expires (`checkoutResumable`), and that
+        window never runs past the cutoff — offering to take money for food the kitchen can no
+        longer make would be a worse lie than the one this replaces. Abandoning stays available
+        either way, because releasing the order is what unblocks the child.
+      */}
+      {cancel.kind === 'unpaid' ? (
+        <View style={styles.block} testID={`${testID}-unpaid`}>
+          {cancel.resumable ? (
+            <>
+              <Button
+                label="Finish paying"
+                testID={`${testID}-resume`}
+                loading={resuming}
+                disabled={onResumePayment === undefined}
+                onPress={() => onResumePayment?.()}
+              />
+              <Text style={styles.note} testID={`${testID}-resume-note`}>
+                You will not be charged twice — this reopens the same payment.
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.note} testID={`${testID}-resume-expired`}>
+              This order was not paid for in time, so it can no longer be completed.
+            </Text>
+          )}
+
+          <Button
+            label={cancel.resumable ? 'Cancel this order' : 'Remove this order'}
+            variant="secondary"
+            testID={`${testID}-abandon`}
+            loading={cancelling}
+            disabled={onCancel === undefined}
+            onPress={() => onCancel?.()}
+          />
+          <Text style={styles.note} testID={`${testID}-abandon-note`}>
+            Nothing has been charged, so there is nothing to refund.
+          </Text>
+        </View>
+      ) : null}
+
       {cancel.kind === 'closed' ? (
         <View style={styles.block}>
           <View style={styles.notice} testID={`${testID}-cancel`}>
@@ -249,6 +299,8 @@ export interface OrderDetailScreenProps {
   state?: 'loading' | 'ready' | 'error';
   /** A cancellation is in flight — the button keeps its label and gains an indicator (`S5`). */
   cancelling?: boolean;
+  /** `E05-54`. True while the Razorpay sheet is being reopened on the existing attempt. */
+  resuming?: boolean;
   /** This came from cache and no live read succeeded — N4 in §5.21. */
   stale?: boolean;
   /**
@@ -260,6 +312,11 @@ export interface OrderDetailScreenProps {
    */
   now?: Date;
   onCancel?: () => void;
+  /**
+   * `E05-54`. Reopens payment on the SAME Razorpay order. Unwired means the button is disabled
+   * rather than pretending to work — the same rule the cart's "Place order" follows.
+   */
+  onResumePayment?: () => void;
   onRetry?: () => void;
   onBackToMenu?: () => void;
   /** Where a parent goes when cancelling has closed, or a refund has failed (§10.12). */
@@ -278,6 +335,13 @@ export interface OrderDetail {
   /** `order_group.id` — one payment, one recipient, one service date (`AR8`, `[DM-01]`). */
   orderGroupId: string;
   status: OrderStatus;
+  /**
+   * `E05-54`. Computed server-side (`0067`) — true only while an unpaid checkout can still be
+   * finished, which is never past the cutoff. Read rather than derived here on purpose: it is a
+   * rule about money, and a second copy in TypeScript would drift from the one the server
+   * enforces.
+   */
+  checkoutResumable: boolean;
   /** `YYYY-MM-DD`, the calendar day the food is for. Never an instant (`menu/dates.ts`). */
   serviceDate: menuDomain.ServiceDate;
   /** **`null` means the account holder**, and renders as "You". */
@@ -354,6 +418,12 @@ const PAID_STATUSES: ReadonlySet<OrderStatus> = new Set<OrderStatus>([
  */
 export type CancelAvailability =
   | { kind: 'available'; deadline: string }
+  /**
+   * `E05-54`. An unpaid checkout the parent can still finish, or walk away from. Distinct from
+   * `available`, which cancels a **paid** order and owes a refund; here no money ever moved, so
+   * the words and the consequences are different.
+   */
+  | { kind: 'unpaid'; resumable: boolean }
   | { kind: 'closed'; reason: string }
   | { kind: 'none' };
 
@@ -375,13 +445,21 @@ export function cancelAvailability(order: OrderDetail, now: Date): CancelAvailab
     };
   }
 
+  /**
+   * **This used to say the order would "close by itself if the payment does not come through",
+   * and nothing closed it — `E05-54`.**
+   *
+   * Two parents on production sat behind that sentence for six days with an order they could
+   * neither pay nor cancel, which also blocked deleting the child it named. The copy was not a
+   * wording problem; it described a mechanism that did not exist.
+   *
+   * Both actions are now real. `resumable` decides whether finishing is still on the table —
+   * false once the checkout has expired, and `checkout_expires_at` never runs past the cutoff,
+   * because offering to pay for food the kitchen can no longer make would be a worse lie than
+   * the one this replaces.
+   */
   if (order.status === 'draft' || order.status === 'pending_payment') {
-    return {
-      kind: 'closed',
-      reason:
-        "This order hasn't been paid for yet, so there is nothing to cancel — it will close " +
-        'by itself if the payment does not come through.',
-    };
+    return { kind: 'unpaid', resumable: order.checkoutResumable };
   }
 
   /**

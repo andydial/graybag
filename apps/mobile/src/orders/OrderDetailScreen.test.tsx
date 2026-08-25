@@ -39,6 +39,7 @@ const AFTER = new Date('2026-08-11T19:00:00.000Z');
 const detail = (over: Partial<OrderDetail> = {}): OrderDetail => ({
   orderGroupId: 'og-1',
   status: 'paid',
+  checkoutResumable: false,
   serviceDate: SERVICE_DATE,
   recipientName: 'Aarav',
   classLabel: '5',
@@ -460,11 +461,38 @@ describe('cancelAvailability', () => {
   it.each([
     ['delivered', detail({ status: 'delivered' }), /already been delivered/],
     ['preparing', detail({ status: 'preparing' }), /kitchen has already started/],
-    ['pending_payment', detail({ status: 'pending_payment' }), /hasn't been paid for yet/],
   ] as const)('refuses a %s order with a reason', (_name, order, reason) => {
     const result = cancelAvailability(order, BEFORE);
     expect(result.kind).toBe('closed');
     if (result.kind === 'closed') expect(result.reason).toMatch(reason);
+  });
+
+  /**
+   * **`E05-54`. This assertion used to pin a sentence that was not true.**
+   *
+   * It required `pending_payment` to be `closed` with the reason *"it will close by itself if
+   * the payment does not come through"*. Nothing closed it: there was no expiry, no job and no
+   * cron, and two parents on production sat behind that sentence for six days with an order
+   * they could neither pay nor cancel — which also blocked deleting the child it named.
+   *
+   * The test was green throughout, because it asserted the copy rather than the mechanism. It is
+   * changed rather than deleted: an unpaid order is now its own `kind`, with both actions real.
+   */
+  it('offers an unpaid order both ways out, rather than a false promise', () => {
+    const resumable = cancelAvailability(
+      detail({ status: 'pending_payment', checkoutResumable: true }), BEFORE);
+    expect(resumable.kind).toBe('unpaid');
+    if (resumable.kind === 'unpaid') expect(resumable.resumable).toBe(true);
+  });
+
+  it('stops offering to finish a checkout that has expired', () => {
+    // `checkout_expires_at` never runs past the cutoff, so this is also the case where the
+    // kitchen can no longer make the food. Offering to pay for it would be a worse lie than
+    // the one this replaces.
+    const expired = cancelAvailability(
+      detail({ status: 'pending_payment', checkoutResumable: false }), AFTER);
+    expect(expired.kind).toBe('unpaid');
+    if (expired.kind === 'unpaid') expect(expired.resumable).toBe(false);
   });
 
   // The other half of T10's guard, and a config flag rather than a clock — so "too late"
@@ -609,5 +637,76 @@ describe('invoiceFootnote', () => {
 
   it('says where the number will be rather than leaving a gap', () => {
     expect(invoiceFootnote(null)).toMatch(/appears here once the payment is confirmed/);
+  });
+});
+
+/**
+ * `E05-54`. **The screen has to offer a way out of an unpaid order, in both directions.**
+ *
+ * Before this, `pending_payment` rendered a notice saying the order would "close by itself if
+ * the payment does not come through". Nothing closed it, there was no button, and two parents on
+ * production sat there for six days with an order they could neither pay nor cancel — which also
+ * blocked deleting the child it named.
+ *
+ * `orphans.test.ts` covers whether the handlers are wired by the navigator. These assert what a
+ * parent can actually see and press.
+ */
+describe('OrderDetailScreen — an unpaid checkout', () => {
+  const unpaid = (over = {}) =>
+    detail({ status: 'pending_payment', pickupCode: null, paidAt: null, invoiceNumber: null, ...over });
+
+  it('offers to finish paying while the checkout is still resumable', async () => {
+    await renderScreen(
+      <OrderDetailScreen
+        order={unpaid({ checkoutResumable: true })}
+        now={BEFORE}
+        onResumePayment={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('screen-order-detail-resume')).toBeOnTheScreen();
+    expect(screen.getByTestId('screen-order-detail-abandon')).toBeOnTheScreen();
+  });
+
+  it('promises no double charge, because that is the parent’s actual fear', async () => {
+    await renderScreen(
+      <OrderDetailScreen
+        order={unpaid({ checkoutResumable: true })}
+        now={BEFORE}
+        onResumePayment={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('screen-order-detail-resume-note')).toHaveTextContent(
+      /not be charged twice/,
+    );
+  });
+
+  it('stops offering to pay once the checkout has expired, but still lets them clear it', async () => {
+    // `checkout_expires_at` never runs past the cutoff, so this is also the moment the kitchen
+    // can no longer make the food. Still offering to take money would be the worse lie.
+    await renderScreen(
+      <OrderDetailScreen
+        order={unpaid({ checkoutResumable: false })}
+        now={AFTER}
+        onResumePayment={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    expect(screen.queryByTestId('screen-order-detail-resume')).toBeNull();
+    expect(screen.getByTestId('screen-order-detail-resume-expired')).toBeOnTheScreen();
+    expect(screen.getByTestId('screen-order-detail-abandon')).toBeOnTheScreen();
+  });
+
+  it('never repeats the sentence that was not true', async () => {
+    await renderScreen(
+      <OrderDetailScreen
+        order={unpaid({ checkoutResumable: true })}
+        now={BEFORE}
+        onResumePayment={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    expect(screen.queryByText(/close by itself/)).toBeNull();
   });
 });

@@ -89,6 +89,28 @@ Deno.serve(async (request: Request) => {
 
   const admin = createClient(supabaseUrl, serviceKey);
 
+  /**
+   * **The sweep, ridden along on a request that was happening anyway — `E05-54`.**
+   *
+   * There is no `pg_cron` on production, so "resolves itself server-side" has to mean *some
+   * request does it*. This is the natural one: the app polls it during checkout, so it fires
+   * exactly when people are ordering, which is when stale checkouts accumulate.
+   *
+   * `expire_stale_checkouts` only touches groups that are provably unchargeable — no live
+   * Razorpay attempt — so riding it here cannot cancel an order somebody is mid-payment on.
+   * Groups holding a live attempt are left for a caller that reconciles with the provider.
+   *
+   * Failure is swallowed deliberately. A parent polling their own payment must never be told
+   * anything went wrong because a housekeeping job for *other* orders failed.
+   */
+  void admin
+    .rpc('expire_stale_checkouts')
+    .then(({ data, error }) => {
+      if (error) console.warn(`checkout-status: sweep failed: ${error.message}`);
+      else if (Number(data) > 0) console.warn(`checkout-status: expired ${Number(data)} stale checkout(s)`);
+    })
+    .catch(() => {});
+
   const { data: row, error: readError } = await admin
     .from('order_group')
     .select('id, customer_user_id, status, payable_paise')

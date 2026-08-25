@@ -2761,7 +2761,76 @@ it had **explicitly declined to resolve**, conflict markers and all.
 Two files went in that way and survived two further rebases:
 
 - `packages/shared/src/payments/cors.test.ts`, caught only when `tsc` finally refused to parse it
-- `PROGRESS.md`, which would **never** have been caught: markdown with `<<<<<<< HEAD` in it
+- `PROGRESS.md`, which would **never** have been caught: markdown with `## A local build and a deployed site differ by their response headers
+
+2026-08-17. Home-page motion was reported finished and verified — locally. In production it had
+never run once: `netlify.toml` sends `script-src 'self'` and the script was inline, so the browser
+refused it. A static file server sends no CSP, so the local check could not have caught it and the
+console was clean.
+
+Two things follow.
+
+**Verify the artefact the visitor receives.** For anything that depends on headers — CSP, CORS,
+caching, `X-Robots-Tag` — a local render proves nothing. Probe the deployed URL.
+
+**Silent degradation hides its own failure.** The design was deliberately fail-open: nothing is
+hidden unless the script adds `html.js`, so if the script dies the page still reads. That is the
+right behaviour, and it is exactly why nobody noticed for a day — a fail-open feature that is
+entirely broken looks identical to one that is switched off. Where a feature degrades silently,
+something else has to assert it is alive. Here it is a build-time guard on inline scripts.
+
+Related: a build guard placed after the block that ends in `process.exit(1)` never runs. Prove a
+new guard fails by feeding it the thing it is meant to catch, before trusting it.
+
+## `check:a11y` does not build — a stale `dist/` makes it lie in both directions
+
+2026-08-20. Fixed a contrast violation, re-ran `npm run check:a11y`, and got the identical failure
+back. The fix was correct; the gate was auditing the previous build. `check:a11y` is
+`node scripts/check-a11y.mjs` and nothing in it runs Astro — it refuses only if `dist/` is missing
+entirely, never if it is old.
+
+It fails the other way too, which is worse: edit a page, run the gate, watch it pass, and you have
+tested the version before your edit.
+
+Always `npm --prefix apps/web run build` first. `npm run smoke` does build, which is why this has
+never bitten CI — only local iteration, where the gate is run directly and repeatedly.
+
+## A migration reported as applied to production was not
+
+2026-08-20. `supabase migration list --linked` against `graybag-prod` showed `0064` with an empty
+remote column — the egg/peanut/sesame allergen vocabulary had never landed, despite being reported
+in this thread on 2026-08-17 as applied alongside `0063`. `0063` was there; `0064` was not.
+
+Both are now applied. The lesson is the check, not the miss: **`migration list` is the only thing
+that answers "is it on production", and it takes ten seconds.** A migration that ran in a session
+and a migration recorded in `supabase_migrations.schema_migrations` are different claims, and only
+the second one survives a new shell.
+
+Worth pairing with the `E12-36` lesson: verify the deployed artefact, not the one you produced.
+
+## Test data on production is an accounting entry, not clutter
+
+2026-08-20. Three test orders I created on 2026-08-15 were still on production five days later,
+after I had reported that production test data was cleaned up. That report was wrong. Production
+began taking real orders on the 18th, so by the time they were found they sat in the same table as
+money somebody has to reconcile.
+
+Two lessons, and the second is the one that nearly cost something.
+
+**Don't create it in the first place.** A write path can be exercised against production with a
+non-existent uuid: every guard, every 4xx and the 200 shape are reachable, and nothing real is
+touched. `E09-38`'s cancellation guards were verified that way — `422`, `422`, `200 updated:[]`,
+`200` — with no row created. There was never a reason to make an order.
+
+**Check the premise before acting on a destructive instruction.** Asked to delete "the test orders
+you created today", the correct first move was the query, not the delete: nothing had been created
+that day, and the newest rows were real customer orders including a `paid` one. Complying would
+have destroyed money-bearing data on the strength of a mistaken belief. Showing the output resolved
+it in one exchange.
+
+Now non-negotiable #8 in `CLAUDE.md`.
+
+ in it
   renders without complaint
 
 The failure was not the resolver's narrow scope — narrow is fine and honest. It was that
@@ -2899,71 +2968,79 @@ is untested no matter how many assertions surround it.
 Found by exercising the real endpoint against production as a real parent. No amount of staring at
 the suite would have surfaced it, because the suite was green and honest.
 
-## A local build and a deployed site differ by their response headers
+## A Maestro `id:` is a regex, and `prefix-.*` matches far more than the rows (2026-08-15)
 
-2026-08-17. Home-page motion was reported finished and verified — locally. In production it had
-never run once: `netlify.toml` sends `script-src 'self'` and the script was inline, so the browser
-refused it. A static file server sends no CSP, so the local check could not have caught it and the
-console was clean.
+The cart flow had never once been observed green. Three separate causes had already been found
+and fixed — a wrong Android `applicationId` (`E01-26`), a Gradle metaspace OOM and a 781-second
+emulator boot (`E14-36`), a missing `EXPO_PUBLIC_RAZORPAY_KEY_ID` that rendered
+`CantConnectScreen` instead of `RootNavigator` (`E01-28`) — and it still failed, now at:
 
-Two things follow.
+    Assertion is false: id: screen-menu is visible
 
-**Verify the artefact the visitor receives.** For anything that depends on headers — CSP, CORS,
-caching, `X-Robots-Tag` — a local render proves nothing. Probe the deployed URL.
+The tempting reading is "the menu is slow or broken". It was neither. The step before it was:
 
-**Silent degradation hides its own failure.** The design was deliberately fail-open: nothing is
-hidden unless the script adds `html.js`, so if the script dies the page still reads. That is the
-right behaviour, and it is exactly why nobody noticed for a day — a fail-open feature that is
-entirely broken looks identical to one that is switched off. Where a feature degrades silently,
-something else has to assert it is alive. Here it is a build-time guard on inline scripts.
+    - tapOn:
+        id: 'school-picker-.*'
+        index: 0
 
-Related: a build guard placed after the block that ends in `process.exit(1)` never runs. Prove a
-new guard fails by feeding it the thing it is meant to catch, before trusting it.
+`SchoolPicker` renders **ten** testIDs under that prefix: `-search`, `-stale`, `-welcome`,
+`-loading`, `-error`, `-empty`, `-no-match`, `-request-footer`, `-request-from-list`, and
+`school-picker-<uuid>` for each row. **The search field is rendered before the list**, so
+`index: 0` was the search box. Tapping it focuses the field and opens the keyboard. No
+navigation, `MenuScreen` never mounts, and the failure surfaces one line later pointing at an
+innocent screen.
 
-## `check:a11y` does not build — a stale `dist/` makes it lie in both directions
+**What made it diagnosable without another 29-minute run:** `screen-menu` is on the wrapper
+`<View>` of *every* `MenuScreen` branch — loading, error and loaded alike. So "screen-menu is not
+visible" cannot mean a slow load or an empty menu; it can only mean the screen was never
+reached. Reading the component settled in two minutes what three CI runs could not.
 
-2026-08-20. Fixed a contrast violation, re-ran `npm run check:a11y`, and got the identical failure
-back. The fix was correct; the gate was auditing the previous build. `check:a11y` is
-`node scripts/check-a11y.mjs` and nothing in it runs Astro — it refuses only if `dist/` is missing
-entirely, never if it is old.
+Two general lessons:
 
-It fails the other way too, which is worse: edit a page, run the gate, watch it pass, and you have
-tested the version before your edit.
+1. **`index: 0` on a prefix pattern is a bet on render order**, and render order puts chrome —
+   search fields, banners, empty states — before content. Match the shape of the thing you want:
+   a row id ending in a uuid is `prefix-[0-9a-f]{8}-...`, which cannot collide with a hand-written
+   suffix.
+2. **A guard that only understands the loose form will punish the precise one.**
+   `check-maestro-ids.mjs` recognised a trailing `.*` and nothing else, so it *passed* the wrong
+   pattern and *rejected* the correct one. A checker that accepts only the sloppy spelling of a
+   thing is an argument for the sloppy spelling.
 
-Always `npm --prefix apps/web run build` first. `npm run smoke` does build, which is why this has
-never bitten CI — only local iteration, where the gate is run directly and repeatedly.
+It also reinforces the rule from the deferred-constraint entry above: a green suite proves what
+it asserts, and the failure was in the space between "the app launched" and "the screen I meant
+to be on".
 
-## A migration reported as applied to production was not
+## A `.env` file will follow your JS into a production OTA (2026-08-16)
 
-2026-08-20. `supabase migration list --linked` against `graybag-prod` showed `0064` with an empty
-remote column — the egg/peanut/sesame allergen vocabulary had never landed, despite being reported
-in this thread on 2026-08-17 as applied alongside `0063`. `0063` was there; `0064` was not.
+`apps/mobile/.env` names the **staging** Supabase project and a `rzp_test` key. That is correct
+for a developer and catastrophic in a published bundle, and `eas update` reads it like any other
+bundler invocation. The first update published to the **production** channel therefore went out
+carrying staging.
 
-Both are now applied. The lesson is the check, not the miss: **`migration list` is the only thing
-that answers "is it on production", and it takes ten seconds.** A migration that ran in a session
-and a migration recorded in `supabase_migrations.schema_migrations` are different claims, and only
-the second one survives a new shell.
+Two things made it invisible:
 
-Worth pairing with the `E12-36` lesson: verify the deployed artefact, not the one you produced.
+1. **The obvious verification passed.** The manifest returned 200 for runtime 4.0.0 on both
+   platforms with ids matching what `eas update` printed, and old runtimes correctly got 204.
+   All true, and none of it says anything about what is *inside* the bundle.
+2. **The app's own guard was satisfied.** `env.ts` requires the Razorpay key prefix to match the
+   environment — `rzp_test_` for `local` and `staging`, `rzp_live_` for `production`. With
+   `APP_ENV` unset the config falls back to `local`, which *wants* a test key, and the leaked
+   `.env` supplied one. The wrong pair was internally consistent, so nothing complained.
 
-## Test data on production is an accounting entry, not clutter
+The tell was one field in the manifest: `"appEnv":"local"` where it should have said
+`production`. That is now the documented post-publish check, and the publish script sets
+`EXPO_NO_DOTENV=1` and an explicit `APP_ENV=production` so the values can only come from the EAS
+environment.
 
-2026-08-20. Three test orders I created on 2026-08-15 were still on production five days later,
-after I had reported that production test data was cleaned up. That report was wrong. Production
-began taking real orders on the 18th, so by the time they were found they sat in the same table as
-money somebody has to reconcile.
+**Two general lessons:**
 
-Two lessons, and the second is the one that nearly cost something.
+- **A verification that passes on the wrong artefact is worse than no verification**, because it
+  is spent confidence. "The manifest is served correctly" and "the bundle is built correctly" are
+  different claims and I had only tested the first while believing I had done both.
+- **A guard keyed on the environment cannot catch the environment being wrong.** Every
+  consistency check `env.ts` performs is *within* an environment; choosing the wrong one moves
+  the whole frame, and no internal check sees it. The only check that works compares against
+  something outside the bundle — here, what the channel is *supposed* to be.
 
-**Don't create it in the first place.** A write path can be exercised against production with a
-non-existent uuid: every guard, every 4xx and the 200 shape are reachable, and nothing real is
-touched. `E09-38`'s cancellation guards were verified that way — `422`, `422`, `200 updated:[]`,
-`200` — with no row created. There was never a reason to make an order.
-
-**Check the premise before acting on a destructive instruction.** Asked to delete "the test orders
-you created today", the correct first move was the query, not the delete: nothing had been created
-that day, and the newest rows were real customer orders including a `paid` one. Complying would
-have destroyed money-bearing data on the strength of a mistaken belief. Showing the output resolved
-it in one exchange.
-
-Now non-negotiable #8 in `CLAUDE.md`.
+Found by re-checking something already reported as done, which is the only reason it was caught
+before a tester picked it up.

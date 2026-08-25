@@ -252,7 +252,41 @@ Anything not in that list is fast-follow, including anything you add later.
 5. **Never commit the `.bubble` export.** It contains live secrets.
 6. **Nothing merges without the smoke test green.** The full suite runs nightly.
 7. **Mohali-only, 5% flat GST, no passwords, no push, six compliance tasks.** Do not drift.
-8. **Never write production *data* without asking Andy first.** Added 2026-08-20, the day after
+8. **No test data is ever created in production.** Not by you, not by CI, not by a smoke
+   script, not "just once to verify". Andy's rule, 2026-08-17. **Verification happens on
+   staging.**
+
+   This covers anything a person or a job writes that is not real: accounts, children, orders,
+   payments, enquiries, webhook probes, uploaded files, config rows. If you are about to write
+   to `bdamkuugbqjajbndjoxn` and the thing you are writing is not a real customer's, stop.
+
+   **If something genuinely can only be proven on production** — a live payment, a real webhook
+   signature, an email actually leaving the building — it needs **Andy's explicit go-ahead
+   first**, and you tell him *exactly what it will write* before you do it. Not "I need to test
+   payments"; "this will create one order group, one order, one payment row and consume no
+   invoice number".
+
+   `scripts/lib/prod-write-guard.mjs` enforces it where a script is involved:
+
+   ```js
+   import { assertNotProductionWrite } from './lib/prod-write-guard.mjs';
+   assertNotProductionWrite(url, 'a parent account, a child, and an order');
+   ```
+
+   It refuses unless `GRAYBAG_PROD_WRITE` holds a **sentence** describing the approval — a
+   boolean would be set once and forgotten, so `1`, `true` and `yes` are rejected. Wire it into
+   anything new that writes. `order-path-check.mjs` is the worked example.
+
+   **The guard cannot save you from a terminal**, and that is the honest limit of it: the three
+   cancelled orders, two children, three consent records, a payment, an enquiry and three
+   webhook events on production were all created by hand with `curl` and `psql`, by someone who
+   knew exactly which project it was. Code cannot refuse that. This paragraph is the control.
+
+   Cleaning up afterwards is not a substitute either — it turned out the orders **cannot be
+   deleted**, because `order_event` is append-only and `order.recipient_id` is `RESTRICT`. What
+   you write to production, you generally keep. See `docs/prod-test-data-audit.md`.
+
+9. **Never write production *data* without asking Andy first.** Added 2026-08-20, the day after
    production started taking real orders. Deploys and migrations are fine — say you are doing
    them. Creating, cancelling or deleting **rows** is not, without an explicit yes. An order row
    is money somebody has to reconcile, so a test order is a false entry in the accounts, not
@@ -269,6 +303,31 @@ Anything not in that list is fast-follow, including anything you add later.
    one of them `paid`. Running the query and showing the output is what stopped a real paid order
    being deleted. A destructive instruction resting on a wrong belief is not consent to the
    destruction.
+
+10. **A migration applied to production by hand is recorded in the ledger in the same
+   operation.** One command, both effects — never the SQL now and the bookkeeping later:
+
+   ```bash
+   psql "$PROD" -v ON_ERROR_STOP=1 -1 -f supabase/migrations/00NN_name.sql \
+     && psql "$PROD" -c "insert into supabase_migrations.schema_migrations (version, name)
+                         values ('00NN','name') on conflict (version) do nothing;"
+   ```
+
+   Andy's rule, 2026-08-16, after ledger drift was found **twice in one day, in both
+   directions**: `0060` recorded without being applied (a `db push` was killed part-way), and
+   `0063` applied without being recorded (the SQL was run by hand). Each was individually
+   harmless — one replayed cleanly, the other was `on conflict do nothing` — and that is
+   exactly why the pattern is worse than either instance. The ledger is the only thing that
+   answers *"what is actually on production?"*, and once it disagrees with the database
+   nothing downstream can be trusted: `db push` either skips a migration that never ran or
+   replays one that did, and a restore drill (`E01-17`) rebuilds the wrong schema.
+
+   **Verify before you record.** `0063` was recorded only after checking that all four of its
+   rows existed with the exact ids in the migration. Recording a migration you have not
+   confirmed is applied is how the first direction of this bug happens.
+
+   If you find drift, reconcile it rather than dropping live objects, and write down which
+   direction it was in — the two have opposite fixes.
 
 ## Performance priorities
 
