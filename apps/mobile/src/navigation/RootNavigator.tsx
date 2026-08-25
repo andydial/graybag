@@ -549,11 +549,26 @@ function ConnectedOrderDetailScreen({
   route,
 }: NativeStackScreenProps<RootStackParamList, 'OrderDetail'>) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  /**
+   * `E05-54`. A checkout session of its own, deliberately not the cart's.
+   *
+   * Resuming is a payment against an order that already exists, so it shares nothing with a
+   * cart in progress — and reusing the cart's session would let a resume overwrite the
+   * `placedGroupId` of an order somebody is midway through placing.
+   */
+  const checkout = useCheckout();
   return (
     <OrderDetailTabScreen
       orderGroupId={route.params.orderGroupId}
       onBackToMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
       onContactSupport={() => navigation.navigate('Support')}
+      /**
+       * `E05-54`. The navigator owns the checkout machinery, so it supplies the resume — the
+       * detail screen knows about an order, not about opening a payment sheet.
+       */
+      onResumePayment={async (orderGroupId) => {
+        await checkout.resume(orderGroupId);
+      }}
     />
   );
 }

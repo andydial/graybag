@@ -20,15 +20,22 @@ export function OrderDetailTabScreen({
   orderGroupId,
   onBackToMenu,
   onContactSupport,
+  onResumePayment,
 }: {
   orderGroupId: string;
   onBackToMenu?: () => void;
   onContactSupport?: () => void;
+  /**
+   * `E05-54`. Supplied by the navigator, which owns the checkout machinery — this screen knows
+   * an order, not how to open a payment sheet.
+   */
+  onResumePayment?: (orderGroupId: string) => Promise<void>;
 }) {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [confirming, setConfirming] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [resuming, setResuming] = useState(false);
   /**
    * The server's refusal, in the server's words. **Not a generic "something went wrong"** —
    * `cancel-order` returns the same sentence the screen would have shown for that condition,
@@ -88,6 +95,27 @@ export function OrderDetailTabScreen({
         order={order}
         state={state}
         cancelling={cancelling}
+        resuming={resuming}
+        /**
+         * `E05-54`. Reopens the Razorpay sheet on the **same** provider order — the Edge
+         * Function resumes the existing attempt rather than minting a second one, which is what
+         * keeps a parent from being charged twice.
+         *
+         * Unlike cancelling, this takes no confirmation step: finishing a payment the parent
+         * started is what they were already trying to do, and a confirmation in front of it
+         * would be one more thing to dismiss.
+         */
+        onResumePayment={() => {
+          setResuming(true);
+          void (async () => {
+            try {
+              await onResumePayment?.(orderGroupId);
+              await load();
+            } finally {
+              setResuming(false);
+            }
+          })();
+        }}
         // The button opens the confirmation; it does not cancel. Cancelling is irreversible
         // for the parent — the kitchen's cutoff will have passed by the time they change
         // their mind — so it takes a deliberate second press (`M07`, and the same reasoning
