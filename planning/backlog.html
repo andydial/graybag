@@ -1978,13 +1978,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/21</span>
+          <span class="meter-num">0/22</span>
         </div>
       </header>
       <p class="summary">Because Andy is not a developer, the system has to be able to explain its own failures in plain English.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 21 tasks</summary>
+        <summary>Context &amp; 22 tasks</summary>
         <div class="context"><h4>Approach</h4>
 <p>Sentry for errors across app/web/backend, Supabase dashboard for query performance, Better Stack for uptime. The multiplier is that <strong>Sentry and Supabase both have MCP servers</strong> — wired into Claude Code, a plain-English question like &quot;orders from St. Xavier&#39;s stopped going through around 9pm yesterday, find out why&quot; can be answered by querying errors, logs and the database directly.</p></div>
         <ul class="tasks">
@@ -2155,6 +2155,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Expand the events so a parent&#39;s whole path reads in sequence.</strong> Andy, 2026-08-26: *&quot;so I can read a parent&#39;s whole path in sequence, not just the funnel milestones … enough that I can see someone reach checkout and turn back.&quot;* Seven new events — <code>screen_viewed</code> on every screen, plus <code>add_to_cart_tapped</code>, <code>remove_from_cart_tapped</code>, <code>break_time_selected</code>, <code>place_order_tapped</code>, <code>payment_sheet_closed</code> and <code>add_child_submitted</code> — the controls where somebody stalls or gives up. <strong>Turning back is <code>payment_sheet_closed</code> with <code>outcome: dismissed</code> followed by the next <code>screen_viewed</code></strong>, and neither half is visible from the milestones alone. The change that mattered most is not an event: <code>screen</code> is the schema&#39;s first *string* property, and a screen name is exactly where a child&#39;s name would reach a vendor — <code>screen: &quot;Aarav&#39;s orders&quot;</code> passes a key check perfectly — so <code>ENUM_VALUES</code> now validates property <strong>values</strong> against a closed vocabulary, with a new <code>forbidden_value</code> rejection whose detail names the key and never the value, because a rejection is a log line and echoing it would write the child&#39;s name into the log to explain keeping it out of the vendor. Emitted from two places: one <code>onStateChange</code> listener covers the fourteen navigator routes, and <code>useScreenView</code> covers the six screens that are states rather than routes. <code>screens.test.ts</code> asserts both directions — every vocabulary entry reachable from an emitter, every route named — because a declared-but-unemitted screen reads on the dashboard as *a screen nobody visited*, which is worse than a missing row since it looks like data. Both assertions were mutation-checked rather than trusted. Session replay stays <strong>off</strong> and is now pinned by a test: <code>$snapshot</code> is refused, as is anything <code>$</code>-prefixed, so autocapture and replay cannot be switched on without adding a name to the allowlist. Also recorded: <code>cant_connect</code> can essentially never arrive, because the misconfiguration that renders it is the one that puts the analytics client on its no-op fallback — written into <code>docs/posthog.md</code> so a zero there is not read as &quot;nobody hit it&quot;</span>
+      </li>
+      <li class="task" data-id="E15-22" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-22"></button>
+        <code class="tid">E15-22</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Create a PostHog personal API key so events can be read back.</strong> A credentialed action, and the last thing standing between the analytics work and proof it is landing. Andy, 2026-08-25: *&quot;query the PostHog events API and show me a real <code>app_opened</code> from my device with <code>distinct_id</code> matching my <code>app_user.id</code>.&quot;* That query needs a <strong>personal</strong> key (<code>phx_</code>, created under Personal settings → API keys, scoped to read <code>query</code>). <code>~/.graybag-secrets/prod.env</code> holds only <code>POSTHOG_KEY</code>, the write-only <strong>project</strong> key (<code>phc_</code>) — it captures events and returns <strong>401</strong> on the query endpoint, which was confirmed against the live API rather than assumed. The emitters are shipped and the key is inlined in the production bundle; nothing else is blocking. Put it in <code>~/.graybag-secrets/prod.env</code> as <code>POSTHOG_PERSONAL_KEY</code> and the read is a single request</span>
       </li></ul>
       </details>
     </article>

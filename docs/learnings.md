@@ -3044,3 +3044,42 @@ environment.
 
 Found by re-checking something already reported as done, which is the only reason it was caught
 before a tester picked it up.
+
+## A coverage test that can pass vacuously is not a coverage test — 2026-08-26
+
+`E15-21` added `screens.test.ts`, asserting that every screen name in the analytics vocabulary
+is reachable from some emitter and every navigator route has a name. Both assertions read as
+obviously correct and both were green on the first run, which is exactly when a test of that
+shape is least trustworthy: it greps a source tree, and a grep that matches nothing produces an
+empty list, which equals an empty list.
+
+So both were **mutation-checked** before being trusted — a `ghost_screen` added to the
+vocabulary, and `OrderDetail` removed from the route map. Each failed the intended test and only
+that one. Thirty seconds, and the alternative is a green test that proves nothing for months.
+
+The same pass caught the real instance of the disease. `PaymentWaitingScreen.test.tsx` had a
+test named *"…and keeps the cart"* whose only cart-related assertion was
+`getByText(/cart is still here/)` — **the sentence about the cart, not the cart**. It renders one
+screen with no cart in the tree, so it could not have checked the behaviour even in principle.
+The behaviour was correct; nothing proved it; the name said otherwise. Now the decision is
+`shouldClearCart`, tested against every non-settling status and against a status that does not
+exist yet, and mutation-checked against the plausible-wrong `!== 'failed'`.
+
+**Rule of thumb:** if a test's name asserts behaviour and its body only reads text, the name is
+the bug. And any test whose subject is "we cover everything" must be shown to fail when coverage
+is removed, or it is decoration.
+
+## An absent event and an impossible event look identical on a dashboard — 2026-08-26
+
+`cant_connect` is emitted when `App.tsx` renders the can't-connect screen. That screen renders
+when the environment is incomplete — which is the same condition that makes `readExpoClientEnv()`
+throw, which puts the analytics client on its no-op fallback. **The screen meaning "this build is
+misconfigured" is reported by a client the same misconfiguration switched off.**
+
+Nothing is broken and the emit was kept: it costs nothing and becomes correct if the environment
+check ever becomes partial. What matters is that zero rows there must not be read as "nobody hit
+it", so it is written into `docs/posthog.md` next to the event table rather than left as a
+surprise for whoever reads the funnel in three months.
+
+Generalises: whenever telemetry depends on the subsystem it reports on, say so where the numbers
+are read, not only where the code lives.
