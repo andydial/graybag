@@ -100,6 +100,33 @@
 
 # `trailingSlash: 'never'` in the Astro config, mirrored here so both agree. Two URLs for one
 # page splits search ranking and makes the canonical tag do work the server should do.
+# ---------------------------------------------------------------- analytics ingest
+#
+# `E12-38`. PostHog, reverse-proxied through our own domain.
+#
+# The alternative — their CDN snippet — would need `script-src` opened to a third-party host and
+# would trip `check-build.mjs`, which fails the build on any third-party asset. Both guards are
+# worth keeping, so `posthog-js` is bundled from npm and its ingest is proxied here instead. The
+# browser therefore only ever talks to graybag, `script-src 'self'` is untouched, and `connect-src`
+# needs no widening.
+#
+# It also survives the ad-blockers that drop a `*.posthog.com` request, which is PostHog's own
+# stated reason for documenting this pattern.
+#
+# `/ingest/static/*` is split out because the SDK fetches its own assets from a different origin
+# than it posts events to.
+[[redirects]]
+  from   = "/ingest/static/*"
+  to     = "https://eu-assets.i.posthog.com/static/:splat"
+  status = 200
+  force  = true
+
+[[redirects]]
+  from   = "/ingest/*"
+  to     = "https://eu.i.posthog.com/:splat"
+  status = 200
+  force  = true
+
 [[redirects]]
   from   = "/privacy/"
   to     = "/privacy"
