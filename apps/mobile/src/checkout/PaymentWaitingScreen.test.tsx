@@ -111,7 +111,17 @@ describe('PaymentWaitingScreen', () => {
     expect(screen.queryByText(/pickup code/i)).toBeNull();
   });
 
-  it('says the order is not placed when the user closes the sheet, and keeps the cart', async () => {
+  /**
+   * The title used to end *"and keeps the cart"*, which this test does not check and cannot: it
+   * renders one screen with no cart in the tree. It asserted the **sentence** about the cart and
+   * was named after the **behaviour**, which is the shape Andy called *"worse than none, because
+   * it buys false confidence"* — a green test while the parent's cart is gone.
+   *
+   * The promise itself is now tested where the decision lives: `shouldClearCart` in
+   * `RootNavigator.test.tsx`. This test asserts what a screen test honestly can — that the words
+   * are on screen and the retry control works.
+   */
+  it('says the order is not placed when the user closes the sheet, and offers a retry', async () => {
     const onRetry = jest.fn();
     await render(<PaymentWaitingScreen dismissed onRetry={onRetry} onSeeOrders={() => {}} />);
 
