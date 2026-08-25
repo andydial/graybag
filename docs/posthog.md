@@ -150,6 +150,12 @@ whole app, and `school_picker` replaces the menu's body until a school is chosen
 `sign_in_code`, which is a state of the sign-in screen. Those six emit themselves, through
 `useScreenView`.
 
+**`onStateChange` alone is not enough, and this cost a real bug.** It fires on navigation
+*changes* and never on arrival, so the screen a parent lands on — Home, on every app open — was
+the one screen absent from their path. `onReady` is the only place the initial route is
+observable, and both handlers now go through one `emitScreen`. The emitter read as correct; it
+was correct about every screen except the first, and only writing the test found it.
+
 `screens.test.ts` asserts both directions: every name in the vocabulary is reachable from some
 emitter, and every route the navigator can reach has a name. A declared-but-unemitted screen
 would read on the dashboard as *a screen no parent ever visited*, which is worse than a missing
