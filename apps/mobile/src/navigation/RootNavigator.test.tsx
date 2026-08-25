@@ -2,6 +2,20 @@ import { render, screen, userEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { PUBLIC_ROUTES, RootNavigator, TAB_ORDER, cartTabLabel, shouldClearCart } from './RootNavigator';
+
+/**
+ * `E15-21`. The analytics module is a singleton that reads the environment at import time; in a
+ * test it is the no-op fallback, so a spy on `track` is the only way to see what the navigator
+ * would have sent. Mocked rather than asserted through the client, because what is being tested
+ * here is the navigator's decision about WHICH screen, not the transport.
+ */
+const mockTrack = jest.fn();
+jest.mock('../analytics/analytics', () => ({
+  track: (...args: unknown[]) => mockTrack(...args),
+  identifyParent: jest.fn(),
+  analyticsOffReason: () => null,
+  flushAnalytics: async () => {},
+}));
 import { SCREEN_TEST_ID } from '../components/Screen';
 import { CartProvider } from '../cart/CartContext';
 import { SessionProvider, requiresSignIn } from '../session/SessionContext';
@@ -352,5 +366,36 @@ describe('shouldClearCart — the promise on PaymentWaitingScreen, as behaviour'
     // clear, an emptied one ends the order.
     expect(shouldClearCart('refunded')).toBe(false);
     expect(shouldClearCart('')).toBe(false);
+  });
+});
+
+describe('screen_viewed covers the FIRST screen, not only the changes', () => {
+  beforeEach(() => mockTrack.mockClear());
+
+  /**
+   * The hole this closes. `onStateChange` fires on navigation *changes* and never on arrival, so
+   * the screen a parent lands on — Home, on every app open — was the one screen absent from their
+   * path. A path missing its first step reads as though somebody started in the middle, which is
+   * the opposite of what Andy asked for: *"a parent's whole path in sequence."*
+   */
+  it('emits home on open, before anyone has navigated anywhere', async () => {
+    await renderSignedOut();
+
+    const screens = mockTrack.mock.calls
+      .filter(([event]) => event === 'screen_viewed')
+      .map(([, properties]) => (properties as { screen: string }).screen);
+
+    expect(screens).toContain('home');
+  });
+
+  it('sends the screen name from the vocabulary, never a route name', async () => {
+    await renderSignedOut();
+
+    for (const [event, properties] of mockTrack.mock.calls) {
+      if (event !== 'screen_viewed') continue;
+      // Route names are PascalCase; vocabulary names are snake_case. A regression that passed
+      // `route.name` straight through would be green on "it emitted something" and wrong here.
+      expect((properties as { screen: string }).screen).toMatch(/^[a-z][a-z_]*$/);
+    }
   });
 });

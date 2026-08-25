@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState, type ComponentType, useRef } from 'react';
 import { Platform } from 'react-native';
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  useNavigation,
+  useNavigationContainerRef,
+} from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import {
   createNativeStackNavigator,
@@ -771,20 +775,38 @@ export function RootNavigator() {
    * back — and each would otherwise be a duplicate row in the path.
    */
   const lastScreen = useRef<string | null>(null);
+  const navigationRef = useNavigationContainerRef();
+
+  /**
+   * Emit whatever screen a navigation settled on, once.
+   *
+   * Shared by `onReady` and `onStateChange` because the first screen needs it as much as the
+   * rest, and duplicating the mapping in two handlers is how they drift.
+   */
+  const emitScreen = (name: string | undefined) => {
+    const screen = screenNameFor(name);
+    if (screen === null || screen === lastScreen.current) return;
+    lastScreen.current = screen;
+    track('screen_viewed', { screen });
+  };
 
   return (
     <NavigationContainer
+      ref={navigationRef}
+      /**
+       * **`onStateChange` fires on changes, never on arrival.** Without this the first screen a
+       * parent lands on — Home, on every single app open — would be the one screen missing from
+       * their path, and a path whose first step is absent reads as though they started in the
+       * middle. `onReady` is the only place the initial route is observable.
+       */
+      onReady={() => emitScreen(navigationRef.getCurrentRoute()?.name)}
       onStateChange={(state) => {
         if (state === undefined) return;
         const route = state.routes[state.index ?? 0];
         // The tab INSIDE `Tabs`, not the container: counting the container would double every
         // tab view, and `Tabs` is not a screen anyone is on.
         const nested = route?.state as { index?: number; routes?: { name: string }[] } | undefined;
-        const name = nested?.routes?.[nested.index ?? 0]?.name ?? route?.name;
-        const screen = screenNameFor(name);
-        if (screen === null || screen === lastScreen.current) return;
-        lastScreen.current = screen;
-        track('screen_viewed', { screen });
+        emitScreen(nested?.routes?.[nested.index ?? 0]?.name ?? route?.name);
       }}
     >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
