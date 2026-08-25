@@ -2361,13 +2361,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/55</span>
+          <span class="meter-num">0/56</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 55 tasks</summary>
+        <summary>Context &amp; 56 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2809,6 +2809,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A second screen was promising a mechanism that does not exist — found by the sweep Andy asked for after <code>E05-54</code>.</strong> The pattern: a sentence describing what the *system* will do, with a test asserting the words and nothing asserting the mechanism. <code>OrderDetailScreen</code> told a parent whose order was cancelled *&quot;We have sent ₹X back to the way you paid. Refunds usually take 5–7 working days to appear.&quot;* <strong>Nothing had been sent.</strong> <code>cancel_order</code> inserts a refund at <code>status = &#39;pending&#39;</code> and its own comment says why — *&quot;the honest state: somebody owes this parent&quot;* — because disbursement is <strong>manual</strong> (<code>E06-46</code>); no code in this repository calls Razorpay&#39;s refund API, the single reference to it reads a refund entity off an inbound webhook. So the database was honest and the screen was not, and a parent counting 5–7 working days from a clock that had never started would reach support angry and correct. Now reads &quot;Refund approved · ₹X will go back to the way you paid. We will confirm here once it has been sent.&quot; — no completed action, and <strong>no day count, because the clock starts when somebody actually disburses</strong>. Three tests assert the *behaviour*: a pending refund never says the money moved, never quotes a day count, and <code>completed</code> is still distinguishable from <code>approved</code> so the fix does not flatten two states into one vague message. <strong>Swept the rest of the money screens</strong>: <code>PaymentWaitingScreen</code>&#39;s &quot;your money is safe&quot; and &quot;we&#39;ll email you&quot; are backed by real mechanisms — <code>checkout-status</code> reconciles against Razorpay, and <code>order-confirmation.ts</code> sends on settle — so they stay, though the email path is still the untested one recorded as <code>E08-15</code></span>
+      </li>
+      <li class="task" data-id="E05-57" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-57"></button>
+        <code class="tid">E05-57</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Sweep the payment and order screens for tests that assert copy rather than behaviour.</strong> Andy, 2026-08-25, carrying forward from <code>OrderDetailScreen.test.tsx</code>: *&quot;tests that would pass while a parent is stuck. That class of test is worse than none, because it buys false confidence.&quot;* Four promises on those screens were checked against what the code actually does. Three were kept — <code>onContactSupport</code> and both <code>onRetry</code>s are wired in the real tree (<code>OrderDetailTabScreen:124</code>, <code>OrdersTabScreen:82</code>), not props only a test passes, and <code>orphans.test.ts</code> already guards that class. <strong>One was copy-only</strong>: <code>PaymentWaitingScreen</code> promises *&quot;Your cart is still here, so you can pick up where you left off&quot;* and the only test of it was <code>getByText(/cart is still here/)</code> — inside a test whose name ended *&quot;and keeps the cart&quot;*, which it never checked and, rendering one screen with no cart in the tree, could not. The behaviour was correct; nothing proved it. The clear-decision is now <code>shouldClearCart</code>, an allowlist of one, tested against every non-settling status and against a status that does not exist yet — so <code>refunded</code> or <code>disputed</code> added later gets the safe answer without anyone remembering the line. Mutation-checked by flipping it to the plausible-wrong <code>!== &#39;failed&#39;</code>, which fails two tests. The two mistakes are not symmetric: a stale cart is one tap to clear, an emptied one makes a parent choose the dishes, the child and the days again immediately after being told they would not have to</span>
       </li></ul>
       </details>
     </article>

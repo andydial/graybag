@@ -113,6 +113,32 @@ export function cartTabLabel(itemCount: number): string {
 }
 
 /**
+ * May the cart be emptied, given how checkout settled?
+ *
+ * ## Why this is a named rule rather than `status === 'paid'` inline
+ *
+ * `PaymentWaitingScreen` promises a parent, in as many words, *"Your cart is still here, so you
+ * can pick up where you left off."* Until now the only test of that promise asserted **the
+ * sentence** — `getByText(/cart is still here/)` — which is a test that passes perfectly while
+ * the parent's cart is gone. Andy, 2026-08-26: *"tests that would pass while a parent is stuck.
+ * That class of test is worse than none, because it buys false confidence."*
+ *
+ * ## The default is the safety property
+ *
+ * It answers `true` for exactly one status and `false` for everything else, **including a status
+ * that does not exist yet**. A settlement state added later — `refunded`, `disputed`, `partial` —
+ * gets the safe answer without anyone remembering this line, and losing a cart on a decline is
+ * unrecoverable from the parent's side: the dishes, the child, the days, all chosen again.
+ *
+ * The opposite default is what an inline `!== 'failed'` would have given, and the cost of the two
+ * mistakes is not symmetric. Keeping a cart that should have been emptied shows a parent a stale
+ * cart they can clear in one tap; emptying one that should have been kept ends the order.
+ */
+export function shouldClearCart(status: string): boolean {
+  return status === 'paid';
+}
+
+/**
  * Put a screen inside its safe-area frame.
  *
  * **This is the one place the inset is applied, and that is the point.** The first iOS build
@@ -413,7 +439,7 @@ function CartTabScreen() {
           setSettled(result.status);
           setPollGroupId(null);
           // The cart has become an order. Emptying it any earlier would lose it on a decline.
-          if (result.status === 'paid') {
+          if (shouldClearCart(result.status)) {
             /**
              * `E15-20`. **Here, not when the Razorpay sheet said yes.** `R8`: a sheet's success
              * is a handset's word. This is `checkout-status` confirming settlement against the

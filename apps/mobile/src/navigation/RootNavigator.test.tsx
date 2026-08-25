@@ -1,7 +1,7 @@
 import { render, screen, userEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { PUBLIC_ROUTES, RootNavigator, TAB_ORDER, cartTabLabel } from './RootNavigator';
+import { PUBLIC_ROUTES, RootNavigator, TAB_ORDER, cartTabLabel, shouldClearCart } from './RootNavigator';
 import { SCREEN_TEST_ID } from '../components/Screen';
 import { CartProvider } from '../cart/CartContext';
 import { SessionProvider, requiresSignIn } from '../session/SessionContext';
@@ -323,5 +323,34 @@ describe('the cart is wired, not merely built', () => {
     // The Menu tab with no school chosen is the school picker (`E04-12`), so that is what
     // "we arrived" looks like from an empty cart on a cold open.
     expect(await screen.findByTestId('school-picker-welcome')).toBeOnTheScreen();
+  });
+});
+
+describe('shouldClearCart — the promise on PaymentWaitingScreen, as behaviour', () => {
+  /**
+   * `PaymentWaitingScreen` tells a parent *"Your cart is still here, so you can pick up where you
+   * left off."* The only test of that was `getByText(/cart is still here/)` — an assertion about
+   * the **sentence**, which stays green while the cart is emptied underneath it.
+   *
+   * Losing a cart on a decline is not a cosmetic failure. The dishes, the child and the days all
+   * have to be chosen again, and the parent has just been told they would not be.
+   */
+  it('empties the cart only when the money actually settled', () => {
+    expect(shouldClearCart('paid')).toBe(true);
+  });
+
+  it('keeps it on every way a payment does not settle', () => {
+    for (const status of ['failed', 'cancelled', 'pending', 'created', 'expired', 'abandoned']) {
+      expect(shouldClearCart(status)).toBe(false);
+    }
+  });
+
+  it('keeps it for a settlement state that does not exist yet', () => {
+    // The safety property, and the reason this is an allowlist of one rather than `!== failed`.
+    // A status added later — refunded, disputed, partial — gets the safe answer without anyone
+    // remembering this line. The two mistakes do not cost the same: a stale cart is one tap to
+    // clear, an emptied one ends the order.
+    expect(shouldClearCart('refunded')).toBe(false);
+    expect(shouldClearCart('')).toBe(false);
   });
 });
