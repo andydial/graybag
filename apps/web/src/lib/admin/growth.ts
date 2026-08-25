@@ -26,9 +26,17 @@
  * 18:30 IST on the previous day, which is wrong on the axis that people read as "yesterday".
  */
 
-/** A registered account. Deliberately carries no name, phone or email. */
+/**
+ * A registered account. Carries no name and no phone.
+ *
+ * **The email is here for exactly one reason** — `E11-15`. Andy: *"a parent stuck with no children
+ * is someone I can email."* It is used only to build the stuck list, and it never appears beside
+ * anything about a child, because this module has nothing about a child to show: a child is an id,
+ * a school and a timestamp.
+ */
 export interface GrowthUser {
   id: string;
+  email: string | null;
   /** `app_user.created_at`, ISO 8601 with a zone. */
   createdAt: string;
 }
@@ -68,6 +76,34 @@ export interface SchoolRow {
   share: number;
 }
 
+/** An order, as the funnel needs it. No child, no name — see `GROWTH_ORDER_COLUMNS`. */
+export interface FunnelOrder {
+  customerUserId: string;
+  placedAt: string;
+  status: string;
+  totalPaise: number;
+}
+
+/**
+ * One step of the funnel — `E11-15`.
+ *
+ * Andy: *"Show the drop-off between each step as a number, not just a percentage. A parent who
+ * registered and never added a child is someone I can email."* So `lost` is a count first; the
+ * percentage is derived for display and is never the only thing shown.
+ */
+export interface FunnelStep {
+  key: 'registered' | 'addedChild' | 'firstOrder' | 'orderedAgain';
+  label: string;
+  /** How many reached this step. */
+  reached: number;
+  /** How many reached the previous step and not this one. Zero for the first step. */
+  lost: number;
+  /** `reached / previous.reached`, or null for the first step. */
+  rate: number | null;
+  /** What to do about the ones who dropped here. */
+  action: string;
+}
+
 export interface Growth {
   totalUsers: number;
   /** Accounts with no child yet — signed up and stopped. The conversion gap, named. */
@@ -77,7 +113,29 @@ export interface Growth {
   bySchool: SchoolRow[];
   /** Registrations in the last 7 and 28 days, against the 7 and 28 before them. */
   recent: { days: number; now: number; previous: number }[];
+  /** Registered → added a child → ordered → ordered again. */
+  funnel: FunnelStep[];
+  /** Parents who ordered in the last 7 days. */
+  activeParents: number;
+  /**
+   * Accounts with no child, newest first, capped.
+   *
+   * The one place an address appears, and the reason it is read at all: this is a list to email.
+   * Capped because it is a worklist, not an export — a screen offering four hundred addresses is
+   * a screen nobody acts on.
+   */
+  stuck: { email: string; registered: string }[];
+  /** Paid orders and net revenue per IST day, for the orders chart. */
+  ordersDaily: { date: string; orders: number; revenuePaise: number }[];
+  /** Average paid order value, in paise. */
+  averageOrderPaise: number;
 }
+
+/** Statuses that mean money was taken. Matches `admin-reports.ts` deliberately. */
+const EARNED = new Set(['paid', 'preparing', 'delivered']);
+
+/** How many stuck parents the screen will list. A worklist, not an export. */
+export const STUCK_LIMIT = 25;
 
 /**
  * The IST calendar date of an instant.
@@ -110,6 +168,7 @@ export function growth(
   links: readonly GrowthLink[],
   schools: readonly GrowthSchool[],
   today: string,
+  orders: readonly FunnelOrder[] = [],
 ): Growth {
   const byDate = new Map<string, number>();
   for (const u of users) {
@@ -175,7 +234,90 @@ export function growth(
     }).length;
   };
 
+  /*
+   * The funnel — `E11-15`.
+   *
+   * Counted over **accounts**, not orders, because every step is a question about people: how
+   * many got as far as this. An account is counted at a step if it ever reached it, so somebody
+   * who ordered in June and stopped still counts as having ordered — the "ordered again" step is
+   * what separates them from a repeat customer, and `activeParents` is what separates either from
+   * somebody currently using the product.
+   *
+   * **Unpaid orders are not a conversion.** A parent who reached checkout and never paid did not
+   * buy anything, and counting them here would make the funnel flatter than the business is.
+   */
+  const paidByUser = new Map<string, string[]>();
+  for (const o of orders) {
+    if (!EARNED.has(o.status)) continue;
+    const day = istDate(o.placedAt);
+    if (!day) continue;
+    const list = paidByUser.get(o.customerUserId) ?? [];
+    list.push(day);
+    paidByUser.set(o.customerUserId, list);
+  }
+
+  const registered = users.length;
+  const addedChild = users.filter((u) => linkedUsers.has(u.id)).length;
+  const firstOrder = users.filter((u) => (paidByUser.get(u.id)?.length ?? 0) >= 1).length;
+  const orderedAgain = users.filter((u) => (paidByUser.get(u.id)?.length ?? 0) >= 2).length;
+
+  const step = (
+    key: FunnelStep['key'], label: string, reached: number, previous: number | null, action: string,
+  ): FunnelStep => ({
+    key, label, reached,
+    lost: previous === null ? 0 : Math.max(0, previous - reached),
+    rate: previous === null || previous === 0 ? null : reached / previous,
+    action,
+  });
+
+  const funnel: FunnelStep[] = [
+    step('registered', 'Registered', registered, null, 'Everyone who has signed in at least once.'),
+    step('addedChild', 'Added a child', addedChild, registered,
+      'Email the ones who stopped here — they cannot order until a child exists. Listed below.'),
+    step('firstOrder', 'Placed a first order', firstOrder, addedChild,
+      'They have a child and never bought. Check the school has a live menu and break windows.'),
+    step('orderedAgain', 'Ordered again', orderedAgain, firstOrder,
+      'One order and no second is the sharpest signal there is. Ask them why.'),
+  ];
+
+  // Active = ordered in the last seven days, which is the only step that expires.
+  const sevenDaysAgo = new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 86_400_000)
+    .toISOString().slice(0, 10);
+  const activeParents = [...paidByUser.entries()]
+    .filter(([, days]) => days.some((d) => d > sevenDaysAgo)).length;
+
+  const stuck = users
+    .filter((u) => !linkedUsers.has(u.id) && u.email)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, STUCK_LIMIT)
+    .map((u) => ({ email: u.email!, registered: istDate(u.createdAt) }));
+
+  const dayTotals = new Map<string, { orders: number; revenuePaise: number }>();
+  let paidCount = 0;
+  let paidPaise = 0;
+  for (const o of orders) {
+    if (!EARNED.has(o.status)) continue;
+    const d = istDate(o.placedAt);
+    if (!d) continue;
+    const cur = dayTotals.get(d) ?? { orders: 0, revenuePaise: 0 };
+    cur.orders += 1;
+    cur.revenuePaise += o.totalPaise;
+    dayTotals.set(d, cur);
+    paidCount += 1;
+    paidPaise += o.totalPaise;
+  }
+  const ordersDaily = span.map((date) => ({
+    date,
+    orders: dayTotals.get(date)?.orders ?? 0,
+    revenuePaise: dayTotals.get(date)?.revenuePaise ?? 0,
+  }));
+
   return {
+    funnel,
+    activeParents,
+    stuck,
+    ordersDaily,
+    averageOrderPaise: paidCount === 0 ? 0 : Math.round(paidPaise / paidCount),
     totalUsers: users.length,
     // The number that says whether signup converts. An account with no child cannot order, so
     // this is the drop-off `AR7` cares about, not a curiosity.

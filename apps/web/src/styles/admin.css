@@ -1202,3 +1202,41 @@
  * would fail anyone who cannot distinguish it, on the one screen whose job is up or down. */
 .gstat__note--up { color: var(--gb-status-success); font-weight: var(--gb-font-semibold); }
 .gstat__note--down { color: var(--gb-text-danger); font-weight: var(--gb-font-semibold); }
+
+/* ------------------------------------------------------------ the funnel (`E11-15`) */
+
+.fnl { list-style: none; margin: var(--gb-space-3) 0 0; padding: 0; counter-reset: step; }
+
+.fnl__step {
+  position: relative;
+  padding: var(--gb-space-3) var(--gb-space-4);
+  border-radius: var(--gb-radius-md);
+  margin-bottom: var(--gb-space-2);
+  overflow: hidden;
+}
+
+/*
+ * The proportion, behind the words rather than instead of them. A tapering funnel graphic looks
+ * decisive and is hard to read a number off; the question here is "how many, and what do I do",
+ * and both of those are text.
+ */
+.fnl__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w, 0%);
+  background: var(--gb-bg-surface-accent);
+  z-index: 0;
+}
+
+.fnl__body { position: relative; z-index: 1; display: block; }
+.fnl__top { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--gb-space-2); }
+.fnl__n { font-size: var(--gb-font-size-h2); font-variant-numeric: tabular-nums; }
+.fnl__label { font-weight: var(--gb-font-semibold); }
+.fnl__rate { color: var(--gb-text-secondary); font-size: var(--gb-font-size-body-sm); }
+
+.fnl__lost {
+  display: block;
+  margin-top: var(--gb-space-1);
+  color: var(--gb-text-secondary);
+  font-size: var(--gb-font-size-body-sm);
+}
