@@ -579,8 +579,11 @@ export function buildTimeline(order: OrderDetail): TimelineStep[] {
     if (order.refund === 'pending') {
       steps.push({
         key: 'refund',
-        title: 'Refund on its way',
-        detail: 'Refunds usually reach your account within 5–7 working days.',
+        title: 'Refund approved',
+        // No day count: the clock starts when somebody actually disburses it, which is manual
+        // today. Quoting a window from the wrong start is how a parent arrives at support with
+        // a deadline we invented.
+        detail: 'We will confirm here once it has been sent.',
         state: 'current',
       });
     } else if (order.refund === 'completed') {
@@ -794,9 +797,23 @@ function RefundNotice({
   const amount = money.formatPaise(amountPaise);
 
   const copy: Record<Exclude<RefundState, 'none'>, { title: string; body: string }> = {
+    /**
+     * **`E05-56`. This said "We have sent … back to the way you paid" and nothing had been
+     * sent.**
+     *
+     * `cancel_order` records a refund at `status = 'pending'` and its own comment says why —
+     * *"the honest state: somebody owes this parent"* — because **disbursement is manual**
+     * (`E06-46`). Nothing in this codebase calls Razorpay's refund API; the only reference to it
+     * reads a refund entity off a webhook. So the database was honest and this screen was not,
+     * and a parent counting 5–7 working days from a clock that had never started would reach
+     * support angry and correct.
+     *
+     * Same shape as the "it will close by itself" sentence on an unpaid order (`E05-54`), found
+     * the same way: a test asserted the words rather than the mechanism.
+     */
     pending: {
-      title: 'Your refund is on its way',
-      body: `We have sent ${amount} back to the way you paid. Refunds usually take 5–7 working days to appear.`,
+      title: 'Refund approved',
+      body: `${amount} will go back to the way you paid. We will confirm here once it has been sent.`,
     },
     completed: {
       title: 'Refunded',

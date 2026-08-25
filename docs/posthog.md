@@ -3,8 +3,10 @@
 Andy asked for two answers before events are built: **where the data lives**, and **whether the
 React Native SDK drags in native code**. Both below, with the event schema after them.
 
-**Nothing is wired yet.** The guard (`analytics/redact.ts` and its test) exists, because it is a
-precondition of any answer and does not depend on which one is chosen.
+> **Status: approved and built.** Andy approved the recommendation on 2026-08-25 — JS-only fetch
+> client, Cloud EU, one project shared with the web thread. §5 records what was built. The
+> analysis below is preserved as the reasoning, because the *conditions* it sets are what keep the
+> hosting choice defensible.
 
 ---
 
@@ -160,3 +162,39 @@ six months by someone solving a real problem.
 If a question genuinely needs a child's attribute to answer, the answer is our own database, not
 this. We hold that data lawfully for meal service; we do not hold it to build behavioural profiles
 of children, and s.9(3) is not a formality.
+
+---
+
+## 5. Wiring, as built (2026-08-25)
+
+Approved by Andy: **JS-only fetch client, PostHog Cloud EU, one project shared with the web
+thread.** The web thread reached the same conclusion independently — the native SDK cost them
+88 KB gzipped and blew their performance budget, so they post directly too.
+
+`packages/shared/src/analytics/`:
+
+| File | What |
+|---|---|
+| `events.ts` | The allowlist — nine events, their exact properties, and the forbidden keys |
+| `client.ts` | `POST {host}/batch/`, a bounded offline buffer, and nothing else |
+
+**The key.** `PUBLIC_POSTHOG_KEY` is Andy's to set — it is a write-only project key, not a
+secret, and the same value serves both apps because it is one project. Until it is set,
+`createAnalytics` returns a **no-op**: a build with no key sends nothing at all. That is
+deliberate for staging and local builds, where a developer's tap-through would look like data.
+
+**Analytics never blocks a parent.** Every failure path — network error, non-200, blocked host,
+an ad-blocker on the school wifi — ends as a dropped event. `capture` returns `void`, is not
+awaited at any call site, and never throws. There is no retry storm.
+
+**The buffer is bounded at 50.** Unbounded is the obvious version and the wrong one: a parent on
+a bad connection all day would accumulate events until the app was killed, and the oldest funnel
+step is the least interesting to keep.
+
+32 tests across the two files.
+
+### Still to do
+
+Emitters at the nine call sites, which is `E15-20`'s remaining half. The contract, the client and
+the guard are in place, so each is one `analytics.capture(...)` line at the point the step
+happens — and the allowlist refuses anything that drifts from the table in §3.

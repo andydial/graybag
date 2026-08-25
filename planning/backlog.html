@@ -2353,13 +2353,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/54</span>
+          <span class="meter-num">0/55</span>
         </div>
       </header>
       <p class="summary">Recipients, cart, cutoff enforcement, break/drop time selection, and order creation.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code></p>
       <details>
-        <summary>Context &amp; 54 tasks</summary>
+        <summary>Context &amp; 55 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E05-01" data-seed="0" data-risk="high" data-owner="build" data-mvp="1">
@@ -2793,6 +2793,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A non-service day is reported as &quot;the dish is no longer on the menu&quot;.</strong> Verified on production 2026-08-16, the first Sunday since <code>service_days</code> became Mon–Sat: a checkout for Sunday is correctly refused, but with <code>{&quot;code&quot;:&quot;unavailable&quot;,&quot;message&quot;:&quot;One of the dishes is no longer on the menu for that day.&quot;}</code>. Two different conditions — *this school does not serve on Sundays* and *this dish came off the menu* — arrive as one message, and the one a parent is shown is the wrong one: they will go back and try a different dish, which will fail identically. §5.21&#39;s collapsed-states audit is exactly this defect class. The calendar is supposed to prevent the situation arising at all, but <code>order-calendar</code> 404s for every parent (<code>E05-52</code>) and no screen calls it, so the refusal is currently the only signal a parent gets. Needs its own code (<code>not_a_service_day</code>) and copy naming the day</span>
+      </li>
+      <li class="task" data-id="E05-56" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-56"></button>
+        <code class="tid">E05-56</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A second screen was promising a mechanism that does not exist — found by the sweep Andy asked for after <code>E05-54</code>.</strong> The pattern: a sentence describing what the *system* will do, with a test asserting the words and nothing asserting the mechanism. <code>OrderDetailScreen</code> told a parent whose order was cancelled *&quot;We have sent ₹X back to the way you paid. Refunds usually take 5–7 working days to appear.&quot;* <strong>Nothing had been sent.</strong> <code>cancel_order</code> inserts a refund at <code>status = &#39;pending&#39;</code> and its own comment says why — *&quot;the honest state: somebody owes this parent&quot;* — because disbursement is <strong>manual</strong> (<code>E06-46</code>); no code in this repository calls Razorpay&#39;s refund API, the single reference to it reads a refund entity off an inbound webhook. So the database was honest and the screen was not, and a parent counting 5–7 working days from a clock that had never started would reach support angry and correct. Now reads &quot;Refund approved · ₹X will go back to the way you paid. We will confirm here once it has been sent.&quot; — no completed action, and <strong>no day count, because the clock starts when somebody actually disburses</strong>. Three tests assert the *behaviour*: a pending refund never says the money moved, never quotes a day count, and <code>completed</code> is still distinguishable from <code>approved</code> so the fix does not flatten two states into one vague message. <strong>Swept the rest of the money screens</strong>: <code>PaymentWaitingScreen</code>&#39;s &quot;your money is safe&quot; and &quot;we&#39;ll email you&quot; are backed by real mechanisms — <code>checkout-status</code> reconciles against Razorpay, and <code>order-confirmation.ts</code> sends on settle — so they stay, though the email path is still the untested one recorded as <code>E08-15</code></span>
       </li></ul>
       </details>
     </article>

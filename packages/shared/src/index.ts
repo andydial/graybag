@@ -91,3 +91,6 @@ export * as observability from './observability/scrub.js';
 // event, so anything undeclared is a mistake rather than an unknown, and the safe default is
 // refusal. `docs/posthog.md` is the human half; this is the enforceable one.
 export * as analytics from './analytics/events.js';
+// The client itself (`E15-20`) — a fetch against PostHog Cloud EU, no SDK and no native module,
+// so it ships over the air. Every capture goes through the allowlist above before it is sent.
+export * as analyticsClient from './analytics/client.js';
