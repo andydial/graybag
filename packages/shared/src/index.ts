@@ -86,3 +86,8 @@ export * as time from './time/india.js';
 // purpose: Andy's instruction was that the guard matters more than the reporting, and nothing
 // may send an event that has not been through `scrub`.
 export * as observability from './observability/scrub.js';
+
+// The analytics contract (`E15-17`). An ALLOWLIST, unlike `observability` above: we author every
+// event, so anything undeclared is a mistake rather than an unknown, and the safe default is
+// refusal. `docs/posthog.md` is the human half; this is the enforceable one.
+export * as analytics from './analytics/events.js';

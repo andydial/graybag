@@ -120,3 +120,41 @@ export function scrub(value: unknown, depth = 0, seen = new WeakSet<object>()): 
   // Functions, symbols, bigints — nothing a report needs, and nothing worth guessing about.
   return REDACTED;
 }
+
+/**
+ * The three shapes Sentry accepts, each scrubbed. `E15-16`.
+ *
+ * Andy: *"no child's name, class, section, allergy or free-text note may reach Sentry, ever …
+ * Same for breadcrumbs and user context."* Those are genuinely three different doors and only
+ * one of them is the exception itself:
+ *
+ *   * **the event** — message, stack, extra, contexts, tags;
+ *   * **breadcrumbs** — a trail of what happened before the crash, which is where a screen's
+ *     props end up when somebody logs "opened dish detail" with the dish;
+ *   * **user context** — set once with `setUser` and then attached to *every* subsequent event
+ *     for that session, which makes it the one with the longest reach.
+ *
+ * `beforeSend` and `beforeBreadcrumb` are where these belong when the SDK is wired. They are
+ * written now, and tested now, because the guard is the precondition — `E15-16` records that
+ * Sentry itself is a native dependency and therefore build-gated.
+ */
+
+/** A Sentry user context reduced to what cannot identify a child. */
+export function scrubUser(user: unknown): { id?: string } {
+  if (typeof user !== 'object' || user === null) return {};
+  const id = (user as Record<string, unknown>).id;
+  // Id only — never email, username, ip_address or anything else the SDK will happily carry.
+  // A parent's id is an opaque uuid and joins to our own database when a human needs a name.
+  return typeof id === 'string' ? { id } : {};
+}
+
+/** A breadcrumb with its data scrubbed and its message redacted. */
+export function scrubBreadcrumb(crumb: unknown): Record<string, unknown> | null {
+  if (typeof crumb !== 'object' || crumb === null) return null;
+  const c = crumb as Record<string, unknown>;
+  return {
+    ...c,
+    ...(typeof c.message === 'string' ? { message: scrubText(c.message) } : {}),
+    ...(c.data === undefined ? {} : { data: scrub(c.data) }),
+  };
+}

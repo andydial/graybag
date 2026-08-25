@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { scrub, scrubText, DENIED_KEYS, REDACTED } from './scrub.js';
+import { scrub, scrubText, scrubUser, scrubBreadcrumb, DENIED_KEYS, REDACTED } from './scrub.js';
 
 /**
  * Andy, 2026-08-16: *"assert no child's name, class, section or allergy can reach it. That guard
@@ -154,5 +154,43 @@ describe('DENIED_KEYS covers the schema', () => {
     expect(sensitive.length).toBeGreaterThan(0);
     const denied = new Set(DENIED_KEYS.map((k) => k.toLowerCase()));
     expect(sensitive.filter((c) => !denied.has(c))).toEqual([]);
+  });
+});
+
+describe('the three doors into Sentry', () => {
+  const CHILD = {
+    first_name: 'Aarav',
+    class_label: '5',
+    section_label: 'B',
+    allergy_note: 'severe peanut allergy',
+  };
+
+  it('breadcrumb data is scrubbed — the trail is where a screen’s props end up', () => {
+    // "opened dish detail" with the whole recipient attached is the realistic version of this.
+    const crumb = scrubBreadcrumb({
+      category: 'navigation',
+      message: 'opened order detail',
+      data: { screen: 'order-detail', recipient: CHILD },
+    });
+    const text = JSON.stringify(crumb);
+    for (const needle of ['Aarav', 'peanut']) expect(text).not.toContain(needle);
+    expect(text).toContain('order-detail');
+  });
+
+  it('a breadcrumb message loses contact details', () => {
+    const crumb = scrubBreadcrumb({ message: 'signed in as parent@example.com' });
+    expect(String(crumb?.message)).not.toContain('parent@example.com');
+  });
+
+  it('user context is reduced to an id — the door with the longest reach', () => {
+    // setUser is attached to EVERY subsequent event in the session, so an email here is an email
+    // on everything.
+    expect(scrubUser({ id: 'u-1', email: 'parent@example.com', username: 'Aarav’s dad' }))
+      .toEqual({ id: 'u-1' });
+  });
+
+  it('user context with no id yields nothing rather than guessing', () => {
+    expect(scrubUser({ email: 'parent@example.com' })).toEqual({});
+    expect(scrubUser(null)).toEqual({});
   });
 });

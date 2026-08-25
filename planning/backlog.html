@@ -1978,13 +1978,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/16</span>
+          <span class="meter-num">0/18</span>
         </div>
       </header>
       <p class="summary">Because Andy is not a developer, the system has to be able to explain its own failures in plain English.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 16 tasks</summary>
+        <summary>Context &amp; 18 tasks</summary>
         <div class="context"><h4>Approach</h4>
 <p>Sentry for errors across app/web/backend, Supabase dashboard for query performance, Better Stack for uptime. The multiplier is that <strong>Sentry and Supabase both have MCP servers</strong> — wired into Claude Code, a plain-English question like &quot;orders from St. Xavier&#39;s stopped going through around 9pm yesterday, find out why&quot; can be answered by querying errors, logs and the database directly.</p></div>
         <ul class="tasks">
@@ -2115,6 +2115,22 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:medium) <strong>A Sentry DSN, and the decision about when crash reporting ships.</strong> Blocked, and the blocker is worth stating precisely. There is <strong>no Sentry in this repository at all</strong> — <code>@sentry/react-native</code> is not a dependency, nothing initialises it, and <code>EXPO_PUBLIC_SENTRY_DSN</code> is read by <code>configure.ts</code> into a config nothing consumes. So this is a from-scratch build, not a wiring job, and it needs a DSN that only Andy can create. <strong>The timing constraint is the important half</strong>: <code>@sentry/react-native</code> is a native SDK, so adding it invalidates build 12 — currently <code>WAITING_FOR_REVIEW</code> — and requires a new binary and a new Apple review, which is the one thing the 19th cannot absorb. Two options, and it is a decision rather than a task: <strong>(a)</strong> ship crash reporting in the first build after launch, accepting no crash visibility for the launch window; <strong>(b)</strong> a JS-only reporter posting to Sentry&#39;s HTTP API, which carries no native code, ships <strong>over the air</strong> on top of build 12, and catches JS errors — which is most of what a JS app produces — while missing native crashes. <code>E15-15</code>&#39;s scrubber is written and tested and is a precondition of either</span>
+      </li>
+      <li class="task" data-id="E15-17" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-17"></button>
+        <code class="tid">E15-17</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The analytics contract, as an allowlist, before any event is wired.</strong> Andy, 2026-08-25: *&quot;No child&#39;s identity or attributes may ever reach PostHog … A test must fail if a child field can be attached to any event, property, or person profile.&quot;* <code>packages/shared/src/analytics/events.ts</code> declares nine events and their exact properties; anything not on the list is refused. <strong>An allowlist rather than a denylist, and the distinction is the whole design</strong>: <code>observability/scrub.ts</code> filters a crash payload, which is whatever the runtime hands you, so stripping what you recognise is the best available move. Analytics is the opposite — we author every event, so an undeclared property is a mistake, not an unknown. A denylist fails *open* on a field nobody thought of (<code>nickname</code>, <code>birthday</code>, <code>class_teacher</code>) and the first anyone knows is a child&#39;s name in a third-party dashboard; an allowlist fails closed. 22 tests, including: every child field refused on every event; <strong>any</strong> person property refused, because <code>identify()</code> attaches a property to every event that identity ever sends, past and future; camelCase caught as well as snake_case, since the API layer and the components disagree about which they speak; and the <code>FORBIDDEN_KEYS</code> list checked against the real <code>recipient</code> columns in <code>0001</code>, so a migration adding a personal column cannot open a hole by nobody noticing. <code>child_added</code> deliberately carries <strong>no</strong> properties — it is the one event whose name invites a school, a class, a count, and each of those is an attribute of a child when the funnel question is only whether the step happened</span>
+      </li>
+      <li class="task" data-id="E15-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-18"></button>
+        <code class="tid">E15-18</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Wire the PostHog emitters — JS-only, over the air.</strong> Blocked on Andy confirming <code>docs/posthog.md</code>, which he asked to review before emitters are built. The evaluation is done and the finding that shapes it: <strong><code>posthog-react-native</code> needs a native build</strong> — it requires <code>expo-file-system</code>, <code>expo-application</code>, <code>expo-device</code> and <code>expo-localization</code>, or async-storage plus device-info, and <strong>none of the six is currently a dependency</strong>. So the SDK costs a binary and an App Store review. A <code>fetch</code> client against PostHog&#39;s HTTP capture endpoint ships <strong>over the air</strong> instead, and the features that would be lost are exactly the ones Andy is switching off — autocapture, session replay, automatic device properties. What genuinely remains is offline queueing and retry, perhaps forty lines. Residency recommendation is <strong>Cloud EU</strong>: DPDP s.16 restricts transfer only to notified countries and none are notified, and the payload carries no child data and no direct identifiers. Self-hosting in India is the fallback if that changes — not a licence to send more</span>
       </li></ul>
       </details>
     </article>
@@ -2746,7 +2762,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The cart line collapses at 320dp — a dish name wraps one word per line.</strong> Seen in the first Maestro screenshot ever captured (<code>E14-38</code>, 2026-08-15, 320x640 emulator): &quot;Wheat Jaggery Cake&quot; renders as four stacked lines, <code>Wh / eat / Jag / gery / Cake</code>, in a column roughly 40px wide, because the thumbnail and the quantity stepper take their space first and the name gets what is left. Everything else on the screen is correct — the price, the <code>excl. GST</code> note, the sticky <code>Place order · ₹72.46</code> — which is what makes this worth a task rather than a shrug: the cart is *right* and looks broken. 320dp is not a strawman for this audience (CLAUDE.md: mid-range Androids in tier-1 Indian cities), and the fix is to let the name column flex ahead of the stepper rather than after it. Not launch-blocking; it degrades rather than fails</span>
       </li>
-      <li class="task" data-id="E05-54" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E05-54" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E05-54"></button>
         <code class="tid">E05-54</code>
         <span class="badge r-critical">critical</span>
