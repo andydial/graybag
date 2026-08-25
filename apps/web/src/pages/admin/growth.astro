@@ -60,8 +60,10 @@ import '../../styles/admin.css';
         <div id="g-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
         <p class="admin__intro">
-          Registered accounts, when they registered, and which schools they are at.
-          <b>Every number here is a count</b> — no child and no parent is named on this page.
+          Registered accounts, how far they get, and which schools they are at.
+          <b>No child appears anywhere on this page</b> — not a name, a class or a section.
+          The one personal detail here is a <b>parent's email</b>, and only in the list of people
+          who registered and never added a child, because that list exists to be emailed.
         </p>
 
         <div id="g-body"></div>
@@ -70,7 +72,7 @@ import '../../styles/admin.css';
 
     <script>
       import { mountNav } from '../../lib/backoffice/nav-mount.js';
-      import { api } from '@graybag/shared';
+      import { api, money } from '@graybag/shared';
       import { growth } from '../../lib/admin/growth.js';
       import { area, columns } from '../../lib/admin/chart.js';
       import type { Growth } from '../../lib/admin/growth.js';
@@ -104,7 +106,7 @@ import '../../styles/admin.css';
           if (demo) {
             data = growth(
               GROWTH_FIXTURE.users, GROWTH_FIXTURE.children, GROWTH_FIXTURE.links,
-              GROWTH_FIXTURE.schools, GROWTH_FIXTURE.today,
+              GROWTH_FIXTURE.schools, GROWTH_FIXTURE.today, GROWTH_FIXTURE.orders,
             );
           } else {
             configureBackofficeApi();
@@ -112,7 +114,7 @@ import '../../styles/admin.css';
             data = growth(
               g.users, g.children, g.links,
               schools.map((s) => ({ id: s.id, name: s.name })),
-              today,
+              today, g.orders,
             );
           }
         } catch (cause) {
@@ -165,6 +167,85 @@ import '../../styles/admin.css';
           `<section class="admin__section" aria-labelledby="perday-h">` +
             `<h2 id="perday-h">New accounts per day</h2>` +
             columns(perDay, { label: 'New registrations per day' }) +
+          `</section>`
+        );
+      }
+
+      /**
+       * The funnel — `E11-15`.
+       *
+       * A list, not a picture. A tapering-bars funnel graphic looks decisive and is hard to read
+       * a number off; the question here is "how many, and what do I do about them", and both are
+       * words. The bar is a proportion behind the row, so the shape is still visible.
+       */
+      function funnel(g: Growth): string {
+        const top = g.funnel[0]?.reached ?? 0;
+        return (
+          `<section class="admin__section" aria-labelledby="fn-h">` +
+            `<h2 id="fn-h">From signing up to ordering again</h2>` +
+            `<p class="admin__section-note">` +
+              `Each step counts <b>accounts</b>, and the drop is how many stopped there. ` +
+              `An unpaid order is not a conversion.` +
+            `</p>` +
+            `<ol class="fnl">` +
+              g.funnel.map((f) =>
+                `<li class="fnl__step">` +
+                  `<span class="fnl__bar" style="--w:${top === 0 ? 0 : Math.round((f.reached / top) * 100)}%"></span>` +
+                  `<span class="fnl__body">` +
+                    `<span class="fnl__top">` +
+                      `<b class="fnl__n">${f.reached}</b>` +
+                      `<span class="fnl__label">${esc(f.label)}</span>` +
+                      (f.rate !== null
+                        ? `<span class="fnl__rate">${Math.round(f.rate * 100)}% of the step before</span>`
+                        : '') +
+                    `</span>` +
+                    (f.lost > 0
+                      // The number Andy asked for, said as a number first.
+                      ? `<span class="fnl__lost"><b>${f.lost}</b> stopped here. ${esc(f.action)}</span>`
+                      : `<span class="fnl__lost">${esc(f.action)}</span>`) +
+                  `</span>` +
+                `</li>`).join('') +
+            `</ol>` +
+          `</section>`
+        );
+      }
+
+      /** The worklist. Addresses only — there is nothing about a child in this shape to leak. */
+      function stuckList(g: Growth): string {
+        if (g.stuck.length === 0) return '';
+        return (
+          `<details class="admin__section">` +
+            `<summary><b>${g.stuck.length} to email</b> — registered, no child added</summary>` +
+            `<p class="admin__hint">` +
+              `They cannot order until a child exists. Newest first, capped at ${g.stuck.length}. ` +
+              `Nothing about a child is shown here because nothing about a child is read.` +
+            `</p>` +
+            `<table class="otable">` +
+              `<thead><tr><th scope="col">Email</th><th scope="col">Registered</th></tr></thead>` +
+              `<tbody>` +
+                g.stuck.map((u) =>
+                  `<tr><th scope="row">${esc(u.email)}</th>` +
+                  `<td>${esc(u.registered)}</td></tr>`).join('') +
+              `</tbody>` +
+            `</table>` +
+          `</details>`
+        );
+      }
+
+      function ordersSection(g: Growth): string {
+        const withOrders = g.ordersDaily.filter((d) => d.orders > 0);
+        if (withOrders.length === 0) return '';
+        return (
+          `<section class="admin__section" aria-labelledby="od-h">` +
+            `<h2 id="od-h">Paid orders per day</h2>` +
+            columns(
+              g.ordersDaily.map((d) => ({
+                label: shortDate(d.date), value: d.orders,
+                title: `${d.date}: ${d.orders} paid, ${money.formatPaise(d.revenuePaise)}`,
+              })),
+              { label: 'Paid orders per day' },
+            ) +
+            `<p class="admin__hint">Average order ${esc(money.formatPaise(g.averageOrderPaise))}.</p>` +
           `</section>`
         );
       }
@@ -263,11 +344,15 @@ import '../../styles/admin.css';
             // The conversion gap. `AR7` makes signup-to-first-order a primary goal, and an
             // account with no child cannot order at all — so this is the number that says
             // whether onboarding works, not a curiosity.
+            stat(String(g.activeParents), 'Ordered in the last 7 days') +
             stat(String(g.usersWithoutChildren), 'Signed up, no child yet',
               g.totalUsers > 0 ? `${Math.round((g.usersWithoutChildren / g.totalUsers) * 100)}% of accounts` : '') +
           `</div>` +
+          funnel(g) +
           chart(g) +
+          ordersSection(g) +
           schoolTable(g) +
+          stuckList(g) +
           dayTable(g);
       }
 

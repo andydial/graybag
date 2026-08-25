@@ -21,19 +21,19 @@ export const GROWTH_FIXTURE = {
     { id: 'demo-s3', name: 'Paragon Senior Secondary' },
   ],
   users: [
-    { id: 'demo-u1', createdAt: '2026-08-04T09:12:00Z' },
-    { id: 'demo-u2', createdAt: '2026-08-04T14:40:00Z' },
-    { id: 'demo-u3', createdAt: '2026-08-05T06:05:00Z' },
+    { id: 'demo-u1', email: 'parent1@example.invalid', createdAt: '2026-08-04T09:12:00Z' },
+    { id: 'demo-u2', email: 'parent2@example.invalid', createdAt: '2026-08-04T14:40:00Z' },
+    { id: 'demo-u3', email: 'parent3@example.invalid', createdAt: '2026-08-05T06:05:00Z' },
     // A four-day gap. The line must go flat here, not skip it.
-    { id: 'demo-u4', createdAt: '2026-08-10T11:30:00Z' },
-    { id: 'demo-u5', createdAt: '2026-08-12T04:20:00Z' },
-    { id: 'demo-u6', createdAt: '2026-08-12T05:00:00Z' },
-    { id: 'demo-u7', createdAt: '2026-08-12T16:45:00Z' },
-    { id: 'demo-u8', createdAt: '2026-08-17T08:00:00Z' },
-    { id: 'demo-u9', createdAt: '2026-08-18T09:30:00Z' },
-    { id: 'demo-u10', createdAt: '2026-08-18T18:10:00Z' },
-    { id: 'demo-u11', createdAt: '2026-08-19T07:15:00Z' },
-    { id: 'demo-u12', createdAt: '2026-08-20T05:40:00Z' },
+    { id: 'demo-u4', email: 'parent4@example.invalid', createdAt: '2026-08-10T11:30:00Z' },
+    { id: 'demo-u5', email: 'parent5@example.invalid', createdAt: '2026-08-12T04:20:00Z' },
+    { id: 'demo-u6', email: 'parent6@example.invalid', createdAt: '2026-08-12T05:00:00Z' },
+    { id: 'demo-u7', email: 'parent7@example.invalid', createdAt: '2026-08-12T16:45:00Z' },
+    { id: 'demo-u8', email: 'parent8@example.invalid', createdAt: '2026-08-17T08:00:00Z' },
+    { id: 'demo-u9', email: 'parent9@example.invalid', createdAt: '2026-08-18T09:30:00Z' },
+    { id: 'demo-u10', email: 'parent10@example.invalid', createdAt: '2026-08-18T18:10:00Z' },
+    { id: 'demo-u11', email: 'parent11@example.invalid', createdAt: '2026-08-19T07:15:00Z' },
+    { id: 'demo-u12', email: 'parent12@example.invalid', createdAt: '2026-08-20T05:40:00Z' },
   ],
   children: [
     { id: 'demo-c1', schoolId: 'demo-s1', createdAt: '2026-08-04T09:20:00Z' },
@@ -44,6 +44,24 @@ export const GROWTH_FIXTURE = {
     { id: 'demo-c5', schoolId: 'demo-s2', createdAt: '2026-08-10T11:40:00Z' },
     { id: 'demo-c6', schoolId: 'demo-s2', createdAt: '2026-08-18T09:40:00Z' },
     { id: 'demo-c7', schoolId: 'demo-s2', createdAt: '2026-08-19T07:20:00Z' },
+  ],
+  /**
+   * Paid orders, for the funnel — `E11-15`.
+   *
+   * Shaped so every step of the funnel loses somebody, because a demo where nobody drops out
+   * shows none of the arithmetic the screen exists for: 8 registered with a child, 4 of those
+   * ordered, 2 of those ordered twice, and one of the repeat orders is recent enough to count as
+   * active.
+   */
+  orders: [
+    { customerUserId: 'demo-u1', placedAt: '2026-08-06T09:00:00Z', status: 'delivered', totalPaise: 12600 },
+    { customerUserId: 'demo-u1', placedAt: '2026-08-19T09:00:00Z', status: 'paid', totalPaise: 12600 },
+    { customerUserId: 'demo-u2', placedAt: '2026-08-12T09:00:00Z', status: 'delivered', totalPaise: 10500 },
+    { customerUserId: 'demo-u3', placedAt: '2026-08-13T09:00:00Z', status: 'delivered', totalPaise: 14000 },
+    { customerUserId: 'demo-u3', placedAt: '2026-08-18T09:00:00Z', status: 'paid', totalPaise: 14000 },
+    { customerUserId: 'demo-u5', placedAt: '2026-08-20T09:00:00Z', status: 'paid', totalPaise: 9800 },
+    // Unpaid — reached checkout and never bought. Must NOT count as a conversion.
+    { customerUserId: 'demo-u9', placedAt: '2026-08-19T09:00:00Z', status: 'pending_payment', totalPaise: 11000 },
   ],
   links: [
     { userId: 'demo-u1', recipientId: 'demo-c1' },
