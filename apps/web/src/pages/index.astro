@@ -524,6 +524,17 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
   -->
   <script>
     import { startMotion } from '../lib/site/motion.js';
+    import { startAnalytics } from '../lib/site/analytics.js';
+
     startMotion();
+    /*
+     * `E12-38`. The marketing page only — imported here and nowhere else, so the back office, the
+     * kitchen board and the policy pages are never measured. `check-build.mjs` asserts that
+     * placement rather than trusting it.
+     *
+     * Inert until `PUBLIC_POSTHOG_KEY` is set, which it is not until the mobile thread shares the
+     * project.
+     */
+    startAnalytics();
   </script>
 </Base>
