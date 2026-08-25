@@ -3,6 +3,8 @@ import * as Updates from 'expo-updates';
 import { StyleSheet, Text, View } from 'react-native';
 import { design } from '@graybag/shared';
 
+import { analyticsOffReason } from '../analytics/analytics';
+
 const { text, space, scale } = design;
 
 /**
@@ -76,6 +78,14 @@ export function buildLabelText(
   label: string,
   gitSha: string,
   build: BuildIdentity,
+  /**
+   * `E15-20`. A short warning when something that should be running is not — today only
+   * "analytics off", meaning a **production** bundle with no PostHog key.
+   *
+   * On the label rather than in a log because a `console.error` on a phone is read by nobody,
+   * and this is the line Andy already looks at to check an OTA landed.
+   */
+  warning: string | null = null,
 ): string {
   /**
    * The OTA segment, and it is omitted rather than faked when updates are off.
@@ -93,7 +103,7 @@ export function buildLabelText(
       ? 'bundled'
       : `OTA ${build.updateId.slice(0, 7)}`;
 
-  return `${label} · ${gitSha}${ota === null ? '' : ` · ${ota}`}`;
+  return `${label} · ${gitSha}${ota === null ? '' : ` · ${ota}`}${warning === null ? '' : ` · ⚠ ${warning}`}`;
 }
 
 export function BuildLabel({ testID = 'build-label' }: { testID?: string }) {
@@ -108,7 +118,7 @@ export function BuildLabel({ testID = 'build-label' }: { testID?: string }) {
   return (
     <View style={styles.wrap}>
       <Text style={styles.text} testID={testID} selectable>
-        {buildLabelText(label, gitSha, readBuildIdentity())}
+        {buildLabelText(label, gitSha, readBuildIdentity(), analyticsOffReason())}
       </Text>
     </View>
   );

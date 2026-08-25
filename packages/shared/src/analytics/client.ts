@@ -30,6 +30,11 @@ import { checkEvent, checkIdentify, type EventRejection } from './events.js';
 export const POSTHOG_EU_HOST = 'https://eu.i.posthog.com';
 
 export interface AnalyticsConfig {
+  /**
+   * Which environment this bundle is. **Only used to decide how loudly to complain about a
+   * missing key** — see `createAnalytics`.
+   */
+  appEnv?: string;
   /** `PUBLIC_POSTHOG_KEY`. Andy sets it; it is a write-only project key, not a secret. */
   apiKey: string;
   host?: string;
@@ -61,8 +66,47 @@ export function disabledAnalytics(): Analytics {
 
 const MAX_BUFFER = 50;
 
+/** Why analytics is off, when it is. `null` means it is on. */
+export type DisabledReason = 'no_key_expected' | 'no_key_in_production' | null;
+
+let lastDisabledReason: DisabledReason = null;
+
+/**
+ * Why the last `createAnalytics` produced a no-op, for a diagnostic to render.
+ *
+ * A module-level read rather than a return value because the caller that wants to *display*
+ * this — the build label — is nowhere near the caller that constructs it.
+ */
+export function analyticsDisabledReason(): DisabledReason {
+  return lastDisabledReason;
+}
+
 export function createAnalytics(config: AnalyticsConfig): Analytics {
-  if (!config.apiKey) return disabledAnalytics();
+  if (!config.apiKey) {
+    /**
+     * **Silent in staging and local, LOUD in production.**
+     *
+     * Andy, 2026-08-25: *"a component that quietly does nothing is the failure shape that's cost
+     * us days repeatedly."* He is right, and this is the exact shape: a production build with no
+     * key sends nothing, looks completely healthy, and the first symptom is an empty dashboard
+     * days later — which reads as "the events are wrong" rather than "there is no key".
+     *
+     * The distinction matters though. Staging and local builds are *supposed* to have no key —
+     * that is what keeps a developer's tap-through out of the funnel — so shouting there would
+     * train everyone to ignore the message, which is how a loud warning becomes a silent one.
+     */
+    const inProduction = config.appEnv === 'production';
+    lastDisabledReason = inProduction ? 'no_key_in_production' : 'no_key_expected';
+    if (inProduction) {
+      console.error(
+        'analytics: PRODUCTION build with no POSTHOG key — every event will be dropped. ' +
+          'EXPO_PUBLIC_POSTHOG_KEY is inlined at bundle time, so setting it in EAS is not ' +
+          'enough on its own; the bundle must be republished.',
+      );
+    }
+    return disabledAnalytics();
+  }
+  lastDisabledReason = null;
 
   const host = config.host ?? POSTHOG_EU_HOST;
   const doFetch = config.fetchImpl ?? fetch;

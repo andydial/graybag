@@ -29,6 +29,7 @@ const instance = (() => {
     const env = readExpoClientEnv();
     return analyticsClient.createAnalytics({
       apiKey: env.posthogKey ?? '',
+      appEnv: env.appEnv,
       commonProperties: {
         app_version: String(Constants.expoConfig?.version ?? 'unknown'),
         platform: Platform.OS,
@@ -70,6 +71,18 @@ export function track(event: string, properties: Record<string, unknown> = {}): 
 /** The parent's `app_user.id`, and nothing else. Never an email — `docs/posthog.md` §3. */
 export function identifyParent(userId: string): void {
   instance.identify(userId);
+}
+
+/**
+ * Why analytics is off, for the build label to render. `E15-20`.
+ *
+ * Andy: *"a component that quietly does nothing is the failure shape that's cost us days
+ * repeatedly."* A `console.error` is loud in a log nobody on a phone reads; this puts it on the
+ * one screen he already checks for the update id.
+ */
+export function analyticsOffReason(): string | null {
+  const reason = analyticsClient.analyticsDisabledReason?.();
+  return reason === 'no_key_in_production' ? 'analytics off' : null;
 }
 
 /** Test seam and shutdown hook. */

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { createAnalytics, disabledAnalytics, POSTHOG_EU_HOST } from './client.js';
+import { analyticsDisabledReason, createAnalytics, disabledAnalytics, POSTHOG_EU_HOST } from './client.js';
 
 /**
  * `E15-20`. The two properties that matter more than the analytics:
@@ -146,5 +146,43 @@ describe('it points at the EU', () => {
     await analytics.flush();
     expect((fetchImpl as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0])
       .toContain('eu.i.posthog.com');
+  });
+});
+
+describe('a missing key is LOUD in production and quiet where silence is intended', () => {
+  it('shouts when a production bundle has no key', () => {
+    // Andy: "a component that quietly does nothing is the failure shape that's cost us days
+    // repeatedly." A production build with no key looks completely healthy and the first symptom
+    // is an empty dashboard days later, which reads as "the events are wrong".
+    const errors: string[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => errors.push(args.join(' '));
+    try {
+      createAnalytics({ apiKey: '', appEnv: 'production', commonProperties: {} });
+    } finally {
+      console.error = original;
+    }
+    expect(errors.join(' ')).toMatch(/PRODUCTION build with no POSTHOG key/);
+    expect(analyticsDisabledReason()).toBe('no_key_in_production');
+  });
+
+  it('says nothing in staging, where having no key is the intended state', () => {
+    // Shouting here would train everyone to ignore the message, which is how a loud warning
+    // becomes a silent one.
+    const errors: string[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => errors.push(args.join(' '));
+    try {
+      createAnalytics({ apiKey: '', appEnv: 'staging', commonProperties: {} });
+    } finally {
+      console.error = original;
+    }
+    expect(errors).toEqual([]);
+    expect(analyticsDisabledReason()).toBe('no_key_expected');
+  });
+
+  it('reports nothing wrong once a key is present', () => {
+    createAnalytics({ apiKey: 'phc_x', appEnv: 'production', commonProperties: {} });
+    expect(analyticsDisabledReason()).toBeNull();
   });
 });
