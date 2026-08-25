@@ -67,7 +67,22 @@ cd apps/mobile
 #     -H "expo-protocol-version: 1" -H "expo-api-version: 1" -H "accept: multipart/mixed" \
 #     | grep -o '"appEnv":"[a-z]*"'
 # It must say `production`. If it says `local`, the bundle is pointing at staging.
+#   5. **A stale bundler cache re-uses the PREVIOUS build's environment.** Demonstrated
+#      2026-08-26, and it is the same failure as note 3 wearing a different coat. A local
+#      `expo export` was run with deliberate control values for the PostHog key, the Supabase URL
+#      and the anon key; the bundle came out carrying the **real production key and the real
+#      production project ref** instead, because Metro reused cached modules from an earlier
+#      export and `EXPO_PUBLIC_*` values are inlined into those modules at transform time. Every
+#      control string was absent. Re-running with `--clear` produced all three controls and none
+#      of the stale values.
+#
+#      The direction that bit us before was staging leaking into production. This is the same
+#      mechanism pointing the other way, and it is worse to reason about because *nothing on the
+#      command line is wrong* — the env is correct, the flags are correct, and the bundle still
+#      carries values from whenever the cache was last warm. `--clear-cache` costs a couple of
+#      minutes per publish and removes the entire class.
 APP_ENV=production EXPO_NO_DOTENV=1 exec npx eas update \
   --branch production \
   --environment production \
+  --clear-cache \
   --message "$message ($sha$dirty)"

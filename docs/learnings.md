@@ -3083,3 +3083,31 @@ surprise for whoever reads the funnel in three months.
 
 Generalises: whenever telemetry depends on the subsystem it reports on, say so where the numbers
 are read, not only where the code lives.
+
+## A stale Metro cache bakes the PREVIOUS build's environment into a fresh bundle — 2026-08-26
+
+Pre-flighting the `E15-21` OTA, a local `expo export` was run from `apps/mobile` with
+`EXPO_NO_DOTENV=1` and three deliberate control values — a fake PostHog key, a fake Supabase URL,
+a fake anon key. The bundle came out carrying **the real production PostHog key and the real
+production project ref**. All three control strings were absent.
+
+Nothing on the command line was wrong. `EXPO_PUBLIC_*` variables are inlined by Metro **at
+transform time**, so they live inside cached module output; a warm cache serves modules that
+already have last time's values compiled in. Re-running with `--clear` produced all three
+controls and none of the stale values, which is how it was confirmed rather than assumed.
+
+This is `docs/ota-updates.md`'s `.env` hazard again through a different door, and pointing the
+other way — that one leaked staging into production, this one leaked production into a build that
+had asked for something else. The second is harder to catch, because there is nothing to notice:
+the environment is right, the flags are right, and the bundle is still wrong.
+
+`scripts/ship-ota.sh` now passes `--clear-cache`. A couple of minutes per publish removes the
+class.
+
+**Two things worth carrying beyond this bug.** First, the control strings are what caught it —
+the same technique that caught an earlier false negative on this exact check, where an export run
+from the repo root produced no bundle and grepping nothing looked like a clean pass. A verification
+that cannot fail is not a verification, so give it something that must be present and something
+that must be absent. Second, the modules I actually cared about — the seven new events — were
+correctly present in both bundles, because they were new and therefore could not be cached. The
+cache only lies about the things that did not change, which is exactly the set nobody re-checks.
