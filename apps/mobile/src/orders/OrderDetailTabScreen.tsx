@@ -242,6 +242,7 @@ function toScreen(d: api.ApiOrderDetail): OrderDetail {
      */
     cancellationClosesAt: d.cancellationClosesAt,
     cancellationAllowed: d.cancellationAllowed,
+    checkoutResumable: d.checkoutResumable,
     refund: 'none',
     invoiceNumber: d.invoiceNumber,
   };

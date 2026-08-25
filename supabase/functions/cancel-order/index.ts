@@ -58,9 +58,11 @@ const REFUSALS: Record<string, string> = {
   already_preparing:
     "The kitchen has already started preparing this order, so it can't be cancelled from the " +
     'app. Get in touch and we will see what can be done.',
-  not_paid:
-    "This order hasn't been paid for yet, so there is nothing to cancel — it will close by " +
-    'itself if the payment does not come through.',
+  // `not_paid` is no longer surfaced to anyone: it is intercepted below and dispatched to
+  // `abandon_checkout`. The old copy claimed the order would "close by itself", which nothing
+  // did — kept here only so the map still covers every hint the RPC can raise.
+  not_paid: 'This order has not been paid for.',
+  not_pending: 'That order is no longer waiting for payment.',
   cancellation_not_offered:
     "This kitchen doesn't take cancellations through the app. Get in touch and we will sort " +
     'it out with them.',
@@ -127,6 +129,40 @@ Deno.serve(async (request: Request) => {
 
   if (error) {
     const hint = (error as { hint?: string }).hint ?? '';
+
+    /**
+     * **An unpaid order is abandoned, not cancelled — `E05-54`.**
+     *
+     * `cancel_order` refuses `not_paid`, and until now that refusal was the end of the road: the
+     * app told the parent it "will close by itself if the payment does not come through", which
+     * nothing did. Two real parents sat stranded for six days behind that sentence.
+     *
+     * The distinction is ours, not theirs. A parent taps the same "cancel" either way; whether
+     * that means reversing money or releasing a checkout that never completed is a question for
+     * this function. So `not_paid` dispatches to `abandon_checkout` rather than being reported.
+     *
+     * They are genuinely different underneath — `cancel_order` records a refund, and
+     * `abandon_checkout` posts nothing because nothing was ever captured — which is exactly why
+     * they are two functions and one endpoint.
+     */
+    if (hint === 'not_paid') {
+      const { data: abandoned, error: abandonError } = await asService.rpc('abandon_checkout', {
+        p_order_group_id: orderGroupId,
+        p_customer_user_id: userData.user.id,
+      });
+
+      if (abandonError) {
+        const abandonHint = (abandonError as { hint?: string }).hint ?? '';
+        if (abandonHint in REFUSALS) {
+          return json(409, { code: abandonHint, message: REFUSALS[abandonHint] });
+        }
+        console.error('cancel-order: abandon failed', { hint: abandonHint });
+        return json(500, { error: 'could not cancel the order' });
+      }
+
+      return json(200, { ...abandoned, abandoned: true });
+    }
+
     if (hint in REFUSALS) {
       return json(409, { code: hint, message: REFUSALS[hint] });
     }

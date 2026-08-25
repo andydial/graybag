@@ -145,6 +145,10 @@ export interface ApiOrderDetail extends ApiOrderSummary {
   cancellationClosesAt: string | null;
   /** The other half of T10's guard, from the same snapshot. */
   cancellationAllowed: boolean;
+  /** `E05-54`. Null unless the order is awaiting payment. */
+  checkoutExpiresAt: string | null;
+  /** `E05-54`. True only while an unpaid checkout can still be finished. */
+  checkoutResumable: boolean;
   lines: { key: string; name: string; quantity: number; unitPricePaise: number }[];
 }
 
@@ -178,6 +182,9 @@ export async function fetchOrderDetail(orderGroupId: string): Promise<ApiOrderDe
           // `to_jsonb(effective_config)` and carries `revenue_share_bps`, the commercial term
           // between GrayBag and the school. The column list is the redaction, as above.
           'cancellation_closes_at, cancellation_allowed, ' +
+          // `E05-54`. Computed columns again (`0067`), for the same reason as the two above:
+          // the window is a rule about money, and a second copy of it in TypeScript would drift.
+          'checkout_expires_at, checkout_resumable, ' +
           'order_line(id, dish_name_snapshot, quantity, unit_price_paise), ' +
           'order_group(invoice(invoice_number))',
       )
@@ -226,6 +233,8 @@ export async function fetchOrderDetail(orderGroupId: string): Promise<ApiOrderDe
     // different facts, and only one of them is safe to guess (`0052`'s header).
     cancellationClosesAt: (row.cancellation_closes_at as string | null) ?? null,
     cancellationAllowed: row.cancellation_allowed === true,
+    checkoutExpiresAt: typeof row.checkout_expires_at === 'string' ? row.checkout_expires_at : null,
+    checkoutResumable: row.checkout_resumable === true,
     lines: lines.map((l) => ({
       key: String(l.id),
       name: String(l.dish_name_snapshot ?? ''),

@@ -129,6 +129,48 @@ Deno.serve(async (request: Request) => {
     return json(404, { error: 'we could not find that order' });
   }
 
+  /**
+   * **Resume before create — `E05-54`.**
+   *
+   * Every call used to mint a fresh Razorpay order. That is correct for a first attempt and
+   * wrong for a resume: a parent who dismissed the sheet and came back would end up with two
+   * live provider orders against one group, and both can be paid. That is how somebody is
+   * charged twice for one lunch.
+   *
+   * `reusable_payment_attempt` returns the existing attempt only when nothing about the money
+   * has changed — still `pending_payment`, attempt still `created`, amount still equal to
+   * `payable_paise`, checkout not expired. Any of those failing returns nothing and we fall
+   * through to creating a new one, which is the safe direction: a spare unpaid Razorpay order
+   * costs nothing, a wrongly-reused one costs money.
+   */
+  const { data: reusable, error: reuseError } = await admin.rpc('reusable_payment_attempt', {
+    p_order_group_id: orderGroupId,
+    p_customer_user_id: customerUserId,
+  });
+
+  if (reuseError) {
+    const hint = String(reuseError.hint ?? '');
+    const mapped = REFUSALS[hint];
+    if (mapped) return json(mapped.status, { error: mapped.error, code: hint });
+    console.error('payments-create-order: reuse lookup failed', reuseError.message);
+    return json(500, { error: 'something went wrong' });
+  }
+
+  const existing = Array.isArray(reusable) ? reusable[0] : reusable;
+  if (existing?.provider_order_id) {
+    // Same order, same amount, same attempt number. The client reopens the sheet on it.
+    return json(200, {
+      key_id: keyId,
+      provider_order_id: String(existing.provider_order_id),
+      amount_paise: Number(existing.amount_paise),
+      currency: String(group.currency ?? 'INR'),
+      order_group_id: orderGroupId,
+      correlation_id: String(group.correlation_id),
+      attempt_no: Number(existing.attempt_no),
+      resumed: true,
+    });
+  }
+
   const attemptNo = await nextAttemptNo(admin, orderGroupId);
 
   // ---------------------------------------------------------------- the outbound call
