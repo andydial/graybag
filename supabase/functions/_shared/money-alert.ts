@@ -45,7 +45,7 @@ export type MoneyAlertKind =
   | 'settlement_stuck'
   | 'refund_unrecordable'
   | 'partial_refund_refused'
-  // `E15-12`. Raised by `ops-heartbeat` rather than by a money path, but they belong in the same
+  // `E15-15`. Raised by `ops-heartbeat` rather than by a money path, but they belong in the same
   // channel and the same once-per-day dedupe: they are the things that must reach Andy today.
   // `ops_alert.kind` is deliberately free text (`0056`), so adding one needs no migration.
   | 'endpoint_down'

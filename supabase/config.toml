@@ -445,7 +445,7 @@ enabled = true
 [functions.payments-webhook]
 verify_jwt = false
 
-# `ops-heartbeat` also KEEPS `verify_jwt = true` (`E15-12`). The gateway is the first line and the
+# `ops-heartbeat` also KEEPS `verify_jwt = true` (`E15-15`). The gateway is the first line and the
 # shared secret in `x-ops-secret` is the real one: the caller sends the **anon** key, which is
 # public, purely to get past the gateway. Turning verification off would have been one fewer
 # header and one fewer layer, and this function reads aggregates under the service role — not the

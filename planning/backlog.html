@@ -1978,13 +1978,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/14</span>
+          <span class="meter-num">0/16</span>
         </div>
       </header>
       <p class="summary">Because Andy is not a developer, the system has to be able to explain its own failures in plain English.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 14 tasks</summary>
+        <summary>Context &amp; 16 tasks</summary>
         <div class="context"><h4>Approach</h4>
 <p>Sentry for errors across app/web/backend, Supabase dashboard for query performance, Better Stack for uptime. The multiplier is that <strong>Sentry and Supabase both have MCP servers</strong> — wired into Claude Code, a plain-English question like &quot;orders from St. Xavier&#39;s stopped going through around 9pm yesterday, find out why&quot; can be answered by querying errors, logs and the database directly.</p></div>
         <ul class="tasks">
@@ -2044,7 +2044,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Performance monitoring: slow queries, slow API calls, app cold start, tracked over time</span>
       </li>
-      <li class="task" data-id="E15-08" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E15-08" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-08"></button>
         <code class="tid">E15-08</code>
         
@@ -2076,7 +2076,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext">Product analytics: install -&gt; signup -&gt; first order funnel, checkout drop-off, OTP completion rate. Privacy-respecting, with children&#39;s data explicitly excluded (<code>E20-10</code>)</span>
       </li>
-      <li class="task" data-id="E15-12" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E15-12" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-12"></button>
         <code class="tid">E15-12</code>
         
@@ -2099,6 +2099,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Run <code>check:config</code> against production on a schedule once that project exists, not only at cutover — a dashboard setting changed by hand at 2am to unblock something else is exactly the failure a one-time gate misses</span>
+      </li>
+      <li class="task" data-id="E15-15" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-15"></button>
+        <code class="tid">E15-15</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Know production is broken before a parent says so.</strong> Andy: *&quot;Three times this month a complete outage was invisible until a human found it by reading a log by hand — settlement failing on every attempt, every confirmation email 403ing, an entire test suite running zero files.&quot;* All three share one shape: <strong>the system reported nothing, and nothing is what a healthy system reports.</strong> So the rule everything here is built on is that <strong>silence must be impossible</strong> — every run produces a verdict and the digest is sent on a quiet day too, one line saying it was quiet. <strong><code>ops-heartbeat</code></strong>, one Edge Function, two modes. <code>?mode=probe</code> runs seven checks that <strong>exercise rather than ping</strong>: the marketing page must contain its own headline, <code>/signin</code> and <code>/kitchen</code> must render, two Edge Functions must answer in the shape their callers expect, a database read must return a row, and <strong>Resend must report the <code>ORDER_EMAIL_FROM</code> domain as verified</strong> — which is precisely the outage that 403&#39;d every confirmation for a day (<code>E12-34</code>) and would have been caught in fifteen minutes. <code>?mode=digest</code> adds yesterday&#39;s orders, revenue, failed payments, drain depth and alerts raised, and emails it to <code>SUPPORT_ALERT_EMAIL</code>. Escalation reuses <code>sendMoneyAlert</code>, which dedupes once per kind per IST day, so a sustained outage is one email rather than ninety-six: a down endpoint, a <strong>captured payment with no order</strong>, a drain backlog over 20, and the digest itself failing to send. <strong>Every probe carries a <code>remedy</code> and the type makes it awkward to add one without.</strong> Scheduled by GitHub Actions — every 15 minutes for the probes, 07:00 IST for the digest — deliberately <strong>outside</strong> Supabase, because a scheduler living inside the thing it watches cannot report that the thing is down, and because <code>pg_cron</code> would have needed a migration in a week when migration numbers are held elsewhere. <strong>No migration was written:</strong> <code>ops_alert.kind</code> is free text by design (<code>0056</code>), so five new alert kinds were a code change. Verified end to end on staging: gateway 401 without a token, <strong>my own 401 with a wrong secret</strong>, seven probes green, a genuine failure escalating to a <code>sent</code> <code>ops_alert</code>, and a quiet-day digest delivered. The first version of the <code>policy</code> probe expected a GET 200 and failed against a healthy staging — the false alarm that teaches people to ignore a monitor, caught here rather than at 3am</span>
+      </li>
+      <li class="task" data-id="E15-16" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-16"></button>
+        <code class="tid">E15-16</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Set <code>OPS_HEARTBEAT_SECRET</code>, <code>PRODUCTION_SUPABASE_URL</code> and <code>PRODUCTION_SUPABASE_ANON_KEY</code> as GitHub Actions secrets.</strong> Until they exist the monitor <strong>fails loudly on every run</strong> rather than skipping quietly, which is deliberate — a monitor that silently does nothing is the exact failure it exists to prevent. The same secret must be set on the production Supabase project; the deploy below does that half</span>
       </li></ul>
       </details>
     </article>
