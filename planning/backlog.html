@@ -6486,13 +6486,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/50</span>
+          <span class="meter-num">0/51</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 50 tasks</summary>
+        <summary>Context &amp; 51 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -6923,6 +6923,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Allergen clashes in the per-day picker.</strong> The screen renders them and the planner passes an empty list, so a dish that clashes shows no warning there yet — deliberately empty rather than implying safety. Join the chosen child&#39;s allergens as <code>useAllergenWatchlist</code> already does for the cart</span>
+      </li>
+      <li class="task" data-id="E21-52" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-52"></button>
+        <code class="tid">E21-52</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Packs ship dark on production, enforced rather than remembered.</strong> Andy, 2026-08-27: *&quot;Everything else merges and ships dark: <code>is_active</code> false on production, no offer live, no parent sees a thing.&quot;* The default already stopped an offer selling <strong>by existing</strong>; it did nothing about somebody activating one, and the person most likely to is whoever first points the new admin screens at production. <code>0075</code> adds <code>platform_config.meal_packs_confirmed</code> — false everywhere — and a trigger refusing an offer that goes live while <code>environment = &#39;production&#39;</code> and the flag is false. A <strong>trigger</strong> rather than a check constraint because the condition spans two tables, and because a trigger also refuses a hand-written <code>psql</code> statement, which is how the three cancelled orders reached production. The guard is on the <strong>transition into being sellable</strong>: creating a draft, editing one, and switching a live offer OFF are all unaffected — it must never become the reason a live offer is stuck. Mutation-checked by emptying the function, which fails the two assertions that matter</span>
       </li></ul>
       </details>
     </article>

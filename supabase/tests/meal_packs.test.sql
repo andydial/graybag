@@ -351,6 +351,73 @@ update meal_pack_offer_school set is_enabled = true
  where school_id = (select school_id from mp);
 
 -- =============================================================================
+-- 4c. Packs ship dark on production until the tax point is confirmed. `E21-52`.
+-- =============================================================================
+--
+-- Andy: *"Everything else merges and ships dark: is_active false on production, no offer live,
+-- no parent sees a thing."* `is_active` defaulting false stops an offer selling by EXISTING; this
+-- stops somebody activating one — most likely whoever first points the new admin screens at
+-- production.
+
+create temporary table saved_env as
+select environment, meal_packs_confirmed from platform_config;
+
+update platform_config set environment = 'production', meal_packs_confirmed = false;
+
+select throws_ok(
+  $$ insert into meal_pack_offer (name, meals_count, items_per_meal, required_category_id,
+                                  net_price_paise, alacarte_reference_paise, validity_days,
+                                  is_active)
+     select 'Live on prod', 10, 2, (select id from dish_category limit 1),
+            300000, 337500, 60, true $$,
+  null,
+  'an offer cannot be created ALREADY LIVE on production before the tax point is confirmed'
+);
+
+-- The guard is on going live, not on existing. Everything else about an offer stays editable.
+select lives_ok(
+  $$ insert into meal_pack_offer (name, meals_count, items_per_meal, required_category_id,
+                                  net_price_paise, alacarte_reference_paise, validity_days,
+                                  is_active)
+     select 'Draft on prod', 10, 2, (select id from dish_category limit 1),
+            300000, 337500, 60, false $$,
+  'a DRAFT offer is fine — the guard is on selling, not on preparing'
+);
+
+-- Switched on from OFF, which is the transition that matters. `off_id` is already live from
+-- section 1, and the guard deliberately ignores an update that leaves a live offer live — so
+-- asserting against that one would have tested nothing.
+select throws_ok(
+  $$update meal_pack_offer set is_active = true where name = 'Draft on prod'$$,
+  null,
+  'and a draft cannot be switched ON'
+);
+
+select lives_ok(
+  format($$update meal_pack_offer set name = 'Renamed draft' where name = 'Draft on prod'$$),
+  'and a draft can still be edited'
+);
+
+update platform_config set meal_packs_confirmed = true;
+
+select lives_ok(
+  $$update meal_pack_offer set is_active = true where name = 'Draft on prod'$$,
+  'once Andy confirms, a draft may go live'
+);
+
+-- Switching OFF must never be blocked: the guard cannot become a reason a live offer is stuck.
+update platform_config set meal_packs_confirmed = false;
+select lives_ok(
+  $$update meal_pack_offer set is_active = false where name = 'Draft on prod'$$,
+  'and withdrawing one is never blocked, whatever the flag says'
+);
+
+update platform_config
+   set environment = (select environment from saved_env),
+       meal_packs_confirmed = (select meal_packs_confirmed from saved_env);
+update meal_pack_offer set is_active = true where id = (select id from off_id);
+
+-- =============================================================================
 -- 5. Rounding: the liability telescopes exactly, even when the price does not divide
 -- =============================================================================
 --
