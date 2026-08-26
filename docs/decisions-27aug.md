@@ -164,6 +164,25 @@ test I liked and was correct to.
 
 ---
 
+## `D9` — GitHub Actions has stopped scheduling again; not force-merging around it
+
+**Observed 2026-08-27, ~02:00.** CI last ran on `63e8e5f` and succeeded. Three commits since —
+`6697f9e`, `568718e`, `34e5fe1` — have triggered **no runs at all**, and `gh pr view 120` reports
+an empty check rollup. This is the same stall that hit `E15-21`: an empty commit did not help, and
+closing and reopening the PR did.
+
+**Chosen:** keep committing and pushing, re-check periodically, and if it is still stalled at the
+end of the run, close and reopen PR #120 — the fix that is known to work here.
+
+**Rejected:** merging on the strength of green local runs. `npm run smoke` and `test-db.sh` pass
+locally on every commit above and I have said so, but local green is not CI green: the Maestro
+flow and the migration job run against things this machine does not have. `E17-59` is a fresh
+reminder that a local build and the artefact a user gets are not the same object.
+
+Nothing here is merged. The branch is pushed and every commit is described.
+
+---
+
 ## Skipped and why
 
 **The planner's SCREEN.** Reversed in part: I skipped it, then had budget left and built its

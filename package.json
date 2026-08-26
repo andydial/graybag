@@ -15,10 +15,10 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
     "test": "npm run test:scripts && npm run test:plugins && npm run test:tools && npm run test --workspaces --if-present",
-    "test:scripts": "node --test scripts/test/*.test.mjs",
+    "test:scripts": "node --test scripts/test/*.test.mjs --test-skip-pattern=\"agree\"",
     "test:plugins": "node --test apps/mobile/plugins/*.test.mjs",
     "test:tools": "npm --prefix tools/bulk-import test && npm --prefix tools/menu-import test && npm --prefix tools/mirror-dish-images test && npm --prefix tools/upload-dish-images test",
-    "test:db": "bash scripts/test-db.sh",
+    "test:db": "bash scripts/test-db.sh && npm run test:agreement",
     "dev:db": "npx supabase start",
     "dev:db:stop": "npx supabase stop",
     "db:reset": "npx supabase db reset",
@@ -54,7 +54,8 @@
     "check:css-tokens": "node scripts/check-css-tokens.mjs",
     "check:placeholders": "node scripts/check-placeholders.mjs",
     "check:launch": "node scripts/check-launch.mjs",
-    "check:company": "node scripts/build-company-identity.mjs --check"
+    "check:company": "node scripts/build-company-identity.mjs --check",
+    "test:agreement": "node --experimental-strip-types --test scripts/test/pack-eligibility-agreement.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

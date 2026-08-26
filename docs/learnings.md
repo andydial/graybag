@@ -3203,3 +3203,38 @@ through a `security definer` function that applies the school gate itself. The d
 cosmetic. With a table policy the app decides what to ask for and the database only checks the
 request is permitted; with a function the **database decides what exists**, and there is no query
 the app can write to see more. The stricter design is also the simpler one to prove.
+
+## A data-modifying CTE is invisible to a function reading the same table — 2026-08-27
+
+`E21-42`'s first version built its whole fixture in one statement: a `with … insert … insert …
+select meal_pack_ineligibility_reason(…)` chain. It looked tidy and it was wrong in the way that
+matters most — **five of nine cases passed**.
+
+Postgres runs data-modifying CTEs against the snapshot taken at the start of the statement, so a
+function called in the same statement that does `select … from meal_pack_offer where id = $1`
+cannot see the offer the CTE just inserted. The server answered `offer_not_found` for every case.
+Four cases disagreed with the app and failed loudly; the other five "agreed" that the meal was
+ineligible — for entirely unrelated reasons.
+
+A cross-implementation test that passes because **neither side saw the data** is the precise
+failure the test was written to catch, produced by the test itself.
+
+The fix is unglamorous: insert, then read. Each statement gets its own `-c` in one `psql` session,
+so every write is visible to the next. Confirmed by mutation — making the app count rows where the
+server counts quantity now fails three cases; before the fix it failed nothing new, because
+nothing was being compared.
+
+**Rule:** if a fixture writes rows that a *function* must read, the write and the read cannot
+share a statement. And a cross-check that has never been seen to fail is not yet a cross-check.
+
+## Two constraints made a test case unrepresentable, which is stronger than agreement — 2026-08-27
+
+The same file tried to assert that a zero-quantity order line does not satisfy a pack's category
+requirement. The app guards it; the database refused to store the row at all
+(`order_line_quantity_positive`).
+
+So there is nothing to agree about, and the case was removed with its reasoning rather than worked
+around. The app's guard stays — a client-side cart genuinely can hold a line at zero between a
+decrement and a removal — but the two positions are not equivalent: one is a rule, the other makes
+the state impossible. Worth noticing when a cross-check refuses to run: sometimes the answer is
+that one side has already made the question moot.
