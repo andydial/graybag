@@ -86,20 +86,43 @@ comment on view order_money is
   'E02-36. The only path to order money for an authenticated caller. The money columns are revoked from `authenticated` on the base table, so a kitchen operator — who shares that role with parents and admins — cannot read them by naming them. Definer rather than invoker, because it must retain the privileges the revoke removes. service_role is unaffected and Edge Functions are unchanged.';
 ```
 
-## Sequencing — this matters
+## Sequencing — this matters, and the first version of it was wrong
 
-The revoke breaks any browser query still selecting money from `order` directly. **The client work
-lands first**, and it is the web thread's:
+**Corrected 2026-08-27.** The original said "client work lands first, then the whole DDL". That
+cannot work, and I checked rather than reasoned about it: on staging today,
 
-1. **Web thread** ships `admin-orders`, `admin-reports`, `admin-growth`, `orders` and `checkout`
-   reading money from `order_money` joined on `id`. Those queries work **before and after** the
-   revoke, so there is no window where anything is broken.
-2. **Mobile thread** lands the DDL above in their migration block.
-3. **Web thread** inverts the assertion in `kitchen-scope.test.mjs` from "money is readable" to
+```
+GET /rest/v1/order_money  ->  404      the view does not exist
+GET /rest/v1/order        ->  401      the table does, and wants a token
+```
+
+A client shipped against a view that does not exist yet **404s every money read on production** —
+`/reports`, `/admin/sales`, `/orders` and the parent's own order screen, immediately. The mistake
+was treating the DDL as one indivisible step. It is two, and only one of them is dangerous:
+`create view` is **additive and breaks nothing**, while `revoke select` is what has a blast radius.
+
+Split them and there is no window where anything is broken, in either direction:
+
+1. **Mobile thread — `create or replace view order_money` and its grant, and nothing else.**
+   Purely additive. Nobody reads it yet, every existing query still works, and it is safe to land
+   at any time.
+2. **Web thread — switch `admin-orders`, `admin-reports`, `admin-growth`, `orders` and `checkout`
+   to read money from `order_money` joined on `id`.** These work now (the view exists) and after
+   the revoke (the view is definer). This is the step that must not be skipped.
+3. **Mobile thread — the `revoke select`.** By now nothing reads the money columns off the base
+   table, so this changes no behaviour for anyone who should have the data.
+4. **Web thread — invert the assertion** in `kitchen-scope.test.mjs` from "money is readable" to
    "money returns nothing", closing `E02-36`.
 
-Landing 2 before 1 takes out `/reports`, `/admin/sales`, `/orders` and the parent order screen at
-once. Please don't.
+Step 3 before step 2 takes out every money screen at once. Step 2 before step 1 does the same
+thing for a different reason. **Step 1 is safe to do today** and unblocks everything after it —
+if you land nothing else this week, land that.
+
+### Why the web thread has not shipped step 2 yet
+
+Because step 1 has not happened. The check above is the whole reason: `order_money` is a 404, so
+there is nothing to point a client at. As soon as that view exists on staging, step 2 is a
+half-day and the web thread will take it.
 
 ## What this does not change
 

@@ -414,3 +414,38 @@ Stacked and waiting, oldest first:
 
 - **#130** — `E10-48`, dish workbench problem chips
 - **#131** — `E10-49`, Dishes/Menus split and the new Menus screen
+
+---
+
+## 8. `E02-36`'s approved sequencing was wrong, and I did not ship against it
+
+The plan Andy approved was: web ships the clients reading `order_money`, then the mobile thread
+lands the DDL, then the test inverts. I wrote that plan, he endorsed it, and it does not work.
+
+I went to start the client half tonight and checked the premise first:
+
+```
+GET /rest/v1/order_money  ->  404      the view does not exist
+GET /rest/v1/order        ->  401      the table does, and wants a token
+```
+
+A client shipped against a view that does not exist **404s every money read on production** — the
+revenue report, sales, the orders screen and the parent's own order page, all at once, the moment
+it deploys. My original write-up caused this by treating the DDL as one indivisible step. It is
+two, and only one is dangerous: `create view` is additive and breaks nothing, `revoke select` is
+the one with a blast radius.
+
+So the corrected order is four steps, and it is now in the proposal doc:
+
+1. **Mobile: create the view only.** Additive, safe today, unblocks everything after it.
+2. **Web: point the five clients at it.** Works before and after the revoke.
+3. **Mobile: the revoke.** By now nothing reads money off the base table.
+4. **Web: invert the kitchen-scope assertion**, closing `E02-36`.
+
+**I have not shipped step 2**, because step 1 has not happened and there is nothing to point a
+client at. That is the honest reason rather than a scheduling one, and the doc says so in those
+words so the mobile thread reads it as a dependency rather than as web being slow.
+
+Worth noting for its own sake: the plan was reviewed by two people and endorsed, and the thing
+that caught it was one `curl` against staging. Checking the premise cost thirty seconds; not
+checking it would have cost a production outage on the money screens.
