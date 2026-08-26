@@ -135,21 +135,20 @@ What I checked, so nobody repeats it:
 | Branches pushed? | Yes — both refs exist on origin at the right SHAs |
 | Workflows enabled? | All six `active` |
 | Runs queued or stuck? | `queued: 0`, `in_progress: 0` |
-| Actions minutes exhausted? | No — the repo is **public**, so Actions are free |
+| Actions minutes exhausted? | **I said no, and I was wrong — see the correction in entry 13** |
 | GitHub incident? | Status page reports "All Systems Operational" |
 | Check-suites on the commit | `netlify` completed, `claude` and `expo` queued — **no `github-actions` suite exists at all** |
 
-That last row is the finding: Actions is not creating a check suite for these commits, so this is
-a dispatch failure rather than a queue or a budget. Netlify's own checks run fine on the same
-commits, which is why the PR does not look obviously broken at a glance.
+That last row looked like the finding: Actions was not creating a check suite for these commits,
+so I concluded this was a dispatch failure rather than a queue or a budget. **The conclusion was
+right about the symptom and wrong about the cause** — see entry 13. Netlify's own checks run fine
+on the same commits, which is why the PR does not look obviously broken at a glance.
 
 Tried, and did not work: closing and reopening PR #130 (fires `pull_request: reopened`), and
 pushing an empty commit to fire `push`. Neither produced a run.
 
-**What Andy needs to do:** probably nothing but wait — a dispatch outage that the status page has
-not picked up usually clears itself. If it has not by morning, the Actions tab on the repo will
-say more than the API does, and re-running the last successful workflow manually is the next
-thing to try.
+**What Andy needs to do:** ~~probably nothing but wait~~ — **wrong, and expensively so. It was a
+billing setting and it needed him.** Corrected in entry 13; this advice cost the stack a night.
 
 **What I am doing:** continuing to build, committing and pushing, and leaving the PRs stacked in
 order. Every one is smoke-green and a11y-green locally, verified by the same commands CI runs.
@@ -324,3 +323,40 @@ re-triggering the stack and let the queue drain in order.
 I have stopped pushing to the stack for that reason. Five branches, all green locally, all rebased
 onto `main` in a linear chain: the useful thing now is for the queue to drain, not for me to add
 to it.
+
+---
+
+## 13. The Actions outage was a $0 budget, and I ruled that out on a false premise
+
+Andy, 2026-08-27: *"Actions billing is fixed — a $0 budget with stop-usage was silently queueing
+every run."*
+
+I checked billing and dismissed it, in these words: **"No — the repo is public, so Actions are
+free."** That is true about *minutes* and irrelevant to what was happening. A spending limit is
+account-level and applies regardless of repository visibility; with stop-usage set against a $0
+budget, GitHub accepts the event, creates nothing, and reports nothing anywhere the API will show
+you. The symptom I described — no `github-actions` check suite on the commit — is exactly what
+that looks like.
+
+**The reasoning error is the part worth keeping.** I had one fact ("public repos get free minutes")
+and treated it as settling a different question ("can this account spend on Actions"). The
+`/settings/billing/actions` call I made returned `404 Not Found` and needed a `user` scope I did
+not have — so I had *no* billing evidence at all, and I recorded a confident "No" in the table
+anyway. An unchecked box and a checked one must not look the same in a diagnosis, and in mine they
+did. That table sent Andy away from the one thing that needed him.
+
+Entry 7 has been corrected in place rather than left standing with this appended underneath —
+per Andy's standing rule, *"a stale proposal in the repo is what the next person reads and
+trusts."*
+
+### What actually cleared it
+
+Fixing the budget was necessary and not sufficient. The runs queued *during* the outage stayed
+stuck afterwards — the API reported them `queued` while `gh run cancel` refused them as
+`completed`, which is a zombie state I could not clear directly. **Closing and reopening each pull
+request fired fresh `pull_request` events**, and those dispatched and ran immediately. The stale
+runs are still sitting in the queue and can be ignored.
+
+Worth remembering: reopening a PR is the cheapest way to re-fire CI without changing a SHA, which
+matters when the branch is part of a verified stack and a new commit would mean re-checking the
+chain.
