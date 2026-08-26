@@ -29,6 +29,26 @@
  * The floors are set below the current counts with a little slack, so ordinary work does not trip
  * them and deleting a file's worth of tests does. When a floor legitimately needs lowering, that
  * is a visible diff with a reason in the commit — which is the whole point.
+ *
+ * ## Floors need raising as well as defending — `E10-53`
+ *
+ * A floor is only worth what the gap between it and reality is small. The web suite was written
+ * with a floor of 100 when it held 388 tests; by the time it held **455**, that floor would have
+ * let three quarters of the suite disappear without a word. A guard nobody maintains degrades into
+ * a guard that only catches the total collapse it was never really about — and the failure it *was*
+ * about, a glob quietly matching fewer files after a rename, is exactly the middling loss a stale
+ * floor sleeps through.
+ *
+ * So: **raise these when a suite grows meaningfully**, in the commit that grew it, to roughly 90%
+ * of the new count. Slack enough that deleting one obsolete test does not fail the build; tight
+ * enough that deleting a file does.
+ *
+ * | | floor | actual, 2026-08-27 |
+ * |---|---|---|
+ * | scripts | 170 | 182 |
+ * | mobile plugins | 20 | 25 |
+ * | shared | 950 | 1009 |
+ * | web | 420 | 455 |
  */
 import { execSync } from 'node:child_process';
 
@@ -38,7 +58,7 @@ const SUITES = [
     command: 'npm run --silent test:scripts',
     /** `# tests 180` at the end of a TAP run. */
     parse: (out) => Number(/^# tests (\d+)$/m.exec(out)?.[1] ?? -1),
-    floor: 150,
+    floor: 170,
   },
   {
     name: 'mobile plugins',
@@ -59,13 +79,13 @@ const SUITES = [
       const m = /Tests\s+.*?\((\d+)\)/.exec(out);
       return Number(m?.[1] ?? -1);
     },
-    floor: 800,
+    floor: 950,
   },
   {
     name: 'web app (vitest)',
     command: 'npm --prefix apps/web run --silent test',
     parse: (out) => Number(/Tests\s+.*?\((\d+)\)/.exec(out)?.[1] ?? -1),
-    floor: 100,
+    floor: 420,
   },
 ];
 
