@@ -18,7 +18,7 @@
  * an error, which is the same ambiguity `/reports` has and is handled the same way: the screen says
  * both possibilities rather than picking one.
  */
-import { runQuery } from './client.js';
+import { runQueryAll } from './client.js';
 
 /**
  * No name, no phone. **The email is read**, and only for one purpose — `E11-15`.
@@ -79,33 +79,20 @@ export interface GrowthData {
    ============================================================================= */
 
 /**
- * The most rows any single bounded read here will return before it refuses to answer.
+ * Every row a read matches, a page at a time — `E11-26`.
  *
- * Not a page size and not a silent cap: a read that comes back holding exactly this many rows
- * throws. Its filter was supposed to bound it far below this, so hitting it means the bound is
- * wrong, and the alternative to throwing is returning a truncated answer that renders as a
- * confident, smaller number.
+ * This replaces `READ_CAP`, which threw at 20,000 rows. Throwing was better than truncating and
+ * it was still a screen that did not work: at exactly the cap, a result that fits and one that was
+ * cut off are indistinguishable, so the only safe response was to refuse. Paging removes the
+ * choice — the loop ends on a page shorter than it asked for, which no `db-max-rows` setting can
+ * fake.
  *
- * 20,000 is roughly a year of orders at the volume Andy is planning for, so a correct read cannot
- * reach it and a broken one will.
+ * Ordered by `id` inside `runQueryAll`, because an unordered page window is not a window.
  */
-const READ_CAP = 20_000;
-
-/** A bounded read that fails loudly rather than truncating. See `READ_CAP`. */
-async function capped<T>(
+const paged = <T,>(
   what: string,
   build: (t: import('./client.js').ApiTransport) => import('./client.js').SelectBuilder,
-): Promise<T[]> {
-  const rows = await runQuery<T>((t) => build(t).limit(READ_CAP));
-  if (rows.length >= READ_CAP) {
-    throw new Error(
-      `The ${what} read returned ${rows.length} rows, which is its cap. It is filtered by date ` +
-        `and should be nowhere near this, so the filter is not doing what it should. Refusing to ` +
-        `report a truncated total — see E11-19.`,
-    );
-  }
-  return rows;
-}
+): Promise<T[]> => runQueryAll<T>(what, build);
 
 /** IST is `+05:30`, fixed — no daylight saving, one zone. */
 const IST = '+05:30';
@@ -141,22 +128,24 @@ function window_(from: string, to: string): { start: string; endExclusive: strin
  * server-side aggregate, and that needs a view or an RPC — DDL this thread does not hold. `E11-24`
  * carries it.
  *
- * What is added meanwhile is the same **loud cap** `fetchReportsGrowth` uses. It does not make the
- * read cheap; it makes the day it stops being viable a stated failure rather than a screen quietly
- * reporting a smaller product than exists.
+ * What it does get is **pagination** (`E11-26`), the same as `fetchReportsGrowth`. That does not
+ * make the read cheap — it still fetches every row — but it makes it *correct at any size*, where
+ * the cap it replaces could only refuse. A slow screen is a problem; a screen confidently
+ * reporting a smaller product than exists is a different and worse one, and paging removes the
+ * second without pretending to fix the first. `E11-25` is still the real fix.
  */
 export async function fetchGrowth(): Promise<GrowthData> {
   const [userRows, childRows, linkRows, orderRows] = await Promise.all([
     // Soft-deleted accounts are excluded: somebody who deleted their account is not a registration
     // we still have. `deleted_at` is the DPDP erasure marker (§13.4).
-    capped<unknown>('registrations', (t) => t.from('app_user').select(GROWTH_USER_COLUMNS).is('deleted_at', null)),
-    capped<unknown>('children', (t) => t.from('recipient').select(GROWTH_CHILD_COLUMNS).is('deleted_at', null)),
+    paged<unknown>('registrations', (t) => t.from('app_user').select(GROWTH_USER_COLUMNS).is('deleted_at', null)),
+    paged<unknown>('children', (t) => t.from('recipient').select(GROWTH_CHILD_COLUMNS).is('deleted_at', null)),
     // `revoked_at` rather than a delete — links are revoked and kept (`0001`), and a revoked
     // guardian is no longer a family at that school.
-    capped<unknown>('guardian links', (t) => t.from('guardian_link').select(GROWTH_LINK_COLUMNS).is('revoked_at', null)),
+    paged<unknown>('guardian links', (t) => t.from('guardian_link').select(GROWTH_LINK_COLUMNS).is('revoked_at', null)),
     // Orders, for the adoption half. Scoped by `order_read_backoffice`, so this needs
     // `orders.view` as well as `users.view` — both are checked by RLS, not here.
-    capped<unknown>('orders', (t) => t.from('order').select(GROWTH_ORDER_COLUMNS)),
+    paged<unknown>('orders', (t) => t.from('order').select(GROWTH_ORDER_COLUMNS)),
   ]);
 
   return {
@@ -236,18 +225,18 @@ export async function fetchReportsGrowth(from: string, to: string): Promise<Repo
   const { start, endExclusive } = window_(from, to);
 
   const [userRows, linkRows, deletedRows, funnelRows, usageRows] = await Promise.all([
-    capped<unknown>('registrations', (t) =>
+    paged<unknown>('registrations', (t) =>
       t.from('app_user').select(GROWTH_USER_COLUMNS)
         .is('deleted_at', null).gte('created_at', start).lt('created_at', endExclusive)),
-    capped<unknown>('guardian links', (t) =>
+    paged<unknown>('guardian links', (t) =>
       t.from('guardian_link').select(GROWTH_LINK_COLUMNS)
         .is('revoked_at', null).gte('created_at', start)),
     // Ids only. Nothing here identifies a child, and there is nowhere to put a name.
-    capped<unknown>('deleted children', (t) =>
+    paged<unknown>('deleted children', (t) =>
       t.from('recipient').select('id').not('deleted_at', 'is', null)),
-    capped<unknown>('cohort orders', (t) =>
+    paged<unknown>('cohort orders', (t) =>
       t.from('order').select(GROWTH_ORDER_COLUMNS).gte('placed_at', start)),
-    capped<unknown>('orders served in the range', (t) =>
+    paged<unknown>('orders served in the range', (t) =>
       t.from('order').select(GROWTH_ORDER_COLUMNS)
         .gte('service_date', from).lte('service_date', to)),
   ]);

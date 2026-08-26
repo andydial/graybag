@@ -36,12 +36,23 @@ describe('fetchReportsGrowth', () => {
     );
   });
 
-  it('caps every read, so a broken bound fails loudly instead of truncating', async () => {
-    // The cap is not a page size. A read that reaches it throws — see READ_CAP. Every query must
-    // carry one, because the one without it is the one that silently under-reports.
+  it('pages every read, so no result can be truncated', async () => {
+    // `E11-26` replaced the cap with pagination. A cap could only refuse at its limit; a page
+    // window plus "stop on a short page" is correct at any size. Every query must carry one,
+    // because the one without it is the one that silently under-reports.
     const queries = await queriesFor();
     for (const q of queries) {
-      expect(q.limits.length, `${q.table} has no cap`).toBeGreaterThan(0);
+      expect(q.ranges.length, `${q.table} is not paged`).toBeGreaterThan(0);
+      expect(q.ranges[0]).toEqual({ from: 0, to: 999 });
+    }
+  });
+
+  it('orders every paged read, because an unordered page window is not a window', async () => {
+    // Without an ORDER BY the database may return rows in any order, so "rows 1000–1999" can
+    // repeat a row and skip another. `runQueryAll` applies the order itself rather than trusting
+    // the caller — a guard that can be forgotten is a guard that will be.
+    for (const q of await queriesFor()) {
+      expect(q.orders.map((o) => o.column), `${q.table} is unordered`).toContain('id');
     }
   });
 
@@ -117,11 +128,11 @@ describe('fetchReportsGrowth', () => {
 });
 
 describe('fetchGrowth', () => {
-  it('caps all four reads, so an unbounded screen fails loudly rather than shrinking', async () => {
+  it('pages all four reads, so an unbounded screen is at least correct', async () => {
     // Growth is all-time by definition — a cumulative curve and an adoption count cannot be
-    // computed from a slice — so this read is not date-bounded and is not meant to be. The cap
-    // does not make it cheap; it makes the day it stops being viable a stated failure instead of
-    // a screen quietly reporting a smaller product than exists. `E11-24` is the real fix.
+    // computed from a slice — so this read is not date-bounded and is not meant to be. Paging
+    // does not make it cheap; it makes it correct at any size, where the cap it replaced could
+    // only refuse. `E11-25` is still the real fix.
     const fake = fakeTransport([]);
     setApiTransport(fake.transport);
     const { fetchGrowth } = await import('./admin-growth.js');
@@ -129,7 +140,7 @@ describe('fetchGrowth', () => {
 
     expect(fake.queries).toHaveLength(4);
     for (const q of fake.queries) {
-      expect(q.limits.length, `${q.table} has no cap`).toBeGreaterThan(0);
+      expect(q.ranges.length, `${q.table} is not paged`).toBeGreaterThan(0);
     }
   });
 
@@ -143,5 +154,49 @@ describe('fetchGrowth', () => {
     expect(users.isFilters).toContainEqual({ column: 'deleted_at', value: null });
     const links = fake.queries.find((q) => q.table === 'guardian_link')!;
     expect(links.isFilters).toContainEqual({ column: 'revoked_at', value: null });
+  });
+});
+
+describe('runQueryAll — the paging itself (E11-26)', () => {
+  it('keeps asking until a page comes back short, and returns every row', async () => {
+    const { fakePagedTransport } = await import('./test-support.js');
+    const full = Array.from({ length: 1000 }, (_, i) => ({ id: `a${i}` }));
+    const tail = [{ id: 'last' }];
+    const fake = fakePagedTransport([full, full, tail]);
+    setApiTransport(fake.transport);
+
+    const { runQueryAll } = await import('./client.js');
+    const rows = await runQueryAll<{ id: string }>('test', (t) => t.from('order').select('id'));
+
+    expect(rows).toHaveLength(2001);
+    expect(rows[rows.length - 1]).toEqual({ id: 'last' });
+    // Three windows, contiguous and non-overlapping — a gap here loses rows silently.
+    expect(fake.queries.map((q) => q.ranges[0])).toEqual([
+      { from: 0, to: 999 }, { from: 1000, to: 1999 }, { from: 2000, to: 2999 },
+    ]);
+  });
+
+  it('stops after one request when the first page is already short', async () => {
+    const { fakePagedTransport } = await import('./test-support.js');
+    const fake = fakePagedTransport([[{ id: 'only' }]]);
+    setApiTransport(fake.transport);
+    const { runQueryAll } = await import('./client.js');
+
+    expect(await runQueryAll('test', (t) => t.from('order').select('id'))).toHaveLength(1);
+    expect(fake.queries).toHaveLength(1);
+  });
+
+  it('throws rather than looping forever when pages never shrink', async () => {
+    // The runaway guard. A bug that makes every page look full would otherwise spin against a
+    // live database until something else gave out.
+    const { fakePagedTransport } = await import('./test-support.js');
+    const full = Array.from({ length: 10 }, (_, i) => ({ id: `a${i}` }));
+    const fake = fakePagedTransport(Array.from({ length: 20 }, () => full));
+    setApiTransport(fake.transport);
+    const { runQueryAll } = await import('./client.js');
+
+    await expect(
+      runQueryAll('stuck', (t) => t.from('order').select('id'), { pageSize: 10, maxPages: 3 }),
+    ).rejects.toThrow(/stuck/);
   });
 });

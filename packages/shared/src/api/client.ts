@@ -103,6 +103,15 @@ export interface SelectBuilder extends PromiseLike<QueryResult> {
    */
   lt(column: string, value: unknown): SelectBuilder;
   /**
+   * A half-open row window, inclusive at both ends as PostgREST defines it — `E11-26`.
+   *
+   * Added so a read can be **paginated** rather than capped. `limit` answers "give me at most N";
+   * this answers "give me rows N to M", which is the only way to be sure a large result arrived
+   * whole. Widening this interface is deliberately a visible diff rather than a method quietly
+   * appearing at a call site.
+   */
+  range(from: number, to: number): SelectBuilder;
+  /**
    * A disjunction, in PostgREST's own syntax: `or('email.ilike.%a%,first_name.ilike.%a%')`.
    *
    * Added for `searchAccounts` (`E10-46`) — finding one person by email **or** either name, which
@@ -238,6 +247,67 @@ export async function runQuery<T>(build: (t: ApiTransport) => SelectBuilder): Pr
   if (data === null || data === undefined) return [];
   if (!Array.isArray(data)) throw new ApiError('Expected a list of rows from the backend.');
   return data as T[];
+}
+
+/**
+ * Read every row a query matches, a page at a time — `E11-26`.
+ *
+ * ## Why this exists rather than a bigger `limit`
+ *
+ * A capped read cannot tell a result that fits from one that was cut off: at exactly the cap, both
+ * look like a full page. `E11-19` handled that by *throwing* at the cap, which turns a silent
+ * wrong answer into a loud failure — an improvement, and still a screen that does not work.
+ *
+ * Paging removes the choice. The loop stops when a page comes back **shorter than it asked for**,
+ * which is the only unambiguous signal that the end has been reached, and no configured
+ * `db-max-rows` can truncate the result without also shortening a page and ending the loop.
+ *
+ * ## The ceiling is a runaway guard, not a cap
+ *
+ * `maxPages` exists because a bug that makes every page look full would otherwise loop forever
+ * against a live database. Reaching it throws, and says which read did it — the same reasoning as
+ * the cap it replaces, moved to a place it can only fire on a genuine defect.
+ *
+ * ## Ordering is this function's job, not the caller's
+ *
+ * Paging an unordered query can return a row on two pages and never on a third: without an
+ * `ORDER BY` the database may return rows in any order, and "rows 1000–1999" only means something
+ * if there is an order to be 1000th in. That is a silent wrong answer of exactly the kind this
+ * whole task exists to remove, so `orderBy` is **required** and applied here rather than trusted
+ * to the caller. A guard that can be forgotten is a guard that will be.
+ *
+ * It must be a column that is unique and stable — a primary key. `created_at` is neither: two rows
+ * can share a timestamp, and their relative order across two requests is then undefined.
+ */
+export async function runQueryAll<T>(
+  what: string,
+  build: (t: ApiTransport) => SelectBuilder,
+  options: { orderBy?: string; pageSize?: number; maxPages?: number } = {},
+): Promise<T[]> {
+  const pageSize = options.pageSize ?? 1000;
+  const maxPages = options.maxPages ?? 50;
+  const orderBy = options.orderBy ?? 'id';
+  const out: T[] = [];
+
+  for (let page = 0; page < maxPages; page += 1) {
+    const from = page * pageSize;
+    const { data, error } = await build(getTransport())
+      .order(orderBy)
+      .range(from, from + pageSize - 1);
+    if (error) throw new ApiError(error.message, error.code);
+    if (data === null || data === undefined) return out;
+    if (!Array.isArray(data)) throw new ApiError('Expected a list of rows from the backend.');
+
+    out.push(...(data as T[]));
+    // Short page means the end. This is the whole mechanism.
+    if (data.length < pageSize) return out;
+  }
+
+  throw new ApiError(
+    `The ${what} read did not finish after ${maxPages} pages of ${pageSize}. Either it matches ` +
+      `more rows than any screen should ask for, or a page is not shrinking and the loop would ` +
+      `never end — see E11-26.`,
+  );
 }
 
 /**
