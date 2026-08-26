@@ -195,3 +195,29 @@ words so the mobile thread reads it as a dependency rather than as web being slo
 Worth noting for its own sake: the plan was reviewed by two people and endorsed, and the thing
 that caught it was one `curl` against staging. Checking the premise cost thirty seconds; not
 checking it would have cost a production outage on the money screens.
+
+---
+
+## 9. Production checked by hand while the monitor was not running
+
+The Actions outage takes the **Ops monitor** with it — it is a scheduled workflow, so the
+15-minute reachability probe and the money-path escalation both stop when dispatch stops. That is
+worth saying plainly, because the whole point of `E15-12` was *"know that production is healthy
+before a parent tells me"*, and for the length of this outage that is not true.
+
+To be accurate about the scale: dispatch stopped at about **14:03 UTC** and it is **14:27 UTC** as
+I write this, so the monitor has missed one or two probes rather than a night's worth. I checked
+by hand rather than assume, read-only:
+
+```
+https://graybag-web.netlify.app/          200   1.34s
+https://graybag-web.netlify.app/reports   200   0.41s
+https://bdamkuugbqjajbndjoxn.supabase.co/rest/v1/   401   0.44s
+```
+
+**Production is healthy.** The 401 is the right answer from an API that is up and wants a token —
+a 000 or a 5xx there is what would matter.
+
+I could not invoke `ops-heartbeat` itself, which is the deeper check: it needs a secret this shell
+does not hold, and that is by design. So this is reachability, not the full probe. If the outage
+runs long, the heartbeat is the thing to run manually, and the Actions workflow shows exactly how.
