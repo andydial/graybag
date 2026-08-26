@@ -42,11 +42,23 @@ export interface PackBalance {
  */
 export function MyPacksScreen({
   balance = null,
+  otherPacks = [],
   onSeeOffers,
   onPlanMeals,
   testID = MY_PACKS_TEST_ID,
 }: {
   balance?: PackBalance | null;
+  /**
+   * Every OTHER live pack, in the order meals will be taken from them. `E21-49`.
+   *
+   * Andy, 2026-08-27: *"if a parent holds two packs, show both, each with its own expiry, and be
+   * explicit that meals are spent oldest first. A single summed number can't answer 'when do I
+   * lose these', but neither can showing only one pack when they own two."*
+   *
+   * `balance` is the one the next order draws from; these follow it. Rendering only the first
+   * would hide a nearer expiry behind a later one, which is the failure the summed number had.
+   */
+  otherPacks?: readonly PackBalance[];
   onSeeOffers?: (() => void) | undefined;
   onPlanMeals?: (() => void) | undefined;
   testID?: string;
@@ -91,6 +103,31 @@ export function MyPacksScreen({
           </View>
         )}
       </View>
+
+      {/*
+        The other packs, in spend order. Each carries its own expiry, and the sentence above them
+        says what the order means — a list without it would leave a parent to infer why one is
+        first.
+      */}
+      {otherPacks.length === 0 ? null : (
+        <View style={styles.pad} testID={`${testID}-other-packs`}>
+          <Text style={styles.sectionHead}>Your other packs</Text>
+          <Text style={styles.noticeBody}>
+            Meals are spent from the pack that expires soonest, so these come after the one above.
+          </Text>
+          {otherPacks.map((pack) => (
+            <View key={pack.packName + pack.expiresLabel} style={styles.otherRow}>
+              <Text style={styles.otherName}>
+                {pack.expired ? '—' : `${pack.mealsRemaining} of ${pack.mealsTotal}`} ·{' '}
+                {pack.packName}
+              </Text>
+              <Text style={styles.otherMeta}>
+                {pack.expired ? `Expired ${pack.expiresLabel}` : `Expires ${pack.expiresLabel}`}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {balance.expired ? (
         <View style={styles.pad}>
@@ -175,4 +212,16 @@ const styles = StyleSheet.create({
     marginBottom: space[3],
   },
   divider: { height: borderWidth.hairline, backgroundColor: border.subtle },
+  otherRow: {
+    paddingVertical: layout.listRowPaddingY,
+    borderTopWidth: borderWidth.hairline,
+    borderTopColor: border.subtle,
+  },
+  otherName: {
+    fontSize: scale.label.size, lineHeight: scale.label.lineHeight, fontWeight: '700',
+    color: text.primary,
+  },
+  otherMeta: {
+    fontSize: scale.caption.size, lineHeight: scale.caption.lineHeight, color: text.secondary,
+  },
 });

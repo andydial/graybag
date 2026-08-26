@@ -742,9 +742,21 @@ function ConnectedMyPacksScreen() {
           expiresLabel: formatServiceDateLong(surface.balance.expiresAt.slice(0, 10)),
           expired: surface.balance.expired,
         };
+  // Every pack after the first, in spend order. `E21-49`: a nearer expiry must never be hidden
+  // behind a later one, which is what showing only the first would do.
+  const otherPacks = surface.allPacks.slice(1).map((pack) => ({
+    packName: pack.packName,
+    mealsTotal: pack.mealsTotal,
+    mealsRemaining: pack.mealsRemaining,
+    purchasedLabel: formatServiceDateLong(pack.purchasedAt.slice(0, 10)),
+    expiresLabel: formatServiceDateLong(pack.expiresAt.slice(0, 10)),
+    expired: pack.expired,
+  }));
+
   return (
     <MyPacksScreen
       balance={balance}
+      otherPacks={otherPacks}
       onSeeOffers={() => navigation.navigate('Packs')}
       onPlanMeals={() => navigation.navigate('PackPlan')}
     />

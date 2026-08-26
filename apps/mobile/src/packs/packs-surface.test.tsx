@@ -26,7 +26,7 @@ jest.mock('../analytics/analytics', () => ({
   flushAnalytics: async () => {},
 }));
 
-let mockSurface = { canBuy: false, hasBalance: false, loading: false };
+let mockSurface = { canBuy: false, hasBalance: false, loading: false, allPacks: [] as unknown[] };
 jest.mock('./MealPackSurfaceContext', () => ({
   useMealPackSurface: () => mockSurface,
   showsPackEntryPoint: (s: { canBuy: boolean; hasBalance: boolean }) => s.canBuy || s.hasBalance,
@@ -69,7 +69,7 @@ const BALANCE: PackBalance = {
 beforeEach(() => {
   mockTrack.mockClear();
   mockOffers.mockReset();
-  mockSurface = { canBuy: false, hasBalance: false, loading: false };
+  mockSurface = { canBuy: false, hasBalance: false, loading: false, allPacks: [] };
   mockSchool = { schoolId: 's-1', schoolName: 'Amity International School' };
 });
 
@@ -105,7 +105,7 @@ describe('case 2 — the offers screen reached when packs are not sold here', ()
 
 describe('case 2 — the offers screen when packs ARE sold here', () => {
   beforeEach(() => {
-    mockSurface = { canBuy: true, hasBalance: false, loading: false };
+    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [] };
   });
 
   it('lists what is on sale', async () => {
@@ -146,7 +146,7 @@ describe('case 2 — the offers screen when packs ARE sold here', () => {
 describe('case 3 — a parent who owns a pack at a school we switched off', () => {
   beforeEach(() => {
     // The exact state: selling is off, the balance is not.
-    mockSurface = { canBuy: false, hasBalance: true, loading: false };
+    mockSurface = { canBuy: false, hasBalance: true, loading: false, allPacks: [] };
   });
 
   it('still shows the balance', async () => {
@@ -174,7 +174,7 @@ describe('case 3 — a parent who owns a pack at a school we switched off', () =
   });
 
   it('offers to sell again once the school is switched back on', async () => {
-    mockSurface = { canBuy: true, hasBalance: true, loading: false };
+    mockSurface = { canBuy: true, hasBalance: true, loading: false, allPacks: [] };
     const onSeeOffers = jest.fn();
     await render(
       <MyPacksScreen balance={{ ...BALANCE, mealsRemaining: 0 }} onSeeOffers={onSeeOffers} />,
@@ -186,20 +186,20 @@ describe('case 3 — a parent who owns a pack at a school we switched off', () =
 
 describe('the three empties are three different sentences', () => {
   it('no pack at all', async () => {
-    mockSurface = { canBuy: true, hasBalance: false, loading: false };
+    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [] };
     await render(<MyPacksScreen balance={null} />);
     expect(screen.getByText(/don’t have a meal pack/)).toBeTruthy();
   });
 
   it('every meal spent — recoverable, and says how', async () => {
-    mockSurface = { canBuy: true, hasBalance: true, loading: false };
+    mockSurface = { canBuy: true, hasBalance: true, loading: false, allPacks: [] };
     await render(<MyPacksScreen balance={{ ...BALANCE, mealsRemaining: 0 }} />);
     expect(screen.getByText(/used every meal/)).toBeTruthy();
     expect(screen.getByText(/spent oldest first/)).toBeTruthy();
   });
 
   it('expired — says plainly that the meals are gone, and does not offer to plan', async () => {
-    mockSurface = { canBuy: true, hasBalance: false, loading: false };
+    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [] };
     const onPlanMeals = jest.fn();
     await render(
       <MyPacksScreen balance={{ ...BALANCE, expired: true }} onPlanMeals={onPlanMeals} />,
@@ -210,8 +210,52 @@ describe('the three empties are three different sentences', () => {
   });
 
   it('an expired pack shows no progress meter, which would imply something remains', async () => {
-    mockSurface = { canBuy: true, hasBalance: false, loading: false };
+    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [] };
     await render(<MyPacksScreen balance={{ ...BALANCE, expired: true }} />);
     expect(screen.queryByTestId('screen-my-packs-meter')).toBeNull();
+  });
+});
+
+describe('E21-49 — two packs, both visible, with the order explained', () => {
+  const SECOND: PackBalance = {
+    packName: '20 meal pack',
+    mealsTotal: 20,
+    mealsRemaining: 20,
+    purchasedLabel: '20 Aug 2026',
+    expiresLabel: '18 Nov 2026',
+    expired: false,
+  };
+
+  beforeEach(() => {
+    mockSurface = { canBuy: true, hasBalance: true, loading: false, allPacks: [] };
+  });
+
+  it('shows the second pack with its OWN expiry', async () => {
+    // The failure this prevents: a 3-meal pack expiring Friday sitting invisible behind a
+    // 10-meal pack expiring in October. A summed total cannot answer "when do I lose these",
+    // and neither can showing only one pack.
+    await render(<MyPacksScreen balance={BALANCE} otherPacks={[SECOND]} />);
+    expect(screen.getByTestId('screen-my-packs-other-packs')).toBeTruthy();
+    expect(screen.getByText(/20 of 20 · 20 meal pack/)).toBeTruthy();
+    expect(screen.getByText(/Expires 18 Nov 2026/)).toBeTruthy();
+  });
+
+  it('says WHY one comes before the other', async () => {
+    // A list with no explanation leaves a parent to infer the ordering, and the inference most
+    // people make — biggest first, or newest first — is wrong.
+    await render(<MyPacksScreen balance={BALANCE} otherPacks={[SECOND]} />);
+    expect(screen.getByText(/expires soonest/)).toBeTruthy();
+  });
+
+  it('shows nothing extra for a parent with one pack', async () => {
+    await render(<MyPacksScreen balance={BALANCE} otherPacks={[]} />);
+    expect(screen.queryByTestId('screen-my-packs-other-packs')).toBeNull();
+  });
+
+  it('marks an expired second pack as expired rather than showing a count', async () => {
+    await render(
+      <MyPacksScreen balance={BALANCE} otherPacks={[{ ...SECOND, expired: true }]} />,
+    );
+    expect(screen.getByText(/Expired 18 Nov 2026/)).toBeTruthy();
   });
 });

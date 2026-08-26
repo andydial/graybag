@@ -361,6 +361,7 @@ export {
 export {
   confirmMealPackPlan,
   fetchMealPackBalance,
+  fetchMealPackBalances,
   fetchOrderableDays,
   fetchMealPackOffers,
   fetchMealPackSurface,

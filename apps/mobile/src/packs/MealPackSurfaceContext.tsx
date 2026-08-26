@@ -47,6 +47,13 @@ export interface MealPackSurface {
    * `hasBalance` is true, so a parent with no pack costs no request.
    */
   balance: api.MealPackBalance | null;
+  /**
+   * Every live pack, in spend order — `balance` is the first of them. `E21-49`.
+   *
+   * The balance screen shows all of them so a nearer expiry is never hidden behind a later one;
+   * the cart strip uses `balance` alone, because it only cares which pack THIS order draws from.
+   */
+  allPacks: readonly api.MealPackBalance[];
 }
 
 const NOTHING: MealPackSurface = {
@@ -54,6 +61,7 @@ const NOTHING: MealPackSurface = {
   hasBalance: false,
   loading: true,
   balance: null,
+  allPacks: [],
 };
 
 const Ctx = createContext<MealPackSurface>(NOTHING);
@@ -69,7 +77,7 @@ export function MealPackSurfaceProvider({ children }: { children: ReactNode }) {
     // Signed out, or no school chosen: there is nothing to ask about, and asking would send a
     // null id to the server. Not an error — just no surface.
     if (userId === null || schoolId === null) {
-      setSurface({ canBuy: false, hasBalance: false, loading: false, balance: null });
+      setSurface({ canBuy: false, hasBalance: false, loading: false, balance: null, allPacks: [] });
       return;
     }
 
@@ -83,9 +91,14 @@ export function MealPackSurfaceProvider({ children }: { children: ReactNode }) {
       // Only ask for the numbers when the server has said there are some. A parent with no pack
       // — the overwhelming majority — costs one request, not two.
       let balance: api.MealPackBalance | null = null;
+      let allPacks: api.MealPackBalance[] = [];
       if (answer.hasBalance) {
         try {
-          balance = await api.fetchMealPackBalance(userId);
+          // One read for every pack; the first is the one the next order draws from, because the
+          // server returns them in spend order. A second call for the singular balance would be
+          // a chance for the two to disagree.
+          allPacks = await api.fetchMealPackBalances(userId);
+          balance = allPacks[0] ?? null;
         } catch {
           /**
            * The surface stays, the numbers do not.
@@ -96,10 +109,11 @@ export function MealPackSurfaceProvider({ children }: { children: ReactNode }) {
            * whole surface here would tell a parent they have no pack because a request failed.
            */
           balance = null;
+          allPacks = [];
         }
       }
       if (cancelled) return;
-      setSurface({ ...answer, balance, loading: false });
+      setSurface({ ...answer, balance, allPacks, loading: false });
     })();
 
     return () => {

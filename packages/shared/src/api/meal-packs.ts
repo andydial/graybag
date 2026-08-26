@@ -278,3 +278,39 @@ export async function fetchOrderableDays(input: {
     };
   });
 }
+
+/**
+ * Every live pack a parent holds, in the order meals will be taken from them. `E21-49`.
+ *
+ * `fetchMealPackBalance` answers *which pack does the next order draw from*, which is what the
+ * cart strip needs. This answers *what do I own*, which is what the balance screen needs — and
+ * showing only the first would hide a nearer expiry behind a later one, which is the same failure
+ * a summed total has.
+ *
+ * `spendOrder` is computed by the server that does the spending, so the app renders the order
+ * rather than recomputing the oldest-first rule and risking a second copy of it.
+ */
+export async function fetchMealPackBalances(userId: string): Promise<MealPackBalance[]> {
+  const rows = await runRpc<unknown>('meal_pack_balances', { p_user_id: userId });
+  if (!Array.isArray(rows)) return [];
+  return rows.map((row) => {
+    if (!isRecord(row)) throw new ApiError('A meal pack balance was not an object.');
+    if (typeof row.meal_pack_id !== 'string' || typeof row.pack_name !== 'string') {
+      throw new ApiError('A meal pack balance is missing its id or name.');
+    }
+    return {
+      mealPackId: row.meal_pack_id,
+      packName: row.pack_name,
+      mealsTotal: asInt(row.meals_total, 'meals_total'),
+      mealsRemaining: asInt(row.meals_remaining, 'meals_remaining'),
+      purchasedAt: String(row.purchased_at ?? ''),
+      expiresAt: String(row.expires_at ?? ''),
+      expired: row.expired === true,
+      // Not returned per row by `meal_pack_balances`; the cart's single-pack read carries it.
+      mealsAcrossAllPacks: 0,
+      itemsPerMeal: asInt(row.items_per_meal, 'items_per_meal'),
+      requiredCategoryId:
+        typeof row.required_category_id === 'string' ? row.required_category_id : '',
+    };
+  });
+}
