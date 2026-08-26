@@ -30,6 +30,8 @@ export interface RecordedQuery {
   inFilters: { column: string; values: unknown[] }[];
   ltFilters: { column: string; value: unknown }[];
   orFilters: string[];
+  /** Row windows asked for, in order. A paginating read must be assertable — `E11-26`. */
+  ranges: { from: number; to: number }[];
 }
 
 export interface FakeTransport {
@@ -67,6 +69,7 @@ export function fakeTransport(
             inFilters: [],
             ltFilters: [],
             orFilters: [],
+            ranges: [],
           };
           queries.push(record);
 
@@ -115,11 +118,70 @@ export function fakeTransport(
               record.orders.push({ column, ascending: options?.ascending ?? true });
               return builder;
             },
+            range(from, to) {
+              record.ranges.push({ from, to });
+              return builder;
+            },
             then(onfulfilled, onrejected) {
               return Promise.resolve({ data: error ? null : rows, error }).then(
                 onfulfilled,
                 onrejected,
               );
+            },
+          };
+          return builder;
+        },
+      };
+    },
+  };
+
+  return { transport, queries };
+}
+
+/**
+ * A transport that answers successive calls with successive pages — `E11-26`.
+ *
+ * `fakeTransport` gives one canned answer to every query, which is right for the single-round-trip
+ * reads it was written for and useless for a paginating one: a full page repeated forever is an
+ * infinite loop, and an empty one proves only that the loop can stop immediately.
+ *
+ * Pages are consumed in order and the list runs out as an empty page, so a test can assert the
+ * loop ends on a short page rather than on running out of fixture.
+ */
+export function fakePagedTransport(pages: readonly unknown[][]): FakeTransport {
+  const queries: RecordedQuery[] = [];
+  let call = 0;
+
+  const transport: ApiTransport = {
+    from(table: string): TableRef {
+      return {
+        select(columns: string): SelectBuilder {
+          const record: RecordedQuery = {
+            table, columns, filters: [], isFilters: [], lteFilters: [], gteFilters: [],
+            notFilters: [], orders: [], limits: [], inFilters: [], ltFilters: [], orFilters: [],
+            ranges: [],
+          };
+          queries.push(record);
+          const rows = pages[call] ?? [];
+          call += 1;
+
+          const builder: SelectBuilder = {
+            eq: () => builder,
+            is: () => builder,
+            lte: () => builder,
+            gte: () => builder,
+            not: () => builder,
+            lt: () => builder,
+            in: () => builder,
+            or: () => builder,
+            limit(count) { record.limits.push(count); return builder; },
+            order(column, options) {
+              record.orders.push({ column, ascending: options?.ascending ?? true });
+              return builder;
+            },
+            range(from, to) { record.ranges.push({ from, to }); return builder; },
+            then(onfulfilled, onrejected) {
+              return Promise.resolve({ data: rows, error: null }).then(onfulfilled, onrejected);
             },
           };
           return builder;
