@@ -60,8 +60,13 @@ select set_eq(
   $$ values ('sale'),('provider_fee'),('settlement'),('wallet_hold'),('wallet_hold_reversal'),
             ('refund_to_wallet'),('refund_to_source'),('revenue_share'),
             ('refund_mdr_recovery'),('payout'),('provider_initiated'),
-            ('migration_opening_balance') $$,
-  'E06-22: exactly the eleven codes docs/payments-design.md §10 names, plus migration_opening_balance which 0001 already seeded — a ledger whose codes disagree with the design is a reconciliation report nobody can read');
+            ('migration_opening_balance'),
+            -- `E21` meal packs. A pack sale is money in for food not yet served, so it is a
+            -- liability rather than revenue and needs its own movements: the sale, the
+            -- redemption that recognises revenue, the return that reverses one, and the expiry
+            -- that recognises breakage. See docs/payments-design.md §10 rows 12–15.
+            ('meal_pack_sale'),('meal_pack_redemption'),('meal_pack_return'),('meal_pack_expiry') $$,
+  'E06-22: exactly the codes docs/payments-design.md §10 names, plus migration_opening_balance which 0001 already seeded — a ledger whose codes disagree with the design is a reconciliation report nobody can read');
 
 select lives_ok(
   $$ insert into ledger_transaction (id, reason_code, source_type, source_id, occurred_at)
@@ -169,9 +174,14 @@ update ledger_account set normal_balance = 'credit'
 -- Put back with `bank` included (`0035`). Restoring the pre-bank definition here would fail
 -- outright now that `platform:bank` is seeded — which is a small, useful demonstration that
 -- this constraint and the chart of accounts have to be changed together.
+-- `E21` proved that comment right the hard way: adding `deferred_revenue` and `deferred_tax` in
+-- 0068 taught the constraint but not the nightly check's own copy of the mapping, and this file
+-- failed until 0070 taught both. Re-adding the constraint here with a stale list would fail on
+-- the two new accounts, so the list below is the same one the migrations hold.
 alter table ledger_account
   add constraint ledger_account_normal_balance_matches_type check (
-    (account_type in ('wallet', 'payable', 'tax_payable', 'revenue') and normal_balance = 'credit')
+    (account_type in ('wallet', 'payable', 'tax_payable', 'revenue',
+                      'deferred_revenue', 'deferred_tax') and normal_balance = 'credit')
     or
     (account_type in ('receivable', 'provider_clearing', 'provider_fees', 'suspense', 'bank')
        and normal_balance = 'debit')

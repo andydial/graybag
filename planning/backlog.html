@@ -6382,13 +6382,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/26</span>
+          <span class="meter-num">0/30</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 26 tasks</summary>
+        <summary>Context &amp; 30 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -6620,13 +6620,45 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The concurrency proof, with teeth.</strong> Four tests over genuinely separate <code>psql</code> connections; against the real implementation 4/4 pass, against an unprotected one 4/4 fail. <strong>The first version was worthless and passed anyway</strong>: it used <code>pg_advisory_xact_lock</code> for the barrier, which is EXCLUSIVE, so the racers queued and ran one at a time. Mutation-checking took two rounds to expose — removing the <code>&gt;= p_take</code> guard left it green (the <code>&gt;= 0</code> constraint was catching the overdraw), and only dropping that constraint <strong>as well</strong>, leaving nothing protecting the balance, proved the racers had never raced. Fixed by having the gate hold the exclusive lock and the racers take <strong>shared</strong> ones. Skips loudly with a named reason when no database is reachable, so &quot;0 concurrency tests ran&quot; can never be misread as &quot;concurrency is proven&quot;</span>
       </li>
-      <li class="task" data-id="E21-26" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E21-26" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-26"></button>
         <code class="tid">E21-26</code>
         <span class="badge r-high">high</span>
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A pack purchase does not fit <code>order_group</code>&#39;s totals invariant.</strong> Found while writing <code>E21-25</code>&#39;s fixture: <code>assert_order_group_totals</code> is a deferred constraint trigger requiring a group&#39;s totals to equal the sum of its member <code>order</code> rows, and a pack purchase has <strong>no member food orders</strong> — it is money for meals not yet chosen. So a real purchase either carries zero totals (and the payable no longer describes what was charged) or trips the trigger at COMMIT. <code>payment.order_group_id</code> is <code>not null</code>, so a pack cannot simply bypass the group and still use the Razorpay path. Needs a decision before the buy surface is built: teach the assertion that a pack-purchase group stands alone, or give packs their own payment linkage. <strong>Not to be solved by weakening the assertion silently</strong> — it is one of the money invariants, and the concurrency fixture only sets zero totals because it is a fixture</span>
+      </li>
+      <li class="task" data-id="E21-27" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-27"></button>
+        <code class="tid">E21-27</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>meal_packs.manage</code>, platform scope only, and offers are not readable by parents at all.</strong> Andy: *&quot;Only I can create or see offers. A new permission at platform scope only. Not kitchen, not support, not a school-scoped grant.&quot;* <code>valid_scope_types = &#39;{platform}&#39;</code> is the enforcement — <code>grant_permission</code> refuses anything else, asserted for both school and kitchen scope. The design tightened while writing the tests: the first draft gave offers an <code>anon, authenticated</code> browse policy mirroring the menu, and <code>[AUTH-01]</code> refused it — <code>anon</code> policies are restricted to menu tables and <code>break_time</code>, and widening that list for a <strong>money</strong> surface is the kind of exception that stops a rule meaning anything. So there is now <strong>no customer-plane policy on the offer tables at all</strong>; parents reach offers through <code>meal_pack_offers_for_school()</code>, a <code>security definer</code> function that applies the school gate itself. With a table policy the app decides what to ask for and the database checks it is allowed; with a function the <strong>database decides what exists</strong> for that school, and there is no query the app can write to see more</span>
+      </li>
+      <li class="task" data-id="E21-28" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-28"></button>
+        <code class="tid">E21-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Default off, everywhere, and provable.</strong> <code>meal_packs_available_at(school)</code> needs an <strong>active offer AND an enabled school row</strong>, and absence of a row is off — so a school onboarded tomorrow sells nothing until someone says otherwise. Five assertions cover the states individually: no row, enabled-school-but-inactive-offer, both true, the other school unaffected, and a school explicitly switched off while the offer stays live elsewhere. Mutation-checked by replacing the function with <code>select true</code>, which fails four of them</span>
+      </li>
+      <li class="task" data-id="E21-29" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-29"></button>
+        <code class="tid">E21-29</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The kitchen sees nothing pack-related, ever.</strong> Asserted structurally rather than by reading a screen, because a screen test only covers the screens that exist today: no permissive policy on any pack table reaches anyone but the owning parent, none of them names a kitchen or a back-office permission, and <strong><code>order</code> and <code>order_line</code> carry no pack column at all</strong> — the kitchen board cannot render what it cannot read. Mutation-checked by adding a back-office read policy on <code>meal_pack</code>, which fails both <code>authorization.test.sql</code> and <code>meal_packs.test.sql</code> independently</span>
+      </li>
+      <li class="task" data-id="E21-30" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-30"></button>
+        <code class="tid">E21-30</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The guards the pack work broke, fixed by completing them rather than adjusting numbers.</strong> Four existing suites failed, each doing exactly its job. <code>ledger.test.sql</code> and <code>payments_schema.test.sql</code> compare the chart of accounts and the reason-code vocabulary against <code>docs/payments-design.md</code> §10 — so §10 gained rows 12–15 (sale, redemption, return, expiry, in both tax modes) before the lists were touched. The nightly <code>assert_ledger_integrity</code> keeps its <strong>own</strong> copy of the account-type-to-normal-balance mapping *on purpose* — it exists to catch the constraint being dropped — so <code>0068</code> taught the constraint and not the check, and the nightly job reported two perfectly correct accounts as broken. <code>0070</code> teaches both. <code>authorization.test.sql</code> needed the five new tables <strong>classified</strong>, not counted around: three class 1 (own-rows-only) and two class 2 whose back-office read is platform scope only</span>
       </li></ul>
       </details>
     </article>

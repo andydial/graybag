@@ -100,14 +100,14 @@ function seedPack(meals) {
                   net_price_paise, alacarte_reference_paise, validity_days, is_active)
                select 'E21 race pack', ${meals}, 2, cat.id, 100000, 120000, 60, true
                  from cat returning id),
+         -- A REAL pack purchase now that 0070 exists: kind = meal_pack_purchase, totals equal
+         -- the pack's price, no member orders. Before 0070 this was impossible and the fixture
+         -- had to use zero totals; the guard added there rejects that, which is the guard working.
          og as (insert into order_group
-                  (customer_user_id, idempotency_key, status, city_id,
+                  (customer_user_id, idempotency_key, status, city_id, kind,
                    subtotal_paise, tax_total_paise, payable_paise)
-                -- Zero totals ON PURPOSE. assert_order_group_totals requires a group's totals to
-                -- equal the sum of its member orders, and a pack purchase has no member food
-                -- orders. That mismatch is a real design gap (E21-26) and NOT this test's
-                -- subject; here the group exists only to satisfy the foreign key.
-                select u.id, 'e21-race-' || gen_random_uuid(), 'paid', c.id, 0, 0, 0 from u, c
+                select u.id, 'e21-race-' || gen_random_uuid(), 'paid', c.id, 'meal_pack_purchase',
+                       100000, 5000, 105000 from u, c
                 returning id, customer_user_id)
     insert into meal_pack
       (customer_user_id, offer_id, order_group_id, meals_total, meals_remaining,

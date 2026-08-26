@@ -1033,6 +1033,37 @@ Double-entry (`[DM-03]`), every transaction summing to zero (I10). Worked at ₹
 | 10 | Wallet hold reversed (checkout died) | reversal of #1 | | `wallet_hold_reversal` |
 | 11 | Payout paid | `school:<id>:payable` | `platform:bank` | `payout` |
 
+### Meal packs — `E21`
+
+A pack sale is **money in for food not yet served**, so it is not revenue when it is taken. It
+credits a liability, and revenue is recognised only when a meal is actually spent. Counting it at
+sale *and* at redemption is the double-count Andy asked to be made impossible.
+
+Worked at a ₹3,000 pack of 10 meals, GST-exclusive at 5%, with `tax_point = 'sale'`:
+
+| # | When | Debit | Credit | `reason_code` |
+|---|---|---|---|---|
+| 12 | Pack sold (`tax_point = sale`) | `provider:razorpay:clearing` 315000 | `platform:deferred_revenue:meal_packs` 300000, `platform:tax_payable:cgst` 7500, `platform:tax_payable:sgst` 7500 | `meal_pack_sale` |
+| 12b | Pack sold (`tax_point = redemption`) | `provider:razorpay:clearing` 315000 | `platform:deferred_revenue:meal_packs` 300000, `platform:deferred_tax:meal_packs` 15000 | `meal_pack_sale` |
+| 13 | Meal redeemed (`tax_point = sale`) | `platform:deferred_revenue:meal_packs` 30000 | `platform:revenue` 30000 | `meal_pack_redemption` |
+| 13b | Meal redeemed (`tax_point = redemption`) | `platform:deferred_revenue:meal_packs` 30000, `platform:deferred_tax:meal_packs` 1500 | `platform:revenue` 30000, `platform:tax_payable:cgst` 750, `platform:tax_payable:sgst` 750 | `meal_pack_redemption` |
+| 14 | Pack-paid order cancelled before cutoff | `platform:revenue` 30000 | `platform:deferred_revenue:meal_packs` 30000 | `meal_pack_return` |
+| 15 | Unused meals expire (breakage) | `platform:deferred_revenue:meal_packs` *balance* | `platform:revenue:breakage` *balance* | `meal_pack_expiry` |
+
+- **The tax legs follow the pack's STAMPED `tax_point`, never the live config.** `meal_pack.tax_point`
+  is written at sale, so flipping `platform_config.pack_tax_point` changes future sales and never
+  rewrites packs already sold and invoiced (`E21-22`).
+- **#14 reverses #13 exactly**, and `meals_remaining` increments in the same transaction. The
+  ledger and the balance move together or neither moves.
+- **The per-meal amount is computed, not stamped.** `pack_liability_paise(net, remaining, total)`
+  floors by proportion, so the amounts telescope to the pack price exactly with no remainder to
+  lose. `meals_remaining` is a count and cannot say *which* meals are left, which is why a stamped
+  per-meal value has no well-defined sum (`E21`, amendment 3).
+- **The invariant.** At any instant the balance of `platform:deferred_revenue:meal_packs` equals
+  `sum(pack_liability_paise(net_price_paise, meals_remaining, meals_total))` over live packs, and
+  likewise for deferred tax. `check_meal_pack_ledger_invariant()` returns both legs; under
+  `tax_point = 'sale'` the tax leg asserts zero on **both** sides rather than being skipped.
+
 Notes on the shape:
 
 - **#1 is a hold, not revenue.** The sale is not recognised until capture, which is why the

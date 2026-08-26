@@ -90,8 +90,8 @@ create table meal_pack_offer_school (
 
 comment on table meal_pack_offer_school is
   'Which schools are offered which packs (E21). No row means NOT OFFERED — the default is off, so '
-  'a school added tomorrow is not silently selling packs. The app renders a designed state for '
-  'this ("Meal packs aren''t offered at this school"), not an empty list.';
+  'a school added tomorrow is not silently selling packs. When this is off the app renders NO '
+  'pack surface at all — not a tab, not a menu entry, not an empty state (E21-28).';
 
 -- ---------------------------------------------------------------------------------------------
 -- A pack a parent OWNS.
@@ -370,31 +370,33 @@ alter table meal_pack               enable row level security;
 alter table meal_pack_redemption    enable row level security;
 alter table meal_pack_plan          enable row level security;
 
--- Offers are browsable by anyone, signed in or not, exactly like the menu — a parent deciding
--- whether to sign up should be able to see what a pack costs. `E02-33`: both roles, or a signed-in
--- parent sees nothing.
-create policy anon_meal_pack_offer_active on meal_pack_offer
-  for select to anon, authenticated
-  using (is_active);
-
-create policy anon_meal_pack_offer_school_enabled on meal_pack_offer_school
-  for select to anon, authenticated
-  using (is_enabled);
+-- **No customer-plane policy on the offer tables at all**, and that is deliberate.
+--
+-- The first draft gave them `to anon, authenticated using (is_active)`, mirroring the menu. Two
+-- things ruled it out. `[AUTH-01]` restricts `anon` policies to menu tables and `break_time`, and
+-- widening that list for a money surface is exactly the kind of exception that stops the rule
+-- meaning anything. And Andy, 2026-08-26: *"Only I can create or see offers."*
+--
+-- A parent still has to see a pack to buy one, so offers reach the app through
+-- `meal_pack_offers_for_school` (`0070`) — a `security definer` function that applies the school
+-- gate itself. The difference matters: with a table policy the app decides what to ask for and the
+-- database only checks it is allowed; with a function the DATABASE decides what exists for that
+-- school, and there is no query the app can write to see more.
 
 -- A parent reads their own packs and nobody else's.
 create policy meal_pack_read_own on meal_pack
   for select to authenticated
-  using (customer_user_id = auth.uid());
+  using (customer_user_id = (select auth.uid()));
 
 create policy meal_pack_redemption_read_own on meal_pack_redemption
   for select to authenticated
   using (exists (select 1 from meal_pack mp
                   where mp.id = meal_pack_redemption.meal_pack_id
-                    and mp.customer_user_id = auth.uid()));
+                    and mp.customer_user_id = (select auth.uid())));
 
 create policy meal_pack_plan_read_own on meal_pack_plan
   for select to authenticated
-  using (customer_user_id = auth.uid());
+  using (customer_user_id = (select auth.uid()));
 
 -- Writes go through Edge Functions on the service role (non-negotiable #1), so there is
 -- deliberately NO insert/update/delete policy for `authenticated` on any of these tables. A

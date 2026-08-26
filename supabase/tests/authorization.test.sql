@@ -1001,9 +1001,20 @@ select set_eq(
     -- `kitchen.edit` check, like every other back-office write. There is no parent-facing policy
     -- of any kind — this table holds staff addresses and a customer has no business reading who
     -- is alerted about their order.
-    ('kitchen_alert_recipient.kitchen_alert_recipient_read_admin')
+    ('kitchen_alert_recipient.kitchen_alert_recipient_read_admin'),
+    -- `0068` / `0070` (E21). Three own-rows-only customer reads: a parent sees their own pack,
+    -- their own redemptions and their own plan submissions. Nothing here is readable by a
+    -- kitchen, by support, or by another parent.
+    ('meal_pack.meal_pack_read_own'),
+    ('meal_pack_redemption.meal_pack_redemption_read_own'),
+    ('meal_pack_plan.meal_pack_plan_read_own'),
+    -- The two back-office reads, gated on `meal_packs.manage` at PLATFORM scope only. There is
+    -- deliberately no customer-plane counterpart: offers reach parents through
+    -- `meal_pack_offers_for_school()`, so no policy on these tables faces a parent at all.
+    ('meal_pack_offer.meal_pack_offer_read_backoffice'),
+    ('meal_pack_offer_school.meal_pack_offer_school_read_backoffice')
   $$,
-  '§12 item 5: the set of permissive policies in public is EXACTLY the 152 in §7 of the authorization model plus [AUTH-01]''s twelve, 0027''s break_time and 0066''s kitchen_alert_recipient');
+  '§12 item 5: the set of permissive policies in public is EXACTLY the 152 in §7 of the authorization model plus [AUTH-01]''s twelve, 0027''s break_time, 0066''s kitchen_alert_recipient and E21''s five meal-pack policies');
 
 -- §5 Rule 5. Restrictive, so it ANDs with everything else and cannot be defeated by
 -- adding a permissive policy later. This is what makes "account deletion stops
@@ -1022,18 +1033,27 @@ select set_eq(
     ('policy_document'), ('policy_version'), ('consent_purpose'),
     ('user_policy_acceptance'), ('consent_record'), ('data_subject_request'),
     ('device_token'), ('notification_preference'), ('notification_delivery'),
-    ('permission_grant')
+    ('permission_grant'),
+    -- Added by `0068` (E21). All three are customer-plane: a parent reads their own pack, their
+    -- own redemptions and their own plan submissions, and nobody else reads any of them. A dead
+    -- account must lose a prepaid balance's visibility exactly as it loses an order's.
+    ('meal_pack'), ('meal_pack_redemption'), ('meal_pack_plan')
   $$,
-  '§5 Rule 5: deny_dead_accounts is restrictive-applied to exactly the 39 tables carrying a customer-plane policy');
+  '§5 Rule 5: deny_dead_accounts is restrictive-applied to exactly the 42 tables carrying a customer-plane policy');
 
 select is_empty($$ select tablename || '.' || policyname from pg_policies
                     where schemaname = 'public' and permissive = 'RESTRICTIVE'
                       and policyname <> 'deny_dead_accounts' $$,
                 '§5 Rule 5: deny_dead_accounts is the only restrictive policy in the schema');
 
-select is((select count(*)::int from pg_policies where schemaname = 'public'), 193,
-          '§12 item 5: 193 policies in public — 154 permissive (140 from §7 + [AUTH-01]''s 12 + 0027''s break_time '
-          '+ 0066''s kitchen_alert_recipient) + 39 restrictive');
+select is((select count(*)::int from pg_policies where schemaname = 'public'), 201,
+          '§12 item 5: 201 policies in public — 159 permissive (140 from §7 + [AUTH-01]''s 12 + 0027''s break_time '
+          '+ 0066''s kitchen_alert_recipient + E21''s 5) + 42 restrictive. E21 adds three '
+          'customer-plane reads (meal_pack, meal_pack_redemption, meal_pack_plan — each own-rows-only) '
+          'and two back-office reads on the offer tables under meal_packs.manage at PLATFORM scope. '
+          'It adds NO anon policy and no customer policy on the offer tables at all: parents reach '
+          'offers through meal_pack_offers_for_school(), so the database decides what exists for a '
+          'school rather than checking what the app asked for');
 
 -- Catches a table added to the schema without being classified in §8 at all.
 select set_eq(
@@ -1062,15 +1082,24 @@ select set_eq(
     -- `ops_alert` or `enquiry`, where service_role is the only intended reader. No customer
     -- policy exists, so a parent cannot see who is alerted about their order, and there is no
     -- write policy at all: writes go through `admin-alert-recipients`.
-    ('kitchen_alert_recipient')
+    ('kitchen_alert_recipient'),
+    -- Added by `0068` (E21). `meal_pack`, `meal_pack_redemption` and `meal_pack_plan` are
+    -- **class 1** — own-rows-only for a parent, nothing back-office, writes via Edge Functions.
+    -- `meal_pack_offer` and `meal_pack_offer_school` are **class 2** with a deliberate twist:
+    -- the back office reads them under `meal_packs.manage` at platform scope, and there is no
+    -- customer policy at all, because offers reach parents through a security definer function.
+    ('meal_pack'), ('meal_pack_redemption'), ('meal_pack_plan'),
+    ('meal_pack_offer'), ('meal_pack_offer_school')
   $$,
-  '§8: public contains exactly the 65 tables the matrix classifies — a new table must be added to the matrix. '
+  '§8: public contains exactly the 70 tables the matrix classifies — a new table must be added to the matrix. '
   '61 -> 62: ops_alert (E06-39), which is class 3 by the strictest reading — no persona may read or write it, '
   'because it names payment ids and failure counts and service_role (which bypasses RLS) is the only intended reader. '
   '62 -> 64: enquiry and enquiry_rate (E12-15), class 3 for the same reason — an enquiry names a member of staff '
   'at a school and carries their direct line. '
   '64 -> 65: kitchen_alert_recipient (E08-16), class 2 — the back office reads it under kitchen.edit, no customer '
-  'policy exists, and writes go through an Edge Function');
+  'policy exists, and writes go through an Edge Function. '
+  '65 -> 70: the five E21 meal-pack tables — three class 1 (own-rows-only) and two class 2 whose '
+  'back-office read is PLATFORM scope only, with no customer policy at all');
 
 
 -- =============================================================================

@@ -3164,3 +3164,42 @@ in a codebase that takes money.
 Second-order lesson: step 1's result was *plausible* on its own. "The guard is redundant with the
 constraint" is a believable story, and stopping there would have left the real bug in place. Keep
 removing protections until the test fails, or you have not found its floor.
+
+## A guard that keeps its own copy of a rule must be taught twice — 2026-08-26
+
+`0068` added two ledger account types and extended
+`ledger_account_normal_balance_matches_type` to accept them. `ledger.test.sql` then failed:
+the nightly `assert_ledger_integrity` reported two perfectly correct accounts as broken.
+
+The cause is deliberate design, not an oversight. `assert_ledger_integrity` carries its **own**
+copy of the account-type-to-normal-balance mapping *because* it exists to catch the constraint
+having been dropped — reading the constraint would defeat the entire point of the check. The
+price of that independence is that a new account type has to be taught to both, and nothing
+enforces the pairing.
+
+Generalises past the ledger: **whenever a backstop deliberately duplicates a rule rather than
+referencing it, adding to the rule is a two-place change.** Write the second place into the same
+commit, because the failure surfaces as a nightly job calling healthy data broken, which is the
+alarm nobody trusts after the second false positive.
+
+Related, from the same afternoon: four existing suites broke when meal packs landed, and every
+one was right to. The fix in each case was to *complete* the guard — add the postings to
+`docs/payments-design.md` §10 before touching the lists that check against it, classify the five
+new tables in the authorization matrix rather than adjusting a count — never to relax it. A count
+assertion edited to make a suite pass is how a matrix stops describing the schema.
+
+## Design pressure from a test is worth listening to — 2026-08-26
+
+`E21`'s first draft gave meal-pack offers an `anon, authenticated` browse policy, mirroring the
+menu: a parent deciding whether to sign up should be able to see what a pack costs. Reasonable,
+and `[AUTH-01]` refused it — `anon` policies are restricted to menu tables and `break_time`.
+
+The easy move was to widen that list by two. The right move was to notice what the rule was
+saying: this is a **money** surface, and Andy's requirement was *"only I can create or see
+offers."*
+
+So the offer tables ended up with **no customer-plane policy at all**, and parents reach offers
+through a `security definer` function that applies the school gate itself. The difference is not
+cosmetic. With a table policy the app decides what to ask for and the database only checks the
+request is permitted; with a function the **database decides what exists**, and there is no query
+the app can write to see more. The stricter design is also the simpler one to prove.
