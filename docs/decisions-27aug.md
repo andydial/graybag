@@ -475,3 +475,34 @@ a 000 or a 5xx there is what would matter.
 I could not invoke `ops-heartbeat` itself, which is the deeper check: it needs a secret this shell
 does not hold, and that is by design. So this is reachability, not the full probe. If the outage
 runs long, the heartbeat is the thing to run manually, and the Actions workflow shows exactly how.
+
+---
+
+## 10. Built the menu write path, did not wire the buttons
+
+Decision 6 said I would not write the menu-create/duplicate function tonight, on the grounds that
+a duplicate inheriting its source's school assignments is an order-path consequence and I did not
+want to decide that at 3am. Revisited, because on inspection **the decision was already clear** —
+I had articulated it in the same breath as deferring it. A duplicate must never carry assignments,
+for a reason that is checkable rather than a matter of taste: `create_checkout` resolves a school's
+menu through `menu_assignment`, so two live rows for one school is an order path picking one of
+them silently.
+
+So the write path is built, with that rule enforced in three places — an explicit copied-field
+list, a `copiedAssignments: 0` in the response, and a test that fails if any school or assignment
+column joins the list.
+
+Two smaller things settled themselves along the way:
+
+- **A new menu is a draft**, which I had listed as a question for Andy. `menu.status` is `not null
+  default 'draft'` in `0001` — the schema decided it in January. Neither path sends a status, so
+  the column stays the only place that says so.
+- **A failed item copy deletes its own menu.** Two PostgREST calls are not a transaction, and a
+  half-copied menu that looks finished is worse than nothing. Deleting is safe here specifically
+  because the row is seconds old, unassigned, and unreferenced by any order.
+
+**The buttons are deliberately not wired.** The function has not been deployed, and cannot be
+while Actions is down, so it has never run. A button that calls an undeployed function is precisely
+the dead control `E10-50` was written to avoid — the prototype's own `alert('Prototype')`, with
+extra steps. The task stays open for that last commit: deploy, exercise it on staging with a real
+session, then add New menu and Duplicate to the screen.
