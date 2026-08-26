@@ -109,6 +109,16 @@ import '../styles/admin.css';
           <button class="kitchen__btn" id="r-export" type="button">Download CSV</button>
         </div>
 
+        <!--
+          The range and filter, in words, visible — the prototype's `resultline` (`E11-17`).
+
+          It was previously only in the `aria-live` region, which is to say only somebody using a
+          screen reader was told what they were looking at. It is also the fix for the complaint
+          that started this screen's rebuild: when every range returns the same rows, a sentence
+          that changes is the only proof the control did anything.
+        -->
+        <p class="rctl__line" id="r-line"></p>
+
         <div id="r-body"></div>
       </main>
     </div>
@@ -117,7 +127,8 @@ import '../styles/admin.css';
       import { mountNav } from '../lib/backoffice/nav-mount.js';
       import { api, money } from '@graybag/shared';
       import { csvFilename, downloadCsv, reportToCsv } from '../lib/admin/csv-export.js';
-      import { funnelForCohort } from '../lib/admin/growth.js';
+      import { funnelForCohort, usageInRange } from '../lib/admin/growth.js';
+      import type { FunnelOrder } from '../lib/admin/growth.js';
       import { area, columns } from '../lib/admin/chart.js';
       import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
       import { serviceDateToday } from '../lib/kitchen/view.js';
@@ -129,7 +140,7 @@ import '../styles/admin.css';
         body: $('r-body'), status: $('r-status'), reload: $<HTMLButtonElement>('r-reload'),
         from: $<HTMLInputElement>('r-from'), to: $<HTMLInputElement>('r-to'),
         by: $<HTMLSelectElement>('r-by'), school: $<HTMLSelectElement>('r-school'),
-        exportBtn: $<HTMLButtonElement>('r-export'),
+        exportBtn: $<HTMLButtonElement>('r-export'), line: $('r-line'),
       };
       const esc = (s: string) =>
         String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -139,6 +150,14 @@ import '../styles/admin.css';
       let rows: api.ReportRow[] = [];
       /** The cohort funnel for the range — `E11-16`. Null until the read succeeds. */
       let funnel: ReturnType<typeof funnelForCohort> | null = null;
+      /**
+       * The orders behind the usage block — `E11-17`.
+       *
+       * Kept raw rather than pre-aggregated, because the school filter applies on render and
+       * re-aggregating from these is instant while re-fetching would make a dropdown hit the
+       * network. Empty when the growth read was refused, which is a state the render handles.
+       */
+      let growthOrders: FunnelOrder[] = [];
       let loading = true;
       let error: string | null = null;
 
@@ -156,6 +175,22 @@ import '../styles/admin.css';
           return `${Number(d)} ${(MONTHS[Number(m) - 1] ?? '').slice(0, 3)}`;
         }
         return key;
+      }
+
+      /**
+       * "20–26 August 2026", or "28 July – 26 August 2026" across a boundary — `E11-17`.
+       *
+       * The prototype's result line, in words rather than as two ISO dates. The month is written
+       * once when both ends share it, because "20 August 2026 – 26 August 2026" is the same fact
+       * said twice and reads as a longer range than it is.
+       */
+      function rangeWords(from: string, to: string): string {
+        const [fy, fm, fd] = from.split('-').map(Number) as [number, number, number];
+        const [ty, tm, td] = to.split('-').map(Number) as [number, number, number];
+        const name = (m: number) => MONTHS[m - 1] ?? '';
+        if (fy === ty && fm === tm) return `${fd}–${td} ${name(tm)} ${ty}`;
+        if (fy === ty) return `${fd} ${name(fm)} – ${td} ${name(tm)} ${ty}`;
+        return `${fd} ${name(fm)} ${fy} – ${td} ${name(tm)} ${ty}`;
       }
 
       /**
@@ -200,6 +235,7 @@ import '../styles/admin.css';
               GROWTH_FIXTURE.users, GROWTH_FIXTURE.links, GROWTH_FIXTURE.children,
               GROWTH_FIXTURE.orders, REPORTS_FIXTURE.from, REPORTS_FIXTURE.to,
             );
+            growthOrders = [...GROWTH_FIXTURE.orders];
           } else {
             configureBackofficeApi();
             /*
@@ -220,6 +256,7 @@ import '../styles/admin.css';
                   growthData.orders, el.from.value, el.to.value,
                 )
               : null;
+            growthOrders = growthData ? growthData.orders : [];
           }
 
           // The filter is rebuilt from the rows in range, so it never offers a school with
@@ -244,6 +281,53 @@ import '../styles/admin.css';
         `<p class="gstat__n">${esc(value)}</p><p class="gstat__l">${esc(label)}</p>` +
         (note ? `<p class="gstat__note">${esc(note)}</p>` : '') + `</div>`;
 
+      /**
+       * The per-school breakdown, always on — `E11-17`.
+       *
+       * It used to appear only when "Group by" was set to School, which made the one thing Andy
+       * asks of this screen most often — *"which school is actually ordering"* — a thing you had
+       * to know to go looking for. The prototype shows it unconditionally, under its own heading,
+       * beneath whatever grouping is selected above. Same rows, folded a second way; the totals
+       * cannot disagree with the table above because both come from `visible`.
+       *
+       * Hidden only when a single school is selected, where it would be one row repeating the
+       * headline.
+       */
+      function perSchoolSection(
+        visible: api.ReportRow[], usage: ReturnType<typeof usageInRange>, schoolId: string | null,
+      ): string {
+        if (schoolId) return '';
+        const schools = api.groupRows(visible, 'school');
+        if (schools.length < 2) return '';
+
+        const row = (b: api.Bucket) => {
+          const paid = b.orders - b.cancelled - b.pending;
+          const active = usage.bySchool.get(b.key) ?? 0;
+          return `<tr>` +
+            `<th scope="row">${esc(b.label)}</th>` +
+            `<td class="otable__num">${paid || '—'}</td>` +
+            `<td class="otable__num">${esc(rupees(b.netPaise))}</td>` +
+            `<td class="otable__num">${paid > 0 ? esc(rupees(Math.round(b.netPaise / paid))) : '—'}</td>` +
+            // A dash rather than 0 when the growth read was refused — see the Usage note.
+            `<td class="otable__num">${growthOrders.length === 0 ? '—' : active || '—'}</td>` +
+          `</tr>`;
+        };
+
+        return `<section class="admin__section" aria-labelledby="sch-h">` +
+          `<h2 id="sch-h">By school</h2>` +
+          `<table class="otable">` +
+            `<thead><tr>` +
+              `<th scope="col">School</th><th scope="col">Paid orders</th>` +
+              `<th scope="col">Net</th><th scope="col">Average order</th>` +
+              `<th scope="col">Parents who ordered</th>` +
+            `</tr></thead>` +
+            // Sorted by what was earned. A school table ordered by name buries the answer to the
+            // only question it is opened to answer.
+            `<tbody>${[...schools].sort((a, b) => b.netPaise - a.netPaise).map(row).join('')}</tbody>` +
+          `</table>` +
+        `</section>`;
+      }
+
       function render() {
         if (loading) {
           el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
@@ -266,11 +350,21 @@ import '../styles/admin.css';
         }
 
         const by = el.by.value as api.GroupBy;
+        const schoolId = el.school.value || null;
         // Filtered on the rows, before grouping, so every view and the export agree without each
         // having to remember to do it.
-        const visible = api.forSchool(rows, el.school.value || null);
+        const visible = api.forSchool(rows, schoolId);
         const buckets = api.groupRows(visible, by);
         const t = api.totalOf(buckets);
+        const paidOrders = t.orders - t.cancelled - t.pending;
+
+        // Same range, same filter, same service-date basis as the money above — see `usageInRange`.
+        const usage = usageInRange(growthOrders, el.from.value, el.to.value, schoolId);
+
+        const chosenSchool = api.schoolsIn(rows).find((sc) => sc.id === schoolId);
+        el.line.textContent =
+          `${rangeWords(el.from.value, el.to.value)} · ` +
+          `${chosenSchool ? chosenSchool.name : 'all schools'}`;
 
         el.status.textContent =
           `${t.orders} orders, ${rupees(t.netPaise)} net, across ${buckets.length} ${by}s.`;
@@ -309,7 +403,13 @@ import '../styles/admin.css';
         el.body.innerHTML =
           `<div class="gstats">` +
             stat(rupees(t.netPaise), 'Net revenue', `${rupees(t.grossPaise)} gross`) +
-            stat(String(t.orders - t.cancelled - t.pending), 'Paid orders', `${t.orders} placed in total`) +
+            stat(String(paidOrders), 'Paid orders', `${t.orders} placed in total`) +
+            // The prototype's fourth money card. Over **paid** orders only — dividing by every
+            // order placed would quietly shrink the average every time somebody abandoned a cart.
+            stat(
+              paidOrders > 0 ? rupees(Math.round(t.netPaise / paidOrders)) : '—',
+              'Average order', paidOrders > 0 ? 'net, over paid orders' : 'nothing paid in this range',
+            ) +
             stat(rupees(t.taxPaise), 'GST collected', 'CGST + SGST, 5%') +
             stat(String(t.cancelled), 'Cancelled', t.refundedPaise > 0 ? `${rupees(t.refundedPaise)} refunded` : 'nothing refunded') +
             stat(String(t.pending), 'Unpaid', rupees(t.pendingPaise), t.pending > 0 ? 'warn' : '') +
@@ -326,6 +426,58 @@ import '../styles/admin.css';
           `</section>` +
 
           pendingChart +
+
+          perSchoolSection(visible, usage, schoolId) +
+
+          `<section class="admin__section" aria-labelledby="use-h">` +
+            `<h2 id="use-h">Usage</h2>` +
+            `<p class="admin__section-note">` +
+              `Whether the families we already have keep ordering — a different question from the ` +
+              `funnel below, and a product can look healthy on one while dying on the other. ` +
+              `Counted on the same paid orders and the same service dates as the money above.` +
+            `</p>` +
+            `<div class="gstats">` +
+              stat(String(usage.activeParents), 'Parents who ordered',
+                usage.activeParents === 1 ? 'in this range' : 'distinct, in this range') +
+              stat(usage.activeParents > 0 ? usage.ordersPerParent.toFixed(1) : '—',
+                'Orders per parent', 'paid orders ÷ parents who ordered') +
+              stat(
+                usage.repeatRate === null ? '—' : String(usage.repeatParents),
+                'Ordered more than once',
+                usage.repeatRate === null
+                  ? 'nobody ordered in this range'
+                  : `of ${usage.activeParents} who ordered`,
+              ) +
+            `</div>` +
+            (growthOrders.length === 0
+              // Said rather than shown as zeros: three dashes with no explanation reads as "nobody
+              // is using it", which is a very different message from "this account cannot see it".
+              ? `<p class="admin__hint">Usage needs <b>users.view</b> as well as ` +
+                `<b>reports.view</b>. The revenue above does not, which is why it is still here.</p>`
+              : usage.paidOrders !== paidOrders && !demo
+              /*
+               * The two halves of this screen come from two reads — `fetchMonthlyRevenue`, which
+               * filters by service date in the database, and `fetchGrowth`, which reads orders
+               * unpaginated and is filtered here. They count the same paid orders on the same
+               * dates, so they must agree, and the day they stop agreeing is the day the growth
+               * read starts truncating.
+               *
+               * That failure is silent by nature: revenue stays correct and usage quietly shrinks
+               * beside it. Saying so is worth more than a plausible number — the whole reason
+               * `E11-10` existed was a screen whose figures contradicted each other.
+               *
+               * Exempt in the demo, where the two fixtures are deliberately independent datasets
+               * and disagreeing is what they are supposed to do.
+               */
+              ? `<p class="admin__hint admin__hint--warn">These counts are built from a second ` +
+                `read that found <b>${usage.paidOrders}</b> paid orders where the revenue above ` +
+                `found <b>${paidOrders}</b>. They should be identical. Treat the parent counts as ` +
+                `a floor and tell Andy — this usually means the order read is being truncated.</p>`
+              : `<p class="admin__hint">A parent who ordered before this range and again inside ` +
+                `it counts here as one order, not a repeat. That understates loyalty, and it is ` +
+                `the right direction to be wrong in — the alternative reads all-time history into ` +
+                `a seven-day window and reports a repeat rate that can never fall.</p>`) +
+          `</section>` +
 
           (funnel && funnel.cohort > 0
             ? `<section class="admin__section" aria-labelledby="fn-h">` +
@@ -345,7 +497,14 @@ import '../styles/admin.css';
                         `<span class="fnl__top">` +
                           `<b class="fnl__n">${f.reached}</b>` +
                           `<span class="fnl__label">${esc(f.label)}</span>` +
-                          (f.rate !== null ? `<span class="fnl__rate">${Math.round(f.rate * 100)}% of the step before</span>` : '') +
+                          /*
+                           * **No percentage here — `E11-17`.** The prototype states the reason
+                           * and it wins where it and this screen disagree: "4 of 13 is a fact,
+                           * 31% is a claim about a pattern that isn't there yet." At production's
+                           * current volume one more parent moves the rate by eight points, and a
+                           * number that swings that hard invites conclusions the data cannot
+                           * carry. `FunnelStep.rate` still exists; nothing renders it.
+                           */
                         `</span>` +
                         `<span class="fnl__lost">` +
                           (f.lost > 0 ? `<b>${f.lost}</b> stopped here. ` : '') + esc(f.action) +

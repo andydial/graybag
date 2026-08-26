@@ -53,15 +53,22 @@ export const GROWTH_FIXTURE = {
    * ordered, 2 of those ordered twice, and one of the repeat orders is recent enough to count as
    * active.
    */
+  /*
+   * `serviceDate` and `schoolId` are on every row from `E11-17`, because Reports now draws its
+   * usage block from these orders and buckets on the service date. The school ids are the ones
+   * `REPORTS_FIXTURE` uses — a demo whose two halves name different schools shows a per-school
+   * table with an empty column, which is exactly the bug the real screen must not have.
+   */
   orders: [
-    { customerUserId: 'demo-u1', placedAt: '2026-08-06T09:00:00Z', status: 'delivered', totalPaise: 12600 },
-    { customerUserId: 'demo-u1', placedAt: '2026-08-19T09:00:00Z', status: 'paid', totalPaise: 12600 },
-    { customerUserId: 'demo-u2', placedAt: '2026-08-12T09:00:00Z', status: 'delivered', totalPaise: 10500 },
-    { customerUserId: 'demo-u3', placedAt: '2026-08-13T09:00:00Z', status: 'delivered', totalPaise: 14000 },
-    { customerUserId: 'demo-u3', placedAt: '2026-08-18T09:00:00Z', status: 'paid', totalPaise: 14000 },
-    { customerUserId: 'demo-u5', placedAt: '2026-08-20T09:00:00Z', status: 'paid', totalPaise: 9800 },
-    // Unpaid — reached checkout and never bought. Must NOT count as a conversion.
-    { customerUserId: 'demo-u9', placedAt: '2026-08-19T09:00:00Z', status: 'pending_payment', totalPaise: 11000 },
+    { customerUserId: 'demo-u1', placedAt: '2026-08-06T09:00:00Z', serviceDate: '2026-08-12', schoolId: 'demo-1', status: 'delivered', totalPaise: 12600 },
+    { customerUserId: 'demo-u1', placedAt: '2026-08-19T09:00:00Z', serviceDate: '2026-08-15', schoolId: 'demo-1', status: 'paid', totalPaise: 12600 },
+    { customerUserId: 'demo-u2', placedAt: '2026-08-12T09:00:00Z', serviceDate: '2026-08-13', schoolId: 'demo-1', status: 'delivered', totalPaise: 10500 },
+    { customerUserId: 'demo-u3', placedAt: '2026-08-13T09:00:00Z', serviceDate: '2026-08-13', schoolId: 'demo-2', status: 'delivered', totalPaise: 14000 },
+    { customerUserId: 'demo-u3', placedAt: '2026-08-18T09:00:00Z', serviceDate: '2026-08-18', schoolId: 'demo-2', status: 'paid', totalPaise: 14000 },
+    { customerUserId: 'demo-u5', placedAt: '2026-08-20T09:00:00Z', serviceDate: '2026-08-17', schoolId: 'demo-1', status: 'paid', totalPaise: 9800 },
+    // Unpaid — reached checkout and never bought. Must NOT count as a conversion, and must not
+    // appear in usage either: an unpaid order is not a parent using us.
+    { customerUserId: 'demo-u9', placedAt: '2026-08-19T09:00:00Z', serviceDate: '2026-08-17', schoolId: 'demo-1', status: 'pending_payment', totalPaise: 11000 },
   ],
   links: [
     { userId: 'demo-u1', recipientId: 'demo-c1' },

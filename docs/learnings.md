@@ -3111,3 +3111,33 @@ that cannot fail is not a verification, so give it something that must be presen
 that must be absent. Second, the modules I actually cared about — the seven new events — were
 correctly present in both bundles, because they were new and therefore could not be cached. The
 cache only lies about the things that did not change, which is exactly the set nobody re-checks.
+
+---
+
+## `sync-state.mjs pull` reverts a tick you just made in the markdown
+
+2026-08-26, during `E11-17`.
+
+`CLAUDE.md` gives the sequence, and it is the right one:
+
+```bash
+node scripts/sync-state.mjs pull   # first
+# ...then mark the finished ids
+node scripts/sync-state.mjs        # then reconcile
+```
+
+I did it in the wrong order — ticked `E11-16` and `E11-17` in the epic file, then ran `pull`.
+`pull` copies **state → markdown**, so both boxes came back unticked, and the reconcile that
+followed reported `0 markdown lines updated` and looked entirely successful. Nothing failed and
+nothing warned; the work was simply recorded as not done.
+
+The trap is that `pull` and the bare command read almost the same in a shell history, and only one
+of them has a direction. Two things make it survivable:
+
+- **`planning/backlog-state.json` is the authority.** Mark ids there and the bare `sync-state`
+  pushes them into the markdown. Going the other way only works if nothing pulls afterwards.
+- **Check the tick after syncing**, not before: `grep -o '^- \[.\] `E11-1[6-9]`' <epic>`. It costs
+  a second and it is the only thing that distinguishes "recorded" from "silently reverted".
+
+The general shape is the same one as the CI suite that runs zero tests (`E15-23`): an operation
+that quietly does the opposite of what was intended, while reporting success.
