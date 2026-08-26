@@ -74,46 +74,6 @@ export interface GrowthData {
   orders: GrowthOrder[];
 }
 
-export async function fetchGrowth(): Promise<GrowthData> {
-  const [userRows, childRows, linkRows, orderRows] = await Promise.all([
-    // Soft-deleted accounts are excluded: somebody who deleted their account is not a registration
-    // we still have. `deleted_at` is the DPDP erasure marker (§13.4).
-    runQuery<unknown>((t) => t.from('app_user').select(GROWTH_USER_COLUMNS).is('deleted_at', null)),
-    runQuery<unknown>((t) => t.from('recipient').select(GROWTH_CHILD_COLUMNS).is('deleted_at', null)),
-    // `revoked_at` rather than a delete — links are revoked and kept (`0001`), and a revoked
-    // guardian is no longer a family at that school.
-    runQuery<unknown>((t) => t.from('guardian_link').select(GROWTH_LINK_COLUMNS).is('revoked_at', null)),
-    // Orders, for the conversion half of the funnel. Scoped by `order_read_backoffice`, so this
-    // needs `orders.view` as well as `users.view` — both are checked by RLS, not here.
-    runQuery<unknown>((t) => t.from('order').select(GROWTH_ORDER_COLUMNS)),
-  ]);
-
-  return {
-    users: userRows.filter(isRecord).map((r) => ({
-      id: str(r.id),
-      email: str(r.email) === '' ? null : str(r.email),
-      createdAt: str(r.created_at),
-    })),
-    children: childRows.filter(isRecord).map((r) => ({
-      id: str(r.id),
-      schoolId: str(r.school_id),
-      createdAt: str(r.created_at),
-    })),
-    links: linkRows.filter(isRecord).map((r) => ({
-      userId: str(r.user_id),
-      recipientId: str(r.recipient_id),
-    })),
-    orders: orderRows.filter(isRecord).map((r) => ({
-      customerUserId: str(r.customer_user_id),
-      placedAt: str(r.placed_at),
-      serviceDate: str(r.service_date),
-      status: str(r.status),
-      totalPaise: typeof r.total_paise === 'number' ? r.total_paise : 0,
-      schoolId: str(r.school_id),
-    })),
-  };
-}
-
 /* =============================================================================
    The bounded read behind Reports — `E11-19`
    ============================================================================= */
@@ -165,6 +125,63 @@ function window_(from: string, to: string): { start: string; endExclusive: strin
   return {
     start: `${shift(from, -1)}T00:00:00${IST}`,
     endExclusive: `${shift(to, 2)}T00:00:00${IST}`,
+  };
+}
+
+/**
+ * Every registration there has ever been — and it is unbounded on purpose, up to a point.
+ *
+ * `E11-19` bounded the Reports reads by the range on screen and deliberately left this one alone.
+ * The difference is what the two screens are *about*: Reports answers a question about a window
+ * the reader chose, so reading outside it is waste. Growth answers "how many families have ever
+ * arrived, and how many of them ever ordered", and those are all-time by definition — a cumulative
+ * curve and an adoption count cannot be computed from a slice.
+ *
+ * So the honest fix here is not a date filter, which would change what the numbers mean. It is a
+ * server-side aggregate, and that needs a view or an RPC — DDL this thread does not hold. `E11-24`
+ * carries it.
+ *
+ * What is added meanwhile is the same **loud cap** `fetchReportsGrowth` uses. It does not make the
+ * read cheap; it makes the day it stops being viable a stated failure rather than a screen quietly
+ * reporting a smaller product than exists.
+ */
+export async function fetchGrowth(): Promise<GrowthData> {
+  const [userRows, childRows, linkRows, orderRows] = await Promise.all([
+    // Soft-deleted accounts are excluded: somebody who deleted their account is not a registration
+    // we still have. `deleted_at` is the DPDP erasure marker (§13.4).
+    capped<unknown>('registrations', (t) => t.from('app_user').select(GROWTH_USER_COLUMNS).is('deleted_at', null)),
+    capped<unknown>('children', (t) => t.from('recipient').select(GROWTH_CHILD_COLUMNS).is('deleted_at', null)),
+    // `revoked_at` rather than a delete — links are revoked and kept (`0001`), and a revoked
+    // guardian is no longer a family at that school.
+    capped<unknown>('guardian links', (t) => t.from('guardian_link').select(GROWTH_LINK_COLUMNS).is('revoked_at', null)),
+    // Orders, for the adoption half. Scoped by `order_read_backoffice`, so this needs
+    // `orders.view` as well as `users.view` — both are checked by RLS, not here.
+    capped<unknown>('orders', (t) => t.from('order').select(GROWTH_ORDER_COLUMNS)),
+  ]);
+
+  return {
+    users: userRows.filter(isRecord).map((r) => ({
+      id: str(r.id),
+      email: str(r.email) === '' ? null : str(r.email),
+      createdAt: str(r.created_at),
+    })),
+    children: childRows.filter(isRecord).map((r) => ({
+      id: str(r.id),
+      schoolId: str(r.school_id),
+      createdAt: str(r.created_at),
+    })),
+    links: linkRows.filter(isRecord).map((r) => ({
+      userId: str(r.user_id),
+      recipientId: str(r.recipient_id),
+    })),
+    orders: orderRows.filter(isRecord).map((r) => ({
+      customerUserId: str(r.customer_user_id),
+      placedAt: str(r.placed_at),
+      serviceDate: str(r.service_date),
+      status: str(r.status),
+      totalPaise: typeof r.total_paise === 'number' ? r.total_paise : 0,
+      schoolId: str(r.school_id),
+    })),
   };
 }
 

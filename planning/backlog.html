@@ -4739,13 +4739,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/23</span>
+          <span class="meter-num">0/25</span>
         </div>
       </header>
       <p class="summary">A monthly PDF emailed to each school. Aggregates only, no child-level PII. Designed to sell the benefit of the partnership.</p>
       <p class="deps">Depends on <code>E07</code></p>
       <details>
-        <summary>Context &amp; 23 tasks</summary>
+        <summary>Context &amp; 25 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Decided against a school login portal — the PDF lands in the principal&#39;s inbox instead of waiting to be discovered.</p></div>
         <ul class="tasks">
@@ -4932,6 +4932,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Install base — how many have the app, against how many have signed in.</strong> The one card on the prototype&#39;s Growth that has no source here: *&quot;Play + TestFlight · 13 have signed in&quot;*. Install counts live in the Play Console and App Store Connect, and nothing in this database knows them; the signed-in half we already have. Three ways to get the other half, in increasing order of effort: PostHog already receives an <code>app_opened</code> event from the mobile app, so <strong>distinct devices</strong> is answerable there today and is arguably the more useful number anyway — an install nobody opens is not an install. Otherwise the Play Developer Reporting API and App Store Connect both expose installs, and both need credentials that only Andy holds. Blocked behind the same <code>phx_</code> personal key as the PostHog read on the queue. Do not fake it: a plausible number on that tile is worse than an empty slot, because nobody would ever check it</span>
+      </li>
+      <li class="task" data-id="E11-24" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-24"></button>
+        <code class="tid">E11-24</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The Growth reads are capped, though they cannot be bounded.</strong> <code>E11-19</code> bounded the Reports reads by the range on screen and left <code>fetchGrowth</code> alone with a stated reason. Revisiting it once Growth was rebuilt: <strong>the reason holds, and a date filter would be wrong here.</strong> Reports answers a question about a window the reader chose, so reading outside it is waste. Growth answers *&quot;how many families have ever arrived, and how many of them ever ordered&quot;* — a cumulative curve and an adoption count cannot be computed from a slice, and filtering to make the read cheaper would change what the numbers mean. So all four reads get the same <strong>loud cap</strong> <code>fetchReportsGrowth</code> uses instead. It does not make them cheap. It makes the day they stop being viable a stated failure rather than a screen quietly reporting a smaller product than exists — which is the same failure mode <code>E11-17</code>&#39;s guard was built for, on a screen with no second source to disagree with</span>
+      </li>
+      <li class="task" data-id="E11-25" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-25"></button>
+        <code class="tid">E11-25</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Growth&#39;s all-time counts should be a server-side aggregate.</strong> The honest fix <code>E11-24</code> names. Growth reads every account, child, link and order to compute perhaps a dozen numbers; at 400 registrations a week that is tens of thousands of rows a page load, over the school-gate connections this project optimises for first (<code>P11</code>). None of it needs to reach the browser — every figure on the screen is a <code>count</code> or a <code>count(distinct)</code>. The shape is a view or an RPC returning one row per school plus a daily series, which is <strong>DDL and therefore the mobile thread&#39;s to land</strong> while they hold migration numbers. Until then the cap from <code>E11-24</code> is the guard. Worth doing before the Bubble migration lands ~400 accounts at once, which is the first moment this stops being theoretical</span>
       </li></ul>
       </details>
     </article>
