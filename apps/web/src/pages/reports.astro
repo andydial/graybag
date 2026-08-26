@@ -472,7 +472,10 @@ import '../styles/admin.css';
               ? `<p class="admin__hint admin__hint--warn">These counts are built from a second ` +
                 `read that found <b>${usage.paidOrders}</b> paid orders where the revenue above ` +
                 `found <b>${paidOrders}</b>. They should be identical. Treat the parent counts as ` +
-                `a floor and tell Andy — this usually means the order read is being truncated.</p>`
+                `a floor and tell Andy. Two things cause this: the order read being truncated ` +
+                `(<b>E11-19</b>), or a new order status that nothing has classified — ` +
+                `<code>scripts/test/order-status-partition.test.mjs</code> fails on the second, so ` +
+                `if that test is green it is the first.</p>`
               : `<p class="admin__hint">A parent who ordered before this range and again inside ` +
                 `it counts here as one order, not a repeat. That understates loyalty, and it is ` +
                 `the right direction to be wrong in — the alternative reads all-time history into ` +

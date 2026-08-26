@@ -4683,13 +4683,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/20</span>
+          <span class="meter-num">0/21</span>
         </div>
       </header>
       <p class="summary">A monthly PDF emailed to each school. Aggregates only, no child-level PII. Designed to sell the benefit of the partnership.</p>
       <p class="deps">Depends on <code>E07</code></p>
       <details>
-        <summary>Context &amp; 20 tasks</summary>
+        <summary>Context &amp; 21 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Decided against a school login portal — the PDF lands in the principal&#39;s inbox instead of waiting to be discovered.</p></div>
         <ul class="tasks">
@@ -4813,7 +4813,7 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The adoption funnel, with the drop-off as a count.</strong> Andy: *&quot;Registered parents → parents who added at least one child → parents who placed a first order → parents who ordered again. Show the drop-off between each step as a number, not just a percentage. A parent who registered and never added a child is someone I can email.&quot;* Added to <code>/admin/growth</code> rather than a new screen — it is already the separate page <code>/admin/people</code> was told to stay out of. Every step counts <strong>accounts</strong>, carries the number who stopped there, and names <strong>what to do about them</strong>, because a step that states only a number is a step nobody acts on. <strong>An unpaid order is not a conversion:</strong> counting a parent who reached checkout and never paid would make the funnel flatter than the business is, which is the one direction it must not lie in. Plus parents active in the last 7 days, paid orders per day, and average order value over paid orders only. <strong>The stuck list is the one place a personal detail appears</strong> — an email, capped at 25, newest first, and its shape has nowhere to put anything about a child even by accident. The page intro used to promise &quot;no parent is named&quot;, which stopped being true the moment that list existed, and now says exactly what is shown and why</span>
       </li>
-      <li class="task" data-id="E11-16" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E11-16" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-16"></button>
         <code class="tid">E11-16</code>
         
@@ -4852,6 +4852,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>What are the term dates?</strong> The prototype&#39;s range control offers *Last 7 days · Last 30 days · <strong>This term</strong> · Custom*. The first, second and fourth are built. &quot;This term&quot; is not, because a term is a fact about Mohali schools rather than anything derivable from the data — and a preset that guesses its own boundaries is worse than no preset, since every number under it would be quietly wrong and nothing on screen would say so. Needed: the start and end date of the current term, and whether they are the same across the schools we serve or per-school. If they differ per school, say so — the control then has to change with the school filter, which is a different piece of work. Until then Custom covers it</span>
+      </li>
+      <li class="task" data-id="E11-21" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-21"></button>
+        <code class="tid">E11-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The three status sets must partition <code>order_status</code>, and now a test says so.</strong> Found while checking that <code>E11-17</code>&#39;s self-contradiction guard could not fire spuriously. Three screens compute paid orders as <code>orders - cancelled - pending</code> rather than by counting the earned statuses directly, and that subtraction is correct only while <code>EARNED</code>, <code>IN_FLIGHT</code> and <code>LOST</code> cover the enum with no gaps and no overlaps. Nothing enforced it. Adding one value to <code>order_status</code> in a migration — a <code>payment_failed</code>, an <code>expired</code> — would make every one of those screens report a paid-order count too high by exactly the number of orders in the new state, and the diff that caused it would be a single line in a migration with no mention of reporting. The test parses both halves from the files that define them, so it cannot pass on a stale copy of either list, and it was proved by injecting <code>payment_failed</code> into the enum: <code># fail 1</code>, naming the value, then green again on restore. It also improves the guard&#39;s diagnosis — the on-screen note now names both possible causes and says which test distinguishes them</span>
       </li></ul>
       </details>
     </article>
