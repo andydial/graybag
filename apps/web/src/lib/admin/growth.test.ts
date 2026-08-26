@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { STUCK_LIMIT, funnelForCohort, growth, istDate, linePath } from './growth.js';
+import { STUCK_LIMIT, funnelForCohort, growth, istDate, linePath, usageInRange } from './growth.js';
 import type { GrowthChild, GrowthLink, GrowthUser } from './growth.js';
 
 const TODAY = '2026-08-20';
@@ -331,5 +331,92 @@ describe('funnelForCohort — the funnel that moves to Reports (E11-16)', () => 
     expect(cohort).toBe(0);
     expect(steps.every((s) => s.reached === 0)).toBe(true);
     expect(steps.find((s) => s.key === 'addedChild')!.rate).toBeNull();
+  });
+});
+
+describe('usageInRange — E11-17', () => {
+  /** A paid order served on `serviceDate`, placed the evening before in IST. */
+  const served = (
+    customerUserId: string, serviceDate: string, schoolId = 's1', status = 'delivered',
+  ) => ({
+    customerUserId, serviceDate, schoolId, status, totalPaise: 12_600,
+    placedAt: `${serviceDate}T02:00:00Z`,
+  });
+
+  it('counts a parent once however many times they ordered', () => {
+    const u = usageInRange(
+      [served('p1', '2026-08-10'), served('p1', '2026-08-11'), served('p2', '2026-08-11')],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(u.activeParents).toBe(2);
+    expect(u.paidOrders).toBe(3);
+    expect(u.ordersPerParent).toBeCloseTo(1.5);
+  });
+
+  it('counts a second order in the range as a repeat, and one order as not', () => {
+    const u = usageInRange(
+      [served('p1', '2026-08-10'), served('p1', '2026-08-11'), served('p2', '2026-08-11')],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(u.repeatParents).toBe(1);
+    expect(u.repeatRate).toBeCloseTo(0.5);
+  });
+
+  /*
+   * The reason `service_date` was added to the growth read at all. Every other number on Reports
+   * is bucketed on the service date, and an order placed at 21:00 IST on the 9th for the 10th is
+   * a UTC 15:30 on the 9th — so counting on `placed_at` would put it in a different bucket from
+   * the money it earned, on the same screen.
+   */
+  it('buckets on the service date rather than when it was placed', () => {
+    const order = {
+      customerUserId: 'p1', serviceDate: '2026-08-10', schoolId: 's1',
+      status: 'delivered', totalPaise: 12_600, placedAt: '2026-08-09T15:30:00Z',
+    };
+    expect(usageInRange([order], '2026-08-10', '2026-08-10').paidOrders).toBe(1);
+    expect(usageInRange([order], '2026-08-09', '2026-08-09').paidOrders).toBe(0);
+  });
+
+  it('ignores unpaid and cancelled orders, which are not usage', () => {
+    const u = usageInRange(
+      [served('p1', '2026-08-10', 's1', 'pending_payment'),
+       served('p2', '2026-08-10', 's1', 'cancelled'),
+       served('p3', '2026-08-10')],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(u.activeParents).toBe(1);
+    expect(u.paidOrders).toBe(1);
+  });
+
+  it('breaks active parents down by school, counting a parent once per school', () => {
+    const u = usageInRange(
+      [served('p1', '2026-08-10', 's1'), served('p1', '2026-08-11', 's1'),
+       served('p2', '2026-08-11', 's2')],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(u.bySchool.get('s1')).toBe(1);
+    expect(u.bySchool.get('s2')).toBe(1);
+  });
+
+  it('honours the school filter, so usage agrees with the money above it', () => {
+    const orders = [served('p1', '2026-08-10', 's1'), served('p2', '2026-08-11', 's2')];
+    expect(usageInRange(orders, '2026-08-01', '2026-08-20', 's2').activeParents).toBe(1);
+    expect(usageInRange(orders, '2026-08-01', '2026-08-20', 's2').paidOrders).toBe(1);
+  });
+
+  it('reports a null repeat rate rather than 0% when nobody ordered', () => {
+    // 0% reads as "they came and did not come back"; null is "there is nothing to divide".
+    const u = usageInRange([], '2026-08-01', '2026-08-20');
+    expect(u.activeParents).toBe(0);
+    expect(u.repeatRate).toBeNull();
+    expect(u.ordersPerParent).toBe(0);
+  });
+
+  it('skips an order with no service date rather than guessing one', () => {
+    const u = usageInRange(
+      [{ customerUserId: 'p1', placedAt: '2026-08-10T02:00:00Z', status: 'paid', totalPaise: 100 }],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(u.paidOrders).toBe(0);
   });
 });

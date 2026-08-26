@@ -82,6 +82,15 @@ export interface FunnelOrder {
   placedAt: string;
   status: string;
   totalPaise: number;
+  /**
+   * The day the food is served, and the school it went to — both added in `E11-17` for the usage
+   * block on Reports.
+   *
+   * Optional because the funnel itself never reads them, and a caller that only has a funnel to
+   * draw should not have to invent a service date to satisfy a type.
+   */
+  serviceDate?: string;
+  schoolId?: string;
 }
 
 /**
@@ -416,5 +425,82 @@ export function funnelForCohort(
       step('orderedAgain', 'Ordered again', orderedAgain, firstOrder,
         'One order and no second is the sharpest signal there is. Ask them why.'),
     ],
+  };
+}
+
+/**
+ * How much the families we have are actually using us — `E11-17`.
+ *
+ * The prototype's Usage block. It answers a different question from the funnel above it: the
+ * funnel asks whether new families arrive and convert, this asks whether the ones who converted
+ * come back. A product can look healthy on the first and be dying on the second.
+ *
+ * ## Counted on the service date, not the payment date
+ *
+ * Every other number on Reports is bucketed by the day the food is served, because that is what
+ * `fetchMonthlyRevenue` filters on. If this counted by `placed_at` instead, the two order counts
+ * on one screen would differ by whatever crossed a midnight — three of the four real orders in
+ * production do — and nobody who saw that would trust either number again.
+ *
+ * ## Repeat rate is over the range, and says so
+ *
+ * A parent who ordered in June and again in this range counts as one order here, not a repeat.
+ * That understates loyalty and it is the right direction to be wrong in: the alternative reads
+ * all-time history into a seven-day window and reports a repeat rate that cannot fall.
+ */
+export interface Usage {
+  /** Distinct parents with at least one paid order served in the range. */
+  activeParents: number;
+  /** Paid orders served in the range. Agrees with the headline by construction. */
+  paidOrders: number;
+  /** `paidOrders / activeParents`. Zero when nobody ordered. */
+  ordersPerParent: number;
+  /** Parents with two or more paid orders in the range. */
+  repeatParents: number;
+  /** `repeatParents / activeParents`, or null when nobody ordered and the ratio is undefined. */
+  repeatRate: number | null;
+  /** Distinct active parents per school id. The per-school table's last column. */
+  bySchool: Map<string, number>;
+}
+
+export function usageInRange(
+  orders: readonly FunnelOrder[],
+  from: string,
+  to: string,
+  schoolId: string | null = null,
+): Usage {
+  const perParent = new Map<string, number>();
+  const perSchool = new Map<string, Set<string>>();
+  let paidOrders = 0;
+
+  for (const o of orders) {
+    if (!EARNED.has(o.status)) continue;
+    // Absent rather than empty: an order with no service date cannot be placed in a range at all,
+    // and guessing one from `placed_at` is how a row lands in the wrong week.
+    const day = o.serviceDate ?? '';
+    if (day < from || day > to || day === '') continue;
+    if (schoolId && o.schoolId !== schoolId) continue;
+
+    paidOrders += 1;
+    perParent.set(o.customerUserId, (perParent.get(o.customerUserId) ?? 0) + 1);
+
+    const key = o.schoolId ?? '';
+    if (key !== '') {
+      const seen = perSchool.get(key) ?? new Set<string>();
+      seen.add(o.customerUserId);
+      perSchool.set(key, seen);
+    }
+  }
+
+  const activeParents = perParent.size;
+  const repeatParents = [...perParent.values()].filter((n) => n >= 2).length;
+
+  return {
+    activeParents,
+    paidOrders,
+    ordersPerParent: activeParents === 0 ? 0 : paidOrders / activeParents,
+    repeatParents,
+    repeatRate: activeParents === 0 ? null : repeatParents / activeParents,
+    bySchool: new Map([...perSchool].map(([id, set]) => [id, set.size])),
   };
 }

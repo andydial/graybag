@@ -43,8 +43,15 @@ export const GROWTH_LINK_COLUMNS = 'user_id,recipient_id';
  * `customer_user_id` so a parent can be counted once, `placed_at` so "first" and "in the last
  * seven days" mean something, `status` so an unpaid order is not a conversion, and the total for
  * revenue. **No recipient, class or section** — the same rule as every other report here.
+ *
+ * `service_date` joined the list in `E11-17`. Reports counts money by the day the food is served,
+ * and the usage block now sits on the same screen. Counting parents by the day they *paid*
+ * instead would put two order counts beside each other that disagree by whatever crossed a
+ * midnight, and a screen that contradicts itself is read as broken long before anybody works out
+ * which half was right. It is a date on an order — no child field is added here, and none may be.
  */
-export const GROWTH_ORDER_COLUMNS = 'customer_user_id,placed_at,status,total_paise,school_id';
+export const GROWTH_ORDER_COLUMNS =
+  'customer_user_id,placed_at,service_date,status,total_paise,school_id';
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -53,6 +60,8 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 export interface GrowthOrder {
   customerUserId: string;
   placedAt: string;
+  /** The day the food is served. The basis Reports counts on — see `GROWTH_ORDER_COLUMNS`. */
+  serviceDate: string;
   status: string;
   totalPaise: number;
   schoolId: string;
@@ -97,6 +106,7 @@ export async function fetchGrowth(): Promise<GrowthData> {
     orders: orderRows.filter(isRecord).map((r) => ({
       customerUserId: str(r.customer_user_id),
       placedAt: str(r.placed_at),
+      serviceDate: str(r.service_date),
       status: str(r.status),
       totalPaise: typeof r.total_paise === 'number' ? r.total_paise : 0,
       schoolId: str(r.school_id),
