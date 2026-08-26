@@ -28,6 +28,52 @@
 body{margin:0;background:#0e1512;font-family:var(--font);color:var(--ink);
      display:flex;justify-content:center;align-items:flex-start;gap:28px;padding:28px 20px 60px}
 
+/* ---------- meal packs (E21) ---------- */
+.packcard{display:block;width:100%;text-align:left;background:#fff;border:1.5px solid var(--line);
+  border-radius:20px;padding:16px 17px;margin:0 0 12px;cursor:pointer;font-family:inherit}
+.packcard:hover{border-color:var(--green)}
+.packcard .pname{font-size:16.5px;font-weight:800;color:var(--ink)}
+.packcard .prule{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.45}
+.packcard .prow{display:flex;align-items:baseline;gap:9px;margin-top:11px}
+.packcard .pprice{font-size:20px;font-weight:800;color:var(--green)}
+.packcard .pwas{font-size:13px;color:var(--muted);text-decoration:line-through}
+.save{display:inline-block;background:var(--pale);color:#4a5a12;font-size:11px;font-weight:800;
+  padding:4px 9px;border-radius:999px;letter-spacing:.02em}
+.balance{background:var(--deep);color:#fff;border-radius:22px;padding:18px 19px;margin:0 16px 14px;position:relative;overflow:hidden}
+.balance .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.13em;opacity:.72}
+.balance .big{font-size:30px;font-weight:800;margin:4px 0 2px;position:relative}
+.balance .sub{font-size:12.5px;opacity:.85;position:relative;line-height:1.5}
+.meter{height:7px;border-radius:99px;background:rgba(255,255,255,.22);margin:13px 0 0;overflow:hidden;position:relative}
+.meter i{display:block;height:100%;background:var(--lime)}
+.packbar{display:flex;gap:12px;align-items:flex-start;background:#f4f9f5;border:1.5px solid #cfe6d8;
+  border-radius:18px;padding:14px 15px;margin:14px 16px 0}
+.packbar.no{background:#fdf7ec;border-color:#f0dcae}
+.packbar .pb-t{font-size:13.5px;font-weight:800;color:var(--ink)}
+.packbar .pb-b{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+.pswitch{flex:0 0 46px;width:46px;height:27px;border-radius:99px;border:0;background:#cfd8d3;position:relative;cursor:pointer;margin-top:2px}
+.pswitch.on{background:var(--green)}
+.pswitch i{position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:left .16s}
+.pswitch.on i{left:22px}
+
+/* ---------- the pack planner ---------- */
+.planrow{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);
+  background:#fff;width:100%;text-align:left;font-family:inherit;cursor:pointer;border-left:0;border-right:0;border-top:0}
+.planrow.off{background:#fafbfa;cursor:default}
+.planrow .pd{flex:1}
+.planrow .pdate{font-size:14px;font-weight:800;color:var(--ink)}
+.planrow.off .pdate{color:var(--muted)}
+.planrow .pmeta{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+.planrow .pitems{font-size:12.5px;color:var(--green);font-weight:700;margin-top:5px;line-height:1.5}
+.planrow .pwhy{font-size:12px;color:#8a6400;margin-top:4px;line-height:1.5}
+.tick{flex:0 0 24px;width:24px;height:24px;border-radius:50%;border:2px solid var(--line);margin-top:2px;
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800}
+.tick.on{background:var(--green);border-color:var(--green)}
+.tick.bad{background:var(--amber);border-color:var(--amber);color:#4a3600}
+.planbar{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--line);padding:13px 16px 16px}
+.planbar .cnt{font-size:12.5px;color:var(--muted);margin-bottom:9px;text-align:center}
+.planbar .cnt b{color:var(--ink)}
+.planbar .cnt.bad{color:#8a6400}
+
 /* ---------- the control rail: how Andy reaches every state deliberately ---------- */
 #rail{width:250px;flex:0 0 250px;color:#cfe0d7;position:sticky;top:28px;max-height:calc(100vh - 56px);overflow:auto}
 #rail h1{font-size:15px;margin:0 0 4px;color:#fff;letter-spacing:.2px}
@@ -380,6 +426,42 @@ const CHILDREN = [
   {id:'c3', name:'Kabir',  school:'Alpha Public School',   cls:'7', sec:'A', brk:'Morning break · 10:40', allergens:[],          allergenConsent:true},
 ];
 
+/* =========================================================================
+   Meal packs (E21) — buy N meals up front at a discount.
+
+   Decided 2026-08-26:
+   · A pack is N meals, each meal bound by item rules ("2 items, one a drink")
+   · Offered per school — a school switch, off by default for schools we don't offer it to
+   · Usable for ANY of the parent's children, not tied to one
+   · Expires a fixed number of days after purchase
+   · No refunds — stated before purchase, not after
+   ========================================================================= */
+const PACKS = [
+  {id:'p10', name:'10 meal pack', meals:10, items:2, mustInclude:'a drink',
+   price:300000, alacarte:337500, days:60},
+  {id:'p20', name:'20 meal pack', meals:20, items:2, mustInclude:'a drink',
+   price:560000, alacarte:675000, days:90},
+];
+/* The days offered when planning. Deliberately includes the four refusals, because a planner
+   that only shows bookable days teaches nobody why the others are missing:
+   · a day whose cutoff has passed
+   · a day the school does not serve
+   · a day after the pack expires
+   · and, once too many are chosen, running out of meals */
+const PLANDAYS = [
+  {d:'Wed 27 Aug', brk:'Morning break', why:'cutoff'},
+  {d:'Thu 28 Aug', brk:'Morning break'},
+  {d:'Fri 29 Aug', brk:'Morning break'},
+  {d:'Sun 31 Aug', brk:'—',             why:'noservice'},
+  {d:'Mon 1 Sep',  brk:'Morning break'},
+  {d:'Tue 2 Sep',  brk:'Morning break'},
+  {d:'Wed 3 Sep',  brk:'Second break'},
+  {d:'Thu 4 Sep',  brk:'Morning break'},
+  {d:'Mon 13 Oct', brk:'Morning break', why:'expired'},
+];
+
+const MYPACK = {id:'p10', name:'10 meal pack', meals:10, used:3, bought:'12 Aug 2026', expires:'11 Oct 2026'};
+
 const SCHOOLS = [
   {id:'s1', name:'Alpha Public School',       city:'Mohali'},
   {id:'s2', name:'Bravo International School',city:'Mohali'},
@@ -398,6 +480,9 @@ const DEFAULT_FLAGS = {
   nochild:false, unpublished:false, cutoff:'open', pricechanged:false,
   pending:false, noallergenconsent:false, cantconnect:false, policy:false,
   bigtext:false,
+  /* Meal packs (E21). `packsoff` is the school switch — some schools will not be offered
+     packs at all, so "no packs here" is a designed state, not an empty list. */
+  packsoff:false, haspack:false, packempty:false, packexpired:false, packineligible:false,
 };
 
 const S = {
@@ -405,6 +490,8 @@ const S = {
   child:0, cart:[], otp:'', consent:false, allergenConsent:false,
   confirmAllergen:null,        // the pending "this contains X" confirmation, if any
   note:'', noteWarn:false,     // per-line kitchen note (ux-spec §5.6.1)
+  packUse:false, pack:'p10',   // redeeming a pack meal against this cart; the offer being viewed
+  plan:{}, planDay:null,       // the multi-day planner: date -> {child, items[]}
   flags:{ ...DEFAULT_FLAGS },
 };
 
@@ -609,7 +696,14 @@ V.home = () => {
         </button>
       </div>
       <div class="pad"><div class="sectionhead"><span>Popular this week</span></div></div>
-      <div class="crow">${popular.map(d=>dishCard(d)).join('')}</div>`;
+      <div class="crow">${popular.map(d=>dishCard(d)).join('')}</div>
+      ${f.packsoff?'':`<div class="pad" style="margin-top:22px">
+        <button class="packcard" style="border-color:#cfe6d8;background:#f4f9f5" onclick="go('${f.haspack?'mypacks':'packs'}')">
+          <div class="pname">${f.haspack?'Your meal pack':'Buy meals in advance'}</div>
+          <div class="prule">${f.haspack
+            ? (MYPACK.meals-MYPACK.used)+' of '+MYPACK.meals+' meals left · expires '+MYPACK.expires
+            : '10 meals for '+rupees(300000)+' — two items each, one a drink'}</div>
+        </button></div>`}`;
   }
 
   return shell(`
@@ -683,17 +777,22 @@ V.cart = () => {
         : 'Ordering closes on Monday 11 Aug, 11:59 PM.'}
     </div>
 
+    ${packStrip()}
+
     <div class="totals">
       <div class="t"><span>Subtotal</span><span>${rupees(sub)}</span></div>
       <div class="t"><span>CGST 2.5%</span><span>${rupees(cgst)}</span></div>
       <div class="t"><span>SGST 2.5%</span><span>${rupees(sgst)}</span></div>
-      <div class="t grand"><span>Total</span><span>${rupees(total)}</span></div>
+      ${S.packUse?`<div class="t"><span>Meal pack · 1 meal</span><span>−${rupees(total)}</span></div>`:''}
+      <div class="t grand"><span>${S.packUse?'To pay':'Total'}</span><span>${S.packUse?'₹0':rupees(total)}</span></div>
     </div>
-    <p class="tiny">Menu prices exclude GST. 5% is added here as CGST 2.5% + SGST 2.5%.</p>
+    <p class="tiny">${S.packUse
+      ? 'Paid with one meal from your pack. GST was accounted for when you bought the pack — this order adds nothing.'
+      : 'Menu prices exclude GST. 5% is added here as CGST 2.5% + SGST 2.5%.'}</p>
   `, true, `
     <div class="sticky">
       <button class="btn" ${closed||f.offline?'disabled':''} onclick="placeOrder()">
-        ${f.offline?'You’re offline':closed?'Ordering has closed':'Place order · '+rupees(total)}
+        ${f.offline?'You’re offline':closed?'Ordering has closed':S.packUse?'Place order · 1 pack meal':'Place order · '+rupees(total)}
       </button>
       ${f.signedout?`<p style="text-align:center;font-size:11.5px;color:var(--muted);margin:10px 0 0">We'll ask you to sign in — your order is kept.</p>`:''}
     </div>`);
@@ -965,9 +1064,9 @@ V.account = () => shell(`
   <div style="height:14px"></div>
   ${S.flags.signedout
     ? `<div class="pad"><button class="btn" onclick="go('signin')">Sign in</button></div>`
-    : ['Your children','Your orders','Privacy policy','Terms of use','Refund policy','Grievance officer','Delete my account','Sign out']
+    : ['Your children','Your orders','Your meal packs','Privacy policy','Terms of use','Refund policy','Grievance officer','Delete my account','Sign out']
         .map(t=>`<button class="row" style="width:100%;background:#fff;border-left:0;border-right:0;text-align:left;cursor:pointer"
-                 onclick="${t==='Your children'?'go(\'children\')':t==='Your orders'?'goTab(\'orders\')':''}">
+                 onclick="${t==='Your children'?'go(\'children\')':t==='Your orders'?'goTab(\'orders\')':t==='Your meal packs'?'go(\'mypacks\')':''}">
                  <div style="flex:1" class="rname"${t==='Delete my account'?' style="color:var(--danger)"':''}>${t}</div>
                  <div style="color:var(--muted)">›</div></button>`).join('')}
   <div class="spacer"></div>`);
@@ -986,6 +1085,320 @@ V.policy = () => shell(`
     <div style="height:11px"></div>
     <button class="btn ghost" onclick="goTab('menu')">Not now — keep browsing</button>
   </div>`, false);
+
+/* =========================================================================
+   Meal packs — the three screens a parent sees (E21)
+
+   They meet a pack as an OFFER, understand the rules and the no-refund term BEFORE paying,
+   and then it becomes a BALANCE they spend. The cart is where it is actually redeemed.
+   ========================================================================= */
+V.packs = () => {
+  const f = S.flags;
+
+  if(f.packsoff) return shell(`
+    ${bar('Meal packs', ()=>"go('home')")}
+    ${empty('Meal packs aren\'t offered at this school',
+      'Alpha Public School takes single orders only. Nothing is wrong — packs are something we agree school by school.',
+      'Back to the menu','goTab(\'menu\')')}`);
+
+  if(f.loading) return shell(`${bar('Meal packs', ()=>"go('home')")}
+    <div class="pad"><div class="sk" style="height:150px;border-radius:20px;margin-bottom:12px"></div>
+    <div class="sk" style="height:150px;border-radius:20px"></div></div>`);
+
+  if(f.error) return shell(`${bar('Meal packs', ()=>"go('home')")}
+    ${notice('err','We couldn\'t load meal packs','Your existing packs are safe. Try again in a moment.',
+      `<button class="btn small" style="width:auto;padding:9px 20px" onclick="setFlag('error',false)">Try again</button>`)}`);
+
+  return shell(`
+    ${bar('Meal packs', ()=>"go('home')")}
+    <div class="pad">
+      <p class="eyebrow">Pay once, order all term</p>
+      <h2 class="title h-green" style="margin-bottom:6px">Buy meals in advance</h2>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 20px">
+        Each meal in a pack is <b>any two items, one of them a drink</b>, on any day a
+        participating school serves.</p>
+      ${PACKS.map(k=>`
+        <button class="packcard" onclick="openPack('${k.id}')">
+          <div class="pname">${k.name}</div>
+          <div class="prule">${k.meals} meals · ${k.items} items each, one ${k.mustInclude} · valid ${k.days} days</div>
+          <div class="prow">
+            <span class="pprice">${rupees(k.price)}</span>
+            <span class="pwas">${rupees(k.alacarte)}</span>
+            <span class="save">save ${rupees(k.alacarte-k.price)}</span>
+          </div>
+        </button>`).join('')}
+      ${f.haspack?`<p style="font-size:12.5px;color:var(--muted);margin-top:4px">
+        You already have a pack — <a href="#" onclick="go('mypacks');return false" style="color:var(--green);font-weight:700">see what's left</a>.</p>`:''}
+    </div>
+    <div class="spacer"></div>`);
+};
+
+V.packdetail = () => {
+  const k = PACKS.find(x=>x.id===S.pack) || PACKS[0];
+  return shell(`
+    ${bar(k.name, ()=>"go('packs')")}
+    <div class="pad">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:16px">
+        <span style="font-size:30px;font-weight:800;color:var(--green)">${rupees(k.price)}</span>
+        <span style="font-size:15px;color:var(--muted);text-decoration:line-through">${rupees(k.alacarte)}</span>
+        <span class="save">save ${rupees(k.alacarte-k.price)}</span>
+      </div>
+
+      <div class="sectionhead"><span>What you get</span></div>
+      <ul style="margin:10px 0 22px;padding-left:18px;font-size:13.5px;line-height:1.85;color:var(--ink)">
+        <li><b>${k.meals} meals.</b> One meal covers one child on one day.</li>
+        <li><b>${k.items} items per meal</b>, one of them ${k.mustInclude}.</li>
+        <li>Order on any day the school serves, up to the usual cutoff.</li>
+      </ul>
+
+      <div class="sectionhead"><span>Before you buy</span></div>
+      <div class="notice warn" style="margin-top:10px">
+        <b>Meals expire ${k.days} days after purchase</b>
+        Anything unused after that is gone. We'll remind you when a week is left.
+      </div>
+      <div class="notice warn" style="margin-top:10px">
+        <b>Packs aren't refundable</b>
+        Once bought, a pack can only be used as meals. Single orders can still be cancelled
+        before the cutoff as usual.
+      </div>
+    </div>
+    <div class="spacer"></div>
+  `, true, `
+    <div class="sticky">
+      <button class="btn" onclick="buyPack()">Buy · ${rupees(k.price)}</button>
+      <p style="text-align:center;font-size:11.5px;color:var(--muted);margin:10px 0 0">
+        Expires ${k.days} days after purchase · no refunds</p>
+    </div>`);
+};
+
+V.mypacks = () => {
+  const f = S.flags, k = MYPACK;
+
+  if(!f.haspack) return shell(`
+    ${bar('Your meal packs', ()=>"go('account')")}
+    ${empty('You don\'t have a meal pack',
+      'Packs let you pay once and order all term, at a lower price per meal.',
+      'See the packs','go(\'packs\')')}`);
+
+  const left = f.packempty ? 0 : k.meals - k.used;
+  const pct  = Math.round((left / k.meals) * 100);
+
+  return shell(`
+    ${bar('Your meal packs', ()=>"go('account')")}
+    <div style="height:6px"></div>
+    <div class="balance">${pattern()}
+      <div class="lbl">${f.packexpired?'Expired':'Meals left'}</div>
+      <div class="big">${f.packexpired?'—':left+' of '+k.meals}</div>
+      <div class="sub">${k.name} · bought ${k.bought}<br>
+        ${f.packexpired?`Expired ${k.expires}. Unused meals are gone.`:`Expires ${k.expires}`}</div>
+      ${f.packexpired?'':`<div class="meter"><i style="width:${pct}%"></i></div>`}
+    </div>
+
+    ${f.packexpired ? notice('warn','This pack has expired',
+        'It ran out on '+k.expires+'. Packs can\'t be extended or refunded, but you can buy a new one.',
+        `<button class="btn small" style="width:auto;padding:9px 20px" onclick="go('packs')">See the packs</button>`)
+     : f.packempty ? notice('info','You\'ve used every meal in this pack',
+        'Buy another and it stacks on top — meals are spent oldest first.',
+        `<button class="btn small" style="width:auto;padding:9px 20px" onclick="go('packs')">Buy another</button>`)
+     : `<div class="pad">
+          <div class="sectionhead"><span>How these get used</span></div>
+          <p style="font-size:13px;color:var(--muted);line-height:1.7;margin:10px 0 0">
+            Two ways. Plan several days at once below — or just order normally, and when your cart
+            is two items with a drink we'll offer to pay with a meal instead of charging you.
+            Either way nothing is spent without you tapping it.</p>
+          <div style="height:16px"></div>
+          <button class="btn" onclick="go('packplan')">Plan meals from this pack</button>
+        </div>`}
+
+    <div class="pad" style="margin-top:14px">
+      <div class="sectionhead"><span>Recently spent</span></div>
+    </div>
+    ${['Fri 21 Aug · Aarav','Wed 19 Aug · Ishita','Mon 17 Aug · Aarav'].map(t=>`
+      <div class="row" style="align-items:center">
+        <div style="flex:1"><div class="rname" style="font-size:14px">${t.split(' · ')[1]}</div>
+        <div class="rmeta">${t.split(' · ')[0]} · 2 items</div></div>
+        <div style="font-size:12.5px;font-weight:800;color:var(--green)">1 meal</div>
+      </div>`).join('')}
+    <div class="spacer"></div>`);
+};
+
+/* =========================================================================
+   Spending a pack — the half that matters.
+
+   Buying is one screen. Using ten meals across a fortnight is where a parent either gets
+   value or gives up, so it is a planner rather than ten separate visits to the cart.
+
+   Every refusal is stated on the day it applies to, with the reason, at the moment the
+   parent looks at it — not discovered at confirm time.
+   ========================================================================= */
+
+/** A meal is valid when it matches the pack's rule exactly. Returns why it doesn't. */
+function planValid(items){
+  if(!items || !items.length) return {ok:false, why:'Nothing chosen yet'};
+  if(items.length < 2)  return {ok:false, why:'Pick one more item'};
+  if(items.length > 2)  return {ok:false, why:'A pack meal is two items — remove '+(items.length-2)};
+  const hasDrink = items.some(sl => (MENU.find(d=>d.s===sl)||{}).c === 'Drinks');
+  if(!hasDrink)         return {ok:false, why:'One of the two must be a drink'};
+  return {ok:true};
+}
+const planCount   = () => Object.keys(S.plan).length;
+const planValidCount = () => Object.values(S.plan).filter(v=>planValid(v.items).ok).length;
+const mealsLeft   = () => (S.flags.packempty ? 0 : MYPACK.meals - MYPACK.used);
+const dayBlocked  = day => {
+  if(day.why==='cutoff')    return 'Ordering for this day closed last night';
+  if(day.why==='noservice') return 'The school doesn\'t serve on Sundays';
+  if(day.why==='expired')   return 'After your pack expires on '+MYPACK.expires;
+  return null;
+};
+
+V.packplan = () => {
+  const left = mealsLeft(), chosen = planCount(), valid = planValidCount();
+  const over = chosen > left;
+  const incomplete = chosen - valid;
+
+  return shell(`
+    ${bar('Plan meals from your pack', ()=>"go('mypacks')")}
+    <div class="pad" style="padding-bottom:6px">
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 4px">
+        Pick the days you want covered, then choose two items for each — one of them a drink.
+        Meals come out of your pack when you confirm, not before.</p>
+    </div>
+
+    <div class="pad" style="padding-top:12px;padding-bottom:10px">
+      <div class="sectionhead"><span>Who's eating</span></div>
+    </div>
+    <div class="tabstrip">
+      ${CHILDREN.map((c,i)=>`<button class="${S.child===i?'on':''}" onclick="S.child=${i};render()">${c.name}</button>`).join('')}
+    </div>
+    <p class="tiny" style="margin:8px 16px 14px">A pack belongs to you — use it for anyone you
+      order for, at any participating school, and mix them across days.</p>
+
+    ${PLANDAYS.map(day=>{
+      const blocked = dayBlocked(day);
+      const on = !!S.plan[day.d];
+      const v  = on ? planValid(S.plan[day.d].items) : null;
+      if(blocked) return `
+        <div class="planrow off">
+          <div class="tick" style="border-style:dashed"></div>
+          <div class="pd">
+            <div class="pdate">${day.d}</div>
+            <div class="pwhy">${blocked}</div>
+          </div>
+        </div>`;
+      return `
+        <button class="planrow" onclick="openPlanDay('${day.d}')">
+          <div class="tick ${on?(v.ok?'on':'bad'):''}">${on?(v.ok?'✓':'!'):''}</div>
+          <div class="pd">
+            <div class="pdate">${day.d}</div>
+            <div class="pmeta">${day.brk}${on?' · for '+CHILDREN[S.plan[day.d].child].name:''}</div>
+            ${on ? (v.ok
+              ? `<div class="pitems">${S.plan[day.d].items.map(sl=>(MENU.find(d=>d.s===sl)||{}).n).join(' + ')}</div>`
+              : `<div class="pwhy">${v.why}</div>`)
+             : `<div class="pmeta" style="color:var(--green);font-weight:700">Choose two items</div>`}
+          </div>
+        </button>`;
+    }).join('')}
+
+    <div class="spacer"></div>
+  `, false, `
+    <div class="planbar">
+      <div class="cnt ${over||incomplete?'bad':''}">
+        ${over
+          ? `<b>${chosen} days chosen but only ${left} meals left.</b> Remove ${chosen-left}, or buy another pack.`
+          : incomplete
+            ? `<b>${incomplete} day${incomplete>1?'s':''} still need items.</b> ${valid} of ${left} meals ready.`
+            : `<b>${valid} of ${left} meals</b> ready to confirm · ${left-valid} will stay in your pack`}
+      </div>
+      <button class="btn" ${over||!valid||incomplete?'disabled':''} onclick="go('planreview')">
+        ${valid?`Review ${valid} meal${valid>1?'s':''}`:'Choose a day to start'}
+      </button>
+    </div>`);
+};
+
+/** Choosing the two items for one day. The rule is enforced here, in front of the parent,
+    rather than at confirm — a refusal that arrives after the work is a refusal that wastes it. */
+V.planday = () => {
+  const day = PLANDAYS.find(x=>x.d===S.planDay) || PLANDAYS[1];
+  const cur = S.plan[day.d]?.items || [];
+  const v = planValid(cur);
+  const byCat = {};
+  MENU.forEach(d=>{ (byCat[d.c] ||= []).push(d); });
+
+  return shell(`
+    ${bar(day.d, ()=>"go('packplan')")}
+    <div class="pad" style="padding-bottom:8px">
+      <div class="sectionhead"><span>${day.brk} · for ${CHILDREN[S.child].name}</span></div>
+      <p style="font-size:12.5px;color:var(--muted);line-height:1.6;margin:9px 0 0">
+        Two items, one of them a drink. That's what one meal from your pack covers.</p>
+    </div>
+
+    ${Object.entries(byCat).map(([cat,ds])=>`
+      <div class="pad" style="padding-top:16px;padding-bottom:8px">
+        <div class="sectionhead"><span>${cat}${cat==='Drinks'?' — one is required':''}</span></div>
+      </div>
+      ${ds.map(d=>{
+        const on = cur.includes(d.s);
+        const cl = clash(d);
+        return `<button class="planrow" onclick="togglePlanItem('${day.d}','${d.s}')">
+          <div class="tick ${on?'on':''}">${on?'✓':''}</div>
+          <div class="pd">
+            <div class="pdate" style="font-size:13.5px">${d.n}</div>
+            <div class="pmeta">${rupees(d.p)} à la carte${cl?'':''}</div>
+            ${cl?`<div class="pwhy">⚠ Contains ${cl.join(', ')} — ${CHILDREN[S.child].name} is allergic</div>`:''}
+          </div>
+        </button>`;
+      }).join('')}
+    `).join('')}
+    <div class="spacer"></div>
+  `, false, `
+    <div class="planbar">
+      <div class="cnt ${v.ok?'':'bad'}">${v.ok
+        ? `<b>${cur.map(sl=>(MENU.find(d=>d.s===sl)||{}).n).join(' + ')}</b>`
+        : v.why}</div>
+      <button class="btn" ${v.ok?'':'disabled'} onclick="go('packplan')">
+        ${v.ok?'Use this for '+day.d:'Pick two items, one a drink'}
+      </button>
+      ${S.plan[day.d]?`<div style="height:10px"></div>
+        <button class="btn ghost" onclick="removePlanDay('${day.d}')">Don't cover this day</button>`:''}
+    </div>`);
+};
+
+/** Review before anything is spent. The count, the days, and what stays in the pack. */
+V.planreview = () => {
+  const days = Object.entries(S.plan).filter(([,v])=>planValid(v.items).ok);
+  const left = mealsLeft();
+  return shell(`
+    ${bar('Review', ()=>"go('packplan')")}
+    <div class="pad">
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 4px">
+        Confirming places ${days.length} order${days.length>1?'s':''} and takes
+        ${days.length} meal${days.length>1?'s':''} from your pack. Each one can still be
+        cancelled on its own before that day's cutoff — the meal comes back.</p>
+    </div>
+    ${days.map(([d,v])=>`
+      <div class="planrow" style="cursor:default">
+        <div class="tick on">✓</div>
+        <div class="pd">
+          <div class="pdate">${d}</div>
+          <div class="pmeta">for ${CHILDREN[v.child].name} · ${PLANDAYS.find(x=>x.d===d)?.brk||''}</div>
+          <div class="pitems">${v.items.map(sl=>(MENU.find(x=>x.s===sl)||{}).n).join(' + ')}</div>
+        </div>
+      </div>`).join('')}
+    <div class="pad" style="margin-top:16px">
+      <div class="totals">
+        <div class="t"><span>Meals used</span><span>${days.length}</span></div>
+        <div class="t"><span>Left in your pack</span><span>${left-days.length}</span></div>
+        <div class="t grand"><span>To pay now</span><span>₹0</span></div>
+      </div>
+      <p class="tiny">Nothing is charged — this was paid for when you bought the pack.
+        Your pack expires ${MYPACK.expires}; every day above is before then.</p>
+    </div>
+    <div class="spacer"></div>
+  `, false, `
+    <div class="sticky">
+      <button class="btn" onclick="confirmPlan()">Confirm ${days.length} meal${days.length>1?'s':''}</button>
+    </div>`);
+};
 
 V.cantconnect = () => `
   <div class="greenfill brandscreen">
@@ -1066,6 +1479,64 @@ function empty(title, body, action, onclick){
 
 function notice(kind, title, body, action){
   return `<div class="notice ${kind}"><b>${title}</b>${body}${action?`<div style="margin-top:12px">${action}</div>`:''}</div>`;
+}
+
+/**
+ * The redemption offer, in the cart — the only place a pack is actually spent.
+ * A cart that does NOT qualify must say why and what would fix it. Nothing is ever spent
+ * without an explicit tap: the switch is off until the parent turns it on.
+ */
+function packStrip(){
+  const f = S.flags;
+
+  if(f.haspack && !f.packempty && !f.packexpired){
+    const left = MYPACK.meals - MYPACK.used;
+    if(f.packineligible) return `
+      <div class="packbar no">
+        <div style="flex:1">
+          <div class="pb-t">This order can't use a pack meal</div>
+          <div class="pb-b">A pack meal is two items with one drink. You have three items and no drink.
+            Adjust the order, or pay for it as usual — your ${left} meals stay where they are.</div>
+        </div>
+      </div>`;
+    return `
+      <div class="packbar">
+        <div style="flex:1">
+          <div class="pb-t">Pay with a meal from your pack</div>
+          <div class="pb-b">${left} of ${MYPACK.meals} left · expires ${MYPACK.expires}${S.packUse?' · this order uses one':''}</div>
+        </div>
+        <button class="pswitch ${S.packUse?'on':''}" onclick="togglePackUse()" aria-label="Use a pack meal"><i></i></button>
+      </div>`;
+  }
+
+  if(f.packexpired) return `
+    <div class="packbar no">
+      <div style="flex:1">
+        <div class="pb-t">Your pack expired on ${MYPACK.expires}</div>
+        <div class="pb-b">Unused meals are gone and can't be refunded.
+          <a href="#" onclick="go('packs');return false" style="color:var(--green);font-weight:700">Buy another pack</a></div>
+      </div>
+    </div>`;
+
+  if(f.packempty) return `
+    <div class="packbar no">
+      <div style="flex:1">
+        <div class="pb-t">No meals left in your pack</div>
+        <div class="pb-b">This order will be charged as usual.
+          <a href="#" onclick="go('packs');return false" style="color:var(--green);font-weight:700">Buy another pack</a></div>
+      </div>
+    </div>`;
+
+  if(f.packsoff) return '';
+
+  return `
+    <div class="packbar">
+      <div style="flex:1">
+        <div class="pb-t">Order like this often?</div>
+        <div class="pb-b">A 10 meal pack is ${rupees(300000)} — about ${rupees(30000)} a meal instead of ${rupees(33750)}.
+          <a href="#" onclick="go('packs');return false" style="color:var(--green);font-weight:700">See the packs</a></div>
+      </div>
+    </div>`;
 }
 
 function cartRow(l,i){
@@ -1247,7 +1718,9 @@ function renderRail(){
     ['menu','Menu'],['cart','Cart · review'],['signin','Sign in'],['otp','Email code'],
     ['addchild','Add child'],['editchild','Edit child'],['paying','Confirming payment'],
     ['confirmed','Order placed'],['orders','Orders'],['orderdetail','Order detail'],
-    ['children','Your children'],['account','Account'],['policy','Policy gate']
+    ['children','Your children'],['account','Account'],['policy','Policy gate'],
+    ['packs','Meal packs — offers'],['packdetail','Meal packs — one offer'],['mypacks','Meal packs — balance'],
+    ['packplan','Packs — plan several days'],['planday','Packs — choose a day\'s items'],['planreview','Packs — review before spending']
   ];
   const cut = [['welcome','Welcome'],['checkout','Checkout review']];
   const toggles = [
@@ -1255,6 +1728,9 @@ function renderRail(){
     ['signedout','Signed out'],['nochild','Signed in, no child'],['unpublished','Menu not published'],
     ['pricechanged','Price changed'],['pending','Payment pending'],
     ['noallergenconsent','No allergen consent'],['cantconnect','Can\'t reach backend'],
+    ['haspack','Has a meal pack'],['packempty','Pack: none left'],
+    ['packexpired','Pack: expired'],['packineligible','Cart can\'t use a pack'],
+    ['packsoff','School: packs not offered'],
     ['bigtext','Largest text size (AX5)'],
   ];
   document.getElementById('rail').innerHTML = `
@@ -1292,6 +1768,34 @@ function setFlag(k,v){
   if(k==='signedout' && v===false) S.flags.nochild=false;
   render();
 }
+function openPlanDay(d){ S.planDay = d; if(!S.plan[d]) S.plan[d] = {child:S.child, items:[]}; go('planday'); }
+function togglePlanItem(d, slug){
+  const e = S.plan[d] || (S.plan[d] = {child:S.child, items:[]});
+  e.child = S.child;
+  const i = e.items.indexOf(slug);
+  i>=0 ? e.items.splice(i,1) : e.items.push(slug);
+  render();
+}
+function removePlanDay(d){ delete S.plan[d]; go('packplan'); }
+/* Nothing leaves the pack until here. Cancelling one of these later returns its meal. */
+function confirmPlan(){
+  const n = Object.values(S.plan).filter(v=>planValid(v.items).ok).length;
+  MYPACK.used = Math.min(MYPACK.meals, MYPACK.used + n);
+  S.plan = {};
+  go('confirmed');
+}
+
+function openPack(id){ S.pack = id; go('packdetail'); }
+/* Buying is the one place a pack is created. Signed-out and no-child gates are the same ones
+   ordering uses — a pack is a purchase, so it cannot happen anonymously either. */
+function buyPack(){
+  if(S.flags.signedout){ go('signin'); return; }
+  S.flags.haspack = true; S.flags.packempty = false; S.flags.packexpired = false;
+  go('mypacks');
+}
+/* Explicit, reversible, never automatic. */
+function togglePackUse(){ S.packUse = !S.packUse; render(); }
+
 function pickSchool(){ go('home'); }
 function pickChild(i){ S.child=i; go('home'); }
 function openDish(s){ S.dish=s; S.sheet=true; render(); }
@@ -1376,7 +1880,7 @@ function applyHash(){
   S.flags = { ...DEFAULT_FLAGS };
   S.cart = []; S.sheet = false; S.dish = null; S.q = ''; S.cat = 'All';
   S.otp = ''; S.consent = false; S.allergenConsent = false;
-  S.confirmAllergen = null; S.note = ''; S.noteWarn = false;
+  S.confirmAllergen = null; S.note = ''; S.noteWarn = false; S.packUse = false; S.pack = 'p10'; S.plan = {}; S.planDay = null;
 
   if(screen && V[screen]) S.screen = screen;
   if(['home','menu','cart','account','orders'].includes(screen)) S.tab = screen;
@@ -1388,6 +1892,15 @@ function applyHash(){
   if(flags.includes('signedin')) S.flags.signedout = false;
   // `#dish` is a sheet over the menu, not a screen of its own.
   if(screen === 'dish'){ S.screen = 'menu'; S.tab = 'menu'; S.dish = S.dish || 'mix-veg-poha'; S.sheet = true; }
+  /* A planner with nothing in it shows none of the states worth reviewing. */
+  if(['packplan','planreview'].includes(screen)){
+    S.flags.haspack = true; S.flags.signedout = false;
+    S.plan = {
+      'Thu 28 Aug':{child:0, items:['paneer-wrap','cold-coffee']},
+      'Fri 29 Aug':{child:1, items:['fruit-salad','lemon-ice-tea']},
+      'Mon 1 Sep': {child:0, items:['rajma-rice']},          // incomplete on purpose
+    };
+  }
   return true;
 }
 function syncHash(){
