@@ -115,3 +115,33 @@ describe('fetchReportsGrowth', () => {
     expect(upper).toContain('+05:30');
   });
 });
+
+describe('fetchGrowth', () => {
+  it('caps all four reads, so an unbounded screen fails loudly rather than shrinking', async () => {
+    // Growth is all-time by definition — a cumulative curve and an adoption count cannot be
+    // computed from a slice — so this read is not date-bounded and is not meant to be. The cap
+    // does not make it cheap; it makes the day it stops being viable a stated failure instead of
+    // a screen quietly reporting a smaller product than exists. `E11-24` is the real fix.
+    const fake = fakeTransport([]);
+    setApiTransport(fake.transport);
+    const { fetchGrowth } = await import('./admin-growth.js');
+    await fetchGrowth();
+
+    expect(fake.queries).toHaveLength(4);
+    for (const q of fake.queries) {
+      expect(q.limits.length, `${q.table} has no cap`).toBeGreaterThan(0);
+    }
+  });
+
+  it('excludes deleted accounts and revoked links, which are not families we have', async () => {
+    const fake = fakeTransport([]);
+    setApiTransport(fake.transport);
+    const { fetchGrowth } = await import('./admin-growth.js');
+    await fetchGrowth();
+
+    const users = fake.queries.find((q) => q.table === 'app_user')!;
+    expect(users.isFilters).toContainEqual({ column: 'deleted_at', value: null });
+    const links = fake.queries.find((q) => q.table === 'guardian_link')!;
+    expect(links.isFilters).toContainEqual({ column: 'revoked_at', value: null });
+  });
+});
