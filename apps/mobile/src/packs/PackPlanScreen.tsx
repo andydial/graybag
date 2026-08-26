@@ -79,6 +79,8 @@ export function PackPlanScreen({
   selectedRecipientId = null,
   plan = [],
   confirming = false,
+  daysUnavailable = false,
+  onRetryDays,
   onSelectRecipient,
   onOpenDay,
   onConfirm,
@@ -90,6 +92,12 @@ export function PackPlanScreen({
   plan?: readonly packPlan.PlannedDay[];
   /** True while the confirm is in flight. Disables the button so a double tap cannot fire it twice. */
   confirming?: boolean;
+  /**
+   * The calendar read FAILED, which is not the same as there being no days (§5.21). Shown as its
+   * own state with a retry, because "no days to plan" would be a lie about the school.
+   */
+  daysUnavailable?: boolean;
+  onRetryDays?: (() => void) | undefined;
   onSelectRecipient?: ((recipientId: string) => void) | undefined;
   onOpenDay?: ((date: string) => void) | undefined;
   onConfirm?: (() => void) | undefined;
@@ -152,6 +160,21 @@ export function PackPlanScreen({
               and mix them across days.
             </Text>
           </>
+        ) : null}
+
+        {daysUnavailable ? (
+          <View style={styles.pad} testID={`${testID}-days-unavailable`}>
+            <Text style={styles.rowDate}>We couldn’t load the days</Text>
+            <Text style={styles.rowWhy}>
+              Your meals are safe — nothing has been spent. Try again in a moment.
+            </Text>
+            {onRetryDays === undefined ? null : (
+              <>
+                <View style={{ height: space[3] }} />
+                <Button label="Try again" onPress={onRetryDays} variant="secondary" />
+              </>
+            )}
+          </View>
         ) : null}
 
         {days.map((day) => {

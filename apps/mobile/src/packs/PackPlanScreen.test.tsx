@@ -223,3 +223,33 @@ describe('a pack is the parent’s, so a plan may mix children', () => {
     expect(screen.queryByTestId('screen-pack-plan-recipient-r-1')).toBeNull();
   });
 });
+
+describe('a failed calendar read is not an empty calendar', () => {
+  it('says we could not load the days, rather than showing none', async () => {
+    // §5.21, and the distinction that cost three hours on the menu. "No days to plan" would be a
+    // claim about the school; the truth is that we could not ask.
+    await render(<PackPlanScreen days={[]} recipients={KIDS} daysUnavailable />);
+    expect(screen.getByTestId('screen-pack-plan-days-unavailable')).toBeTruthy();
+    expect(screen.getByText(/We couldn’t load the days/)).toBeTruthy();
+  });
+
+  it('reassures that nothing has been spent — the parent’s first worry', async () => {
+    await render(<PackPlanScreen days={[]} recipients={KIDS} daysUnavailable />);
+    expect(screen.getByText(/Your meals are safe/)).toBeTruthy();
+  });
+
+  it('offers a way out rather than a dead end', async () => {
+    const onRetryDays = jest.fn();
+    await render(
+      <PackPlanScreen days={[]} recipients={KIDS} daysUnavailable onRetryDays={onRetryDays} />,
+    );
+    await userEvent.press(screen.getByText('Try again'));
+    expect(onRetryDays).toHaveBeenCalled();
+  });
+
+  it('shows nothing of the sort when the calendar simply has no days', async () => {
+    await render(<PackPlanScreen days={[]} recipients={KIDS} />);
+    expect(screen.queryByTestId('screen-pack-plan-days-unavailable')).toBeNull();
+    expect(screen.getByTestId('screen-pack-plan-count')).toHaveTextContent(/Choose a day to start/);
+  });
+});

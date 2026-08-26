@@ -6486,13 +6486,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/48</span>
+          <span class="meter-num">0/50</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 48 tasks</summary>
+        <summary>Context &amp; 50 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -6868,13 +6868,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The planner&#39;s arithmetic, before its screen.</strong> <code>packages/shared/src/cart/pack-plan.ts</code>. The line that matters: <strong><code>overBy</code> counts CHOSEN days, not valid ones.</strong> Counting completed days would let a parent pick eight days against a balance of five, finish five, read &quot;5 of 5 ready&quot;, and meet the problem only as they started the sixth — the warning has to arrive when the eighth day is *chosen*, while changing their mind is still cheap. Mutation-checked: switching it to <code>valid</code> fails exactly that test and the message-ordering one. <code>planMessage</code> says <strong>over-budget before incomplete</strong> when both hold, because finishing the incomplete days would not help and telling someone to choose items for a day they must remove is worse than silence. <code>blockReason</code> computes all four of the prototype&#39;s refusals rather than filtering days out — *&quot;a planner that only shows bookable days teaches nobody why the others are missing&quot;* — and reports <strong>expiry first</strong>, since it is the refusal with a deadline. The expiry day itself is allowed; the off-by-one that would cost a parent their last meal is its own test, and mutating <code>&gt;</code> to <code>&gt;=</code> fails it</span>
       </li>
-      <li class="task" data-id="E21-44" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E21-44" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-44"></button>
         <code class="tid">E21-44</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>The planner&#39;s calendar and per-day item picker.</strong> The screen renders correctly with no days — &quot;Choose a day to start&quot;, Confirm disabled — which is what a parent should see before this exists. Needs the orderable-day list (cutoff, service days, expiry already handled by <code>blockReason</code>) and the prototype&#39;s <code>V.planday</code>: items by category, the rule enforced in front of the parent, and the allergen clash warning per item</span>
+        <span class="ttext"><strong>The planner&#39;s calendar and per-day item picker.</strong> The screen renders correctly with no days — &quot;Choose a day to start&quot;, Confirm disabled — which is what a parent should see before this exists. The calendar is <strong><code>order-calendar</code>, which had no caller at all</strong> — it has existed since <code>E05</code> and the planner is its first consumer. Building a pack-specific one would have meant two implementations of &quot;which days can this school be ordered for&quot;, and the uncalled one would have been the one that drifted. The range stops at the pack&#39;s expiry. <code>PlannerContext</code> holds the plan because <strong>two screens edit it</strong> — a copy in each is two answers to what a parent has chosen, and the confirm would send whichever it happened to hold. The picker enforces the rule in front of the parent with the offer&#39;s own terms; mutation-checked by hardcoding &quot;Drinks&quot; as the required heading, which fails the fruit-pack test. Allergens <strong>warn and never hide</strong> (<code>F5</code>/<code>F6</code>): filtering the clashing dish out fails two tests, because it would leave a parent unable to find something visible elsewhere on the menu and quietly turn the allergen list into a filter. A failed calendar read renders as &quot;we couldn&#39;t load the days&quot; with a retry, never as an empty list</span>
       </li>
       <li class="task" data-id="E21-45" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-45"></button>
@@ -6907,6 +6907,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Buying a pack, end to end.</strong> <code>PackDetail</code>, and an Edge Function creating a <code>meal_pack_purchase</code> order group, taking payment through the <strong>existing</strong> Razorpay path — Andy chose that over a second payment linkage, because duplicating settlement, the webhook, the drain and reconciliation is a far bigger risk than the invariant — and writing the pack plus its ledger legs in one transaction. <strong>Blocked on <code>E21-22</code></strong>: the sale&#39;s legs differ by tax point, and the value is stamped onto the pack at sale, so building it before the answer would mean either guessing or reissuing tax documents later. The offers screen already lists what is on sale; there is deliberately no Buy button yet rather than one that looks like it works</span>
+      </li>
+      <li class="task" data-id="E21-50" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-50"></button>
+        <code class="tid">E21-50</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The planner&#39;s failure copy.</strong> A confirm that is refused server-side — cutoff passed while planning, a day that expired, not enough meals after another device spent some — currently resolves silently. Every hint <code>confirm_meal_pack_plan</code> raises already has a sentence in the Edge Function&#39;s <code>REFUSALS</code> map; the screen needs to show it, and to say plainly that nothing was spent</span>
+      </li>
+      <li class="task" data-id="E21-51" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-51"></button>
+        <code class="tid">E21-51</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Allergen clashes in the per-day picker.</strong> The screen renders them and the planner passes an empty list, so a dish that clashes shows no warning there yet — deliberately empty rather than implying safety. Join the chosen child&#39;s allergens as <code>useAllergenWatchlist</code> already does for the cart</span>
       </li></ul>
       </details>
     </article>

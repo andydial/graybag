@@ -103,6 +103,10 @@ describe('E21 — the pack routes report like any other screen', () => {
     expect(screenNameFor('PackPlan')).toBe('pack_plan');
   });
 
+  it('names the per-day picker', () => {
+    expect(screenNameFor('PlanDay')).toBe('plan_day');
+  });
+
   it('does not yet name screens that do not exist', () => {
     // `pack_detail` and `pack_plan` are deliberately absent from the vocabulary until those
     // screens are built. A name with no emitter reads on the dashboard as a screen nobody

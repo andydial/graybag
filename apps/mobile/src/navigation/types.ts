@@ -118,6 +118,8 @@ export type RootStackParamList = {
   PackDetail: { offerId: string };
   MyPacks: undefined;
   PackPlan: undefined;
+  /** One day of a plan (`E21-44`). The day is the param; the selection lives in the planner. */
+  PlanDay: { serviceDate: string };
 };
 
 /**

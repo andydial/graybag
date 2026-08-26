@@ -234,3 +234,47 @@ export async function confirmMealPackPlan(input: {
     : [];
   return { orderIds, redemptionIds, replayed: data.replayed === true };
 }
+
+/** One day the planner can offer, straight from `orderable_calendar`. */
+export interface OrderableDay {
+  serviceDate: string;
+  cutoffAt: string;
+  isOrderable: boolean;
+  /** Why not, when it is not. `cutoff_passed`, `no_service`, and whatever the server adds. */
+  reason: string | null;
+}
+
+/**
+ * The days a school can be ordered for. `E21-44`.
+ *
+ * **This is not a new endpoint.** `order-calendar` has existed since `E05` and had **no caller at
+ * all** — the planner is its first. Building a second calendar for packs would have meant two
+ * implementations of "which days can this school be ordered for", and the one nobody called would
+ * have been the one that drifted.
+ *
+ * `advisory: true` is the server's own word for what this is. The cutoff it reports is a
+ * prediction; `confirm_meal_pack_plan` re-checks every day inside the transaction that spends the
+ * meals, because a plan built at 23:58 can be confirmed at 00:01.
+ */
+export async function fetchOrderableDays(input: {
+  schoolId: string;
+  from: string;
+  to: string;
+}): Promise<OrderableDay[]> {
+  const data = await invokeFunction<Record<string, unknown>>(
+    `order-calendar?school=${encodeURIComponent(input.schoolId)}` +
+      `&from=${encodeURIComponent(input.from)}&to=${encodeURIComponent(input.to)}`,
+    undefined,
+    'GET',
+  );
+  const days = Array.isArray(data.days) ? data.days : [];
+  return days.map((row) => {
+    if (!isRecord(row)) throw new ApiError('A calendar day was not an object.');
+    return {
+      serviceDate: String(row.serviceDate ?? ''),
+      cutoffAt: String(row.cutoffAt ?? ''),
+      isOrderable: row.isOrderable === true,
+      reason: typeof row.reason === 'string' ? row.reason : null,
+    };
+  });
+}

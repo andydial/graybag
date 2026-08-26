@@ -361,6 +361,7 @@ export {
 export {
   confirmMealPackPlan,
   fetchMealPackBalance,
+  fetchOrderableDays,
   fetchMealPackOffers,
   fetchMealPackSurface,
   type MealPackBalance,
@@ -368,4 +369,5 @@ export {
   type MealPackSurface,
   type ConfirmedPlan,
   type PlanDayInput,
+  type OrderableDay,
 } from './meal-packs.js';

@@ -51,6 +51,8 @@ import { formatServiceDateLong } from '../orders/OrderDetailScreen';
 import { useMealPackSurface } from '../packs/MealPackSurfaceContext';
 import { MyPacksScreen } from '../packs/MyPacksScreen';
 import { PackPlanScreen } from '../packs/PackPlanScreen';
+import { PlanDayScreen } from '../packs/PlanDayScreen';
+import { usePlanner } from '../packs/PlannerContext';
 import type { PackIneligibility } from '../packs/PackRedemptionStrip';
 import { PacksScreen } from '../packs/PacksScreen';
 import { PolicyGateContainer } from '../policy/PolicyGateContainer';
@@ -761,9 +763,11 @@ function ConnectedMyPacksScreen() {
  * parent should see before the calendar arrives — rather than a stub that looks like it works.
  */
 function ConnectedPackPlanScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const recipientsState = useRecipients();
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const { days, plan, daysUnavailable, reloadDays } = usePlanner();
 
   /**
    * `E21-47`. **One key per plan, generated when the screen mounts and kept across retries.**
@@ -784,29 +788,56 @@ function ConnectedPackPlanScreen() {
     [recipientsState],
   );
 
+  const plannableDays = useMemo(
+    () =>
+      days.map((day) => ({
+        date: day.serviceDate,
+        label: formatServiceDateLong(day.serviceDate),
+        breakLabel: day.isOrderable ? 'Morning break' : '—',
+        cutoffPassed: day.reason === 'cutoff_passed',
+        serves: day.isOrderable || day.reason === 'cutoff_passed',
+      })),
+    [days],
+  );
+
+  const plannedDays = useMemo(
+    () =>
+      Object.entries(plan).map(([date, entry]) => ({
+        date,
+        recipientId: entry.recipientId,
+        // Categories are resolved by the picker; the planner only needs the count and whether the
+        // required one is present, which `checkPackMeal` reads from these.
+        items: entry.dishIds.map((id) => ({ categoryId: id, quantity: 1 })),
+      })),
+    [plan],
+  );
+
   return (
     <PackPlanScreen
-      days={[]}
+      days={plannableDays}
       recipients={recipients}
       selectedRecipientId={selectedRecipientId ?? recipients[0]?.id ?? null}
-      plan={[]}
-      onSelectRecipient={setSelectedRecipientId}
-      onOpenDay={() => {
-        // `E21-44`. The per-day item picker. Nothing can reach here yet: with no days there is
-        // no row to press, which is why this is empty rather than a navigate to a screen that
-        // does not exist.
-      }}
+      plan={plannedDays}
       confirming={confirming}
+      daysUnavailable={daysUnavailable}
+      onRetryDays={reloadDays}
+      onSelectRecipient={setSelectedRecipientId}
+      onOpenDay={(serviceDate: string) => navigation.navigate('PlanDay', { serviceDate })}
       onConfirm={() => {
-        // The plan itself is `E21-44`; with no days there is nothing to send, so this is wired
-        // and currently unreachable rather than absent. `confirming` guards the double tap, and
-        // the server replays it correctly regardless.
         setConfirming(true);
         void api
-          .confirmMealPackPlan({ idempotencyKey: idempotencyKey.current, days: [] })
+          .confirmMealPackPlan({
+            idempotencyKey: idempotencyKey.current,
+            days: Object.entries(plan).map(([serviceDate, entry]) => ({
+              serviceDate,
+              recipientId: entry.recipientId,
+              lines: entry.dishIds.map((dishId) => ({ dishId, quantity: 1 })),
+            })),
+          })
+          .then(() => navigation.navigate('Orders'))
           .catch(() => {
-            // Swallowed here on purpose: `E21-44` owns the failure copy, and inventing a message
-            // now would be a promise about behaviour that does not exist yet.
+            // `E21-50` owns the failure copy. Inventing one now would be a promise about
+            // behaviour that does not exist yet.
           })
           .finally(() => setConfirming(false));
       }}
@@ -815,6 +846,76 @@ function ConnectedPackPlanScreen() {
 }
 
 const PackPlanStackScreen = withScreenFrame(ConnectedPackPlanScreen, STACK_SCREEN_EDGES, {
+  back: true,
+});
+
+/**
+ * `E21-44`. Choosing the items for one day.
+ *
+ * Reads the day's selection from `PlannerContext` and writes it back there, so the planner and
+ * this screen never hold two answers to what a parent has chosen. The route carries only a date.
+ */
+function ConnectedPlanDayScreen({
+  route,
+}: NativeStackScreenProps<RootStackParamList, 'PlanDay'>) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { plan, setDay } = usePlanner();
+  const surface = useMealPackSurface();
+  const recipientsState = useRecipients();
+  const { schoolId } = useSelectedSchool();
+  const { payload } = useCachedMenu(schoolId);
+
+  const { serviceDate } = route.params;
+  const entry = plan[serviceDate];
+  const recipientId =
+    entry?.recipientId ??
+    (recipientsState.kind === 'ready' ? recipientsState.rows[0]?.id : undefined) ??
+    '';
+  const child =
+    recipientsState.kind === 'ready'
+      ? recipientsState.rows.find((row) => row.id === recipientId)
+      : undefined;
+
+  const dishes = useMemo(
+    () =>
+      (payload?.dishes ?? []).map((dish) => ({
+        id: dish.id,
+        name: dish.name,
+        categoryId: dish.categoryId,
+        categoryName: dish.categoryId,
+        pricePaise: dish.pricePaise,
+        // `E21-51` joins the child's allergens; an empty list here means "not yet checked", and
+        // the screen says nothing rather than implying the dish is safe.
+        clashes: [] as string[],
+      })),
+    [payload],
+  );
+
+  return (
+    <PlanDayScreen
+      dayLabel={formatServiceDateLong(serviceDate)}
+      breakLabel="Morning break"
+      childName={child?.firstName ?? ''}
+      dishes={dishes}
+      selected={entry?.dishIds ?? []}
+      itemsPerMeal={surface.balance?.itemsPerMeal ?? 2}
+      requiredCategoryId={surface.balance?.requiredCategoryId ?? ''}
+      requiredCategoryLabel="a drink"
+      onToggleDish={(dishId: string) => {
+        const current = entry?.dishIds ?? [];
+        setDay(serviceDate, {
+          recipientId,
+          dishIds: current.includes(dishId)
+            ? current.filter((id) => id !== dishId)
+            : [...current, dishId],
+        });
+      }}
+      onUseDay={() => navigation.goBack()}
+    />
+  );
+}
+
+const PlanDayStackScreen = withScreenFrame(ConnectedPlanDayScreen, STACK_SCREEN_EDGES, {
   back: true,
 });
 
@@ -1041,6 +1142,7 @@ export function RootNavigator() {
         <Stack.Screen name="Packs" component={PacksStackScreen} />
         <Stack.Screen name="MyPacks" component={MyPacksStackScreen} />
         <Stack.Screen name="PackPlan" component={PackPlanStackScreen} />
+        <Stack.Screen name="PlanDay" component={PlanDayStackScreen} />
         <Stack.Screen
           name="SignIn"
           component={SignInStackScreen}
