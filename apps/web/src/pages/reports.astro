@@ -231,8 +231,11 @@ import '../styles/admin.css';
             rows = REPORTS_FIXTURE.rows as unknown as api.ReportRow[];
             // The funnel is part of this screen now, so the demo has to carry one or the a11y
             // gate audits a page with a section missing.
+            // `Set<string>`, not the inferred one: the fixture is `as const`, so the element type
+            // would be a union of its seven literal ids and `has(someString)` would not compile.
+            const live = new Set<string>(GROWTH_FIXTURE.children.map((c) => c.id));
             funnel = funnelForCohort(
-              GROWTH_FIXTURE.users, GROWTH_FIXTURE.links, GROWTH_FIXTURE.children,
+              GROWTH_FIXTURE.users, GROWTH_FIXTURE.links, (id) => live.has(id),
               GROWTH_FIXTURE.orders, REPORTS_FIXTURE.from, REPORTS_FIXTURE.to,
             );
             growthOrders = [...GROWTH_FIXTURE.orders];
@@ -247,16 +250,26 @@ import '../styles/admin.css';
              */
             const [revenue, growthData] = await Promise.all([
               api.fetchMonthlyRevenue(el.from.value, el.to.value),
-              api.fetchGrowth().catch(() => null),
+              // `fetchReportsGrowth` rather than `fetchGrowth` — `E11-19`. Every read inside it
+              // is bounded by the range on the screen; `fetchGrowth` reads four tables whole,
+              // which is right for the Growth page and wrong here.
+              api.fetchReportsGrowth(el.from.value, el.to.value).catch(() => null),
             ]);
             rows = revenue;
-            funnel = growthData
-              ? funnelForCohort(
-                  growthData.users, growthData.links, growthData.children,
-                  growthData.orders, el.from.value, el.to.value,
-                )
-              : null;
-            growthOrders = growthData ? growthData.orders : [];
+            if (growthData) {
+              // A link points at a live child unless that child has been soft-deleted. The
+              // complement is read instead of the child list because deletions are rare and
+              // registrations are not — see `ReportsGrowthData.deletedChildIds`.
+              const deleted = new Set(growthData.deletedChildIds);
+              funnel = funnelForCohort(
+                growthData.users, growthData.links, (id) => !deleted.has(id),
+                growthData.funnelOrders, el.from.value, el.to.value,
+              );
+              growthOrders = growthData.usageOrders;
+            } else {
+              funnel = null;
+              growthOrders = [];
+            }
           }
 
           // The filter is rebuilt from the rows in range, so it never offers a school with
