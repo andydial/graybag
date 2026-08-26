@@ -471,3 +471,27 @@ export function previousWindow(from: string, to: string): { from: string; to: st
   const day = (t: number) => new Date(t).toISOString().slice(0, 10);
   return { from: day(start - days * 86_400_000), to: day(start - 86_400_000) };
 }
+
+
+/**
+ * Keep only the rows for one school — `E11-16`.
+ *
+ * A filter applied to the **rows**, before any grouping, so every view and the export agree
+ * without each having to remember. Filtering inside the query instead would mean a second round
+ * trip on every change of the dropdown, and the row set is already bounded by the date range.
+ *
+ * `null` means all schools, and is the common case.
+ */
+export function forSchool(rows: readonly ReportRow[], schoolId: string | null): ReportRow[] {
+  if (!schoolId) return [...rows];
+  return rows.filter((r) => r.schoolId === schoolId);
+}
+
+/** The schools present in a result, for the filter dropdown. Named, and in a stable order. */
+export function schoolsIn(rows: readonly ReportRow[]): { id: string; name: string }[] {
+  const seen = new Map<string, string>();
+  for (const r of rows) if (r.schoolId && !seen.has(r.schoolId)) seen.set(r.schoolId, r.schoolName);
+  return [...seen.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}

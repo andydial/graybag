@@ -133,10 +133,12 @@ export {
   compare,
   fetchMonthlyRevenue,
   fetchOrdersPlaced,
+  forSchool,
   groupRows,
   istDayOf,
   monthOf,
   previousWindow,
+  schoolsIn,
   weekOf,
   summarise,
   totalOf,
@@ -169,8 +171,10 @@ export {
   GROWTH_ORDER_COLUMNS,
   GROWTH_USER_COLUMNS,
   fetchGrowth,
+  fetchReportsGrowth,
   type GrowthData,
   type GrowthOrder,
+  type ReportsGrowthData,
 } from './admin-growth.js';
 
 // Per-school configuration with visible inheritance (`E10-06`). Deliberately does NOT call

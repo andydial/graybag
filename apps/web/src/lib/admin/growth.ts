@@ -74,6 +74,16 @@ export interface SchoolRow {
   children: number;
   /** Share of all guardians, 0–1. Rendered as a bar. */
   share: number;
+  /**
+   * Distinct accounts that have paid for at least one order at this school — `E11-22`.
+   *
+   * The prototype's fourth column, and the one that makes the table an acquisition table rather
+   * than a registration table. Families at a school with none is the row worth acting on: they
+   * arrived, and something between them and an order is not working.
+   *
+   * All-time, not over a range. A range belongs to Reports; this page answers "where are we".
+   */
+  ordered: number;
 }
 
 /** An order, as the funnel needs it. No child, no name — see `GROWTH_ORDER_COLUMNS`. */
@@ -82,6 +92,15 @@ export interface FunnelOrder {
   placedAt: string;
   status: string;
   totalPaise: number;
+  /**
+   * The day the food is served, and the school it went to — both added in `E11-17` for the usage
+   * block on Reports.
+   *
+   * Optional because the funnel itself never reads them, and a caller that only has a funnel to
+   * draw should not have to invent a service date to satisfy a type.
+   */
+  serviceDate?: string;
+  schoolId?: string;
 }
 
 /**
@@ -113,8 +132,6 @@ export interface Growth {
   bySchool: SchoolRow[];
   /** Registrations in the last 7 and 28 days, against the 7 and 28 before them. */
   recent: { days: number; now: number; previous: number }[];
-  /** Registered → added a child → ordered → ordered again. */
-  funnel: FunnelStep[];
   /** Parents who ordered in the last 7 days. */
   activeParents: number;
   /**
@@ -125,10 +142,6 @@ export interface Growth {
    * a screen nobody acts on.
    */
   stuck: { email: string; registered: string }[];
-  /** Paid orders and net revenue per IST day, for the orders chart. */
-  ordersDaily: { date: string; orders: number; revenuePaise: number }[];
-  /** Average paid order value, in paise. */
-  averageOrderPaise: number;
 }
 
 /** Statuses that mean money was taken. Matches `admin-reports.ts` deliberately. */
@@ -220,6 +233,9 @@ export function growth(
         guardians,
         children: childrenBySchool.get(s.id) ?? 0,
         share: totalGuardians === 0 ? 0 : guardians / totalGuardians,
+        // Filled in at the return, where the paid-order index exists. Zero here would be a
+        // plausible wrong answer if that step were ever dropped, so it is not written twice.
+        ordered: 0,
       };
     })
     // Biggest first. This is a "where are we" screen, and alphabetical buries the answer.
@@ -256,30 +272,18 @@ export function growth(
     paidByUser.set(o.customerUserId, list);
   }
 
-  const registered = users.length;
-  const addedChild = users.filter((u) => linkedUsers.has(u.id)).length;
-  const firstOrder = users.filter((u) => (paidByUser.get(u.id)?.length ?? 0) >= 1).length;
-  const orderedAgain = users.filter((u) => (paidByUser.get(u.id)?.length ?? 0) >= 2).length;
-
-  const step = (
-    key: FunnelStep['key'], label: string, reached: number, previous: number | null, action: string,
-  ): FunnelStep => ({
-    key, label, reached,
-    lost: previous === null ? 0 : Math.max(0, previous - reached),
-    rate: previous === null || previous === 0 ? null : reached / previous,
-    action,
-  });
-
-  const funnel: FunnelStep[] = [
-    step('registered', 'Registered', registered, null, 'Everyone who has signed in at least once.'),
-    step('addedChild', 'Added a child', addedChild, registered,
-      'Email the ones who stopped here — they cannot order until a child exists. Listed below.'),
-    step('firstOrder', 'Placed a first order', firstOrder, addedChild,
-      'They have a child and never bought. Check the school has a live menu and break windows.'),
-    step('orderedAgain', 'Ordered again', orderedAgain, firstOrder,
-      'One order and no second is the sharpest signal there is. Ask them why.'),
-  ];
-
+  /*
+   * The funnel used to be built here and rendered on this page — `E11-22` removed it.
+   *
+   * Andy: *"Growth = are new families arriving. Reports = does a family who arrives get to an
+   * order, over a range, beside the revenue it explains."* The two answer different questions on
+   * different clocks, and the all-time funnel this computed could only ever get flatter as the
+   * product grew, because every parent who ever signed up and stopped stayed in the numerator
+   * for good. `funnelForCohort` below is the replacement and is measured over a chosen range.
+   *
+   * `paidByUser` survives it: the active-parent count and the per-school ordering column below
+   * both need it.
+   */
   // Active = ordered in the last seven days, which is the only step that expires.
   const sevenDaysAgo = new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 86_400_000)
     .toISOString().slice(0, 10);
@@ -292,39 +296,33 @@ export function growth(
     .slice(0, STUCK_LIMIT)
     .map((u) => ({ email: u.email!, registered: istDate(u.createdAt) }));
 
-  const dayTotals = new Map<string, { orders: number; revenuePaise: number }>();
-  let paidCount = 0;
-  let paidPaise = 0;
+  /*
+   * Paid orders per day and the average order value were computed here and drawn on this page.
+   * Both are money over time, which is Reports' question — `E11-22`. The prototype's Growth has
+   * no orders chart, and an acquisition screen that reports revenue invites being read as one.
+   */
+
+  // Accounts that have actually bought something, per school. See `SchoolRow.ordered`.
+  const orderedBySchool = new Map<string, Set<string>>();
   for (const o of orders) {
     if (!EARNED.has(o.status)) continue;
-    const d = istDate(o.placedAt);
-    if (!d) continue;
-    const cur = dayTotals.get(d) ?? { orders: 0, revenuePaise: 0 };
-    cur.orders += 1;
-    cur.revenuePaise += o.totalPaise;
-    dayTotals.set(d, cur);
-    paidCount += 1;
-    paidPaise += o.totalPaise;
+    const school = o.schoolId ?? '';
+    if (school === '') continue;
+    const set = orderedBySchool.get(school) ?? new Set<string>();
+    set.add(o.customerUserId);
+    orderedBySchool.set(school, set);
   }
-  const ordersDaily = span.map((date) => ({
-    date,
-    orders: dayTotals.get(date)?.orders ?? 0,
-    revenuePaise: dayTotals.get(date)?.revenuePaise ?? 0,
-  }));
 
   return {
-    funnel,
     activeParents,
     stuck,
-    ordersDaily,
-    averageOrderPaise: paidCount === 0 ? 0 : Math.round(paidPaise / paidCount),
     totalUsers: users.length,
     // The number that says whether signup converts. An account with no child cannot order, so
     // this is the drop-off `AR7` cares about, not a curiosity.
     usersWithoutChildren: users.filter((u) => !linkedUsers.has(u.id)).length,
     totalChildren: children.length,
     daily,
-    bySchool,
+    bySchool: bySchool.map((r) => ({ ...r, ordered: orderedBySchool.get(r.schoolId)?.size ?? 0 })),
     recent: [7, 28].map((days) => ({ days, now: since(days, 0), previous: since(days, days) })),
   };
 }
@@ -343,4 +341,164 @@ export function linePath(values: readonly number[], width: number, height: numbe
   return values
     .map((v, i) => `${(i * step).toFixed(1)},${(height - (v / max) * height).toFixed(1)}`)
     .join(' ');
+}
+
+
+/**
+ * The funnel for a **cohort** — `E11-16`.
+ *
+ * Andy is moving the funnel off Growth and onto Reports: *"acquisition and conversion answer
+ * different questions on different clocks. Growth = are new families arriving. Reports = does a
+ * family who arrives get to an order, over a range."*
+ *
+ * So this is not the all-time funnel filtered by date. It is a **cohort**: the parents who
+ * registered inside the range, and how far *they* got — measured to the present, not truncated at
+ * the end of the range.
+ *
+ * That distinction decides whether the number means anything. Counting only orders placed inside
+ * the range would make every recent range look terrible, because a parent who registers on the
+ * 25th has had a day to order and one who registered on the 1st has had a month. And truncating
+ * would make a *past* range improve every time you looked at it, which is worse — a number that
+ * changes when nothing happened is a number nobody trusts twice.
+ *
+ * The honest cost, and it belongs on the screen: a range ending yesterday is measuring people who
+ * have barely had a chance. The caller states the range; this states the cohort size.
+ */
+export function funnelForCohort(
+  users: readonly GrowthUser[],
+  links: readonly GrowthLink[],
+  /*
+   * **A predicate rather than the list of children** — `E11-19`.
+   *
+   * This used to take every live child so it could ask `childById.has(id)`. Reading every child
+   * to answer a yes/no about a handful of links is the unbounded read `E11-19` removes, and the
+   * two callers can answer it far more cheaply in opposite ways: Growth already holds the child
+   * list, and Reports holds the much smaller set of *deleted* children and negates it.
+   *
+   * The question is the only thing that matters here, so the question is what it takes.
+   */
+  isLiveChild: (recipientId: string) => boolean,
+  orders: readonly FunnelOrder[],
+  from: string,
+  to: string,
+): { steps: FunnelStep[]; cohort: number } {
+  const inRange = users.filter((u) => {
+    const day = istDate(u.createdAt);
+    return day !== '' && day >= from && day <= to;
+  });
+
+  const linked = new Set(
+    links.filter((l) => isLiveChild(l.recipientId)).map((l) => l.userId),
+  );
+
+  const paidCount = new Map<string, number>();
+  for (const o of orders) {
+    if (!EARNED.has(o.status)) continue;
+    paidCount.set(o.customerUserId, (paidCount.get(o.customerUserId) ?? 0) + 1);
+  }
+
+  const registered = inRange.length;
+  const addedChild = inRange.filter((u) => linked.has(u.id)).length;
+  const firstOrder = inRange.filter((u) => (paidCount.get(u.id) ?? 0) >= 1).length;
+  const orderedAgain = inRange.filter((u) => (paidCount.get(u.id) ?? 0) >= 2).length;
+
+  const step = (
+    key: FunnelStep['key'], label: string, reached: number, previous: number | null, action: string,
+  ): FunnelStep => ({
+    key, label, reached,
+    lost: previous === null ? 0 : Math.max(0, previous - reached),
+    rate: previous === null || previous === 0 ? null : reached / previous,
+    action,
+  });
+
+  return {
+    cohort: registered,
+    steps: [
+      step('registered', 'Registered in this range', registered, null,
+        'Everyone who signed up between these dates.'),
+      step('addedChild', 'Added a child', addedChild, registered,
+        'They cannot order until a child exists. The list to email is on Growth.'),
+      step('firstOrder', 'Placed a first order', firstOrder, addedChild,
+        'They have a child and never bought. Check the school has a live menu and break windows.'),
+      step('orderedAgain', 'Ordered again', orderedAgain, firstOrder,
+        'One order and no second is the sharpest signal there is. Ask them why.'),
+    ],
+  };
+}
+
+/**
+ * How much the families we have are actually using us — `E11-17`.
+ *
+ * The prototype's Usage block. It answers a different question from the funnel above it: the
+ * funnel asks whether new families arrive and convert, this asks whether the ones who converted
+ * come back. A product can look healthy on the first and be dying on the second.
+ *
+ * ## Counted on the service date, not the payment date
+ *
+ * Every other number on Reports is bucketed by the day the food is served, because that is what
+ * `fetchMonthlyRevenue` filters on. If this counted by `placed_at` instead, the two order counts
+ * on one screen would differ by whatever crossed a midnight — three of the four real orders in
+ * production do — and nobody who saw that would trust either number again.
+ *
+ * ## Repeat rate is over the range, and says so
+ *
+ * A parent who ordered in June and again in this range counts as one order here, not a repeat.
+ * That understates loyalty and it is the right direction to be wrong in: the alternative reads
+ * all-time history into a seven-day window and reports a repeat rate that cannot fall.
+ */
+export interface Usage {
+  /** Distinct parents with at least one paid order served in the range. */
+  activeParents: number;
+  /** Paid orders served in the range. Agrees with the headline by construction. */
+  paidOrders: number;
+  /** `paidOrders / activeParents`. Zero when nobody ordered. */
+  ordersPerParent: number;
+  /** Parents with two or more paid orders in the range. */
+  repeatParents: number;
+  /** `repeatParents / activeParents`, or null when nobody ordered and the ratio is undefined. */
+  repeatRate: number | null;
+  /** Distinct active parents per school id. The per-school table's last column. */
+  bySchool: Map<string, number>;
+}
+
+export function usageInRange(
+  orders: readonly FunnelOrder[],
+  from: string,
+  to: string,
+  schoolId: string | null = null,
+): Usage {
+  const perParent = new Map<string, number>();
+  const perSchool = new Map<string, Set<string>>();
+  let paidOrders = 0;
+
+  for (const o of orders) {
+    if (!EARNED.has(o.status)) continue;
+    // Absent rather than empty: an order with no service date cannot be placed in a range at all,
+    // and guessing one from `placed_at` is how a row lands in the wrong week.
+    const day = o.serviceDate ?? '';
+    if (day < from || day > to || day === '') continue;
+    if (schoolId && o.schoolId !== schoolId) continue;
+
+    paidOrders += 1;
+    perParent.set(o.customerUserId, (perParent.get(o.customerUserId) ?? 0) + 1);
+
+    const key = o.schoolId ?? '';
+    if (key !== '') {
+      const seen = perSchool.get(key) ?? new Set<string>();
+      seen.add(o.customerUserId);
+      perSchool.set(key, seen);
+    }
+  }
+
+  const activeParents = perParent.size;
+  const repeatParents = [...perParent.values()].filter((n) => n >= 2).length;
+
+  return {
+    activeParents,
+    paidOrders,
+    ordersPerParent: activeParents === 0 ? 0 : paidOrders / activeParents,
+    repeatParents,
+    repeatRate: activeParents === 0 ? null : repeatParents / activeParents,
+    bySchool: new Map([...perSchool].map(([id, set]) => [id, set.size])),
+  };
 }

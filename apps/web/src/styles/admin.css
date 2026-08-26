@@ -260,6 +260,36 @@
   color: var(--gb-text-secondary);
 }
 
+/*
+ * A section that signposts rather than reports (`E11-22`).
+ *
+ * Growth's "where conversion went" note. Visually quieter than a data section — no rule above it,
+ * a tinted panel instead — because it is the one block on the page carrying no number, and giving
+ * it the same weight as the school table would have it read as a finding.
+ */
+.admin__section--note {
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-lg);
+  background: var(--gb-bg-surface);
+  padding: var(--gb-space-4);
+}
+
+/*
+ * A hint that is reporting a fault rather than explaining a choice (`E11-17`).
+ *
+ * Bordered and boxed rather than merely recoloured: the secondary grey above is the "this is
+ * background" signal, and a sentence saying two of the numbers on screen disagree must not be
+ * styled as background. Colour is not the only carrier — the border and padding do the work for
+ * anyone who cannot see the hue.
+ */
+.admin__hint--warn {
+  padding: var(--gb-space-2) var(--gb-space-3);
+  border: var(--gb-border-width-default) solid var(--gb-border-danger);
+  border-radius: var(--gb-radius-md);
+  background: var(--gb-bg-surface-warning);
+  color: var(--gb-text-primary);
+}
+
 .admin__actions { grid-column: 1 / -1; display: flex; gap: var(--gb-space-2); }
 
 .admin__error {
@@ -1123,6 +1153,20 @@
 /* The labels sit inline with their inputs here, so the stacked block margin would break the row. */
 .rctl .admin__label { margin: 0; white-space: nowrap; }
 .rctl .admin__input, .rctl .admin__select { width: auto; }
+
+/*
+ * What you are looking at, in words (`E11-17`).
+ *
+ * Set in the body colour rather than the muted one despite being small: it is the sentence that
+ * proves the range control did something, and every production range currently returns the same
+ * rows, so a change here is often the only visible feedback there is.
+ */
+.rctl__line {
+  margin: calc(var(--gb-space-2) * -1) 0 var(--gb-space-4);
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body-strong);
+  color: var(--gb-text-primary);
+}
 
 /* Unpaid money is the one figure on the screen that must not read as a success. */
 .gstat--warn {

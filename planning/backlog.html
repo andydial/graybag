@@ -361,13 +361,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/27</span>
+          <span class="meter-num">0/28</span>
         </div>
       </header>
       <p class="summary">Repo, two real environments, secrets management, and the test harness that every later task depends on.</p>
       <p class="deps">Depends on <code>E00</code></p>
       <details>
-        <summary>Context &amp; 27 tasks</summary>
+        <summary>Context &amp; 28 tasks</summary>
         <div class="context"><h4>Why early</h4>
 <p>Everything after this inherits the quality bar set here. Getting tests and environments right on day one is what stops &quot;manually swapping Razorpay keys&quot; happening again.</p></div>
         <ul class="tasks">
@@ -586,6 +586,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:critical) <strong>Nobody can sign in on production.</strong> Found 2026-08-16 by running <code>check-supabase-config.mjs</code> against the production project: <strong>six auth settings wrong</strong>, and together they mean no parent can create an account. (1) The OTP template <strong>sends a magic link, not a code</strong> — the app shows a six-box code input, so a parent taps a link, lands on a blank page, and waits for a code that never arrives; this is the defect that cost 2026-08-10. (2) <code>mailer_otp_length = 8</code> while <code>SignInScreen</code> says &quot;six-digit code&quot;. (3) <code>site_url = http://localhost:3000</code>. (4) <code>uri_allow_list</code> empty, so no deep link can return to the app. (5) <code>rate_limit_email_sent = 2 per hour <strong>project-wide</strong></code> — the third parent in a school-gate rush gets nothing. (6) <strong><code>smtp_host</code> is null</strong>, and Supabase&#39;s built-in mailer is a development service; for an OTP-only product that alone means nobody signs in. All six are <strong>dashboard settings, not code</strong> — no PR fixes them. Staging fails the same check and the handover calls that expected, which is exactly why this did not read as urgent: the check has been failing for a project where it did not matter. <strong>This is a bigger blocker than the App Store review</strong> — a build that reaches a parent on the 19th and cannot sign them in is worse than one that arrives late. Fix order: SMTP first (Resend is already configured for order email on prod, same domain can serve Auth), then OTP template → code/length 6, then <code>site_url</code> + <code>uri_allow_list</code> with the <strong>production</strong> scheme <code>graybag://</code> (not <code>graybag-staging://</code>), then the rate limit. Re-run the check until clean</span>
+      </li>
+      <li class="task" data-id="E01-30" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-30"></button>
+        <code class="tid">E01-30</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Two auth settings are wrong on staging, and the check has been red on every pull request.</strong> <code>check-supabase-config.mjs</code> fails the *Supabase project config (staging)* job with <code>2 setting(s) wrong</code>, one of them <code>uri_allow_list = &quot;&quot;</code> — empty, which permits only the Site URL, so no deep link or OAuth callback can return to the staging app. These are dashboard settings, so they cannot be fixed in a pull request; this is the staging twin of <code>E01-29</code>. <strong>The reason it is worth a task rather than a shrug</strong> is what a permanently red check does to the other checks beside it: every PR now merges with a failure showing, and the habit that builds is reading red as normal. That is the same erosion <code>E15-23</code> was written about from the other direction — a check that says nothing, and a check nobody reads, fail identically. Either fix the two settings or, if staging deliberately does not need them, make the job skip with a stated reason so the row goes green honestly</span>
       </li></ul>
       </details>
     </article>
@@ -1209,13 +1217,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/33</span>
+          <span class="meter-num">0/36</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 33 tasks</summary>
+        <summary>Context &amp; 36 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -1491,6 +1499,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Grant and revoke back-office permissions from the command line — <code>scripts/grant-operator.mjs</code>. Production had <strong>zero</strong> <code>permission_grant</code> rows, so the admin surface was unusable for its only operator: config read empty, <code>/reports</code> refused, saving a dish returned <code>not_permitted</code>. All 31 active permissions now granted to <code>anuragdial@gmail.com</code> at platform scope. Dry run by default; <code>--apply</code> is a separate word. Refuses <code>+parent@</code> addresses unconditionally — that account is the RLS canary and <code>authorization.test.sql</code> depends on it holding nothing. Verified through a real magic-link session, never the service role</span>
+      </li>
+      <li class="task" data-id="E02-35" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-35"></button>
+        <code class="tid">E02-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Kitchen scope, proved through an authenticated client.</strong> Andy: *&quot;prove it with a test through an authenticated client as a kitchen operator, not the service role. A kitchen operator seeing another kitchen&#39;s children, or any price, is the failure that would actually hurt us.&quot;* <code>scripts/test/kitchen-scope.test.mjs</code> creates a real operator through the auth admin API, signs them in for a <strong>real GoTrue-signed JWT</strong>, and makes every assertion through PostgREST with that token — the service role appears only to build the fixture, because it bypasses RLS and would pass everything. <strong>Deliberately not pgTAP</strong>: that suite impersonates via <code>request.jwt.claims</code>, which proves the policies and skips the layer where this actually breaks — a policy decides which *rows* a caller may read and says nothing about which *columns*. Verified on staging: 60 orders visible, <strong>one kitchen</strong>, the other invisible even when named explicitly by id; child names present, because the handover needs them; no other parent&#39;s contact and no guardian link. The fixture derives &quot;own kitchen&quot; <strong>from the operator&#39;s grant</strong>, not from sort order — the first version took <code>kitchens[0]</code>, which happened to be the other one, and failed against a system behaving perfectly. A test wrong in the direction that cries wolf is worse than one that misses</span>
+      </li>
+      <li class="task" data-id="E02-36" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-36"></button>
+        <code class="tid">E02-36</code>
+        <span class="badge r-high">high</span>
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A kitchen operator can read <code>total_paise</code>.</strong> RLS filters rows, not columns, so an operator holding only <code>orders.view</code>, <code>orders.view_pii</code> and <code>orders.mark_delivered</code> at kitchen scope is served every money column on the rows they may see. Proved on staging with a real operator JWT: <code>{&quot;order_ref&quot;:&quot;SEED-…&quot;,&quot;total_paise&quot;:6300,&quot;subtotal_paise&quot;:6000}</code>. Nothing is visibly wrong today because <code>KITCHEN_ORDER_COLUMNS</code> never asks for them — but that is <strong>a convention in one query, not enforcement</strong>, and anyone with the token and a URL bar can read the money. Closing it needs <code>revoke select (…) on &quot;order&quot; from authenticated</code> plus grants back to the roles that should have it: <strong>DDL, therefore a migration</strong>, which this thread does not hold. <code>kitchen-scope.test.mjs</code> asserts the gap as it currently behaves, so the day the grant lands that test <strong>fails</strong> and whoever landed it inverts the assertion — the gap cannot quietly reopen</span>
+      </li>
+      <li class="task" data-id="E02-37" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-37"></button>
+        <code class="tid">E02-37</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>No child&#39;s name in any report, export or aggregate.</strong> Andy&#39;s second enforcement item. <code>scripts/test/no-child-in-reports.test.mjs</code> asserts the <strong>mechanism</strong> rather than a day&#39;s data: every reporting query names its columns explicitly and none of those lists contains a child field. Runs with no database, on every push, because this is the guarantee most likely to be broken by an ordinary-looking edit. It caught one on the first run — <code>admin-growth.ts</code> selects <code>recipient_id</code>, which turns out to be legitimate and is now an explicit, single exception: <code>guardian_link</code> is two foreign keys and the funnel cannot count &quot;parents who added a child&quot; without joining one to the other, and <code>GrowthChild</code> is <code>{id, schoolId, createdAt}</code> with nowhere to put a name. <code>recipient_id</code> on <code>order</code> stays forbidden, because there it sits beside a name, a class and a price</span>
       </li></ul>
       </details>
     </article>
@@ -1978,13 +2010,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/22</span>
+          <span class="meter-num">0/23</span>
         </div>
       </header>
       <p class="summary">Because Andy is not a developer, the system has to be able to explain its own failures in plain English.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 22 tasks</summary>
+        <summary>Context &amp; 23 tasks</summary>
         <div class="context"><h4>Approach</h4>
 <p>Sentry for errors across app/web/backend, Supabase dashboard for query performance, Better Stack for uptime. The multiplier is that <strong>Sentry and Supabase both have MCP servers</strong> — wired into Claude Code, a plain-English question like &quot;orders from St. Xavier&#39;s stopped going through around 9pm yesterday, find out why&quot; can be answered by querying errors, logs and the database directly.</p></div>
         <ul class="tasks">
@@ -2163,6 +2195,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Create a PostHog personal API key so events can be read back.</strong> A credentialed action, and the last thing standing between the analytics work and proof it is landing. Andy, 2026-08-25: *&quot;query the PostHog events API and show me a real <code>app_opened</code> from my device with <code>distinct_id</code> matching my <code>app_user.id</code>.&quot;* That query needs a <strong>personal</strong> key (<code>phx_</code>, created under Personal settings → API keys, scoped to read <code>query</code>). <code>~/.graybag-secrets/prod.env</code> holds only <code>POSTHOG_KEY</code>, the write-only <strong>project</strong> key (<code>phc_</code>) — it captures events and returns <strong>401</strong> on the query endpoint, which was confirmed against the live API rather than assumed. The emitters are shipped and the key is inlined in the production bundle; nothing else is blocking. Put it in <code>~/.graybag-secrets/prod.env</code> as <code>POSTHOG_PERSONAL_KEY</code> and the read is a single request</span>
+      </li>
+      <li class="task" data-id="E15-23" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E15-23"></button>
+        <code class="tid">E15-23</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A suite that ran nothing must not look like a suite that passed.</strong> Andy: *&quot;That belongs in CI, not in one suite.&quot;* <code>node --test</code> on a glob matching nothing exits <strong>0</strong> and prints <code># tests 0</code>; <code>vitest --passWithNoTests</code> does the same — and the exit code is the only thing CI reads. That is how <code>authorization.test.sql</code> contributed zero assertions on 2026-08-08 with the pipeline green, and how <code>kitchen-scope.test.mjs</code> reported <code>tests 0, pass 0, fail 0</code> the day it was written. The integration workflow already guarded the pgTAP suite; <code>check:suites</code> generalises it to the other four and runs in the smoke test on every push. <strong>A floor rather than &quot;more than zero&quot;</strong>, because the regression that actually happens is a glob quietly matching fewer files after a rename — 181 tests becoming 12 looks perfectly healthy. Lowering a floor is then a visible diff with a reason in the commit. Proved by breaking it on purpose: with the glob renamed, <code>npm run test:scripts</code> reports <code>tests 0, pass 0, fail 0</code> and <strong>exits 0</strong>, while the guard exits 1 and names the suite. It also caught its own misconfiguration on the first run — <code>--reporter=basic</code> is not valid in this vitest version, so the command failed and the guard reported &quot;could not find a test count&quot;, which is exactly what it should say when it can no longer see what it is guarding</span>
       </li></ul>
       </details>
     </article>
@@ -4651,13 +4691,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/15</span>
+          <span class="meter-num">0/23</span>
         </div>
       </header>
       <p class="summary">A monthly PDF emailed to each school. Aggregates only, no child-level PII. Designed to sell the benefit of the partnership.</p>
       <p class="deps">Depends on <code>E07</code></p>
       <details>
-        <summary>Context &amp; 15 tasks</summary>
+        <summary>Context &amp; 23 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Decided against a school login portal — the PDF lands in the principal&#39;s inbox instead of waiting to be discovered.</p></div>
         <ul class="tasks">
@@ -4780,6 +4820,70 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The adoption funnel, with the drop-off as a count.</strong> Andy: *&quot;Registered parents → parents who added at least one child → parents who placed a first order → parents who ordered again. Show the drop-off between each step as a number, not just a percentage. A parent who registered and never added a child is someone I can email.&quot;* Added to <code>/admin/growth</code> rather than a new screen — it is already the separate page <code>/admin/people</code> was told to stay out of. Every step counts <strong>accounts</strong>, carries the number who stopped there, and names <strong>what to do about them</strong>, because a step that states only a number is a step nobody acts on. <strong>An unpaid order is not a conversion:</strong> counting a parent who reached checkout and never paid would make the funnel flatter than the business is, which is the one direction it must not lie in. Plus parents active in the last 7 days, paid orders per day, and average order value over paid orders only. <strong>The stuck list is the one place a personal detail appears</strong> — an email, capped at 25, newest first, and its shape has nowhere to put anything about a child even by accident. The page intro used to promise &quot;no parent is named&quot;, which stopped being true the moment that list existed, and now says exactly what is shown and why</span>
+      </li>
+      <li class="task" data-id="E11-16" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-16"></button>
+        <code class="tid">E11-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The Reports data layer — range, school filter, CSV, funnel, per-school.</strong> Andy asked for the data side to be built before the prototype landed, on the grounds that *&quot;nothing on the data side is wasted&quot;* — the layout is what a prototype changes, not what the numbers mean. Four pieces. <strong>A school filter that filters the source, not the view:</strong> <code>forSchool</code> is applied to the rows before <code>groupRows</code>, so a filtered per-day chart shows that school&#39;s days rather than every school&#39;s days with the other bars hidden; <code>schoolsIn</code> builds the dropdown from the rows actually in range, so a school with nothing in the window is not offered as a filter that returns an empty screen. <strong>CSV export built from the rows already rendered</strong> (<code>csv-export.ts</code>) — a second query for the export is how a download comes to disagree with the table above it, quietly, because nobody diffs the two. RFC 4180 quoting because &quot;Amity International, Mohali&quot; is real production data; a leading-<code>=</code>/<code>+</code>/<code>-</code>/<code>@</code> guard because a CSV that can run a formula can read the rest of the sheet; a BOM so Excel on Windows does not render <code>—</code> as <code>â€”</code>; money as a plain <code>1234.50</code> because the first thing anybody does is sum the column, and a symbol turns it into text. Provenance comment lines, because an export outlives the screen it came from. <strong>The funnel over the range is a cohort, measured to the present</strong> — <code>funnelForCohort</code> takes parents who registered inside the window and asks what they have done *since*, not what they had done by the range end. Truncating at the end date would show yesterday&#39;s cohort converting at 0%, which is not a finding, it is arithmetic. <strong>The revenue report no longer needs <code>users.view</code>:</strong> the funnel read is <code>.catch(() =&gt; null)</code> so an admin without it still gets the money, rather than an empty page. No child field exists on <code>Bucket</code> to leak, and <code>no-child-in-reports.test.mjs</code> watches the export by name. 22 tests</span>
+      </li>
+      <li class="task" data-id="E11-17" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-17"></button>
+        <code class="tid">E11-17</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Reports, laid out against the prototype.</strong> The prototype landed on <code>main</code>, so the layout half of <code>E11-16</code> could be finished. Six changes, and one of them is a disagreement resolved in the prototype&#39;s favour. <strong>The range and filter, in words, visible</strong> — it existed only inside the <code>aria-live</code> region, which meant only a screen-reader user was told what they were looking at. It is also the answer to the complaint that opened this epic: when every range in production returns the same six orders, a sentence that changes is the only proof the control did anything. <strong>Average order</strong>, over paid orders only — dividing by every order placed would shrink the average each time somebody abandoned a cart. <strong>The per-school breakdown is always on</strong>, under its own heading, instead of appearing only when you already knew to set Group by to School. Same rows folded a second way, so its totals cannot disagree with the table above; sorted by what was earned, because a school table ordered by name buries the one answer it is opened for. It hides itself when a single school is selected, where it would be one row restating the headline. <strong>A Usage block</strong> — parents who ordered, orders per parent, and how many ordered more than once. It answers a different question from the funnel: a product can look healthy on arrivals and be dying on repeats. <strong>The funnel&#39;s percentage is gone.</strong> The prototype says why and wins where the two disagree: *&quot;4 of 13 is a fact, 31% is a claim about a pattern that isn&#39;t there yet.&quot;* At current volume one more parent moves the rate eight points. <strong>And a self-contradiction guard</strong>: usage comes from a second read (<code>fetchGrowth</code>) while the money comes from <code>fetchMonthlyRevenue</code>, and both count the same paid orders on the same service dates. If they ever disagree the screen says so in a bordered note instead of showing a plausible number — that failure is silent by nature, because revenue stays right while usage quietly shrinks beside it. <code>service_date</code> joined <code>GROWTH_ORDER_COLUMNS</code> so both halves bucket identically; three of the four real production orders cross a UTC midnight, so <code>placed_at</code> would have put them in different buckets on the same screen. 8 new tests, 418 in the web suite</span>
+      </li>
+      <li class="task" data-id="E11-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-18"></button>
+        <code class="tid">E11-18</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Pack revenue, packs sold and meals outstanding on Reports.</strong> The prototype&#39;s Money block has a <strong>Pack revenue</strong> card and its By-school table has <strong>Packs sold</strong> and <strong>Meals outstanding</strong> columns, none of which exist yet — the pack schema is the mobile thread&#39;s and has not landed. The prototype also states the rule these columns exist to make visible, and it is the one that will be got wrong if it is built in a hurry: *&quot;A pack is collected when it is sold and spent when a meal is served. Counting a redeemed meal as revenue would count it twice — the outstanding balance is what you still owe in food.&quot;* So pack money is a separate card and never folded into revenue, and meals outstanding is a liability, not a takings figure. Blocked until the pack tables exist</span>
+      </li>
+      <li class="task" data-id="E11-19" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-19"></button>
+        <code class="tid">E11-19</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The reads behind Reports are bounded by the range on the screen.</strong> Andy, 2026-08-26: *&quot;Fix it before the dishes workbench… your disagreement guard is good, but as you said, a guard is not the fix.&quot;* Reports no longer calls <code>fetchGrowth</code>, which reads four tables whole — right for the Growth page, which is *about* every registration there has ever been, and wrong here, where the answer only ever concerns a range the reader chose. <code>fetchReportsGrowth</code> replaces it with five reads, each bounded by a date. <strong>Two of those bounds are arguments rather than obvious ones</strong>, and they are what let this be cheap reads instead of a join or a migration: a guardian link made *by* somebody who registered inside the window cannot pre-date their own registration, and neither can an order they placed — so a lower bound on each holds the whole cohort. The cohort orders have <strong>no upper bound</strong>, because a cohort is measured to the present; clipping them to the range end would report yesterday&#39;s cohort as converting at zero. <strong>The child read is inverted</strong>: the funnel needs to know whether a link points at a live child, and reading every live child to answer that is the very read being removed, so it reads the *deleted* ones and negates — deletions are rare, registrations are not, and &quot;not in this set&quot; is exactly as correct. <code>funnelForCohort</code> now takes a liveness <strong>predicate</strong> rather than the child list, so each caller answers the question the cheap way it already can. <strong>The server bound is deliberately a superset</strong>, widened a day either side, because <code>created_at</code> is an instant and the range is an IST calendar date; the precise cut stays client-side where it already was, so an arithmetic slip can only cost a few extra rows rather than silently drop a registration from the cohort. <strong>And a cap that throws rather than truncates</strong> — 20,000 rows, roughly a year at the volume being planned for, so a correct read cannot reach it and a broken bound will say so instead of rendering a confident smaller number. The tests assert the *query*, not the result, which is the only thing that could have caught this: the unbounded version returns identical output at today&#39;s row counts. Proved by removing the <code>placed_at</code> bound — the cohort test fails naming it, and passes again on restore. <strong>Still unbounded, and deliberately left</strong>: <code>fetchGrowth</code> itself, for the Growth page. It grows with registrations rather than with orders, and that page is being reduced to acquisition-only next, so bounding it there is the same edit twice if done now. <code>E11-17</code>&#39;s on-screen guard stays as a backstop, which is now what it is</span>
+      </li>
+      <li class="task" data-id="E11-20" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-20"></button>
+        <code class="tid">E11-20</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Answered: there is no term concept in this product.</strong> Asked as an <code>owner:andy</code> decision because the prototype&#39;s range control offered *Last 7 days · Last 30 days · <strong>This term</strong> · Custom*, and a term is a fact about Mohali schools rather than anything derivable from the data — a preset that guessed its own boundaries would make every number under it quietly wrong with nothing on screen to say so. Andy, 2026-08-26: *&quot;Remove &#39;This term&#39; entirely. There is no term concept in this product; that chip was in the prototype in error. Keep the three ranges plus custom. You were right to refuse to guess.&quot;* <strong>No code changed</strong>, because it was never built — this closes the question rather than removing a feature. Worth keeping the entry rather than deleting it: the prototype still shows the chip, so the next person to diff the two will ask the same question, and this is the answer. Recorded as a correction to the prototype, not to the screen</span>
+      </li>
+      <li class="task" data-id="E11-21" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-21"></button>
+        <code class="tid">E11-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The three status sets must partition <code>order_status</code>, and now a test says so.</strong> Found while checking that <code>E11-17</code>&#39;s self-contradiction guard could not fire spuriously. Three screens compute paid orders as <code>orders - cancelled - pending</code> rather than by counting the earned statuses directly, and that subtraction is correct only while <code>EARNED</code>, <code>IN_FLIGHT</code> and <code>LOST</code> cover the enum with no gaps and no overlaps. Nothing enforced it. Adding one value to <code>order_status</code> in a migration — a <code>payment_failed</code>, an <code>expired</code> — would make every one of those screens report a paid-order count too high by exactly the number of orders in the new state, and the diff that caused it would be a single line in a migration with no mention of reporting. The test parses both halves from the files that define them, so it cannot pass on a stale copy of either list, and it was proved by injecting <code>payment_failed</code> into the enum: <code># fail 1</code>, naming the value, then green again on restore. It also improves the guard&#39;s diagnosis — the on-screen note now names both possible causes and says which test distinguishes them</span>
+      </li>
+      <li class="task" data-id="E11-22" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-22"></button>
+        <code class="tid">E11-22</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Growth is acquisition only; the funnel lives on Reports.</strong> Andy&#39;s framing, and the split is the whole point: *&quot;Growth = are new families arriving. Reports = does a family who arrives get to an order, over a range, beside the revenue it explains.&quot;* Removed from the page: the funnel, and paid-orders-per-day with the average order value. <strong>The funnel had a defect that only a range fixes</strong>, which is worth recording because it justifies the move rather than merely following the prototype — it was all-time, so every parent who ever signed up and stopped stayed in the numerator for good, and the conversion rate it showed could only ever fall as the product grew. That is a number that punishes you for succeeding. Removing the money-over-time chart is the same argument from the other side: an acquisition screen that reports revenue gets read as a revenue screen, and then two screens disagree about the month. <strong>Added</strong>: an &quot;Ordered at least once&quot; column on the school table, counting accounts rather than orders, which is what turns a registration table into an acquisition one — a school with families and none of them ordering is the row worth a phone call. And a &quot;Where conversion went&quot; signpost with a link, placed last, because deleting a section people used without saying where it went is how a screen gets a reputation for losing things. <strong>Four cards rather than six</strong>, as the prototype has. The prototype&#39;s fourth is *Install base — &quot;Play + TestFlight · 13 have signed in&quot;*, which has no source in this database; <code>E11-23</code> records what it would take. Six tests went with the funnel — five were re-asked of <code>funnelForCohort</code>, where that behaviour now lives, and the sixth asserted an average order value this page no longer computes. Three new tests cover the school column. <strong>Also fixed a fixture that was quietly lying</strong>: the growth demo&#39;s schools were <code>demo-s1…</code> while its orders were <code>demo-1…</code>, so the new column joined against nothing and rendered a dash in every row — indistinguishable from &quot;no school has ordered&quot;, which is a real state and would have been believed. Two fixtures describing one product must agree on its identifiers</span>
+      </li>
+      <li class="task" data-id="E11-23" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-23"></button>
+        <code class="tid">E11-23</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Install base — how many have the app, against how many have signed in.</strong> The one card on the prototype&#39;s Growth that has no source here: *&quot;Play + TestFlight · 13 have signed in&quot;*. Install counts live in the Play Console and App Store Connect, and nothing in this database knows them; the signed-in half we already have. Three ways to get the other half, in increasing order of effort: PostHog already receives an <code>app_opened</code> event from the mobile app, so <strong>distinct devices</strong> is answerable there today and is arguably the more useful number anyway — an install nobody opens is not an install. Otherwise the Play Developer Reporting API and App Store Connect both expose installs, and both need credentials that only Andy holds. Blocked behind the same <code>phx_</code> personal key as the PostHog read on the queue. Do not fake it: a plausible number on that tile is worse than an empty slot, because nobody would ever check it</span>
       </li></ul>
       </details>
     </article>

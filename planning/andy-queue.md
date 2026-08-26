@@ -18,29 +18,37 @@ exists so the queue can be seen draining rather than reconstructed from chat eac
 
 ---
 
-## Open — 8 items
+## Open — 3 items
 
-Items 2–6 were **added 2026-08-20** and are listed in the order they will be done. Item 2 was
-already in flight when 3–6 arrived; the rest follow in the order Andy wrote them, except that the
-permission grouping is pulled ahead of the reports because it is the one blocking a person from
-doing their job (nobody can be made kitchen staff today).
+Rewritten 2026-08-26, because this table had gone stale in both directions: it still listed
+Maestro as blocked when a section further down records it green on 2026-08-16, and it still
+listed three asks that have shipped. A queue nobody trusts is worse than no queue, so the
+closed rows are moved out rather than left to be read as outstanding.
 
-**Production is now taking real orders.** Everything below ships behind the same gate as always —
-smoke green, verified on a preview that sends production's headers, promoted deliberately — and
-nothing touches the ordering or payment path.
+**Production is taking real orders.** Everything below ships behind the same gate — smoke green,
+verified on a preview that sends production's headers, promoted deliberately — and nothing here
+touches the ordering or payment path.
 
 | # | Ask | Asked | Status |
 |---|---|---|---|
-| 1 | **Maestro in CI** | 2026-08-10 | Queued, blocked on `E14-30` (`owner:andy` — no Xcode/Android SDK on the build machine). The job has **still never been observed green**; its last run was cancelled. `E14-36` fixed the Gradle metaspace OOM and the 781-second emulator boot and is on `main` |
-| 3 | **Group and clarify the permissions** | 2026-08-20 | Queued. *"Currently privileges one is a large list that does not make much sense… I want to be able to promote people to Kitchen staff so they can login and view orders and promote orders."* Bundles presented as jobs, still stored as individual grants — `D3` keeps roles out of the schema, and this is a presentation layer over it, not a role column |
-| 4 | **A registrations and growth report** | 2026-08-20 | Queued. Registered users, registrations per date, per school, with graphs. **Aggregate only** — non-negotiable #4 means no child's name, class or section reaches this screen |
-| 5 | **An orders and revenue report** | 2026-08-20 | Queued. Per day, per month, per school, with visuals. Extends `/reports`, which today shows a month table and no trend |
-| 6 | **UX review of the screens other than Kitchen and Orders** | 2026-08-20 | Queued. Those two were rebuilt on 2026-08-17; `/admin/config`, `/admin/import`, `/admin/people`, `/admin/allergens` and `/reports` have never had that treatment |
-| 7 | **Order alert emails** | 2026-08-23 | **Added 2026-08-23.** Email a configurable list when an order is paid. Recipients managed in the admin UI — not code, not an env var — with add, remove and an off switch that does not delete the list. Content: order code, school, break, service date, items with quantities, total incl. GST, and the running count for that service date ("order 14 of today"). **No child name, class or section** — tier-S under DPDP and email is not a controlled channel. Through the existing Resend path and failure-alert plumbing, not a second mechanism. Per-order by default, with a daily digest as the shape for later |
-| 8 | **A growth and adoption dashboard** | 2026-08-23 | **Added 2026-08-23.** Separate page; `/admin/people` stays a grants screen. The funnel is the point: registered → added a child → first order → ordered again, with the **drop-off as a number**, not only a percentage, because a parent who registered and never added a child is someone to email. Plus registrations per day over 30 days (≈400 Bubble users migrating, so the curve matters), children by school, parents with zero children, orders and revenue per day and per school, average order value, and parents active in the last 7 days. Aggregates only, no child names; where an individual must be actionable show **their email and nothing about the child**. Authenticated session, never the service role, gated on an existing permission. Fast and readable on a phone |
-| 9 | **Prove a PostHog event arriving from Andy's real device** | 2026-08-25 | **Added 2026-08-25. Blocked, and the blocker is not mine to clear.** *"query the PostHog events API and show me a real `app_opened` from my device with `distinct_id` matching my `app_user.id`."* Reading events needs a **personal** API key (`phx_`); `~/.graybag-secrets/prod.env` holds only the write-only project key (`phc_`), which returns 401 on the query endpoint — confirmed, not assumed. The emitters are shipped and the key is inlined in the production bundle, so the proof is a read away once a `phx_` key exists. Tracked for Andy as a credentialed action |
+| 10 | **Build the back office from the prototype** | 2026-08-26 | **In progress.** `docs/prototype/graybag-admin-prototype.html` is the acceptance criteria; where it and a current screen disagree, it wins. Six items in Andy's order: meal packs config, the dishes workbench, named reusable menus, **Reports**, People & access, and Growth reduced to acquisition only. **Reports is done** — `E11-16` built the data layer (range, school filter, CSV, cohort funnel, per-school) and `E11-17` laid it out against the prototype, including one disagreement resolved in the prototype's favour (`P21`). **Packs are blocked**: the schema and the `packs.manage` permission are the mobile thread's to write, and Andy has told them so. **`E11-19` is done** — it was pulled ahead of the remaining screens on Andy's instruction (*"Fix it before the dishes workbench"*) and cleared the same day. Growth reduced to acquisition is also done (`E11-22`). Next, in order: the dishes workbench, then named menus |
+| 6 | **UX review of the screens other than Kitchen and Orders** | 2026-08-20 | Partly done and worth keeping open honestly. `/admin/people` was rebuilt for scale (`E10-46`), `/reports` twice (`E11-10`, `E11-17`), and `/admin/sales` is new. **`/admin/config`, `/admin/import` and `/admin/allergens` have still never had that treatment.** Item 10 covers some of this ground, so this closes when it does |
+| ~~12~~ | **Bound the reads behind Reports** (`E11-19`) — **done 2026-08-26** | 2026-08-26 | **Done.** Pulled to the front of item 10 at Andy's instruction and cleared the same day. `fetchGrowth` reads every order with no range filter and no page size. Fine at 219 rows; at 400 registrations a week the failure is the nasty kind — revenue is filtered server-side by service date and stays correct while usage silently undercounts beside it. `E11-17` added an on-screen guard that detects exactly that disagreement, and Andy's ruling is the right one: *"Your disagreement guard is good, but as you said, a guard is not the fix."* |
+| ~~11~~ | **Growth, reduced to acquisition only** — **done 2026-08-26** (`E11-22`) | 2026-08-26 | **Added 2026-08-26.** Part of item 10 and listed separately because it is a deletion rather than a build: the funnel moves off Growth and onto Reports, where it sits beside the revenue it explains. Andy's framing: *"Growth = are new families arriving. Reports = does a family who arrives get to an order, over a range."* The funnel half already exists on Reports as of `E11-16`; what remains is removing it from Growth without removing the stuck-parent list, which is the actionable part of that screen |
+| 9 | **Prove a PostHog event arriving from Andy's real device** | 2026-08-25 | **Blocked, and the blocker is not mine to clear.** Reading events needs a **personal** API key (`phx_`); `~/.graybag-secrets/prod.env` holds only the write-only project key (`phc_`), which returns 401 on the query endpoint — confirmed, not assumed. The emitters are shipped and the key is inlined in the production bundle, so the proof is a read away once a `phx_` key exists. Tracked for Andy as a credentialed action |
 
+### Closed since this table was last accurate
 
+- **Maestro in CI** (asked 2026-08-10) — green on 2026-08-16, `[Passed] cart (47s)`, run 31891879898.
+- **Group and clarify the permissions** (2026-08-20) — `E10-45`. Five job bundles, still stored as
+  individual grants, so `D3` holds and no role column entered the schema.
+- **A registrations and growth report** (2026-08-20) — `E11-08`, `E11-15`.
+- **An orders and revenue report** (2026-08-20) — `E11-10` through `E11-17`, plus `/admin/sales`.
+- **Order alert emails** (2026-08-23) — `E08-16`. Built, deployed, and **configured**: Andy
+  confirmed on 2026-08-26 that a recipient is set on production. Fully closed; it was previously
+  listed as waiting on him, which it no longer is.
+- **A growth and adoption dashboard** (2026-08-23) — `E11-08`, `E11-15`. Item 11 above is the
+  follow-on change to it, not a re-do.
 ---
 
 ## Closed 2026-08-20 — navigation, and the cancellation that told nobody
@@ -75,11 +83,16 @@ verified — the whole failure was that the feature worked locally and was block
 CSP header a file server never sends. `E12-36`. Motion is on the home page only; no sub-page was
 touched.
 
-## Open — nothing
+## Closed 2026-08-16 — Maestro in CI
 
-The queue is empty. `Maestro in CI` (asked 2026-08-10) closed on 2026-08-16: `[Passed] cart
-(47s)`, `1/1 Flow Passed`, run 31891879898 — **the first time that job has ever been green**.
-Five causes in total, listed on `E14-38`.
+Renamed from "Open — nothing" on 2026-08-26. It was a second `## Open` heading in a file whose
+first one is the live queue, sitting inside the history and describing a state that stopped being
+true within days — which is how the table above came to list Maestro as blocked while this said
+the queue was empty.
+
+`Maestro in CI` (asked 2026-08-10) closed on 2026-08-16: `[Passed] cart (47s)`, `1/1 Flow Passed`,
+run 31891879898 — **the first time that job has ever been green**. Five causes in total, listed on
+`E14-38`.
 
 ---
 

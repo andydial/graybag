@@ -164,22 +164,30 @@ test I liked and was correct to.
 
 ---
 
-## `D9` — GitHub Actions has stopped scheduling again; not force-merging around it
+## `D9` — CI had not stalled. The PR was CONFLICTING, and I diagnosed it wrong twice
 
-**Observed 2026-08-27, ~02:00.** CI last ran on `63e8e5f` and succeeded. Three commits since —
-`6697f9e`, `568718e`, `34e5fe1` — have triggered **no runs at all**, and `gh pr view 120` reports
-an empty check rollup. This is the same stall that hit `E15-21`: an empty commit did not help, and
-closing and reopening the PR did.
+**Corrected.** My first reading was "GitHub Actions has stopped scheduling again", because that
+had happened earlier in the week and the symptom matched: five commits, no runs. I acted on it —
+closed and reopened PR #120, then pushed an empty commit. Neither did anything, which was the
+first sign the diagnosis was wrong.
 
-**Chosen:** keep committing and pushing, re-check periodically, and if it is still stalled at the
-end of the run, close and reopen PR #120 — the fix that is known to work here.
+The actual cause: `gh pr view 120 --json mergeable` reports **`CONFLICTING`**. The web thread
+merged Reports to `main` at 13:59, `ci.yml` triggers on `pull_request`, and **GitHub does not run
+`pull_request` workflows on a PR whose merge commit cannot be computed.** Nothing was stalled.
+Actions was running normally on `main` and on `e11-22-growth-acquisition` the whole time, which I
+could have checked in one command before touching the PR.
 
-**Rejected:** merging on the strength of green local runs. `npm run smoke` and `test-db.sh` pass
-locally on every commit above and I have said so, but local green is not CI green: the Maestro
-flow and the migration job run against things this machine does not have. `E17-59` is a fresh
-reminder that a local build and the artefact a user gets are not the same object.
+**What I did wrong, precisely:** I matched a symptom to a remembered cause and acted before
+testing it. The cheap discriminating check — *is Actions running anywhere else?* — takes one
+command and would have ruled the stall out immediately.
 
-Nothing here is merged. The branch is pushed and every commit is described.
+**Resolved by merging `main`.** Two conflicts, both additive: `docs/learnings.md` (both threads
+appended sections — kept both) and `planning/backlog-state.json` (both appended ticks — a union of
+302 and 289 giving 311, after asserting the two sides disagree about **no** id, since taking
+either side would have dropped the other thread's completed work). No task-id collision and **no
+migration collision**: the web thread wrote none, which is the ownership agreement holding.
+
+Grepped the tree for conflict markers afterwards, per `docs/learnings.md`.
 
 ---
 

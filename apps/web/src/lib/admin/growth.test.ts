@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { STUCK_LIMIT, growth, istDate, linePath } from './growth.js';
+import { STUCK_LIMIT, funnelForCohort, growth, istDate, linePath, usageInRange } from './growth.js';
 import type { GrowthChild, GrowthLink, GrowthUser } from './growth.js';
 
 const TODAY = '2026-08-20';
@@ -171,7 +171,15 @@ describe('linePath', () => {
   });
 });
 
-describe('the funnel (E11-15)', () => {
+/*
+ * What is left of the old funnel block after `E11-22` moved the funnel to Reports.
+ *
+ * Six tests went with it. Five were re-asked of `funnelForCohort` below, which is where that
+ * behaviour now lives; the sixth asserted an average order value that this page no longer
+ * computes, because money over time is Reports' question. The active-parent and stuck-list tests
+ * stay here, because those are acquisition and did not move.
+ */
+describe('growth — active parents and the stuck list', () => {
   const paid = (userId: string, day: string, status = 'paid') =>
     ({ customerUserId: userId, placedAt: `${day}T09:00:00Z`, status, totalPaise: 10000 });
 
@@ -182,54 +190,6 @@ describe('the funnel (E11-15)', () => {
     links: [link('u1', 'c1'), link('u2', 'c2'), link('u3', 'c3')],
   });
 
-  const stepOf = (g: ReturnType<typeof growth>, key: string) => g.funnel.find((f) => f.key === key)!;
-
-  it('counts each step and the drop-off between them as a number', () => {
-    // Andy: "Show the drop-off between each step as a number, not just a percentage."
-    const b = base();
-    const g = growth(b.users, b.children, b.links, SCHOOLS, TODAY, [
-      paid('u1', '2026-08-05'), paid('u1', '2026-08-12'), paid('u2', '2026-08-06'),
-    ]);
-    expect(stepOf(g, 'registered').reached).toBe(4);
-    expect(stepOf(g, 'addedChild').reached).toBe(3);
-    expect(stepOf(g, 'addedChild').lost).toBe(1);
-    expect(stepOf(g, 'firstOrder').reached).toBe(2);
-    expect(stepOf(g, 'firstOrder').lost).toBe(1);
-    expect(stepOf(g, 'orderedAgain').reached).toBe(1);
-    expect(stepOf(g, 'orderedAgain').lost).toBe(1);
-  });
-
-  it('does not count an unpaid order as a conversion', () => {
-    // Reaching checkout and never paying is not buying anything. Counting it would make the
-    // funnel flatter than the business actually is, which is the one direction it must not lie in.
-    const b = base();
-    const g = growth(b.users, b.children, b.links, SCHOOLS, TODAY, [
-      paid('u1', '2026-08-05', 'pending_payment'), paid('u2', '2026-08-05', 'cancelled'),
-    ]);
-    expect(stepOf(g, 'firstOrder').reached).toBe(0);
-  });
-
-  it('counts preparing and delivered as having ordered', () => {
-    const b = base();
-    const g = growth(b.users, b.children, b.links, SCHOOLS, TODAY, [
-      paid('u1', '2026-08-05', 'preparing'), paid('u2', '2026-08-05', 'delivered'),
-    ]);
-    expect(stepOf(g, 'firstOrder').reached).toBe(2);
-  });
-
-  it('gives every step something to do about the people who dropped', () => {
-    // "Every alert must name what to do about it" applies to a funnel too — a step that only
-    // states a number is a step nobody acts on.
-    const b = base();
-    const g = growth(b.users, b.children, b.links, SCHOOLS, TODAY, []);
-    for (const s of g.funnel) expect(s.action.length, s.key).toBeGreaterThan(20);
-  });
-
-  it('has no rate on the first step, and none when the step before was empty', () => {
-    const g = growth([], [], [], SCHOOLS, TODAY, []);
-    expect(stepOf(g, 'registered').rate).toBeNull();
-    expect(stepOf(g, 'addedChild').rate).toBeNull();
-  });
 
   it('counts a parent active only if they ordered in the last seven days', () => {
     const b = base();
@@ -259,12 +219,233 @@ describe('the funnel (E11-15)', () => {
     expect(g.stuck).toHaveLength(STUCK_LIMIT);
   });
 
-  it('averages only over orders that were paid', () => {
-    const b = base();
-    const g = growth(b.users, b.children, b.links, SCHOOLS, TODAY, [
-      { customerUserId: 'u1', placedAt: '2026-08-05T09:00:00Z', status: 'paid', totalPaise: 20000 },
-      { customerUserId: 'u2', placedAt: '2026-08-05T09:00:00Z', status: 'pending_payment', totalPaise: 99999 },
-    ]);
-    expect(g.averageOrderPaise).toBe(20000);
+});
+
+describe('funnelForCohort — the funnel that moves to Reports (E11-16)', () => {
+  const paid = (userId: string, day: string, status = 'paid') =>
+    ({ customerUserId: userId, placedAt: `${day}T09:00:00Z`, status, totalPaise: 10000 });
+
+  // Three registered inside the range, one before it.
+  const users = [
+    user('in1', '2026-08-10T06:00:00Z'),
+    user('in2', '2026-08-12T06:00:00Z'),
+    user('in3', '2026-08-14T06:00:00Z'),
+    user('before', '2026-07-01T06:00:00Z'),
+  ];
+  const children = [child('c1', 's1'), child('c2', 's1'), child('cb', 's1')];
+  const links = [link('in1', 'c1'), link('in2', 'c2'), link('before', 'cb')];
+  /* `E11-19` — the caller now answers "is this child live?" rather than handing over the list. */
+  const live = (ids: readonly string[] = children.map((c) => c.id)) =>
+    (recipientId: string) => ids.includes(recipientId);
+
+  it('counts only the parents who registered inside the range', () => {
+    const { cohort, steps } = funnelForCohort(users, links, live(), [], '2026-08-01', '2026-08-20');
+    expect(cohort).toBe(3);
+    expect(steps.find((s) => s.key === 'registered')!.reached).toBe(3);
+  });
+
+  it('excludes a parent who registered before the range, however far they got', () => {
+    // The one that makes it a cohort rather than a filter. `before` added a child and ordered
+    // twice; none of that belongs to a range they were not in.
+    const { steps } = funnelForCohort(
+      users, links, live(),
+      [paid('before', '2026-08-05'), paid('before', '2026-08-06')],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(steps.find((s) => s.key === 'addedChild')!.reached).toBe(2);
+    expect(steps.find((s) => s.key === 'firstOrder')!.reached).toBe(0);
+  });
+
+  it('counts an order placed AFTER the range, because the cohort is measured to the present', () => {
+    // A parent who registers on the 14th and orders on the 22nd converted. Truncating at the end
+    // of the range would make every recent range look terrible and would make a past range
+    // improve each time you looked at it — a number that changes when nothing happened.
+    const { steps } = funnelForCohort(
+      users, links, live(), [paid('in1', '2026-08-22')], '2026-08-01', '2026-08-20',
+    );
+    expect(steps.find((s) => s.key === 'firstOrder')!.reached).toBe(1);
+  });
+
+  it('reports the drop at each step as a count', () => {
+    const { steps } = funnelForCohort(
+      users, links, live(), [paid('in1', '2026-08-15')], '2026-08-01', '2026-08-20',
+    );
+    expect(steps.find((s) => s.key === 'addedChild')!.lost).toBe(1);   // in3 added none
+    expect(steps.find((s) => s.key === 'firstOrder')!.lost).toBe(1);   // in2 never ordered
+  });
+
+  it('does not count an unpaid order as a conversion', () => {
+    const { steps } = funnelForCohort(
+      users, links, live(), [paid('in1', '2026-08-15', 'pending_payment')], '2026-08-01', '2026-08-20',
+    );
+    expect(steps.find((s) => s.key === 'firstOrder')!.reached).toBe(0);
+  });
+
+  it('is empty rather than broken when nobody registered in the range', () => {
+    const { cohort, steps } = funnelForCohort(users, links, live(), [], '2026-01-01', '2026-01-31');
+    expect(cohort).toBe(0);
+    expect(steps.every((s) => s.reached === 0)).toBe(true);
+    expect(steps.find((s) => s.key === 'addedChild')!.rate).toBeNull();
+  });
+
+  /*
+   * Ported from the funnel tests `E11-22` deleted along with Growth's own funnel. The behaviour
+   * did not go away — it moved here — so the coverage moves with it rather than being dropped.
+   */
+  it('counts preparing and delivered as having ordered, not just paid', () => {
+    const { steps } = funnelForCohort(
+      users, links, live(),
+      [paid('in1', '2026-08-15', 'preparing'), paid('in2', '2026-08-15', 'delivered')],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(steps.find((s) => s.key === 'firstOrder')!.reached).toBe(2);
+  });
+
+  it('gives every step something to do about the people who dropped', () => {
+    // "Every alert must name what to do about it" applies to a funnel too — a step that states
+    // only a number is a step nobody acts on.
+    const { steps } = funnelForCohort(users, links, live(), [], '2026-08-01', '2026-08-20');
+    for (const step of steps) expect(step.action.length, step.key).toBeGreaterThan(20);
+  });
+
+  /*
+   * The reason the signature changed. Reports cannot afford to read every live child to answer
+   * this, so it reads the (much smaller) set of deleted ones and negates it — and a link whose
+   * child has been deleted must not count as "added a child" either way round.
+   */
+  it('does not count a link whose child has been deleted', () => {
+    const deleted = new Set(['c1']);
+    const { steps } = funnelForCohort(
+      users, links, (id) => !deleted.has(id), [], '2026-08-01', '2026-08-20',
+    );
+    // in2 still has c2; in1's only child is gone.
+    expect(steps.find((s) => s.key === 'addedChild')!.reached).toBe(1);
+  });
+
+  it('agrees whichever way the caller answers the liveness question', () => {
+    const ids = children.map((c) => c.id);
+    const byList = funnelForCohort(users, links, live(ids), [], '2026-08-01', '2026-08-20');
+    const byComplement = funnelForCohort(
+      users, links, (id) => !new Set<string>().has(id), [], '2026-08-01', '2026-08-20',
+    );
+    expect(byComplement.steps.find((s) => s.key === 'addedChild')!.reached)
+      .toBe(byList.steps.find((s) => s.key === 'addedChild')!.reached);
+  });
+});
+
+describe('usageInRange — E11-17', () => {
+  /** A paid order served on `serviceDate`, placed the evening before in IST. */
+  const served = (
+    customerUserId: string, serviceDate: string, schoolId = 's1', status = 'delivered',
+  ) => ({
+    customerUserId, serviceDate, schoolId, status, totalPaise: 12_600,
+    placedAt: `${serviceDate}T02:00:00Z`,
+  });
+
+  it('counts a parent once however many times they ordered', () => {
+    const u = usageInRange(
+      [served('p1', '2026-08-10'), served('p1', '2026-08-11'), served('p2', '2026-08-11')],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(u.activeParents).toBe(2);
+    expect(u.paidOrders).toBe(3);
+    expect(u.ordersPerParent).toBeCloseTo(1.5);
+  });
+
+  it('counts a second order in the range as a repeat, and one order as not', () => {
+    const u = usageInRange(
+      [served('p1', '2026-08-10'), served('p1', '2026-08-11'), served('p2', '2026-08-11')],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(u.repeatParents).toBe(1);
+    expect(u.repeatRate).toBeCloseTo(0.5);
+  });
+
+  /*
+   * The reason `service_date` was added to the growth read at all. Every other number on Reports
+   * is bucketed on the service date, and an order placed at 21:00 IST on the 9th for the 10th is
+   * a UTC 15:30 on the 9th — so counting on `placed_at` would put it in a different bucket from
+   * the money it earned, on the same screen.
+   */
+  it('buckets on the service date rather than when it was placed', () => {
+    const order = {
+      customerUserId: 'p1', serviceDate: '2026-08-10', schoolId: 's1',
+      status: 'delivered', totalPaise: 12_600, placedAt: '2026-08-09T15:30:00Z',
+    };
+    expect(usageInRange([order], '2026-08-10', '2026-08-10').paidOrders).toBe(1);
+    expect(usageInRange([order], '2026-08-09', '2026-08-09').paidOrders).toBe(0);
+  });
+
+  it('ignores unpaid and cancelled orders, which are not usage', () => {
+    const u = usageInRange(
+      [served('p1', '2026-08-10', 's1', 'pending_payment'),
+       served('p2', '2026-08-10', 's1', 'cancelled'),
+       served('p3', '2026-08-10')],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(u.activeParents).toBe(1);
+    expect(u.paidOrders).toBe(1);
+  });
+
+  it('breaks active parents down by school, counting a parent once per school', () => {
+    const u = usageInRange(
+      [served('p1', '2026-08-10', 's1'), served('p1', '2026-08-11', 's1'),
+       served('p2', '2026-08-11', 's2')],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(u.bySchool.get('s1')).toBe(1);
+    expect(u.bySchool.get('s2')).toBe(1);
+  });
+
+  it('honours the school filter, so usage agrees with the money above it', () => {
+    const orders = [served('p1', '2026-08-10', 's1'), served('p2', '2026-08-11', 's2')];
+    expect(usageInRange(orders, '2026-08-01', '2026-08-20', 's2').activeParents).toBe(1);
+    expect(usageInRange(orders, '2026-08-01', '2026-08-20', 's2').paidOrders).toBe(1);
+  });
+
+  it('reports a null repeat rate rather than 0% when nobody ordered', () => {
+    // 0% reads as "they came and did not come back"; null is "there is nothing to divide".
+    const u = usageInRange([], '2026-08-01', '2026-08-20');
+    expect(u.activeParents).toBe(0);
+    expect(u.repeatRate).toBeNull();
+    expect(u.ordersPerParent).toBe(0);
+  });
+
+  it('skips an order with no service date rather than guessing one', () => {
+    const u = usageInRange(
+      [{ customerUserId: 'p1', placedAt: '2026-08-10T02:00:00Z', status: 'paid', totalPaise: 100 }],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(u.paidOrders).toBe(0);
+  });
+});
+
+describe('growth — who has actually ordered, per school (E11-22)', () => {
+  const users = [user('u1', '2026-08-01T06:00:00Z'), user('u2', '2026-08-01T06:00:00Z')];
+  const children = [child('c1', 's1'), child('c2', 's2')];
+  const links = [link('u1', 'c1'), link('u2', 'c2')];
+  const order = (userId: string, schoolId: string, status = 'delivered') =>
+    ({ customerUserId: userId, placedAt: '2026-08-05T09:00:00Z', status, totalPaise: 10000, schoolId });
+
+  const rowFor = (g: ReturnType<typeof growth>, id: string) => g.bySchool.find((r) => r.schoolId === id)!;
+
+  it('counts a school with families but no orders as zero, which is the row to act on', () => {
+    const g = growth(users, children, links, SCHOOLS, TODAY, [order('u1', 's1')]);
+    expect(rowFor(g, 's1').ordered).toBe(1);
+    expect(rowFor(g, 's2').ordered).toBe(0);
+    expect(rowFor(g, 's2').guardians).toBe(1);
+  });
+
+  it('counts a parent once per school however many times they ordered', () => {
+    const g = growth(users, children, links, SCHOOLS, TODAY,
+      [order('u1', 's1'), order('u1', 's1'), order('u1', 's1')]);
+    expect(rowFor(g, 's1').ordered).toBe(1);
+  });
+
+  it('does not count an unpaid order as having ordered', () => {
+    const g = growth(users, children, links, SCHOOLS, TODAY,
+      [order('u1', 's1', 'pending_payment'), order('u2', 's2', 'cancelled')]);
+    expect(rowFor(g, 's1').ordered).toBe(0);
+    expect(rowFor(g, 's2').ordered).toBe(0);
   });
 });
