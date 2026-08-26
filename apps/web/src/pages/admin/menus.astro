@@ -74,6 +74,14 @@ import '../../styles/admin.css';
         <button class="kitchen__btn" id="f-clear" type="button" hidden>Clear</button>
       </div>
 
+      <!--
+        The prototype's central idea, and the reason this screen exists: the problems are on the
+        toolbar with their counts, one click each. The selects below them can express more (a
+        specific menu, a specific allergen state) and stay; both are rendered from the same
+        `query`, so they cannot disagree with each other.
+      -->
+      <div class="wb__chips" id="chips" role="group" aria-label="Filter by what needs doing"></div>
+
       <p class="wb__count" id="count" role="status" aria-live="polite"></p>
       <div class="wb__bulk" id="bulk" hidden></div>
     </header>
@@ -108,7 +116,7 @@ import '../../styles/admin.css';
       const el = {
         q: $<HTMLInputElement>('q'), list: $('list'), count: $('count'), bulk: $('bulk'),
         drawer: $('drawer'), scrim: $('scrim'), body: $('drawer-body'), title: $('drawer-title'),
-        clear: $<HTMLButtonElement>('f-clear'),
+        clear: $<HTMLButtonElement>('f-clear'), chips: $('chips'),
         menu: $<HTMLSelectElement>('f-menu'), type: $<HTMLSelectElement>('f-type'),
         allerg: $<HTMLSelectElement>('f-allerg'), photo: $<HTMLSelectElement>('f-photo'),
         sort: $<HTMLSelectElement>('f-sort'),
@@ -142,6 +150,7 @@ import '../../styles/admin.css';
           allergens: (p.get('allerg') ?? 'any') as DishQuery['allergens'],
           photo: (p.get('photo') ?? 'any') as DishQuery['photo'],
           sort: (p.get('sort') ?? 'name') as DishQuery['sort'],
+          attention: p.get('attention') === '1',
         };
       }
       let query = readQuery();
@@ -156,6 +165,7 @@ import '../../styles/admin.css';
         set('allerg', query.allergens, 'any');
         set('photo', query.photo, 'any');
         set('sort', query.sort, 'name');
+        set('attention', query.attention ? '1' : '', '');
         history.replaceState(null, '', url);
       }
 
@@ -258,6 +268,59 @@ import '../../styles/admin.css';
         );
       }
 
+      /**
+       * The problem chips, with their counts.
+       *
+       * Each is a **toggle** onto the same `query` the selects write, so clicking one and then
+       * changing a dropdown cannot produce two controls that disagree — there is one state and
+       * both are drawn from it.
+       *
+       * Counts are of the whole catalogue rather than of the current view. A chip reading
+       * "No photo 79" that fell to "No photo 3" as soon as you filtered by category would be
+       * measuring the filter rather than the problem, and the question these answer is always
+       * "how much is left to do", not "how much is left to do here".
+       */
+      function renderChips(): void {
+        const f = facets(rows);
+        const chip = (
+          label: string, n: number, on: boolean, action: string, warn: boolean,
+        ) =>
+          // `aria-pressed` rather than a checkbox: these are toggles on a view, not data entry,
+          // and a screen reader should say "pressed" rather than "checked".
+          `<button class="wbchip${on ? ' wbchip--on' : ''}${warn && n > 0 ? ' wbchip--warn' : ''}" ` +
+          `type="button" data-chip="${action}" aria-pressed="${on ? 'true' : 'false'}">` +
+          `${esc(label)}${n >= 0 ? ` <b>${n}</b>` : ''}</button>`;
+
+        const anyFilter =
+          query.attention || query.foodType !== 'any' || query.allergens !== 'any' ||
+          query.photo !== 'any' || query.menu !== 'any';
+
+        el.chips.innerHTML =
+          chip('All', f.total, !anyFilter, 'all', false) +
+          chip('Needs attention', f.needsAttention, query.attention, 'attention', true) +
+          chip('No food type', f.noFoodType, query.foodType === 'unset', 'type', true) +
+          chip('Allergens not checked', f.unchecked, query.allergens === 'unchecked', 'allerg', true) +
+          chip('On no menu', f.noMenu, query.menu === 'none', 'menu', true) +
+          chip('No photo', f.noPhoto, query.photo === 'missing', 'photo', true);
+      }
+
+      /** One chip's effect on the query. Toggling an active chip clears it rather than re-applying. */
+      function applyChip(action: string): void {
+        const off = () => {
+          query.attention = false; query.foodType = 'any';
+          query.allergens = 'any'; query.photo = 'any'; query.menu = 'any';
+        };
+        if (action === 'all') { off(); }
+        else if (action === 'attention') { const was = query.attention; off(); query.attention = !was; }
+        else if (action === 'type') { const was = query.foodType === 'unset'; off(); query.foodType = was ? 'any' : 'unset'; }
+        else if (action === 'allerg') { const was = query.allergens === 'unchecked'; off(); query.allergens = was ? 'any' : 'unchecked'; }
+        else if (action === 'menu') { const was = query.menu === 'none'; off(); query.menu = was ? 'any' : 'none'; }
+        else if (action === 'photo') { const was = query.photo === 'missing'; off(); query.photo = was ? 'any' : 'missing'; }
+        writeQuery();
+        fillControls();
+        render();
+      }
+
       function render() {
         if (loading) {
           el.list.innerHTML = Array(8).fill('<li class="kitchen__skeleton"></li>').join('');
@@ -274,8 +337,19 @@ import '../../styles/admin.css';
 
         shown = queryDishes(rows, query);
         const filtered = shown.length !== rows.length;
-        el.count.textContent = filtered ? `${shown.length} of ${rows.length} dishes` : `${rows.length} dishes`;
+        const attentionShown = shown.filter((r) => r.problems.length > 0).length;
+
+        /*
+         * The count line says three things, in the prototype's order: how many of how many, what
+         * narrowed it, and how many of *those* still need work. The last is the one that makes
+         * the line worth reading — "62 dishes" is a fact you already knew.
+         */
+        el.count.textContent =
+          (filtered ? `${shown.length} of ${rows.length} dishes` : `${rows.length} dishes`) +
+          (query.text ? ` matching “${query.text}”` : '') +
+          (attentionShown > 0 ? ` · ${attentionShown} need attention` : '');
         el.clear.hidden = !filtered && query.text === '';
+        renderChips();
 
         el.list.innerHTML = shown.length === 0
           ? `<li class="kitchen__state"><h2>Nothing matches</h2>` +
@@ -603,6 +677,12 @@ import '../../styles/admin.css';
 
       const clearAll = () => { query = { ...EMPTY_QUERY }; fillControls(); onQueryChange(); };
       el.clear.addEventListener('click', clearAll);
+      // Delegated: the chips are re-rendered on every query change, so a listener per button
+      // would be re-attached constantly and leak the old ones.
+      el.chips.addEventListener('click', (event) => {
+        const chip = (event.target as HTMLElement).closest<HTMLElement>('[data-chip]');
+        if (chip) applyChip(chip.dataset.chip!);
+      });
 
       el.list.addEventListener('click', (event) => {
         const t = event.target as HTMLElement;
