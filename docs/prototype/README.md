@@ -44,6 +44,30 @@ thing it is about:
 #home,cantconnect                  the backend is unreachable  ← not the same as the line above
 ```
 
+**Meal packs (E21).** Buy N meals up front, spend them one order at a time:
+
+```
+#packs                                      the offers
+#packs,packsoff                             a school we deliberately don't offer packs to
+#packdetail                                 one offer — expiry and no-refund stated before the money
+#mypacks,signedin,haspack                   the balance, mid-term
+#mypacks,signedin,haspack,packempty         every meal spent
+#mypacks,signedin,haspack,packexpired       ran out of time instead of meals
+#cart,signedin,cart,haspack                 redeeming — an explicit switch, off by default
+#cart,signedin,cart,haspack,packineligible  a cart that can't use one, and why
+#packplan                                   planning several days from a pack
+#planreview                                 the review before any meal is spent
+```
+
+**Spending a pack is the half that matters.** Buying is one screen; using ten meals across a
+fortnight is where a parent gets value or gives up. `#packplan` shows all four refusals on the
+days they apply to — cutoff passed, school doesn't serve that day, after the pack expires, and
+running out of meals — rather than at confirm time, when the work is already done. One day is
+deliberately left incomplete so the "still needs items" state is visible.
+
+The two `#cart` links are the pair to compare. Nothing is ever spent automatically, and a cart
+that doesn't qualify says what would fix it rather than just refusing.
+
 The last two are the distinction that cost us three hours, so it is worth tapping both. So is the
 pair of `#dish` links: signed in it names the child and the allergen; signed out it says plainly
 that it cannot check, because there is no child to check against.

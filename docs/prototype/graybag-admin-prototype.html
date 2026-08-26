@@ -1,0 +1,1375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GrayBag — admin prototype</title>
+<style>
+/* ==========================================================================
+   GrayBag back office — clickable prototype
+
+   The problem this is answering, in Andy's words: "a bad long list of dishes that I scroll
+   for long to find a dish, update it, save it and get sent back to the top to do it all over
+   again. No searching/sorting. Same dish repeated in each school."
+
+   So the three rules this design is built on:
+     1. You never scroll to find something. You search, filter, or sort to it.
+     2. Editing never moves you. The list stays exactly where it was.
+     3. A dish is ONE thing. It appears once, carrying its menus and prices with it.
+   ========================================================================== */
+:root{
+  --green:#00af52; --deep:#145f48; --amber:#ffbb39; --lime:#b3cf3f; --pale:#e5ea98;
+  --ink:#12211a; --muted:#7b8a83; --line:#e6eae8; --field:#f4f6f5; --danger:#c0392b;
+  --warn-bg:#fdf7ec; --warn-line:#f0dcae; --ok-bg:#f2f9f4; --ok-line:#cfe6d8;
+  --font:'SF Pro Rounded','Nunito',ui-rounded,-apple-system,'Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:var(--font);color:var(--ink);background:#0e1512;display:flex;
+     justify-content:center;align-items:flex-start;gap:24px;padding:24px 20px 60px}
+
+/* ---------- the state rail, same idea as the parent prototype ---------- */
+#rail{width:236px;flex:0 0 236px;color:#cfe0d7;position:sticky;top:24px;max-height:calc(100vh - 48px);overflow:auto}
+#rail h1{font-size:14px;margin:0 0 4px;color:#fff}
+#rail p.sub{font-size:11.5px;line-height:1.55;color:#8fa79b;margin:0 0 16px}
+#rail h2{font-size:9.5px;text-transform:uppercase;letter-spacing:.14em;color:#6f8a7c;margin:16px 0 6px}
+#rail button{display:block;width:100%;text-align:left;background:transparent;border:0;color:#cfe0d7;
+  font:inherit;font-size:12.5px;padding:7px 9px;border-radius:9px;cursor:pointer;margin:1px 0}
+#rail button:hover{background:#1b2924}
+#rail button.on{background:var(--green);color:#fff;font-weight:700}
+#rail .note{font-size:10.5px;color:#6f8a7c;line-height:1.55;margin:8px 0 0;padding:0 9px}
+
+/* ---------- the app frame ---------- */
+#app{width:1180px;max-width:calc(100vw - 320px);height:calc(100vh - 48px);min-height:680px;
+     background:#fff;border-radius:18px;overflow:hidden;display:flex;box-shadow:0 24px 60px rgba(0,0,0,.4)}
+#nav{width:212px;flex:0 0 212px;background:var(--deep);color:#dbeae2;padding:18px 12px;display:flex;flex-direction:column}
+#nav .brand{display:flex;align-items:center;gap:9px;padding:2px 8px 20px;font-weight:800;color:#fff;font-size:15.5px}
+#nav .brand i{width:22px;height:22px;border-radius:7px 7px 3px 3px;background:var(--lime);display:block}
+#nav h3{font-size:9.5px;text-transform:uppercase;letter-spacing:.14em;color:#7ea394;margin:16px 8px 6px}
+#nav button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;background:transparent;border:0;
+  color:#cfe0d7;font:inherit;font-size:13px;padding:8px 9px;border-radius:9px;cursor:pointer;margin:1px 0}
+#nav button:hover{background:rgba(255,255,255,.07)}
+#nav button.on{background:#fff;color:var(--deep);font-weight:800}
+#nav .count{margin-left:auto;font-size:11px;font-weight:800;background:rgba(255,255,255,.16);
+  padding:2px 7px;border-radius:99px}
+#nav button.on .count{background:var(--pale);color:#4a5a12}
+#nav .who{margin-top:auto;font-size:11.5px;color:#9dbdae;padding:12px 9px 0;border-top:1px solid rgba(255,255,255,.12)}
+
+#main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+.top{display:flex;align-items:center;gap:14px;padding:18px 24px 14px;border-bottom:1px solid var(--line)}
+.top h2{font-size:20px;margin:0;font-weight:800;letter-spacing:-.01em}
+.top .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+.top .spacer{flex:1}
+#scroll{flex:1;overflow:auto;padding:0 0 40px}
+
+/* ---------- controls ---------- */
+.btn{background:var(--green);color:#fff;border:0;border-radius:11px;padding:9px 16px;font:inherit;
+  font-size:13px;font-weight:700;cursor:pointer}
+.btn:hover{filter:brightness(1.06)}
+.btn.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.btn.ghost:hover{border-color:var(--green);filter:none}
+.btn.sm{padding:6px 12px;font-size:12px;border-radius:9px}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+
+.toolbar{position:sticky;top:0;z-index:5;background:#fff;padding:14px 24px 12px;border-bottom:1px solid var(--line)}
+.searchrow{display:flex;gap:10px;align-items:center}
+.search{flex:1;display:flex;align-items:center;gap:9px;background:var(--field);border:1.5px solid transparent;
+  border-radius:12px;padding:10px 13px}
+.search:focus-within{border-color:var(--green);background:#fff}
+.search input{flex:1;border:0;background:none;font:inherit;font-size:13.5px;outline:none;color:var(--ink)}
+.search svg{width:16px;height:16px;color:var(--muted);flex:0 0 16px}
+select{font:inherit;font-size:13px;border:1.5px solid var(--line);border-radius:11px;padding:9px 11px;background:#fff;cursor:pointer}
+
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+.chip{background:var(--field);border:1.5px solid transparent;border-radius:99px;padding:6px 13px;font:inherit;
+  font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:6px}
+.chip:hover{border-color:#d5ded9}
+.chip.on{background:var(--deep);color:#fff}
+.chip.warn{color:#8a6400}
+.chip.warn.on{background:var(--amber);color:#4a3600}
+.chip b{font-weight:800;opacity:.75}
+.chip.on b{opacity:.9}
+
+.resultline{font-size:12.5px;color:var(--muted);margin-top:11px;display:flex;align-items:center;gap:8px}
+.resultline b{color:var(--ink)}
+
+/* ---------- the workbench table ---------- */
+table{width:100%;border-collapse:collapse}
+thead th{position:sticky;top:0;background:#fbfcfb;text-align:left;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted);padding:10px 14px;border-bottom:1px solid var(--line);font-weight:800;z-index:2}
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover{color:var(--ink)}
+tbody tr{border-bottom:1px solid var(--line);cursor:pointer}
+tbody tr:hover{background:#f8faf9}
+tbody tr.sel{background:#f2f9f4}
+tbody tr.open{background:#eef7f1;box-shadow:inset 3px 0 0 var(--green)}
+td{padding:11px 14px;font-size:13.5px;vertical-align:middle}
+td.name{font-weight:700}
+td .sub{font-size:11.5px;color:var(--muted);font-weight:400;margin-top:2px}
+.thumb{width:38px;height:38px;border-radius:10px;background:var(--pale);flex:0 0 38px;
+  display:flex;align-items:center;justify-content:center;font-size:15px}
+.cellflex{display:flex;align-items:center;gap:11px}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--green);cursor:pointer}
+
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;
+  background:var(--field);color:var(--muted);white-space:nowrap}
+.tag.veg{background:#eaf7ee;color:#1b7a3d}
+.tag.egg{background:#fdf3e0;color:#8a6400}
+.tag.nonveg{background:#fbecea;color:#a83226}
+.tag.none{background:var(--warn-bg);color:#8a6400;border:1px dashed var(--warn-line)}
+.tag.menu{background:#eef2f6;color:#3f5566}
+.tag.live{background:#eaf7ee;color:#1b7a3d}
+.tag.draft{background:var(--field);color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}
+
+/* ---------- bulk bar ---------- */
+.bulk{position:sticky;bottom:0;z-index:6;background:var(--deep);color:#fff;display:flex;align-items:center;gap:14px;
+  padding:13px 22px;font-size:13px}
+.bulk b{font-weight:800}
+.bulk .spacer{flex:1}
+.bulk button{background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:9px;padding:7px 13px;
+  font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.bulk button:hover{background:rgba(255,255,255,.24)}
+.bulk button.go{background:var(--lime);color:#2b3a0c}
+
+/* ---------- drawer ---------- */
+#scrim{position:absolute;inset:0;background:rgba(10,20,16,.34);opacity:0;pointer-events:none;transition:opacity .16s;z-index:20}
+#scrim.on{opacity:1;pointer-events:auto}
+#drawer{position:absolute;top:0;right:0;bottom:0;width:460px;max-width:74%;background:#fff;z-index:21;
+  transform:translateX(102%);transition:transform .2s cubic-bezier(.32,.72,0,1);display:flex;flex-direction:column;
+  box-shadow:-18px 0 44px rgba(0,0,0,.16)}
+#drawer.on{transform:none}
+.dhead{padding:18px 22px 14px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:12px}
+.dhead h3{margin:0;font-size:17px;font-weight:800}
+.dhead .sub{font-size:12px;color:var(--muted);margin-top:3px}
+.dhead .x{margin-left:auto;background:none;border:0;font-size:22px;line-height:1;color:var(--muted);cursor:pointer;padding:0 4px}
+.dbody{flex:1;overflow:auto;padding:18px 22px 24px}
+.dfoot{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center}
+.dfoot .spacer{flex:1}
+.dfoot .hint{font-size:11.5px;color:var(--muted)}
+
+.field{margin:0 0 15px}
+.field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+  font-weight:800;margin:0 0 6px}
+.field input[type=text],.field input[type=number],.field textarea,.field select{width:100%;font:inherit;font-size:13.5px;
+  border:1.5px solid var(--line);border-radius:11px;padding:10px 12px;background:#fff;color:var(--ink);outline:none}
+.field input:focus,.field textarea:focus{border-color:var(--green)}
+.field textarea{min-height:64px;resize:vertical;line-height:1.6}
+.field .help{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.55}
+.two{display:flex;gap:12px}
+.two > *{flex:1}
+
+.seg{display:flex;gap:6px}
+.seg button{flex:1;background:var(--field);border:1.5px solid transparent;border-radius:10px;padding:9px;font:inherit;
+  font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--deep);color:#fff}
+.seg button.on.veg{background:#1b7a3d}
+.seg button.on.egg{background:#b8860b}
+.seg button.on.nonveg{background:#a83226}
+
+.checks{display:flex;flex-wrap:wrap;gap:7px}
+.checks label{display:flex;align-items:center;gap:7px;background:var(--field);border:1.5px solid transparent;
+  border-radius:99px;padding:6px 12px;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer}
+.checks label.on{background:#eaf7ee;border-color:#bfe3cc;color:#1b7a3d}
+
+.sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:800;
+  margin:22px 0 12px;padding-top:16px;border-top:1px solid var(--line)}
+.sec:first-child{margin-top:0;padding-top:0;border-top:0}
+
+.menurow{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--line)}
+.menurow:last-child{border-bottom:0}
+.menurow .m{flex:1;font-size:13px;font-weight:700}
+.menurow .m span{display:block;font-size:11.5px;color:var(--muted);font-weight:400;margin-top:2px}
+.menurow input{width:96px;text-align:right}
+
+.switch{flex:0 0 42px;width:42px;height:25px;border-radius:99px;border:0;background:#cfd8d3;position:relative;cursor:pointer}
+.switch.on{background:var(--green)}
+.switch i{position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;transition:left .16s}
+.switch.on i{left:20px}
+
+/* ---------- cards / panels ---------- */
+.pad{padding:20px 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.card{border:1.5px solid var(--line);border-radius:16px;padding:16px 17px;background:#fff}
+.card h4{margin:0 0 4px;font-size:14.5px;font-weight:800}
+.card .k{font-size:28px;font-weight:800;letter-spacing:-.02em;margin:2px 0 2px}
+.card .m{font-size:12px;color:var(--muted);line-height:1.55}
+.card.warn{background:var(--warn-bg);border-color:var(--warn-line)}
+.card.ok{background:var(--ok-bg);border-color:var(--ok-line)}
+
+.gate{display:flex;align-items:flex-start;gap:11px;padding:12px 0;border-bottom:1px solid var(--line)}
+.gate:last-child{border-bottom:0}
+.gate .ic{flex:0 0 20px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:#fff;margin-top:1px}
+.gate.pass .ic{background:var(--green)}
+.gate.fail .ic{background:var(--danger)}
+.gate.warn .ic{background:var(--amber);color:#4a3600}
+.gate .t{flex:1;font-size:13.5px;font-weight:700}
+.gate .t span{display:block;font-size:12px;color:var(--muted);font-weight:400;margin-top:3px;line-height:1.55}
+
+.notice{border-radius:14px;padding:14px 16px;font-size:13px;line-height:1.6;margin:0 0 16px}
+.notice b{display:block;font-size:13.5px;margin-bottom:3px}
+.notice.warn{background:var(--warn-bg);border:1.5px solid var(--warn-line);color:#6b4e00}
+.notice.err{background:#fbecea;border:1.5px solid #f0c8c2;color:#8f271c}
+.notice.info{background:var(--ok-bg);border:1.5px solid var(--ok-line);color:#1b5a38}
+
+.empty{text-align:center;padding:64px 30px;color:var(--muted)}
+.empty h3{color:var(--ink);font-size:17px;margin:0 0 7px}
+.empty p{font-size:13px;line-height:1.65;max-width:400px;margin:0 auto 18px}
+
+.sk{background:linear-gradient(90deg,#eef1ef 25%,#f7f9f8 37%,#eef1ef 63%);background-size:400% 100%;
+  animation:sh 1.3s infinite;border-radius:9px}
+@keyframes sh{0%{background-position:100% 0}100%{background-position:0 0}}
+
+.funnel{display:flex;flex-direction:column;gap:2px}
+.fstep{display:flex;align-items:center;gap:14px;padding:12px 0}
+.fbar{height:34px;border-radius:9px;background:var(--deep);min-width:44px;display:flex;align-items:center;
+  padding:0 12px;color:#fff;font-weight:800;font-size:14px}
+.fstep .lbl{flex:0 0 190px;font-size:13.5px;font-weight:700}
+.fstep .drop{font-size:12px;color:#8a6400;background:var(--warn-bg);border:1px solid var(--warn-line);
+  padding:4px 10px;border-radius:99px;font-weight:700}
+</style>
+</head>
+<body>
+<div id="rail"></div>
+<div id="app">
+  <div id="nav"></div>
+  <div id="main">
+    <div id="chrome"></div>
+    <div id="scroll"></div>
+    <div id="scrim" onclick="closeDrawer()"></div>
+    <div id="drawer"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   Fixtures. Names and shapes are the real ones; numbers are plausible, not live.
+   ========================================================================= */
+const SCHOOLS = [
+  {id:'amity',   name:'Amity International School', city:'Mohali', menu:'Sky Bites',
+   dishes:47, breaks:2, days:'Mon–Sat', packs:true,  live:true},
+  {id:'paragon', name:'Paragon Senior Secondary',   city:'Mohali', menu:'School Menu — Aug 2026',
+   dishes:36, breaks:2, days:'Mon–Sat', packs:true,  live:true},
+  {id:'gem',     name:'Gem Public School',          city:'Mohali', menu:'School Menu — Aug 2026',
+   dishes:36, breaks:0, days:'Mon–Sat', packs:false, live:false},
+];
+
+const CATS = ['Drinks','Meals','Bakery','Sandwich','Salad','Snacks'];
+const ALLERGENS = ['milk','gluten','tree nut','peanut','soy','sesame','egg'];
+
+/* A dish is ONE record. `menus` is where it appears and at what price — the thing the old
+   screen expressed by repeating the whole dish once per school. */
+const DISHES = [
+  {n:'Mango Shake (Seasonal)', c:'Drinks',   t:'veg',  a:['milk'],            kcal:'240–280', m:{amity:12900}},
+  {n:'Cold Coffee',            c:'Drinks',   t:'veg',  a:['milk'],            kcal:'180–210', m:{amity:10900,paragon:10900}},
+  {n:'Hot Choco Milk',         c:'Drinks',   t:'veg',  a:['milk'],            kcal:'210–240', m:{amity:10900}},
+  {n:'Lemon Ice Tea',          c:'Drinks',   t:'veg',  a:[],                  kcal:'90–110',  m:{amity:10900,paragon:10900}},
+  {n:'Lemonade',               c:'Drinks',   t:null,   a:[],                  kcal:'',        m:{amity:10900}},
+  {n:'Strawberry Shake',       c:'Drinks',   t:'veg',  a:['milk'],            kcal:'250–290', m:{amity:12900}},
+  {n:'Paneer Wrap',            c:'Meals',    t:'veg',  a:['milk','gluten'],   kcal:'380–420', m:{amity:9500,paragon:9000}},
+  {n:'Rajma With Rice',        c:'Meals',    t:'veg',  a:[],                  kcal:'450–500', m:{amity:11900,paragon:11500,gem:11500}},
+  {n:'Idli Sambar',            c:'Meals',    t:'veg',  a:[],                  kcal:'300–340', m:{paragon:9900,gem:9900}},
+  {n:'Mix Veg Poha',           c:'Meals',    t:'veg',  a:['peanut'],          kcal:'280–320', m:{amity:8900}},
+  {n:'Vada Pao',               c:'Meals',    t:null,   a:['gluten'],          kcal:'',        m:{paragon:6900}},
+  {n:'Chole Bhature',          c:'Meals',    t:'veg',  a:['gluten'],          kcal:'520–580', m:{gem:12900}},
+  {n:'Pain Au Chocolat',       c:'Bakery',   t:'veg',  a:['milk','gluten'],   kcal:'330–370', m:{amity:13900}},
+  {n:'Chocolate Muffin',       c:'Bakery',   t:'veg',  a:['milk','gluten'],   kcal:'350–390', m:{amity:8900,paragon:8500}},
+  {n:'Wheat Jaggery Cake',     c:'Bakery',   t:'veg',  a:['gluten'],          kcal:'300–340', m:{amity:8900}},
+  {n:'Chocolate Doughnut',     c:'Bakery',   t:'veg',  a:['milk','gluten'],   kcal:'340–380', m:{amity:8900,paragon:6900}},
+  {n:'Boiled Eggs (3 pcs)',    c:'Snacks',   t:'egg',  a:['egg'],             kcal:'210–230', m:{amity:7900}},
+  {n:'Scrambled Egg w Toast',  c:'Meals',    t:'egg',  a:['egg','milk','gluten'], kcal:'380–420', m:{amity:12900}},
+  {n:'French Toast',           c:'Bakery',   t:'egg',  a:['egg','milk','gluten'], kcal:'400–440', m:{paragon:10900}},
+  {n:'Pancakes w Honey',       c:'Bakery',   t:'egg',  a:['egg','milk','gluten'], kcal:'420–470', m:{amity:11900}},
+  {n:'Veggie Sub Sandwich',    c:'Sandwich', t:'veg',  a:['gluten'],          kcal:'340–380', m:{amity:11900,paragon:11500}},
+  {n:'Boiled Egg Sub',         c:'Sandwich', t:'egg',  a:['egg','gluten'],    kcal:'390–430', m:{amity:12900}},
+  {n:'Quinoa Salad',           c:'Salad',    t:'veg',  a:[],                  kcal:'260–300', m:{amity:10900}},
+  {n:'Fruit Salad',            c:'Salad',    t:'veg',  a:[],                  kcal:'150–180', m:{amity:7900,paragon:7500,gem:7500}},
+  {n:'Aloo Channa Chat',       c:'Snacks',   t:null,   a:[],                  kcal:'',        m:{paragon:6900}},
+  {n:'Sprouts Chat',           c:'Snacks',   t:'veg',  a:[],                  kcal:'180–210', m:{gem:6900}},
+];
+DISHES.forEach((d,i)=>{ d.id='d'+i; d.photo = !['Aloo Channa Chat','Lemonade'].includes(d.n); });
+
+const PACKS = [
+  {id:'p10', name:'10 meal pack', meals:10, items:2, must:'Drinks', price:300000, days:60,
+   schools:['amity','paragon'], live:true,  sold:14},
+  {id:'p20', name:'20 meal pack', meals:20, items:2, must:'Drinks', price:560000, days:90,
+   schools:['amity'],           live:true,  sold:3},
+  {id:'p5',  name:'5 meal starter', meals:5, items:2, must:'',      price:160000, days:30,
+   schools:[],                  live:false, sold:0},
+];
+
+const DAYS = ['Mon 24 Aug','Tue 25 Aug','Wed 26 Aug','Thu 27 Aug','Fri 28 Aug'];
+const ORDERS = [
+  {code:'GB-4K2M9P', child:'Aarav',  cls:'6-B', school:'amity',   brk:'Morning break', day:'Wed 26 Aug',
+   lines:[['Paneer Wrap',1,9500],['Cold Coffee',1,10900]], total:26042, pack:false, state:'paid',
+   parent:'anuragdial@gmail.com', allergens:['milk'], placed:'25 Aug, 21:14', invoice:'GB/26-27/000001'},
+  {code:'GB-9XT4LM', child:'Ishita', cls:'4-A', school:'amity',   brk:'Morning break', day:'Wed 26 Aug',
+   lines:[['Fruit Salad',1,7900],['Lemon Ice Tea',1,10900]], total:0, pack:true, state:'paid',
+   parent:'priya.sharma@gmail.com', allergens:[], placed:'25 Aug, 22:02', invoice:'—', packRef:'10 meal pack · 6 left'},
+  {code:'GB-QW83ZR', child:'Kabir',  cls:'7-A', school:'paragon', brk:'Second break',  day:'Tue 25 Aug',
+   lines:[['Rajma With Rice',1,11500],['Chocolate Muffin',1,8500],['Cold Coffee',1,10900]], total:31890,
+   pack:false, state:'delivered', parent:'r.mehta84@yahoo.in', allergens:['gluten','milk'],
+   placed:'24 Aug, 19:47', invoice:'GB/26-27/000002'},
+];
+
+/* Named menus. A menu is a THING with a name, not an anonymous list bolted to a school —
+   which is what lets you start a new school from a menu that already works. */
+const MENUS = [
+  {id:'m1', name:'Sky Bites',            note:'Amity\'s full range',        dishes:47, schools:['amity']},
+  {id:'m2', name:'School Menu — Aug 2026', note:'Shared starter menu',        dishes:36, schools:['paragon','gem']},
+  {id:'m3', name:'Summer light',         note:'Draft — not assigned',        dishes:18, schools:[]},
+];
+
+/* Daily series for the reports range. Plausible, not live. */
+const DAILY = [
+  {d:'20 Aug',o:0,r:0},     {d:'21 Aug',o:0,r:0},      {d:'22 Aug',o:1,r:26042},
+  {d:'23 Aug',o:0,r:0},     {d:'24 Aug',o:2,r:31890},  {d:'25 Aug',o:1,r:0},
+  {d:'26 Aug',o:3,r:57932},
+];
+const RANGES = [['7d','Last 7 days'],['30d','Last 30 days'],['term','This term'],['custom','Custom…']];
+
+const FUNNEL = [
+  {k:'Registered',        v:13, act:''},
+  {k:'Added a child',     v:9,  act:'4 registered and stopped. Email them — that is the cheapest win here.'},
+  {k:'Placed a first order', v:1, act:'8 have a child and have never ordered. This is the real problem.'},
+  {k:'Ordered again',     v:0,  act:'Too early to read.'},
+];
+
+/* =========================================================================
+   State
+   ========================================================================= */
+const DEFAULTS = {
+  loading:false, empty:false, error:false,   // list states
+  nopacks:false,                              // packs never configured
+};
+const S = {
+  page:'dishes', q:'', filter:'all', sort:'name', sel:new Set(), range:'30d', rSchool:'all', pq:'', day:'Wed 26 Aug', oSchool:'all', oState:'all', oGroup:'class',
+  drawer:null, drawerKind:null, school:'amity', dirty:false,
+  flags:{...DEFAULTS},
+};
+
+const rupees = p => '₹' + (p/100).toFixed(2).replace(/\.00$/,'');
+const esc = s => String(s).replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const school = id => SCHOOLS.find(s=>s.id===id);
+const priceRange = d => {
+  const v = Object.values(d.m);
+  if(!v.length) return '—';
+  const lo=Math.min(...v), hi=Math.max(...v);
+  return lo===hi ? rupees(lo) : rupees(lo)+'–'+rupees(hi);
+};
+/* A dish "needs attention" if it can't be safely published: no food type is the blocking one,
+   because a parent cannot tell whether it is vegetarian. */
+const needsAttention = d => !d.t || !d.photo || (Object.keys(d.m).length===0);
+const blocking = d => !d.t && Object.keys(d.m).length>0;
+
+const ICON = {
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+};
+
+/* =========================================================================
+   Navigation
+   ========================================================================= */
+const NAV = [
+  ['today',   'Today',            ()=>ORDERS.length],
+  ['dishes',  'Dishes',           ()=>DISHES.filter(blocking).length || null],
+  ['menus',   'Menus',            ()=>null],
+  ['schools', 'Schools',          ()=>SCHOOLS.filter(s=>!s.live).length || null],
+  ['packs',   'Meal packs',       ()=>null],
+  ['orders',  'Orders',           ()=>null],
+  ['reports', 'Reports',          ()=>null],
+  ['growth',  'Growth',           ()=>null],
+  ['people',  'People & access',  ()=>null],
+  ['import',  'Import',           ()=>null],
+];
+
+function renderNav(){
+  document.getElementById('nav').innerHTML = `
+    <div class="brand"><i></i> GrayBag</div>
+    <h3>Run the day</h3>
+    ${[NAV[0],NAV[5]].map(navBtn).join('')}
+    <h3>Understand</h3>
+    ${[NAV[6],NAV[7]].map(navBtn).join('')}
+    <h3>The catalogue</h3>
+    ${NAV.slice(1,5).map(navBtn).join('')}
+    <h3>Admin</h3>
+    ${NAV.slice(8).map(navBtn).join('')}
+    <div class="who">Andy Dial<br><span style="opacity:.7">Platform admin</span></div>`;
+}
+const navBtn = ([id,label,count]) => {
+  const c = count();
+  return `<button class="${S.page===id?'on':''}" onclick="go('${id}')">${label}
+    ${c?`<span class="count">${c}</span>`:''}</button>`;
+};
+
+function go(p){ S.page=p; S.q=''; S.filter='all'; S.sel=new Set(); closeDrawer(); render(); }
+
+/* =========================================================================
+   Pages
+   ========================================================================= */
+const P = {};
+
+/* ---------------------------------------------------------------- Today */
+P.today = () => ({
+  title:'Today', sub:'Tuesday 26 August · Mohali',
+  body:`
+  <div class="pad">
+    ${DISHES.filter(blocking).length ? `
+      <div class="notice warn">
+        <b>${DISHES.filter(blocking).length} dishes on a live menu have no veg / non-veg marking</b>
+        A parent can't tell what they're ordering. Fix them in Dishes — filter by
+        <b>Needs a food type</b> and set them in one action.
+      </div>` : ''}
+    <div class="grid">
+      <div class="card"><h4>Orders today</h4><div class="k">3</div>
+        <div class="m">2 paid · 1 delivered<br>1 paid with a meal pack</div></div>
+      <div class="card"><h4>Revenue today</h4><div class="k">₹579.32</div>
+        <div class="m">Excludes pack redemptions — that money came in when the pack was sold</div></div>
+      <div class="card"><h4>Packs sold</h4><div class="k">17</div>
+        <div class="m">₹51,200 collected · 94 meals outstanding</div></div>
+      <div class="card warn"><h4>Needs you</h4><div class="k">2</div>
+        <div class="m">Gem Public School has no break windows, so it can't take an order.<br>
+        3 dishes have no food type.</div></div>
+    </div>
+
+    <div class="sec" style="border-top:0;padding-top:26px">Kitchen, right now</div>
+    ${ORDERS.map(o=>`
+      <div class="gate ${o.state==='delivered'?'pass':'warn'}">
+        <div class="ic">${o.state==='delivered'?'✓':'·'}</div>
+        <div class="t">${o.child} · Class ${o.cls}
+          <span>${school(o.school).name} · ${o.brk} · ${o.items} items ·
+            ${o.pack?'<b>paid with a pack meal</b>':rupees(o.total)}</span></div>
+        <span class="tag ${o.state==='delivered'?'live':'draft'}">${o.state}</span>
+      </div>`).join('')}
+  </div>`
+});
+
+/* ---------------------------------------------------------------- Dishes: the workbench */
+P.dishes = () => {
+  const f = S.flags;
+  const counts = {
+    all: DISHES.length,
+    notype: DISHES.filter(d=>!d.t).length,
+    nomenu: DISHES.filter(d=>!Object.keys(d.m).length).length,
+    nophoto: DISHES.filter(d=>!d.photo).length,
+    egg: DISHES.filter(d=>d.t==='egg').length,
+  };
+
+  let list = DISHES.filter(d=>{
+    if(S.q && !d.n.toLowerCase().includes(S.q.toLowerCase()) && !d.c.toLowerCase().includes(S.q.toLowerCase())) return false;
+    if(S.filter==='notype')  return !d.t;
+    if(S.filter==='nomenu')  return !Object.keys(d.m).length;
+    if(S.filter==='nophoto') return !d.photo;
+    if(S.filter==='egg')     return d.t==='egg';
+    if(CATS.includes(S.filter)) return d.c===S.filter;
+    return true;
+  });
+
+  /* Rank matches so typing "pan" puts Pancakes above the seven Paneer dishes — a list that
+     merely *contains* your word is still a list you have to read. */
+  if(S.q){
+    const q = S.q.toLowerCase();
+    list = list.slice().sort((a,b)=>{
+      const ai = a.n.toLowerCase().startsWith(q)?0:1, bi = b.n.toLowerCase().startsWith(q)?0:1;
+      return ai-bi || a.n.localeCompare(b.n);
+    });
+  } else if(S.sort==='name')      list = list.slice().sort((a,b)=>a.n.localeCompare(b.n));
+  else if(S.sort==='attention')   list = list.slice().sort((a,b)=>(needsAttention(b)?1:0)-(needsAttention(a)?1:0) || a.n.localeCompare(b.n));
+  else if(S.sort==='category')    list = list.slice().sort((a,b)=>a.c.localeCompare(b.c) || a.n.localeCompare(b.n));
+  else if(S.sort==='menus')       list = list.slice().sort((a,b)=>Object.keys(b.m).length-Object.keys(a.m).length || a.n.localeCompare(b.n));
+
+  const chip = (id,label,n,warn) =>
+    `<button class="chip ${warn?'warn':''} ${S.filter===id?'on':''}" onclick="setFilter('${id}')">${label}${n!=null?` <b>${n}</b>`:''}</button>`;
+
+  const toolbar = `
+    <div class="toolbar">
+      <div class="searchrow">
+        <div class="search">${ICON.search}
+          <input placeholder="Search dishes — name or category" value="${esc(S.q)}" oninput="setQ(this.value)" autocomplete="off">
+        </div>
+        <select onchange="S.sort=this.value;render()">
+          <option value="name"      ${S.sort==='name'?'selected':''}>Sort: A–Z</option>
+          <option value="attention" ${S.sort==='attention'?'selected':''}>Sort: needs attention first</option>
+          <option value="category"  ${S.sort==='category'?'selected':''}>Sort: category</option>
+          <option value="menus"     ${S.sort==='menus'?'selected':''}>Sort: most menus</option>
+        </select>
+        <button class="btn" onclick="openDish(null)">New dish</button>
+      </div>
+      <div class="chips">
+        ${chip('all','All',counts.all)}
+        ${chip('notype','Needs a food type',counts.notype,true)}
+        ${chip('nomenu','Not on any menu',counts.nomenu,true)}
+        ${chip('nophoto','No photo',counts.nophoto,true)}
+        ${chip('egg','Egg',counts.egg)}
+        ${CATS.map(c=>chip(c,c,DISHES.filter(d=>d.c===c).length)).join('')}
+      </div>
+      <div class="resultline">
+        <b>${list.length}</b> of ${DISHES.length} dishes
+        ${S.q?`matching "${esc(S.q)}"`:''}
+        ${S.filter!=='all'?` · filtered`:''}
+        ${list.some(needsAttention)?` · <span style="color:#8a6400;font-weight:700">${list.filter(needsAttention).length} need attention</span>`:''}
+      </div>
+    </div>`;
+
+  if(f.loading) return {title:'Dishes', sub:'Every dish, once', body: toolbar + `<div class="pad">${
+    Array.from({length:8},()=>'<div class="sk" style="height:56px;margin-bottom:8px"></div>').join('')}</div>`};
+
+  if(f.error) return {title:'Dishes', sub:'Every dish, once', body: toolbar + `<div class="pad">
+    <div class="notice err"><b>We couldn't load the catalogue</b>
+      Nothing has changed. Try again — and if it keeps failing, the daily digest will have caught it too.</div>
+    <button class="btn" onclick="setFlag('error',false)">Try again</button></div>`};
+
+  if(!list.length) return {title:'Dishes', sub:'Every dish, once', body: toolbar + `<div class="empty">
+    <h3>Nothing matches</h3>
+    <p>${S.q?`No dish is called “${esc(S.q)}”.`:'No dish is in that state — which is usually good news.'}</p>
+    <button class="btn ghost" onclick="clearFilters()">Clear search and filters</button></div>`};
+
+  const rows = list.map(d=>`
+    <tr class="${S.sel.has(d.id)?'sel':''} ${S.drawer===d.id?'open':''}" onclick="openDish('${d.id}')">
+      <td style="width:38px" onclick="event.stopPropagation()">
+        <input type="checkbox" ${S.sel.has(d.id)?'checked':''} onchange="toggleSel('${d.id}')"></td>
+      <td class="name">
+        <div class="cellflex">
+          <div class="thumb">${d.photo?'🍽':'<span style="opacity:.5;font-size:11px">no<br>photo</span>'}</div>
+          <div>${d.n}<div class="sub">${d.c}${d.kcal?' · '+d.kcal+' kcal':''}</div></div>
+        </div></td>
+      <td>${d.t
+        ? `<span class="tag ${d.t}"><span class="dot"></span>${d.t==='nonveg'?'Non-veg':d.t[0].toUpperCase()+d.t.slice(1)}</span>`
+        : `<span class="tag none">not set</span>`}</td>
+      <td>${d.a.length?d.a.map(a=>`<span class="tag" style="margin-right:4px">${a}</span>`).join(''):'<span style="color:var(--muted)">—</span>'}</td>
+      <td>${Object.keys(d.m).length
+        ? Object.keys(d.m).map(k=>`<span class="tag menu" style="margin-right:4px">${school(k).name.split(' ')[0]}</span>`).join('')
+        : '<span class="tag none">on no menu</span>'}</td>
+      <td style="font-weight:700;white-space:nowrap">${priceRange(d)}</td>
+    </tr>`).join('');
+
+  return {
+    title:'Dishes', sub:'Every dish once, carrying the menus it is on',
+    body: toolbar + `
+      <table>
+        <thead><tr>
+          <th style="width:38px"><input type="checkbox" ${S.sel.size===list.length&&list.length?'checked':''}
+            onchange="selectAll(${JSON.stringify(list.map(d=>d.id)).replace(/"/g,'&quot;')})"></th>
+          <th>Dish</th><th>Food type</th><th>Allergens</th><th>On menus</th><th>Price</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${S.sel.size?bulkBar(list):''}`
+  };
+};
+
+function bulkBar(list){
+  const chosen = DISHES.filter(d=>S.sel.has(d.id));
+  const noType = chosen.filter(d=>!d.t).length;
+  return `<div class="bulk">
+    <b>${S.sel.size} selected</b>
+    ${noType?`<span style="opacity:.8">${noType} with no food type</span>`:''}
+    <div class="spacer"></div>
+    <button class="go" onclick="bulkType('veg')">Set Veg</button>
+    <button onclick="bulkType('egg')">Set Egg</button>
+    <button onclick="bulkType('nonveg')">Set Non-veg</button>
+    <button onclick="S.sel=new Set();render()">Clear</button>
+  </div>`;
+}
+
+/* ----------------------------------------------------------------
+   Menus — named things you can reuse.
+
+   A menu has a NAME and can be assigned to more than one school, which is what makes
+   onboarding a new school a two-minute job: start from one that already works, then
+   diverge only where it needs to.
+   ---------------------------------------------------------------- */
+P.menus = () => ({
+  title:'Menus', sub:'Named menus, assigned to schools — reuse one to start a new school',
+  body:`
+    <div class="toolbar"><div class="searchrow">
+      <div style="flex:1;font-size:13px;color:var(--muted)">
+        <b style="color:var(--ink)">${MENUS.length} menus</b> ·
+        ${MENUS.filter(m=>!m.schools.length).length} not assigned to any school
+      </div>
+      <button class="btn ghost" onclick="alert('Prototype')">Duplicate a menu</button>
+      <button class="btn" onclick="alert('Prototype')">New menu</button>
+    </div></div>
+    <div class="pad">
+      ${MENUS.map(m=>{
+        const on = DISHES.filter(d=>m.schools.some(sc=>d.m[sc]));
+        const bad = on.filter(d=>!d.t).length;
+        return `<div class="card" style="margin-bottom:14px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <div style="flex:1">
+              <h4>${m.name}</h4>
+              <div class="m">${m.note} · ${m.dishes} dishes</div>
+            </div>
+            ${m.schools.length
+              ? `<span class="tag live">on ${m.schools.length} school${m.schools.length>1?'s':''}</span>`
+              : '<span class="tag draft">not assigned</span>'}
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            ${m.schools.length
+              ? m.schools.map(sc=>`<span class="tag menu">${school(sc).name}</span>`).join('')
+              : '<span style="font-size:12.5px;color:var(--muted)">No school uses this yet — parents cannot see it.</span>'}
+          </div>
+
+          ${bad?`<div class="notice warn" style="margin:13px 0 0">
+            <b>${bad} dishes on this menu have no food type</b>
+            Visible to parents right now with no veg marking.
+            <div style="margin-top:9px"><button class="btn sm" onclick="jumpNoType()">Fix them</button></div>
+          </div>`:''}
+
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn ghost sm" onclick="alert('Prototype')">Rename</button>
+            <button class="btn ghost sm" onclick="alert('Prototype')">Assign to another school</button>
+            <button class="btn ghost sm" onclick="alert('Prototype')">Duplicate as a new menu</button>
+            <button class="btn ghost sm" onclick="go('dishes')">Edit its dishes</button>
+          </div>
+        </div>`;
+      }).join('')}
+
+      <div class="notice info"><b>Assigning vs duplicating — the distinction that matters</b>
+        <b>Assign</b> points a second school at the <i>same</i> menu: change a price once and both
+        schools change. <b>Duplicate</b> takes a copy that then goes its own way. Starting a new
+        school by assigning an existing menu is the fast path; duplicate the moment its prices
+        or dishes need to differ.</div>
+    </div>`
+});
+
+/* ---------------------------------------------------------------- Schools */
+
+P.schools = () => {
+  const s = school(S.school);
+  const on = DISHES.filter(d=>d.m[s.id]);
+  const gates = [
+    {ok:!!s.menu,            t:'A menu is assigned',       d:s.menu ? s.menu+' · '+on.length+' dishes' : 'No menu — parents see an empty picker'},
+    {ok:s.breaks>0,          t:'Break windows are set',    d:s.breaks?s.breaks+' windows':'None. Without these the school cannot take a single order.'},
+    {ok:!!s.days,            t:'Service days are set',     d:s.days},
+    {ok:!on.some(d=>!d.t),   t:'Every dish has a food type', d:on.filter(d=>!d.t).length?on.filter(d=>!d.t).length+' dishes unmarked':'All '+on.length+' marked', warn:true},
+    {ok:true,                t:'Kitchen is linked',        d:'GrayBag Kitchen, Mohali'},
+  ];
+
+  return {
+    title:'Schools', sub:'What has to be true before a school can take an order',
+    body:`
+      <div class="toolbar"><div class="chips">
+        ${SCHOOLS.map(x=>`<button class="chip ${S.school===x.id?'on':''}" onclick="S.school='${x.id}';render()">
+          ${x.name}${x.live?'':' <b>·</b>'}</button>`).join('')}
+        <button class="chip" onclick="alert('Prototype')">+ Onboard a school</button>
+      </div></div>
+      <div class="pad">
+        ${s.live?'':`<div class="notice err"><b>${s.name} cannot take orders</b>
+          One or more of the checks below is failing. Parents at this school see a menu they can't order from.</div>`}
+        <div class="card">
+          <div class="sec">Readiness</div>
+          ${gates.map(g=>`<div class="gate ${g.ok?'pass':(g.warn?'warn':'fail')}">
+            <div class="ic">${g.ok?'✓':(g.warn?'!':'✕')}</div>
+            <div class="t">${g.t}<span>${g.d}</span></div>
+          </div>`).join('')}
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <div class="sec">Meal packs at this school</div>
+          <div style="display:flex;align-items:flex-start;gap:14px">
+            <div style="flex:1">
+              <div style="font-size:13.5px;font-weight:700">${s.packs?'Offered':'Not offered'}</div>
+              <div class="m" style="margin-top:4px">${s.packs
+                ? PACKS.filter(p=>p.schools.includes(s.id)&&p.live).map(p=>p.name).join(' · ')||'No offers assigned yet'
+                : 'Parents at this school see single orders only. This is a deliberate choice, and the app says so plainly rather than hiding the section.'}</div>
+            </div>
+            <button class="switch ${s.packs?'on':''}" onclick="togglePacks('${s.id}')"><i></i></button>
+          </div>
+          ${s.packs?`<div style="margin-top:14px"><button class="btn ghost sm" onclick="go('packs')">Manage the offers</button></div>`:''}
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <div class="sec">Config</div>
+          <div class="gate"><div class="ic" style="background:var(--field);color:var(--muted)">·</div>
+            <div class="t">Cutoff <span>23:59 the day before · <i style="color:var(--muted)">inherited from platform default</i></span></div>
+            <button class="btn ghost sm" onclick="alert('Prototype')">Override</button></div>
+          <div class="gate"><div class="ic" style="background:var(--green)">✓</div>
+            <div class="t">Break windows <span>Morning 10:40–11:15 · Second 11:15–11:40 · <b>overridden for this school</b></span></div>
+            <button class="btn ghost sm" onclick="alert('Prototype')">Remove override</button></div>
+        </div>
+      </div>`
+  };
+};
+
+/* ---------------------------------------------------------------- Meal packs */
+P.packs = () => {
+  if(S.flags.nopacks) return {title:'Meal packs', sub:'Sell meals up front',
+    body:`<div class="empty"><h3>No packs yet</h3>
+      <p>A pack is a number of meals bought up front at a lower price per meal. You choose the rules,
+      the price, how long it lasts, and which schools it's offered at.</p>
+      <button class="btn" onclick="openPack(null)">Create the first pack</button></div>`};
+
+  return {
+    title:'Meal packs', sub:'Sell meals up front · offered school by school',
+    body:`
+      <div class="toolbar"><div class="searchrow">
+        <div style="flex:1;font-size:13px;color:var(--muted)">
+          <b style="color:var(--ink)">${PACKS.filter(p=>p.live).length} live</b> ·
+          ${PACKS.reduce((n,p)=>n+p.sold,0)} sold ·
+          ${PACKS.reduce((n,p)=>n+p.sold*p.meals,0)} meals outstanding
+        </div>
+        <button class="btn" onclick="openPack(null)">New pack</button>
+      </div></div>
+      <div class="pad">
+        <div class="notice info"><b>Outstanding meals are money you already hold</b>
+          A sold pack is revenue collected and food not yet served. Expiry is what bounds it —
+          every pack here expires a fixed number of days after purchase, and unused meals are not refundable.</div>
+        <table>
+          <thead><tr><th>Pack</th><th>Rules</th><th>Price</th><th>Valid</th><th>Schools</th><th>Sold</th><th></th></tr></thead>
+          <tbody>${PACKS.map(p=>`
+            <tr class="${S.drawer===p.id?'open':''}" onclick="openPack('${p.id}')">
+              <td class="name">${p.name}
+                <div class="sub">${p.live?'<span class="tag live">live</span>':'<span class="tag draft">draft</span>'}</div></td>
+              <td>${p.meals} meals · ${p.items} items each${p.must?` · one from ${p.must}`:''}</td>
+              <td style="font-weight:700">${rupees(p.price)}
+                <div class="sub">${rupees(Math.round(p.price/p.meals))} a meal</div></td>
+              <td>${p.days} days</td>
+              <td>${p.schools.length?p.schools.map(s=>`<span class="tag menu" style="margin-right:4px">${school(s).name.split(' ')[0]}</span>`).join(''):'<span class="tag none">none</span>'}</td>
+              <td style="font-weight:700">${p.sold}</td>
+              <td style="text-align:right;color:var(--muted)">›</td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>`
+  };
+};
+
+/* ----------------------------------------------------------------
+   Orders — the day, not a dump.
+
+   Everything the kitchen board already gave you stays: move between days, filter by school
+   and status, group by class or by dish. What it adds is the detail — open an order and see
+   its lines, who placed it, what was paid and how.
+   ---------------------------------------------------------------- */
+P.orders = () => {
+  const di = DAYS.indexOf(S.day);
+  let list = ORDERS.filter(o=>
+    (S.oSchool==='all' || o.school===S.oSchool) &&
+    (S.oState==='all'  || o.state===S.oState) &&
+    o.day===S.day);
+
+  const groups = {};
+  if(S.oGroup==='class'){
+    list.forEach(o=>{ const k = o.cls+' · '+school(o.school).name+' · '+o.brk;
+      (groups[k] ||= []).push(o); });
+  } else {
+    list.forEach(o=>o.lines.forEach(([n,q])=>{ (groups[n] ||= []).push({...o, qty:q}); }));
+  }
+
+  const chip = (k,cur,val,label) => `<button class="chip ${cur===val?'on':''}" onclick="S.${k}='${val}';render()">${label}</button>`;
+
+  return {
+    title:'Orders', sub:'Move between days · filter · open one for the detail',
+    body:`
+      <div class="toolbar">
+        <div class="searchrow">
+          <button class="btn ghost sm" ${di<=0?'disabled':''} onclick="S.day='${DAYS[Math.max(0,di-1)]}';render()">‹</button>
+          <div style="min-width:190px">
+            <div style="font-size:16px;font-weight:800">${S.day}</div>
+            <div style="font-size:12px;color:var(--muted)">${list.length} order${list.length===1?'':'s'} ·
+              ${Object.keys(groups).length} ${S.oGroup==='class'?'classes':'dishes'} ·
+              ${list.filter(o=>o.pack).length} on a pack meal</div>
+          </div>
+          <button class="btn ghost sm" ${di>=DAYS.length-1?'disabled':''} onclick="S.day='${DAYS[Math.min(DAYS.length-1,di+1)]}';render()">›</button>
+          <button class="btn ghost sm" onclick="S.day='Wed 26 Aug';render()">Today</button>
+          <div style="flex:1"></div>
+          <button class="btn ghost" onclick="alert('Prototype')">Print packing sheet</button>
+          <button class="btn ghost" onclick="alert('Prototype')">Export CSV</button>
+        </div>
+        <div class="chips">
+          ${chip('oGroup',S.oGroup,'class','By class')}
+          ${chip('oGroup',S.oGroup,'dish','By dish')}
+          <span style="width:14px"></span>
+          ${chip('oSchool',S.oSchool,'all','All schools')}
+          ${SCHOOLS.map(x=>chip('oSchool',S.oSchool,x.id,x.name)).join('')}
+        </div>
+        <div class="chips">
+          ${chip('oState',S.oState,'all','Any status')}
+          ${['paid','delivered','cancelled'].map(v=>chip('oState',S.oState,v,v[0].toUpperCase()+v.slice(1))).join('')}
+        </div>
+      </div>
+
+      <div class="pad">
+        ${!list.length ? `<div class="empty"><h3>Nothing for ${S.day}</h3>
+          <p>${S.oSchool==='all'&&S.oState==='all'
+            ? 'No orders were placed for this day. If that is unexpected, check the cutoff for that date rather than assuming the board is broken.'
+            : 'No orders match these filters. Clear them to see the whole day.'}</p>
+          <button class="btn ghost" onclick="S.oSchool='all';S.oState='all';render()">Clear filters</button></div>`
+        : Object.entries(groups).map(([k,os])=>`
+          <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#f8faf9;border-bottom:1px solid var(--line)">
+              <div style="flex:1"><div style="font-size:15px;font-weight:800">${k}</div>
+                <div class="m">${os.length} item${os.length===1?'':'s'} ·
+                  ${os.filter(o=>o.state==='delivered').length} delivered</div></div>
+              <button class="btn sm" onclick="event.stopPropagation();alert('Prototype')">Mark all delivered (${os.filter(o=>o.state!=='delivered').length})</button>
+            </div>
+            ${os.map(o=>`
+              <div class="gate" style="padding:12px 16px;cursor:pointer" onclick="openOrder('${o.code}')">
+                <div style="flex:1">
+                  <div style="font-size:13.5px;font-weight:700">${o.child} · Class ${o.cls}
+                    ${o.pack?'<span class="tag live" style="margin-left:6px">pack meal</span>':''}</div>
+                  <div class="m">${o.lines.map(l=>l[1]+'× '+l[0]).join(' · ')}</div>
+                  <div class="m" style="margin-top:3px">${o.allergens.length
+                    ? '<b style="color:#8a6400">⚠ '+o.allergens.join(', ')+'</b>'
+                    : 'No allergies provided'}</div>
+                </div>
+                <div style="text-align:right;font-size:13px;font-weight:700;white-space:nowrap">
+                  ${o.pack?'1 meal':rupees(o.total)}
+                  <div><span class="tag ${o.state==='delivered'?'live':'draft'}" style="margin-top:5px">${o.state}</span></div>
+                </div>
+              </div>`).join('')}
+          </div>`).join('')}
+      </div>`
+  };
+};
+
+function openOrder(code){ S.drawer=code; S.drawerKind='order'; render(); }
+
+function orderDrawer(){
+  const o = ORDERS.find(x=>x.code===S.drawer);
+  if(!o) return '';
+  return `
+    <div class="dhead">
+      <div><h3>${o.code}</h3>
+        <div class="sub">${o.day} · ${school(o.school).name} · ${o.brk}</div></div>
+      <button class="x" onclick="closeDrawer()">×</button>
+    </div>
+    <div class="dbody">
+      <div class="sec">For</div>
+      <div style="font-size:14px;font-weight:700">${o.child} · Class ${o.cls}</div>
+      <div class="m" style="margin-top:4px">Placed by ${o.parent} · ${o.placed}</div>
+      ${o.allergens.length
+        ? `<div class="notice warn" style="margin-top:12px"><b>Allergens on this order</b>
+            ${o.allergens.join(', ')} — the kitchen sees these as badges on the pick list.</div>`
+        : `<div class="m" style="margin-top:10px">No allergies recorded for this child.</div>`}
+
+      <div class="sec">Items</div>
+      ${o.lines.map(([n,q,p])=>`<div class="menurow">
+        <div class="m" style="flex:1">${q}× ${n}<span>${rupees(p)} each · excl. GST</span></div>
+        <div style="font-weight:700">${rupees(p*q)}</div>
+      </div>`).join('')}
+
+      <div class="sec">Payment</div>
+      ${o.pack
+        ? `<div class="notice info"><b>Paid with a meal from a pack</b>
+             ${o.packRef}. No money moved for this order — it was collected when the pack was sold.</div>`
+        : `<div class="menurow"><div class="m" style="flex:1">Total paid<span>incl. CGST 2.5% + SGST 2.5%</span></div>
+             <div style="font-weight:700">${rupees(o.total)}</div></div>
+           <div class="menurow"><div class="m" style="flex:1">Tax invoice</div>
+             <div style="font-weight:700">${o.invoice}</div></div>`}
+
+      <div class="sec">State</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${['To make','Making','Delivered'].map(t=>`<button class="btn ${t.toLowerCase()===o.state?'':'ghost'} sm" onclick="alert('Prototype')">${t}</button>`).join('')}
+        <button class="btn ghost sm" style="color:var(--danger);border-color:#f0c8c2" onclick="alert('Prototype')">Cancel order</button>
+      </div>
+      <div class="help" style="margin-top:10px">Marking delivered has a ten-second undo before it commits.
+        Cancelling a pack-paid order returns the meal to the parent's balance.</div>
+    </div>
+    <div class="dfoot">
+      <button class="btn ghost" onclick="closeDrawer()">Close</button>
+      <div class="spacer"></div>
+      <div class="hint">Closing keeps your day and filters</div>
+    </div>`;
+}
+
+/* ----------------------------------------------------------------
+   Growth — acquisition only.
+
+   Split from the funnel deliberately. These answer different questions on different
+   clocks: growth is "are new families arriving", and it stays readable at 500 orders a
+   day. Conversion is "does a family who arrives get to an order", which is a report over
+   a date range and belongs in Reports beside the money.
+   ---------------------------------------------------------------- */
+P.growth = () => ({
+  title:'Growth', sub:'Are new families arriving',
+  body:`<div class="pad">
+    <div class="grid">
+      <div class="card"><h4>Accounts</h4><div class="k">13</div>
+        <div class="m">+1 yesterday · +7 this week</div></div>
+      <div class="card"><h4>Children added</h4><div class="k">11</div>
+        <div class="m">across 3 schools · 0.85 per account</div></div>
+      <div class="card"><h4>Active this week</h4><div class="k">3</div>
+        <div class="m">opened the app · 1 ordered</div></div>
+      <div class="card"><h4>Install base</h4><div class="k">154</div>
+        <div class="m">Play + TestFlight · 13 have signed in</div></div>
+    </div>
+
+    <div class="sec">New accounts per day</div>
+    <div style="display:flex;align-items:flex-end;gap:8px;height:130px;padding:0 2px">
+      ${[2,0,2,1,0,1,3,3,1,0].map((n,i)=>`
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px">
+          <div style="width:100%;background:var(--deep);border-radius:6px 6px 0 0;height:${n?n*30:3}px;
+            opacity:${n?1:.18}"></div>
+          <div style="font-size:10.5px;color:var(--muted)">${17+i}</div>
+        </div>`).join('')}
+    </div>
+    <div class="m" style="margin-top:10px">17–26 August. The step on the 23rd is the day the
+      store update went out.</div>
+
+    <div class="sec">By school</div>
+    <table>
+      <thead><tr><th>School</th><th>Accounts</th><th>Children</th><th>Ordered at least once</th></tr></thead>
+      <tbody>
+        <tr><td class="name">Amity International School</td><td>8</td><td>7</td><td>1</td></tr>
+        <tr><td class="name">Paragon Senior Secondary</td><td>3</td><td>3</td><td>0</td></tr>
+        <tr><td class="name">Gem Public School</td><td>2</td><td>1</td><td>0</td></tr>
+      </tbody>
+    </table>
+    <div class="notice info" style="margin-top:18px"><b>Where conversion went</b>
+      The funnel — registered → child → first order → repeat — now lives in
+      <b>Reports</b>, over a date range, beside the revenue it explains.
+      <div style="margin-top:10px"><button class="btn sm" onclick="go('reports')">Open Reports</button></div>
+    </div>
+  </div>`
+});
+
+/* ----------------------------------------------------------------
+   Reports — everything that needs a date range and a school filter.
+   ---------------------------------------------------------------- */
+P.reports = () => {
+  const max = Math.max(...DAILY.map(x=>x.r), 1);
+  const totalO = DAILY.reduce((n,x)=>n+x.o,0);
+  const totalR = DAILY.reduce((n,x)=>n+x.r,0);
+  const fmax = FUNNEL[0].v;
+
+  return {
+    title:'Reports', sub:'Revenue, usage and conversion — over a range you choose',
+    body:`
+    <div class="toolbar">
+      <div class="searchrow">
+        <div class="chips" style="margin:0;flex:1">
+          ${RANGES.map(([k,l])=>`<button class="chip ${S.range===k?'on':''}" onclick="S.range='${k}';render()">${l}</button>`).join('')}
+        </div>
+        <select onchange="S.rSchool=this.value;render()">
+          <option value="all" ${S.rSchool==='all'?'selected':''}>All schools</option>
+          ${SCHOOLS.map(x=>`<option value="${x.id}" ${S.rSchool===x.id?'selected':''}>${x.name}</option>`).join('')}
+        </select>
+        <button class="btn ghost" onclick="alert('Prototype')">Export CSV</button>
+      </div>
+      ${S.range==='custom'?`<div class="searchrow" style="margin-top:11px">
+        <input type="date" style="font:inherit;font-size:13px;border:1.5px solid var(--line);border-radius:11px;padding:9px 11px">
+        <span style="color:var(--muted);font-size:13px">to</span>
+        <input type="date" style="font:inherit;font-size:13px;border:1.5px solid var(--line);border-radius:11px;padding:9px 11px">
+        <button class="btn sm" onclick="alert('Prototype')">Apply</button>
+      </div>`:''}
+      <div class="resultline">20–26 August 2026 · ${S.rSchool==='all'?'all schools':school(S.rSchool).name}</div>
+    </div>
+
+    <div class="pad">
+      <div class="sec" style="border-top:0;padding-top:0">Money</div>
+      <div class="grid">
+        <div class="card"><h4>Revenue</h4><div class="k">${rupees(totalR)}</div>
+          <div class="m">Single orders only</div></div>
+        <div class="card"><h4>Pack revenue</h4><div class="k">₹51,200</div>
+          <div class="m">17 packs · collected up front</div></div>
+        <div class="card"><h4>Orders</h4><div class="k">${totalO}</div>
+          <div class="m">1 paid with a pack meal</div></div>
+        <div class="card"><h4>Average order</h4><div class="k">${rupees(Math.round(totalR/Math.max(totalO,1)))}</div>
+          <div class="m">excl. pack redemptions</div></div>
+      </div>
+
+      <div class="notice warn" style="margin-top:16px"><b>Pack revenue and pack meals are not the same money</b>
+        A pack is collected when it is sold and spent when a meal is served. Counting a redeemed
+        meal as revenue would count it twice — the outstanding balance below is what you still owe in food.</div>
+
+      <div class="sec">Revenue by day</div>
+      <div style="display:flex;align-items:flex-end;gap:10px;height:140px">
+        ${DAILY.map(x=>`
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px">
+            <div style="font-size:10.5px;color:var(--muted);font-weight:700">${x.r?rupees(x.r):''}</div>
+            <div style="width:100%;background:var(--green);border-radius:6px 6px 0 0;
+              height:${x.r?Math.max(6,(x.r/max)*88):3}px;opacity:${x.r?1:.18}"></div>
+            <div style="font-size:10.5px;color:var(--muted)">${x.d.split(' ')[0]}</div>
+          </div>`).join('')}
+      </div>
+
+      <div class="sec">By school</div>
+      <table>
+        <thead><tr><th>School</th><th>Orders</th><th>Revenue</th><th>Avg order</th>
+          <th>Packs sold</th><th>Meals outstanding</th><th>Active parents</th></tr></thead>
+        <tbody>
+          <tr><td class="name">Amity International School</td><td>2</td><td>₹260.42</td><td>₹260.42</td><td>14</td><td>82</td><td>3</td></tr>
+          <tr><td class="name">Paragon Senior Secondary</td><td>1</td><td>₹318.90</td><td>₹318.90</td><td>3</td><td>12</td><td>1</td></tr>
+          <tr><td class="name">Gem Public School</td><td>0</td><td>—</td><td>—</td><td>0</td><td>0</td><td>0</td></tr>
+        </tbody>
+      </table>
+
+      <div class="sec">Usage</div>
+      <div class="grid">
+        <div class="card"><h4>Signed in this range</h4><div class="k">3</div>
+          <div class="m">of 13 accounts</div></div>
+        <div class="card"><h4>Orders per ordering parent</h4><div class="k">1.0</div>
+          <div class="m">nobody has ordered twice yet</div></div>
+        <div class="card"><h4>Repeat rate</h4><div class="k">0%</div>
+          <div class="m">too early to read</div></div>
+        <div class="card"><h4>Meals outstanding</h4><div class="k">94</div>
+          <div class="m">food owed against packs already paid for</div></div>
+      </div>
+
+      <div class="sec">Conversion, over this range</div>
+      <div class="funnel">
+        ${FUNNEL.map((f,i)=>{
+          const prev = i?FUNNEL[i-1].v:null;
+          const drop = prev!==null ? prev-f.v : 0;
+          return `<div class="fstep">
+            <div class="lbl">${f.k}</div>
+            <div class="fbar" style="width:${Math.max(8,(f.v/fmax)*62)}%">${f.v}</div>
+            ${drop?`<div class="drop">${drop} stopped here</div>`:''}
+          </div>
+          ${f.act?`<div style="font-size:12.5px;color:var(--muted);margin:0 0 6px 204px;line-height:1.6">${f.act}</div>`:''}`;
+        }).join('')}
+      </div>
+      <div class="m" style="margin-top:12px">Percentages are deliberately absent at this size —
+        4 of 13 is a fact, 31% is a claim about a pattern that isn't there yet.</div>
+    </div>`
+  };
+};
+
+/* ---------------------------------------------------------------- People */
+
+P.people = () => {
+  const PEOPLE = [
+    {e:'andy@graybag.com',              r:'Platform admin', scope:'Everything',                 you:true},
+    {e:'kitchen@graybag.com',           r:'Kitchen',        scope:'GrayBag Kitchen, Mohali'},
+    {e:'chef.mohali@graybag.com',       r:'Kitchen',        scope:'GrayBag Kitchen, Mohali'},
+    {e:'anuragdial+parent@gmail.com',   r:null,             scope:'—'},
+    {e:'priya.sharma@gmail.com',        r:null,             scope:'—'},
+    {e:'r.mehta84@yahoo.in',            r:null,             scope:'—'},
+    {e:'vivek@graybag.com',             r:'Support',        scope:'All schools · no financials'},
+  ];
+  const list = PEOPLE.filter(p=>!S.pq || p.e.toLowerCase().includes(S.pq.toLowerCase()));
+
+  return {
+  title:'People & access', sub:'Registration is the same for everyone — access is a grant',
+  body:`
+    <div class="toolbar">
+      <div class="searchrow">
+        <div class="search">${ICON.search}
+          <input placeholder="Search by email — any registered account" value="${esc(S.pq)}"
+            oninput="S.pq=this.value;render(true)" autocomplete="off"></div>
+        <button class="btn ghost" onclick="S.pq='';render()">Clear</button>
+      </div>
+      <div class="resultline"><b>${list.length}</b> of ${PEOPLE.length} accounts
+        ${S.pq?`matching "${esc(S.pq)}"`:''} · ${PEOPLE.filter(p=>p.r).length} hold back-office access</div>
+    </div>
+    <div class="pad">
+      <div class="notice info"><b>Anyone who signs up is a parent</b>
+        Back-office access isn't something a person registers for — you grant it afterwards.
+        That's why kitchen staff sign up exactly like a parent and then appear in this list.</div>
+
+      ${list.length?`<table>
+        <thead><tr><th>Account</th><th>Access</th><th>Scope</th><th></th></tr></thead>
+        <tbody>${list.map(p=>`<tr onclick="alert('Prototype')">
+          <td class="name">${p.e}${p.you?'<div class="sub">you</div>':(p.r?'':'<div class="sub">parent · no grants</div>')}</td>
+          <td>${p.r?`<span class="tag ${p.r==='Platform admin'?'live':'menu'}">${p.r}</span>`:'<span class="tag draft">None</span>'}</td>
+          <td>${p.scope}</td>
+          <td style="text-align:right;color:var(--muted)">›</td>
+        </tr>`).join('')}</tbody>
+      </table>`:`<div class="empty"><h3>No account matches</h3>
+        <p>Nobody registered has an address containing “${esc(S.pq)}”. They have to sign in once
+        before they can be given anything.</p></div>`}
+
+      <div class="sec">What each role can see</div>
+      <div class="card">
+        <div class="gate pass"><div class="ic">✓</div><div class="t">Platform admin
+          <span>Everything, every school, including money and every parent's details.</span></div></div>
+        <div class="gate warn"><div class="ic">!</div><div class="t">Kitchen
+          <span><b>Only their own kitchen's orders, for today and tomorrow.</b> Child name, class,
+          allergy badges and the dish — because they hand a bag to a named child. <b>No prices,
+          no revenue, no parent contact details, and no other kitchen.</b> This is the one role
+          where getting scope wrong exposes children's data to someone who doesn't need it.</span></div></div>
+        <div class="gate pass"><div class="ic">✓</div><div class="t">Support
+          <span>Orders and order states across schools, no financials, no allergy notes.</span></div></div>
+        <div class="gate pass"><div class="ic">✓</div><div class="t">Parent
+          <span>Their own children and their own orders. Nothing else exists to them.</span></div></div>
+      </div>
+    </div>`
+  };
+};
+
+/* ---------------------------------------------------------------- Import */
+
+P.import = () => ({
+  title:'Import', sub:'Bulk load schools, dishes and menus',
+  body:`<div class="pad">
+    <div class="card" style="border-style:dashed;text-align:center;padding:44px 24px">
+      <h4 style="font-size:16px">Drop a CSV here</h4>
+      <div class="m" style="margin:6px 0 16px">Schools, dishes, menu assignments or break windows</div>
+      <button class="btn" onclick="alert('Prototype')">Choose a file</button>
+    </div>
+    <div class="notice info" style="margin-top:16px"><b>Every import is a dry run first</b>
+      You see exactly what would be created, changed and rejected — and nothing is written
+      until you press Apply on that report.</div>
+  </div>`
+});
+
+/* =========================================================================
+   Drawers — editing without leaving the list
+
+   The whole point: the list behind this does not move, does not reload, and does not lose
+   your scroll position or your filters. Close the drawer and you are exactly where you were.
+   ========================================================================= */
+function openDish(id){ S.drawer=id||'new'; S.drawerKind='dish'; S.dirty=false; render(); }
+function openPack(id){ S.drawer=id||'newpack'; S.drawerKind='pack'; S.dirty=false; render(); }
+function closeDrawer(){ S.drawer=null; S.drawerKind=null; S.dirty=false; render(); }
+
+function renderDrawer(){
+  const el = document.getElementById('drawer'), scrim = document.getElementById('scrim');
+  if(!S.drawer){ el.className=''; scrim.className=''; el.innerHTML=''; return; }
+  el.className='on'; scrim.className='on';
+  el.innerHTML = S.drawerKind==='dish' ? dishDrawer() : S.drawerKind==='order' ? orderDrawer() : packDrawer();
+}
+
+function dishDrawer(){
+  const isNew = S.drawer==='new';
+  const d = isNew
+    ? {n:'',c:'Meals',t:null,a:[],kcal:'',m:{},photo:false,id:'new'}
+    : DISHES.find(x=>x.id===S.drawer);
+
+  return `
+    <div class="dhead">
+      <div>
+        <h3>${isNew?'New dish':esc(d.n)}</h3>
+        <div class="sub">${isNew?'It won’t appear to parents until it’s on a menu':
+          Object.keys(d.m).length?'On '+Object.keys(d.m).length+' menu'+(Object.keys(d.m).length>1?'s':''):'On no menu — invisible to parents'}</div>
+      </div>
+      <button class="x" onclick="closeDrawer()">×</button>
+    </div>
+    <div class="dbody">
+      ${!isNew && !d.t ? `<div class="notice warn"><b>No food type</b>
+        This dish is on a live menu and a parent can't tell whether it's vegetarian.
+        It's the one field that blocks publishing.</div>`:''}
+
+      <div class="sec">The dish</div>
+      <div class="field"><label>Name</label>
+        <input type="text" value="${esc(d.n)}" oninput="S.dirty=true" placeholder="e.g. Paneer Wrap"></div>
+      <div class="two">
+        <div class="field"><label>Category</label>
+          <select onchange="S.dirty=true">${CATS.map(c=>`<option ${d.c===c?'selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="field"><label>Calories</label>
+          <input type="text" value="${esc(d.kcal)}" placeholder="e.g. 380–420" oninput="S.dirty=true"></div>
+      </div>
+
+      <div class="field"><label>Food type</label>
+        <div class="seg">
+          ${['veg','egg','nonveg'].map(t=>`<button class="${d.t===t?'on '+t:''}" onclick="setType('${d.id}','${t}')">
+            ${t==='nonveg'?'Non-veg':t[0].toUpperCase()+t.slice(1)}</button>`).join('')}
+        </div>
+        <div class="help">Dietary marking, shown on the card. Separate from allergens — a cake made
+          with egg is <b>Veg</b> to some families and carries the <b>egg</b> allergen either way.</div>
+      </div>
+
+      <div class="field"><label>Allergens</label>
+        <div class="checks">
+          ${ALLERGENS.map(a=>`<label class="${d.a.includes(a)?'on':''}" onclick="toggleAllergen('${d.id}','${a}')">
+            <input type="checkbox" ${d.a.includes(a)?'checked':''} style="pointer-events:none">${a}</label>`).join('')}
+        </div>
+        <div class="help">What the kitchen sees on the pick list. Nothing here is inferred from the
+          ingredients — a guess about an allergen is worse than a blank.</div>
+      </div>
+
+      <div class="field"><label>Ingredients</label>
+        <textarea placeholder="Flour, milk, eggs, sugar" oninput="S.dirty=true"></textarea></div>
+
+      <div class="sec">Photo</div>
+      <div style="display:flex;gap:14px;align-items:center">
+        <div class="thumb" style="width:76px;height:76px;border-radius:14px;font-size:22px">
+          ${d.photo?'🍽':'<span style="opacity:.5;font-size:11px">none</span>'}</div>
+        <div style="flex:1">
+          <button class="btn ghost sm">${d.photo?'Replace':'Upload'}</button>
+          <div class="help" style="margin-top:7px">${d.photo
+            ? 'Migrated from the old catalogue at 180×120 — soft on a modern phone. Re-shoots replace these.'
+            : 'This dish shows a pattern tile to parents until a photo is added.'}</div>
+        </div>
+      </div>
+
+      <div class="sec">On menus, and at what price</div>
+      ${SCHOOLS.map(s=>{
+        const on = d.m[s.id]!=null;
+        return `<div class="menurow">
+          <button class="switch ${on?'on':''}" onclick="toggleMenu('${d.id}','${s.id}')"><i></i></button>
+          <div class="m">${s.name}<span>${s.menu}</span></div>
+          ${on?`<input type="text" value="${rupees(d.m[s.id])}" oninput="S.dirty=true">`
+              :`<span style="font-size:12px;color:var(--muted)">not on this menu</span>`}
+        </div>`;
+      }).join('')}
+      <div class="help" style="margin-top:10px">Price is per menu, because the same dish is not the
+        same price at every school. This is what the old screen was trying to say by listing the
+        dish three times.</div>
+    </div>
+    <div class="dfoot">
+      <button class="btn" onclick="saveDrawer()">Save</button>
+      <button class="btn ghost" onclick="closeDrawer()">Cancel</button>
+      <div class="spacer"></div>
+      <div class="hint">Saving keeps you here</div>
+    </div>`;
+}
+
+function packDrawer(){
+  const isNew = S.drawer==='newpack';
+  const p = isNew
+    ? {id:'newpack',name:'',meals:10,items:2,must:'Drinks',price:300000,days:60,schools:[],live:false,sold:0}
+    : PACKS.find(x=>x.id===S.drawer);
+  const per = p.meals?Math.round(p.price/p.meals):0;
+
+  return `
+    <div class="dhead">
+      <div><h3>${isNew?'New meal pack':esc(p.name)}</h3>
+        <div class="sub">${p.sold?p.sold+' sold · '+(p.sold*p.meals)+' meals outstanding':'Never sold'}</div></div>
+      <button class="x" onclick="closeDrawer()">×</button>
+    </div>
+    <div class="dbody">
+      ${p.sold?`<div class="notice warn"><b>${p.sold} parents already hold this pack</b>
+        Changing the rules or the meal count does not change packs already bought — those keep the
+        terms they were sold under. Edits here apply to new purchases only.</div>`:''}
+
+      <div class="sec">What it is</div>
+      <div class="field"><label>Name parents see</label>
+        <input type="text" value="${esc(p.name)}" placeholder="e.g. 10 meal pack" oninput="S.dirty=true"></div>
+      <div class="two">
+        <div class="field"><label>Meals in the pack</label>
+          <input type="number" value="${p.meals}" oninput="S.dirty=true"></div>
+        <div class="field"><label>Price</label>
+          <input type="text" value="${rupees(p.price)}" oninput="S.dirty=true">
+          <div class="help">${rupees(per)} a meal</div></div>
+      </div>
+
+      <div class="sec">What one meal buys</div>
+      <div class="two">
+        <div class="field"><label>Items per meal</label>
+          <input type="number" value="${p.items}" oninput="S.dirty=true"></div>
+        <div class="field"><label>One item must be from</label>
+          <select onchange="S.dirty=true">
+            <option value="">Any category</option>
+            ${CATS.map(c=>`<option ${p.must===c?'selected':''}>${c}</option>`).join('')}
+          </select></div>
+      </div>
+      <div class="help" style="margin:-6px 0 16px">
+        A parent's cart qualifies when it matches exactly this. When it doesn't, the app says what
+        would fix it rather than just refusing.</div>
+
+      <div class="sec">How long it lasts</div>
+      <div class="field"><label>Valid for</label>
+        <input type="number" value="${p.days}" oninput="S.dirty=true">
+        <div class="help">Days from purchase. Unused meals expire and are <b>not refundable</b> —
+          the app states both before the parent pays.</div></div>
+
+      <div class="sec">Where it's offered</div>
+      ${SCHOOLS.map(s=>`<div class="menurow">
+        <button class="switch ${p.schools.includes(s.id)?'on':''}" onclick="togglePackSchool('${p.id}','${s.id}')"><i></i></button>
+        <div class="m">${s.name}<span>${s.packs?'Packs are on at this school':'Packs are off at this school — turn them on there first'}</span></div>
+      </div>`).join('')}
+
+      <div class="sec">Status</div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="flex:1"><div style="font-size:13.5px;font-weight:700">${p.live?'Live — parents can buy this':'Draft — nobody can see it'}</div>
+          <div class="help">A draft can be edited freely. Once it's live and sold, the terms are fixed for those buyers.</div></div>
+        <button class="switch ${p.live?'on':''}" onclick="togglePackLive('${p.id}')"><i></i></button>
+      </div>
+    </div>
+    <div class="dfoot">
+      <button class="btn" onclick="saveDrawer()">Save</button>
+      <button class="btn ghost" onclick="closeDrawer()">Cancel</button>
+      <div class="spacer"></div>
+      <div class="hint">Saving keeps you here</div>
+    </div>`;
+}
+
+/* =========================================================================
+   Actions
+   ========================================================================= */
+function setQ(v){ S.q=v; render(true); }
+function setFilter(f){ S.filter = S.filter===f?'all':f; S.sel=new Set(); render(); }
+function clearFilters(){ S.q=''; S.filter='all'; render(); }
+function jumpNoType(){ S.page='dishes'; S.filter='notype'; S.q=''; render(); }
+function toggleSel(id){ S.sel.has(id)?S.sel.delete(id):S.sel.add(id); render(); }
+function selectAll(ids){ if(S.sel.size===ids.length) S.sel=new Set(); else S.sel=new Set(ids); render(); }
+function bulkType(t){ DISHES.forEach(d=>{ if(S.sel.has(d.id)) d.t=t; }); S.sel=new Set(); render(); }
+function setType(id,t){ const d=DISHES.find(x=>x.id===id); if(d){ d.t=t; render(); } }
+function toggleAllergen(id,a){
+  const d=DISHES.find(x=>x.id===id); if(!d) return;
+  d.a.includes(a) ? d.a.splice(d.a.indexOf(a),1) : d.a.push(a);
+  render();
+}
+function toggleMenu(id,s){
+  const d=DISHES.find(x=>x.id===id); if(!d) return;
+  if(d.m[s]!=null) delete d.m[s]; else d.m[s]=9900;
+  render();
+}
+function togglePacks(id){ const s=school(id); s.packs=!s.packs; render(); }
+function togglePackSchool(pid,sid){
+  const p=PACKS.find(x=>x.id===pid); if(!p) return;
+  p.schools.includes(sid) ? p.schools.splice(p.schools.indexOf(sid),1) : p.schools.push(sid);
+  render();
+}
+function togglePackLive(pid){ const p=PACKS.find(x=>x.id===pid); if(p){ p.live=!p.live; render(); } }
+function saveDrawer(){ S.dirty=false; render(); }
+function setFlag(k,v){ S.flags[k]=v; render(); }
+
+/* =========================================================================
+   Render. The list and the drawer are rendered separately so opening, editing and
+   closing the drawer never re-renders — and therefore never re-scrolls — the list.
+   ========================================================================= */
+let lastPage=null, lastKey=null;
+function render(keepFocus){
+  renderNav(); renderRail();
+
+  const page = P[S.page]();
+  document.getElementById('chrome').innerHTML = `
+    <div class="top">
+      <div><h2>${page.title}</h2><div class="sub">${page.sub}</div></div>
+      <div class="spacer"></div>
+    </div>`;
+
+  const scroll = document.getElementById('scroll');
+  const y = scroll.scrollTop;
+  const active = document.activeElement;
+  const wasSearch = active && active.tagName==='INPUT' && active.type!=='checkbox' && scroll.contains(active);
+  const caret = wasSearch ? active.selectionStart : null;
+
+  scroll.innerHTML = page.body;
+
+  // Editing must not move you. Restore scroll always; restore the caret when you were typing.
+  scroll.scrollTop = (lastPage===S.page) ? y : 0;
+  lastPage = S.page;
+  if(keepFocus && wasSearch){
+    const input = scroll.querySelector('.search input');
+    if(input){ input.focus(); if(caret!=null) input.setSelectionRange(caret,caret); }
+  }
+
+  renderDrawer();
+}
+
+function renderRail(){
+  const f=S.flags;
+  const pages = NAV.map(([id,label])=>[id,label]);
+  document.getElementById('rail').innerHTML = `
+    <h1>GrayBag back office</h1>
+    <p class="sub">A prototype of the admin, rebuilt around three rules: you never scroll to find
+      something, editing never moves you, and a dish is one thing.</p>
+    <h2>Screens</h2>
+    ${pages.map(([id,label])=>`<button class="${S.page===id?'on':''}" onclick="go('${id}')">${label}</button>`).join('')}
+    <h2>Force a state</h2>
+    ${[['loading','Loading'],['error','Failed to load'],['nopacks','No packs configured']]
+      .map(([k,l])=>`<button class="${f[k]?'on':''}" onclick="setFlag('${k}',${!f[k]})">${l}</button>`).join('')}
+    <h2>Try this</h2>
+    <button onclick="jumpNoType()">The 3 dishes with no food type</button>
+    <button onclick="S.page='dishes';S.q='pan';render()">Search “pan” — ranked</button>
+    <button onclick="S.page='dishes';S.filter='all';S.q='';S.sel=new Set(DISHES.filter(d=>!d.t).map(d=>d.id));render()">Select every unmarked dish</button>
+    <button onclick="S.page='packs';openPack('p10')">A pack that people already bought</button>
+    <button onclick="S.page='schools';S.school='gem';render()">A school that can't take orders</button>
+    <button onclick="S.page='reports';render()">Reports over a date range</button>
+    <button onclick="S.page='people';S.pq='graybag.com';render()">Search accounts by email</button>
+    <button onclick="S.page='menus';render()">Reuse a menu at a new school</button>
+    <button onclick="S.page='orders';render()">A day of orders, grouped by class</button>
+    <button onclick="S.page='orders';S.oGroup='dish';render()">The same day, grouped by dish</button>
+    <button onclick="S.page='orders';openOrder('GB-9XT4LM')">An order paid with a pack meal</button>
+    <p class="note">Open a dish, change something, close it. The list is exactly where you left it —
+      same scroll, same filters, same search.</p>`;
+}
+
+render();
+</script>
+</body>
+</html>
