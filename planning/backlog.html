@@ -5693,13 +5693,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/54</span>
+          <span class="meter-num">0/56</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 54 tasks</summary>
+        <summary>Context &amp; 56 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -6138,6 +6138,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>ship-ota.sh</code> clears the bundler cache, because a warm one carries the previous build&#39;s environment.</strong> Found while pre-flighting <code>E15-21</code>: a local <code>expo export</code> run with <code>EXPO_NO_DOTENV=1</code> and three deliberate control values — a fake PostHog key, a fake Supabase URL, a fake anon key — produced a bundle carrying <strong>the real production key and the real production project ref</strong>, with all three controls absent. <code>EXPO_PUBLIC_*</code> values are inlined by Metro <strong>at transform time</strong>, so they are compiled into cached module output and a warm cache serves last time&#39;s values. Re-running with <code>--clear</code> produced all three controls and none of the stale values, which is how it was confirmed rather than assumed. This is the <code>.env</code> hazard <code>ship-ota.sh</code> already documents, through a different door and pointing the <strong>other way</strong> — that one leaked staging into production, this leaks production into a build that asked for something else, and the second is harder to catch because nothing on the command line is wrong. <code>--clear-cache</code> costs a couple of minutes per publish and removes the class. Two things carried into <code>docs/learnings.md</code>: the control strings are what caught it, the same technique that caught an earlier false negative on this exact check; and the seven new events were correctly present in <strong>both</strong> bundles because they were new and so could not be cached — the cache only lies about what did not change, which is exactly the set nobody re-checks</span>
+      </li>
+      <li class="task" data-id="E17-60" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-60"></button>
+        <code class="tid">E17-60</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:critical) <strong><code>graybag.in</code> does not resolve — there is no A record.</strong> Found 2026-08-26 while investigating why 8 post-launch accounts produced zero orders. <code>graybag-web.netlify.app</code> resolves and serves <strong>200</strong> on the site, <code>/signin</code> and <code>/kitchen</code>; <code>graybag.in</code> and <code>www.graybag.in</code> return <strong>no A record at all</strong> — a real DNS answer, not a lookup failure, since the Netlify host resolved in the same query. That domain is the <strong>Marketing URL and the Support URL on both store listings</strong> (<code>docs/andy-prep/store-listing-copy.md</code>), so anyone who types it, or taps Support from the App Store, reaches nothing. A credentialed action at the DNS registrar, which is why it is yours. Point the apex and <code>www</code> at Netlify and add the custom domain in the Netlify UI so the certificate issues. <strong>This is the one concrete, fixable cause found on the acquisition side</strong> — everything inside the app checked out</span>
+      </li>
+      <li class="task" data-id="E17-61" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-61"></button>
+        <code class="tid">E17-61</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Verify <code>E17-59</code> against what the server actually serves, not against a local build.</strong> The fix is only worth having if it is checked on the artifact parents receive. Published <code>bd787fc9</code> with <code>--clear-cache</code>, then read the manifest from <code>u.expo.dev</code> with the production channel headers: <code>&quot;appEnv&quot;:&quot;production&quot;</code> and the served id matches the published iOS id. Fetching the bundle from <code>assets.eascdn.net</code> returns <strong>403</strong> without the update request context — and the 1724-byte error page made every content check pass vacuously, including the negative controls, which is exactly the failure mode this repo keeps meeting. Resolved by identity instead: the local <code>dist</code> bundle&#39;s md5 is <code>c6bc1ee0f58fc3ce54effc1de635c985</code>, <strong>equal to the manifest&#39;s <code>launchAsset.key</code></strong>, so the local file is byte-identical to the served one and grepping it is equivalent. It carries the production Supabase ref, the production PostHog key, the EU host and <code>rzp_live_</code>; it carries <strong>no</strong> staging ref and none of the stale values from the cache-poisoning test. <code>rzp_test</code> appears and is a false alarm worth recording — it is the <code>REQUIRED_RAZORPAY_PREFIX</code> guard constant mapping local and staging to <code>rzp_test_</code>, not a key</span>
       </li></ul>
       </details>
     </article>

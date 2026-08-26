@@ -3111,3 +3111,25 @@ that cannot fail is not a verification, so give it something that must be presen
 that must be absent. Second, the modules I actually cared about — the seven new events — were
 correctly present in both bundles, because they were new and therefore could not be cached. The
 cache only lies about the things that did not change, which is exactly the set nobody re-checks.
+
+## A 403 makes every content check pass — verify identity, not just content — 2026-08-26
+
+Verifying `E17-59` on the published OTA, the bundle was fetched from `assets.eascdn.net` using
+the URL in the manifest. The CDN returned **403 with a 1724-byte HTML error page**, and every
+check run against it "passed": the production values were absent (reported as MISS), and the
+negative controls — staging ref, test key, a never-present sentinel — were all absent too, so
+they read as **ok**. A file containing none of what you are looking for satisfies every
+"must not contain" assertion perfectly.
+
+The size was the tell. 1724 bytes is not a 4.78 MB bundle.
+
+The fix was to stop trying to verify content on an artifact whose identity was unproven. The
+`dist` bundle EAS had just uploaded has md5 `c6bc1ee0f58fc3ce54effc1de635c985`, which is exactly
+the manifest's `launchAsset.key` — so the local file *is* the served file, and grepping it is
+equivalent. **Establish identity by hash first, then inspect.**
+
+Also recorded, because a false alarm costs trust: `rzp_test` was found in the production bundle
+and is not a test key. It is the `REQUIRED_RAZORPAY_PREFIX` guard in `packages/shared/src/env.ts`,
+which maps local and staging to `rzp_test_` and production to `rzp_live_`. A substring match on a
+secret's prefix will hit the code that validates the prefix. Match the whole value, or check what
+the match actually is before reporting it.

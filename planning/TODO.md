@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 68 open of 77.
+Your tasks only — 69 open of 78.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 
@@ -99,6 +99,7 @@ in VS Code or on GitHub without opening anything.
 - [ ] `E17-35` _(fast-follow)_ Confirm the live Android package is exactly com.Gracord.Graybag, capitals included — Play Console → App info. R4 calls it owned by the live listing and app-config.test.ts asserts the capitals, but nobody has checked it against Play; it is the same shape of defect as the version floor, and the test's own comment names the consequence (a new listing with zero installs). iOS's bundle id was verified by accident this week when Apple's rejection named the record; Android's has had no such luck
 - [x] `E17-36` _(fast-follow)_ Confirm whether the live iOS listing supports iPad. Answered by Andy 2026-08-11: it does not, and we are not adding it. supportsTablet: false is now asserted as verified-against-App-Store-Connect rather than assumed. app.json sets supportsTablet: false. If the live app is iPad-enabled, this update drops a device family from under existing users. Cheap to check while in App Store Connect; low severity, unverified either way
 - [ ] `E17-39` _(fast-follow)_ The EAS production environment is empty. A production build today would ship with no Supabase URL, no anon key and no Razorpay key, and open on CantConnectScreen. Set the five EXPO_PUBLIC_* variables for production — with live Razorpay and the production Supabase project — before any production build. Blocked behind E01-05 (the production project does not exist yet)
+- [ ] `E17-60` _(fast-follow)_ (risk:critical) graybag.in does not resolve — there is no A record. Found 2026-08-26 while investigating why 8 post-launch accounts produced zero orders. graybag-web.netlify.app resolves and serves 200 on the site, /signin and /kitchen; graybag.in and www.graybag.in return no A record at all — a real DNS answer, not a lookup failure, since the Netlify host resolved in the same query. That domain is the Marketing URL and the Support URL on both store listings (docs/andy-prep/store-listing-copy.md), so anyone who types it, or taps Support from the App Store, reaches nothing. A credentialed action at the DNS registrar, which is why it is yours. Point the apex and www at Netlify and add the custom domain in the Netlify UI so the certificate issues. This is the one concrete, fixable cause found on the acquisition side — everything inside the app checked out
 
 ---
 
