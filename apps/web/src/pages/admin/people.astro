@@ -93,6 +93,16 @@ import '../../styles/admin.css';
         </div>
 
         <div id="a-body"></div>
+
+        <!--
+          What each job can see (`E10-51`).
+
+          Rendered from `JOBS[].grants` rather than written beside them, and rendered
+          independently of the access read above — somebody who cannot read grants can still
+          learn what a job means, and an explainer that disappears when a fetch fails is an
+          explainer nobody trusts.
+        -->
+        <div id="a-roles"></div>
       </main>
     </div>
 
@@ -103,10 +113,13 @@ import '../../styles/admin.css';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { PEOPLE_FIXTURE } from '../../lib/admin/people-fixture.js';
 
+      import { PARENT_BASELINE, allCapabilities } from '../../lib/admin/capabilities.js';
+
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
         body: $('a-body'), status: $('a-status'), reload: $<HTMLButtonElement>('a-reload'),
         search: $<HTMLInputElement>('a-search'), results: $('a-results'),
+        roles: $('a-roles'),
       };
 
       const esc = (s: string) =>
@@ -691,6 +704,51 @@ import '../../styles/admin.css';
         } catch { /* an unconfigured build falls through to the error state */ }
         await load();
       })();
+      /**
+       * "What each job can see" — the prototype's closing panel, computed.
+       *
+       * Every tick is a function of the job's grant list, so a bundle that gains a permission
+       * changes this page in the same commit. Prose beside a permission list does not move when
+       * the list does, and a stale reassurance in the place people go to check is worse than no
+       * reassurance at all.
+       */
+      function renderRoles(): void {
+        const line = (c: { label: string; has: boolean; detail: string; sensitive?: boolean }) =>
+          // The label reads "Can:"/"Cannot:", so the state is in the words. The glyph is
+          // aria-hidden and the colour is a third signal — never the only one (WCAG 1.4.1).
+          `<li class="cap${c.has ? ' cap--yes' : ''}${c.sensitive ? ' cap--sensitive' : ''}">` +
+            `<span class="cap__mark" aria-hidden="true">${c.has ? '\u2713' : '\u2715'}</span>` +
+            `<span class="cap__body">` +
+              `<b class="cap__label">${c.has ? 'Can' : 'Cannot'}: ${esc(c.label)}</b>` +
+              `<span class="cap__detail">${esc(c.detail)}</span>` +
+            `</span>` +
+          `</li>`;
+
+        el.roles.innerHTML =
+          `<section class="admin__section" aria-labelledby="roles-h">` +
+            `<h2 id="roles-h">What each job can see</h2>` +
+            `<p class="admin__section-note">` +
+              `Derived from the permissions each job grants, so it cannot drift from what they ` +
+              `actually do. <b>Anyone who signs up is a parent</b> — back-office access is granted ` +
+              `afterwards, which is why kitchen staff appear in the account list looking exactly ` +
+              `like a customer.` +
+            `</p>` +
+            `<article class="jobcard">` +
+              `<h3 class="jobcard__name">${esc(PARENT_BASELINE.label)}</h3>` +
+              `<p class="jobcard__reach">${esc(PARENT_BASELINE.reach)}</p>` +
+              `<p class="jobcard__summary">${esc(PARENT_BASELINE.summary)}</p>` +
+            `</article>` +
+            allCapabilities().map(({ job, reach, capabilities }) =>
+              `<article class="jobcard">` +
+                `<h3 class="jobcard__name">${esc(job.label)}</h3>` +
+                `<p class="jobcard__reach">${esc(reach)}</p>` +
+                `<p class="jobcard__summary">${esc(job.summary)}</p>` +
+                `<ul class="caps">${capabilities.map(line).join('')}</ul>` +
+              `</article>`).join('') +
+          `</section>`;
+      }
+
+    renderRoles();
     void mountNav();
     </script>
   </body>
