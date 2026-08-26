@@ -1339,3 +1339,77 @@
   color: var(--gb-text-secondary);
   font-size: var(--gb-font-size-body-sm);
 }
+
+/* ------------------------------------------------------- named menus (`E10-49`) */
+
+.mcard {
+  padding: var(--gb-space-4);
+  margin-bottom: var(--gb-space-3);
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  /* The left edge is the part that is not colour — the same device the settings rows use. */
+  border-left: 4px solid var(--gb-border-brand);
+  border-radius: var(--gb-radius-md);
+}
+
+/*
+ * A menu no school is serving today.
+ *
+ * Marked, not greyed. Greying it out would make the one card worth reading the hardest to read —
+ * the same mistake `.srow--hidden` exists to avoid on the schools list.
+ */
+.mcard--idle { border-left-color: var(--gb-border-danger); }
+
+.mcard__head { display: flex; align-items: baseline; gap: var(--gb-space-2); flex-wrap: wrap; }
+.mcard__name { margin: 0; font-size: var(--gb-font-size-body-lg); }
+
+.mcard__meta {
+  margin: var(--gb-space-1) 0 0;
+  color: var(--gb-text-secondary);
+  font-size: var(--gb-font-size-body-sm);
+}
+
+.mcard__schools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gb-space-2);
+  margin-top: var(--gb-space-3);
+}
+
+.mcard__note {
+  margin: var(--gb-space-3) 0 0;
+  font-size: var(--gb-font-size-body-sm);
+  color: var(--gb-text-primary);
+}
+
+.mcard__note--warn {
+  padding: var(--gb-space-2) var(--gb-space-3);
+  border: var(--gb-border-width-default) solid var(--gb-border-danger);
+  border-radius: var(--gb-radius-sm);
+  background: var(--gb-bg-surface-warning);
+}
+
+/*
+ * A school assignment, with its state.
+ *
+ * The state is written in the chip — "serving now", "from 2099-01-01", "ended", "revoked" — so it
+ * survives greyscale and a colour-blind reader. The tint is a second signal, never the only one.
+ */
+.mchip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--gb-space-1);
+  padding: var(--gb-space-1) var(--gb-space-2);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-sm);
+  font-size: var(--gb-font-size-body-sm);
+  background: var(--gb-bg-canvas);
+}
+
+.mchip__when { color: var(--gb-text-secondary); }
+
+.mchip--live      { border-color: var(--gb-border-brand); background: var(--gb-bg-surface-muted); }
+.mchip--scheduled { border-color: var(--gb-border-accent); }
+.mchip--ended,
+.mchip--revoked   { color: var(--gb-text-secondary); }
+.mchip--draft     { border-color: var(--gb-border-accent); text-transform: capitalize; }
