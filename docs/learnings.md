@@ -3133,3 +3133,34 @@ and is not a test key. It is the `REQUIRED_RAZORPAY_PREFIX` guard in `packages/s
 which maps local and staging to `rzp_test_` and production to `rzp_live_`. A substring match on a
 secret's prefix will hit the code that validates the prefix. Match the whole value, or check what
 the match actually is before reporting it.
+
+## A concurrency test that never contends — the barrier must be a SHARED lock — 2026-08-26
+
+`E21`'s first concurrency test used `pg_advisory_xact_lock(K)` as the starting gun: a gate process
+held it, and every racer asked for the same lock before spending a meal. All four assertions
+passed, including the ten-connections-against-three-meals case Andy specifically asked for.
+
+It proved nothing. **`pg_advisory_xact_lock` is EXCLUSIVE**, so the racers queued behind each
+other and ran strictly one at a time. There was never any contention to survive.
+
+The mutation check is what exposed it, and it took two rounds:
+
+1. Removed the `meals_remaining >= p_take` guard from the function — **still green**. Explainable:
+   the `check (meals_remaining >= 0)` constraint was catching the overdraw instead.
+2. Dropped that constraint too, leaving *nothing at all* protecting the balance — **still green**.
+   At that point the test had no possible mechanism to be testing, and the only remaining
+   explanation was that the racers were not racing.
+
+The fix: the gate takes the **exclusive** lock, the racers take **shared** ones
+(`pg_advisory_xact_lock_shared`). Shared locks are compatible with each other, so all N acquire in
+the same instant when the gate commits. Against the unprotected function the test now fails 4/4;
+against the real one it passes 4/4.
+
+**The rule this earns:** a test asserting that concurrent callers cannot corrupt state must be run
+against a deliberately broken implementation before it is trusted. If it does not fail there, it
+is not testing concurrency — and a green concurrency test is the most confidently wrong artefact
+in a codebase that takes money.
+
+Second-order lesson: step 1's result was *plausible* on its own. "The guard is redundant with the
+constraint" is a believable story, and stopping there would have left the real bug in place. Keep
+removing protections until the test fails, or you have not found its floor.
