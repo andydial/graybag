@@ -3358,3 +3358,37 @@ ids got one after `E17-29`. Decisions files have not, and `E17-62` is that.
 
 **And the cheap habit:** before waiting 24 minutes on a check, re-fetch and confirm the branch is
 still current. A green check on a stale merge base tells you about a tree nobody will ship.
+
+---
+
+## Maestro can fail on a corrupt NDK download, which looks like a real test failure
+
+2026-08-27, on a **docs-only** pull request (`E02-36`'s sequencing correction).
+
+`Maestro (cart)` went red on a change that touched one markdown file. The useful reflex there is
+suspicion in both directions: a docs-only change cannot break a cart flow, but "it must be flaky"
+is also how a real regression gets waved through. So read the log before deciding.
+
+It was infrastructure:
+
+```
+FAILURE: Build failed with an exception.
+> Failed to apply plugin 'com.facebook.react.rootproject'.
+    > com.android.builder.sdk.InstallFailedException: Failed to install the following SDK
+      components:  ndk;27.1.12297006
+Warning: An error occurred while preparing SDK package NDK (Side by side) 27.1.12297006:
+  Error on ZipFile unknown archive
+java.io.IOException: Error on ZipFile unknown archive
+```
+
+The runner downloaded a truncated or corrupt NDK archive. Nothing in the repository can cause
+that, and `gh run rerun --failed` cleared it.
+
+**Two things worth carrying.** First, `gh run view <id> --log-failed` returns the *first* failing
+job in a run, and the Integration workflow holds three — it handed back the staging-config job
+(`E01-30`, a known and unrelated failure) while I was looking for Maestro. Go via
+`actions/runs/<id>/jobs`, find the job id, and read that job's log directly.
+
+Second, this is a good argument for the permanently-red `Supabase project config (staging)` job
+being fixed rather than tolerated: it is the noise that made a genuinely new failure take three
+commands to find instead of one.
