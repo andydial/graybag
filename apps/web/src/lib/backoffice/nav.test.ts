@@ -26,6 +26,7 @@ describe('visibleNav — one app, three levels (E10-12)', () => {
     const items = visibleNav(operator(EXAMPLE_LEVELS.kitchenOperator)).map((i) => i.href);
     expect(items).toContain('/kitchen');
     expect(items).toContain('/admin/menus');
+    expect(items).toContain('/admin/dishes');
     // The all-kitchens order screen shows refunds and totals, and `orders.view_financials` is a
     // separate grant precisely so a kitchen does not get it by having `orders.view` (D3).
     expect(items).not.toContain('/admin/orders');

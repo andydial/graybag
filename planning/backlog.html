@@ -4291,13 +4291,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/48</span>
+          <span class="meter-num">0/50</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 48 tasks</summary>
+        <summary>Context &amp; 50 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4683,6 +4683,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The dishes workbench puts the problems on the toolbar, with their counts.</strong> The prototype&#39;s central idea for this screen, and the one thing the built version did not have: it expressed the same facets as five dropdowns, which hide their numbers until opened. A dropdown answers &quot;show me X&quot;; a chip reading <strong>No photo 79</strong> answers &quot;how much is left to do&quot;, which is the question somebody opens a workbench to ask. Six chips — All, Needs attention, No food type, Allergens not checked, On no menu, No photo — each a one-click toggle. <strong><code>facets()</code> already computed every one of these counts</strong> and nothing rendered them, so this is mostly a presentation change over logic that was already tested. What is new is <code>DishQuery.attention</code>, which is a <strong>disjunction</strong> and therefore not expressible with the existing controls: no food type *or* unchecked allergens *or* on no menu *or* no photo. Setting three dropdowns gives the intersection, which is nearly always empty and reads as &quot;nothing is wrong&quot; — the test asserts exactly that, by building four dishes with one fault each and showing the intersection returns none of them while the chip returns three. <strong>The chips and the selects are rendered from one <code>query</code></strong>, so they cannot disagree; toggling a chip off returns its select to &quot;any&quot;, which is verified in a browser. Counts are of the whole catalogue rather than the filtered view, deliberately: a chip that fell from 79 to 3 when you filtered by category would be measuring the filter rather than the problem. The count line gained the prototype&#39;s wording — &quot;1 of 4 dishes matching &quot;x&quot; · 1 need attention&quot;. Zero-count chips are not styled as warnings, because &quot;No photo 0&quot; is good news and should look like it. 6 tests</span>
+      </li>
+      <li class="task" data-id="E10-49" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-49"></button>
+        <code class="tid">E10-49</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Dishes and Menus are two screens, and Menus is new.</strong> They were one page at <code>/admin/menus</code> titled &quot;Dishes&quot; — confusing before a menus screen existed and actively wrong once one did. Dishes moves to <code>/admin/dishes</code>; <code>/admin/menus</code> is now the menus overview the prototype describes: *&quot;A menu has a NAME and can be assigned to more than one school, which is what makes onboarding a new school a two-minute job.&quot;* <strong>The state the screen exists to surface is a menu assigned to nobody</strong>, which is invisible in both directions today — the dish workbench counts its dishes as placed and is satisfied, and the school screen reports a school as having no menu without mentioning that a finished one is sitting unused. Two screens each showing half a problem is how it survives a month. So menus serving nobody sort <strong>first</strong>, and the headline counts them. <strong>Live, scheduled and ended are kept as three states</strong>, not resolved to a boolean: *&quot;Paragon&#39;s menu starts on the 22nd&quot;* and *&quot;Paragon has no menu&quot;* look identical once the dates are thrown away and only one is a problem. <code>validTo</code> is exclusive, as <code>0001</code>&#39;s <code>[)</code> constraint and every read in the system treat it — a test pins the off-by-one, because getting it backwards serves a menu one day too long and surfaces as a parent ordering something the kitchen has stopped making. The only fault reported per menu is a <strong>missing food type</strong>, deliberately: a missing photo is untidy and belongs on the workbench, and flagging it here would make every menu look broken and teach people to ignore the warning. A dish the caller could not read is not reported as untyped — that is a narrower grant, not a fault, and reporting it would send somebody hunting a problem that is not there. 12 tests</span>
+      </li>
+      <li class="task" data-id="E10-50" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-50"></button>
+        <code class="tid">E10-50</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Create and duplicate a menu.</strong> The prototype&#39;s two buttons on the menus screen, both <code>alert(&#39;Prototype&#39;)</code> in it and both absent from the built one — a button that looks like it creates a menu and does not is worse than no button. Creating or copying is a write, so it needs an Edge Function (<code>A4</code>, non-negotiable #1); <code>admin-dish</code> is the obvious place, since it already holds the catalogue writes and the permission check for <code>menu.edit</code>. Duplicate is the valuable half and the fiddlier one: it must copy the items and their prices but <strong>not</strong> the assignments, because a copy that inherits &quot;serving Amity from January&quot; would silently start serving a second menu to a school already being fed. Worth confirming with Andy whether a duplicate should default to <code>draft</code> — the prototype shows a draft status and nothing yet sets one</span>
       </li></ul>
       </details>
     </article>
