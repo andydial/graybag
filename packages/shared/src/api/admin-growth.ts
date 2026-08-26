@@ -113,3 +113,149 @@ export async function fetchGrowth(): Promise<GrowthData> {
     })),
   };
 }
+
+/* =============================================================================
+   The bounded read behind Reports — `E11-19`
+   ============================================================================= */
+
+/**
+ * The most rows any single bounded read here will return before it refuses to answer.
+ *
+ * Not a page size and not a silent cap: a read that comes back holding exactly this many rows
+ * throws. Its filter was supposed to bound it far below this, so hitting it means the bound is
+ * wrong, and the alternative to throwing is returning a truncated answer that renders as a
+ * confident, smaller number.
+ *
+ * 20,000 is roughly a year of orders at the volume Andy is planning for, so a correct read cannot
+ * reach it and a broken one will.
+ */
+const READ_CAP = 20_000;
+
+/** A bounded read that fails loudly rather than truncating. See `READ_CAP`. */
+async function capped<T>(
+  what: string,
+  build: (t: import('./client.js').ApiTransport) => import('./client.js').SelectBuilder,
+): Promise<T[]> {
+  const rows = await runQuery<T>((t) => build(t).limit(READ_CAP));
+  if (rows.length >= READ_CAP) {
+    throw new Error(
+      `The ${what} read returned ${rows.length} rows, which is its cap. It is filtered by date ` +
+        `and should be nowhere near this, so the filter is not doing what it should. Refusing to ` +
+        `report a truncated total — see E11-19.`,
+    );
+  }
+  return rows;
+}
+
+/** IST is `+05:30`, fixed — no daylight saving, one zone. */
+const IST = '+05:30';
+
+/**
+ * A day either side of the range, as instants.
+ *
+ * **The server bound is deliberately a superset and the client bound is authoritative.** Every
+ * date on these screens is an IST calendar date while `created_at` and `placed_at` are instants,
+ * and `funnelForCohort` already re-filters precisely by IST day. Widening by a day means an
+ * arithmetic slip here can only ever cost a few extra rows, where narrowing would silently drop
+ * a real registration from the cohort. Those two failures are not worth trading evenly.
+ */
+function window_(from: string, to: string): { start: string; endExclusive: string } {
+  const shift = (date: string, days: number) =>
+    new Date(Date.parse(`${date}T12:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+  return {
+    start: `${shift(from, -1)}T00:00:00${IST}`,
+    endExclusive: `${shift(to, 2)}T00:00:00${IST}`,
+  };
+}
+
+export interface ReportsGrowthData {
+  /** Accounts registered inside the window. The cohort, before the precise IST cut. */
+  users: { id: string; email: string | null; createdAt: string }[];
+  /** Guardian links created inside the window — see `fetchReportsGrowth`. */
+  links: { userId: string; recipientId: string }[];
+  /**
+   * Children that have been **soft-deleted**, by id.
+   *
+   * Inverted deliberately. The funnel needs to know whether a link points at a live child, and
+   * reading every live child to answer that is the unbounded read this task exists to remove.
+   * Deletions are rare and creations are not, so the complement is small, and "not in this set"
+   * is exactly as correct as "in the set of live children".
+   */
+  deletedChildIds: string[];
+  /** Orders placed at or after the window start. The cohort's orders, measured to the present. */
+  funnelOrders: GrowthOrder[];
+  /** Orders **served** inside the range. The usage block, on the same basis as the money. */
+  usageOrders: GrowthOrder[];
+}
+
+/**
+ * Everything Reports needs about people, bounded by the range on the screen — `E11-19`.
+ *
+ * ## Why not `fetchGrowth`
+ *
+ * `fetchGrowth` reads four tables whole. That is defensible for the Growth page, which is *about*
+ * every registration there has ever been. It is indefensible for Reports, where the answer only
+ * ever concerns a range the reader chose, and where the cost is paid on a school-gate connection
+ * (`P11`). At 400 registrations a week it also fails in the nastiest available direction: the
+ * revenue half is filtered by date in the database and stays correct, while the usage half beside
+ * it quietly shrinks. `E11-17` put a guard on the screen for exactly that; a guard is not a fix.
+ *
+ * ## Every read is bounded by a date, and the bounds are provable
+ *
+ * Two of these are not obvious and are the reason this is four cheap reads rather than a join:
+ *
+ * - **Links are bounded by `created_at`.** A guardian link made *by* somebody who registered
+ *   inside the window cannot pre-date their own registration, so no link belonging to the cohort
+ *   can fall before the window start.
+ * - **Funnel orders are bounded by `placed_at`.** Same argument: a member of the cohort cannot
+ *   have ordered before they existed. There is no upper bound, because the funnel measures the
+ *   cohort *to the present* — that is the whole point of `funnelForCohort`, and clipping it to
+ *   the range end would report yesterday's cohort as converting at zero.
+ *
+ * Usage orders are bounded by `service_date`, matching `fetchMonthlyRevenue` exactly so the two
+ * halves of the screen count the same orders.
+ */
+export async function fetchReportsGrowth(from: string, to: string): Promise<ReportsGrowthData> {
+  const { start, endExclusive } = window_(from, to);
+
+  const [userRows, linkRows, deletedRows, funnelRows, usageRows] = await Promise.all([
+    capped<unknown>('registrations', (t) =>
+      t.from('app_user').select(GROWTH_USER_COLUMNS)
+        .is('deleted_at', null).gte('created_at', start).lt('created_at', endExclusive)),
+    capped<unknown>('guardian links', (t) =>
+      t.from('guardian_link').select(GROWTH_LINK_COLUMNS)
+        .is('revoked_at', null).gte('created_at', start)),
+    // Ids only. Nothing here identifies a child, and there is nowhere to put a name.
+    capped<unknown>('deleted children', (t) =>
+      t.from('recipient').select('id').not('deleted_at', 'is', null)),
+    capped<unknown>('cohort orders', (t) =>
+      t.from('order').select(GROWTH_ORDER_COLUMNS).gte('placed_at', start)),
+    capped<unknown>('orders served in the range', (t) =>
+      t.from('order').select(GROWTH_ORDER_COLUMNS)
+        .gte('service_date', from).lte('service_date', to)),
+  ]);
+
+  const order = (r: Record<string, unknown>): GrowthOrder => ({
+    customerUserId: str(r.customer_user_id),
+    placedAt: str(r.placed_at),
+    serviceDate: str(r.service_date),
+    status: str(r.status),
+    totalPaise: typeof r.total_paise === 'number' ? r.total_paise : 0,
+    schoolId: str(r.school_id),
+  });
+
+  return {
+    users: userRows.filter(isRecord).map((r) => ({
+      id: str(r.id),
+      email: str(r.email) === '' ? null : str(r.email),
+      createdAt: str(r.created_at),
+    })),
+    links: linkRows.filter(isRecord).map((r) => ({
+      userId: str(r.user_id),
+      recipientId: str(r.recipient_id),
+    })),
+    deletedChildIds: deletedRows.filter(isRecord).map((r) => str(r.id)),
+    funnelOrders: funnelRows.filter(isRecord).map(order),
+    usageOrders: usageRows.filter(isRecord).map(order),
+  };
+}

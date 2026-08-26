@@ -282,9 +282,12 @@ describe('funnelForCohort — the funnel that moves to Reports (E11-16)', () => 
   ];
   const children = [child('c1', 's1'), child('c2', 's1'), child('cb', 's1')];
   const links = [link('in1', 'c1'), link('in2', 'c2'), link('before', 'cb')];
+  /* `E11-19` — the caller now answers "is this child live?" rather than handing over the list. */
+  const live = (ids: readonly string[] = children.map((c) => c.id)) =>
+    (recipientId: string) => ids.includes(recipientId);
 
   it('counts only the parents who registered inside the range', () => {
-    const { cohort, steps } = funnelForCohort(users, links, children, [], '2026-08-01', '2026-08-20');
+    const { cohort, steps } = funnelForCohort(users, links, live(), [], '2026-08-01', '2026-08-20');
     expect(cohort).toBe(3);
     expect(steps.find((s) => s.key === 'registered')!.reached).toBe(3);
   });
@@ -293,7 +296,7 @@ describe('funnelForCohort — the funnel that moves to Reports (E11-16)', () => 
     // The one that makes it a cohort rather than a filter. `before` added a child and ordered
     // twice; none of that belongs to a range they were not in.
     const { steps } = funnelForCohort(
-      users, links, children,
+      users, links, live(),
       [paid('before', '2026-08-05'), paid('before', '2026-08-06')],
       '2026-08-01', '2026-08-20',
     );
@@ -306,14 +309,14 @@ describe('funnelForCohort — the funnel that moves to Reports (E11-16)', () => 
     // of the range would make every recent range look terrible and would make a past range
     // improve each time you looked at it — a number that changes when nothing happened.
     const { steps } = funnelForCohort(
-      users, links, children, [paid('in1', '2026-08-22')], '2026-08-01', '2026-08-20',
+      users, links, live(), [paid('in1', '2026-08-22')], '2026-08-01', '2026-08-20',
     );
     expect(steps.find((s) => s.key === 'firstOrder')!.reached).toBe(1);
   });
 
   it('reports the drop at each step as a count', () => {
     const { steps } = funnelForCohort(
-      users, links, children, [paid('in1', '2026-08-15')], '2026-08-01', '2026-08-20',
+      users, links, live(), [paid('in1', '2026-08-15')], '2026-08-01', '2026-08-20',
     );
     expect(steps.find((s) => s.key === 'addedChild')!.lost).toBe(1);   // in3 added none
     expect(steps.find((s) => s.key === 'firstOrder')!.lost).toBe(1);   // in2 never ordered
@@ -321,16 +324,40 @@ describe('funnelForCohort — the funnel that moves to Reports (E11-16)', () => 
 
   it('does not count an unpaid order as a conversion', () => {
     const { steps } = funnelForCohort(
-      users, links, children, [paid('in1', '2026-08-15', 'pending_payment')], '2026-08-01', '2026-08-20',
+      users, links, live(), [paid('in1', '2026-08-15', 'pending_payment')], '2026-08-01', '2026-08-20',
     );
     expect(steps.find((s) => s.key === 'firstOrder')!.reached).toBe(0);
   });
 
   it('is empty rather than broken when nobody registered in the range', () => {
-    const { cohort, steps } = funnelForCohort(users, links, children, [], '2026-01-01', '2026-01-31');
+    const { cohort, steps } = funnelForCohort(users, links, live(), [], '2026-01-01', '2026-01-31');
     expect(cohort).toBe(0);
     expect(steps.every((s) => s.reached === 0)).toBe(true);
     expect(steps.find((s) => s.key === 'addedChild')!.rate).toBeNull();
+  });
+
+  /*
+   * The reason the signature changed. Reports cannot afford to read every live child to answer
+   * this, so it reads the (much smaller) set of deleted ones and negates it — and a link whose
+   * child has been deleted must not count as "added a child" either way round.
+   */
+  it('does not count a link whose child has been deleted', () => {
+    const deleted = new Set(['c1']);
+    const { steps } = funnelForCohort(
+      users, links, (id) => !deleted.has(id), [], '2026-08-01', '2026-08-20',
+    );
+    // in2 still has c2; in1's only child is gone.
+    expect(steps.find((s) => s.key === 'addedChild')!.reached).toBe(1);
+  });
+
+  it('agrees whichever way the caller answers the liveness question', () => {
+    const ids = children.map((c) => c.id);
+    const byList = funnelForCohort(users, links, live(ids), [], '2026-08-01', '2026-08-20');
+    const byComplement = funnelForCohort(
+      users, links, (id) => !new Set<string>().has(id), [], '2026-08-01', '2026-08-20',
+    );
+    expect(byComplement.steps.find((s) => s.key === 'addedChild')!.reached)
+      .toBe(byList.steps.find((s) => s.key === 'addedChild')!.reached);
   });
 });
 

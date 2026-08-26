@@ -378,7 +378,17 @@ export function linePath(values: readonly number[], width: number, height: numbe
 export function funnelForCohort(
   users: readonly GrowthUser[],
   links: readonly GrowthLink[],
-  children: readonly GrowthChild[],
+  /*
+   * **A predicate rather than the list of children** — `E11-19`.
+   *
+   * This used to take every live child so it could ask `childById.has(id)`. Reading every child
+   * to answer a yes/no about a handful of links is the unbounded read `E11-19` removes, and the
+   * two callers can answer it far more cheaply in opposite ways: Growth already holds the child
+   * list, and Reports holds the much smaller set of *deleted* children and negates it.
+   *
+   * The question is the only thing that matters here, so the question is what it takes.
+   */
+  isLiveChild: (recipientId: string) => boolean,
   orders: readonly FunnelOrder[],
   from: string,
   to: string,
@@ -388,9 +398,8 @@ export function funnelForCohort(
     return day !== '' && day >= from && day <= to;
   });
 
-  const childById = new Map(children.map((c) => [c.id, c]));
   const linked = new Set(
-    links.filter((l) => childById.has(l.recipientId)).map((l) => l.userId),
+    links.filter((l) => isLiveChild(l.recipientId)).map((l) => l.userId),
   );
 
   const paidCount = new Map<string, number>();
