@@ -47,6 +47,8 @@ import { track } from '../analytics/analytics';
 import { screenNameFor } from '../analytics/screens';
 import { useBreakTimes } from '../cart/useBreakTimes';
 import { clashingAllergens, useAllergenWatchlist } from '../menu/useAllergenWatchlist';
+import { MyPacksScreen } from '../packs/MyPacksScreen';
+import { PacksScreen } from '../packs/PacksScreen';
 import { PolicyGateContainer } from '../policy/PolicyGateContainer';
 import { usePolicyGate, useNextPendingPolicy } from '../policy/PolicyGateContext';
 import { useAudience, useOrderingTarget } from '../session/audience';
@@ -622,6 +624,41 @@ const DeleteAccountStackScreen = withScreenFrame(DeleteAccountScreen, STACK_SCRE
   back: true,
 });
 const PolicyStackScreen = withScreenFrame(PolicyScreen, STACK_SCREEN_EDGES, { back: true });
+
+/**
+ * `E21`. The two pack screens that exist so far, wired to the navigator that owns the routes.
+ *
+ * `MyPacks` receives `balance` as `null` for now: the balance READ is `E21-37` and is not built,
+ * so the screen renders its "you don't have a pack" empty state. That is honest rather than
+ * convenient — it is what a parent with no pack sees, and it is what the orphan guard requires,
+ * since a prop only a test passes is the failure this repo keeps meeting.
+ */
+function ConnectedPacksScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <PacksScreen
+      onOpenOffer={(offerId: string) => navigation.navigate('PackDetail', { offerId })}
+      onBackToMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
+      onSeeBalance={() => navigation.navigate('MyPacks')}
+    />
+  );
+}
+
+function ConnectedMyPacksScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <MyPacksScreen
+      balance={null}
+      onSeeOffers={() => navigation.navigate('Packs')}
+      onPlanMeals={() => navigation.navigate('PackPlan')}
+    />
+  );
+}
+
+const PacksStackScreen = withScreenFrame(ConnectedPacksScreen, STACK_SCREEN_EDGES, { back: true });
+const MyPacksStackScreen = withScreenFrame(ConnectedMyPacksScreen, STACK_SCREEN_EDGES, {
+  back: true,
+});
 // The modal takes the full set too. On iOS it is presented as a page sheet whose top already
 // clears the status bar, so the top inset buys a little unnecessary whitespace there; on
 // Android `presentation: 'modal'` is a full-screen route where the same inset is the
@@ -833,6 +870,13 @@ export function RootNavigator() {
         {/* `E20-38`. No session required — a visitor deciding whether to sign up is exactly
             who reads a privacy policy, and `[AZ-03]` requires it reachable without an account. */}
         <Stack.Screen name="Policy" component={PolicyStackScreen} />
+        {/*
+          `E21`. Registered always, navigated to only when the gate allows — see `types.ts`.
+          Each renders the prototype's refusal when reached with the gate off, which is what
+          makes a stale link land somewhere designed rather than crashing.
+        */}
+        <Stack.Screen name="Packs" component={PacksStackScreen} />
+        <Stack.Screen name="MyPacks" component={MyPacksStackScreen} />
         <Stack.Screen
           name="SignIn"
           component={SignInStackScreen}

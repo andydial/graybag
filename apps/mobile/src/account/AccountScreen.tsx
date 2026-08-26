@@ -5,6 +5,7 @@ import { BrandHeader } from '../components/Brand';
 import { Button } from '../components/Button';
 import { ListRow } from '../components/Surfaces';
 import { BuildLabel } from '../components/BuildLabel';
+import { useMealPackSurface } from '../packs/MealPackSurfaceContext';
 
 const { bg, text, border, space, layout, scale, borderWidth, touchTarget } = design;
 
@@ -61,6 +62,7 @@ export function AccountScreen({
   onPolicy,
   onDeleteAccount,
   onSignOut,
+  onMealPacks,
 }: {
   testID?: string;
   /**
@@ -96,7 +98,10 @@ export function AccountScreen({
    */
   onDeleteAccount?: () => void;
   onSignOut?: () => void;
+  /** `E21`. Navigates to the balance. The row only renders when a surface exists. */
+  onMealPacks?: (() => void) | undefined;
 }) {
+  const packSurface = useMealPackSurface();
   const policy = (which: 'privacy' | 'terms' | 'refund') =>
     onPolicy === undefined ? undefined : () => onPolicy(which);
 
@@ -160,6 +165,23 @@ export function AccountScreen({
                 testID={`${testID}-recipients`}
               />
               <Row title="Your orders" onPress={onOrders} testID={`${testID}-orders`} />
+              {/*
+                `E21`. **The only pack entry point in the app** (`D1`), and it renders only when
+                the server says this parent has a surface at all — either packs are sold at their
+                school, or they already hold meals. Andy, 2026-08-26: *"Not a hidden tab, not an
+                empty state, not a menu entry — if no offer is live for that school, the parent
+                sees an app with no such concept."*
+
+                Note it is `canBuy || hasBalance`, never `canBuy` alone: a parent whose school we
+                switched off must still be able to reach meals they have paid for (`E21-31`).
+              */}
+              {packSurface.canBuy || packSurface.hasBalance ? (
+                <Row
+                  title="Your meal packs"
+                  onPress={onMealPacks}
+                  testID={`${testID}-meal-packs`}
+                />
+              ) : null}
             </>
           )}
 

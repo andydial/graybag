@@ -380,6 +380,7 @@ const KNOWN_ORPHANS: Record<string, string> = {
   // the screen. Three of the four remain.
   'prop:SupportScreen.grievance': 'E20-21 — awaiting the name, designation and address',
 
+
   // Ordering paths with both halves built.
   'prop:DishDetailScreen.onChangeTarget': 'E05-40 — switch who a dish is for, from the sheet',
   'prop:DishDetailScreen.ordering': 'E05-40 — same sheet',
@@ -439,7 +440,19 @@ describe('nothing is half-wired', () => {
 
     // A context whose shape could not be parsed would silently have no writers to check,
     // which is the empty-check failure mode wearing a different hat.
+    //
+    // **A context with no function-typed keys is a different thing from one that failed to
+    // parse**, and `E21-33` is the first of them. `MealPackSurfaceContext` exposes
+    // `{ canBuy, hasBalance }` and no setter, deliberately: the server answers both, and
+    // `hasBalance` is a debt — meals a parent has already paid for — so letting any screen set it
+    // would be the app deciding what it is owed. There is no writer to find and none should exist.
+    //
+    // So read-only contexts are recognised rather than exempted, and they still have to prove
+    // themselves below: a hook, a provider, a reader outside their own file, and a mount. What is
+    // skipped is only the writer check, and only for a context that genuinely exports no action.
     for (const ctx of contexts) {
+      const readOnly = ctx.actions.length === 0 && ctx.hook !== null && ctx.provider !== null;
+      if (readOnly) continue;
       if (ctx.actions.length === 0 || ctx.hook === null || ctx.provider === null) {
         throw new Error(
           `Could not read the shape of ${relative(ctx.source.path)}: hook=${ctx.hook}, ` +
@@ -472,6 +485,15 @@ describe('nothing is half-wired', () => {
     });
 
     it('is written somewhere outside its own file', () => {
+      // A context that exports no action has no writer to look for, and that is a legitimate
+      // shape rather than an oversight — see the note at the vacuity check above. It is asserted
+      // POSITIVELY here rather than skipped silently, so "read-only" stays a claim the file
+      // makes about itself and not an absence nobody notices.
+      if (ctx.actions.length === 0) {
+        expect(ctx.hook).not.toBeNull();
+        expect(ctx.provider).not.toBeNull();
+        return;
+      }
       if (KNOWN_ORPHANS[`${base}:writer`] !== undefined) {
         expect(KNOWN_ORPHANS[`${base}:writer`]).toMatch(/E\d\d-\d\d/);
         return;

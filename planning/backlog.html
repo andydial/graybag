@@ -6382,13 +6382,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/32</span>
+          <span class="meter-num">0/37</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 32 tasks</summary>
+        <summary>Context &amp; 37 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -6675,6 +6675,46 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The api module for the three parent surfaces.</strong> Reads only; buying, planning and redeeming are Edge Functions because each moves money or a balance. <code>fetchMealPackSurface</code> <strong>fails closed</strong> — on a network error, a garbled shape, a missing flag or a truthy-but-not-true value it returns no surface at all — and the asymmetry is the reason: rendering nothing costs a sale the parent can still make later, while rendering a surface that should not exist offers to take money for something we may not sell there. <code>fetchMealPackOffers</code> does the opposite and <strong>throws</strong>, because by then the parent is looking at a screen that promised offers and <code>[]</code> would read as &quot;there are none&quot; when the truth is &quot;we could not ask&quot;. 13 tests, including the three surface cases and a float price refused rather than rounded</span>
+      </li>
+      <li class="task" data-id="E21-33" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-33"></button>
+        <code class="tid">E21-33</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>MealPackSurfaceContext</code> — one answer, one moment.</strong> A context rather than a per-screen fetch (<code>D2</code>): each screen asking for itself would land the answer at different times, so a parent could watch the Account row disappear while standing on the balance screen it led to. Unknown renders as nothing, in flight and after failure both. It exposes <strong>no setter</strong>, which broke <code>orphans.test.ts</code> twice — and the fix was to teach the scan what a read-only context is rather than add a <code>KNOWN_ORPHANS</code> exemption, because an exemption says *this one is allowed to be broken* and this one is a different, deliberate shape: the server owns both flags, and <code>hasBalance</code> is a debt, so letting a screen set it would be the app deciding what it is owed. Verified rather than assumed — an unwired action named <code>zzzUnwiredPackAction</code> still fails the writer check</span>
+      </li>
+      <li class="task" data-id="E21-34" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-34"></button>
+        <code class="tid">E21-34</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The offers surface.</strong> <code>not_offered</code> is a first-class state, not <code>offers.length === 0</code>: &quot;we do not sell packs at your school&quot;, &quot;the read failed&quot; and &quot;there are none configured&quot; are three different sentences and collapsing them is the §5.21 defect. With the gate off it renders the refusal <strong>without a network call</strong> — there is nothing to ask for and a spinner would promise something</span>
+      </li>
+      <li class="task" data-id="E21-35" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-35"></button>
+        <code class="tid">E21-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The balance surface, which survives its school being switched off.</strong> Nothing on it consults <code>canBuy</code> except the one thing that genuinely depends on selling: the offer to buy another. Mutation-checked by gating the planner button on <code>canBuy</code> — the stranding bug in the UI, in one edit — which fails exactly the assertion named for it and nothing else. Three empties, three sentences: no pack, every meal spent, expired</span>
+      </li>
+      <li class="task" data-id="E21-36" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-36"></button>
+        <code class="tid">E21-36</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Wired, not merely built.</strong> <code>orphans.test.ts</code> caught all five props and the unmounted provider on the first run, which is the guard doing precisely its job. Provider mounted in <code>App.tsx</code> inside the school and session providers; <code>Packs</code> and <code>MyPacks</code> registered as routes; the Account row rendering on <code>canBuy || hasBalance</code>, never <code>canBuy</code> alone. <code>screens.test.ts</code> then caught a double count — the screens were emitting <code>screen_viewed</code> for themselves while the navigator emitted the same route — so the emit moved to one place and the vocabulary lost <code>pack_detail</code> and <code>pack_plan</code> until those screens exist, since a name with no emitter reads as a screen nobody visited</span>
+      </li>
+      <li class="task" data-id="E21-38" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-38"></button>
+        <code class="tid">E21-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>orphans.test.ts</code> matches action names bare, so common names pass spuriously.</strong> Found while mutation-checking <code>E21-33</code>: an unwired context action called <code>refresh</code> passes the writer check because something unrelated in the app calls something called <code>refresh</code>; the same mutation named <code>zzzUnwiredPackAction</code> fails. The guard is therefore weakest for exactly the names people choose — <code>refresh</code>, <code>load</code>, <code>reset</code>, <code>clear</code>. Fix by matching the call against the context&#39;s own hook or import rather than the bare identifier. Filed separately because tightening it will surface existing collisions across the app, and that is its own review</span>
       </li></ul>
       </details>
     </article>

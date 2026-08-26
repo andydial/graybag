@@ -86,3 +86,25 @@ describe('the vocabulary matches the app', () => {
     }
   });
 });
+
+describe('E21 — the pack routes report like any other screen', () => {
+  it('names the offers route, INCLUDING when it renders the refusal', () => {
+    // The fallback case is the one worth counting: a parent reaching `Packs` with the gate off
+    // means a stale link is in circulation. It is the same route either way, so one emitter
+    // covers both and neither needs a special case.
+    expect(screenNameFor('Packs')).toBe('packs');
+  });
+
+  it('names the balance route', () => {
+    expect(screenNameFor('MyPacks')).toBe('my_packs');
+  });
+
+  it('does not yet name screens that do not exist', () => {
+    // `pack_detail` and `pack_plan` are deliberately absent from the vocabulary until those
+    // screens are built. A name with no emitter reads on the dashboard as a screen nobody
+    // visited, which is worse than a missing row because it looks like data.
+    const declared = analyticsEvents.ENUM_VALUES.screen ?? [];
+    expect(declared).not.toContain('pack_detail');
+    expect(declared).not.toContain('pack_plan');
+  });
+});

@@ -9,6 +9,7 @@ import { installMenuCache } from './src/menu/installMenuCache';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { PolicyGateProvider } from './src/policy/PolicyGateContext';
 import { CantConnectScreen } from './src/status/CantConnectScreen';
+import { MealPackSurfaceProvider } from './src/packs/MealPackSurfaceContext';
 import { VersionGate } from './src/status/VersionGate';
 import { ConnectivityProvider } from './src/net/ConnectivityContext';
 import { OrderTargetProvider } from './src/session/OrderTargetContext';
@@ -139,7 +140,17 @@ export default function App() {
                   in front of the menu for someone who has not signed in (`AR7`).
                 */}
                 <PolicyGateProvider>
-                  <RootNavigator />
+                  {/*
+                    `E21`. Inside the school provider because the answer is per school, and
+                    inside the session provider because it is also per parent — a balance is
+                    theirs. Above the navigator because the Account row, the pack screens and
+                    the cart strip must all read ONE answer: fetched per screen they would land
+                    at different moments, and a parent could watch the Account row disappear
+                    while standing on the balance screen it led to (`D2`).
+                  */}
+                  <MealPackSurfaceProvider>
+                    <RootNavigator />
+                  </MealPackSurfaceProvider>
                 </PolicyGateProvider>
               </CartProvider>
             </SchoolFollowsRecipient>

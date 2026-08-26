@@ -32,6 +32,16 @@ const ROUTES: Record<string, string> = {
   Policy: 'policy',
   PolicyGate: 'policy_gate',
   DeleteAccount: 'delete_account',
+  /**
+   * `E21`. Real routes, so the navigator listener emits them — including the **fallback** case,
+   * where a parent reaches `Packs` with the gate off and sees the refusal. That is still a screen
+   * they viewed, and it is the one worth counting: it means a stale link is in circulation.
+   *
+   * They were briefly in `NON_ROUTE_SCREENS` with the screens emitting for themselves, which
+   * would have double-counted every visit once the routes existed. `screens.test.ts` caught it.
+   */
+  Packs: 'packs',
+  MyPacks: 'my_packs',
 };
 
 /**
