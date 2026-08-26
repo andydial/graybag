@@ -1,5 +1,10 @@
 # Decisions taken overnight, 2026-08-27
 
+> **Two threads wrote this file on the same night.** The mobile thread's calls are `D1`–`D10`
+> below; the web thread's are numbered `1.`–`4.` in their own section at the end. The numbering
+> did not collide by luck rather than by agreement — worth fixing before the next overnight run,
+> and recorded as `E16-64`.
+
 Andy, 2026-08-26: *"Work continuously overnight. Don't stop to ask me anything — decide, record it
 in docs/decisions-27aug.md with your reasoning, and keep going… I'd rather read a decision I
 disagree with in the morning than find you waiting since 1am."*
@@ -240,3 +245,92 @@ works.
 separately and I believe they agree, but the assertion I actually want — same inputs, same verdict,
 run against both implementations — needs order rows in the database per case. Worth doing;
 `E21-42`.
+
+
+---
+
+# The web thread's decisions, same night
+
+*Merged verbatim from their side of `main`. Their numbering, their reasoning.*
+
+title: "Decisions taken overnight, 26–27 August 2026"
+---
+
+# Decisions taken overnight, 26–27 August 2026
+
+Andy, 2026-08-26, close to midnight:
+
+> *"Work continuously overnight. Don't stop to ask me anything — decide, record it here with your
+> reasoning, and keep going. If something genuinely blocks you, skip it, note it, and move to the
+> next item. I'd rather read a decision I disagree with in the morning than find you waiting since
+> 1am."*
+
+So this is a running log, newest last, of every judgement call made without him. **It is not the
+decision log.** `docs/decisions.md` and its area files remain the permanent record (`DOC1`), and
+anything here that turns out to be architectural is written there too and cited by its id — this
+file says *what was decided at 2am and why*, which is a different question from *what is true of
+the system*.
+
+Read it as a queue of things to overrule. Each entry states the call, the reasoning, and — where
+there is one — the cheaper thing I would have done had he been awake to ask.
+
+---
+
+## 1. This file, rather than the area files, for tonight's calls
+
+Andy named `docs/decisions-27aug.md` explicitly, and the repo convention is one file per area
+under `docs/decisions/` with permanent ids. Both, rather than either: durable decisions still go
+to their area file and get an id, and this file carries the overnight narrative and links to them.
+
+The convention exists so that a decision can be found by the person changing the code that
+depends on it, and a dated scratch file cannot do that job — in a month nobody will think to open
+`decisions-27aug.md` before editing the dishes screen. But a dated file is exactly right for
+"what did it do while I was asleep", which is the question Andy will actually have at breakfast.
+
+---
+
+## 2. Order of work for the night
+
+The remaining prototype items are meal packs, the dishes workbench, named menus, and the People &
+access role-scope panel. Taking them in Andy's stated order except that **meal packs is skipped**:
+the pack schema and the `packs.manage` permission belong to the mobile thread, Andy told them so
+on 2026-08-26, and he was explicit that I should not borrow an adjacent permission because
+*"borrowing an adjacent permission because the right one doesn't exist yet is how permissions
+quietly stop meaning what they say."* Nothing about that is unblocked by working at night.
+
+So: dishes workbench → named menus → People & access → promote. Anything left over at the end
+goes to the backlog untagged, as fast-follow.
+
+---
+
+## 3. The dishes workbench was already built; only its toolbar was missing
+
+`/admin/menus` already carries a dishes workbench that is in several respects **better** than the
+prototype: the query lives in the URL so a filtered view can be sent to somebody, there is a
+drawer with image upload, and `facets()` already computed every count the prototype's chips show.
+
+So this was not a rebuild. The one real gap was that those counts were rendered as five
+`<select>` elements, and a dropdown hides its numbers until you open it. The prototype's chips
+answer *"how much is left to do"* without a click, which is the question a workbench exists for.
+
+**Kept the selects rather than replacing them**, which is a departure from the prototype. They
+express things a chip row cannot — a *specific* menu, "allergens declared none" as distinct from
+"not checked" — and they are already tested. Both render from one `query` object, so they cannot
+disagree; a browser check confirms toggling a chip off returns its select to "any". Had Andy been
+awake I would have asked whether he wants the selects gone for tidiness; the reversible half of
+that choice is deleting them later, which is cheap, where re-deriving them is not.
+
+**`E10-48` rather than a new epic.** The workbench is an admin surface and `E10` is the admin
+dashboard epic.
+
+---
+
+## 4. Renaming `/admin/menus` is deferred, not done
+
+The page at `/admin/menus` is titled **Dishes**, and the prototype has Dishes and Menus as two
+separate screens. Once named menus exists (next), that URL will be actively misleading.
+
+Not renaming it tonight, because a URL change is the kind of thing that breaks a bookmark Andy
+actually uses, and doing it at 2am with no way to ask is the wrong trade for a cosmetic gain. The
+named-menus screen will take a **new** path and the rename gets its own task, so both screens are
+reachable and nothing that works today stops working.

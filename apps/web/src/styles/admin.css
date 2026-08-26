@@ -602,6 +602,61 @@
   border-radius: var(--gb-radius-sm);
 }
 
+/*
+ * The problem chips (`E10-48`).
+ *
+ * A row of toggles, each carrying a count. They are the fast path to the four states that stop a
+ * dish being publishable; the selects beside them can express more and stay.
+ */
+.wb__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gb-space-2);
+  margin-top: var(--gb-space-2);
+}
+
+.wbchip {
+  font: inherit;
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body-strong);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gb-space-1);
+  padding: var(--gb-space-1) var(--gb-space-3);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: 999px;
+  background: var(--gb-bg-surface);
+  color: var(--gb-text-secondary);
+  cursor: pointer;
+}
+
+.wbchip b { color: var(--gb-text-primary); }
+
+/*
+ * A chip whose count is a problem. The border carries it as well as the colour, so the state
+ * survives being read by somebody who cannot distinguish the hue — and a chip reading zero is
+ * deliberately NOT warned, because "no photo 0" is good news and should look like it.
+ */
+.wbchip--warn {
+  border-color: var(--gb-border-danger);
+  background: var(--gb-bg-surface-warning);
+  color: var(--gb-text-primary);
+}
+
+/* Pressed. Inverted rather than merely tinted: with six chips in a row, "which one is on" has to
+ * be answerable at a glance from across a kitchen office. */
+.wbchip--on {
+  border-color: var(--gb-text-primary);
+  background: var(--gb-text-primary);
+  color: var(--gb-bg-surface);
+}
+.wbchip--on b { color: var(--gb-bg-surface); }
+
+.wbchip:focus-visible {
+  outline: var(--gb-border-width-default) solid var(--gb-text-link);
+  outline-offset: 2px;
+}
+
 .wb__count {
   margin: var(--gb-space-2) 0 0;
   font-size: var(--gb-font-size-body-sm);

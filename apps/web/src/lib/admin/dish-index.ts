@@ -47,6 +47,17 @@ export interface DishQuery {
   allergens: AllergenFilter;
   photo: PhotoFilter;
   sort: SortKey;
+  /**
+   * "Show me only the dishes with something wrong" — `E10-48`.
+   *
+   * Not expressible as any of the filters above, because it is a **disjunction**: no food type
+   * *or* unchecked allergens *or* on no menu *or* no photo. Setting three dropdowns gives the
+   * intersection, which is nearly always empty and reads as "nothing is wrong".
+   *
+   * It is the question the prototype's workbench is built around — the screen exists to get a
+   * catalogue into a publishable state — so it gets to be one click.
+   */
+  attention: boolean;
 }
 
 export const EMPTY_QUERY: DishQuery = {
@@ -56,6 +67,7 @@ export const EMPTY_QUERY: DishQuery = {
   allergens: 'any',
   photo: 'any',
   sort: 'name',
+  attention: false,
 };
 
 /** Everything the row needs, resolved once, so rendering does no lookups. */
@@ -159,6 +171,10 @@ const matchesFilters = (row: DishRow, q: DishQuery): boolean => {
     const has = Boolean(dish.imageAssetId);
     if (q.photo === 'has' ? !has : has) return false;
   }
+
+  // A disjunction, deliberately — see `DishQuery.attention`. `problems` is already ordered by
+  // how much each one matters, so "has any" is the whole test.
+  if (q.attention && row.problems.length === 0) return false;
 
   return true;
 };
