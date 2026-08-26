@@ -139,6 +139,24 @@ async function race({ meals, attempts, take }) {
   gate.kill();
 
   const after = sql(`select meals_remaining from meal_pack where id = '${packId}'::uuid`);
+
+  /**
+   * Clean up. **This test must COMMIT to race real transactions**, so unlike every pgTAP file it
+   * cannot roll back — and what it leaves behind is visible to everything that runs afterwards.
+   *
+   * `meal_pack_ledger.test.sql` asserts the absolute invariant *(deferred revenue equals what live
+   * packs owe)*, and 21 committed packs from earlier runs of this file made it false before that
+   * test wrote a line. The failure looked like a redemption bug and was this file's litter.
+   *
+   * Deleted in FK order, and only rows this run created.
+   */
+  sql(`delete from meal_pack_redemption where meal_pack_id = '${packId}'::uuid;
+       delete from meal_pack where id = '${packId}'::uuid;
+       delete from order_group og where og.id not in (select order_group_id from meal_pack)
+         and og.idempotency_key like 'e21-race-%';
+       delete from meal_pack_offer o where o.name = 'E21 race pack'
+         and not exists (select 1 from meal_pack m where m.offer_id = o.id);`);
+
   return {
     succeeded: results.filter(Boolean).length,
     refused: results.filter((r) => !r).length,

@@ -3315,3 +3315,21 @@ those, it is the only thing standing between a green suite and a broken deploy, 
 is information rather than an obstacle.
 
 The fix was `truncate`, which the guard's own message suggests for a temp table.
+
+## A test that must COMMIT will pollute every test after it — 2026-08-27
+
+`meal-pack-concurrency.test.mjs` cannot roll back: it races real transactions, so its rows have to
+be committed for the contention to be real. Each run left four packs behind, and after several
+runs the local database held twenty-one.
+
+That surfaced two files later. `meal_pack_ledger.test.sql` asserts the **absolute** invariant —
+deferred revenue equals what every live pack still owes — and twenty-one orphaned packs made it
+false before the test had written a line. The failure read as a redemption bug and was litter from
+a test that had passed.
+
+Fixed by having the concurrency test delete its own rows in FK order at the end of each race. The
+sequence is now clean: reset, race, assert, and the pack table is back to zero.
+
+**The general rule:** a rollback-based test owes nothing to the ones after it; a committing test
+owes them a clean table. And when an invariant fails "before the test does anything", suspect the
+world the test inherited rather than the code it is testing.
