@@ -6382,13 +6382,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/37</span>
+          <span class="meter-num">0/42</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 37 tasks</summary>
+        <summary>Context &amp; 42 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -6715,6 +6715,46 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>orphans.test.ts</code> matches action names bare, so common names pass spuriously.</strong> Found while mutation-checking <code>E21-33</code>: an unwired context action called <code>refresh</code> passes the writer check because something unrelated in the app calls something called <code>refresh</code>; the same mutation named <code>zzzUnwiredPackAction</code> fails. The guard is therefore weakest for exactly the names people choose — <code>refresh</code>, <code>load</code>, <code>reset</code>, <code>clear</code>. Fix by matching the call against the context&#39;s own hook or import rather than the bare identifier. Filed separately because tightening it will surface existing collisions across the app, and that is its own review</span>
+      </li>
+      <li class="task" data-id="E21-37" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-37"></button>
+        <code class="tid">E21-37</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>0072</code> — the balance a parent actually sees.</strong> Returns <strong>one</strong> pack, not a sum: spendable and oldest-expiring first, matching the order <code>spend_meal_pack_meals</code> takes them in. A summed &quot;17 meals&quot; across two packs with different expiry dates is true and useless, because it cannot answer *when do I lose these*. Carries the offer&#39;s <code>items_per_meal</code> and <code>required_category_id</code> so the cart can explain a refusal before the parent taps, and asks nothing about schools — a balance survives its school being switched off</span>
+      </li>
+      <li class="task" data-id="E21-39" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-39"></button>
+        <code class="tid">E21-39</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The cart strip — the only place a meal is spent.</strong> The switch is <strong>off every time the cart opens</strong>: no remembered preference, no default-on, because a meal is money and the prototype is explicit that nothing is spent without a tap. A cart that cannot be redeemed names the rule and the gap rather than grey-ing out a control, and reassures that the balance is untouched — the parent&#39;s first worry. Renders on <code>hasBalance</code>; the only <code>canBuy</code> branch is the advertisement, which is the one genuinely trying to sell. 15 tests, including that a <code>Switch</code> reports <code>valueChange</code> and not a press — <code>userEvent.press</code> on one does nothing at all, silently, which would have made the toggle test pass while asserting the opposite</span>
+      </li>
+      <li class="task" data-id="E21-40" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-40"></button>
+        <code class="tid">E21-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The meal rule, mirrored for copy only.</strong> The server decides; this decides what to *say*. Counts <strong>quantity, not rows</strong>, because <code>meal_pack_ineligibility_reason</code> sums <code>order_line.quantity</code> — counting rows would pass a cart of one dish times two that the server then refuses. Reads <code>items_per_meal</code> and the category from the <strong>offer</strong>, tested with a three-item pack and a fruit-category pack, because a rule hardcoded to &quot;two items, one drink&quot; mis-advises every parent the day a different pack exists. A zero-quantity line does not satisfy the category</span>
+      </li>
+      <li class="task" data-id="E21-41" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-41"></button>
+        <code class="tid">E21-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The planner.</strong> The largest of the three surfaces: a multi-day picker with per-day item selection, the prototype&#39;s four refusal states shown <strong>on the day they apply to</strong> rather than at confirm time, and a confirm that spends N meals through one idempotent call. Spec is <code>V.packplan</code> in the prototype. The route is typed and the balance screen&#39;s button navigates to it</span>
+      </li>
+      <li class="task" data-id="E21-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-42"></button>
+        <code class="tid">E21-42</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Prove the app&#39;s eligibility rule and the server&#39;s give the same verdict.</strong> Both are tested separately and appear to agree; the assertion worth having is the same inputs through both implementations, which needs order rows per case. The failure it guards is a parent told their cart qualifies and then refused at confirm time</span>
       </li></ul>
       </details>
     </article>

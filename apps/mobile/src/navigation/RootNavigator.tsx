@@ -11,7 +11,7 @@ import {
   type NativeStackNavigationProp,
   type NativeStackScreenProps,
 } from '@react-navigation/native-stack';
-import { api, design, money } from '@graybag/shared';
+import { api, design, packEligibility, money } from '@graybag/shared';
 
 import {
   AccountScreen,
@@ -47,7 +47,10 @@ import { track } from '../analytics/analytics';
 import { screenNameFor } from '../analytics/screens';
 import { useBreakTimes } from '../cart/useBreakTimes';
 import { clashingAllergens, useAllergenWatchlist } from '../menu/useAllergenWatchlist';
+import { formatServiceDateLong } from '../orders/OrderDetailScreen';
+import { useMealPackSurface } from '../packs/MealPackSurfaceContext';
 import { MyPacksScreen } from '../packs/MyPacksScreen';
+import type { PackIneligibility } from '../packs/PackRedemptionStrip';
 import { PacksScreen } from '../packs/PacksScreen';
 import { PolicyGateContainer } from '../policy/PolicyGateContainer';
 import { usePolicyGate, useNextPendingPolicy } from '../policy/PolicyGateContext';
@@ -224,6 +227,8 @@ function CartTabScreen() {
    * not a better dependency array; it is not putting the clock in render state.
    */
   const [stillConfirming, setStillConfirming] = useState(false);
+
+
   const [settled, setSettled] = useState<api.CheckoutStatus | null>(null);
   const [placed, setPlaced] = useState<api.SettledOrderSummary | null>(null);
   /** The last refusal, in the parent's words. Rendered on the cart, not swallowed. */
@@ -258,12 +263,73 @@ function CartTabScreen() {
   // carry Amity's "Morning break" onto an order for somewhere else entirely.
   useEffect(() => setBreakTimeId(null), [schoolId]);
   const dishInfo = useMemo(() => {
-    const info: Record<string, { imageUri: string | null; foodType: 'veg' | 'non_veg' | 'egg' | null }> = {};
+    const info: Record<
+      string,
+      // `categoryId` added for `E21`: the pack meal rule is "N items, one from a configured
+      // category", and the cart needs it to say WHY a cart cannot use a meal before the parent
+      // taps. The payload has always carried it; only this map dropped it.
+      { imageUri: string | null; foodType: 'veg' | 'non_veg' | 'egg' | null; categoryId: string }
+    > = {};
     for (const dish of payload?.dishes ?? []) {
-      info[dish.id] = { imageUri: dish.imageUri, foodType: dish.foodType };
+      info[dish.id] = {
+        imageUri: dish.imageUri,
+        foodType: dish.foodType,
+        categoryId: dish.categoryId,
+      };
     }
     return info;
   }, [payload]);
+
+  /**
+   * `E21`. Whether THIS order is being paid with a meal.
+   *
+   * Component state, never persisted and never defaulted on. The switch is off every time the
+   * cart is opened, because a meal is money and the prototype is explicit: *"nothing is spent
+   * without you tapping it."* A remembered preference would spend a meal on an order the parent
+   * never thought about.
+   */
+  const [usingPackMeal, setUsingPackMeal] = useState(false);
+  const packSurface = useMealPackSurface();
+
+  /**
+   * Does this cart qualify? The app's copy of the rule (`E21-40`) — the SERVER decides when the
+   * meal is actually spent, and this only picks which sentence the strip shows.
+   *
+   * `null` when there is no pack rule to check against, which is also what the strip reads as
+   * "eligible": with no balance it renders the advertisement or nothing at all, and neither
+   * branch consults this.
+   */
+  const packIneligibility = useMemo<PackIneligibility>(() => {
+    const balance = packSurface.balance;
+    if (balance === null || dishInfo === undefined) return null;
+    const problem = packEligibility.checkPackMeal(
+      cart.lines.map((line) => ({
+        categoryId: dishInfo[line.dishId]?.categoryId ?? '',
+        quantity: line.quantity,
+      })),
+      // From the OFFER the pack was bought under, never assumed — `E21-40` tests a three-item
+      // pack and a fruit-category pack for exactly this reason.
+      { itemsPerMeal: balance.itemsPerMeal, requiredCategoryId: balance.requiredCategoryId },
+    );
+    if (problem === null) return null;
+    return problem.reason === 'missing_required_category'
+      ? 'missing_required_category'
+      : 'wrong_item_count';
+  }, [packSurface.balance, cart.lines, dishInfo]);
+
+  /** The balance in the shape the strip wants — dates already formatted, no date logic below. */
+  const packBalanceForCart = useMemo(() => {
+    const balance = packSurface.balance;
+    if (balance === null) return null;
+    return {
+      packName: balance.packName,
+      mealsTotal: balance.mealsTotal,
+      mealsRemaining: balance.mealsRemaining,
+      purchasedLabel: formatServiceDateLong(balance.purchasedAt.slice(0, 10)),
+      expiresLabel: formatServiceDateLong(balance.expiresAt.slice(0, 10)),
+      expired: balance.expired,
+    };
+  }, [packSurface.balance]);
 
   const { offline } = useConnectivity();
 
@@ -559,6 +625,20 @@ function CartTabScreen() {
       onBrowseMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
       onChangeRecipient={() => navigation.navigate('Children')}
       {...(cartAllergens === undefined ? {} : { allergens: cartAllergens })}
+      /*
+       * `E21`. The redemption offer. `packBalance` comes from the surface context rather than a
+       * read here: the cart re-renders on every quantity change, and a fetch inside it would
+       * fire on each one.
+       *
+       * `usingPackMeal` is state on this component and is deliberately NOT persisted — the
+       * switch is off every time the cart is opened, because a meal is money and the prototype
+       * is explicit that nothing is spent without a tap.
+       */
+      packBalance={packBalanceForCart}
+      packIneligibility={packIneligibility}
+      usingPackMeal={usingPackMeal}
+      onTogglePackMeal={setUsingPackMeal}
+      onSeePackOffers={() => navigation.navigate('Packs')}
     />
   );
 }
@@ -626,12 +706,11 @@ const DeleteAccountStackScreen = withScreenFrame(DeleteAccountScreen, STACK_SCRE
 const PolicyStackScreen = withScreenFrame(PolicyScreen, STACK_SCREEN_EDGES, { back: true });
 
 /**
- * `E21`. The two pack screens that exist so far, wired to the navigator that owns the routes.
+ * `E21`. The pack screens, wired to the navigator that owns the routes.
  *
- * `MyPacks` receives `balance` as `null` for now: the balance READ is `E21-37` and is not built,
- * so the screen renders its "you don't have a pack" empty state. That is honest rather than
- * convenient — it is what a parent with no pack sees, and it is what the orphan guard requires,
- * since a prop only a test passes is the failure this repo keeps meeting.
+ * Both read the balance from `MealPackSurfaceContext` rather than fetching: one read serves the
+ * Account row, the balance screen and the cart strip, so they cannot disagree about whether a
+ * parent has meals — and the cart, which re-renders on every quantity change, does not fetch.
  */
 function ConnectedPacksScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -646,9 +725,22 @@ function ConnectedPacksScreen() {
 
 function ConnectedMyPacksScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const surface = useMealPackSurface();
+  // Dates formatted here so the screen holds no date logic — it renders labels, never parses.
+  const balance =
+    surface.balance === null
+      ? null
+      : {
+          packName: surface.balance.packName,
+          mealsTotal: surface.balance.mealsTotal,
+          mealsRemaining: surface.balance.mealsRemaining,
+          purchasedLabel: formatServiceDateLong(surface.balance.purchasedAt.slice(0, 10)),
+          expiresLabel: formatServiceDateLong(surface.balance.expiresAt.slice(0, 10)),
+          expired: surface.balance.expired,
+        };
   return (
     <MyPacksScreen
-      balance={null}
+      balance={balance}
       onSeeOffers={() => navigation.navigate('Packs')}
       onPlanMeals={() => navigation.navigate('PackPlan')}
     />

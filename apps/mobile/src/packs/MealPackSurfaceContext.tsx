@@ -39,9 +39,22 @@ export interface MealPackSurface {
   hasBalance: boolean;
   /** True until the first answer lands. Screens use it to skeleton rather than to decide. */
   loading: boolean;
+  /**
+   * The pack the next order will draw from, or `null`.
+   *
+   * Fetched here rather than by the cart, which has more reasons to re-render than any other
+   * screen — a read inside it would fire on every quantity change. Fetched only when
+   * `hasBalance` is true, so a parent with no pack costs no request.
+   */
+  balance: api.MealPackBalance | null;
 }
 
-const NOTHING: MealPackSurface = { canBuy: false, hasBalance: false, loading: true };
+const NOTHING: MealPackSurface = {
+  canBuy: false,
+  hasBalance: false,
+  loading: true,
+  balance: null,
+};
 
 const Ctx = createContext<MealPackSurface>(NOTHING);
 
@@ -56,7 +69,7 @@ export function MealPackSurfaceProvider({ children }: { children: ReactNode }) {
     // Signed out, or no school chosen: there is nothing to ask about, and asking would send a
     // null id to the server. Not an error — just no surface.
     if (userId === null || schoolId === null) {
-      setSurface({ canBuy: false, hasBalance: false, loading: false });
+      setSurface({ canBuy: false, hasBalance: false, loading: false, balance: null });
       return;
     }
 
@@ -66,7 +79,27 @@ export function MealPackSurfaceProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const answer = await api.fetchMealPackSurface(userId, schoolId);
       if (cancelled) return;
-      setSurface({ ...answer, loading: false });
+
+      // Only ask for the numbers when the server has said there are some. A parent with no pack
+      // — the overwhelming majority — costs one request, not two.
+      let balance: api.MealPackBalance | null = null;
+      if (answer.hasBalance) {
+        try {
+          balance = await api.fetchMealPackBalance(userId);
+        } catch {
+          /**
+           * The surface stays, the numbers do not.
+           *
+           * `hasBalance` is the server's word that this parent is owed meals, and a failed
+           * numbers read is no reason to withdraw that. So the entry point still renders and the
+           * screens show their own unavailable state — which is the honest one. Suppressing the
+           * whole surface here would tell a parent they have no pack because a request failed.
+           */
+          balance = null;
+        }
+      }
+      if (cancelled) return;
+      setSurface({ ...answer, balance, loading: false });
     })();
 
     return () => {

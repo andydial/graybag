@@ -109,6 +109,57 @@ surface existing collisions across the app and that is its own piece of work wit
 
 ---
 
+## `D6` — the balance is ONE pack, not a sum across packs
+
+**Chosen.** `meal_pack_balance` returns the pack the next order will draw from — spendable and
+oldest-expiring first, the same order `spend_meal_pack_meals` takes them in — and carries
+`meals_across_all_packs` alongside for any surface that wants the total.
+
+A parent may hold several packs. Summing them gives "17 meals left", which is true and useless,
+because it cannot answer *when do I lose these*: the two packs expire on different dates and the
+number hides which meals are about to go. The prototype shows one balance with one expiry, and
+that is right rather than a simplification.
+
+**Rejected:** returning a list and letting the app choose. That would put the oldest-first rule in
+two places, and the app's copy would be the one that drifts.
+
+---
+
+## `D7` — the balance carries the offer's meal rule, and `dishInfo` gained `categoryId`
+
+**Chosen.** `meal_pack_balance` returns `items_per_meal` and `required_category_id` with the
+numbers, and the navigator's `dishInfo` map now copies `categoryId` from the menu payload.
+
+Without both, the cart cannot tell a parent *why* their cart will not take a meal until after they
+tap and the server refuses. The payload has always carried `categoryId`; only that map dropped it,
+so this was one line rather than a new read.
+
+**The rule travels with the pack, not the app.** A three-item pack, or one requiring fruit rather
+than a drink, changes nothing in the client — `pack-eligibility.test.ts` covers both, because a
+rule hardcoded to "two items, one drink" would silently mis-advise every parent the day Andy
+creates a different pack.
+
+**Still true:** the server decides. The app's copy only picks which sentence to show.
+
+---
+
 ## Skipped and why
 
-*(appended as I go — an empty section here would be a lie by omission)*
+**The planner (`PackPlan`).** The route is typed and registered in `RootStackParamList`, and
+nothing navigates to it except the balance screen's button, which is wired. The screen itself is
+not built — it is the largest of the three surfaces (a multi-day picker with per-day item
+selection, four distinct refusal states, and a confirm that spends N meals through one idempotent
+call), and starting it at this hour would have produced something I could not test properly.
+`E21-41` carries it with the prototype's `V.packplan` as the spec.
+
+**Buying a pack end to end.** `PackDetail` and the purchase itself need an Edge Function that
+creates a `meal_pack_purchase` order group, takes payment through the existing Razorpay path, and
+writes the pack and its ledger legs in one transaction. That is money-moving code and it needs the
+tax-point answer (`E21-22`) before it can be finished honestly, since the ledger legs differ. The
+buy button therefore does not exist yet — deliberately, rather than as a stub that looks like it
+works.
+
+**A cross-check that the app's eligibility rule agrees with the server's.** Both are tested
+separately and I believe they agree, but the assertion I actually want — same inputs, same verdict,
+run against both implementations — needs order rows in the database per case. Worth doing;
+`E21-42`.

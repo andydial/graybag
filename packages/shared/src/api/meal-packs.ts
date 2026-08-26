@@ -127,3 +127,56 @@ export async function fetchMealPackOffers(schoolId: string): Promise<MealPackOff
     };
   });
 }
+
+/** A parent's balance, as the balance screen and the cart strip need it. */
+export interface MealPackBalance {
+  mealPackId: string;
+  packName: string;
+  mealsTotal: number;
+  mealsRemaining: number;
+  purchasedAt: string;
+  expiresAt: string;
+  expired: boolean;
+  /** Across every live pack, for a surface that wants the total rather than the next one. */
+  mealsAcrossAllPacks: number;
+  /** The offer's meal rule, so the app can explain a refusal before the parent taps. */
+  itemsPerMeal: number;
+  requiredCategoryId: string;
+}
+
+/**
+ * The balance a parent holds, or `null` when they hold none.
+ *
+ * Returns **the pack the next order will draw from** — oldest-expiring and spendable first,
+ * matching `spend_meal_pack_meals` — rather than a sum. A summed total across packs with different
+ * expiry dates is true and useless: it cannot answer *when do I lose these*.
+ *
+ * `null` is a real answer here and not a failure: it means no pack. A failure THROWS, because a
+ * cart strip that renders "no meals left" to a parent holding seven is worse than one that
+ * renders nothing — the first is a lie about money, the second is a gap.
+ */
+export async function fetchMealPackBalance(userId: string): Promise<MealPackBalance | null> {
+  const rows = await runRpc<unknown>('meal_pack_balance', { p_user_id: userId });
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  if (row === undefined || row === null) return null;
+  if (!isRecord(row)) throw new ApiError('The meal pack balance was not an object.');
+  if (typeof row.meal_pack_id !== 'string' || typeof row.pack_name !== 'string') {
+    throw new ApiError('The meal pack balance is missing its id or name.');
+  }
+  if (typeof row.purchased_at !== 'string' || typeof row.expires_at !== 'string') {
+    throw new ApiError('The meal pack balance is missing its dates.');
+  }
+  return {
+    mealPackId: row.meal_pack_id,
+    packName: row.pack_name,
+    mealsTotal: asInt(row.meals_total, 'meals_total'),
+    mealsRemaining: asInt(row.meals_remaining, 'meals_remaining'),
+    purchasedAt: row.purchased_at,
+    expiresAt: row.expires_at,
+    expired: row.expired === true,
+    mealsAcrossAllPacks: asInt(row.meals_across_all_packs, 'meals_across_all_packs'),
+    itemsPerMeal: asInt(row.items_per_meal, 'items_per_meal'),
+    requiredCategoryId:
+      typeof row.required_category_id === 'string' ? row.required_category_id : '',
+  };
+}
