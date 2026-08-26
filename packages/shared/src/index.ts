@@ -99,3 +99,8 @@ export * as analyticsClient from './analytics/client.js';
 // meal may be spent — `meal_pack_ineligibility_reason` in `0069`, inside the transaction that
 // decrements the balance. This exists so a parent is told why before they tap, not after.
 export * as packEligibility from './cart/pack-eligibility.js';
+
+// The planner's arithmetic (`E21-41`). Pure, because the footer's count is the only thing
+// standing between a parent and twenty items chosen for a plan the server will refuse. It decides
+// what to SHOW and what to ENABLE; `spend_meal_pack_meals` decides what is spent.
+export * as packPlan from './cart/pack-plan.js';

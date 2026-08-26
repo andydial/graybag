@@ -6382,13 +6382,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/42</span>
+          <span class="meter-num">0/43</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 42 tasks</summary>
+        <summary>Context &amp; 43 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -6746,7 +6746,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>The planner.</strong> The largest of the three surfaces: a multi-day picker with per-day item selection, the prototype&#39;s four refusal states shown <strong>on the day they apply to</strong> rather than at confirm time, and a confirm that spends N meals through one idempotent call. Spec is <code>V.packplan</code> in the prototype. The route is typed and the balance screen&#39;s button navigates to it</span>
+        <span class="ttext"><strong>The planner&#39;s SCREEN.</strong> The arithmetic is done and tested (<code>E21-43</code>); this is the rendering. The largest of the three surfaces: a multi-day picker with per-day item selection, the prototype&#39;s four refusal states shown <strong>on the day they apply to</strong> rather than at confirm time, and a confirm that spends N meals through one idempotent call. Spec is <code>V.packplan</code> in the prototype. The route is typed and the balance screen&#39;s button navigates to it</span>
       </li>
       <li class="task" data-id="E21-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-42"></button>
@@ -6755,6 +6755,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Prove the app&#39;s eligibility rule and the server&#39;s give the same verdict.</strong> Both are tested separately and appear to agree; the assertion worth having is the same inputs through both implementations, which needs order rows per case. The failure it guards is a parent told their cart qualifies and then refused at confirm time</span>
+      </li>
+      <li class="task" data-id="E21-43" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-43"></button>
+        <code class="tid">E21-43</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The planner&#39;s arithmetic, before its screen.</strong> <code>packages/shared/src/cart/pack-plan.ts</code>. The line that matters: <strong><code>overBy</code> counts CHOSEN days, not valid ones.</strong> Counting completed days would let a parent pick eight days against a balance of five, finish five, read &quot;5 of 5 ready&quot;, and meet the problem only as they started the sixth — the warning has to arrive when the eighth day is *chosen*, while changing their mind is still cheap. Mutation-checked: switching it to <code>valid</code> fails exactly that test and the message-ordering one. <code>planMessage</code> says <strong>over-budget before incomplete</strong> when both hold, because finishing the incomplete days would not help and telling someone to choose items for a day they must remove is worse than silence. <code>blockReason</code> computes all four of the prototype&#39;s refusals rather than filtering days out — *&quot;a planner that only shows bookable days teaches nobody why the others are missing&quot;* — and reports <strong>expiry first</strong>, since it is the refusal with a deadline. The expiry day itself is allowed; the off-by-one that would cost a parent their last meal is its own test, and mutating <code>&gt;</code> to <code>&gt;=</code> fails it</span>
       </li></ul>
       </details>
     </article>

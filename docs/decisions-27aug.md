@@ -145,12 +145,12 @@ creates a different pack.
 
 ## Skipped and why
 
-**The planner (`PackPlan`).** The route is typed and registered in `RootStackParamList`, and
-nothing navigates to it except the balance screen's button, which is wired. The screen itself is
-not built — it is the largest of the three surfaces (a multi-day picker with per-day item
-selection, four distinct refusal states, and a confirm that spends N meals through one idempotent
-call), and starting it at this hour would have produced something I could not test properly.
-`E21-41` carries it with the prototype's `V.packplan` as the spec.
+**The planner's SCREEN.** Reversed in part: I skipped it, then had budget left and built its
+**arithmetic** — `pack-plan.ts`, 22 tests, both mutations caught — because that is the half where
+an over-spend would hide and it is testable without a component. The screen itself is still
+`E21-41`. Splitting it this way was the right call rather than a compromise: the footer's counting
+rule is the thing that protects a parent's afternoon, and it is now proven independently of any
+rendering.
 
 **Buying a pack end to end.** `PackDetail` and the purchase itself need an Edge Function that
 creates a `meal_pack_purchase` order group, takes payment through the existing Razorpay path, and
