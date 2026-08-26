@@ -4683,13 +4683,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/15</span>
+          <span class="meter-num">0/16</span>
         </div>
       </header>
       <p class="summary">A monthly PDF emailed to each school. Aggregates only, no child-level PII. Designed to sell the benefit of the partnership.</p>
       <p class="deps">Depends on <code>E07</code></p>
       <details>
-        <summary>Context &amp; 15 tasks</summary>
+        <summary>Context &amp; 16 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Decided against a school login portal — the PDF lands in the principal&#39;s inbox instead of waiting to be discovered.</p></div>
         <ul class="tasks">
@@ -4812,6 +4812,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The adoption funnel, with the drop-off as a count.</strong> Andy: *&quot;Registered parents → parents who added at least one child → parents who placed a first order → parents who ordered again. Show the drop-off between each step as a number, not just a percentage. A parent who registered and never added a child is someone I can email.&quot;* Added to <code>/admin/growth</code> rather than a new screen — it is already the separate page <code>/admin/people</code> was told to stay out of. Every step counts <strong>accounts</strong>, carries the number who stopped there, and names <strong>what to do about them</strong>, because a step that states only a number is a step nobody acts on. <strong>An unpaid order is not a conversion:</strong> counting a parent who reached checkout and never paid would make the funnel flatter than the business is, which is the one direction it must not lie in. Plus parents active in the last 7 days, paid orders per day, and average order value over paid orders only. <strong>The stuck list is the one place a personal detail appears</strong> — an email, capped at 25, newest first, and its shape has nowhere to put anything about a child even by accident. The page intro used to promise &quot;no parent is named&quot;, which stopped being true the moment that list existed, and now says exactly what is shown and why</span>
+      </li>
+      <li class="task" data-id="E11-16" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E11-16"></button>
+        <code class="tid">E11-16</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The Reports data layer — range, school filter, CSV, funnel, per-school.</strong> Andy asked for the data side to be built before the prototype landed, on the grounds that *&quot;nothing on the data side is wasted&quot;* — the layout is what a prototype changes, not what the numbers mean. Four pieces. <strong>A school filter that filters the source, not the view:</strong> <code>forSchool</code> is applied to the rows before <code>groupRows</code>, so a filtered per-day chart shows that school&#39;s days rather than every school&#39;s days with the other bars hidden; <code>schoolsIn</code> builds the dropdown from the rows actually in range, so a school with nothing in the window is not offered as a filter that returns an empty screen. <strong>CSV export built from the rows already rendered</strong> (<code>csv-export.ts</code>) — a second query for the export is how a download comes to disagree with the table above it, quietly, because nobody diffs the two. RFC 4180 quoting because &quot;Amity International, Mohali&quot; is real production data; a leading-<code>=</code>/<code>+</code>/<code>-</code>/<code>@</code> guard because a CSV that can run a formula can read the rest of the sheet; a BOM so Excel on Windows does not render <code>—</code> as <code>â€”</code>; money as a plain <code>1234.50</code> because the first thing anybody does is sum the column, and a symbol turns it into text. Provenance comment lines, because an export outlives the screen it came from. <strong>The funnel over the range is a cohort, measured to the present</strong> — <code>funnelForCohort</code> takes parents who registered inside the window and asks what they have done *since*, not what they had done by the range end. Truncating at the end date would show yesterday&#39;s cohort converting at 0%, which is not a finding, it is arithmetic. <strong>The revenue report no longer needs <code>users.view</code>:</strong> the funnel read is <code>.catch(() =&gt; null)</code> so an admin without it still gets the money, rather than an empty page. No child field exists on <code>Bucket</code> to leak, and <code>no-child-in-reports.test.mjs</code> watches the export by name. 22 tests</span>
       </li></ul>
       </details>
     </article>

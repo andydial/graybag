@@ -85,6 +85,13 @@ import '../styles/admin.css';
           </div>
 
           <div class="rctl__group">
+            <label class="admin__label" for="r-school">School</label>
+            <select class="admin__select" id="r-school">
+              <option value="">All schools</option>
+            </select>
+          </div>
+
+          <div class="rctl__group">
             <label class="admin__label" for="r-by">Group by</label>
             <select class="admin__select" id="r-by">
               <option value="day">Day</option>
@@ -94,6 +101,14 @@ import '../styles/admin.css';
           </div>
         </div>
 
+        <div class="rctl__actions">
+          <!--
+            Exports what is on the screen, from the same rows the table renders. A second query
+            for the export is how a CSV ends up quietly disagreeing with the table above it.
+          -->
+          <button class="kitchen__btn" id="r-export" type="button">Download CSV</button>
+        </div>
+
         <div id="r-body"></div>
       </main>
     </div>
@@ -101,16 +116,20 @@ import '../styles/admin.css';
     <script>
       import { mountNav } from '../lib/backoffice/nav-mount.js';
       import { api, money } from '@graybag/shared';
+      import { csvFilename, downloadCsv, reportToCsv } from '../lib/admin/csv-export.js';
+      import { funnelForCohort } from '../lib/admin/growth.js';
       import { area, columns } from '../lib/admin/chart.js';
       import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
       import { serviceDateToday } from '../lib/kitchen/view.js';
       import { REPORTS_FIXTURE } from '../lib/admin/reports-fixture.js';
+      import { GROWTH_FIXTURE } from '../lib/admin/growth-fixture.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
         body: $('r-body'), status: $('r-status'), reload: $<HTMLButtonElement>('r-reload'),
         from: $<HTMLInputElement>('r-from'), to: $<HTMLInputElement>('r-to'),
-        by: $<HTMLSelectElement>('r-by'),
+        by: $<HTMLSelectElement>('r-by'), school: $<HTMLSelectElement>('r-school'),
+        exportBtn: $<HTMLButtonElement>('r-export'),
       };
       const esc = (s: string) =>
         String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -118,6 +137,8 @@ import '../styles/admin.css';
 
       const demo = new URLSearchParams(location.search).has('state');
       let rows: api.ReportRow[] = [];
+      /** The cohort funnel for the range — `E11-16`. Null until the read succeeds. */
+      let funnel: ReturnType<typeof funnelForCohort> | null = null;
       let loading = true;
       let error: string | null = null;
 
@@ -173,10 +194,43 @@ import '../styles/admin.css';
         try {
           if (demo) {
             rows = REPORTS_FIXTURE.rows as unknown as api.ReportRow[];
+            // The funnel is part of this screen now, so the demo has to carry one or the a11y
+            // gate audits a page with a section missing.
+            funnel = funnelForCohort(
+              GROWTH_FIXTURE.users, GROWTH_FIXTURE.links, GROWTH_FIXTURE.children,
+              GROWTH_FIXTURE.orders, REPORTS_FIXTURE.from, REPORTS_FIXTURE.to,
+            );
           } else {
             configureBackofficeApi();
-            rows = await api.fetchMonthlyRevenue(el.from.value, el.to.value);
+            /*
+             * The funnel read is allowed to fail on its own — `E11-16`.
+             *
+             * It needs `users.view`, which the revenue report does not. Somebody holding only
+             * `reports.view` should still get their revenue rather than an error page about a
+             * funnel they did not ask for.
+             */
+            const [revenue, growthData] = await Promise.all([
+              api.fetchMonthlyRevenue(el.from.value, el.to.value),
+              api.fetchGrowth().catch(() => null),
+            ]);
+            rows = revenue;
+            funnel = growthData
+              ? funnelForCohort(
+                  growthData.users, growthData.links, growthData.children,
+                  growthData.orders, el.from.value, el.to.value,
+                )
+              : null;
           }
+
+          // The filter is rebuilt from the rows in range, so it never offers a school with
+          // nothing in it — and a school that drops out of range clears rather than filtering
+          // everything to zero with no explanation.
+          const schools = api.schoolsIn(rows);
+          const chosen = el.school.value;
+          el.school.innerHTML =
+            `<option value="">All schools</option>` +
+            schools.map((sc) => `<option value="${esc(sc.id)}">${esc(sc.name)}</option>`).join('');
+          el.school.value = schools.some((sc) => sc.id === chosen) ? chosen : '';
         } catch (cause) {
           error = cause instanceof Error ? cause.message : 'The report did not load.';
           rows = [];
@@ -212,7 +266,10 @@ import '../styles/admin.css';
         }
 
         const by = el.by.value as api.GroupBy;
-        const buckets = api.groupRows(rows, by);
+        // Filtered on the rows, before grouping, so every view and the export agree without each
+        // having to remember to do it.
+        const visible = api.forSchool(rows, el.school.value || null);
+        const buckets = api.groupRows(visible, by);
         const t = api.totalOf(buckets);
 
         el.status.textContent =
@@ -270,6 +327,35 @@ import '../styles/admin.css';
 
           pendingChart +
 
+          (funnel && funnel.cohort > 0
+            ? `<section class="admin__section" aria-labelledby="fn-h">` +
+                `<h2 id="fn-h">Of the families who arrived in this range</h2>` +
+                `<p class="admin__section-note">` +
+                  `The <b>${funnel.cohort}</b> parents who registered between ` +
+                  `${esc(el.from.value)} and ${esc(el.to.value)}, and how far they have got ` +
+                  `<b>since</b> — not only within the range. A parent who registered on the last ` +
+                  `day has had less time than one who registered on the first, so a range ending ` +
+                  `recently will always look worse.` +
+                `</p>` +
+                `<ol class="fnl">` +
+                  funnel.steps.map((f) =>
+                    `<li class="fnl__step">` +
+                      `<span class="fnl__bar" style="--w:${funnel!.cohort === 0 ? 0 : Math.round((f.reached / funnel!.cohort) * 100)}%"></span>` +
+                      `<span class="fnl__body">` +
+                        `<span class="fnl__top">` +
+                          `<b class="fnl__n">${f.reached}</b>` +
+                          `<span class="fnl__label">${esc(f.label)}</span>` +
+                          (f.rate !== null ? `<span class="fnl__rate">${Math.round(f.rate * 100)}% of the step before</span>` : '') +
+                        `</span>` +
+                        `<span class="fnl__lost">` +
+                          (f.lost > 0 ? `<b>${f.lost}</b> stopped here. ` : '') + esc(f.action) +
+                        `</span>` +
+                      `</span>` +
+                    `</li>`).join('') +
+                `</ol>` +
+              `</section>`
+            : '') +
+
           `<section class="admin__section" aria-labelledby="tbl-h">` +
             `<h2 id="tbl-h">The numbers</h2>` +
             `<table class="otable">` +
@@ -318,6 +404,24 @@ import '../styles/admin.css';
       el.reload.addEventListener('click', () => void load());
 
       // Apply on change. No Show button — see the markup.
+      el.school.addEventListener('change', render);
+
+      el.exportBtn.addEventListener('click', () => {
+        const by = el.by.value as api.GroupBy;
+        const visible = api.forSchool(rows, el.school.value || null);
+        const buckets = api.groupRows(visible, by);
+        const chosen = api.schoolsIn(rows).find((sc) => sc.id === el.school.value);
+
+        downloadCsv(
+          reportToCsv(buckets, {
+            by, from: el.from.value, to: el.to.value,
+            schoolName: chosen?.name ?? null,
+            label: (key) => label(key, by),
+          }),
+          csvFilename(el.from.value, el.to.value, 'revenue'),
+        );
+      });
+
       el.from.addEventListener('change', () => void load());
       el.to.addEventListener('change', () => void load());
       el.by.addEventListener('change', render);

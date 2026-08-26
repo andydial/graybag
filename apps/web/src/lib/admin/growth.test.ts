@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { STUCK_LIMIT, growth, istDate, linePath } from './growth.js';
+import { STUCK_LIMIT, funnelForCohort, growth, istDate, linePath } from './growth.js';
 import type { GrowthChild, GrowthLink, GrowthUser } from './growth.js';
 
 const TODAY = '2026-08-20';
@@ -266,5 +266,70 @@ describe('the funnel (E11-15)', () => {
       { customerUserId: 'u2', placedAt: '2026-08-05T09:00:00Z', status: 'pending_payment', totalPaise: 99999 },
     ]);
     expect(g.averageOrderPaise).toBe(20000);
+  });
+});
+
+describe('funnelForCohort — the funnel that moves to Reports (E11-16)', () => {
+  const paid = (userId: string, day: string, status = 'paid') =>
+    ({ customerUserId: userId, placedAt: `${day}T09:00:00Z`, status, totalPaise: 10000 });
+
+  // Three registered inside the range, one before it.
+  const users = [
+    user('in1', '2026-08-10T06:00:00Z'),
+    user('in2', '2026-08-12T06:00:00Z'),
+    user('in3', '2026-08-14T06:00:00Z'),
+    user('before', '2026-07-01T06:00:00Z'),
+  ];
+  const children = [child('c1', 's1'), child('c2', 's1'), child('cb', 's1')];
+  const links = [link('in1', 'c1'), link('in2', 'c2'), link('before', 'cb')];
+
+  it('counts only the parents who registered inside the range', () => {
+    const { cohort, steps } = funnelForCohort(users, links, children, [], '2026-08-01', '2026-08-20');
+    expect(cohort).toBe(3);
+    expect(steps.find((s) => s.key === 'registered')!.reached).toBe(3);
+  });
+
+  it('excludes a parent who registered before the range, however far they got', () => {
+    // The one that makes it a cohort rather than a filter. `before` added a child and ordered
+    // twice; none of that belongs to a range they were not in.
+    const { steps } = funnelForCohort(
+      users, links, children,
+      [paid('before', '2026-08-05'), paid('before', '2026-08-06')],
+      '2026-08-01', '2026-08-20',
+    );
+    expect(steps.find((s) => s.key === 'addedChild')!.reached).toBe(2);
+    expect(steps.find((s) => s.key === 'firstOrder')!.reached).toBe(0);
+  });
+
+  it('counts an order placed AFTER the range, because the cohort is measured to the present', () => {
+    // A parent who registers on the 14th and orders on the 22nd converted. Truncating at the end
+    // of the range would make every recent range look terrible and would make a past range
+    // improve each time you looked at it — a number that changes when nothing happened.
+    const { steps } = funnelForCohort(
+      users, links, children, [paid('in1', '2026-08-22')], '2026-08-01', '2026-08-20',
+    );
+    expect(steps.find((s) => s.key === 'firstOrder')!.reached).toBe(1);
+  });
+
+  it('reports the drop at each step as a count', () => {
+    const { steps } = funnelForCohort(
+      users, links, children, [paid('in1', '2026-08-15')], '2026-08-01', '2026-08-20',
+    );
+    expect(steps.find((s) => s.key === 'addedChild')!.lost).toBe(1);   // in3 added none
+    expect(steps.find((s) => s.key === 'firstOrder')!.lost).toBe(1);   // in2 never ordered
+  });
+
+  it('does not count an unpaid order as a conversion', () => {
+    const { steps } = funnelForCohort(
+      users, links, children, [paid('in1', '2026-08-15', 'pending_payment')], '2026-08-01', '2026-08-20',
+    );
+    expect(steps.find((s) => s.key === 'firstOrder')!.reached).toBe(0);
+  });
+
+  it('is empty rather than broken when nobody registered in the range', () => {
+    const { cohort, steps } = funnelForCohort(users, links, children, [], '2026-01-01', '2026-01-31');
+    expect(cohort).toBe(0);
+    expect(steps.every((s) => s.reached === 0)).toBe(true);
+    expect(steps.find((s) => s.key === 'addedChild')!.rate).toBeNull();
   });
 });

@@ -344,3 +344,77 @@ export function linePath(values: readonly number[], width: number, height: numbe
     .map((v, i) => `${(i * step).toFixed(1)},${(height - (v / max) * height).toFixed(1)}`)
     .join(' ');
 }
+
+
+/**
+ * The funnel for a **cohort** — `E11-16`.
+ *
+ * Andy is moving the funnel off Growth and onto Reports: *"acquisition and conversion answer
+ * different questions on different clocks. Growth = are new families arriving. Reports = does a
+ * family who arrives get to an order, over a range."*
+ *
+ * So this is not the all-time funnel filtered by date. It is a **cohort**: the parents who
+ * registered inside the range, and how far *they* got — measured to the present, not truncated at
+ * the end of the range.
+ *
+ * That distinction decides whether the number means anything. Counting only orders placed inside
+ * the range would make every recent range look terrible, because a parent who registers on the
+ * 25th has had a day to order and one who registered on the 1st has had a month. And truncating
+ * would make a *past* range improve every time you looked at it, which is worse — a number that
+ * changes when nothing happened is a number nobody trusts twice.
+ *
+ * The honest cost, and it belongs on the screen: a range ending yesterday is measuring people who
+ * have barely had a chance. The caller states the range; this states the cohort size.
+ */
+export function funnelForCohort(
+  users: readonly GrowthUser[],
+  links: readonly GrowthLink[],
+  children: readonly GrowthChild[],
+  orders: readonly FunnelOrder[],
+  from: string,
+  to: string,
+): { steps: FunnelStep[]; cohort: number } {
+  const inRange = users.filter((u) => {
+    const day = istDate(u.createdAt);
+    return day !== '' && day >= from && day <= to;
+  });
+
+  const childById = new Map(children.map((c) => [c.id, c]));
+  const linked = new Set(
+    links.filter((l) => childById.has(l.recipientId)).map((l) => l.userId),
+  );
+
+  const paidCount = new Map<string, number>();
+  for (const o of orders) {
+    if (!EARNED.has(o.status)) continue;
+    paidCount.set(o.customerUserId, (paidCount.get(o.customerUserId) ?? 0) + 1);
+  }
+
+  const registered = inRange.length;
+  const addedChild = inRange.filter((u) => linked.has(u.id)).length;
+  const firstOrder = inRange.filter((u) => (paidCount.get(u.id) ?? 0) >= 1).length;
+  const orderedAgain = inRange.filter((u) => (paidCount.get(u.id) ?? 0) >= 2).length;
+
+  const step = (
+    key: FunnelStep['key'], label: string, reached: number, previous: number | null, action: string,
+  ): FunnelStep => ({
+    key, label, reached,
+    lost: previous === null ? 0 : Math.max(0, previous - reached),
+    rate: previous === null || previous === 0 ? null : reached / previous,
+    action,
+  });
+
+  return {
+    cohort: registered,
+    steps: [
+      step('registered', 'Registered in this range', registered, null,
+        'Everyone who signed up between these dates.'),
+      step('addedChild', 'Added a child', addedChild, registered,
+        'They cannot order until a child exists. The list to email is on Growth.'),
+      step('firstOrder', 'Placed a first order', firstOrder, addedChild,
+        'They have a child and never bought. Check the school has a live menu and break windows.'),
+      step('orderedAgain', 'Ordered again', orderedAgain, firstOrder,
+        'One order and no second is the sharpest signal there is. Ask them why.'),
+    ],
+  };
+}
