@@ -349,3 +349,14 @@ export {
   type HeldGrant,
   type PermissionInfo,
 } from './admin-grants.js';
+
+// Meal packs, parent side (`E21`). Reads only — buying, planning and redeeming are Edge
+// Functions, because each moves money or a balance. `fetchMealPackSurface` answers the whole
+// "does this parent see packs at all" question in one call, so the app never assembles that rule
+// from parts and never gets the switched-off-school case wrong.
+export {
+  fetchMealPackOffers,
+  fetchMealPackSurface,
+  type MealPackOffer,
+  type MealPackSurface,
+} from './meal-packs.js';

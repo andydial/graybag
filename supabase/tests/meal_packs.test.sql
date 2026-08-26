@@ -272,6 +272,85 @@ select throws_ok(
 );
 
 -- =============================================================================
+-- 4b. Switching a school off must never strand paid-for meals. `E21-31`.
+-- =============================================================================
+--
+-- Andy: *"Turning an offer off stops selling; it must never strand meals somebody has already
+-- paid for. That's real money owed as food."*
+--
+-- The pack built in section 4 belongs to our parent. Below, the school is switched off — which is
+-- what withdrawing an offer looks like — and every assertion is about what MUST still work.
+
+-- The parent can still buy nothing...
+select is(
+  meal_packs_available_at((select school_id from mp)),
+  true,
+  'precondition: the school is currently on'
+);
+
+update meal_pack_offer_school set is_enabled = false
+ where school_id = (select school_id from mp);
+
+select is(
+  meal_packs_available_at((select school_id from mp)),
+  false,
+  'the school is switched off, so nothing may be SOLD there'
+);
+
+-- ...but the balance is untouched, and that is the whole point.
+select is(
+  parent_has_live_meal_pack((select parent from mp)),
+  true,
+  'THE CASE THAT MATTERS: the parent still holds spendable meals after the offer is withdrawn'
+);
+
+select is(
+  (select can_buy from meal_pack_surface((select parent from mp), (select school_id from mp))),
+  false,
+  'meal_pack_surface says they may not buy...'
+);
+
+select is(
+  (select has_balance from meal_pack_surface((select parent from mp), (select school_id from mp))),
+  true,
+  '...and that they still have a balance — so the app keeps the balance, planner and cart toggle'
+);
+
+-- And they can actually SPEND it, which is the assertion that would catch someone "tidying up"
+-- spend_meal_pack_meals by adding a school check.
+select lives_ok(
+  format($$select * from spend_meal_pack_meals(%L::uuid, 1)$$, (select parent from mp)),
+  'and a meal can still be REDEEMED at a school that no longer sells packs'
+);
+
+select is(
+  (select meals_remaining from meal_pack where customer_user_id = (select parent from mp)),
+  9,
+  'the meal came out of the balance normally — 10 becomes 9'
+);
+
+-- A parent with no pack at a switched-off school sees nothing at all: case 1, no concept.
+-- A uuid that belongs to no account at all. It carries the 7e57 fixture marker even though no
+-- row is ever created for it: `check-test-fixtures` reads ids out of this file, and the all-zeros
+-- uuid it replaced collides with seed.sql — which does not fail one test, it skips the whole file.
+select is(
+  (select has_balance from meal_pack_surface(
+     'a0000000-7e57-0000-0000-000000000e22'::uuid, (select school_id from mp))),
+  false,
+  'a parent with NO pack at a switched-off school has no balance — case 1, no concept at all'
+);
+
+select is(
+  (select can_buy or has_balance from meal_pack_surface(
+     'a0000000-7e57-0000-0000-000000000e22'::uuid, (select school_id from mp))),
+  false,
+  'and both answers are false together, which is what "render nothing" requires'
+);
+
+update meal_pack_offer_school set is_enabled = true
+ where school_id = (select school_id from mp);
+
+-- =============================================================================
 -- 5. Rounding: the liability telescopes exactly, even when the price does not divide
 -- =============================================================================
 --
