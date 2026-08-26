@@ -361,13 +361,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/27</span>
+          <span class="meter-num">0/28</span>
         </div>
       </header>
       <p class="summary">Repo, two real environments, secrets management, and the test harness that every later task depends on.</p>
       <p class="deps">Depends on <code>E00</code></p>
       <details>
-        <summary>Context &amp; 27 tasks</summary>
+        <summary>Context &amp; 28 tasks</summary>
         <div class="context"><h4>Why early</h4>
 <p>Everything after this inherits the quality bar set here. Getting tests and environments right on day one is what stops &quot;manually swapping Razorpay keys&quot; happening again.</p></div>
         <ul class="tasks">
@@ -586,6 +586,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:critical) <strong>Nobody can sign in on production.</strong> Found 2026-08-16 by running <code>check-supabase-config.mjs</code> against the production project: <strong>six auth settings wrong</strong>, and together they mean no parent can create an account. (1) The OTP template <strong>sends a magic link, not a code</strong> — the app shows a six-box code input, so a parent taps a link, lands on a blank page, and waits for a code that never arrives; this is the defect that cost 2026-08-10. (2) <code>mailer_otp_length = 8</code> while <code>SignInScreen</code> says &quot;six-digit code&quot;. (3) <code>site_url = http://localhost:3000</code>. (4) <code>uri_allow_list</code> empty, so no deep link can return to the app. (5) <code>rate_limit_email_sent = 2 per hour <strong>project-wide</strong></code> — the third parent in a school-gate rush gets nothing. (6) <strong><code>smtp_host</code> is null</strong>, and Supabase&#39;s built-in mailer is a development service; for an OTP-only product that alone means nobody signs in. All six are <strong>dashboard settings, not code</strong> — no PR fixes them. Staging fails the same check and the handover calls that expected, which is exactly why this did not read as urgent: the check has been failing for a project where it did not matter. <strong>This is a bigger blocker than the App Store review</strong> — a build that reaches a parent on the 19th and cannot sign them in is worse than one that arrives late. Fix order: SMTP first (Resend is already configured for order email on prod, same domain can serve Auth), then OTP template → code/length 6, then <code>site_url</code> + <code>uri_allow_list</code> with the <strong>production</strong> scheme <code>graybag://</code> (not <code>graybag-staging://</code>), then the rate limit. Re-run the check until clean</span>
+      </li>
+      <li class="task" data-id="E01-30" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-30"></button>
+        <code class="tid">E01-30</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Two auth settings are wrong on staging, and the check has been red on every pull request.</strong> <code>check-supabase-config.mjs</code> fails the *Supabase project config (staging)* job with <code>2 setting(s) wrong</code>, one of them <code>uri_allow_list = &quot;&quot;</code> — empty, which permits only the Site URL, so no deep link or OAuth callback can return to the staging app. These are dashboard settings, so they cannot be fixed in a pull request; this is the staging twin of <code>E01-29</code>. <strong>The reason it is worth a task rather than a shrug</strong> is what a permanently red check does to the other checks beside it: every PR now merges with a failure showing, and the habit that builds is reading red as normal. That is the same erosion <code>E15-23</code> was written about from the other direction — a check that says nothing, and a check nobody reads, fail identically. Either fix the two settings or, if staging deliberately does not need them, make the job skip with a stated reason so the row goes green honestly</span>
       </li></ul>
       </details>
     </article>
