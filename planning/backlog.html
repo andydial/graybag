@@ -1209,13 +1209,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/33</span>
+          <span class="meter-num">0/36</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 33 tasks</summary>
+        <summary>Context &amp; 36 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -1491,6 +1491,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext">Grant and revoke back-office permissions from the command line — <code>scripts/grant-operator.mjs</code>. Production had <strong>zero</strong> <code>permission_grant</code> rows, so the admin surface was unusable for its only operator: config read empty, <code>/reports</code> refused, saving a dish returned <code>not_permitted</code>. All 31 active permissions now granted to <code>anuragdial@gmail.com</code> at platform scope. Dry run by default; <code>--apply</code> is a separate word. Refuses <code>+parent@</code> addresses unconditionally — that account is the RLS canary and <code>authorization.test.sql</code> depends on it holding nothing. Verified through a real magic-link session, never the service role</span>
+      </li>
+      <li class="task" data-id="E02-35" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-35"></button>
+        <code class="tid">E02-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Kitchen scope, proved through an authenticated client.</strong> Andy: *&quot;prove it with a test through an authenticated client as a kitchen operator, not the service role. A kitchen operator seeing another kitchen&#39;s children, or any price, is the failure that would actually hurt us.&quot;* <code>scripts/test/kitchen-scope.test.mjs</code> creates a real operator through the auth admin API, signs them in for a <strong>real GoTrue-signed JWT</strong>, and makes every assertion through PostgREST with that token — the service role appears only to build the fixture, because it bypasses RLS and would pass everything. <strong>Deliberately not pgTAP</strong>: that suite impersonates via <code>request.jwt.claims</code>, which proves the policies and skips the layer where this actually breaks — a policy decides which *rows* a caller may read and says nothing about which *columns*. Verified on staging: 60 orders visible, <strong>one kitchen</strong>, the other invisible even when named explicitly by id; child names present, because the handover needs them; no other parent&#39;s contact and no guardian link. The fixture derives &quot;own kitchen&quot; <strong>from the operator&#39;s grant</strong>, not from sort order — the first version took <code>kitchens[0]</code>, which happened to be the other one, and failed against a system behaving perfectly. A test wrong in the direction that cries wolf is worse than one that misses</span>
+      </li>
+      <li class="task" data-id="E02-36" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-36"></button>
+        <code class="tid">E02-36</code>
+        <span class="badge r-high">high</span>
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A kitchen operator can read <code>total_paise</code>.</strong> RLS filters rows, not columns, so an operator holding only <code>orders.view</code>, <code>orders.view_pii</code> and <code>orders.mark_delivered</code> at kitchen scope is served every money column on the rows they may see. Proved on staging with a real operator JWT: <code>{&quot;order_ref&quot;:&quot;SEED-…&quot;,&quot;total_paise&quot;:6300,&quot;subtotal_paise&quot;:6000}</code>. Nothing is visibly wrong today because <code>KITCHEN_ORDER_COLUMNS</code> never asks for them — but that is <strong>a convention in one query, not enforcement</strong>, and anyone with the token and a URL bar can read the money. Closing it needs <code>revoke select (…) on &quot;order&quot; from authenticated</code> plus grants back to the roles that should have it: <strong>DDL, therefore a migration</strong>, which this thread does not hold. <code>kitchen-scope.test.mjs</code> asserts the gap as it currently behaves, so the day the grant lands that test <strong>fails</strong> and whoever landed it inverts the assertion — the gap cannot quietly reopen</span>
+      </li>
+      <li class="task" data-id="E02-37" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-37"></button>
+        <code class="tid">E02-37</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>No child&#39;s name in any report, export or aggregate.</strong> Andy&#39;s second enforcement item. <code>scripts/test/no-child-in-reports.test.mjs</code> asserts the <strong>mechanism</strong> rather than a day&#39;s data: every reporting query names its columns explicitly and none of those lists contains a child field. Runs with no database, on every push, because this is the guarantee most likely to be broken by an ordinary-looking edit. It caught one on the first run — <code>admin-growth.ts</code> selects <code>recipient_id</code>, which turns out to be legitimate and is now an explicit, single exception: <code>guardian_link</code> is two foreign keys and the funnel cannot count &quot;parents who added a child&quot; without joining one to the other, and <code>GrowthChild</code> is <code>{id, schoolId, createdAt}</code> with nowhere to put a name. <code>recipient_id</code> on <code>order</code> stays forbidden, because there it sits beside a name, a class and a price</span>
       </li></ul>
       </details>
     </article>
