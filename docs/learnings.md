@@ -3268,3 +3268,31 @@ around. The app's guard stays — a client-side cart genuinely can hold a line a
 decrement and a removal — but the two positions are not equivalent: one is a rule, the other makes
 the state impossible. Worth noticing when a cross-check refuses to run: sometimes the answer is
 that one side has already made the question moot.
+
+## "CI stopped running" is usually the PR being unmergeable — 2026-08-27
+
+Five commits on a branch produced no Actions runs. The symptom matched a real stall from earlier
+in the week, so I treated it as the same thing: closed and reopened the PR, then pushed an empty
+commit. Neither helped.
+
+The cause was `gh pr view <n> --json mergeable` reporting **`CONFLICTING`**. `ci.yml` triggers on
+`pull_request`, and **GitHub will not run a `pull_request` workflow on a PR whose merge commit
+cannot be computed.** Another thread had merged to `main` an hour earlier. Nothing was stalled.
+
+**The one-command discriminator, worth running first every time:**
+
+```bash
+gh run list --limit 5 --json headBranch,name,status,createdAt   # is Actions alive at all?
+gh pr view <n> --json mergeable --jq .mergeable                  # can the merge commit be built?
+```
+
+If other branches are scheduling, it is not an outage — it is this PR. Checking that costs one
+command and would have saved two wrong remedies applied to a live PR.
+
+**The general fault** is worth naming beyond CI: I matched a symptom to a remembered cause and
+acted before testing it. A remembered cause is a hypothesis, and the cheapest discriminating
+observation comes before the remedy — especially when the remedy touches something shared.
+
+Related and reinforcing: this is the second time in two days that a long-lived branch has cost
+something invisible (`CLAUDE.md`, "Build rhythm"). The branch was five commits and several hours
+old when `main` moved under it.
