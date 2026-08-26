@@ -377,5 +377,188 @@ select is(
   'the intermediate liability floors, so the pack never owes more than it took'
 );
 
+-- =============================================================================
+-- 6. Confirming a plan. `E21-45`.
+-- =============================================================================
+--
+-- The properties Andy asked to be proved, in the path that actually spends meals:
+-- idempotency on the WHOLE submission, no overdraw, eligibility server-side, expiry server-side,
+-- and revenue recognised exactly once.
+
+-- A pack big enough to plan against, with a menu the plan can draw from.
+--
+-- **Its own parent**, and the reason is a small lesson: `spend_meal_pack_meals` takes from the
+-- oldest-expiring of ALL that parent's packs, so reusing the section-4 parent drew meals from the
+-- pack created there instead. The function was right and the fixture assumed an isolation it does
+-- not have — which is exactly the behaviour the oldest-first rule promises.
+insert into auth.users (id) values ('a0000000-7e57-0000-0000-000000000e45');
+insert into app_user (id, email, first_name)
+values ('a0000000-7e57-0000-0000-000000000e45', 'planner@example.test', 'Planner')
+on conflict (id) do update set email = excluded.email;
+
+create temporary table plan_fix as
+select (select id from off_id) as offer_id,
+       'a0000000-7e57-0000-0000-000000000e45'::uuid as parent,
+       (select school_id from mp) as school_id;
+
+create temporary table plan_pack as
+with og as (
+  insert into order_group (customer_user_id, idempotency_key, status, city_id, kind,
+                           subtotal_paise, tax_total_paise, payable_paise)
+  select parent, 'e21-plan-' || gen_random_uuid(), 'paid', (select city_id from mp),
+         'meal_pack_purchase', 300000, 15000, 315000 from plan_fix
+  returning id
+), pk as (
+  insert into meal_pack (customer_user_id, offer_id, order_group_id, meals_total, meals_remaining,
+                         net_price_paise, tax_total_paise, cgst_paise, sgst_paise, tax_point,
+                         expires_at, correlation_id)
+  select parent, offer_id, og.id, 10, 10, 300000, 15000, 7500, 7500, 'sale',
+         now() + interval '60 days', gen_random_uuid()
+    from plan_fix, og
+  returning id
+) select id from pk;
+
+-- **The sale legs, which a fixture that only inserts a `meal_pack` row silently skips.**
+--
+-- The invariant is "deferred revenue equals what the live packs still owe". A pack conjured
+-- straight into the table owes its full price with nothing on the ledger to match, so the
+-- invariant is false before a single meal is spent — and the failure looks like a redemption bug
+-- rather than a missing sale. Posting it here is what makes the assertion below mean anything.
+select post_ledger_transaction(
+  p_reason_code => 'meal_pack_sale',
+  p_source_type => 'adjustment',
+  p_source_id   => (select id from plan_pack),
+  p_entries     => jsonb_build_array(
+    jsonb_build_object('account','provider:razorpay:clearing','direction','debit', 'amount_paise',315000),
+    jsonb_build_object('account','platform:deferred_revenue:meal_packs','direction','credit','amount_paise',300000),
+    jsonb_build_object('account','platform:tax_payable:cgst','direction','credit','amount_paise',7500),
+    jsonb_build_object('account','platform:tax_payable:sgst','direction','credit','amount_paise',7500)),
+  p_memo => 'meal pack sale (fixture)');
+
+-- Two dishes: one in the offer's required category, one not.
+create temporary table plan_dish as
+with d as (
+  insert into dish (kitchen_id, name, category_id, food_type)
+  select (select kitchen_id from school where id = (select school_id from plan_fix)),
+         'Plan ' || c.display_name, c.id, 'veg'
+    from dish_category c
+   where c.id = (select required_category_id from meal_pack_offer where id = (select offer_id from plan_fix))
+      or c.id = (select id from dish_category
+                  where id <> (select required_category_id from meal_pack_offer
+                                where id = (select offer_id from plan_fix)) limit 1)
+  returning id, category_id
+) select * from d;
+
+create temporary table plan_kid as
+select (create_recipient(
+          p_guardian_user_id => (select parent from plan_fix),
+          p_first_name => 'Planner', p_last_name => null,
+          p_school_id => (select school_id from plan_fix),
+          p_class_label => '5', p_section_label => 'A',
+          p_allergen_ids => '{}', p_allergy_note => null,
+          p_allergen_consent => false, p_is_self => false,
+          p_capture_context => '{"screen":"test"}'::jsonb
+        ) ->> 'recipient_id')::uuid as id;
+
+/** One day of a plan, as the function expects it. */
+create function tests_tmp.plan_day(p_date date) returns jsonb language sql stable as $$
+  select jsonb_build_object(
+    'service_date', p_date,
+    'recipient_id', (select id from plan_kid),
+    'lines', (select jsonb_agg(jsonb_build_object('dish_id', d.id, 'quantity', 1))
+                from plan_dish d));
+$$;
+
+select lives_ok(
+  format($$select confirm_meal_pack_plan(%L::uuid, 'plan-key-1',
+            jsonb_build_array(tests_tmp.plan_day(current_date + 2),
+                              tests_tmp.plan_day(current_date + 3)))$$,
+         (select parent from plan_fix)),
+  'a two-day plan confirms'
+);
+
+select is(
+  (select meals_remaining from meal_pack where id = (select id from plan_pack)),
+  8,
+  'and takes exactly two meals — 10 becomes 8'
+);
+
+select is(
+  (select count(*)::int from meal_pack_redemption where meal_pack_id = (select id from plan_pack)),
+  2,
+  'one redemption per day'
+);
+
+-- THE amendment-1 assertion. A retry must return the first result and write nothing.
+select is(
+  (select (confirm_meal_pack_plan((select parent from plan_fix), 'plan-key-1',
+            jsonb_build_array(tests_tmp.plan_day(current_date + 2),
+                              tests_tmp.plan_day(current_date + 3))) ->> 'replayed')::boolean),
+  true,
+  'RETRY: the same key and the same plan replays rather than spending again'
+);
+
+select is(
+  (select meals_remaining from meal_pack where id = (select id from plan_pack)),
+  8,
+  'and the balance is UNCHANGED — four days retried is four orders, not eight'
+);
+
+select is(
+  (select count(*)::int from meal_pack_redemption where meal_pack_id = (select id from plan_pack)),
+  2,
+  'and no second set of redemptions was written'
+);
+
+select throws_ok(
+  format($$select confirm_meal_pack_plan(%L::uuid, 'plan-key-1',
+            jsonb_build_array(tests_tmp.plan_day(current_date + 4)))$$,
+         (select parent from plan_fix)),
+  null,
+  'the same key with a DIFFERENT plan is refused, not replayed — a parent must not be told they planned something they did not'
+);
+
+-- Expiry, server-side.
+select throws_ok(
+  format($$select confirm_meal_pack_plan(%L::uuid, 'plan-key-expiry',
+            jsonb_build_array(tests_tmp.plan_day(current_date + 400)))$$,
+         (select parent from plan_fix)),
+  null,
+  'a day after the pack expires is refused by the SERVER, whatever the app believes'
+);
+
+-- The invariant, asserted as a CHANGE rather than an absolute.
+--
+-- The absolute form is the real invariant and it is right — but it cannot hold in this file,
+-- because earlier sections conjure packs straight into the table to test the balance and spend
+-- from them directly, with no sale posting and no redemption posting. The whole-ledger check
+-- correctly reports that as a mismatch, which is the check working: a pack that exists without
+-- its money is exactly what it is for.
+--
+-- So what is asserted here is the property this section owns: **the ledger moved by exactly what
+-- the redemptions recognised, and not a paisa more.** That is fixture-independent, and it is the
+-- half that a redemption bug would break. `E21-46` adds the whole-ledger assertion in a file
+-- whose fixtures go through the money path.
+select is(
+  (select ledger_paise from check_meal_pack_ledger_invariant() where leg = 'deferred_revenue'),
+  (select sum(pack_liability_paise(net_price_paise, meals_remaining, meals_total))
+     from meal_pack where id = (select id from plan_pack))::bigint,
+  'deferred revenue equals what the PLAN pack still owes — the sale posted 300000, two meals '
+  'recognised 60000, and 240000 remains'
+);
+
+select is(
+  (select ok from check_meal_pack_ledger_invariant() where leg = 'deferred_tax'),
+  true,
+  'and the tax leg holds — zero on both sides under tax_point = sale, asserted rather than skipped'
+);
+
+select is(
+  (select sum(revenue_paise)::bigint from meal_pack_redemption
+    where meal_pack_id = (select id from plan_pack)),
+  60000::bigint,
+  'two meals of a 300000 ten-meal pack recognised exactly 60000 — no rounding lost'
+);
+
 select * from finish();
 rollback;

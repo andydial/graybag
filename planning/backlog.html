@@ -6486,13 +6486,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/45</span>
+          <span class="meter-num">0/47</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 45 tasks</summary>
+        <summary>Context &amp; 47 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -6876,13 +6876,29 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The planner&#39;s calendar and per-day item picker.</strong> The screen renders correctly with no days — &quot;Choose a day to start&quot;, Confirm disabled — which is what a parent should see before this exists. Needs the orderable-day list (cutoff, service days, expiry already handled by <code>blockReason</code>) and the prototype&#39;s <code>V.planday</code>: items by category, the rule enforced in front of the parent, and the allergen clash warning per item</span>
       </li>
-      <li class="task" data-id="E21-45" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E21-45" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-45"></button>
         <code class="tid">E21-45</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Confirming a plan.</strong> An Edge Function taking the plan and one idempotency key for the whole submission, writing N orders, N redemptions, the decrement and the ledger legs in one transaction. <code>meal_pack_plan</code> already exists for it (<code>0068</code>). Brings back <code>PackPlanScreen.confirming</code> and its double-tap test, which were deliberately withdrawn rather than declared as an orphan — see <code>D8</code></span>
+        <span class="ttext"><strong>Confirming a plan.</strong> An Edge Function taking the plan and one idempotency key for the whole submission, writing N orders, N redemptions, the decrement and the ledger legs in one transaction. <code>meal_pack_plan</code> already exists for it (<code>0068</code>). <code>0073</code>. One transaction: decrement, N orders, N redemptions, ledger legs — together or not at all. Idempotent on the <strong>whole submission</strong>, mutation-checked by removing the replay branch, which fails the retry assertions and nothing else. A retry with the same key and a <strong>different</strong> plan is refused rather than replayed, because returning the first plan&#39;s orders would tell a parent they had planned something they had not. Revenue is recognised by difference so two meals of a ₹3,000 ten-meal pack recognise exactly ₹600. <code>check-unqualified-writes</code> caught a <code>delete from</code> with no <code>WHERE</code> on a temp table — hosted Supabase loads <code>safeupdate</code> and rejects that with <code>21000</code> while a local <code>supabase start</code> does not, so it passed every local test and would have failed on staging. The <code>confirming</code> prop and its double-tap test return in <code>E21-47</code> with the Edge Function shell</span>
+      </li>
+      <li class="task" data-id="E21-46" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-46"></button>
+        <code class="tid">E21-46</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A ledger test whose fixtures go through the money path.</strong> <code>meal_packs.test.sql</code> asserts the deferred-revenue <strong>change</strong> rather than the absolute invariant, because its earlier sections conjure packs into the table to test the balance and spend from them directly, with no sale or redemption posting — so the whole-ledger check correctly reports a mismatch. That is the check working; it also means the strongest assertion has no home yet. Needs a file whose packs are sold and redeemed only through the real functions</span>
+      </li>
+      <li class="task" data-id="E21-47" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-47"></button>
+        <code class="tid">E21-47</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The Edge Function shell over <code>confirm_meal_pack_plan</code>.</strong> Thin, like <code>checkout</code>: prove the caller from their JWT, then one service-role RPC. The identity must never come from the body. Brings back <code>PackPlanScreen.confirming</code> and its double-tap test</span>
       </li></ul>
       </details>
     </article>

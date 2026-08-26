@@ -3296,3 +3296,22 @@ observation comes before the remedy — especially when the remedy touches somet
 Related and reinforcing: this is the second time in two days that a long-lived branch has cost
 something invisible (`CLAUDE.md`, "Build rhythm"). The branch was five commits and several hours
 old when `main` moved under it.
+
+## A local Postgres will not tell you about `safeupdate` — 2026-08-27
+
+`0073` used `delete from plan_taken;` to clear a temp table between calls. Every local test passed:
+73 migrations applied, 43 pgTAP assertions green, the mutation checks behaved.
+
+`check-unqualified-writes` refused it. **Hosted Supabase loads the `safeupdate` extension, which
+rejects an unqualified `DELETE` or `UPDATE` with `21000`.** A local `supabase start` does not load
+it. So the function would have worked perfectly on this machine and failed on every real request
+against staging or production.
+
+This is the second time that guard has earned its place (`E05-21`, and `E06-38` which cost a day
+of settlements). Worth stating as a general shape rather than a Postgres detail: **the local
+database is not the deployed one, and the differences are silent by construction** — an extension
+the host loads, a role the host applies, a setting the host pins. Where a guard exists for one of
+those, it is the only thing standing between a green suite and a broken deploy, and its complaint
+is information rather than an obstacle.
+
+The fix was `truncate`, which the guard's own message suggests for a temp table.
