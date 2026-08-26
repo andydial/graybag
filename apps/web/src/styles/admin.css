@@ -261,6 +261,20 @@
 }
 
 /*
+ * A section that signposts rather than reports (`E11-22`).
+ *
+ * Growth's "where conversion went" note. Visually quieter than a data section — no rule above it,
+ * a tinted panel instead — because it is the one block on the page carrying no number, and giving
+ * it the same weight as the school table would have it read as a finding.
+ */
+.admin__section--note {
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
+  border-radius: var(--gb-radius-lg);
+  background: var(--gb-bg-surface);
+  padding: var(--gb-space-4);
+}
+
+/*
  * A hint that is reporting a fault rather than explaining a choice (`E11-17`).
  *
  * Bordered and boxed rather than merely recoloured: the secondary grey above is the "this is

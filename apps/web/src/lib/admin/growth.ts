@@ -74,6 +74,16 @@ export interface SchoolRow {
   children: number;
   /** Share of all guardians, 0–1. Rendered as a bar. */
   share: number;
+  /**
+   * Distinct accounts that have paid for at least one order at this school — `E11-22`.
+   *
+   * The prototype's fourth column, and the one that makes the table an acquisition table rather
+   * than a registration table. Families at a school with none is the row worth acting on: they
+   * arrived, and something between them and an order is not working.
+   *
+   * All-time, not over a range. A range belongs to Reports; this page answers "where are we".
+   */
+  ordered: number;
 }
 
 /** An order, as the funnel needs it. No child, no name — see `GROWTH_ORDER_COLUMNS`. */
@@ -122,8 +132,6 @@ export interface Growth {
   bySchool: SchoolRow[];
   /** Registrations in the last 7 and 28 days, against the 7 and 28 before them. */
   recent: { days: number; now: number; previous: number }[];
-  /** Registered → added a child → ordered → ordered again. */
-  funnel: FunnelStep[];
   /** Parents who ordered in the last 7 days. */
   activeParents: number;
   /**
@@ -134,10 +142,6 @@ export interface Growth {
    * a screen nobody acts on.
    */
   stuck: { email: string; registered: string }[];
-  /** Paid orders and net revenue per IST day, for the orders chart. */
-  ordersDaily: { date: string; orders: number; revenuePaise: number }[];
-  /** Average paid order value, in paise. */
-  averageOrderPaise: number;
 }
 
 /** Statuses that mean money was taken. Matches `admin-reports.ts` deliberately. */
@@ -229,6 +233,9 @@ export function growth(
         guardians,
         children: childrenBySchool.get(s.id) ?? 0,
         share: totalGuardians === 0 ? 0 : guardians / totalGuardians,
+        // Filled in at the return, where the paid-order index exists. Zero here would be a
+        // plausible wrong answer if that step were ever dropped, so it is not written twice.
+        ordered: 0,
       };
     })
     // Biggest first. This is a "where are we" screen, and alphabetical buries the answer.
@@ -265,30 +272,18 @@ export function growth(
     paidByUser.set(o.customerUserId, list);
   }
 
-  const registered = users.length;
-  const addedChild = users.filter((u) => linkedUsers.has(u.id)).length;
-  const firstOrder = users.filter((u) => (paidByUser.get(u.id)?.length ?? 0) >= 1).length;
-  const orderedAgain = users.filter((u) => (paidByUser.get(u.id)?.length ?? 0) >= 2).length;
-
-  const step = (
-    key: FunnelStep['key'], label: string, reached: number, previous: number | null, action: string,
-  ): FunnelStep => ({
-    key, label, reached,
-    lost: previous === null ? 0 : Math.max(0, previous - reached),
-    rate: previous === null || previous === 0 ? null : reached / previous,
-    action,
-  });
-
-  const funnel: FunnelStep[] = [
-    step('registered', 'Registered', registered, null, 'Everyone who has signed in at least once.'),
-    step('addedChild', 'Added a child', addedChild, registered,
-      'Email the ones who stopped here — they cannot order until a child exists. Listed below.'),
-    step('firstOrder', 'Placed a first order', firstOrder, addedChild,
-      'They have a child and never bought. Check the school has a live menu and break windows.'),
-    step('orderedAgain', 'Ordered again', orderedAgain, firstOrder,
-      'One order and no second is the sharpest signal there is. Ask them why.'),
-  ];
-
+  /*
+   * The funnel used to be built here and rendered on this page — `E11-22` removed it.
+   *
+   * Andy: *"Growth = are new families arriving. Reports = does a family who arrives get to an
+   * order, over a range, beside the revenue it explains."* The two answer different questions on
+   * different clocks, and the all-time funnel this computed could only ever get flatter as the
+   * product grew, because every parent who ever signed up and stopped stayed in the numerator
+   * for good. `funnelForCohort` below is the replacement and is measured over a chosen range.
+   *
+   * `paidByUser` survives it: the active-parent count and the per-school ordering column below
+   * both need it.
+   */
   // Active = ordered in the last seven days, which is the only step that expires.
   const sevenDaysAgo = new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 86_400_000)
     .toISOString().slice(0, 10);
@@ -301,39 +296,33 @@ export function growth(
     .slice(0, STUCK_LIMIT)
     .map((u) => ({ email: u.email!, registered: istDate(u.createdAt) }));
 
-  const dayTotals = new Map<string, { orders: number; revenuePaise: number }>();
-  let paidCount = 0;
-  let paidPaise = 0;
+  /*
+   * Paid orders per day and the average order value were computed here and drawn on this page.
+   * Both are money over time, which is Reports' question — `E11-22`. The prototype's Growth has
+   * no orders chart, and an acquisition screen that reports revenue invites being read as one.
+   */
+
+  // Accounts that have actually bought something, per school. See `SchoolRow.ordered`.
+  const orderedBySchool = new Map<string, Set<string>>();
   for (const o of orders) {
     if (!EARNED.has(o.status)) continue;
-    const d = istDate(o.placedAt);
-    if (!d) continue;
-    const cur = dayTotals.get(d) ?? { orders: 0, revenuePaise: 0 };
-    cur.orders += 1;
-    cur.revenuePaise += o.totalPaise;
-    dayTotals.set(d, cur);
-    paidCount += 1;
-    paidPaise += o.totalPaise;
+    const school = o.schoolId ?? '';
+    if (school === '') continue;
+    const set = orderedBySchool.get(school) ?? new Set<string>();
+    set.add(o.customerUserId);
+    orderedBySchool.set(school, set);
   }
-  const ordersDaily = span.map((date) => ({
-    date,
-    orders: dayTotals.get(date)?.orders ?? 0,
-    revenuePaise: dayTotals.get(date)?.revenuePaise ?? 0,
-  }));
 
   return {
-    funnel,
     activeParents,
     stuck,
-    ordersDaily,
-    averageOrderPaise: paidCount === 0 ? 0 : Math.round(paidPaise / paidCount),
     totalUsers: users.length,
     // The number that says whether signup converts. An account with no child cannot order, so
     // this is the drop-off `AR7` cares about, not a curiosity.
     usersWithoutChildren: users.filter((u) => !linkedUsers.has(u.id)).length,
     totalChildren: children.length,
     daily,
-    bySchool,
+    bySchool: bySchool.map((r) => ({ ...r, ordered: orderedBySchool.get(r.schoolId)?.size ?? 0 })),
     recent: [7, 28].map((days) => ({ days, now: since(days, 0), previous: since(days, days) })),
   };
 }
