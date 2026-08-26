@@ -185,3 +185,70 @@ describe('facets', () => {
     expect(f.needsAttention).toBe(1);
   });
 });
+
+describe('the attention filter — E10-48', () => {
+  /*
+   * A dish with nothing wrong: on a menu, typed, photographed, allergens declared. Every other
+   * dish in this block is this one with a single thing broken, so each assertion names its cause.
+   */
+  const clean = dish({ id: 'd-1', name: 'Clean', allergensDeclaredNone: true });
+  const menus = [menu({ items: [item({ dishId: 'd-1' })] })];
+
+  it('is off by default, because a workbench should open showing everything', () => {
+    expect(EMPTY_QUERY.attention).toBe(false);
+    expect(namesFor({}, [clean], menus)).toEqual(['Clean']);
+  });
+
+  it('hides a dish with nothing wrong', () => {
+    expect(namesFor({ attention: true }, [clean], menus)).toEqual([]);
+  });
+
+  /*
+   * The reason this is a filter of its own rather than three dropdowns. Each of these dishes has
+   * exactly ONE problem, and no combination of the other filters returns all four at once —
+   * setting them together intersects, and the intersection here is empty.
+   */
+  it('is a disjunction: any one problem is enough', () => {
+    const dishes = [
+      dish({ id: 'd-2', name: 'No type', foodType: null, allergensDeclaredNone: true }),
+      dish({ id: 'd-3', name: 'No photo', imageAssetId: null, allergensDeclaredNone: true }),
+      dish({ id: 'd-4', name: 'Unchecked', allergens: [], allergensDeclaredNone: false }),
+      clean,
+    ];
+    const onMenu = [menu({ items: [
+      item({ dishId: 'd-1' }), item({ dishId: 'd-2' }), item({ dishId: 'd-3' }), item({ dishId: 'd-4' }),
+    ] })];
+    expect(namesFor({ attention: true }, dishes, onMenu).sort())
+      .toEqual(['No photo', 'No type', 'Unchecked']);
+
+    // The same three cannot be had from the other filters at once — this is the intersection.
+    expect(namesFor(
+      { foodType: 'unset', photo: 'missing', allergens: 'unchecked' }, dishes, onMenu,
+    )).toEqual([]);
+  });
+
+  it('catches a dish that is on no menu, which no other single filter groups with the rest', () => {
+    const orphan = dish({ id: 'd-9', name: 'Orphan', allergensDeclaredNone: true });
+    expect(namesFor({ attention: true }, [orphan], [])).toEqual(['Orphan']);
+  });
+
+  it('combines with a search rather than replacing it', () => {
+    const dishes = [
+      dish({ id: 'd-2', name: 'Broken Pancakes', foodType: null, allergensDeclaredNone: true }),
+      dish({ id: 'd-3', name: 'Broken Paratha', foodType: null, allergensDeclaredNone: true }),
+    ];
+    expect(namesFor({ attention: true, text: 'pancake' }, dishes, [])).toEqual(['Broken Pancakes']);
+  });
+
+  it('agrees with the count the chip shows', () => {
+    // The chip's number and the filtered list must be the same thing, or the screen argues with
+    // itself — the failure `E11-17` put a guard on Reports for.
+    const dishes = [
+      clean,
+      dish({ id: 'd-2', name: 'No type', foodType: null, allergensDeclaredNone: true }),
+    ];
+    const onMenu = [menu({ items: [item({ dishId: 'd-1' }), item({ dishId: 'd-2' })] })];
+    expect(facets(rowsOf(dishes, onMenu)).needsAttention)
+      .toBe(namesFor({ attention: true }, dishes, onMenu).length);
+  });
+});

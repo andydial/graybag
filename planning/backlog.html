@@ -4291,13 +4291,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/47</span>
+          <span class="meter-num">0/48</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 47 tasks</summary>
+        <summary>Context &amp; 48 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4675,6 +4675,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>No job could be granted to anybody new.</strong> Andy: *&quot;I am trying to give just one more user Platform Admin role but it&#39;s not allowing me to because selection of &#39;Where&#39; field with Kitchen or school ID is not selectable or clickable.&quot;* Two faults, and the first made the whole onboarding path dead. <strong>(1)</strong> <code>syncJobNotes</code> — which fills the *Where* select from the chosen job — scanned <code>el.body</code> only. <code>E10-46</code> had just added a <strong>second</strong> place these forms render, <code>#a-results</code>, and did not extend it, so a form reached by <strong>searching for somebody</strong> got a select with zero options. A <code>&lt;select&gt;</code> with no options cannot be opened, which is exactly &quot;not selectable or clickable&quot;, and searching is the only way to reach a person who holds nothing. Now scans <code>document</code>. Proven with a probe that renders a form into the results container: <strong>0 options before, populated after.</strong> <strong>(2)</strong> *Which one* was a free-text box asking for a &quot;Kitchen or school id&quot; — a UUID nobody has memorised and which appears nowhere on the screen. It is now a picker of kitchens and schools <strong>by name</strong>, filtered to the scope the job applies at, and it disappears entirely for a platform-scoped job, where the server refuses a value anyway. Scope types are labelled in English (*Everywhere*, *One kitchen*) rather than as <code>platform</code>/<code>kitchen</code>. Submitting a narrow scope with nothing chosen is refused client-side with the reason, rather than after several grants have already landed. <code>.admin__field</code> sets <code>display: flex</code> and therefore beat <code>[hidden]</code> — the <strong>fifth</strong> place in this codebase to need that restated</span>
+      </li>
+      <li class="task" data-id="E10-48" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-48"></button>
+        <code class="tid">E10-48</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The dishes workbench puts the problems on the toolbar, with their counts.</strong> The prototype&#39;s central idea for this screen, and the one thing the built version did not have: it expressed the same facets as five dropdowns, which hide their numbers until opened. A dropdown answers &quot;show me X&quot;; a chip reading <strong>No photo 79</strong> answers &quot;how much is left to do&quot;, which is the question somebody opens a workbench to ask. Six chips — All, Needs attention, No food type, Allergens not checked, On no menu, No photo — each a one-click toggle. <strong><code>facets()</code> already computed every one of these counts</strong> and nothing rendered them, so this is mostly a presentation change over logic that was already tested. What is new is <code>DishQuery.attention</code>, which is a <strong>disjunction</strong> and therefore not expressible with the existing controls: no food type *or* unchecked allergens *or* on no menu *or* no photo. Setting three dropdowns gives the intersection, which is nearly always empty and reads as &quot;nothing is wrong&quot; — the test asserts exactly that, by building four dishes with one fault each and showing the intersection returns none of them while the chip returns three. <strong>The chips and the selects are rendered from one <code>query</code></strong>, so they cannot disagree; toggling a chip off returns its select to &quot;any&quot;, which is verified in a browser. Counts are of the whole catalogue rather than the filtered view, deliberately: a chip that fell from 79 to 3 when you filtered by category would be measuring the filter rather than the problem. The count line gained the prototype&#39;s wording — &quot;1 of 4 dishes matching &quot;x&quot; · 1 need attention&quot;. Zero-count chips are not styled as warnings, because &quot;No photo 0&quot; is good news and should look like it. 6 tests</span>
       </li></ul>
       </details>
     </article>
