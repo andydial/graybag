@@ -97,6 +97,8 @@ export {
   ADMIN_MENU_COLUMNS,
   AdminDishError,
   fetchAdminDishes,
+  createMenu,
+  duplicateMenu,
   fetchAdminMenus,
   fetchDishImageAssets,
   fetchMenuAssignments,

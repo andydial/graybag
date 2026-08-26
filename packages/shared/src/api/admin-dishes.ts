@@ -472,3 +472,45 @@ export async function fetchDishImageAssets(): Promise<Map<string, string>> {
   }
   return out;
 }
+
+/* ============================================================================
+   Creating and duplicating a menu — `E10-50`
+   ============================================================================ */
+
+export interface MenuWriteResult extends CatalogueUpdateResult {
+  menu?: { id: string; name: string; status: string };
+  /** How many items came across. Absent on a plain create, which has none. */
+  copiedItems?: number;
+  /**
+   * Always `0`, and returned rather than merely documented.
+   *
+   * A duplicate must never inherit its source's school assignments: `create_checkout` resolves a
+   * school's menu through `menu_assignment`, so a copy that carried "serving Amity from January"
+   * would put a second live menu in front of a school already being fed and the order path would
+   * pick one of them silently. Saying `0` in the response means a caller that ever starts
+   * depending on assignments coming across finds out from the API rather than from a parent.
+   */
+  copiedAssignments?: number;
+}
+
+/**
+ * A new, empty menu.
+ *
+ * No status is sent. `menu.status` is `not null default 'draft'` in `0001`, so a new menu is a
+ * draft because the column says so — restating it here would be a second place to disagree with
+ * the schema.
+ */
+export async function createMenu(input: { name: string; kitchenId: string }): Promise<MenuWriteResult> {
+  return invokeFunction<MenuWriteResult>('admin-dish', { menuCreate: input }, 'PATCH');
+}
+
+/**
+ * A copy of an existing menu — its items and their prices, and nothing else.
+ *
+ * The point of the feature, in Andy's prototype's words: *"start from one that already works,
+ * then diverge only where it needs to."* Onboarding a school is then a rename and a few price
+ * edits rather than rebuilding a term from nothing.
+ */
+export async function duplicateMenu(input: { menuId: string; name: string }): Promise<MenuWriteResult> {
+  return invokeFunction<MenuWriteResult>('admin-dish', { menuDuplicate: input }, 'PATCH');
+}

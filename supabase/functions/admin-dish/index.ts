@@ -47,6 +47,13 @@ const json = (status: number, payload: unknown) =>
     headers: { ...CORS, 'content-type': 'application/json' },
   });
 
+/** Matches `normaliseMenuName` in `packages/shared` — trimmed, inner whitespace collapsed. */
+const normaliseName = (v: unknown): string =>
+  typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '';
+
+/** Mirrors `MENU_NAME_MAX`. Edge Functions cannot import from the workspace, so it is restated. */
+const MENU_NAME_MAX = 80;
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FOOD_TYPES = ['veg', 'non_veg', 'egg'];
 
@@ -103,6 +110,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
     menuItem?: Record<string, unknown>;
     foodTypes?: unknown;
     dishAllergens?: unknown;
+    menuCreate?: Record<string, unknown>;
+    menuDuplicate?: Record<string, unknown>;
   };
   try {
     body = await request.json();
@@ -134,10 +143,21 @@ Deno.serve(async (request: Request): Promise<Response> => {
   if (body.dishAllergens && !held.has('dish.edit')) {
     return json(403, { error: 'not_permitted', requires: 'dish.edit' });
   }
-  if (!body.dish && !body.menuItem && !body.foodTypes && !body.dishAllergens) {
+  if (body.menuCreate && !held.has('menu.edit')) {
+    return json(403, { error: 'not_permitted', requires: 'menu.edit' });
+  }
+  if (body.menuDuplicate && !held.has('menu.edit')) {
+    return json(403, { error: 'not_permitted', requires: 'menu.edit' });
+  }
+  if (
+    !body.dish && !body.menuItem && !body.foodTypes && !body.dishAllergens &&
+    !body.menuCreate && !body.menuDuplicate
+  ) {
     return json(422, {
       error: 'validation_failed',
-      fields: { body: 'send a dish, a menuItem, foodTypes, or dishAllergens' },
+      fields: {
+        body: 'send a dish, a menuItem, foodTypes, dishAllergens, menuCreate or menuDuplicate',
+      },
     });
   }
 
@@ -497,6 +517,145 @@ Deno.serve(async (request: Request): Promise<Response> => {
       if ((data ?? []).length === 0) return json(404, { error: 'unknown_menu_item', menuId, dishId });
       changed.push(...Object.keys(patch).map((c) => `menuItem.${c}`));
     }
+  }
+
+  // ---------------------------------------------------------------- create a menu
+  //
+  // `E10-50`. A menu is a named, reusable set of dishes; this makes the empty one.
+  //
+  // **No status is sent.** `menu.status` is `not null default 'draft'` in `0001`, so a new menu
+  // is a draft because the column says so and not because this function says so a second time.
+  if (body.menuCreate) {
+    const name = normaliseName(body.menuCreate.name);
+    const kitchenId = str(body.menuCreate.kitchenId);
+
+    if (!name) {
+      return json(422, { error: 'validation_failed', fields: { name: 'give the menu a name' } });
+    }
+    if (name.length > MENU_NAME_MAX) {
+      return json(422, {
+        error: 'validation_failed',
+        fields: { name: `at most ${MENU_NAME_MAX} characters` },
+      });
+    }
+    if (!kitchenId || !UUID.test(kitchenId)) {
+      return json(422, { error: 'validation_failed', fields: { kitchenId: 'required, and a uuid' } });
+    }
+
+    const { data: created, error } = await admin
+      .from('menu')
+      .insert({ name, kitchen_id: kitchenId, created_by_user_id: user.id })
+      .select('id,name,status')
+      .single();
+
+    if (error) {
+      // A kitchen id that does not exist is the caller's mistake, not ours — 23503 is the
+      // foreign key. Anything else is genuinely internal and is not described to the caller.
+      if (error.code === '23503') {
+        return json(422, { error: 'validation_failed', fields: { kitchenId: 'no such kitchen' } });
+      }
+      console.error('menu insert failed', error.code);
+      return json(500, { error: 'internal' });
+    }
+
+    return json(200, { changed: ['menu.created'], menu: created });
+  }
+
+  // ---------------------------------------------------------------- duplicate a menu
+  //
+  // `E10-50`. Copies the items and their prices. **Never the school assignments.**
+  //
+  // That is the load-bearing sentence in this whole function. `create_checkout` resolves a
+  // school's menu through `menu_assignment`; a copy that inherited "serving Amity from January"
+  // would put a second live menu in front of a school already being fed, and the order path would
+  // pick one of them silently. Assigning a menu to a school is a decision about that school, made
+  // on the schools screen where the date window is visible.
+  if (body.menuDuplicate) {
+    const sourceId = str(body.menuDuplicate.menuId);
+    const name = normaliseName(body.menuDuplicate.name);
+
+    if (!sourceId || !UUID.test(sourceId)) {
+      return json(422, { error: 'validation_failed', fields: { menuId: 'required, and a uuid' } });
+    }
+    if (!name) {
+      return json(422, { error: 'validation_failed', fields: { name: 'give the copy a name' } });
+    }
+    if (name.length > MENU_NAME_MAX) {
+      return json(422, {
+        error: 'validation_failed',
+        fields: { name: `at most ${MENU_NAME_MAX} characters` },
+      });
+    }
+
+    const { data: source, error: sourceError } = await admin
+      .from('menu')
+      .select('id,kitchen_id')
+      .eq('id', sourceId)
+      .maybeSingle();
+
+    if (sourceError) {
+      console.error('menu read failed', sourceError.code);
+      return json(500, { error: 'internal' });
+    }
+    if (!source) {
+      return json(404, { error: 'not_found', fields: { menuId: 'no such menu' } });
+    }
+
+    const { data: copy, error: copyError } = await admin
+      .from('menu')
+      .insert({ name, kitchen_id: source.kitchen_id, created_by_user_id: user.id })
+      .select('id,name,status')
+      .single();
+
+    if (copyError) {
+      console.error('menu copy insert failed', copyError.code);
+      return json(500, { error: 'internal' });
+    }
+
+    // An explicit column list, not `select('*')`. A spread of the source row would carry whatever
+    // is added to `menu_item` next — including an id and a menu_id, and including any future
+    // column whose behaviour on a copy nobody has considered. A new column should have to be
+    // added here on purpose.
+    const { data: items, error: itemsError } = await admin
+      .from('menu_item')
+      .select('dish_id,price_paise,category_id,available_days,is_active,sort_order')
+      .eq('menu_id', sourceId);
+
+    if (itemsError) {
+      console.error('menu item read failed', itemsError.code);
+      return json(500, { error: 'internal' });
+    }
+
+    let copied = 0;
+    if ((items ?? []).length > 0) {
+      const { error: insertError } = await admin
+        .from('menu_item')
+        .insert((items ?? []).map((i: Record<string, unknown>) => ({ ...i, menu_id: copy.id })));
+
+      if (insertError) {
+        /*
+         * The copy exists and its items do not, which is the one genuinely awkward outcome here.
+         *
+         * There is no transaction across two PostgREST calls, so rather than leave a half-copied
+         * menu that looks finished, the empty menu is removed and the caller is told nothing
+         * happened. Deleting is safe precisely because it is seconds old, has no assignment and
+         * no order can reference it — `menu_item` cascades from `menu`.
+         */
+        await admin.from('menu').delete().eq('id', copy.id);
+        console.error('menu item copy failed', insertError.code);
+        return json(500, { error: 'internal' });
+      }
+      copied = (items ?? []).length;
+    }
+
+    return json(200, {
+      changed: ['menu.duplicated'],
+      menu: copy,
+      copiedItems: copied,
+      // Said in the response rather than only in a comment, so a caller that starts relying on
+      // assignments coming across finds out from the API.
+      copiedAssignments: 0,
+    });
   }
 
   return json(200, { changed });
