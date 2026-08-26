@@ -191,6 +191,35 @@ Grepped the tree for conflict markers afterwards, per `docs/learnings.md`.
 
 ---
 
+## `D10` — CI is failing to start, on GitHub's side. Nothing merged
+
+**Observed from ~03:30.** After the merge fixed the `CONFLICTING` problem (`D9`), CI ran properly
+and passed twice — Smoke green, `Migrations, seed and authorization suite` green in 4m6s. Then:
+
+1. All four checks on `7ebaba5` reported failure at **exactly `15m01s`** — including
+   `Supabase project config (staging)`, which normally finishes in 7 seconds. The job conclusion
+   is `cancelled`, not `failure`; `gh pr checks` renders both as "fail", which is worth knowing.
+   Workflow timeouts are 25 and 75 minutes, so a timeout does not explain it.
+2. `gh run rerun --failed` produced **`startup_failure`** on both workflows. Twice.
+3. Other runs across the repo are sitting `queued`.
+
+Uniform cancellation, jobs that will not start, and a queue backlog together point at GitHub
+capacity or an incident rather than anything in this branch.
+
+**Chosen:** stop re-running and hand it over. `CLAUDE.md` says never merge red and never reach for
+`--admin`, and a check that cannot start is not a green one. The branch is pushed; nothing is
+merged.
+
+**What I can say instead**, run locally on the merged tree at every commit: 1038 mobile tests, 41
+pgTAP files, 8 eligibility-agreement cases, 4 concurrency races, 73 migrations reversible,
+`check:mvp`, `check-unqualified-writes` and `check-test-fixtures` all clean. That is not a
+substitute for CI — Maestro drives a real Android build this machine cannot — and I am not
+treating it as one.
+
+**To pick it up:** `gh run rerun <id>` on PR #120, or push any commit once Actions is healthy.
+
+---
+
 ## Skipped and why
 
 **The planner's SCREEN.** Reversed in part: I skipped it, then had budget left and built its
