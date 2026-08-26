@@ -506,3 +506,47 @@ while Actions is down, so it has never run. A button that calls an undeployed fu
 the dead control `E10-50` was written to avoid — the prototype's own `alert('Prototype')`, with
 extra steps. The task stays open for that last commit: deploy, exercise it on staging with a real
 session, then add New menu and Duplicate to the screen.
+
+---
+
+## 11. Where things stand, and exactly what to do in the morning
+
+Actions has been refusing to dispatch since ~14:03 UTC. Nothing has merged since `E11-22`. Five
+pull requests are open, **all verified locally with the same commands CI runs** — `npm run smoke`
+and `npm run check:a11y`, both green on the tip of the stack: 182 / 25 / 1030 / 455 tests, 20 pages
+at WCAG 2.1 AA with 0 violations.
+
+They are a **linear chain**, each branched from the one before and all rebased onto current `main`,
+verified with `git merge-base --is-ancestor` end to end. Merge them in this order and each should
+fast-forward with no conflict:
+
+| # | Branch | What it is |
+|---|---|---|
+| **130** | `e05-dishes-workbench` | `E10-48` — problem chips with counts on the dish workbench |
+| **131** | `e10-49-named-menus` | `E10-49` — Dishes moves to `/admin/dishes`, Menus is new |
+| **132** | `e10-51-people-scope` | `E10-51` — "what each job can see", computed from the grants |
+| **133** | `e02-36-sequencing-fix` | `E02-36` — corrected sequencing; **the mobile thread needs this one** |
+| **134** | `e10-52-screen-review` | `E10-52`, `E10-53`, `E10-50` write path, `E11-24` |
+
+If Actions is still dead, the fastest check is the repo's **Actions tab** rather than the API —
+the API reports the runs that exist and cannot report a dispatch that never happened, which is why
+this took a while to diagnose.
+
+**Do not promote until at least #130–#132 are merged and green.** The production build gate keys on
+a `[promote]` subject on `main`, and promoting a `main` that is missing half the stack ships the
+Dishes/Menus split without the screens that make it make sense.
+
+### What is done
+
+All six prototype items, except the two things that are genuinely blocked:
+
+- **Meal packs** — the schema and `packs.manage` belong to the mobile thread. Untouched, and no
+  adjacent permission borrowed.
+- **The menu New/Duplicate buttons** — the write path is built and tested; the function has never
+  run because it cannot be deployed while Actions is down. `E10-50` stays open for that.
+
+### What I would look at first if I were you
+
+`E02-36` (#133). It is a docs-only change and it unblocks the other thread: `order_money` is a 404
+today, so the sequencing everyone agreed to would have taken down every money screen on
+production. Step 1 is additive and safe to land at any time.
