@@ -6382,13 +6382,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/20</span>
+          <span class="meter-num">0/22</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 20 tasks</summary>
+        <summary>Context &amp; 22 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -6579,6 +6579,22 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext">A count in <code>planning/backlog.html</code> of screens designed versus stubbed, so &quot;how</span>
+      </li>
+      <li class="task" data-id="E21-21" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-21"></button>
+        <code class="tid">E21-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The meal-pack plan, written before any code.</strong> <code>docs/meal-packs-plan.md</code>. Andy, 2026-08-26: *&quot;This is the highest-consequence feature we&#39;ve built, because it takes money up front for food not yet served… tell me your plan for the schema and the concurrency control, and the GST treatment you intend to implement.&quot;* Four tables (<code>meal_pack_offer</code>, <code>meal_pack_offer_school</code>, <code>meal_pack</code>, <code>meal_pack_redemption</code>), with <code>unique (order_id)</code> on redemptions so &quot;this order spent two meals&quot; is unrepresentable rather than merely checked. Concurrency is one atomic <code>update … where meals_remaining &gt;= p_meals</code>, safe at READ COMMITTED because a blocked transaction re-evaluates its <code>WHERE</code> against the committed value; the <code>&gt;= 0</code> constraint is the backstop, not the mechanism. Multi-pack spending locks <code>order by expires_at, id for update</code>, which is simultaneously the deadlock prevention and the oldest-first business rule. Ledger: <strong>a pack sale is a liability, not revenue</strong> — cash in credits <code>platform:deferred_revenue:meal_packs</code>, and revenue is recognised only at redemption, which is the direct answer to the double-count question, with the invariant *deferred-revenue balance = sum(meals_remaining × meal_value_paise)* as the test. GST goes behind <code>platform_config.pack_tax_point</code>, and the load-bearing detail is that the value is <strong>stamped onto the pack at sale</strong> so a later flip changes the future without rewriting packs already sold</span>
+      </li>
+      <li class="task" data-id="E21-22" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-22"></button>
+        <code class="tid">E21-22</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Confirm the GST tax point for prepaid packs, and confirm no pack sells on production until then.</strong> A validation only Andy can make — it is his accountant&#39;s answer. Two positions, both to be built and both tested: <strong>sale</strong> (the pack is a voucher for identifiable goods, GST on the pack price at purchase, redemption adds no tax — what the prototype copy currently states) or <strong>redemption</strong> (GST at the time the food is supplied). The flag is <code>platform_config.pack_tax_point</code>; flipping it changes future sales only. Also needs confirming: the ledger treatment in §5 — sale as deferred revenue, revenue at redemption, breakage at expiry — since it is the accounting answer to *&quot;a redeemed meal must never appear as revenue a second time&quot;*</span>
       </li></ul>
       </details>
     </article>
