@@ -550,3 +550,31 @@ All six prototype items, except the two things that are genuinely blocked:
 `E02-36` (#133). It is a docs-only change and it unblocks the other thread: `order_money` is a 404
 today, so the sequencing everyone agreed to would have taken down every money screen on
 production. Step 1 is additive and safe to land at any time.
+
+
+---
+
+## 12. Correction: the Actions problem changed shape, and the second half is worse
+
+Entry 7 said dispatch had stopped, which was right at the time. It is not the whole story, and the
+distinction matters for whoever picks this up:
+
+| | ~14:03–15:10 UTC | 15:10 UTC onwards |
+|---|---|---|
+| Runs created? | **No** — no `github-actions` check suite existed on the commit | Yes |
+| Runs executed? | n/a | **No** — `queued: 8`, `in_progress: 0` |
+
+So dispatch recovered and execution did not. `CI` has sat queued on the base of the stack for
+nearly twenty minutes; `Backlog` did complete, so *some* capacity exists, which is what makes this
+look like a draining backlog rather than a hard outage.
+
+**What this changes:** entry 7 said "probably wait, and check the Actions tab". That still holds,
+but the thing to look at is now the **queue** rather than whether runs exist. If jobs are still
+queued with nothing running by morning, the useful signals are the GitHub status page for a
+runner-capacity incident, and whether the Maestro job — which holds a runner for ~25 minutes a
+time and which I triggered repeatedly today — is starving the others. If it is, the fix is to stop
+re-triggering the stack and let the queue drain in order.
+
+I have stopped pushing to the stack for that reason. Five branches, all green locally, all rebased
+onto `main` in a linear chain: the useful thing now is for the queue to drain, not for me to add
+to it.
