@@ -143,6 +143,27 @@ creates a different pack.
 
 ---
 
+## `D8` — the orphan ratchet talked me out of shipping a prop early
+
+**Chosen.** `PackPlanScreen` has **no `confirming` prop**, and its double-tap test is gone with it,
+until `E21-45` builds the Edge Function call that spends the balance.
+
+I had written both. `orphans.test.ts` flagged `confirming` as passed only by tests, and my first
+move was a `KNOWN_ORPHANS` entry naming `E21-45` — which is what that registry is for, and unlike
+`D5` this genuinely *was* a missing wire rather than an unfamiliar shape.
+
+Then the count assertion rejected it: the list is a hard-coded 11 and every comment above it
+records a step *down* — 15 → 14 → 13 → 12 → 11. It is a ratchet, and going up is the exact thing
+it is built to make uncomfortable.
+
+It was right to be uncomfortable. A prop only tests pass is the failure this repo keeps meeting,
+and I would have been carrying the shape of a feature that does not exist. The guard cost me a
+test I liked and was correct to.
+
+**What would change my mind:** nothing. `E21-45` adds the prop, its wire and the test together.
+
+---
+
 ## Skipped and why
 
 **The planner's SCREEN.** Reversed in part: I skipped it, then had budget left and built its

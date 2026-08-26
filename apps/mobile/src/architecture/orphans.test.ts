@@ -381,6 +381,7 @@ const KNOWN_ORPHANS: Record<string, string> = {
   'prop:SupportScreen.grievance': 'E20-21 — awaiting the name, designation and address',
 
 
+
   // Ordering paths with both halves built.
   'prop:DishDetailScreen.onChangeTarget': 'E05-40 — switch who a dish is for, from the sheet',
   'prop:DishDetailScreen.ordering': 'E05-40 — same sheet',

@@ -6382,13 +6382,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/43</span>
+          <span class="meter-num">0/45</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 43 tasks</summary>
+        <summary>Context &amp; 45 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -6740,13 +6740,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The meal rule, mirrored for copy only.</strong> The server decides; this decides what to *say*. Counts <strong>quantity, not rows</strong>, because <code>meal_pack_ineligibility_reason</code> sums <code>order_line.quantity</code> — counting rows would pass a cart of one dish times two that the server then refuses. Reads <code>items_per_meal</code> and the category from the <strong>offer</strong>, tested with a three-item pack and a fruit-category pack, because a rule hardcoded to &quot;two items, one drink&quot; mis-advises every parent the day a different pack exists. A zero-quantity line does not satisfy the category</span>
       </li>
-      <li class="task" data-id="E21-41" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E21-41" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-41"></button>
         <code class="tid">E21-41</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>The planner&#39;s SCREEN.</strong> The arithmetic is done and tested (<code>E21-43</code>); this is the rendering. The largest of the three surfaces: a multi-day picker with per-day item selection, the prototype&#39;s four refusal states shown <strong>on the day they apply to</strong> rather than at confirm time, and a confirm that spends N meals through one idempotent call. Spec is <code>V.packplan</code> in the prototype. The route is typed and the balance screen&#39;s button navigates to it</span>
+        <span class="ttext"><strong>The planner&#39;s screen.</strong> All four of the prototype&#39;s refusals render <strong>on the day they apply to</strong>, greyed with the reason, never filtered out — mutation-checked by making blocked days return null, which fails exactly the three tests named for them. The footer states the count at all times, and Confirm is disabled while the plan is over budget or incomplete; mutating it to disable only on an empty plan fails two. The child picker is per-screen with the choice stored per day, which is what lets one plan cover two children — and it hides itself for a parent with one child rather than offering a choice of one. 19 tests The largest of the three surfaces: a multi-day picker with per-day item selection, the prototype&#39;s four refusal states shown <strong>on the day they apply to</strong> rather than at confirm time, and a confirm that spends N meals through one idempotent call. Spec is <code>V.packplan</code> in the prototype. The route is typed and the balance screen&#39;s button navigates to it</span>
       </li>
       <li class="task" data-id="E21-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-42"></button>
@@ -6763,6 +6763,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The planner&#39;s arithmetic, before its screen.</strong> <code>packages/shared/src/cart/pack-plan.ts</code>. The line that matters: <strong><code>overBy</code> counts CHOSEN days, not valid ones.</strong> Counting completed days would let a parent pick eight days against a balance of five, finish five, read &quot;5 of 5 ready&quot;, and meet the problem only as they started the sixth — the warning has to arrive when the eighth day is *chosen*, while changing their mind is still cheap. Mutation-checked: switching it to <code>valid</code> fails exactly that test and the message-ordering one. <code>planMessage</code> says <strong>over-budget before incomplete</strong> when both hold, because finishing the incomplete days would not help and telling someone to choose items for a day they must remove is worse than silence. <code>blockReason</code> computes all four of the prototype&#39;s refusals rather than filtering days out — *&quot;a planner that only shows bookable days teaches nobody why the others are missing&quot;* — and reports <strong>expiry first</strong>, since it is the refusal with a deadline. The expiry day itself is allowed; the off-by-one that would cost a parent their last meal is its own test, and mutating <code>&gt;</code> to <code>&gt;=</code> fails it</span>
+      </li>
+      <li class="task" data-id="E21-44" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-44"></button>
+        <code class="tid">E21-44</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The planner&#39;s calendar and per-day item picker.</strong> The screen renders correctly with no days — &quot;Choose a day to start&quot;, Confirm disabled — which is what a parent should see before this exists. Needs the orderable-day list (cutoff, service days, expiry already handled by <code>blockReason</code>) and the prototype&#39;s <code>V.planday</code>: items by category, the rule enforced in front of the parent, and the allergen clash warning per item</span>
+      </li>
+      <li class="task" data-id="E21-45" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-45"></button>
+        <code class="tid">E21-45</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Confirming a plan.</strong> An Edge Function taking the plan and one idempotency key for the whole submission, writing N orders, N redemptions, the decrement and the ledger legs in one transaction. <code>meal_pack_plan</code> already exists for it (<code>0068</code>). Brings back <code>PackPlanScreen.confirming</code> and its double-tap test, which were deliberately withdrawn rather than declared as an orphan — see <code>D8</code></span>
       </li></ul>
       </details>
     </article>

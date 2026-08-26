@@ -141,10 +141,10 @@ export const ENUM_VALUES: Record<string, readonly string[]> = {
     'cant_connect',
     // `E21`. Emitted by the navigator like any other route — including for the refusal state,
     // because a parent who reaches `packs` with the gate off still viewed a screen, and that one
-    // is worth counting: it means a stale link is in circulation. `pack_detail` and `pack_plan`
-    // join this list when those screens exist; a name here with no emitter reads on the dashboard
-    // as a screen nobody visited.
-    'packs', 'my_packs',
+    // is worth counting: it means a stale link is in circulation. `pack_detail` joins this list
+    // when that screen exists; a name here with no emitter reads on the dashboard as a screen
+    // nobody visited.
+    'packs', 'my_packs', 'pack_plan',
   ],
   method: ['google', 'apple', 'email_otp'],
   reason: ['dismissed', 'expired', 'failed'],

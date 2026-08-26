@@ -50,11 +50,13 @@ import { clashingAllergens, useAllergenWatchlist } from '../menu/useAllergenWatc
 import { formatServiceDateLong } from '../orders/OrderDetailScreen';
 import { useMealPackSurface } from '../packs/MealPackSurfaceContext';
 import { MyPacksScreen } from '../packs/MyPacksScreen';
+import { PackPlanScreen } from '../packs/PackPlanScreen';
 import type { PackIneligibility } from '../packs/PackRedemptionStrip';
 import { PacksScreen } from '../packs/PacksScreen';
 import { PolicyGateContainer } from '../policy/PolicyGateContainer';
 import { usePolicyGate, useNextPendingPolicy } from '../policy/PolicyGateContext';
 import { useAudience, useOrderingTarget } from '../session/audience';
+import { useRecipients } from '../session/useRecipients';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 import { useCachedMenu } from '../menu/useCachedMenu';
 import { useConnectivity } from '../net/ConnectivityContext';
@@ -747,6 +749,53 @@ function ConnectedMyPacksScreen() {
   );
 }
 
+/**
+ * `E21-41`. The planner.
+ *
+ * `days` and the plan itself are **not built yet** — the calendar read and the per-day item
+ * picker are `E21-44`. What is wired is everything the screen needs to render honestly with no
+ * days: the recipients (so the child picker is real), the balance (from the surface context), and
+ * a confirm that hands the plan up.
+ *
+ * With no days it renders "Choose a day to start" and a disabled confirm, which is exactly what a
+ * parent should see before the calendar arrives — rather than a stub that looks like it works.
+ */
+function ConnectedPackPlanScreen() {
+  const recipientsState = useRecipients();
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null);
+
+  const recipients = useMemo(
+    () =>
+      recipientsState.kind === 'ready'
+        ? recipientsState.rows.map((row) => ({ id: row.id, firstName: row.firstName }))
+        : [],
+    [recipientsState],
+  );
+
+  return (
+    <PackPlanScreen
+      days={[]}
+      recipients={recipients}
+      selectedRecipientId={selectedRecipientId ?? recipients[0]?.id ?? null}
+      plan={[]}
+      onSelectRecipient={setSelectedRecipientId}
+      onOpenDay={() => {
+        // `E21-44`. The per-day item picker. Nothing can reach here yet: with no days there is
+        // no row to press, which is why this is empty rather than a navigate to a screen that
+        // does not exist.
+      }}
+      onConfirm={() => {
+        // `E21-45`. The confirm goes through an Edge Function with the plan's idempotency key —
+        // it is a write that spends a balance, so it cannot be a client-side call.
+      }}
+    />
+  );
+}
+
+const PackPlanStackScreen = withScreenFrame(ConnectedPackPlanScreen, STACK_SCREEN_EDGES, {
+  back: true,
+});
+
 const PacksStackScreen = withScreenFrame(ConnectedPacksScreen, STACK_SCREEN_EDGES, { back: true });
 const MyPacksStackScreen = withScreenFrame(ConnectedMyPacksScreen, STACK_SCREEN_EDGES, {
   back: true,
@@ -969,6 +1018,7 @@ export function RootNavigator() {
         */}
         <Stack.Screen name="Packs" component={PacksStackScreen} />
         <Stack.Screen name="MyPacks" component={MyPacksStackScreen} />
+        <Stack.Screen name="PackPlan" component={PackPlanStackScreen} />
         <Stack.Screen
           name="SignIn"
           component={SignInStackScreen}
