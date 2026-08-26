@@ -763,6 +763,18 @@ function ConnectedMyPacksScreen() {
 function ConnectedPackPlanScreen() {
   const recipientsState = useRecipients();
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+
+  /**
+   * `E21-47`. **One key per plan, generated when the screen mounts and kept across retries.**
+   *
+   * A key made at tap time would be new on every tap, so the second tap would look like a second
+   * plan and spend the meals again — which is the exact failure plan-level idempotency exists to
+   * prevent. `useRef` rather than state so it survives re-renders without causing one.
+   */
+  const idempotencyKey = useRef(
+    `plan-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+  );
 
   const recipients = useMemo(
     () =>
@@ -784,9 +796,19 @@ function ConnectedPackPlanScreen() {
         // no row to press, which is why this is empty rather than a navigate to a screen that
         // does not exist.
       }}
+      confirming={confirming}
       onConfirm={() => {
-        // `E21-45`. The confirm goes through an Edge Function with the plan's idempotency key —
-        // it is a write that spends a balance, so it cannot be a client-side call.
+        // The plan itself is `E21-44`; with no days there is nothing to send, so this is wired
+        // and currently unreachable rather than absent. `confirming` guards the double tap, and
+        // the server replays it correctly regardless.
+        setConfirming(true);
+        void api
+          .confirmMealPackPlan({ idempotencyKey: idempotencyKey.current, days: [] })
+          .catch(() => {
+            // Swallowed here on purpose: `E21-44` owns the failure copy, and inventing a message
+            // now would be a promise about behaviour that does not exist yet.
+          })
+          .finally(() => setConfirming(false));
       }}
     />
   );

@@ -62,20 +62,23 @@ const BLOCK_COPY: Record<NonNullable<packPlan.DayBlock>, string> = {
  * What this screen owes a parent is that the refusal never arrives *after* the work — which is
  * why the footer counts chosen days, not finished ones.
  *
- * ## No `confirming` prop yet, deliberately
+ * ## `confirming` is a belt to the server's braces
  *
- * A double-tap guard belongs here and will come with `E21-45`, which is the Edge Function call
- * that actually spends the balance. It is not here now because nothing could pass it, and
- * `orphans.test.ts` keeps a hard count of declared exemptions specifically so that "add it early
- * and exempt it" is an uncomfortable thing to do. It was right to be uncomfortable: a prop that
- * only tests use is the failure this repo keeps meeting, and the guard would have been carrying
- * the shape of a feature that does not exist.
+ * The double tap it guards is the exact input plan-level idempotency exists for, and the server
+ * would handle it correctly anyway — `confirm_meal_pack_plan` replays rather than spending twice.
+ * This is not therefore load-bearing for correctness; it is load-bearing for what the parent
+ * SEES, which is a button that stops responding rather than one that looks ignored.
+ *
+ * It was withdrawn for several hours rather than shipped ahead of its wire (`D8`), because
+ * `orphans.test.ts` keeps a hard count of declared exemptions and going up is meant to be
+ * uncomfortable. `E21-47` brought both back together.
  */
 export function PackPlanScreen({
   days = [],
   recipients = [],
   selectedRecipientId = null,
   plan = [],
+  confirming = false,
   onSelectRecipient,
   onOpenDay,
   onConfirm,
@@ -85,6 +88,8 @@ export function PackPlanScreen({
   recipients?: readonly PlannerRecipient[];
   selectedRecipientId?: string | null;
   plan?: readonly packPlan.PlannedDay[];
+  /** True while the confirm is in flight. Disables the button so a double tap cannot fire it twice. */
+  confirming?: boolean;
   onSelectRecipient?: ((recipientId: string) => void) | undefined;
   onOpenDay?: ((date: string) => void) | undefined;
   onConfirm?: (() => void) | undefined;
@@ -225,9 +230,9 @@ export function PackPlanScreen({
           {packPlan.planMessage(summary, mealsLeft)}
         </Text>
         <Button
-          label={packPlan.planActionLabel(summary)}
+          label={confirming ? 'Confirming…' : packPlan.planActionLabel(summary)}
           testID={`${testID}-confirm`}
-          disabled={!summary.canConfirm}
+          disabled={!summary.canConfirm || confirming}
           onPress={() => onConfirm?.()}
         />
       </View>

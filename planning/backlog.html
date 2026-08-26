@@ -6892,13 +6892,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A ledger test whose fixtures go through the money path.</strong> <code>meal_packs.test.sql</code> asserts the deferred-revenue <strong>change</strong> rather than the absolute invariant, because its earlier sections conjure packs into the table to test the balance and spend from them directly, with no sale or redemption posting — so the whole-ledger check correctly reports a mismatch. That is the check working; it also means the strongest assertion has no home yet. Needs a file whose packs are sold and redeemed only through the real functions</span>
       </li>
-      <li class="task" data-id="E21-47" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E21-47" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-47"></button>
         <code class="tid">E21-47</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>The Edge Function shell over <code>confirm_meal_pack_plan</code>.</strong> Thin, like <code>checkout</code>: prove the caller from their JWT, then one service-role RPC. The identity must never come from the body. Brings back <code>PackPlanScreen.confirming</code> and its double-tap test</span>
+        <span class="ttext"><strong>The Edge Function shell over <code>confirm_meal_pack_plan</code>.</strong> Thin, like <code>checkout</code>: prove the caller from their JWT, then one service-role RPC. A body field named <code>user_id</code> is ignored — there is no code path that reads one. The <code>Idempotency-Key</code> is <strong>required rather than generated</strong>, because a key the server invents differs per attempt and defeats the whole mechanism; and in the app it is made once per screen mount in a <code>useRef</code>, since one made at tap time would be new on every tap and the second tap would look like a second plan. <code>confirming</code> and its double-tap test came back with the wire (<code>D8</code>) — belt to the server&#39;s braces, since <code>confirm_meal_pack_plan</code> replays correctly anyway; what the prop protects is what the parent SEES. <code>cors.test.ts</code> caught the new function immediately, which is the coverage list doing its job</span>
       </li></ul>
       </details>
     </article>

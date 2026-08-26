@@ -128,12 +128,6 @@ describe('the footer counts against the balance at all times', () => {
   });
 });
 
-/**
- * A double-tap guard is NOT tested here, because there is no `confirming` prop yet — it arrives
- * with `E21-45`, the Edge Function call that spends the balance. Adding the prop early would have
- * meant a declared orphan, and `orphans.test.ts` keeps a hard count of those precisely so that is
- * an uncomfortable thing to do.
- */
 describe('confirm cannot be pressed into a refusal', () => {
   it('is disabled with nothing chosen', async () => {
     await render(<PackPlanScreen days={DAYS} recipients={KIDS} />);
@@ -179,6 +173,25 @@ describe('confirm cannot be pressed into a refusal', () => {
     );
     await userEvent.press(screen.getByTestId('screen-pack-plan-confirm'));
     expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('cannot be pressed again while confirming', async () => {
+    // The double tap this guards is exactly the input plan-level idempotency exists for, and the
+    // server replays it correctly either way. What this protects is what the parent SEES: a
+    // button that stops responding rather than one that looks ignored.
+    const onConfirm = jest.fn();
+    const plan = [{ date: '2026-08-28', recipientId: 'r-1', items: meal() }];
+    await render(
+      <PackPlanScreen days={DAYS} recipients={KIDS} plan={plan} confirming onConfirm={onConfirm} />,
+    );
+    await userEvent.press(screen.getByTestId('screen-pack-plan-confirm'));
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('says what it is doing while it does it', async () => {
+    const plan = [{ date: '2026-08-28', recipientId: 'r-1', items: meal() }];
+    await render(<PackPlanScreen days={DAYS} recipients={KIDS} plan={plan} confirming />);
+    expect(screen.getByText('Confirming…')).toBeTruthy();
   });
 
 });

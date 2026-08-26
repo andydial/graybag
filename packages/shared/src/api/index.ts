@@ -359,10 +359,13 @@ export {
 // "does this parent see packs at all" question in one call, so the app never assembles that rule
 // from parts and never gets the switched-off-school case wrong.
 export {
+  confirmMealPackPlan,
   fetchMealPackBalance,
   fetchMealPackOffers,
   fetchMealPackSurface,
   type MealPackBalance,
   type MealPackOffer,
   type MealPackSurface,
+  type ConfirmedPlan,
+  type PlanDayInput,
 } from './meal-packs.js';

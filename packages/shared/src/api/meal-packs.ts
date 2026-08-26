@@ -23,7 +23,7 @@
  * `hasBalance` is a debt owed to this parent. `canBuy` is a business decision. Conflating them is
  * the bug (`E21-31`).
  */
-import { ApiError, runRpc } from './client.js';
+import { ApiError, invokeFunction, runRpc } from './client.js';
 
 /** What a parent may see, at this school, right now. */
 export interface MealPackSurface {
@@ -179,4 +179,58 @@ export async function fetchMealPackBalance(userId: string): Promise<MealPackBala
     requiredCategoryId:
       typeof row.required_category_id === 'string' ? row.required_category_id : '',
   };
+}
+
+/** One day of a plan, as the server expects it. */
+export interface PlanDayInput {
+  serviceDate: string;
+  recipientId: string;
+  lines: readonly { dishId: string; quantity: number }[];
+}
+
+export interface ConfirmedPlan {
+  orderIds: string[];
+  redemptionIds: string[];
+  /** True when this was a retry the server recognised and did not act on again. */
+  replayed: boolean;
+}
+
+/**
+ * Confirm a plan and spend its meals. `E21-47`.
+ *
+ * **A write, so it goes through an Edge Function** (`A4`, non-negotiable #1) — it spends a balance
+ * and posts to the ledger, and the caller's identity is proved from their JWT before any of that
+ * happens.
+ *
+ * ## The key is the caller's to keep
+ *
+ * `idempotencyKey` must be the SAME string across a retry of the same plan, which is the whole
+ * mechanism: a parent at the school gate taps Confirm, the response is lost, they tap again, and
+ * four days must produce four orders rather than eight. A key generated inside this function
+ * would differ per attempt and defeat it, so it is a required argument rather than a default.
+ *
+ * `replayed: true` means the server recognised the retry and wrote nothing. That is a **success**,
+ * not a warning — the orders in the result are the ones the first attempt created.
+ */
+export async function confirmMealPackPlan(input: {
+  idempotencyKey: string;
+  days: readonly PlanDayInput[];
+}): Promise<ConfirmedPlan> {
+  if (input.idempotencyKey.trim() === '') {
+    throw new ApiError('An idempotency key is required to confirm a plan.');
+  }
+  const data = await invokeFunction<Record<string, unknown>>('confirm-pack-plan', {
+    idempotency_key: input.idempotencyKey,
+    days: input.days.map((day) => ({
+      service_date: day.serviceDate,
+      recipient_id: day.recipientId,
+      lines: day.lines.map((line) => ({ dish_id: line.dishId, quantity: line.quantity })),
+    })),
+  });
+
+  const orderIds = Array.isArray(data.order_ids) ? data.order_ids.map(String) : [];
+  const redemptionIds = Array.isArray(data.redemption_ids)
+    ? data.redemption_ids.map(String)
+    : [];
+  return { orderIds, redemptionIds, replayed: data.replayed === true };
 }
