@@ -3333,3 +3333,28 @@ sequence is now clean: reset, race, assert, and the pack table is back to zero.
 **The general rule:** a rollback-based test owes nothing to the ones after it; a committing test
 owes them a clean table. And when an invariant fails "before the test does anything", suspect the
 world the test inherited rather than the code it is testing.
+
+## A long-lived branch cost the same thing three times in one night — 2026-08-27
+
+`CLAUDE.md`'s build rhythm says no branch runs more than a day without merging. `e17-60` ran for
+one long session and `main` moved under it **three times**:
+
+1. The Reports merge made PR #120 `CONFLICTING`, which stopped CI running at all — and I spent two
+   wrong remedies on it before checking `mergeable`.
+2. A second merge landed while Maestro was running, so the merge I had just resolved was stale
+   before the 24-minute check finished.
+3. The third produced an **add/add conflict on `docs/decisions-27aug.md`**, because both threads
+   wrote a decisions file for the same night.
+
+None of these was anyone's mistake. They are what a long-lived branch does, and each cost more
+than the last: a misdiagnosis, then a wasted CI cycle, then a shared artefact that only avoided a
+citation collision because the two threads happened to pick different numbering schemes
+(`D1`–`D10` against `1.`–`4.`). Had both used `D`, `main` would now hold two `D3`s meaning
+different things, in the file whose whole purpose is that a decision can be cited later.
+
+**The specific lesson beyond the rhythm rule:** a dated, shared artefact — a decisions file, a
+state file, a task list — needs an ownership rule *before* two threads write it, not after. Task
+ids got one after `E17-29`. Decisions files have not, and `E17-62` is that.
+
+**And the cheap habit:** before waiting 24 minutes on a check, re-fetch and confirm the branch is
+still current. A green check on a stale merge base tells you about a tree nobody will ship.
