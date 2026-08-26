@@ -1,38 +1,31 @@
 ---
 /**
- * The dish workbench — `E10-40`.
+ * Named menus, and the schools serving them — `E10-49`.
  *
- * ## What this screen is for
+ * Andy asked for *"named, reusable menus"* as the third item of the back-office build, and the
+ * prototype states what they are for: *"A menu has a NAME and can be assigned to more than one
+ * school, which is what makes onboarding a new school a two-minute job — start from one that
+ * already works, then diverge only where it needs to."*
  *
- * Nobody opens the dish list to browse. They open it because **one dish is wrong** — a price, a
- * food type, an allergen — and they know its name. The job is: reach it, change one field, see
- * that it took, move on. Everything here serves that.
+ * ## What this screen is for, and what it is not
  *
- * The screen it replaces was a 17,000-pixel wall of 79 identical cards with no search, no filter
- * and no sort, where editing expanded a `<details>` inline and saving re-rendered the list and
- * threw you back to the top. Andy's words: *"I hunt for a dish, edit it, save, and get thrown back
- * to the top to start again."*
+ * It is the **overview**: what menus exist, who is serving each one, what is wrong with them.
+ * Editing a menu's items and prices already happens in the dish workbench at `/admin/dishes`,
+ * where the dish and its price sit together, and duplicating that here would give two screens
+ * that can disagree about a price.
  *
- * ## Four decisions
+ * The state it exists to surface is a menu **assigned to nobody**, which is invisible in both
+ * directions today: the workbench counts its dishes as placed and is satisfied, and the school
+ * screen reports a school as having no menu without mentioning that a finished one is sitting
+ * unused. Two screens each showing half a problem is how it survives a month.
  *
- * **A row is one line.** Photo, name, state, menus and prices. 79 dishes fit in a few screens
- * instead of forty, so scrolling is orientation rather than search.
+ * ## Read-only, deliberately
  *
- * **Editing happens in a drawer, not in the list.** Opening one cannot move anything behind it —
- * that is the whole reason it is not inline. Saving updates the one row in place and leaves the
- * drawer open with a confirmation; the list is never re-rendered and the scroll position is never
- * touched.
- *
- * **A dish appears exactly once**, with its menu memberships and per-menu prices on it. The old
- * page listed every dish again under each school it was served at, which is what made the lists
- * enormous and made it unclear whether you were editing one thing or several. Which school gets
- * which menu is a question about schools and lives on `/admin/schools`.
- *
- * **The filters are states, not taxonomies.** "No photo", "on no menu", "allergens not checked"
- * are the reasons a person is looking. "Bakery" almost never is. Each carries its count, so the
- * work left is visible without clicking anything.
- *
- * `?state=demo` renders fixtures so `check:a11y` audits the screen rather than the sign-in redirect.
+ * The prototype has **New menu** and **Duplicate a menu** buttons, and both are `alert('Prototype')`
+ * in it. Creating or copying a menu is a write, and every write goes through an Edge Function
+ * (`A4`, non-negotiable #1) — there is no menu-write function yet. A button that looks like it
+ * creates a menu and does not is worse than no button, so they are absent and `E10-50` carries
+ * the work.
  */
 import BackofficeNav from '../../components/BackofficeNav.astro';
 
@@ -48,694 +41,190 @@ import '../../styles/admin.css';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Dishes — GrayBag</title>
+    <title>Menus — GrayBag</title>
     <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
   </head>
 
-  <body class="wb">
-    <header class="wb__bar">
-      <div class="wb__bar-row">
-        <h1 class="wb__title">Dishes</h1>
-        <BackofficeNav current="/admin/menus" />
-      </div>
-
-      <div class="wb__bar-row wb__controls">
-        <div class="wb__search">
-          <label class="visually-hidden" for="q">Search dishes</label>
-          <input class="wb__input" id="q" type="search" autocomplete="off" spellcheck="false"
-                 placeholder="Search dishes, ingredients or menus…   (press /)" />
+  <body>
+    <div class="kitchen">
+      <header class="kitchen__bar">
+        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
+          <h1 class="kitchen__title">Menus</h1>
+          <button id="m-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
+          <BackofficeNav current="/admin/menus" />
         </div>
-        <label class="wb__field"><span>Menu</span><select class="wb__select" id="f-menu"></select></label>
-        <label class="wb__field"><span>Type</span><select class="wb__select" id="f-type"></select></label>
-        <label class="wb__field"><span>Allergens</span><select class="wb__select" id="f-allerg"></select></label>
-        <label class="wb__field"><span>Photo</span><select class="wb__select" id="f-photo"></select></label>
-        <label class="wb__field"><span>Sort</span><select class="wb__select" id="f-sort"></select></label>
-        <button class="kitchen__btn" id="f-clear" type="button" hidden>Clear</button>
-      </div>
-
-      <!--
-        The prototype's central idea, and the reason this screen exists: the problems are on the
-        toolbar with their counts, one click each. The selects below them can express more (a
-        specific menu, a specific allergen state) and stay; both are rendered from the same
-        `query`, so they cannot disagree with each other.
-      -->
-      <div class="wb__chips" id="chips" role="group" aria-label="Filter by what needs doing"></div>
-
-      <p class="wb__count" id="count" role="status" aria-live="polite"></p>
-      <div class="wb__bulk" id="bulk" hidden></div>
-    </header>
-
-    <main class="wb__main">
-      <ol class="wb__list" id="list"></ol>
-    </main>
-
-    <!--
-      One drawer, reused. A panel per dish would put 79 forms in the document and make every
-      keystroke in the search box re-render all of them.
-    -->
-    <div class="wb__scrim" id="scrim" hidden></div>
-    <aside class="wb__drawer" id="drawer" hidden aria-labelledby="drawer-title" role="dialog" aria-modal="true">
-      <header class="wb__drawer-head">
-        <h2 class="wb__drawer-title" id="drawer-title">Edit</h2>
-        <button class="kitchen__btn" id="drawer-close" type="button">Close</button>
       </header>
-      <div class="wb__drawer-body" id="drawer-body"></div>
-    </aside>
+
+      <main class="kitchen__wrap admin__wrap">
+        <div id="m-status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+        <p class="admin__intro">
+          A menu is a <b>named set of dishes with prices</b>, served by one or more schools over a
+          date window. Onboarding a school means pointing it at a menu that already works, so the
+          same menu serving three schools is the normal case rather than a mistake.
+          Prices and dishes are edited on <a href="/admin/dishes">Dishes</a>, where the price sits
+          with the dish it belongs to.
+        </p>
+
+        <p class="rctl__line" id="m-line"></p>
+
+        <div id="m-body"></div>
+      </main>
+    </div>
 
     <script>
       import { mountNav } from '../../lib/backoffice/nav-mount.js';
       import { api, money } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { serviceDateToday } from '../../lib/kitchen/view.js';
       import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
-      import { MAX_EDGE, prepareDishImage } from '../../lib/admin/dish-image.js';
-      import { EMPTY_QUERY, buildRows, facets, queryDishes } from '../../lib/admin/dish-index.js';
-      import type { DishQuery, DishRow } from '../../lib/admin/dish-index.js';
+      import { buildMenuPlans, unassignedCount } from '../../lib/admin/menu-plans.js';
+      import type { MenuPlan, MenuSchool } from '../../lib/admin/menu-plans.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
-        q: $<HTMLInputElement>('q'), list: $('list'), count: $('count'), bulk: $('bulk'),
-        drawer: $('drawer'), scrim: $('scrim'), body: $('drawer-body'), title: $('drawer-title'),
-        clear: $<HTMLButtonElement>('f-clear'), chips: $('chips'),
-        menu: $<HTMLSelectElement>('f-menu'), type: $<HTMLSelectElement>('f-type'),
-        allerg: $<HTMLSelectElement>('f-allerg'), photo: $<HTMLSelectElement>('f-photo'),
-        sort: $<HTMLSelectElement>('f-sort'),
+        body: $('m-body'), status: $('m-status'), line: $('m-line'),
+        reload: $<HTMLButtonElement>('m-reload'),
       };
-
       const esc = (s: string) =>
         String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
       const rupees = (p: number) => money.formatPaise(p);
       const demo = new URLSearchParams(location.search).has('state');
-      const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      const PILL: Record<string, string> = { veg: 'Veg', egg: 'Egg', non_veg: 'Non-veg' };
 
-      let dishes: api.AdminDish[] = [];
-      let menus: api.AdminMenu[] = [];
-      let allergenCodes: string[] = [];
-      let assetPaths = new Map<string, string>();
-      let rows: DishRow[] = [];
-      let shown: DishRow[] = [];
-      let openDishId: string | null = null;
+      let plans: MenuPlan[] = [];
       let loading = true;
       let error: string | null = null;
-      const picked = new Set<string>();
-
-      /** The query lives in the URL, so a filtered view survives a reload and can be sent to somebody. */
-      function readQuery(): DishQuery {
-        const p = new URLSearchParams(location.search);
-        return {
-          text: p.get('q') ?? '',
-          menu: p.get('menu') ?? 'any',
-          foodType: (p.get('type') ?? 'any') as DishQuery['foodType'],
-          allergens: (p.get('allerg') ?? 'any') as DishQuery['allergens'],
-          photo: (p.get('photo') ?? 'any') as DishQuery['photo'],
-          sort: (p.get('sort') ?? 'name') as DishQuery['sort'],
-          attention: p.get('attention') === '1',
-        };
-      }
-      let query = readQuery();
-
-      function writeQuery() {
-        const url = new URL(location.href);
-        const set = (k: string, v: string, dflt: string) =>
-          v === dflt ? url.searchParams.delete(k) : url.searchParams.set(k, v);
-        set('q', query.text, '');
-        set('menu', query.menu, 'any');
-        set('type', query.foodType, 'any');
-        set('allerg', query.allergens, 'any');
-        set('photo', query.photo, 'any');
-        set('sort', query.sort, 'name');
-        set('attention', query.attention ? '1' : '', '');
-        history.replaceState(null, '', url);
-      }
-
-      const imageUrl = (d: api.AdminDish) => {
-        const path = d.imageAssetId ? assetPaths.get(d.imageAssetId) : null;
-        return path ? api.storagePublicUrl(api.DISH_IMAGE_BUCKET, path) : null;
-      };
 
       async function load() {
         loading = true; error = null; render();
         try {
+          const today = serviceDateToday(new Date());
           if (demo) {
-            dishes = MENUS_FIXTURE.dishes; menus = MENUS_FIXTURE.menus;
-            allergenCodes = ['milk', 'egg', 'gluten', 'tree_nut', 'peanut', 'soy', 'sesame'];
-            assetPaths = new Map();
+            plans = buildMenuPlans(
+              MENUS_FIXTURE.menus, MENUS_FIXTURE.assignments, MENUS_FIXTURE.dishes, today,
+            );
           } else {
             configureBackofficeApi();
-            const [d, m, a, assets] = await Promise.all([
-              api.fetchAdminDishes(), api.fetchAdminMenus(), api.fetchAllergens(), api.fetchDishImageAssets(),
+            const [menus, assignments, dishes] = await Promise.all([
+              api.fetchAdminMenus(), api.fetchMenuAssignments(), api.fetchAdminDishes(),
             ]);
-            dishes = d; menus = m; assetPaths = assets;
-            allergenCodes = a.map((x) => x.code).sort();
+            plans = buildMenuPlans(menus, assignments, dishes, today);
           }
-          rows = buildRows(dishes, menus);
         } catch (cause) {
-          error = cause instanceof Error ? cause.message : 'The catalogue did not load.';
-          dishes = []; menus = []; rows = [];
+          error = cause instanceof Error ? cause.message : 'The menus did not load.';
+          plans = [];
         } finally {
-          loading = false; fillControls(); render();
+          loading = false; render();
         }
       }
 
-      /** Options are built from the data, with counts, so the numbers show before anything is clicked. */
-      function fillControls() {
-        const f = facets(rows);
-        const opts = (select: HTMLSelectElement, list: [string, string][], current: string) => {
-          select.innerHTML = list
-            .map(([v, label]) => `<option value="${esc(v)}"${v === current ? ' selected' : ''}>${esc(label)}</option>`)
-            .join('');
-        };
-        opts(el.menu, [
-          ['any', `Any menu (${f.total})`],
-          ...menus.map((m) => [m.id, `${m.name} (${new Set(m.items.map((i) => i.dishId)).size})`] as [string, string]),
-          ['none', `On no menu (${f.noMenu})`],
-        ], query.menu);
-        opts(el.type, [
-          ['any', 'Any type'], ['veg', 'Veg'], ['egg', 'Egg'], ['non_veg', 'Non-veg'],
-          ['unset', `Not set (${f.noFoodType})`],
-        ], query.foodType);
-        opts(el.allerg, [
-          ['any', 'Any'], ['tagged', 'Tagged'], ['declared_none', 'Declared none'],
-          ['unchecked', `Not checked (${f.unchecked})`],
-        ], query.allergens);
-        opts(el.photo, [['any', 'Any'], ['has', 'Has one'], ['missing', `Missing (${f.noPhoto})`]], query.photo);
-        opts(el.sort, [
-          ['name', 'Name'], ['category', 'Category'],
-          ['price-asc', 'Price, low first'], ['price-desc', 'Price, high first'],
-          ['state', `Needs attention (${f.needsAttention})`],
-        ], query.sort);
-        el.q.value = query.text;
-      }
-
-      // ------------------------------------------------------------------------------- the row
-
-      function rowHtml(r: DishRow): string {
-        const d = r.dish;
-        const url = imageUrl(d);
-        const live = r.placements.filter((p) => p.isActive);
-        const parked = r.placements.length - live.length;
-
+      /** A school chip. The state is in the word, never only in the colour (WCAG 1.4.1). */
+      function schoolChip(s: MenuSchool): string {
+        const when =
+          s.state === 'scheduled' ? `from ${esc(s.validFrom)}`
+          : s.state === 'ended' ? `ended ${esc(s.validTo ?? '')}`
+          : s.state === 'revoked' ? 'revoked'
+          : 'serving now';
         return (
-          `<li class="drow${r.problems.length ? ' drow--attention' : ''}" data-dish="${esc(d.id)}">` +
-            `<label class="drow__pick"><input type="checkbox" data-pick="${esc(d.id)}"${picked.has(d.id) ? ' checked' : ''} ` +
-              `aria-label="Select ${esc(d.name)}" /></label>` +
-            (url
-              ? `<img class="drow__img" src="${esc(url)}" alt="" loading="lazy" width="48" height="48" />`
-              : `<span class="drow__img drow__img--none" aria-hidden="true"></span>`) +
-            `<button class="drow__main" type="button" data-open="${esc(d.id)}">` +
-              `<span class="drow__name">${esc(d.name)}</span>` +
-              `<span class="drow__meta">` +
-                `<span class="drow__cat">${esc(d.categoryName)}</span>` +
-                (d.foodType
-                  ? `<span class="pill pill--${esc(d.foodType)}">${esc(PILL[d.foodType] ?? d.foodType)}</span>`
-                  : `<span class="pill pill--warn">No type</span>`) +
-                (d.allergens.length
-                  ? `<span class="pill">${d.allergens.map((a) => esc(a.replace('_', ' '))).join(' · ')}</span>`
-                  : d.allergensDeclaredNone
-                    ? `<span class="pill pill--ok">No allergens</span>`
-                    : `<span class="pill pill--warn">Not checked</span>`) +
-                (d.isActive ? '' : `<span class="pill pill--off">Retired</span>`) +
-              `</span>` +
-            `</button>` +
-            `<span class="drow__menus">` +
-              (live.length === 0
-                ? `<span class="pill pill--warn">On no menu</span>`
-                : live.map((p) => `<span class="menupill"><b>${esc(rupees(p.pricePaise))}</b> ${esc(p.menuName)}</span>`).join('')) +
-              (parked > 0 ? `<span class="pill pill--off">${parked} parked</span>` : '') +
-            `</span>` +
-          `</li>`
+          `<span class="mchip mchip--${s.state}">` +
+            `<b>${esc(s.schoolCode.toUpperCase())}</b> ${esc(s.schoolName)}` +
+            `<span class="mchip__when">${when}</span>` +
+          `</span>`
         );
       }
 
-      /**
-       * The problem chips, with their counts.
-       *
-       * Each is a **toggle** onto the same `query` the selects write, so clicking one and then
-       * changing a dropdown cannot produce two controls that disagree — there is one state and
-       * both are drawn from it.
-       *
-       * Counts are of the whole catalogue rather than of the current view. A chip reading
-       * "No photo 79" that fell to "No photo 3" as soon as you filtered by category would be
-       * measuring the filter rather than the problem, and the question these answer is always
-       * "how much is left to do", not "how much is left to do here".
-       */
-      function renderChips(): void {
-        const f = facets(rows);
-        const chip = (
-          label: string, n: number, on: boolean, action: string, warn: boolean,
-        ) =>
-          // `aria-pressed` rather than a checkbox: these are toggles on a view, not data entry,
-          // and a screen reader should say "pressed" rather than "checked".
-          `<button class="wbchip${on ? ' wbchip--on' : ''}${warn && n > 0 ? ' wbchip--warn' : ''}" ` +
-          `type="button" data-chip="${action}" aria-pressed="${on ? 'true' : 'false'}">` +
-          `${esc(label)}${n >= 0 ? ` <b>${n}</b>` : ''}</button>`;
+      function card(p: MenuPlan): string {
+        const priced = p.priceRange
+          ? p.priceRange.lowPaise === p.priceRange.highPaise
+            ? rupees(p.priceRange.lowPaise)
+            : `${rupees(p.priceRange.lowPaise)} – ${rupees(p.priceRange.highPaise)}`
+          : 'nothing on sale';
+        const parked = p.menu.items.length - p.liveItems;
 
-        const anyFilter =
-          query.attention || query.foodType !== 'any' || query.allergens !== 'any' ||
-          query.photo !== 'any' || query.menu !== 'any';
+        return (
+          `<section class="mcard${p.liveCount === 0 ? ' mcard--idle' : ''}">` +
+            `<div class="mcard__head">` +
+              `<h2 class="mcard__name">${esc(p.menu.name)}</h2>` +
+              (p.menu.status !== 'active'
+                ? `<span class="mchip mchip--draft">${esc(p.menu.status)}</span>` : '') +
+            `</div>` +
 
-        el.chips.innerHTML =
-          chip('All', f.total, !anyFilter, 'all', false) +
-          chip('Needs attention', f.needsAttention, query.attention, 'attention', true) +
-          chip('No food type', f.noFoodType, query.foodType === 'unset', 'type', true) +
-          chip('Allergens not checked', f.unchecked, query.allergens === 'unchecked', 'allerg', true) +
-          chip('On no menu', f.noMenu, query.menu === 'none', 'menu', true) +
-          chip('No photo', f.noPhoto, query.photo === 'missing', 'photo', true);
-      }
+            `<p class="mcard__meta">` +
+              `<b>${p.liveItems}</b> dish${p.liveItems === 1 ? '' : 'es'} on sale · ${esc(priced)}` +
+              (parked > 0 ? ` · ${parked} parked` : '') +
+            `</p>` +
 
-      /** One chip's effect on the query. Toggling an active chip clears it rather than re-applying. */
-      function applyChip(action: string): void {
-        const off = () => {
-          query.attention = false; query.foodType = 'any';
-          query.allergens = 'any'; query.photo = 'any'; query.menu = 'any';
-        };
-        if (action === 'all') { off(); }
-        else if (action === 'attention') { const was = query.attention; off(); query.attention = !was; }
-        else if (action === 'type') { const was = query.foodType === 'unset'; off(); query.foodType = was ? 'any' : 'unset'; }
-        else if (action === 'allerg') { const was = query.allergens === 'unchecked'; off(); query.allergens = was ? 'any' : 'unchecked'; }
-        else if (action === 'menu') { const was = query.menu === 'none'; off(); query.menu = was ? 'any' : 'none'; }
-        else if (action === 'photo') { const was = query.photo === 'missing'; off(); query.photo = was ? 'any' : 'missing'; }
-        writeQuery();
-        fillControls();
-        render();
+            (p.schools.length > 0
+              ? `<div class="mcard__schools">${p.schools.map(schoolChip).join('')}</div>`
+              : '') +
+
+            /*
+             * The finding, said plainly. A menu nobody serves is not an error — it is often a
+             * term being prepared — so it is stated rather than alarmed about, and it says what
+             * would change it.
+             */
+            (p.liveCount === 0
+              ? `<p class="mcard__note">` +
+                  `<b>No school is serving this today.</b> ` +
+                  (p.schools.some((s) => s.state === 'scheduled')
+                    ? `It is scheduled to start — the date is on the chip above.`
+                    : p.schools.length > 0
+                    ? `Every assignment it has has ended or been revoked.`
+                    : `It has never been assigned to a school. Assign it on ` +
+                      `<a href="/admin/schools">Schools</a>.`) +
+                `</p>`
+              : '') +
+
+            (p.untypedDishes.length > 0
+              ? `<p class="mcard__note mcard__note--warn">` +
+                  `<b>${p.untypedDishes.length} dish${p.untypedDishes.length === 1 ? '' : 'es'} ` +
+                  `with no food type</b> — ${esc(p.untypedDishes.slice(0, 4).join(', '))}` +
+                  `${p.untypedDishes.length > 4 ? `, and ${p.untypedDishes.length - 4} more` : ''}. ` +
+                  `A parent cannot tell whether these are vegetarian. ` +
+                  `<a href="/admin/dishes?type=unset">Fix on Dishes</a>.` +
+                `</p>`
+              : '') +
+          `</section>`
+        );
       }
 
       function render() {
         if (loading) {
-          el.list.innerHTML = Array(8).fill('<li class="kitchen__skeleton"></li>').join('');
-          el.count.textContent = 'Loading…';
+          el.line.textContent = '';
+          el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
           return;
         }
         if (error) {
-          el.list.innerHTML =
-            `<li class="kitchen__state"><h2>We can't show the catalogue</h2><p>${esc(error)}</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></li>`;
-          el.count.textContent = 'Could not load.';
+          el.line.textContent = '';
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>We can't show the menus</h2><p>${esc(error)}</p>` +
+            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+          return;
+        }
+        if (plans.length === 0) {
+          // Both possibilities, because they are indistinguishable from here (`[AUTH-01]`).
+          el.line.textContent = '';
+          el.body.innerHTML =
+            `<div class="kitchen__state"><h2>No menus</h2>` +
+            `<p>Either none has been created, or this account cannot read them — that needs ` +
+            `<b>menu.edit</b>.</p></div>`;
           return;
         }
 
-        shown = queryDishes(rows, query);
-        const filtered = shown.length !== rows.length;
-        const attentionShown = shown.filter((r) => r.problems.length > 0).length;
+        const idle = unassignedCount(plans);
+        const line =
+          `${plans.length} menu${plans.length === 1 ? '' : 's'}` +
+          (idle > 0 ? ` · ${idle} serving no school today` : ' · all in use');
+        el.line.textContent = line;
+        el.status.textContent = line;
 
-        /*
-         * The count line says three things, in the prototype's order: how many of how many, what
-         * narrowed it, and how many of *those* still need work. The last is the one that makes
-         * the line worth reading — "62 dishes" is a fact you already knew.
-         */
-        el.count.textContent =
-          (filtered ? `${shown.length} of ${rows.length} dishes` : `${rows.length} dishes`) +
-          (query.text ? ` matching “${query.text}”` : '') +
-          (attentionShown > 0 ? ` · ${attentionShown} need attention` : '');
-        el.clear.hidden = !filtered && query.text === '';
-        renderChips();
-
-        el.list.innerHTML = shown.length === 0
-          ? `<li class="kitchen__state"><h2>Nothing matches</h2>` +
-            `<p>No dish matches that search and those filters.</p>` +
-            `<button class="kitchen__btn" data-clear>Clear them</button></li>`
-          : shown.map(rowHtml).join('');
-
-        renderBulk();
+        el.body.innerHTML = plans.map(card).join('');
       }
 
-      /** Re-draw one row only. This is what lets Save leave the page exactly where it was. */
-      function repaintRow(dishId: string) {
-        rows = buildRows(dishes, menus);
-        const r = rows.find((x) => x.dish.id === dishId);
-        const node = el.list.querySelector(`[data-dish="${CSS.escape(dishId)}"]`);
-        if (!r || !node) { render(); return; }
-        node.outerHTML = rowHtml(r);
-      }
-
-      // ------------------------------------------------------------------------------ bulk bar
-
-      function renderBulk() {
-        if (picked.size === 0) { el.bulk.hidden = true; el.bulk.innerHTML = ''; return; }
-        el.bulk.hidden = false;
-        el.bulk.innerHTML =
-          `<span class="wb__bulk-count"><b>${picked.size}</b> selected</span>` +
-          `<span class="wb__bulk-actions">Set food type: ` +
-            ['veg', 'egg', 'non_veg'].map((v) =>
-              `<button class="kitchen__btn kitchen__btn--primary" data-apply="${v}">${esc(PILL[v]!)}</button>`).join('') +
-          `</span>` +
-          `<button class="kitchen__btn" data-selall>Select all ${shown.length} shown</button>` +
-          `<button class="kitchen__btn" data-selnone>Clear selection</button>`;
-      }
-
-      async function applyFoodType(value: string) {
-        if (picked.size === 0) return;
-        if (demo) { el.count.textContent = 'Demo view — nothing is written.'; return; }
-        const assignments = [...picked].map((id) => ({ id, foodType: value }));
-        try {
-          await api.setFoodTypes(assignments);
-          for (const a of assignments) {
-            const d = dishes.find((x) => x.id === a.id);
-            if (d) d.foodType = a.foodType;
-          }
-          picked.clear();
-          rows = buildRows(dishes, menus);
-          fillControls();
-          render();
-        } catch (cause) {
-          error = cause instanceof Error ? cause.message : 'Nothing was changed.';
-          render();
-        }
-      }
-
-      // -------------------------------------------------------------------------------- drawer
-
-      function openDrawer(dishId: string) {
-        const r = rows.find((x) => x.dish.id === dishId);
-        if (!r) return;
-        openDishId = dishId;
-        el.title.textContent = r.dish.name;
-        el.body.innerHTML = drawerHtml(r);
-        el.drawer.hidden = false;
-        el.scrim.hidden = false;
-        (el.body.querySelector('input,select,textarea') as HTMLElement | null)?.focus();
-      }
-
-      function closeDrawer() {
-        const returning = openDishId;
-        openDishId = null;
-        el.drawer.hidden = true;
-        el.scrim.hidden = true;
-        // Focus goes back to the row that opened it, so a keyboard user is not dropped at the top.
-        if (returning) {
-          (el.list.querySelector(`[data-open="${CSS.escape(returning)}"]`) as HTMLElement | null)?.focus();
-        }
-      }
-
-      function drawerHtml(r: DishRow): string {
-        const d = r.dish;
-        const on = new Set(d.allergens);
-        const url = imageUrl(d);
-        const f = (k: string) => `${k}-${esc(d.id)}`;
-
-        return (
-          `<p class="wb__saved" data-saved hidden role="status"></p>` +
-
-          `<form data-dish="${esc(d.id)}" class="wb__form">` +
-            `<div class="admin__field">` +
-              `<label class="admin__label" for="${f('nm')}">Name</label>` +
-              `<input class="admin__input" id="${f('nm')}" name="name" type="text" required maxlength="200" value="${esc(d.name)}" />` +
-            `</div>` +
-
-            `<div class="admin__field">` +
-              `<label class="admin__label" for="${f('ft')}">Food type</label>` +
-              `<select class="admin__select" id="${f('ft')}" name="foodType">` +
-                ([['', 'Not set'], ['veg', 'Veg'], ['non_veg', 'Non-veg'], ['egg', 'Egg']] as [string, string][])
-                  .map(([v, l]) => `<option value="${esc(v)}"${(d.foodType ?? '') === v ? ' selected' : ''}>${esc(l)}</option>`).join('') +
-              `</select>` +
-              `<p class="admin__hint">What a family filters on. Separate from the egg <b>allergen</b> below — a cake made with egg is veg and contains egg.</p>` +
-            `</div>` +
-
-            `<fieldset class="admin__days">` +
-              `<legend class="admin__label">Allergens</legend>` +
-              allergenCodes.map((a) =>
-                `<label class="admin__day"><input type="checkbox" name="allergens" value="${esc(a)}"${on.has(a) ? ' checked' : ''} /> ${esc(a.replace('_', ' '))}</label>`).join('') +
-            `</fieldset>` +
-            `<label class="admin__day"><input type="checkbox" name="declaredNone"${d.allergensDeclaredNone ? ' checked' : ''} /> Checked — contains none</label>` +
-            `<p class="admin__hint">Ticking replaces the whole set. <b>Empty and unchecked means nobody has looked</b>, which is not the same as none.</p>` +
-
-            `<div class="admin__field">` +
-              `<label class="admin__label" for="${f('ds')}">Description</label>` +
-              `<textarea class="admin__input" id="${f('ds')}" name="description" rows="2">${esc(d.description ?? '')}</textarea>` +
-            `</div>` +
-
-            `<details class="setting__edit"><summary>Nutrition and portion</summary>` +
-              `<div class="admin__field"><label class="admin__label" for="${f('ck')}">Calories (kcal)</label>` +
-                `<input class="admin__input" id="${f('ck')}" name="caloriesKcal" type="number" min="0" max="10000" value="${d.caloriesKcal ?? ''}" /></div>` +
-              `<div class="admin__field"><label class="admin__label" for="${f('ct')}">Calories as text</label>` +
-                `<input class="admin__input" id="${f('ct')}" name="caloriesText" type="text" value="${esc(d.caloriesText ?? '')}" />` +
-                `<p class="admin__hint">For a range — <b>330-370</b>.</p></div>` +
-              `<div class="admin__field"><label class="admin__label" for="${f('pt')}">Portion</label>` +
-                `<input class="admin__input" id="${f('pt')}" name="portionText" type="text" value="${esc(d.portionText ?? '')}" /></div>` +
-              `<div class="admin__field"><label class="admin__label" for="${f('it')}">Ingredients</label>` +
-                `<textarea class="admin__input" id="${f('it')}" name="ingredientsText" rows="2">${esc(d.ingredientsText ?? '')}</textarea></div>` +
-              `<p class="admin__hint">These four are all the schema holds — there are no protein, fat or carbohydrate columns.</p>` +
-            `</details>` +
-
-            `<label class="admin__day"><input type="checkbox" name="isActive"${d.isActive ? ' checked' : ''} /> On the catalogue</label>` +
-
-            `<div class="setting__actions"><button class="kitchen__btn kitchen__btn--primary" type="submit">Save dish</button></div>` +
-          `</form>` +
-
-          `<div class="admin__field">` +
-            `<p class="admin__label">Photo</p>` +
-            (url ? `<img class="dishthumb" src="${esc(url)}" alt="" width="160" />` : `<p class="admin__hint">No photo.</p>`) +
-            `<input class="admin__input" type="file" accept="image/jpeg,image/png,image/webp" data-image="${esc(d.id)}" />` +
-            `<p class="admin__hint">Resized to ${MAX_EDGE}px here before uploading.</p>` +
-            (d.imageAssetId ? `<div class="setting__actions"><button class="kitchen__btn" type="button" data-image-remove="${esc(d.id)}">Remove photo</button></div>` : '') +
-          `</div>` +
-
-          `<h3 class="wb__drawer-sub">On ${r.placements.length} menu${r.placements.length === 1 ? '' : 's'}</h3>` +
-          (r.placements.length === 0
-            ? `<p class="admin__hint"><b>This dish is on no menu</b>, so it has no price and nobody can order it. Adding it to one is <code>tools/bulk-import</code>.</p>`
-            : r.placements.map((p) =>
-              `<form class="placement" data-menu="${esc(p.menuId)}" data-dish-id="${esc(d.id)}">` +
-                `<p class="admin__label">${esc(p.menuName)}</p>` +
-                `<div class="admin__field">` +
-                  `<label class="admin__label" for="p-${esc(p.menuId)}-${esc(d.id)}">Price in paise</label>` +
-                  `<input class="admin__input" id="p-${esc(p.menuId)}-${esc(d.id)}" name="pricePaise" type="number" min="0" step="1" value="${p.pricePaise}" required />` +
-                  `<p class="admin__hint">Whole paise. <b>₹45.00 is 4500</b>. Currently ${esc(rupees(p.pricePaise))}.</p>` +
-                `</div>` +
-                `<fieldset class="admin__days"><legend class="admin__label">Available on</legend>` +
-                  WEEKDAYS.map((w, i) =>
-                    `<label class="admin__day"><input type="checkbox" name="availableDays" value="${i + 1}"${p.availableDays.includes(i + 1) ? ' checked' : ''} /> ${w}</label>`).join('') +
-                `</fieldset>` +
-                `<label class="admin__day"><input type="checkbox" name="isActive"${p.isActive ? ' checked' : ''} /> On this menu</label>` +
-                `<div class="setting__actions"><button class="kitchen__btn" type="submit">Save price and days</button></div>` +
-              `</form>`).join('')) +
-
-          `<p class="kitchen__oneway kitchen__oneway--block">Editing a dish needs <b>dish.edit</b>; a price needs <b>menu.edit</b>. A price change applies from now on — orders already placed keep what they were charged.</p>`
-        );
-      }
-
-      function saidSaved(message: string) {
-        const box = el.body.querySelector('[data-saved]') as HTMLElement | null;
-        if (!box) return;
-        box.hidden = false;
-        box.textContent = message;
-      }
-
-      function showFormError(form: HTMLFormElement, message: string) {
-        let box = form.querySelector('[data-err]') as HTMLElement | null;
-        if (!box) {
-          box = document.createElement('p');
-          box.setAttribute('data-err', ''); box.setAttribute('role', 'alert');
-          box.className = 'admin__error';
-          form.append(box);
-        }
-        box.textContent = message;
-      }
-
-      /**
-       * Save, and **do not move**.
-       *
-       * The row is repainted in place and the drawer stays open with a confirmation. Nothing here
-       * calls `render()`, nothing re-sorts and nothing touches scroll. That is the requirement, and
-       * it is why the local objects are updated rather than the catalogue being re-fetched.
-       */
-      async function save(form: HTMLFormElement) {
-        if (demo) { showFormError(form, 'Demo view — nothing is written.'); return; }
-        const data = new FormData(form);
-        const text = (k: string) => { const v = String(data.get(k) ?? '').trim(); return v === '' ? null : v; };
-
-        try {
-          if (form.dataset.dish) {
-            const name = String(data.get('name') ?? '').trim();
-            if (name === '') { showFormError(form, 'A dish needs a name.'); return; }
-            const foodType = String(data.get('foodType') ?? '');
-            const kcal = String(data.get('caloriesKcal') ?? '').trim();
-            const allergens = data.getAll('allergens').map(String);
-            const declaredNone = data.get('declaredNone') !== null && allergens.length === 0;
-
-            const patch = {
-              id: form.dataset.dish, name,
-              foodType: foodType === '' ? null : foodType,
-              description: text('description'),
-              ingredientsText: text('ingredientsText'),
-              caloriesText: text('caloriesText'),
-              portionText: text('portionText'),
-              caloriesKcal: kcal === '' ? null : Number(kcal),
-              allergens,
-              allergensDeclaredNone: declaredNone,
-              isActive: data.get('isActive') !== null,
-            };
-            const d = dishes.find((x) => x.id === form.dataset.dish)!;
-
-            /**
-             * Send only what actually differs, and send nothing at all when nothing does.
-             *
-             * Two reasons. The server reports every key it was handed as "changed", so a save that
-             * posts the whole form says "Saved food_type, name, description…" after a no-op — a
-             * confirmation that is wrong is worse than none. And `0001` §14 bumps
-             * `school_menu_version` on any `dish` update, which **expires every client's cached
-             * menu**; doing that because somebody opened a drawer and pressed Save is a real cost
-             * paid by people on bad connections.
-             */
-            const same = (a: unknown, b: unknown) =>
-              Array.isArray(a) && Array.isArray(b)
-                ? a.length === b.length && [...a].sort().join() === [...b].sort().join()
-                : a === b;
-            const changedKeys = (Object.keys(patch) as (keyof typeof patch)[])
-              .filter((k) => k !== 'id' && !same(patch[k], (d as unknown as Record<string, unknown>)[k]));
-
-            if (changedKeys.length === 0) {
-              saidSaved('Nothing to save — those are already the values.');
-              return;
-            }
-
-            const result = await api.updateCatalogue({
-              dish: Object.fromEntries([['id', patch.id], ...changedKeys.map((k) => [k, patch[k]])]) as typeof patch,
-            });
-
-            Object.assign(d, patch);
-            el.title.textContent = name;
-            repaintRow(d.id);
-            saidSaved(result.changed.length
-              ? `Saved ${result.changed.join(', ')}.`
-              : 'Nothing changed — those were already the values.');
-          } else {
-            const days = data.getAll('availableDays').map(Number).sort((a, b) => a - b);
-            if (days.length === 0) { showFormError(form, 'Pick at least one day, or untick "On this menu".'); return; }
-            const menuId = form.dataset.menu!, dishId = form.dataset.dishId!;
-            const pricePaise = Number(data.get('pricePaise'));
-            const isActive = data.get('isActive') !== null;
-            const before = menus.find((m) => m.id === menuId)?.items.find((i) => i.dishId === dishId);
-            if (before && before.pricePaise === pricePaise && before.isActive === isActive
-                && before.availableDays.join() === days.join()) {
-              saidSaved('Nothing to save — those are already the values.');
-              return;
-            }
-            await api.updateCatalogue({ menuItem: { menuId, dishId, pricePaise, availableDays: days, isActive } });
-
-            const item = menus.find((m) => m.id === menuId)?.items.find((i) => i.dishId === dishId);
-            if (item) Object.assign(item, { pricePaise, availableDays: days, isActive });
-            repaintRow(dishId);
-            saidSaved('Saved the price and days.');
-            return;
-          }
-        } catch (cause) {
-          showFormError(form, cause instanceof Error ? cause.message : 'The change was not saved.');
-        }
-      }
-
-      // -------------------------------------------------------------------------------- images
-
-      async function uploadImage(dishId: string, input: HTMLInputElement) {
-        const file = input.files?.[0];
-        if (!file) return;
-        if (demo) { saidSaved('Demo view — nothing is uploaded.'); return; }
-        try {
-          saidSaved('Resizing…');
-          const prepared = await prepareDishImage(file);
-          saidSaved(`Uploading ${Math.round(prepared.bytes / 1024)} kB…`);
-          const res = await api.uploadDishImage({
-            dishId, filename: file.name, contentType: prepared.contentType,
-            dataBase64: prepared.dataBase64, width: prepared.width, height: prepared.height,
-          });
-          const d = dishes.find((x) => x.id === dishId)!;
-          d.imageAssetId = res.assetId;
-          assetPaths.set(res.assetId, res.path);
-          repaintRow(dishId);
-          openDrawer(dishId);
-          saidSaved('Photo uploaded.');
-        } catch (cause) {
-          saidSaved(cause instanceof Error ? cause.message : 'The photo was not uploaded.');
-        }
-      }
-
-      async function removeImage(dishId: string) {
-        if (demo) { saidSaved('Demo view — nothing is written.'); return; }
-        if (!confirm('Remove this photo? The dish shows no image until another is uploaded.')) return;
-        try {
-          await api.removeDishImage(dishId);
-          const d = dishes.find((x) => x.id === dishId)!;
-          d.imageAssetId = null;
-          repaintRow(dishId);
-          openDrawer(dishId);
-          saidSaved('Photo removed.');
-        } catch (cause) {
-          saidSaved(cause instanceof Error ? cause.message : 'The photo was not removed.');
-        }
-      }
-
-      // -------------------------------------------------------------------------------- events
-
-      const onQueryChange = () => { writeQuery(); render(); };
-
-      el.q.addEventListener('input', () => { query = { ...query, text: el.q.value }; onQueryChange(); });
-      el.menu.addEventListener('change', () => { query = { ...query, menu: el.menu.value }; onQueryChange(); });
-      el.type.addEventListener('change', () => { query = { ...query, foodType: el.type.value as DishQuery['foodType'] }; onQueryChange(); });
-      el.allerg.addEventListener('change', () => { query = { ...query, allergens: el.allerg.value as DishQuery['allergens'] }; onQueryChange(); });
-      el.photo.addEventListener('change', () => { query = { ...query, photo: el.photo.value as DishQuery['photo'] }; onQueryChange(); });
-      el.sort.addEventListener('change', () => { query = { ...query, sort: el.sort.value as DishQuery['sort'] }; onQueryChange(); });
-
-      const clearAll = () => { query = { ...EMPTY_QUERY }; fillControls(); onQueryChange(); };
-      el.clear.addEventListener('click', clearAll);
-      // Delegated: the chips are re-rendered on every query change, so a listener per button
-      // would be re-attached constantly and leak the old ones.
-      el.chips.addEventListener('click', (event) => {
-        const chip = (event.target as HTMLElement).closest<HTMLElement>('[data-chip]');
-        if (chip) applyChip(chip.dataset.chip!);
-      });
-
-      el.list.addEventListener('click', (event) => {
-        const t = event.target as HTMLElement;
-        if (t.closest('[data-retry]')) { void load(); return; }
-        if (t.closest('[data-clear]')) { clearAll(); return; }
-        const open = t.closest('[data-open]') as HTMLElement | null;
-        if (open) openDrawer(open.dataset.open!);
-      });
-
-      el.list.addEventListener('change', (event) => {
-        const box = event.target as HTMLInputElement;
-        const id = box.dataset?.pick;
-        if (!id) return;
-        if (box.checked) picked.add(id); else picked.delete(id);
-        renderBulk();
-      });
-
-      el.bulk.addEventListener('click', (event) => {
-        const t = event.target as HTMLElement;
-        const apply = t.closest('[data-apply]') as HTMLElement | null;
-        if (apply) { void applyFoodType(apply.dataset.apply!); return; }
-        if (t.closest('[data-selnone]')) { picked.clear(); render(); return; }
-        if (t.closest('[data-selall]')) { shown.forEach((r) => picked.add(r.dish.id)); render(); }
-      });
-
-      el.body.addEventListener('submit', (event) => {
-        const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;
-        if (!form) return;
-        event.preventDefault();
-        void save(form);
-      });
-      el.body.addEventListener('change', (event) => {
-        const input = event.target as HTMLInputElement;
-        if (input.dataset?.image) void uploadImage(input.dataset.image, input);
-      });
+      el.reload.addEventListener('click', () => void load());
       el.body.addEventListener('click', (event) => {
-        const rm = (event.target as HTMLElement).closest('[data-image-remove]') as HTMLElement | null;
-        if (rm) void removeImage(rm.dataset.imageRemove!);
-      });
-
-      $('drawer-close').addEventListener('click', closeDrawer);
-      el.scrim.addEventListener('click', closeDrawer);
-
-      addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !el.drawer.hidden) { closeDrawer(); return; }
-        // `/` to search is what every list-with-search does, and it is the difference between
-        // reaching for the mouse and not.
-        if (event.key === '/' && document.activeElement !== el.q) {
-          const tag = (document.activeElement as HTMLElement)?.tagName;
-          if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
-            event.preventDefault(); el.q.focus(); el.q.select();
-          }
-        }
+        if ((event.target as HTMLElement).closest('[data-retry]')) void load();
       });
 
       void (async () => {
@@ -744,10 +233,11 @@ import '../../styles/admin.css';
             location.assign(`/signin?next=${encodeURIComponent('/admin/menus')}`);
             return;
           }
-        } catch { /* an unconfigured build falls through to the error state */ }
+        } catch { /* fall through and let the read fail visibly */ }
         await load();
       })();
-    void mountNav();
+
+      void mountNav();
     </script>
   </body>
 </html>

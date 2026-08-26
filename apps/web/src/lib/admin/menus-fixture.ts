@@ -60,6 +60,21 @@ export const MENUS_FIXTURE: {
         { menuId: 'm-1', dishId: 'd-4', dishName: 'Chocolate Muffin', pricePaise: 5000, availableDays: [5], isActive: false },
       ],
     },
+    /*
+     * A second menu, assigned to nobody — `E10-49`.
+     *
+     * The state the Menus screen exists to surface. A menu built and never assigned serves no
+     * child, and it is invisible everywhere else in the product: the dish workbench shows its
+     * dishes as "on a menu" and is satisfied, and the school screen shows the school as having
+     * no menu without ever mentioning that a finished one is sitting there unused.
+     */
+    {
+      id: 'm-2', name: 'Term 2 2026 (draft)', kitchenId: 'k-1', status: 'draft',
+      items: [
+        { menuId: 'm-2', dishId: 'd-1', dishName: 'Veg Sandwich', pricePaise: 4800, availableDays: [1, 2, 3, 4, 5], isActive: true },
+        { menuId: 'm-2', dishId: 'd-3', dishName: 'Fruit Bowl', pricePaise: 3200, availableDays: [1, 2, 3, 4, 5], isActive: true },
+      ],
+    },
   ],
 
   /**

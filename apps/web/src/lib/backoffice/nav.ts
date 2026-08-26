@@ -120,11 +120,25 @@ export const NAV: NavItem[] = [
     requires: ['orders.view', 'orders.view_financials'],
     description: 'Every kitchen, with refunds. Separate from the kitchen list because it shows money.',
   },
+  /*
+   * Dishes and Menus are two screens — `E10-49`.
+   *
+   * They were one, at `/admin/menus`, titled "Dishes", which was confusing before a menus screen
+   * existed and would have been actively wrong once one did. A dish is a thing that exists once;
+   * a menu is a named, reusable set of them with prices, assigned to schools. Editing a price
+   * belongs to the menu, and "which schools serve this" is a question only the menu can answer.
+   */
+  {
+    href: '/admin/dishes',
+    label: 'Dishes',
+    requires: ['menu.edit'],
+    description: 'Every dish once, with what stops each one being publishable.',
+  },
   {
     href: '/admin/menus',
     label: 'Menus',
     requires: ['menu.edit'],
-    description: 'Create and assign menus, upload the term spreadsheet.',
+    description: 'Named menus and the schools serving them. Start a new school from one that works.',
   },
   {
     href: '/admin/schools',

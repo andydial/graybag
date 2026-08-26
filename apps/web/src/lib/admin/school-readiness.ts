@@ -117,7 +117,7 @@ export function readiness(
       label: 'Menu',
       state: menuState,
       detail: menuDetail,
-      fix: menuState === 'ok' ? null : { label: 'Dishes and menus', href: '/admin/menus' },
+      fix: menuState === 'ok' ? null : { label: 'Dishes and menus', href: '/admin/dishes' },
       blocking: true,
     });
 
