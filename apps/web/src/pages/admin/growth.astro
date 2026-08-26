@@ -171,46 +171,19 @@ import '../../styles/admin.css';
         );
       }
 
-      /**
-       * The funnel — `E11-15`.
+      /*
+       * The funnel used to be rendered here — `E11-22` moved it to Reports.
        *
-       * A list, not a picture. A tapering-bars funnel graphic looks decisive and is hard to read
-       * a number off; the question here is "how many, and what do I do about them", and both are
-       * words. The bar is a proportion behind the row, so the shape is still visible.
+       * Andy: *"Growth = are new families arriving. Reports = does a family who arrives get to an
+       * order, over a range, beside the revenue it explains."* They are different questions on
+       * different clocks, and an all-time funnel could only ever flatten as the product grew,
+       * because everyone who ever signed up and stopped stayed in it for good.
+       *
+       * `whereConversionWent` below is what replaces it on this page: a pointer, not a number.
+       * Deleting a section people used without saying where it went is how a screen gets a
+       * reputation for losing things.
        */
-      function funnel(g: Growth): string {
-        const top = g.funnel[0]?.reached ?? 0;
-        return (
-          `<section class="admin__section" aria-labelledby="fn-h">` +
-            `<h2 id="fn-h">From signing up to ordering again</h2>` +
-            `<p class="admin__section-note">` +
-              `Each step counts <b>accounts</b>, and the drop is how many stopped there. ` +
-              `An unpaid order is not a conversion.` +
-            `</p>` +
-            `<ol class="fnl">` +
-              g.funnel.map((f) =>
-                `<li class="fnl__step">` +
-                  `<span class="fnl__bar" style="--w:${top === 0 ? 0 : Math.round((f.reached / top) * 100)}%"></span>` +
-                  `<span class="fnl__body">` +
-                    `<span class="fnl__top">` +
-                      `<b class="fnl__n">${f.reached}</b>` +
-                      `<span class="fnl__label">${esc(f.label)}</span>` +
-                      (f.rate !== null
-                        ? `<span class="fnl__rate">${Math.round(f.rate * 100)}% of the step before</span>`
-                        : '') +
-                    `</span>` +
-                    (f.lost > 0
-                      // The number Andy asked for, said as a number first.
-                      ? `<span class="fnl__lost"><b>${f.lost}</b> stopped here. ${esc(f.action)}</span>`
-                      : `<span class="fnl__lost">${esc(f.action)}</span>`) +
-                  `</span>` +
-                `</li>`).join('') +
-            `</ol>` +
-          `</section>`
-        );
-      }
 
-      /** The worklist. Addresses only — there is nothing about a child in this shape to leak. */
       function stuckList(g: Growth): string {
         if (g.stuck.length === 0) return '';
         return (
@@ -232,20 +205,24 @@ import '../../styles/admin.css';
         );
       }
 
-      function ordersSection(g: Growth): string {
-        const withOrders = g.ordersDaily.filter((d) => d.orders > 0);
-        if (withOrders.length === 0) return '';
+      /*
+       * Paid orders per day and the average order value were drawn here. Both are money over
+       * time, which is Reports' question — `E11-22`. An acquisition screen that reports revenue
+       * invites being read as a revenue screen, and then two screens disagree about the month.
+       */
+
+      /** Where the funnel went, and a way to get there. */
+      function whereConversionWent(): string {
         return (
-          `<section class="admin__section" aria-labelledby="od-h">` +
-            `<h2 id="od-h">Paid orders per day</h2>` +
-            columns(
-              g.ordersDaily.map((d) => ({
-                label: shortDate(d.date), value: d.orders,
-                title: `${d.date}: ${d.orders} paid, ${money.formatPaise(d.revenuePaise)}`,
-              })),
-              { label: 'Paid orders per day' },
-            ) +
-            `<p class="admin__hint">Average order ${esc(money.formatPaise(g.averageOrderPaise))}.</p>` +
+          `<section class="admin__section admin__section--note" aria-labelledby="wcw-h">` +
+            `<h2 id="wcw-h">Where conversion went</h2>` +
+            `<p>` +
+              `Registered → added a child → first order → ordered again now lives on ` +
+              `<b>Reports</b>, over a date range, beside the revenue it explains. This page ` +
+              `answers whether new families are arriving; that one answers whether a family who ` +
+              `arrives gets to an order.` +
+            `</p>` +
+            `<p><a class="kitchen__btn" href="/reports">Open Reports</a></p>` +
           `</section>`
         );
       }
@@ -256,17 +233,24 @@ import '../../styles/admin.css';
           `<section class="admin__section" aria-labelledby="school-h">` +
             `<h2 id="school-h">By school</h2>` +
             `<p class="admin__section-note">` +
-              `A family is counted <b>once per school</b>, however many children they have there.` +
+              `A family is counted <b>once per school</b>, however many children they have there. ` +
+              `<b>Ordered at least once</b> is all-time and counts accounts, not orders — a school ` +
+              `with families and none of them ordering is the row worth a phone call.` +
             `</p>` +
             `<table class="otable">` +
               `<thead><tr><th scope="col">School</th><th scope="col">Families</th>` +
-              `<th scope="col">Children</th><th scope="col">Share</th></tr></thead>` +
+              `<th scope="col">Children</th><th scope="col">Ordered at least once</th>` +
+              `<th scope="col">Share</th></tr></thead>` +
               `<tbody>` +
                 g.bySchool.map((s) =>
                   `<tr>` +
                     `<th scope="row">${esc(s.name)}</th>` +
                     `<td class="otable__num">${s.guardians}</td>` +
                     `<td class="otable__num">${s.children}</td>` +
+                    // The column that makes this an acquisition table rather than a registration
+                    // one. A school with families and none of them ordering is the row to act on,
+                    // so it is a number rather than a bar — a zero bar is invisible.
+                    `<td class="otable__num">${s.ordered || '—'}</td>` +
                     `<td>` +
                       // A track with a fill, not a bare bar: at 0% a bare bar is invisible, and
                       // "no families here" is the most actionable row on this table.
@@ -328,7 +312,6 @@ import '../../styles/admin.css';
         }
 
         const week = g.recent.find((r) => r.days === 7)!;
-        const month = g.recent.find((r) => r.days === 28)!;
         const delta = (r: { now: number; previous: number }) =>
           r.previous === 0 ? (r.now > 0 ? 'first ones' : 'none before') :
           `${r.now >= r.previous ? '+' : ''}${Math.round(((r.now - r.previous) / r.previous) * 100)}% on the previous`;
@@ -336,24 +319,39 @@ import '../../styles/admin.css';
         el.status.textContent = `${g.totalUsers} registered accounts.`;
 
         el.body.innerHTML =
+          /*
+           * Four cards, as the prototype has — `E11-22`. It previously showed six, and "Last 7
+           * days" and "Last 28 days" were two of them; the 7-day figure now rides along with the
+           * account total, where it reads as a rate of arrival rather than as a fifth statistic.
+           *
+           * The prototype's fourth card is **Install base** — "Play + TestFlight · 13 have signed
+           * in". There is no source for that here: store install counts live in the Play and App
+           * Store consoles, and nothing in this database knows them. Inventing a plausible number
+           * for that tile would be worse than not having it, so the slot goes to the conversion
+           * gap instead and `E11-23` records what it would take to show the real thing.
+           */
           `<div class="gstats">` +
-            stat(String(g.totalUsers), 'Registered accounts') +
-            stat(String(g.totalChildren), 'Children added') +
-            stat(String(week.now), 'Last 7 days', delta(week)) +
-            stat(String(month.now), 'Last 28 days', delta(month)) +
+            stat(String(g.totalUsers), 'Registered accounts',
+              `+${week.now} this week · ${delta(week)}`) +
+            stat(String(g.totalChildren), 'Children added',
+              `across ${g.bySchool.filter((s) => s.children > 0).length} school` +
+              `${g.bySchool.filter((s) => s.children > 0).length === 1 ? '' : 's'}` +
+              (g.totalUsers > 0 ? ` · ${(g.totalChildren / g.totalUsers).toFixed(2)} per account` : '')) +
+            stat(String(g.activeParents), 'Ordered in the last 7 days',
+              `of ${g.totalUsers} accounts`) +
             // The conversion gap. `AR7` makes signup-to-first-order a primary goal, and an
             // account with no child cannot order at all — so this is the number that says
-            // whether onboarding works, not a curiosity.
-            stat(String(g.activeParents), 'Ordered in the last 7 days') +
+            // whether onboarding works, not a curiosity. The list to email is below.
             stat(String(g.usersWithoutChildren), 'Signed up, no child yet',
               g.totalUsers > 0 ? `${Math.round((g.usersWithoutChildren / g.totalUsers) * 100)}% of accounts` : '') +
           `</div>` +
-          funnel(g) +
           chart(g) +
-          ordersSection(g) +
           schoolTable(g) +
           stuckList(g) +
-          dayTable(g);
+          dayTable(g) +
+          // Last, deliberately: it is a signpost, not a finding, and it must not be the first
+          // thing between the reader and their numbers.
+          whereConversionWent();
       }
 
       el.reload.addEventListener('click', () => void load());
