@@ -80,3 +80,41 @@ Not renaming it tonight, because a URL change is the kind of thing that breaks a
 actually uses, and doing it at 2am with no way to ask is the wrong trade for a cosmetic gain. The
 named-menus screen will take a **new** path and the rename gets its own task, so both screens are
 reachable and nothing that works today stops working.
+
+---
+
+## 5. Reversing decision 4: the dishes screen *did* move to `/admin/dishes`
+
+Two hours ago I decided not to rename `/admin/menus` because a URL change can break a bookmark
+and there was nobody to ask. Building the menus screen changed the arithmetic, so the decision
+changes with it.
+
+The alternative to renaming was giving the **new** screen an awkward path forever — `/admin/menu-list`
+or similar — to protect a URL whose title already said "Dishes". That trades a permanent wart for
+a temporary inconvenience, which is the wrong way round. And the redirect I had in mind does not
+help: the old path is the one the new screen wants, so it cannot both redirect away and be served.
+
+So: Dishes is at `/admin/dishes`, Menus is at `/admin/menus`. A stale bookmark lands on Menus —
+a related, working admin screen with a link to Dishes one row above it in the nav — rather than a
+404. The one real cost is a bookmarked *filtered* dish view (`?type=unset`), which will land on
+Menus with a query it ignores. I judged that acceptable at two schools and one operator.
+
+Both are in the nav, both are in the a11y sweep, and `nav.test.ts` asserts both paths.
+
+---
+
+## 6. The menus screen ships read-only
+
+The prototype has **New menu** and **Duplicate a menu**. Both are `alert('Prototype')` in it, so
+this is not a regression against the acceptance criteria — but it is a gap against what Andy will
+want, and I want it stated rather than discovered.
+
+Writes go through Edge Functions (`A4`, non-negotiable #1) and there is no menu-write function.
+I could have written one tonight; I chose not to, for a reason specific to duplication rather
+than to the hour: **a duplicated menu must not inherit its source's school assignments**, or
+copying "Term 1, serving Amity from January" quietly starts serving a second menu to a school
+already being fed. That is an order-path consequence, on a product taking real money, decided at
+3am with nobody to check it against. The read-only screen is worth shipping now and loses nothing.
+
+`E10-50` carries it, and flags the one question I would ask: should a duplicate default to
+`draft`? The prototype shows a draft status and nothing in the system currently sets one.

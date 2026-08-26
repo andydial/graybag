@@ -62,6 +62,7 @@ const PAGES = [
   '/admin/config.html?state=demo',
   '/admin/schools.html?state=demo',
   '/kitchen/sheet.html?state=default',
+  '/admin/dishes.html?state=demo',
   '/admin/menus.html?state=demo',
   // `E10-27`. Its fixture carries the four states worth auditing: an operator with a long list,
   // a cook with two, an account holding nothing, and a disabled account that still holds access.
