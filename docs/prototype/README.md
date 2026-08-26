@@ -55,7 +55,15 @@ thing it is about:
 #mypacks,signedin,haspack,packexpired       ran out of time instead of meals
 #cart,signedin,cart,haspack                 redeeming — an explicit switch, off by default
 #cart,signedin,cart,haspack,packineligible  a cart that can't use one, and why
+#packplan                                   planning several days from a pack
+#planreview                                 the review before any meal is spent
 ```
+
+**Spending a pack is the half that matters.** Buying is one screen; using ten meals across a
+fortnight is where a parent gets value or gives up. `#packplan` shows all four refusals on the
+days they apply to — cutoff passed, school doesn't serve that day, after the pack expires, and
+running out of meals — rather than at confirm time, when the work is already done. One day is
+deliberately left incomplete so the "still needs items" state is visible.
 
 The two `#cart` links are the pair to compare. Nothing is ever spent automatically, and a cart
 that doesn't qualify says what would fix it rather than just refusing.
