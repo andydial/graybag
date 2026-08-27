@@ -34,11 +34,26 @@
  * renders at a fixed 1180px, so the pane is scaled to fit rather than cropped: a cropped pane
  * hides exactly the right-hand column the comparison is about.
  *
- * ## What it does not do
+ * ## It also asserts the page is *styled at all*
  *
- * It does not diff, score or gate. A pixel threshold between a hand-built prototype and a real
- * implementation would be noise, and a red build nobody believes is worse than no check. This
- * produces evidence for a person to look at; the judgement stays with the person.
+ * The screenshots alone were not enough, and the way they failed is worth stating. `/orders`
+ * reached production rendering as raw HTML. This tool photographed it — the image was written,
+ * correct, and showed the problem plainly. **Nobody opened it.** I reported "all fifteen routes on
+ * the shell, verified", and what I had actually verified was that the markup was right and the
+ * console was clean, neither of which an unstyled page violates.
+ *
+ * So a tool whose only output is pictures is a tool whose value depends on somebody looking at
+ * every picture, every time. Below, each route is also **measured**: if the shell's stylesheet did
+ * not load, every computed style falls back to the user agent's, and that is checkable without
+ * eyes. The screenshots stay — they catch what measurement cannot — but the obvious catastrophe
+ * now fails loudly in a terminal.
+ *
+ * ## What it still does not do
+ *
+ * It does not diff, score or gate on appearance. A pixel threshold between a hand-built prototype
+ * and a real implementation would be noise, and a red build nobody believes is worse than no
+ * check. Judgement about whether a screen *looks right* stays with a person; only "this page has
+ * no styling" is automated, because that one needs no judgement.
  */
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -191,7 +206,60 @@ await send('Emulation.setDeviceMetricsOverride', {
   width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: false,
 });
 
+/** Routes whose stylesheet did not apply. These fail the run — see the header. */
+const unstyled = [];
+
 for (const screen of list) {
+  /*
+   * Measure the route on its own before compositing.
+   *
+   * It cannot be measured through the composite: that page is `file://` and the pane is `http://`,
+   * so `contentDocument` is cross-origin and null — which the first version of this reported as
+   * "the live pane did not load" for every route, including the healthy ones. A check that cries
+   * wolf on everything is worse than none, so the page is visited directly instead.
+   */
+  if (screen.live) {
+    await send('Page.navigate', { url: `${origin}${screen.live}` });
+    await sleep(3500);
+    /*
+     * A redirect is not a pass.
+     *
+     * `/orders` has no demo fixture, so it bounces to `/signin` — and the first version of this
+     * check found no `.bo` there, concluded "not a shell page", and passed. That is how the tool
+     * photographed a sign-in form and called the route healthy while the real page was raw HTML on
+     * production. Absence of the shell on a route that should have it is a failure, and comparing
+     * the landing path to the requested one says which kind of failure it is.
+     *
+     * The evaluated expression below stays free of prose deliberately: a backtick in a comment
+     * inside a template literal ends the literal, which is exactly how this broke the first time.
+     */
+    const expectedPath = screen.live.split('?')[0];
+    const { result } = await send('Runtime.evaluate', {
+      returnByValue: true,
+      expression: `(() => {
+        if (!location.pathname.startsWith(${JSON.stringify(expectedPath)})) {
+          return { ok: false, why: 'redirected to ' + location.pathname +
+            ' - cannot verify; this route needs a ?state=demo fixture' };
+        }
+        const bo = document.querySelector('.bo');
+        if (!bo) return { ok: false, why: 'no .bo root - this route is not on the shell' };
+        const nav = document.querySelector('.bo__nav');
+        if (!nav) return { ok: false, why: 'the shell has no sidebar element' };
+        const bg = getComputedStyle(nav).backgroundColor;
+        const display = getComputedStyle(bo).display;
+        if (bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent') {
+          return { ok: false, why: 'the sidebar has no background - the stylesheet did not apply' };
+        }
+        if (display !== 'flex') {
+          return { ok: false, why: 'the shell is not laid out - the stylesheet did not apply' };
+        }
+        return { ok: true, why: 'styled' };
+      })()`,
+    });
+    const verdict = result?.value ?? { ok: false, why: 'could not measure the page' };
+    if (!verdict.ok) unstyled.push(`${screen.key}: ${verdict.why}`);
+  }
+
   const page = join(tmpdir(), `gb-parity-${screen.key}.html`);
   writeFileSync(page, composite(screen, origin));
   await send('Page.navigate', { url: `file://${page}` });
@@ -220,5 +288,17 @@ for (const screen of list) {
 
 chrome.kill();
 server.kill();
-console.log(`\n${list.length} pair(s) written. Open them next to each other before claiming parity.`);
+
+if (unstyled.length > 0) {
+  console.error(`\n${unstyled.length} route(s) rendered UNSTYLED:`);
+  for (const line of unstyled) console.error(`  ✗ ${line}`);
+  console.error(
+    '\nThis is the failure that put /orders on production as raw HTML. A screenshot showed it and\n' +
+      'nobody opened the screenshot, so it is measured here as well as photographed.',
+  );
+  process.exit(1);
+}
+
+console.log(`\n${list.length} pair(s) written, every route styled.`);
+console.log('The measurement only proves the CSS applied. Open the images before claiming parity.');
 process.exit(0);

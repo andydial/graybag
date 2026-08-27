@@ -13,7 +13,8 @@ export const COMPANY_JSON = {
     "rendered document and a production build refuses to publish it."
   ],
   "legalName": "GRAYBAG SOLUTIONS PRIVATE LIMITED",
-  "registeredAddress": "SCO-461-462, Top Floor, Sector 35-C, Chandigarh, 160022",
+  "registeredAddress": "13, Sector 82, JLPL Industrial Area, GMADA Aerocity, Mohali, Punjab 140306",
+  "_registeredAddressComment": "Changed 2026-08-28 on Andy's instruction: this is the GST-registered address. It also RESOLVES an inconsistency rather than only updating a fact — the GSTIN begins 03, which is Punjab, while the previous address was in Chandigarh, state code 04. A tax invoice whose seller address and GSTIN disagree about the state is the kind of thing that is fine until somebody files with it.",
   "gstin": "03AAMCG3438M1ZD",
   "sacCode": null,
   "signatureTreatment": null,

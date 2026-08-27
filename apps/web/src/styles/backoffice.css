@@ -87,14 +87,7 @@
   font-size: var(--gb-font-size-body-lg);
 }
 
-.bo__brand i {
-  width: 1.375rem;
-  height: 1.375rem;
-  border-radius: 7px 7px 3px 3px;
-  background: var(--lime);
-  display: block;
-  flex: none;
-}
+.bo__brand img { width: 100%; max-width: 8.5rem; height: auto; display: block; }
 
 .bo__group {
   font-size: var(--gb-font-size-overline);
@@ -174,7 +167,23 @@
  * travel the whole way to match a row to its last column. The sidebar keeps its own width; this
  * caps only what is read.
  */
-.bo__scroll { flex: 1; min-width: 0; padding-bottom: var(--gb-space-8); }
+/*
+ * The content column is inset from the sidebar.
+ *
+ * `.pad` gives most blocks their own padding, but anything rendered outside one — a toolbar, a
+ * status line, a page that forgot — sat flush against the dark rail with its first character
+ * touching it. The inset belongs to the column, not to each thing in it.
+ */
+.bo__scroll {
+  flex: 1;
+  min-width: 0;
+  padding: 0 var(--gb-space-5) var(--gb-space-8);
+}
+
+/* `.pad` and `.toolbar` carry their own; do not inset them twice. */
+.bo__scroll > .pad,
+.bo__scroll > .toolbar { margin-inline: calc(var(--gb-space-5) * -1); }
+
 .bo__scroll > *,
 .bo__top > * { max-width: 74rem; }
 .bo__top { display: flex; }

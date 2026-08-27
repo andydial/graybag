@@ -166,7 +166,7 @@ describe('unresolvedTokens — the guard that was missing', () => {
     const real = {
       ...INVOICE,
       sellerLegalName: 'GRAYBAG SOLUTIONS PRIVATE LIMITED',
-      sellerAddress: 'SCO-461-462, Top Floor, Sector 35-C, Chandigarh, 160022',
+      sellerAddress: '13, Sector 82, JLPL Industrial Area, GMADA Aerocity, Mohali, Punjab 140306',
       sellerGstin: '03AAMCG3438M1ZD',
     };
     expect(unresolvedTokens(renderInvoiceText(real))).toEqual([]);

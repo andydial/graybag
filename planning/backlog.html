@@ -2877,13 +2877,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/37</span>
+          <span class="meter-num">0/39</span>
         </div>
       </header>
       <p class="summary">React Native + Expo shell, navigation, the api/ module discipline, and the performance work that matters — mostly <strong>slow and unreliable networks</strong>, which is the real constraint; devices are mid-range, not bottom-tier.</p>
       <p class="deps">Depends on <code>E13</code> <code>E01</code></p>
       <details>
-        <summary>Context &amp; 37 tasks</summary>
+        <summary>Context &amp; 39 tasks</summary>
         <div class="context"><h4>Locked decisions</h4>
 <ul>
 <li><strong>React Native + Expo</strong>, TypeScript. Reanimated for UI-thread animation, Skia where custom motion is needed.</li>
@@ -3186,6 +3186,22 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext">(risk:medium) <strong>Maestro runs a real Android build on web-only pull requests, and adds 25–40 minutes to each.</strong> Andy, 2026-08-28. Every web PR this week waited on an emulator boot, a Gradle build and a cart flow for a change that cannot reach the app. <strong>The obvious fix is the dangerous one.</strong> Putting <code>paths:</code> on the workflow means a web PR never schedules the job at all, and a required check that never reports either blocks the PR forever or — depending on how the protection rule is configured — is treated as satisfied. That is the failure <code>E15-23</code> exists about, arriving by a new route: *not run* and *passed* becoming indistinguishable. <strong>The proposal is that the job always runs and decides inside itself.</strong> No <code>paths:</code> on the trigger and no <code>if:</code> on the required job, so <code>Maestro (cart)</code> always reports a real conclusion. Its first step computes whether the change can affect the app; if not it writes a job summary saying so and exits successfully in about fifteen seconds. The check stays green for the right reason, and the reason is written down where a reviewer can read it. <strong>The subtle part is what counts as mobile.</strong> Not <code>apps/mobile/**</code> — <code>packages/shared</code> ships *inside* the app bundle, and six of the last twelve commits touched it. A filter that misses that skips the check on exactly the changes most able to break the app silently. The list has to be <code>apps/mobile/<strong></code>, <code>packages/shared/</strong></code>, <code>.maestro/<strong></code> and the workflow itself, with a test asserting the list rather than a comment describing it. </strong>And the backstop is what makes it safe**: Maestro runs unconditionally on push to <code>main</code> and in the nightly. If the filter is ever wrong, the cost is finding out within a day rather than never — which is a different and acceptable risk, and is the part that answers &quot;a check that does not run looks like one that passed&quot;</span>
+      </li>
+      <li class="task" data-id="E14-41" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-41"></button>
+        <code class="tid">E14-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The scripts suite runs serially, because the meal-pack tests are not isolated from it.</strong> Adding one unrelated test file — <code>check-build-order.test.mjs</code>, which reads two files from disk and touches no database — turned <code>meal-pack-concurrency</code> and <code>pack-eligibility-agreement</code> red. <strong>Nondeterministically</strong>: four failures on one run, two on the next, zero in isolation, zero twice in isolation. <code>node --test</code> runs files concurrently up to the core count, so adding a file changes what runs beside what, and those tests contend with the rest of the suite over shared database state. <strong>The trigger is arbitrary and that is the point</strong> — the next person to add any test file would have hit it, and would have spent an hour proving their own change innocent, as this did. <code>--test-concurrency=1</code> makes it deterministic and costs <strong>nothing measurable</strong>: 196 tests in 7.7 seconds. Determinism beats speed for a gate, and at this size there is no trade to make. <code>E14-42</code> is the real fix</span>
+      </li>
+      <li class="task" data-id="E14-42" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E14-42"></button>
+        <code class="tid">E14-42</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Make the meal-pack tests isolated rather than relying on a serial runner.</strong> <code>E14-41</code> bought determinism by turning parallelism off, which treats the symptom: those tests share database state and assume nothing else is touching it, so they will fail again the moment the suite is parallel for any other reason — a CI runner with more cores, a future <code>--test-concurrency</code> change, or someone running two suites at once. The fix is per-test isolation: a unique pack and school per test rather than a shared fixture, so contention is between the test&#39;s own connections, which is what it is actually trying to prove. The mobile thread owns these tests</span>
       </li></ul>
       </details>
     </article>
