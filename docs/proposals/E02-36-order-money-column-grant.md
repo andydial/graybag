@@ -120,9 +120,25 @@ if you land nothing else this week, land that.
 
 ### Why the web thread has not shipped step 2 yet
 
-Because step 1 has not happened. The check above is the whole reason: `order_money` is a 404, so
-there is nothing to point a client at. As soon as that view exists on staging, step 2 is a
-half-day and the web thread will take it.
+Because step 1 has not happened. Re-checked **2026-08-27**, after the mobile thread landed
+migrations `0070`–`0075` for meal packs:
+
+```
+GET /rest/v1/order_money  ->  404          still no view
+grep -rl order_money supabase/migrations/  ->  (nothing)
+```
+
+So it is not that the migration is written and unapplied — it has not been written. There is
+nothing to point a client at, and shipping step 2 against a missing view is the outage this
+document exists to prevent.
+
+**Step 1 is about fifteen lines and is additive.** It can go into any migration; it does not need
+its own. As soon as it exists on staging the web thread takes step 2, which is a half-day across
+five call sites, and then step 3 is safe.
+
+Standing note for whoever lands it: the kitchen-scope suite asserts the gap **as it currently
+behaves**, so `scripts/test/kitchen-scope.test.mjs` will fail the moment step 3 lands. That
+failure is the intended signal, not a regression — inverting that assertion is step 4.
 
 ## What this does not change
 
