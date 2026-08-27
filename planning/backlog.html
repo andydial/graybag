@@ -1217,13 +1217,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/36</span>
+          <span class="meter-num">0/37</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 36 tasks</summary>
+        <summary>Context &amp; 37 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -1523,6 +1523,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>No child&#39;s name in any report, export or aggregate.</strong> Andy&#39;s second enforcement item. <code>scripts/test/no-child-in-reports.test.mjs</code> asserts the <strong>mechanism</strong> rather than a day&#39;s data: every reporting query names its columns explicitly and none of those lists contains a child field. Runs with no database, on every push, because this is the guarantee most likely to be broken by an ordinary-looking edit. It caught one on the first run — <code>admin-growth.ts</code> selects <code>recipient_id</code>, which turns out to be legitimate and is now an explicit, single exception: <code>guardian_link</code> is two foreign keys and the funnel cannot count &quot;parents who added a child&quot; without joining one to the other, and <code>GrowthChild</code> is <code>{id, schoolId, createdAt}</code> with nowhere to put a name. <code>recipient_id</code> on <code>order</code> stays forbidden, because there it sits beside a name, a class and a price</span>
+      </li>
+      <li class="task" data-id="E02-38" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-38"></button>
+        <code class="tid">E02-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>E02-36</code> step 1 — the <code>order_money</code> view, and nothing else.</strong> <code>0076</code>. Purely additive, so <code>kitchen-scope.test.mjs</code> still passes and must until step 3; the web thread is unblocked for step 2. <strong>The proposal&#39;s SQL had a gap, found by <code>authorization.test.sql</code></strong>: its rule that every view in <code>public</code> be <code>security_invoker</code> exists because a definer view bypasses the base table&#39;s RLS — and <code>&quot;order&quot;</code> carries a RESTRICTIVE <code>deny_dead_accounts</code>. The proposed predicate would have let a <strong>disabled account read its own order money</strong> through the view while RLS refused it on the table. The predicate now leads with <code>auth_is_live_user()</code>, the exception is declared by name with that bargain asserted, and the disabled-account case is mutation-checked. The rule worth carrying: a definer view must restate <strong>every</strong> restriction it bypasses, not only the one it exists to work around</span>
       </li></ul>
       </details>
     </article>

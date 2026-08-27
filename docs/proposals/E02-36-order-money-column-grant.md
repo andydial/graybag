@@ -1,6 +1,9 @@
 ---
 title: "E02-36 — stop a kitchen operator reading order money"
-status: Proposed 2026-08-26 by the web thread. **The migration is the mobile thread's to land.**
+status: |
+  Proposed 2026-08-26 by the web thread. **Step 1 landed 2026-08-27** by the mobile thread as
+  migration `0076_order_money_view.sql` — the view and its grant, no revoke. **Step 2 is the web
+  thread's and is now unblocked.**
 ---
 
 # The hole
@@ -103,9 +106,22 @@ was treating the DDL as one indivisible step. It is two, and only one of them is
 
 Split them and there is no window where anything is broken, in either direction:
 
-1. **Mobile thread — `create or replace view order_money` and its grant, and nothing else.**
-   Purely additive. Nobody reads it yet, every existing query still works, and it is safe to land
-   at any time.
+1. ~~**Mobile thread — `create or replace view order_money` and its grant, and nothing else.**~~
+   **DONE, 2026-08-27**, as `0076_order_money_view.sql`. Purely additive; `kitchen-scope.test.mjs`
+   still passes, as it must until step 3.
+
+   **One correction to the SQL in this document, and it matters.** The proposed predicate was
+   `customer_user_id = auth.uid() OR auth_can_on_order(...)`. `authorization.test.sql` refused it:
+   its rule that every view in `public` be `security_invoker` exists because **a definer view
+   bypasses the base table's RLS entirely** — and `"order"` carries a RESTRICTIVE
+   `deny_dead_accounts` using `auth_is_live_user()`. A disabled or deleted account would have read
+   its own order money through the view while RLS refused it on the table.
+
+   The predicate now leads with `auth_is_live_user()`. The rule for any definer view: **it must
+   restate every restriction it bypasses**, not only the one it exists to work around. The
+   exception is declared by name in `authorization.test.sql` with that bargain asserted, and
+   `order_money.test.sql` proves a disabled account reads nothing — mutation-checked by removing
+   the clause.
 2. **Web thread — switch `admin-orders`, `admin-reports`, `admin-growth`, `orders` and `checkout`
    to read money from `order_money` joined on `id`.** These work now (the view exists) and after
    the revoke (the view is definer). This is the step that must not be skipped.
@@ -118,7 +134,7 @@ Step 3 before step 2 takes out every money screen at once. Step 2 before step 1 
 thing for a different reason. **Step 1 is safe to do today** and unblocks everything after it —
 if you land nothing else this week, land that.
 
-### Why the web thread has not shipped step 2 yet
+### Why the web thread had not shipped step 2 — resolved
 
 Because step 1 has not happened. Re-checked **2026-08-27**, after the mobile thread landed
 migrations `0070`–`0075` for meal packs:
