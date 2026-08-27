@@ -144,7 +144,7 @@ export const ENUM_VALUES: Record<string, readonly string[]> = {
     // is worth counting: it means a stale link is in circulation. `pack_detail` joins this list
     // when that screen exists; a name here with no emitter reads on the dashboard as a screen
     // nobody visited.
-    'packs', 'my_packs', 'pack_plan', 'plan_day',
+    'packs', 'my_packs', 'pack_plan', 'plan_day', 'pack_detail',
   ],
   method: ['google', 'apple', 'email_otp'],
   reason: ['dismissed', 'expired', 'failed'],

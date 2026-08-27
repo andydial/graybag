@@ -107,11 +107,14 @@ describe('E21 — the pack routes report like any other screen', () => {
     expect(screenNameFor('PlanDay')).toBe('plan_day');
   });
 
-  it('does not yet name screens that do not exist', () => {
+  it('names every pack screen that now has a route', () => {
     // `pack_detail` and `pack_plan` are deliberately absent from the vocabulary until those
     // screens are built. A name with no emitter reads on the dashboard as a screen nobody
     // visited, which is worse than a missing row because it looks like data.
+    // `pack_detail` joined the vocabulary with `E21-48`, when the screen gained a route. The
+    // rule it demonstrates stands: a name here with no emitter reads as a screen nobody visited.
     const declared = analyticsEvents.ENUM_VALUES.screen ?? [];
-    expect(declared).not.toContain('pack_detail');
+    expect(declared).toContain('pack_detail');
+    expect(screenNameFor('PackDetail')).toBe('pack_detail');
   });
 });
