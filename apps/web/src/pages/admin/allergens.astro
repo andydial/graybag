@@ -53,13 +53,13 @@ import '../../styles/backoffice.css';
       subtitle="Tagging every dish, so a parent can trust the badge"
     >
       <button id="g-reload" class="btn btn--ghost" slot="actions" type="button">Refresh</button>
-          <button id="g-save" class="btn" slot="actions" type="button" disabled>
-            Save
-          </button>
+      <button id="g-save" class="btn" slot="actions" type="button" disabled>Save</button>
+
+      <div class="pad">
 
         <div id="g-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
-        <div class="guessbanner" role="note">
+        <div class="notice notice--warn" role="note">
           <p>
             <b>The highlighted tags are guesses.</b> They are read from the ingredient text by
             keyword and nothing else — they cannot know that a bread contains milk powder that
@@ -72,6 +72,7 @@ import '../../styles/backoffice.css';
         </div>
 
         <div id="g-body"></div>
+      </div>
       </BackofficeShell>
 
     <script>
@@ -150,12 +151,12 @@ import '../../styles/backoffice.css';
           `<div class="srow${state === 'unknown' ? ' srow--hidden' : ''}${dirty ? ' srow--dirty' : ''}" data-dish="${esc(d.id)}">` +
             `<div class="srow__main">` +
               `<p class="srow__name">${esc(d.name)}` +
-                (dirty ? ' <span class="admin__tag">unsaved</span>' : '') +
+                (dirty ? ' <span class="tag">unsaved</span>' : '') +
               `</p>` +
               `<p class="srow__meta">${esc(d.ingredientsText ?? 'no ingredient list — nothing to read')}</p>` +
               `<p class="srow__meta">Currently ${esc(STATE_WORD[state])}</p>` +
 
-              `<fieldset class="admin__days">` +
+              `<fieldset class="checks">` +
                 `<legend>Contains</legend>` +
                 ALLERGEN_CODES.map((code) => {
                   const s = suggested.get(code);
@@ -165,7 +166,7 @@ import '../../styles/backoffice.css';
                       `<input type="checkbox" data-code="${esc(code)}"${on ? ' checked' : ''} ` +
                         `aria-describedby="${s ? `why-${esc(d.id)}-${esc(code)}` : ''}" /> ` +
                       `${esc(LABEL[code] ?? code)}` +
-                      (s ? ` <span class="guesschip" id="why-${esc(d.id)}-${esc(code)}">` +
+                      (s ? ` <span class="tag tag--none" id="why-${esc(d.id)}-${esc(code)}">` +
                            `guess: ${esc(s.evidence.join(', '))}${s.caveat ? ` — ${esc(s.caveat)}` : ''}</span>` : '') +
                     `</label>`
                   );
@@ -208,7 +209,7 @@ import '../../styles/backoffice.css';
           `${dishes.length} dishes, ${unchecked} not checked, ${edits.size} unsaved.`;
 
         el.body.innerHTML =
-          `<section class="admin__section" aria-labelledby="tag-h">` +
+          `<section class="sec-wrap" aria-labelledby="tag-h">` +
             `<h2 id="tag-h">${dishes.length} dishes · ${unchecked} not checked</h2>` +
             `<p class="m">` +
               (unchecked > 0

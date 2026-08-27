@@ -323,7 +323,7 @@ import '../styles/backoffice.css';
           `</tr>`;
         };
 
-        return `<section class="admin__section" aria-labelledby="sch-h">` +
+        return `<section class="sec-wrap" aria-labelledby="sch-h">` +
           `<h2 id="sch-h">By school</h2>` +
           `<table>` +
             `<thead><tr>` +
@@ -401,7 +401,7 @@ import '../styles/backoffice.css';
         );
 
         const pendingChart = t.pendingPaise > 0
-          ? `<section class="admin__section"><h2>Placed but not paid</h2>` +
+          ? `<section class="sec-wrap"><h2>Placed but not paid</h2>` +
             `<p class="m">` +
               `<b>${rupees(t.pendingPaise)}</b> across ${t.pending} order` +
               `${t.pending === 1 ? '' : 's'}. <b>This is not revenue</b> — it is what those orders ` +
@@ -425,12 +425,12 @@ import '../styles/backoffice.css';
             stat(String(t.pending), 'Unpaid', rupees(t.pendingPaise), t.pending > 0 ? 'warn' : '') +
           `</div>` +
 
-          `<section class="admin__section" aria-labelledby="rev-h">` +
+          `<section class="sec-wrap" aria-labelledby="rev-h">` +
             `<h2 id="rev-h">Net revenue by ${esc(by)}</h2>` +
             chart +
           `</section>` +
 
-          `<section class="admin__section" aria-labelledby="ord-h">` +
+          `<section class="sec-wrap" aria-labelledby="ord-h">` +
             `<h2 id="ord-h">Orders by ${esc(by)}</h2>` +
             orderChart +
           `</section>` +
@@ -439,7 +439,7 @@ import '../styles/backoffice.css';
 
           perSchoolSection(visible, usage, schoolId) +
 
-          `<section class="admin__section" aria-labelledby="use-h">` +
+          `<section class="sec-wrap" aria-labelledby="use-h">` +
             `<h2 id="use-h">Usage</h2>` +
             `<p class="m">` +
               `Whether the families we already have keep ordering — a different question from the ` +
@@ -493,7 +493,7 @@ import '../styles/backoffice.css';
           `</section>` +
 
           (funnel && funnel.cohort > 0
-            ? `<section class="admin__section" aria-labelledby="fn-h">` +
+            ? `<section class="sec-wrap" aria-labelledby="fn-h">` +
                 `<h2 id="fn-h">Of the families who arrived in this range</h2>` +
                 `<p class="m">` +
                   `The <b>${funnel.cohort}</b> parents who registered between ` +
@@ -528,7 +528,7 @@ import '../styles/backoffice.css';
               `</section>`
             : '') +
 
-          `<section class="admin__section" aria-labelledby="tbl-h">` +
+          `<section class="sec-wrap" aria-labelledby="tbl-h">` +
             `<h2 id="tbl-h">The numbers</h2>` +
             `<table>` +
               `<thead><tr>` +

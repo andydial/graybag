@@ -153,14 +153,14 @@ import '../../styles/backoffice.css';
         }));
 
         return (
-          `<section class="admin__section" aria-labelledby="chart-h">` +
+          `<section class="sec-wrap" aria-labelledby="chart-h">` +
             `<h2 id="chart-h">Total accounts</h2>` +
             `<p class="m">` +
               `${esc(g.daily[0]!.date)} to ${esc(last.date)} · ending at <b>${last.cumulative}</b>` +
             `</p>` +
             area(cumulative, { label: `Total registered accounts, ending at ${last.cumulative}` }) +
           `</section>` +
-          `<section class="admin__section" aria-labelledby="perday-h">` +
+          `<section class="sec-wrap" aria-labelledby="perday-h">` +
             `<h2 id="perday-h">New accounts per day</h2>` +
             columns(perDay, { label: 'New registrations per day' }) +
           `</section>`
@@ -183,7 +183,7 @@ import '../../styles/backoffice.css';
       function stuckList(g: Growth): string {
         if (g.stuck.length === 0) return '';
         return (
-          `<details class="admin__section">` +
+          `<details class="sec-wrap">` +
             `<summary><b>${g.stuck.length} to email</b> — registered, no child added</summary>` +
             `<p class="m">` +
               `They cannot order until a child exists. Newest first, capped at ${g.stuck.length}. ` +
@@ -226,7 +226,7 @@ import '../../styles/backoffice.css';
       function schoolTable(g: Growth): string {
         if (g.bySchool.length === 0) return '';
         return (
-          `<section class="admin__section" aria-labelledby="school-h">` +
+          `<section class="sec-wrap" aria-labelledby="school-h">` +
             `<h2 id="school-h">By school</h2>` +
             `<p class="m">` +
               `A family is counted <b>once per school</b>, however many children they have there. ` +
@@ -267,7 +267,7 @@ import '../../styles/backoffice.css';
         const recent = [...g.daily].reverse().slice(0, 28);
         if (recent.length === 0) return '';
         return (
-          `<details class="admin__section">` +
+          `<details class="sec-wrap">` +
             `<summary><b>Day by day</b> — the last ${recent.length} days</summary>` +
             `<table>` +
               `<thead><tr><th scope="col">Date</th><th scope="col">New</th><th scope="col">Total</th></tr></thead>` +

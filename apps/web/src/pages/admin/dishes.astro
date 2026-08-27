@@ -59,7 +59,7 @@ import '../../styles/backoffice.css';
       subtitle="Every dish once, carrying the menus it is on"
     >
       <button slot="actions" class="btn" id="d-new" type="button">New dish</button>
-
+      <div class="pad">
       <div class="toolbar">
         <div class="searchrow">
           <div class="search">
@@ -107,6 +107,7 @@ import '../../styles/backoffice.css';
       </div>
 
       <div class="bulk" id="bulk" hidden></div>
+      </div>
     </BackofficeShell>
 
     <script>
@@ -469,12 +470,12 @@ import '../../styles/backoffice.css';
               `<p class="m">What a family filters on. Separate from the egg <b>allergen</b> below — a cake made with egg is veg and contains egg.</p>` +
             `</div>` +
 
-            `<fieldset class="admin__days">` +
+            `<fieldset class="checks">` +
               `<legend >Allergens</legend>` +
               allergenCodes.map((a) =>
-                `<label class="admin__day"><input type="checkbox" name="allergens" value="${esc(a)}"${on.has(a) ? ' checked' : ''} /> ${esc(a.replace('_', ' '))}</label>`).join('') +
+                `<label class="checkspill"><input type="checkbox" name="allergens" value="${esc(a)}"${on.has(a) ? ' checked' : ''} /> ${esc(a.replace('_', ' '))}</label>`).join('') +
             `</fieldset>` +
-            `<label class="admin__day"><input type="checkbox" name="declaredNone"${d.allergensDeclaredNone ? ' checked' : ''} /> Checked — contains none</label>` +
+            `<label class="checkspill"><input type="checkbox" name="declaredNone"${d.allergensDeclaredNone ? ' checked' : ''} /> Checked — contains none</label>` +
             `<p class="m">Ticking replaces the whole set. <b>Empty and unchecked means nobody has looked</b>, which is not the same as none.</p>` +
 
             `<div class="admin__field">` +
@@ -495,7 +496,7 @@ import '../../styles/backoffice.css';
               `<p class="m">These four are all the schema holds — there are no protein, fat or carbohydrate columns.</p>` +
             `</details>` +
 
-            `<label class="admin__day"><input type="checkbox" name="isActive"${d.isActive ? ' checked' : ''} /> On the catalogue</label>` +
+            `<label class="checkspill"><input type="checkbox" name="isActive"${d.isActive ? ' checked' : ''} /> On the catalogue</label>` +
 
             `<div class="setting__actions"><button class="btn" type="submit">Save dish</button></div>` +
           `</form>` +
@@ -519,11 +520,11 @@ import '../../styles/backoffice.css';
                   `<input  id="p-${esc(p.menuId)}-${esc(d.id)}" name="pricePaise" type="number" min="0" step="1" value="${p.pricePaise}" required />` +
                   `<p class="m">Whole paise. <b>₹45.00 is 4500</b>. Currently ${esc(rupees(p.pricePaise))}.</p>` +
                 `</div>` +
-                `<fieldset class="admin__days"><legend >Available on</legend>` +
+                `<fieldset class="checks"><legend >Available on</legend>` +
                   WEEKDAYS.map((w, i) =>
-                    `<label class="admin__day"><input type="checkbox" name="availableDays" value="${i + 1}"${p.availableDays.includes(i + 1) ? ' checked' : ''} /> ${w}</label>`).join('') +
+                    `<label class="checkspill"><input type="checkbox" name="availableDays" value="${i + 1}"${p.availableDays.includes(i + 1) ? ' checked' : ''} /> ${w}</label>`).join('') +
                 `</fieldset>` +
-                `<label class="admin__day"><input type="checkbox" name="isActive"${p.isActive ? ' checked' : ''} /> On this menu</label>` +
+                `<label class="checkspill"><input type="checkbox" name="isActive"${p.isActive ? ' checked' : ''} /> On this menu</label>` +
                 `<div class="setting__actions"><button class="btn btn--ghost" type="submit">Save price and days</button></div>` +
               `</form>`).join('')) +
 

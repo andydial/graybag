@@ -47,7 +47,7 @@ import '../../styles/backoffice.css';
       subtitle="Registration is the same for everyone — access is a grant"
     >
       <button id="a-reload" class="btn btn--ghost" slot="actions" type="button">Refresh</button>
-
+      <div class="pad">
         <div id="a-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
         <!--
@@ -99,6 +99,7 @@ import '../../styles/backoffice.css';
           explainer nobody trusts.
         -->
         <div id="a-roles"></div>
+      </div>
       </BackofficeShell>
 
     <script>
@@ -194,8 +195,8 @@ import '../../styles/backoffice.css';
           `<div class="srow${marks.length ? ' srow--hidden' : ''}">` +
             `<div class="srow__main">` +
               `<p class="srow__name">${esc(a.email)}` +
-                (isMe ? ' <span class="admin__tag">you</span>' : '') +
-                (a.isDisabled ? ' <span class="admin__tag">disabled</span>' : '') +
+                (isMe ? ' <span class="tag">you</span>' : '') +
+                (a.isDisabled ? ' <span class="tag">disabled</span>' : '') +
               `</p>` +
               `<p class="srow__meta">` +
                 (a.displayName ? `${esc(a.displayName)} · ` : '') +
@@ -223,7 +224,7 @@ import '../../styles/backoffice.css';
                       `<li>` +
                         `<b>${esc(g.displayName)}</b> <code>${esc(g.permissionCode)}</code> ` +
                         `at ${esc(scopeLabel(g))}` +
-                        (g.isSensitive ? ' <span class="admin__tag">sensitive</span>' : '') +
+                        (g.isSensitive ? ' <span class="tag">sensitive</span>' : '') +
                         (g.grantedByEmail ? ` · by ${esc(g.grantedByEmail)}` : '') +
                         (isMe
                           // No Revoke button, and no per-line explanation either. Not offered
@@ -386,7 +387,7 @@ import '../../styles/backoffice.css';
         }
 
         el.body.innerHTML =
-          `<section class="admin__section" aria-labelledby="access-h">` +
+          `<section class="sec-wrap" aria-labelledby="access-h">` +
             `<h2 id="access-h">Who has access</h2>` +
             `<p class="m">` +
               `<b>${accounts.length}</b> account${accounts.length === 1 ? '' : 's'} with ` +
@@ -720,7 +721,7 @@ import '../../styles/backoffice.css';
           `</li>`;
 
         el.roles.innerHTML =
-          `<section class="admin__section" aria-labelledby="roles-h">` +
+          `<section class="sec-wrap" aria-labelledby="roles-h">` +
             `<h2 id="roles-h">What each job can see</h2>` +
             `<p class="m">` +
               `Derived from the permissions each job grants, so it cannot drift from what they ` +
