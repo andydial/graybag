@@ -12,6 +12,7 @@ import { useCart } from './CartContext';
 import { BreakTimePicker } from './BreakTimePicker';
 import { KitchenNoteLine } from './KitchenNote';
 import { CartTotals } from './CartTotals';
+import { PackRedemptionStrip, type PackIneligibility } from '../packs/PackRedemptionStrip';
 import { OrderForBlock, type OrderFor } from './OrderForBlock';
 
 const { bg, text, border, scale, space, radius, borderWidth, touchTarget, layout, action } = design;
@@ -145,6 +146,18 @@ export interface CartScreenProps {
   allergens?: CartAllergenCheck;
   /** See `CartLinePresentation`. Keyed by dish id. */
   dishInfo?: Record<string, CartLinePresentation>;
+  /**
+   * `E21`. The parent's balance, or null when they hold none. Passed in rather than fetched
+   * here: the cart already has more reasons to re-render than any other screen, and a read
+   * inside it would fire on every quantity change.
+   */
+  packBalance?: import('../packs/MyPacksScreen').PackBalance | null;
+  /** Why this cart cannot be paid with a meal. The SERVER decides; this only picks the copy. */
+  packIneligibility?: PackIneligibility;
+  /** Whether the parent has turned the switch on for THIS order. Never remembered. */
+  usingPackMeal?: boolean;
+  onTogglePackMeal?: ((next: boolean) => void) | undefined;
+  onSeePackOffers?: (() => void) | undefined;
 }
 
 /**
@@ -191,6 +204,11 @@ export function CartScreen({
   signedOut = false,
   allergens,
   dishInfo,
+  packBalance = null,
+  packIneligibility = null,
+  usingPackMeal = false,
+  onTogglePackMeal,
+  onSeePackOffers,
 }: CartScreenProps = {}) {
   const { cart, setQuantity, setComment, remove } = useCart();
   const orderFor = useOrderFor(cart);
@@ -354,6 +372,23 @@ export function CartScreen({
             />
           </Card>
         )}
+
+        {/*
+          `E21`. Above the totals, because it changes what the totals say: a redeemed meal makes
+          the payable zero, and an offer that appeared *below* the number it changes would read as
+          an afterthought. It renders nothing at all unless the parent has a balance or we sell
+          packs here — the cart is not exempt from "no such concept".
+        */}
+        <PackRedemptionStrip
+          mealsLeft={packBalance?.mealsRemaining ?? 0}
+          mealsTotal={packBalance?.mealsTotal ?? 0}
+          expiresLabel={packBalance?.expiresLabel ?? null}
+          expired={packBalance?.expired ?? false}
+          ineligible={packIneligibility}
+          using={usingPackMeal}
+          onToggle={onTogglePackMeal}
+          onSeeOffers={onSeePackOffers}
+        />
 
         {/* On a card like everything else on this canvas — the totals are the last block a
             parent reads before paying, and leaving them loose on the grey read as a footnote. */}

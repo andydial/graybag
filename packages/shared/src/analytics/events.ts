@@ -41,6 +41,17 @@ export const ALLOWED_EVENTS = [
   'place_order_tapped',
   'payment_sheet_closed',
   'add_child_submitted',
+  /**
+   * `E21` meal packs. Three taps, and **not one of them carries an amount, a meals count, an
+   * offer id, a child or a dish** — see `docs/decisions-27aug.md` `D4`. `pack_plan_confirmed` was
+   * the tempting one, because how many days a parent plans at once is a genuinely useful product
+   * number; but a plan is a set of children and dates, and that count sits one join from *which
+   * child eats on which days*, which is the food profile s.9(3) forbids building. Revenue lives
+   * in the ledger, which does not leave the country.
+   */
+  'pack_offer_opened',
+  'pack_purchase_started',
+  'pack_plan_confirmed',
   'signin_started',
   'signin_completed',
   'child_added',
@@ -103,6 +114,11 @@ export const EVENT_PROPERTIES: Record<AllowedEvent, readonly string[]> = {
   payment_sheet_closed: ['outcome'],
   /** Nothing, for the same reason `child_added` carries nothing. */
   add_child_submitted: [],
+
+  // --- `E21` meal packs. All three carry the common set and nothing else. ---
+  pack_offer_opened: [],
+  pack_purchase_started: [],
+  pack_plan_confirmed: [],
 };
 
 /**
@@ -123,6 +139,12 @@ export const ENUM_VALUES: Record<string, readonly string[]> = {
     'account', 'children', 'add_child', 'sign_in', 'sign_in_code', 'support', 'policy',
     'policy_gate', 'delete_account', 'payment_waiting', 'order_placed', 'update_required',
     'cant_connect',
+    // `E21`. Emitted by the navigator like any other route — including for the refusal state,
+    // because a parent who reaches `packs` with the gate off still viewed a screen, and that one
+    // is worth counting: it means a stale link is in circulation. `pack_detail` joins this list
+    // when that screen exists; a name here with no emitter reads on the dashboard as a screen
+    // nobody visited.
+    'packs', 'my_packs', 'pack_plan', 'plan_day',
   ],
   method: ['google', 'apple', 'email_otp'],
   reason: ['dismissed', 'expired', 'failed'],

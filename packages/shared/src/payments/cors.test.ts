@@ -81,6 +81,10 @@ describe('every browser-callable Edge Function', () => {
    */
   const BROWSER_CALLABLE = [
     'account',
+    // `E21-47`. Confirming a meal-pack plan. Called from the app like `checkout`, and browser-
+    // callable for the same reason: it is a write that spends a balance and posts to the ledger,
+    // so the caller's identity is proved from their JWT here rather than trusted from a body.
+    'confirm-pack-plan',
     // `E10-20`. Browser-callable for the same reason `admin-school` is.
     'admin-dish',
     // `E10-24`. Dish photos. The bytes go through a function because `storage.objects` has no

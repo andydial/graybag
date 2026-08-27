@@ -100,6 +100,26 @@ export type RootStackParamList = {
    * compliance problem — `[AZ-03]` requires the grievance block reachable without one.
    */
   Policy: { which: 'privacy' | 'terms' | 'refund' };
+  /**
+   * Meal packs (`E21`). Registered unconditionally, and reached only when the server says a
+   * surface exists — `D3` in `docs/decisions-27aug.md`.
+   *
+   * Registering them conditionally would be the stricter reading of *"no such concept"*, and it
+   * was rejected: a route that appears and disappears with a network read makes deep links behave
+   * differently run to run, and a parent following a stale link would get a missing-route crash
+   * instead of the designed refusal. Andy's amendment is exactly this case — *"the prototype's
+   * screen survives as a fallback… for a route nobody is given, not an entry point."*
+   *
+   * The rule enforced instead is that no **entry point** renders: `packs-surface.test.tsx` and
+   * `meal-pack-entry.test.tsx` assert the Account row and every navigate call are absent when the
+   * gate is off.
+   */
+  Packs: undefined;
+  PackDetail: { offerId: string };
+  MyPacks: undefined;
+  PackPlan: undefined;
+  /** One day of a plan (`E21-44`). The day is the param; the selection lives in the planner. */
+  PlanDay: { serviceDate: string };
 };
 
 /**

@@ -5829,13 +5829,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/54</span>
+          <span class="meter-num">0/57</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 54 tasks</summary>
+        <summary>Context &amp; 57 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -6274,6 +6274,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>ship-ota.sh</code> clears the bundler cache, because a warm one carries the previous build&#39;s environment.</strong> Found while pre-flighting <code>E15-21</code>: a local <code>expo export</code> run with <code>EXPO_NO_DOTENV=1</code> and three deliberate control values — a fake PostHog key, a fake Supabase URL, a fake anon key — produced a bundle carrying <strong>the real production key and the real production project ref</strong>, with all three controls absent. <code>EXPO_PUBLIC_*</code> values are inlined by Metro <strong>at transform time</strong>, so they are compiled into cached module output and a warm cache serves last time&#39;s values. Re-running with <code>--clear</code> produced all three controls and none of the stale values, which is how it was confirmed rather than assumed. This is the <code>.env</code> hazard <code>ship-ota.sh</code> already documents, through a different door and pointing the <strong>other way</strong> — that one leaked staging into production, this leaks production into a build that asked for something else, and the second is harder to catch because nothing on the command line is wrong. <code>--clear-cache</code> costs a couple of minutes per publish and removes the class. Two things carried into <code>docs/learnings.md</code>: the control strings are what caught it, the same technique that caught an earlier false negative on this exact check; and the seven new events were correctly present in <strong>both</strong> bundles because they were new and so could not be cached — the cache only lies about what did not change, which is exactly the set nobody re-checks</span>
+      </li>
+      <li class="task" data-id="E17-60" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-60"></button>
+        <code class="tid">E17-60</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext">(risk:critical) <strong><code>graybag.in</code> does not resolve — there is no A record.</strong> Found 2026-08-26 while investigating why 8 post-launch accounts produced zero orders. <code>graybag-web.netlify.app</code> resolves and serves <strong>200</strong> on the site, <code>/signin</code> and <code>/kitchen</code>; <code>graybag.in</code> and <code>www.graybag.in</code> return <strong>no A record at all</strong> — a real DNS answer, not a lookup failure, since the Netlify host resolved in the same query. That domain is the <strong>Marketing URL and the Support URL on both store listings</strong> (<code>docs/andy-prep/store-listing-copy.md</code>), so anyone who types it, or taps Support from the App Store, reaches nothing. A credentialed action at the DNS registrar, which is why it is yours. Point the apex and <code>www</code> at Netlify and add the custom domain in the Netlify UI so the certificate issues. <strong>This is the one concrete, fixable cause found on the acquisition side</strong> — everything inside the app checked out</span>
+      </li>
+      <li class="task" data-id="E17-61" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-61"></button>
+        <code class="tid">E17-61</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Verify <code>E17-59</code> against what the server actually serves, not against a local build.</strong> The fix is only worth having if it is checked on the artifact parents receive. Published <code>bd787fc9</code> with <code>--clear-cache</code>, then read the manifest from <code>u.expo.dev</code> with the production channel headers: <code>&quot;appEnv&quot;:&quot;production&quot;</code> and the served id matches the published iOS id. Fetching the bundle from <code>assets.eascdn.net</code> returns <strong>403</strong> without the update request context — and the 1724-byte error page made every content check pass vacuously, including the negative controls, which is exactly the failure mode this repo keeps meeting. Resolved by identity instead: the local <code>dist</code> bundle&#39;s md5 is <code>c6bc1ee0f58fc3ce54effc1de635c985</code>, <strong>equal to the manifest&#39;s <code>launchAsset.key</code></strong>, so the local file is byte-identical to the served one and grepping it is equivalent. It carries the production Supabase ref, the production PostHog key, the EU host and <code>rzp_live_</code>; it carries <strong>no</strong> staging ref and none of the stale values from the cache-poisoning test. <code>rzp_test</code> appears and is a false alarm worth recording — it is the <code>REQUIRED_RAZORPAY_PREFIX</code> guard constant mapping local and staging to <code>rzp_test_</code>, not a key</span>
+      </li>
+      <li class="task" data-id="E17-62" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-62"></button>
+        <code class="tid">E17-62</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Two threads wrote <code>docs/decisions-27aug.md</code> on the same night, and the numbering did not collide by luck.</strong> The mobile thread used <code>D1</code>–<code>D10</code>, the web thread used <code>1.</code>–<code>4.</code>; had both reached for the same scheme the merge would have produced two <code>D3</code>s meaning different things, in a file whose whole purpose is that a decision can be cited later. Same class as the <code>E17-29</code> task-id collision and the same cause — a shared, dated artefact with no ownership rule. Options: one file per thread per night (<code>decisions-27aug-mobile.md</code>), or a prefix per thread (<code>M1</code>, <code>W1</code>). Prefer the prefix: the point of a dated file is that everything from that night is in one place</span>
       </li></ul>
       </details>
     </article>
@@ -6502,13 +6526,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/20</span>
+          <span class="meter-num">0/51</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 20 tasks</summary>
+        <summary>Context &amp; 51 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -6699,6 +6723,254 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext">A count in <code>planning/backlog.html</code> of screens designed versus stubbed, so &quot;how</span>
+      </li>
+      <li class="task" data-id="E21-21" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-21"></button>
+        <code class="tid">E21-21</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The meal-pack plan, written before any code.</strong> <code>docs/meal-packs-plan.md</code>. Andy, 2026-08-26: *&quot;This is the highest-consequence feature we&#39;ve built, because it takes money up front for food not yet served… tell me your plan for the schema and the concurrency control, and the GST treatment you intend to implement.&quot;* Four tables (<code>meal_pack_offer</code>, <code>meal_pack_offer_school</code>, <code>meal_pack</code>, <code>meal_pack_redemption</code>), with <code>unique (order_id)</code> on redemptions so &quot;this order spent two meals&quot; is unrepresentable rather than merely checked. Concurrency is one atomic <code>update … where meals_remaining &gt;= p_meals</code>, safe at READ COMMITTED because a blocked transaction re-evaluates its <code>WHERE</code> against the committed value; the <code>&gt;= 0</code> constraint is the backstop, not the mechanism. Multi-pack spending locks <code>order by expires_at, id for update</code>, which is simultaneously the deadlock prevention and the oldest-first business rule. Ledger: <strong>a pack sale is a liability, not revenue</strong> — cash in credits <code>platform:deferred_revenue:meal_packs</code>, and revenue is recognised only at redemption, which is the direct answer to the double-count question, with the invariant *deferred-revenue balance = sum(meals_remaining × meal_value_paise)* as the test. GST goes behind <code>platform_config.pack_tax_point</code>, and the load-bearing detail is that the value is <strong>stamped onto the pack at sale</strong> so a later flip changes the future without rewriting packs already sold</span>
+      </li>
+      <li class="task" data-id="E21-22" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-22"></button>
+        <code class="tid">E21-22</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Confirm the GST tax point for prepaid packs, and confirm no pack sells on production until then.</strong> A validation only Andy can make — it is his accountant&#39;s answer. Two positions, both to be built and both tested: <strong>sale</strong> (the pack is a voucher for identifiable goods, GST on the pack price at purchase, redemption adds no tax — what the prototype copy currently states) or <strong>redemption</strong> (GST at the time the food is supplied). The flag is <code>platform_config.pack_tax_point</code>; flipping it changes future sales only. Also needs confirming: the ledger treatment in §5 — sale as deferred revenue, revenue at redemption, breakage at expiry — since it is the accounting answer to *&quot;a redeemed meal must never appear as revenue a second time&quot;*</span>
+      </li>
+      <li class="task" data-id="E21-23" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-23"></button>
+        <code class="tid">E21-23</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>0068</code> — the meal-pack schema.</strong> Four tables plus plan-level idempotency, applied clean to a full local rebuild of all 69 migrations. <code>unique (order_id)</code> on <code>meal_pack_redemption</code> makes &quot;this order spent two meals&quot; unrepresentable; <code>meal_pack_plan</code> keyed on the client&#39;s idempotency key makes a retried confirmation return the first result rather than creating four more orders (Andy&#39;s amendment 1 — <code>unique (order_id)</code> does not cover it, because the retry creates NEW orders). <code>tax_point</code>, <code>net_price_paise</code> and the tax split are <strong>stamped onto the pack at sale</strong> so a config flip changes the future without rewriting packs already sold. No refunds is a <strong>trigger</strong> on <code>refund</code>, not a check in an Edge Function, because a trigger also refuses psql — and the three cancelled orders on production exist because a terminal can do what code refuses to. Extends <code>ledger_account_normal_balance_matches_type</code> (<code>0013</code>/<code>0035</code>) to teach it the two new liability types rather than working around it</span>
+      </li>
+      <li class="task" data-id="E21-24" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-24"></button>
+        <code class="tid">E21-24</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>0069</code> — spending, returning, eligibility and the invariant.</strong> <code>spend_meal_pack_meals</code> is the only way meals leave a pack: one guarded <code>update … where meals_remaining &gt;= p_take</code>, locking <code>order by expires_at, id for update</code> so the deadlock prevention and the oldest-first rule are the same line. All-or-nothing — a short plan raises and rolls back, because half a plan is worse than a refusal when the parent cannot see which half. Eligibility reads the <strong>persisted order lines</strong> and the offer&#39;s configured category, never a client flag. <code>check_meal_pack_ledger_invariant</code> returns both legs (deferred revenue and deferred tax) so the <code>sale</code> mode asserts its tax leg is zero on <strong>both</strong> sides rather than skipping it, and uses <code>ledger_balance()</code> rather than hand-rolling a second sign convention</span>
+      </li>
+      <li class="task" data-id="E21-25" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-25"></button>
+        <code class="tid">E21-25</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The concurrency proof, with teeth.</strong> Four tests over genuinely separate <code>psql</code> connections; against the real implementation 4/4 pass, against an unprotected one 4/4 fail. <strong>The first version was worthless and passed anyway</strong>: it used <code>pg_advisory_xact_lock</code> for the barrier, which is EXCLUSIVE, so the racers queued and ran one at a time. Mutation-checking took two rounds to expose — removing the <code>&gt;= p_take</code> guard left it green (the <code>&gt;= 0</code> constraint was catching the overdraw), and only dropping that constraint <strong>as well</strong>, leaving nothing protecting the balance, proved the racers had never raced. Fixed by having the gate hold the exclusive lock and the racers take <strong>shared</strong> ones. Skips loudly with a named reason when no database is reachable, so &quot;0 concurrency tests ran&quot; can never be misread as &quot;concurrency is proven&quot;</span>
+      </li>
+      <li class="task" data-id="E21-26" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-26"></button>
+        <code class="tid">E21-26</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A pack purchase does not fit <code>order_group</code>&#39;s totals invariant.</strong> Found while writing <code>E21-25</code>&#39;s fixture: <code>assert_order_group_totals</code> is a deferred constraint trigger requiring a group&#39;s totals to equal the sum of its member <code>order</code> rows, and a pack purchase has <strong>no member food orders</strong> — it is money for meals not yet chosen. So a real purchase either carries zero totals (and the payable no longer describes what was charged) or trips the trigger at COMMIT. <code>payment.order_group_id</code> is <code>not null</code>, so a pack cannot simply bypass the group and still use the Razorpay path. Needs a decision before the buy surface is built: teach the assertion that a pack-purchase group stands alone, or give packs their own payment linkage. <strong>Not to be solved by weakening the assertion silently</strong> — it is one of the money invariants, and the concurrency fixture only sets zero totals because it is a fixture</span>
+      </li>
+      <li class="task" data-id="E21-27" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-27"></button>
+        <code class="tid">E21-27</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>meal_packs.manage</code>, platform scope only, and offers are not readable by parents at all.</strong> Andy: *&quot;Only I can create or see offers. A new permission at platform scope only. Not kitchen, not support, not a school-scoped grant.&quot;* <code>valid_scope_types = &#39;{platform}&#39;</code> is the enforcement — <code>grant_permission</code> refuses anything else, asserted for both school and kitchen scope. The design tightened while writing the tests: the first draft gave offers an <code>anon, authenticated</code> browse policy mirroring the menu, and <code>[AUTH-01]</code> refused it — <code>anon</code> policies are restricted to menu tables and <code>break_time</code>, and widening that list for a <strong>money</strong> surface is the kind of exception that stops a rule meaning anything. So there is now <strong>no customer-plane policy on the offer tables at all</strong>; parents reach offers through <code>meal_pack_offers_for_school()</code>, a <code>security definer</code> function that applies the school gate itself. With a table policy the app decides what to ask for and the database checks it is allowed; with a function the <strong>database decides what exists</strong> for that school, and there is no query the app can write to see more</span>
+      </li>
+      <li class="task" data-id="E21-28" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-28"></button>
+        <code class="tid">E21-28</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Default off, everywhere, and provable.</strong> <code>meal_packs_available_at(school)</code> needs an <strong>active offer AND an enabled school row</strong>, and absence of a row is off — so a school onboarded tomorrow sells nothing until someone says otherwise. Five assertions cover the states individually: no row, enabled-school-but-inactive-offer, both true, the other school unaffected, and a school explicitly switched off while the offer stays live elsewhere. Mutation-checked by replacing the function with <code>select true</code>, which fails four of them</span>
+      </li>
+      <li class="task" data-id="E21-29" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-29"></button>
+        <code class="tid">E21-29</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The kitchen sees nothing pack-related, ever.</strong> Asserted structurally rather than by reading a screen, because a screen test only covers the screens that exist today: no permissive policy on any pack table reaches anyone but the owning parent, none of them names a kitchen or a back-office permission, and <strong><code>order</code> and <code>order_line</code> carry no pack column at all</strong> — the kitchen board cannot render what it cannot read. Mutation-checked by adding a back-office read policy on <code>meal_pack</code>, which fails both <code>authorization.test.sql</code> and <code>meal_packs.test.sql</code> independently</span>
+      </li>
+      <li class="task" data-id="E21-30" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-30"></button>
+        <code class="tid">E21-30</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The guards the pack work broke, fixed by completing them rather than adjusting numbers.</strong> Four existing suites failed, each doing exactly its job. <code>ledger.test.sql</code> and <code>payments_schema.test.sql</code> compare the chart of accounts and the reason-code vocabulary against <code>docs/payments-design.md</code> §10 — so §10 gained rows 12–15 (sale, redemption, return, expiry, in both tax modes) before the lists were touched. The nightly <code>assert_ledger_integrity</code> keeps its <strong>own</strong> copy of the account-type-to-normal-balance mapping *on purpose* — it exists to catch the constraint being dropped — so <code>0068</code> taught the constraint and not the check, and the nightly job reported two perfectly correct accounts as broken. <code>0070</code> teaches both. <code>authorization.test.sql</code> needed the five new tables <strong>classified</strong>, not counted around: three class 1 (own-rows-only) and two class 2 whose back-office read is platform scope only</span>
+      </li>
+      <li class="task" data-id="E21-31" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-31"></button>
+        <code class="tid">E21-31</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Switching a school off stops selling; it must never strand meals already paid for.</strong> Andy, 2026-08-26, naming the case neither of us had covered: *&quot;a parent who already owns a pack at a school we then switch off… must keep their balance and keep being able to spend it. That&#39;s real money owed as food.&quot;* <code>0070</code> had one answer, <code>meal_packs_available_at</code>, and the app was going to gate every pack surface on it — which would have made the balance, planner and cart toggle all vanish when an offer was withdrawn, taking a paid-for balance with them. The parent would still own the meals and simply be unable to reach them, which is the worst of both. So there are now <strong>two questions with different answers</strong>: <code>meal_packs_available_at(school)</code> is configuration, and <code>parent_has_live_meal_pack(user)</code> is a debt — it asks nothing about schools or offers, so no configuration change can make its answer no. <code>meal_pack_surface(user, school)</code> returns both at once, so the app never assembles the rule from parts. <code>spend_meal_pack_meals</code> is deliberately <strong>unchanged</strong> and now carries a comment saying so, because the tidy-up that adds a school check to it is exactly how meals get stranded. Nine assertions, mutation-checked by making the balance depend on the school switch — which fails the two that matter and nothing else</span>
+      </li>
+      <li class="task" data-id="E21-32" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-32"></button>
+        <code class="tid">E21-32</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The api module for the three parent surfaces.</strong> Reads only; buying, planning and redeeming are Edge Functions because each moves money or a balance. <code>fetchMealPackSurface</code> <strong>fails closed</strong> — on a network error, a garbled shape, a missing flag or a truthy-but-not-true value it returns no surface at all — and the asymmetry is the reason: rendering nothing costs a sale the parent can still make later, while rendering a surface that should not exist offers to take money for something we may not sell there. <code>fetchMealPackOffers</code> does the opposite and <strong>throws</strong>, because by then the parent is looking at a screen that promised offers and <code>[]</code> would read as &quot;there are none&quot; when the truth is &quot;we could not ask&quot;. 13 tests, including the three surface cases and a float price refused rather than rounded</span>
+      </li>
+      <li class="task" data-id="E21-33" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-33"></button>
+        <code class="tid">E21-33</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>MealPackSurfaceContext</code> — one answer, one moment.</strong> A context rather than a per-screen fetch (<code>D2</code>): each screen asking for itself would land the answer at different times, so a parent could watch the Account row disappear while standing on the balance screen it led to. Unknown renders as nothing, in flight and after failure both. It exposes <strong>no setter</strong>, which broke <code>orphans.test.ts</code> twice — and the fix was to teach the scan what a read-only context is rather than add a <code>KNOWN_ORPHANS</code> exemption, because an exemption says *this one is allowed to be broken* and this one is a different, deliberate shape: the server owns both flags, and <code>hasBalance</code> is a debt, so letting a screen set it would be the app deciding what it is owed. Verified rather than assumed — an unwired action named <code>zzzUnwiredPackAction</code> still fails the writer check</span>
+      </li>
+      <li class="task" data-id="E21-34" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-34"></button>
+        <code class="tid">E21-34</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The offers surface.</strong> <code>not_offered</code> is a first-class state, not <code>offers.length === 0</code>: &quot;we do not sell packs at your school&quot;, &quot;the read failed&quot; and &quot;there are none configured&quot; are three different sentences and collapsing them is the §5.21 defect. With the gate off it renders the refusal <strong>without a network call</strong> — there is nothing to ask for and a spinner would promise something</span>
+      </li>
+      <li class="task" data-id="E21-35" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-35"></button>
+        <code class="tid">E21-35</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The balance surface, which survives its school being switched off.</strong> Nothing on it consults <code>canBuy</code> except the one thing that genuinely depends on selling: the offer to buy another. Mutation-checked by gating the planner button on <code>canBuy</code> — the stranding bug in the UI, in one edit — which fails exactly the assertion named for it and nothing else. Three empties, three sentences: no pack, every meal spent, expired</span>
+      </li>
+      <li class="task" data-id="E21-36" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-36"></button>
+        <code class="tid">E21-36</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Wired, not merely built.</strong> <code>orphans.test.ts</code> caught all five props and the unmounted provider on the first run, which is the guard doing precisely its job. Provider mounted in <code>App.tsx</code> inside the school and session providers; <code>Packs</code> and <code>MyPacks</code> registered as routes; the Account row rendering on <code>canBuy || hasBalance</code>, never <code>canBuy</code> alone. <code>screens.test.ts</code> then caught a double count — the screens were emitting <code>screen_viewed</code> for themselves while the navigator emitted the same route — so the emit moved to one place and the vocabulary lost <code>pack_detail</code> and <code>pack_plan</code> until those screens exist, since a name with no emitter reads as a screen nobody visited</span>
+      </li>
+      <li class="task" data-id="E21-38" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-38"></button>
+        <code class="tid">E21-38</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>orphans.test.ts</code> matches action names bare, so common names pass spuriously.</strong> Found while mutation-checking <code>E21-33</code>: an unwired context action called <code>refresh</code> passes the writer check because something unrelated in the app calls something called <code>refresh</code>; the same mutation named <code>zzzUnwiredPackAction</code> fails. The guard is therefore weakest for exactly the names people choose — <code>refresh</code>, <code>load</code>, <code>reset</code>, <code>clear</code>. Fix by matching the call against the context&#39;s own hook or import rather than the bare identifier. Filed separately because tightening it will surface existing collisions across the app, and that is its own review</span>
+      </li>
+      <li class="task" data-id="E21-37" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-37"></button>
+        <code class="tid">E21-37</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>0072</code> — the balance a parent actually sees.</strong> Returns <strong>one</strong> pack, not a sum: spendable and oldest-expiring first, matching the order <code>spend_meal_pack_meals</code> takes them in. A summed &quot;17 meals&quot; across two packs with different expiry dates is true and useless, because it cannot answer *when do I lose these*. Carries the offer&#39;s <code>items_per_meal</code> and <code>required_category_id</code> so the cart can explain a refusal before the parent taps, and asks nothing about schools — a balance survives its school being switched off</span>
+      </li>
+      <li class="task" data-id="E21-39" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-39"></button>
+        <code class="tid">E21-39</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The cart strip — the only place a meal is spent.</strong> The switch is <strong>off every time the cart opens</strong>: no remembered preference, no default-on, because a meal is money and the prototype is explicit that nothing is spent without a tap. A cart that cannot be redeemed names the rule and the gap rather than grey-ing out a control, and reassures that the balance is untouched — the parent&#39;s first worry. Renders on <code>hasBalance</code>; the only <code>canBuy</code> branch is the advertisement, which is the one genuinely trying to sell. 15 tests, including that a <code>Switch</code> reports <code>valueChange</code> and not a press — <code>userEvent.press</code> on one does nothing at all, silently, which would have made the toggle test pass while asserting the opposite</span>
+      </li>
+      <li class="task" data-id="E21-40" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-40"></button>
+        <code class="tid">E21-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The meal rule, mirrored for copy only.</strong> The server decides; this decides what to *say*. Counts <strong>quantity, not rows</strong>, because <code>meal_pack_ineligibility_reason</code> sums <code>order_line.quantity</code> — counting rows would pass a cart of one dish times two that the server then refuses. Reads <code>items_per_meal</code> and the category from the <strong>offer</strong>, tested with a three-item pack and a fruit-category pack, because a rule hardcoded to &quot;two items, one drink&quot; mis-advises every parent the day a different pack exists. A zero-quantity line does not satisfy the category</span>
+      </li>
+      <li class="task" data-id="E21-41" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-41"></button>
+        <code class="tid">E21-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The planner&#39;s screen.</strong> All four of the prototype&#39;s refusals render <strong>on the day they apply to</strong>, greyed with the reason, never filtered out — mutation-checked by making blocked days return null, which fails exactly the three tests named for them. The footer states the count at all times, and Confirm is disabled while the plan is over budget or incomplete; mutating it to disable only on an empty plan fails two. The child picker is per-screen with the choice stored per day, which is what lets one plan cover two children — and it hides itself for a parent with one child rather than offering a choice of one. 19 tests The largest of the three surfaces: a multi-day picker with per-day item selection, the prototype&#39;s four refusal states shown <strong>on the day they apply to</strong> rather than at confirm time, and a confirm that spends N meals through one idempotent call. Spec is <code>V.packplan</code> in the prototype. The route is typed and the balance screen&#39;s button navigates to it</span>
+      </li>
+      <li class="task" data-id="E21-42" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-42"></button>
+        <code class="tid">E21-42</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Prove the app&#39;s eligibility rule and the server&#39;s give the same verdict.</strong> Both are tested separately and appear to agree; the assertion worth having is the same inputs through both implementations, which needs order rows per case. The failure it guards is a parent told their cart qualifies and then refused at confirm time. <strong>Its first version passed five of nine cases while comparing nothing</strong>: the fixture built everything in one <code>with … insert … select</code> chain, and a data-modifying CTE is invisible to a function that reads the table in the same statement — so <code>meal_pack_ineligibility_reason</code> answered <code>offer_not_found</code> every time, and five cases &quot;agreed&quot; the meal was ineligible for unrelated reasons. Rewritten as sequential statements in one <code>psql</code> session; mutation-checked by making the app count rows where the server counts quantity, which now fails three cases and previously failed none. One case was <strong>removed rather than made to work</strong>: a zero-quantity line is refused by <code>order_line_quantity_positive</code>, so the server can never see that state — the app&#39;s guard stays for a cart mid-edit, but unrepresentable is stronger than agreed</span>
+      </li>
+      <li class="task" data-id="E21-43" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-43"></button>
+        <code class="tid">E21-43</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The planner&#39;s arithmetic, before its screen.</strong> <code>packages/shared/src/cart/pack-plan.ts</code>. The line that matters: <strong><code>overBy</code> counts CHOSEN days, not valid ones.</strong> Counting completed days would let a parent pick eight days against a balance of five, finish five, read &quot;5 of 5 ready&quot;, and meet the problem only as they started the sixth — the warning has to arrive when the eighth day is *chosen*, while changing their mind is still cheap. Mutation-checked: switching it to <code>valid</code> fails exactly that test and the message-ordering one. <code>planMessage</code> says <strong>over-budget before incomplete</strong> when both hold, because finishing the incomplete days would not help and telling someone to choose items for a day they must remove is worse than silence. <code>blockReason</code> computes all four of the prototype&#39;s refusals rather than filtering days out — *&quot;a planner that only shows bookable days teaches nobody why the others are missing&quot;* — and reports <strong>expiry first</strong>, since it is the refusal with a deadline. The expiry day itself is allowed; the off-by-one that would cost a parent their last meal is its own test, and mutating <code>&gt;</code> to <code>&gt;=</code> fails it</span>
+      </li>
+      <li class="task" data-id="E21-44" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-44"></button>
+        <code class="tid">E21-44</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The planner&#39;s calendar and per-day item picker.</strong> The screen renders correctly with no days — &quot;Choose a day to start&quot;, Confirm disabled — which is what a parent should see before this exists. The calendar is <strong><code>order-calendar</code>, which had no caller at all</strong> — it has existed since <code>E05</code> and the planner is its first consumer. Building a pack-specific one would have meant two implementations of &quot;which days can this school be ordered for&quot;, and the uncalled one would have been the one that drifted. The range stops at the pack&#39;s expiry. <code>PlannerContext</code> holds the plan because <strong>two screens edit it</strong> — a copy in each is two answers to what a parent has chosen, and the confirm would send whichever it happened to hold. The picker enforces the rule in front of the parent with the offer&#39;s own terms; mutation-checked by hardcoding &quot;Drinks&quot; as the required heading, which fails the fruit-pack test. Allergens <strong>warn and never hide</strong> (<code>F5</code>/<code>F6</code>): filtering the clashing dish out fails two tests, because it would leave a parent unable to find something visible elsewhere on the menu and quietly turn the allergen list into a filter. A failed calendar read renders as &quot;we couldn&#39;t load the days&quot; with a retry, never as an empty list</span>
+      </li>
+      <li class="task" data-id="E21-45" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-45"></button>
+        <code class="tid">E21-45</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Confirming a plan.</strong> An Edge Function taking the plan and one idempotency key for the whole submission, writing N orders, N redemptions, the decrement and the ledger legs in one transaction. <code>meal_pack_plan</code> already exists for it (<code>0068</code>). <code>0073</code>. One transaction: decrement, N orders, N redemptions, ledger legs — together or not at all. Idempotent on the <strong>whole submission</strong>, mutation-checked by removing the replay branch, which fails the retry assertions and nothing else. A retry with the same key and a <strong>different</strong> plan is refused rather than replayed, because returning the first plan&#39;s orders would tell a parent they had planned something they had not. Revenue is recognised by difference so two meals of a ₹3,000 ten-meal pack recognise exactly ₹600. <code>check-unqualified-writes</code> caught a <code>delete from</code> with no <code>WHERE</code> on a temp table — hosted Supabase loads <code>safeupdate</code> and rejects that with <code>21000</code> while a local <code>supabase start</code> does not, so it passed every local test and would have failed on staging. The <code>confirming</code> prop and its double-tap test return in <code>E21-47</code> with the Edge Function shell</span>
+      </li>
+      <li class="task" data-id="E21-46" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-46"></button>
+        <code class="tid">E21-46</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A ledger test whose fixtures go through the money path.</strong> <code>meal_packs.test.sql</code> asserts the deferred-revenue <strong>change</strong> rather than the absolute invariant, because its earlier sections conjure packs into the table to test the balance and spend from them directly, with no sale or redemption posting — so the whole-ledger check correctly reports a mismatch. That is the check working; it also means the strongest assertion has no home yet. <code>meal_pack_ledger.test.sql</code>: one pack, its sale posted, every meal leaving through <code>confirm_meal_pack_plan</code>, and the <strong>absolute</strong> invariant asserted after the sale, a redemption, a cancellation and expiry — because a double-count shows up in exactly one of those and not the others. The assertion Andy asked for most directly is stated as arithmetic: <strong>recognised + still owed = the price</strong>. Mutation-checked by posting the sale to <code>platform:revenue</code> instead of the liability, which is the double-count in one edit and fails ten assertions starting with the first. It also found real litter: <code>meal-pack-concurrency.test.mjs</code> must COMMIT to race real transactions and had left twenty-one packs behind across runs, making the invariant false before this file wrote a line — the concurrency test now deletes its own rows in FK order</span>
+      </li>
+      <li class="task" data-id="E21-47" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-47"></button>
+        <code class="tid">E21-47</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The Edge Function shell over <code>confirm_meal_pack_plan</code>.</strong> Thin, like <code>checkout</code>: prove the caller from their JWT, then one service-role RPC. A body field named <code>user_id</code> is ignored — there is no code path that reads one. The <code>Idempotency-Key</code> is <strong>required rather than generated</strong>, because a key the server invents differs per attempt and defeats the whole mechanism; and in the app it is made once per screen mount in a <code>useRef</code>, since one made at tap time would be new on every tap and the second tap would look like a second plan. <code>confirming</code> and its double-tap test came back with the wire (<code>D8</code>) — belt to the server&#39;s braces, since <code>confirm_meal_pack_plan</code> replays correctly anyway; what the prop protects is what the parent SEES. <code>cors.test.ts</code> caught the new function immediately, which is the coverage list doing its job</span>
+      </li>
+      <li class="task" data-id="E21-48" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-48"></button>
+        <code class="tid">E21-48</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Buying a pack, end to end.</strong> <code>PackDetail</code>, and an Edge Function creating a <code>meal_pack_purchase</code> order group, taking payment through the <strong>existing</strong> Razorpay path — Andy chose that over a second payment linkage, because duplicating settlement, the webhook, the drain and reconciliation is a far bigger risk than the invariant — and writing the pack plus its ledger legs in one transaction. <strong>Blocked on <code>E21-22</code></strong>: the sale&#39;s legs differ by tax point, and the value is stamped onto the pack at sale, so building it before the answer would mean either guessing or reissuing tax documents later. The offers screen already lists what is on sale; there is deliberately no Buy button yet rather than one that looks like it works</span>
+      </li>
+      <li class="task" data-id="E21-50" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-50"></button>
+        <code class="tid">E21-50</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The planner&#39;s failure copy.</strong> A confirm that is refused server-side — cutoff passed while planning, a day that expired, not enough meals after another device spent some — currently resolves silently. Every hint <code>confirm_meal_pack_plan</code> raises already has a sentence in the Edge Function&#39;s <code>REFUSALS</code> map; the screen needs to show it, and to say plainly that nothing was spent</span>
+      </li>
+      <li class="task" data-id="E21-51" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-51"></button>
+        <code class="tid">E21-51</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Allergen clashes in the per-day picker.</strong> The screen renders them and the planner passes an empty list, so a dish that clashes shows no warning there yet — deliberately empty rather than implying safety. Join the chosen child&#39;s allergens as <code>useAllergenWatchlist</code> already does for the cart</span>
+      </li>
+      <li class="task" data-id="E21-52" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-52"></button>
+        <code class="tid">E21-52</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Packs ship dark on production, enforced rather than remembered.</strong> Andy, 2026-08-27: *&quot;Everything else merges and ships dark: <code>is_active</code> false on production, no offer live, no parent sees a thing.&quot;* The default already stopped an offer selling <strong>by existing</strong>; it did nothing about somebody activating one, and the person most likely to is whoever first points the new admin screens at production. <code>0075</code> adds <code>platform_config.meal_packs_confirmed</code> — false everywhere — and a trigger refusing an offer that goes live while <code>environment = &#39;production&#39;</code> and the flag is false. A <strong>trigger</strong> rather than a check constraint because the condition spans two tables, and because a trigger also refuses a hand-written <code>psql</code> statement, which is how the three cancelled orders reached production. The guard is on the <strong>transition into being sellable</strong>: creating a draft, editing one, and switching a live offer OFF are all unaffected — it must never become the reason a live offer is stuck. Mutation-checked by emptying the function, which fails the two assertions that matter</span>
       </li></ul>
       </details>
     </article>

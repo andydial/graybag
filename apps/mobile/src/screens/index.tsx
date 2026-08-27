@@ -287,6 +287,10 @@ export const AccountScreen = () => {
         void signOut();
       }}
       onOrders={() => navigation.navigate('Orders')}
+      // `E21`. The single pack entry point. The ROW decides whether to render — it reads the
+      // surface itself — so this handler is always supplied and simply has nothing to open when
+      // the row is absent. Wiring it conditionally here would put the gate in two places.
+      onMealPacks={() => navigation.navigate('MyPacks')}
       // `E20-39`. This had no caller, so the Grievance officer row rendered and did nothing —
       // one of the six compliance controls, unreachable, on a screen that looked complete.
       onSupport={() => navigation.navigate('Support')}

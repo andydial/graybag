@@ -33,7 +33,12 @@ select set_eq(
   $$ select code from ledger_account where owner_type in ('platform', 'provider') $$,
   $$ values ('provider:razorpay:clearing'), ('platform:bank'), ('platform:provider_fees'),
             ('platform:revenue'), ('platform:tax_payable:cgst'),
-            ('platform:tax_payable:sgst'), ('platform:suspense') $$,
+            ('platform:tax_payable:sgst'), ('platform:suspense'),
+            -- `E21` meal packs, docs/payments-design.md §10 rows 12–15. Two liabilities and a
+            -- breakage revenue account: a pack sale is money in for food not yet served, so it
+            -- is owed rather than earned until a meal is actually spent.
+            ('platform:deferred_revenue:meal_packs'), ('platform:deferred_tax:meal_packs'),
+            ('platform:revenue:breakage') $$,
   'E06-23: every account docs/payments-design.md §10 posts to exists. Before 0035 the table was '
   'EMPTY, so the first ledger_entry would have failed on a foreign key — the same defect 0013 '
   'fixed for reason codes, one level along');

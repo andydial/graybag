@@ -9,6 +9,8 @@ import { installMenuCache } from './src/menu/installMenuCache';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { PolicyGateProvider } from './src/policy/PolicyGateContext';
 import { CantConnectScreen } from './src/status/CantConnectScreen';
+import { MealPackSurfaceProvider } from './src/packs/MealPackSurfaceContext';
+import { PlannerProvider } from './src/packs/PlannerContext';
 import { VersionGate } from './src/status/VersionGate';
 import { ConnectivityProvider } from './src/net/ConnectivityContext';
 import { OrderTargetProvider } from './src/session/OrderTargetContext';
@@ -139,7 +141,26 @@ export default function App() {
                   in front of the menu for someone who has not signed in (`AR7`).
                 */}
                 <PolicyGateProvider>
-                  <RootNavigator />
+                  {/*
+                    `E21`. Inside the school provider because the answer is per school, and
+                    inside the session provider because it is also per parent — a balance is
+                    theirs. Above the navigator because the Account row, the pack screens and
+                    the cart strip must all read ONE answer: fetched per screen they would land
+                    at different moments, and a parent could watch the Account row disappear
+                    while standing on the balance screen it led to (`D2`).
+                  */}
+                  <MealPackSurfaceProvider>
+                    {/*
+                      `E21-44`. Inside the surface provider because it reads the pack's expiry to
+                      bound the calendar range. Above the navigator because the day list and the
+                      per-day picker are two screens editing ONE plan — a copy in each is two
+                      answers to what a parent has chosen, and the confirm would send whichever
+                      one it happened to hold.
+                    */}
+                    <PlannerProvider>
+                      <RootNavigator />
+                    </PlannerProvider>
+                  </MealPackSurfaceProvider>
                 </PolicyGateProvider>
               </CartProvider>
             </SchoolFollowsRecipient>

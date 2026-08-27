@@ -119,6 +119,9 @@ milestones … enough that I can see someone reach checkout and turn back."*
 | `place_order_tapped` | Place order pressed | `line_count` |
 | `payment_sheet_closed` | The Razorpay sheet closes, however it closes | `outcome` (`completed` \| `dismissed` \| `failed`) |
 | `add_child_submitted` | Add-child form submitted | *(none)* |
+| `pack_offer_opened` | A meal pack offer opened | *(none)* |
+| `pack_purchase_started` | Buy pressed on an offer | *(none)* |
+| `pack_plan_confirmed` | A multi-day pack plan confirmed | *(none)* |
 
 **Turning back is `payment_sheet_closed` with `outcome: dismissed`**, followed by whatever
 `screen_viewed` comes next. That pair is the shape Andy asked to be able to see, and neither
@@ -133,7 +136,7 @@ enumerated properties are validated against a closed vocabulary and anything els
 - `screen`: `home`, `menu`, `school_picker`, `dish_detail`, `cart`, `orders`, `order_detail`,
   `account`, `children`, `add_child`, `sign_in`, `sign_in_code`, `support`, `policy`,
   `policy_gate`, `delete_account`, `payment_waiting`, `order_placed`, `update_required`,
-  `cant_connect`
+  `cant_connect`, `packs`, `my_packs`, `pack_plan`, `plan_day`
 - `method`: `google`, `apple`, `email_otp`
 - `reason`: `dismissed`, `expired`, `failed`
 - `outcome`: `completed`, `dismissed`, `failed`
@@ -171,6 +174,18 @@ correct if the environment check ever becomes partial rather than all-or-nothing
 
 Written down because an absent event and an impossible event look identical on a dashboard.
 Zero `cant_connect` rows is not evidence that nobody hit it.
+
+#### The pack events carry no money at all
+
+`pack_offer_opened`, `pack_purchase_started` and `pack_plan_confirmed` carry the common set and
+nothing else — no amount, no meals count, no offer id, no child, no dish.
+
+`pack_plan_confirmed` is the one worth explaining. *How many days does a parent plan at once* is a
+genuinely useful product number, and it is exactly the one to refuse: a plan is a set of children
+and dates, so that count sits one join away from **which child eats on which days**, which is the
+food profile `s.9(3)` forbids building. What remains knowable is the funnel — reached the offers,
+opened one, started a purchase, confirmed a plan — and every amount is in the ledger, which does
+not leave the country.
 
 #### What the cart events deliberately do NOT carry
 

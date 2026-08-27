@@ -3141,3 +3141,220 @@ of them has a direction. Two things make it survivable:
 
 The general shape is the same one as the CI suite that runs zero tests (`E15-23`): an operation
 that quietly does the opposite of what was intended, while reporting success.
+
+## A 403 makes every content check pass — verify identity, not just content — 2026-08-26
+
+Verifying `E17-59` on the published OTA, the bundle was fetched from `assets.eascdn.net` using
+the URL in the manifest. The CDN returned **403 with a 1724-byte HTML error page**, and every
+check run against it "passed": the production values were absent (reported as MISS), and the
+negative controls — staging ref, test key, a never-present sentinel — were all absent too, so
+they read as **ok**. A file containing none of what you are looking for satisfies every
+"must not contain" assertion perfectly.
+
+The size was the tell. 1724 bytes is not a 4.78 MB bundle.
+
+The fix was to stop trying to verify content on an artifact whose identity was unproven. The
+`dist` bundle EAS had just uploaded has md5 `c6bc1ee0f58fc3ce54effc1de635c985`, which is exactly
+the manifest's `launchAsset.key` — so the local file *is* the served file, and grepping it is
+equivalent. **Establish identity by hash first, then inspect.**
+
+Also recorded, because a false alarm costs trust: `rzp_test` was found in the production bundle
+and is not a test key. It is the `REQUIRED_RAZORPAY_PREFIX` guard in `packages/shared/src/env.ts`,
+which maps local and staging to `rzp_test_` and production to `rzp_live_`. A substring match on a
+secret's prefix will hit the code that validates the prefix. Match the whole value, or check what
+the match actually is before reporting it.
+
+## A concurrency test that never contends — the barrier must be a SHARED lock — 2026-08-26
+
+`E21`'s first concurrency test used `pg_advisory_xact_lock(K)` as the starting gun: a gate process
+held it, and every racer asked for the same lock before spending a meal. All four assertions
+passed, including the ten-connections-against-three-meals case Andy specifically asked for.
+
+It proved nothing. **`pg_advisory_xact_lock` is EXCLUSIVE**, so the racers queued behind each
+other and ran strictly one at a time. There was never any contention to survive.
+
+The mutation check is what exposed it, and it took two rounds:
+
+1. Removed the `meals_remaining >= p_take` guard from the function — **still green**. Explainable:
+   the `check (meals_remaining >= 0)` constraint was catching the overdraw instead.
+2. Dropped that constraint too, leaving *nothing at all* protecting the balance — **still green**.
+   At that point the test had no possible mechanism to be testing, and the only remaining
+   explanation was that the racers were not racing.
+
+The fix: the gate takes the **exclusive** lock, the racers take **shared** ones
+(`pg_advisory_xact_lock_shared`). Shared locks are compatible with each other, so all N acquire in
+the same instant when the gate commits. Against the unprotected function the test now fails 4/4;
+against the real one it passes 4/4.
+
+**The rule this earns:** a test asserting that concurrent callers cannot corrupt state must be run
+against a deliberately broken implementation before it is trusted. If it does not fail there, it
+is not testing concurrency — and a green concurrency test is the most confidently wrong artefact
+in a codebase that takes money.
+
+Second-order lesson: step 1's result was *plausible* on its own. "The guard is redundant with the
+constraint" is a believable story, and stopping there would have left the real bug in place. Keep
+removing protections until the test fails, or you have not found its floor.
+
+## A guard that keeps its own copy of a rule must be taught twice — 2026-08-26
+
+`0068` added two ledger account types and extended
+`ledger_account_normal_balance_matches_type` to accept them. `ledger.test.sql` then failed:
+the nightly `assert_ledger_integrity` reported two perfectly correct accounts as broken.
+
+The cause is deliberate design, not an oversight. `assert_ledger_integrity` carries its **own**
+copy of the account-type-to-normal-balance mapping *because* it exists to catch the constraint
+having been dropped — reading the constraint would defeat the entire point of the check. The
+price of that independence is that a new account type has to be taught to both, and nothing
+enforces the pairing.
+
+Generalises past the ledger: **whenever a backstop deliberately duplicates a rule rather than
+referencing it, adding to the rule is a two-place change.** Write the second place into the same
+commit, because the failure surfaces as a nightly job calling healthy data broken, which is the
+alarm nobody trusts after the second false positive.
+
+Related, from the same afternoon: four existing suites broke when meal packs landed, and every
+one was right to. The fix in each case was to *complete* the guard — add the postings to
+`docs/payments-design.md` §10 before touching the lists that check against it, classify the five
+new tables in the authorization matrix rather than adjusting a count — never to relax it. A count
+assertion edited to make a suite pass is how a matrix stops describing the schema.
+
+## Design pressure from a test is worth listening to — 2026-08-26
+
+`E21`'s first draft gave meal-pack offers an `anon, authenticated` browse policy, mirroring the
+menu: a parent deciding whether to sign up should be able to see what a pack costs. Reasonable,
+and `[AUTH-01]` refused it — `anon` policies are restricted to menu tables and `break_time`.
+
+The easy move was to widen that list by two. The right move was to notice what the rule was
+saying: this is a **money** surface, and Andy's requirement was *"only I can create or see
+offers."*
+
+So the offer tables ended up with **no customer-plane policy at all**, and parents reach offers
+through a `security definer` function that applies the school gate itself. The difference is not
+cosmetic. With a table policy the app decides what to ask for and the database only checks the
+request is permitted; with a function the **database decides what exists**, and there is no query
+the app can write to see more. The stricter design is also the simpler one to prove.
+
+## A data-modifying CTE is invisible to a function reading the same table — 2026-08-27
+
+`E21-42`'s first version built its whole fixture in one statement: a `with … insert … insert …
+select meal_pack_ineligibility_reason(…)` chain. It looked tidy and it was wrong in the way that
+matters most — **five of nine cases passed**.
+
+Postgres runs data-modifying CTEs against the snapshot taken at the start of the statement, so a
+function called in the same statement that does `select … from meal_pack_offer where id = $1`
+cannot see the offer the CTE just inserted. The server answered `offer_not_found` for every case.
+Four cases disagreed with the app and failed loudly; the other five "agreed" that the meal was
+ineligible — for entirely unrelated reasons.
+
+A cross-implementation test that passes because **neither side saw the data** is the precise
+failure the test was written to catch, produced by the test itself.
+
+The fix is unglamorous: insert, then read. Each statement gets its own `-c` in one `psql` session,
+so every write is visible to the next. Confirmed by mutation — making the app count rows where the
+server counts quantity now fails three cases; before the fix it failed nothing new, because
+nothing was being compared.
+
+**Rule:** if a fixture writes rows that a *function* must read, the write and the read cannot
+share a statement. And a cross-check that has never been seen to fail is not yet a cross-check.
+
+## Two constraints made a test case unrepresentable, which is stronger than agreement — 2026-08-27
+
+The same file tried to assert that a zero-quantity order line does not satisfy a pack's category
+requirement. The app guards it; the database refused to store the row at all
+(`order_line_quantity_positive`).
+
+So there is nothing to agree about, and the case was removed with its reasoning rather than worked
+around. The app's guard stays — a client-side cart genuinely can hold a line at zero between a
+decrement and a removal — but the two positions are not equivalent: one is a rule, the other makes
+the state impossible. Worth noticing when a cross-check refuses to run: sometimes the answer is
+that one side has already made the question moot.
+
+## "CI stopped running" is usually the PR being unmergeable — 2026-08-27
+
+Five commits on a branch produced no Actions runs. The symptom matched a real stall from earlier
+in the week, so I treated it as the same thing: closed and reopened the PR, then pushed an empty
+commit. Neither helped.
+
+The cause was `gh pr view <n> --json mergeable` reporting **`CONFLICTING`**. `ci.yml` triggers on
+`pull_request`, and **GitHub will not run a `pull_request` workflow on a PR whose merge commit
+cannot be computed.** Another thread had merged to `main` an hour earlier. Nothing was stalled.
+
+**The one-command discriminator, worth running first every time:**
+
+```bash
+gh run list --limit 5 --json headBranch,name,status,createdAt   # is Actions alive at all?
+gh pr view <n> --json mergeable --jq .mergeable                  # can the merge commit be built?
+```
+
+If other branches are scheduling, it is not an outage — it is this PR. Checking that costs one
+command and would have saved two wrong remedies applied to a live PR.
+
+**The general fault** is worth naming beyond CI: I matched a symptom to a remembered cause and
+acted before testing it. A remembered cause is a hypothesis, and the cheapest discriminating
+observation comes before the remedy — especially when the remedy touches something shared.
+
+Related and reinforcing: this is the second time in two days that a long-lived branch has cost
+something invisible (`CLAUDE.md`, "Build rhythm"). The branch was five commits and several hours
+old when `main` moved under it.
+
+## A local Postgres will not tell you about `safeupdate` — 2026-08-27
+
+`0073` used `delete from plan_taken;` to clear a temp table between calls. Every local test passed:
+73 migrations applied, 43 pgTAP assertions green, the mutation checks behaved.
+
+`check-unqualified-writes` refused it. **Hosted Supabase loads the `safeupdate` extension, which
+rejects an unqualified `DELETE` or `UPDATE` with `21000`.** A local `supabase start` does not load
+it. So the function would have worked perfectly on this machine and failed on every real request
+against staging or production.
+
+This is the second time that guard has earned its place (`E05-21`, and `E06-38` which cost a day
+of settlements). Worth stating as a general shape rather than a Postgres detail: **the local
+database is not the deployed one, and the differences are silent by construction** — an extension
+the host loads, a role the host applies, a setting the host pins. Where a guard exists for one of
+those, it is the only thing standing between a green suite and a broken deploy, and its complaint
+is information rather than an obstacle.
+
+The fix was `truncate`, which the guard's own message suggests for a temp table.
+
+## A test that must COMMIT will pollute every test after it — 2026-08-27
+
+`meal-pack-concurrency.test.mjs` cannot roll back: it races real transactions, so its rows have to
+be committed for the contention to be real. Each run left four packs behind, and after several
+runs the local database held twenty-one.
+
+That surfaced two files later. `meal_pack_ledger.test.sql` asserts the **absolute** invariant —
+deferred revenue equals what every live pack still owes — and twenty-one orphaned packs made it
+false before the test had written a line. The failure read as a redemption bug and was litter from
+a test that had passed.
+
+Fixed by having the concurrency test delete its own rows in FK order at the end of each race. The
+sequence is now clean: reset, race, assert, and the pack table is back to zero.
+
+**The general rule:** a rollback-based test owes nothing to the ones after it; a committing test
+owes them a clean table. And when an invariant fails "before the test does anything", suspect the
+world the test inherited rather than the code it is testing.
+
+## A long-lived branch cost the same thing three times in one night — 2026-08-27
+
+`CLAUDE.md`'s build rhythm says no branch runs more than a day without merging. `e17-60` ran for
+one long session and `main` moved under it **three times**:
+
+1. The Reports merge made PR #120 `CONFLICTING`, which stopped CI running at all — and I spent two
+   wrong remedies on it before checking `mergeable`.
+2. A second merge landed while Maestro was running, so the merge I had just resolved was stale
+   before the 24-minute check finished.
+3. The third produced an **add/add conflict on `docs/decisions-27aug.md`**, because both threads
+   wrote a decisions file for the same night.
+
+None of these was anyone's mistake. They are what a long-lived branch does, and each cost more
+than the last: a misdiagnosis, then a wasted CI cycle, then a shared artefact that only avoided a
+citation collision because the two threads happened to pick different numbering schemes
+(`D1`–`D10` against `1.`–`4.`). Had both used `D`, `main` would now hold two `D3`s meaning
+different things, in the file whose whole purpose is that a decision can be cited later.
+
+**The specific lesson beyond the rhythm rule:** a dated, shared artefact — a decisions file, a
+state file, a task list — needs an ownership rule *before* two threads write it, not after. Task
+ids got one after `E17-29`. Decisions files have not, and `E17-62` is that.
+
+**And the cheap habit:** before waiting 24 minutes on a check, re-fetch and confirm the branch is
+still current. A green check on a stale merge base tells you about a tree nobody will ship.

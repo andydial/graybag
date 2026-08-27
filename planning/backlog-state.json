@@ -1,5 +1,5 @@
 {
-  "updated": "2026-08-26T14:18:51.346Z",
+  "updated": "2026-08-26T23:43:59.435Z",
   "done": {
     "E00-06": true,
     "E00-07": true,
@@ -292,6 +292,33 @@
     "E20-53": true,
     "E20-54": true,
     "E20-56": true,
-    "E20-57": true
+    "E20-57": true,
+    "E17-61": true,
+    "E21-21": true,
+    "E21-23": true,
+    "E21-24": true,
+    "E21-25": true,
+    "E21-26": true,
+    "E21-27": true,
+    "E21-28": true,
+    "E21-29": true,
+    "E21-30": true,
+    "E21-31": true,
+    "E21-32": true,
+    "E21-33": true,
+    "E21-34": true,
+    "E21-35": true,
+    "E21-36": true,
+    "E21-37": true,
+    "E21-39": true,
+    "E21-40": true,
+    "E21-43": true,
+    "E21-41": true,
+    "E21-42": true,
+    "E21-45": true,
+    "E21-47": true,
+    "E21-46": true,
+    "E21-44": true,
+    "E21-52": true
   }
 }

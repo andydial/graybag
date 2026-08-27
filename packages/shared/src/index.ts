@@ -94,3 +94,13 @@ export * as analytics from './analytics/events.js';
 // The client itself (`E15-20`) — a fetch against PostHog Cloud EU, no SDK and no native module,
 // so it ships over the air. Every capture goes through the allowlist above before it is sent.
 export * as analyticsClient from './analytics/client.js';
+
+// The pack meal rule, mirrored for the app's copy only (`E21-40`). The SERVER decides whether a
+// meal may be spent — `meal_pack_ineligibility_reason` in `0069`, inside the transaction that
+// decrements the balance. This exists so a parent is told why before they tap, not after.
+export * as packEligibility from './cart/pack-eligibility.js';
+
+// The planner's arithmetic (`E21-41`). Pure, because the footer's count is the only thing
+// standing between a parent and twenty items chosen for a plan the server will refuse. It decides
+// what to SHOW and what to ENABLE; `spend_meal_pack_meals` decides what is spent.
+export * as packPlan from './cart/pack-plan.js';
