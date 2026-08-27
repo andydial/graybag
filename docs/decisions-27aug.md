@@ -293,7 +293,7 @@ depends on it, and a dated scratch file cannot do that job — in a month nobody
 
 The remaining prototype items are meal packs, the dishes workbench, named menus, and the People &
 access role-scope panel. Taking them in Andy's stated order except that **meal packs is skipped**:
-the pack schema and the `packs.manage` permission belong to the mobile thread, Andy told them so
+the pack schema and the `meal_packs.manage` permission belong to the mobile thread, Andy told them so
 on 2026-08-26, and he was explicit that I should not borrow an adjacent permission because
 *"borrowing an adjacent permission because the right one doesn't exist yet is how permissions
 quietly stop meaning what they say."* Nothing about that is unblocked by working at night.
@@ -539,7 +539,7 @@ Dishes/Menus split without the screens that make it make sense.
 
 All six prototype items, except the two things that are genuinely blocked:
 
-- **Meal packs** — the schema and `packs.manage` belong to the mobile thread. Untouched, and no
+- **Meal packs** — the schema and `meal_packs.manage` belong to the mobile thread. Untouched, and no
   adjacent permission borrowed.
 - **The menu New/Duplicate buttons** — the write path is built and tested; the function has never
   run because it cannot be deployed while Actions is down. `E10-50` stays open for that.
