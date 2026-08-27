@@ -327,6 +327,49 @@ if (inlineScripts.length > 0) {
   );
 }
 
+/*
+ * A page on the back-office shell must ship the back-office stylesheet — `E10-63`.
+ *
+ * `/orders` reached production rendering as raw HTML: nav as inline links, unstyled buttons, no
+ * layout at all. The migration removed its `kitchen.css` import and added nothing, because the
+ * rule that replaced the import looked for `admin.css` and that page never had one.
+ *
+ * Nothing caught it. It builds, it has no console errors, its markup is correct, and it passes
+ * a11y — an unstyled page is *more* accessible, not less. The only signals were visual, and the
+ * screenshot that would have shown it was generated and never opened.
+ *
+ * So this asserts the one thing that is checkable from the built HTML: a page whose body contains
+ * the shell's root class must also link a stylesheet containing the shell's rules.
+ */
+{
+  const shellPages = [];
+  for (const page of html) {
+    const markup = readFileSync(page.path, 'utf8');
+    if (!markup.includes('class="bo"')) continue;
+
+    const hrefs = [...markup.matchAll(/href="(\/_astro\/[^"]+\.css)"/g)].map((m) => m[1]);
+    const styled = hrefs.some((href) => {
+      const asset = join(DIST, href.replace(/^\//, ''));
+      return existsSync(asset) && readFileSync(asset, 'utf8').includes('.bo__nav');
+    });
+
+    shellPages.push(page.rel);
+    if (!styled) {
+      fail(
+        `${page.rel} uses the back-office shell but links no stylesheet defining it. It renders ` +
+          `as raw HTML. Add \`import '…/styles/backoffice.css'\` to the page.`,
+      );
+    }
+  }
+  notes.push(`  back office    ${shellPages.length} page(s) on the shell, all with its stylesheet`);
+}
+
+
+console.log(
+  `  store links verified against ${ALLOWED_STORE_URLS.length} listing(s), no third-party assets, ` +
+    `${html.length} page(s) with sound internal links.`,
+);
+
 // ------------------------------------------------------------------- report
 
 console.log('Build checks:');
@@ -337,9 +380,3 @@ if (problems.length) {
   for (const problem of problems) console.error(`  - ${problem}`);
   process.exit(1);
 }
-
-
-console.log(
-  `  store links verified against ${ALLOWED_STORE_URLS.length} listing(s), no third-party assets, ` +
-    `${html.length} page(s) with sound internal links.`,
-);

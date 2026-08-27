@@ -39,7 +39,17 @@ const { current, title, subtitle } = Astro.props;
 
 <div class="bo">
   <nav class="bo__nav" aria-label="Back office" data-bonav>
-    <span class="bo__brand"><i></i> GrayBag</span>
+    <!--
+      The real mark, not a lime square.
+
+      `logo-white.webp` is the variant for a dark ground and the sidebar is the darkest surface in
+      the product; `logo.webp` is the one for light. The prototype drew a placeholder rectangle
+      because it had no asset pipeline — copying the placeholder was reading the mock too literally,
+      which is the same mistake as reading it too loosely.
+    -->
+    <a class="bo__brand" href="/dashboard" aria-label="GrayBag — back office home">
+      <img src="/img/logo-white.webp" width="560" height="184" alt="GrayBag" />
+    </a>
 
     {NAV_GROUPS.map((group) => (
       <>

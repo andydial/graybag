@@ -77,6 +77,31 @@ describe('one source for the company identity', () => {
     // These three are what `E12-25` was about: one answer, two documents.
     expect(COMPANY.legalName).toBe('GRAYBAG SOLUTIONS PRIVATE LIMITED');
     expect(COMPANY.gstin).toBe('03AAMCG3438M1ZD');
-    expect(COMPANY.registeredAddress).toContain('Chandigarh');
+    // Updated 2026-08-28: the GST-registered address moved to Mohali.
+    expect(COMPANY.registeredAddress).toContain('Mohali');
+  });
+
+  /*
+   * The seller's state and the GSTIN's state must agree — added with the address change.
+   *
+   * A GSTIN's first two digits are its state code: `03` is Punjab, `04` is Chandigarh. The
+   * registered address said Chandigarh while the GSTIN said Punjab, and nothing noticed, because
+   * nothing compared them. A tax invoice whose seller address and GSTIN disagree about the state
+   * is fine until somebody files with it.
+   *
+   * Asserted as a property rather than as the current value, so it keeps holding the next time
+   * either one moves.
+   */
+  it('states an address in the state its GSTIN claims', () => {
+    const STATE_BY_CODE: Record<string, string> = { '03': 'Punjab', '04': 'Chandigarh' };
+    // `gstin` is nullable in the type because `company.json` allows null for genuinely unknown
+    // facts. If it is ever null there is no claim to contradict, and this test has nothing to say.
+    const gstin = COMPANY.gstin;
+    if (gstin === null) return;
+
+    const code = gstin.slice(0, 2);
+    const state = STATE_BY_CODE[code];
+    expect(state, `GSTIN begins ${code}, which is not a state code this test knows`).toBeDefined();
+    expect(COMPANY.registeredAddress).toContain(state!);
   });
 });
