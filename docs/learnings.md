@@ -3389,6 +3389,19 @@ job in a run, and the Integration workflow holds three — it handed back the st
 (`E01-30`, a known and unrelated failure) while I was looking for Maestro. Go via
 `actions/runs/<id>/jobs`, find the job id, and read that job's log directly.
 
+**And a second Maestro failure the same night that was NOT infrastructure**, which is why the log
+is worth reading every time rather than pattern-matching on "Maestro is flaky":
+
+```
+[Failed] cart (30s) (Assertion is false: id: school-picker is visible)
+```
+
+That is the app failing an assertion, not the runner failing to build one. It also passed on
+re-run with no change, so the flow works and the assertion does not reliably hold — tracked as
+`E14-39` at `risk:high`. The two failures look identical at the level of "Maestro went red" and
+have nothing in common: one is a corrupt download, the other is the only end-to-end gate on the
+ordering path quietly becoming unreliable. Distinguishing them costs one log read.
+
 Second, this is a good argument for the permanently-red `Supabase project config (staging)` job
 being fixed rather than tolerated: it is the noise that made a genuinely new failure take three
 commands to find instead of one.
