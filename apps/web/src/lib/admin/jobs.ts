@@ -134,14 +134,31 @@ export interface AccessSummary {
 /**
  * Name what somebody holds.
  *
- * A job matches when the person holds **every** grant in it at one scope type. Holding more than
- * the job is still that job **plus** the extras, named — "Kitchen staff, and can refund" is more
- * useful than falling back to "Custom" and making somebody read thirty-one codes to find the one
- * that matters. Holding less is not that job at all.
+ * ## Why this is not "the largest bundle they hold entirely"
  *
- * Ties go to the **largest** matching bundle: somebody with the platform admin set also technically
- * satisfies Delivery, and calling them Delivery would be actively misleading.
+ * It was, and that rule named a **platform admin "Kitchen manager, plus 23 more permissions"** on
+ * production. Andy, seeing it: *"a screen that names the wrong job is worse than one that names
+ * none."* He is right, and the mechanism is worth stating because it will recur otherwise.
+ *
+ * `meal_packs.manage` was added to the platform-admin bundle when the packs screen was built. He
+ * did not hold it — the permission is not even seeded on production yet — so that bundle stopped
+ * matching *entirely*, was filtered out, and the largest remaining complete match was Kitchen
+ * manager's eight grants. Thirty-one held minus eight explained is the "23 more".
+ *
+ * So the rule "every grant in the job must be held" makes **adding one grant to a bundle silently
+ * relabel every existing holder as something unrelated**. Not vaguer — wrong, and confidently.
+ *
+ * ## What it does instead
+ *
+ * Rank by how much of the **job** the person holds, then prefer the job they are missing least of.
+ * A platform admin missing one grant is a platform admin missing one grant, and saying so is both
+ * more accurate and more useful: it names the thing to grant.
+ *
+ * A floor stops it overclaiming. Holding `orders.view` alone is one third of Delivery, and calling
+ * that "Delivery, missing two" would dress up a fragment as a job. Below half, it is Custom.
  */
+const NEAR_MATCH_FLOOR = 0.5;
+
 export function describeAccess(held: HeldGrant[]): AccessSummary {
   if (held.length === 0) {
     return { job: null, scopeType: null, extra: [], label: 'No access — signed in, holds nothing' };
@@ -149,12 +166,28 @@ export function describeAccess(held: HeldGrant[]): AccessSummary {
 
   const codes = new Set(held.map((g) => g.permissionCode));
 
-  const matches = JOBS.filter((job) => job.grants.every((g) => codes.has(g))).sort(
-    (a, b) => b.grants.length - a.grants.length,
-  );
-  const job = matches[0] ?? null;
+  const scored = JOBS.map((job) => {
+    const covered = job.grants.filter((g) => codes.has(g));
+    const missing = job.grants.filter((g) => !codes.has(g));
+    return { job, covered, missing };
+  })
+    .filter((m) => m.covered.length / m.job.grants.length >= NEAR_MATCH_FLOOR)
+    /*
+     * Most of the job held wins; then fewest missing; then the larger bundle.
+     *
+     * The middle term is what stops somebody holding exactly Kitchen staff being called Kitchen
+     * manager — both cover five, and only one of them is complete.
+     */
+    .sort(
+      (a, b) =>
+        b.covered.length - a.covered.length ||
+        a.missing.length - b.missing.length ||
+        b.job.grants.length - a.job.grants.length,
+    );
 
-  if (!job) {
+  const best = scored[0] ?? null;
+
+  if (!best) {
     return {
       job: null,
       scopeType: null,
@@ -163,6 +196,7 @@ export function describeAccess(held: HeldGrant[]): AccessSummary {
     };
   }
 
+  const { job, missing } = best;
   const extra = [...codes].filter((c) => !job.grants.includes(c as Grant)).sort();
 
   // The scope only reads cleanly when the job's own grants all sit at one. Mixed scopes are
@@ -172,9 +206,26 @@ export function describeAccess(held: HeldGrant[]): AccessSummary {
   );
   const scopeType = scopes.size === 1 ? [...scopes][0]! : null;
 
-  const label = extra.length === 0
-    ? job.label
-    : `${job.label}, plus ${extra.length} more permission${extra.length === 1 ? '' : 's'}`;
+  /*
+   * Missing is named before extra, because it is the actionable half.
+   *
+   * "Platform admin, missing meal_packs.manage" tells you what to grant. "Platform admin, plus 9
+   * more" tells you nothing you can do anything about, and burying the gap under the surplus is
+   * how the original bug stayed invisible.
+   */
+  const parts: string[] = [];
+  if (missing.length > 0) {
+    parts.push(
+      missing.length <= 2
+        ? `missing ${missing.join(' and ')}`
+        : `missing ${missing.length} of its permissions`,
+    );
+  }
+  if (extra.length > 0) {
+    parts.push(`plus ${extra.length} more permission${extra.length === 1 ? '' : 's'}`);
+  }
+
+  const label = parts.length === 0 ? job.label : `${job.label}, ${parts.join(', ')}`;
 
   return { job, scopeType, extra, label };
 }
