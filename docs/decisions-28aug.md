@@ -89,3 +89,49 @@ Raised to 21,000 with the reason in the constant itself and `E10-62` to lower it
 original once `admin.css` is deleted — one vocabulary should cost less than the one-and-a-bit it
 replaces. If that task is open and the number is still 21,000, the migration stalled, and the
 comment is the evidence.
+
+---
+
+## 6. Kitchen was **missed**, not deliberately excluded — and it is now on the shell
+
+Andy asked which it was. The honest answer: I made a deliberate decision about `kitchen.css` — *"left
+intact, the kitchen board still uses those names all day"* — and never made one about the **screen**.
+The stylesheet call was real; the screen was an oversight wearing its coat.
+
+His instinct that it might deserve different chrome was right, though, and the resolution honours
+it without a second design: **the shell already collapses to a horizontal strip below 60rem**,
+which is exactly the standing-up case. On a laptop the board gets the sidebar like everything else;
+on a wall tablet or a phone it does not, and the full width goes to the board.
+
+Nothing about the board itself changed — the day nav, the big touch targets, the filter disclosure
+and the card grid were designed for this screen and the prototype has nothing to say about them.
+
+The packing sheet went the same way, with one addition: `@media print` hides the sidebar and the
+header. It is the one back-office screen whose output is paper, and navigation on paper is wasted
+ink and a wasted inch of a sheet somebody is holding in a kitchen.
+
+## 7. Consistency is the spec where a mockup does not exist
+
+Andy: *"'no design' is not a licence to leave raw markup next to finished screens."*
+
+Order alerts, Sales, Configuration, Allergens and the Packing sheet have no prototype screen. They
+now use the shell's own vocabulary: `.card` per kitchen or dish, `.sec` for section rules,
+`.notice` for the guess banner, `.gate` rows for recipients with their on/paused state, `.field`
+and `.checks` for forms, `.toolbar` for pickers.
+
+Two additions the vocabulary needed and did not have, both taken from the prototype's own drawer
+rather than invented: `.checks` (checkbox pills, used for allergens and service days) and `.two`
+(two fields side by side).
+
+## 8. The parity tool's coverage was the bug, not its scope
+
+It photographed the prototype's ten screens. Andy: *"a screenshot tool that only photographs the
+screens you already know about can't find the ones you forgot… it found three defects on screens it
+covers, while the screens it doesn't cover shipped visibly broken."*
+
+The list is now **the nav**, and a route with no prototype still gets a picture — captioned as
+having none and shot full width, because the point is to look at it at all.
+
+It found two more things immediately: Order alerts as raw markup, and its own first solo shot
+rendering a **3160px viewport** that made content look as though it stretched badly, when the real
+cause was the harness inventing a screen twice the size of a laptop.

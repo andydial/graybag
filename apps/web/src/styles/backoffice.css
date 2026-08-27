@@ -167,7 +167,17 @@
 .bo__title { font-size: var(--gb-font-size-h2); margin: 0; font-weight: var(--gb-font-weight-display); }
 .bo__sub { font-size: var(--gb-font-size-body-sm); color: var(--muted); margin: 2px 0 0; }
 .bo__spacer { flex: 1; }
+/*
+ * The content column is capped, like the prototype's 1180px app.
+ *
+ * Without it, a table on a 27-inch monitor stretches to two thousand pixels and the eye has to
+ * travel the whole way to match a row to its last column. The sidebar keeps its own width; this
+ * caps only what is read.
+ */
 .bo__scroll { flex: 1; min-width: 0; padding-bottom: var(--gb-space-8); }
+.bo__scroll > *,
+.bo__top > * { max-width: 74rem; }
+.bo__top { display: flex; }
 
 /* ------------------------------------------------------------------ controls */
 
@@ -1215,3 +1225,108 @@
 .bo .daynav { gap: var(--gb-space-2); }
 .bo .daynav__date { font-size: var(--gb-font-size-body-strong); line-height: 1.2; }
 .bo .daynav__count { font-size: var(--gb-font-size-caption); }
+/* ------------------------------------------- screens with no prototype (`E10-60`) */
+
+/*
+ * Two fields side by side. The prototype uses `.two` in its drawer; the same shape works for the
+ * short add-forms on the screens it never drew.
+ */
+.bo .two { display: flex; gap: var(--gb-space-3); flex-wrap: wrap; }
+.bo .two > * { flex: 1 1 12rem; }
+/* A button is not a field: it takes its own width and sits on the baseline of the row. */
+.bo .two > .btn { flex: 0 0 auto; align-self: flex-end; margin-bottom: var(--gb-space-4); }
+
+/* An on/off checkbox sitting in a `.gate` row — Order alerts. */
+.bo .alistswitch { flex: none; display: inline-flex; align-items: center; }
+.bo .alistswitch input { width: 1.25rem; height: 1.25rem; accent-color: var(--green); cursor: pointer; }
+
+/* A form inside a card should not carry the card's bottom margin into its last field. */
+.bo .card > form.two { margin-bottom: 0; }
+.bo .card > form.two .field:last-of-type { margin-bottom: var(--gb-space-3); }
+
+/* ------------------------------------------------ the kitchen board (`E10-61`) */
+
+/*
+ * The board keeps its own layout inside the shared frame.
+ *
+ * Andy asked whether excluding Kitchen was deliberate or missed. It was **missed** — the decision
+ * I actually made was about `kitchen.css` (leave it; the board needs it), and I never made one
+ * about the screen. But his instinct was right that it might deserve different chrome: it is used
+ * standing up, on a phone or a wall tablet, by someone whose hands are full.
+ *
+ * The resolution is that the shell already collapses to a horizontal strip below 60rem, which is
+ * exactly that case — so the board gets the same product's frame without losing width where width
+ * matters. On a laptop it has the sidebar like everything else; on a tablet in a kitchen it does
+ * not.
+ *
+ * What does NOT change: the day nav, the big touch targets, the filter disclosure and the card
+ * grid. Those were designed for this screen and the prototype has nothing to say about them.
+ */
+.bo .kitchen__bar {
+  position: static;
+  background: var(--deep);
+  color: var(--gb-text-on-brand);
+  border-radius: var(--gb-radius-lg);
+  margin: var(--gb-space-4) var(--gb-space-5) 0;
+}
+
+.bo .kitchen__wrap { max-width: none; padding-inline: var(--gb-space-5); }
+
+/*
+ * A section that is a heading plus its content, where `.sec` is only the rule.
+ *
+ * Several screens build sections in JavaScript with an `<h2>` inside; `.sec` is a label, not a
+ * container, so they need somewhere to sit. This is that container and nothing more.
+ */
+.bo .sec-wrap { margin-top: var(--gb-space-5); }
+.bo .sec-wrap > h2 {
+  font-size: var(--gb-font-size-overline);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-weight: var(--gb-font-weight-display);
+  margin: 0 0 var(--gb-space-3);
+  padding-top: var(--gb-space-4);
+  border-top: var(--gb-border-width-hairline) solid var(--line);
+}
+.bo .sec-wrap:first-child > h2 { margin-top: 0; padding-top: 0; border-top: 0; }
+
+/* The prototype's checkbox pills — used for allergens and service days. */
+.bo .checks { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); }
+.bo .checkspill,
+.bo .checks > label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gb-space-2);
+  background: var(--field);
+  border: var(--gb-border-width-default) solid transparent;
+  border-radius: 999px;
+  padding: var(--gb-space-1) var(--gb-space-3);
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body-strong);
+  color: var(--muted);
+  cursor: pointer;
+  min-height: 2.25rem;
+}
+.bo .checks > label:has(input:checked),
+.bo .checkspill:has(input:checked) {
+  background: var(--ok-bg);
+  border-color: var(--ok-line);
+  color: var(--gb-text-link);
+}
+.bo .checks input { accent-color: var(--green); }
+
+/*
+ * Printing a packing sheet prints the sheet, not the app around it — `E10-61`.
+ *
+ * The sheet is the one back-office screen whose output is paper. The sidebar, the header and the
+ * day switcher are all navigation, and navigation on a printed page is wasted ink and a wasted
+ * inch of a sheet somebody is reading in a kitchen.
+ */
+@media print {
+  .bo { display: block; }
+  .bo__nav,
+  .bo__top { display: none; }
+  .bo__scroll { padding: 0; }
+  .bo__scroll > * { max-width: none; }
+}

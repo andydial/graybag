@@ -53,22 +53,43 @@ const DIST = join(ROOT, 'apps/web/dist');
 const PROTOTYPE = join(ROOT, 'docs/prototype/graybag-admin-prototype.html');
 
 /**
- * Which live page answers which prototype screen.
+ * **Every back-office route**, not only the ones the prototype drew — `E10-60`.
  *
- * `live: null` means the prototype has a screen we have not built. It is still shot — a pane
- * reading "not built" beside the design is the most honest thing this tool can say about it.
+ * The first version of this list held the prototype's ten screens, and that turned out to be the
+ * bug rather than the scope. Andy, 2026-08-28:
+ *
+ * > *"A screenshot tool that only photographs the screens you already know about can't find the
+ * > ones you forgot… it found three defects on screens it covers, while the screens it doesn't
+ * > cover shipped visibly broken."*
+ *
+ * Order alerts, Sales, Configuration, Allergens and the Packing sheet have no prototype screen, so
+ * they were never photographed, so nobody looked at them, so they went to production with the
+ * shell around raw markup. The list is now the **nav**, and a route with no design still gets a
+ * picture — captioned as having none, and shot full width because there is nothing to sit beside.
  */
 const SCREENS = [
-  { key: 'today', live: '/dashboard.html?state=demo' },
-  { key: 'dishes', live: '/admin/dishes.html?state=demo' },
-  { key: 'menus', live: '/admin/menus.html?state=demo' },
-  { key: 'schools', live: '/admin/schools.html?state=demo' },
-  { key: 'packs', live: null },
-  { key: 'orders', live: '/orders.html?state=demo' },
-  { key: 'reports', live: '/reports.html?state=demo' },
-  { key: 'growth', live: '/admin/growth.html?state=demo' },
-  { key: 'people', live: '/admin/people.html?state=demo' },
-  { key: 'import', live: '/admin/import.html?state=demo' },
+  // Run the day.
+  { key: 'kitchen', live: '/kitchen.html?state=demo', prototype: null },
+  { key: 'sheet', live: '/kitchen/sheet.html?state=demo', prototype: null },
+  { key: 'orders', live: '/orders.html?state=demo', prototype: 'orders' },
+  // Understand.
+  { key: 'reports', live: '/reports.html?state=demo', prototype: 'reports' },
+  { key: 'sales', live: '/admin/sales.html?state=demo', prototype: null },
+  { key: 'growth', live: '/admin/growth.html?state=demo', prototype: 'growth' },
+  // The catalogue.
+  { key: 'dishes', live: '/admin/dishes.html?state=demo', prototype: 'dishes' },
+  { key: 'menus', live: '/admin/menus.html?state=demo', prototype: 'menus' },
+  { key: 'schools', live: '/admin/schools.html?state=demo', prototype: 'schools' },
+  { key: 'config', live: '/admin/config.html?state=demo', prototype: null },
+  { key: 'allergens', live: '/admin/allergens.html?state=demo', prototype: null },
+  // Admin.
+  { key: 'people', live: '/admin/people.html?state=demo', prototype: 'people' },
+  { key: 'import', live: '/admin/import.html?state=demo', prototype: 'import' },
+  { key: 'alerts', live: '/admin/alerts.html?state=demo', prototype: null },
+  // The landing page, which is not in the nav because it is what the nav hangs off.
+  { key: 'today', live: '/dashboard.html?state=demo', prototype: 'today' },
+  // In the prototype and not built at all.
+  { key: 'packs', live: null, prototype: 'packs' },
 ];
 
 const PORT = 8971;
@@ -78,6 +99,7 @@ const HEIGHT = 900;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function composite(screen, origin) {
+  const solo = screen.prototype === null;
   const right = screen.live
     ? `<iframe id="live" src="${origin}${screen.live}"></iframe>`
     : `<div class="missing"><b>Not built</b><span>${screen.key}</span></div>`;
@@ -85,9 +107,9 @@ function composite(screen, origin) {
     *{box-sizing:border-box}
     body{margin:0;font:600 13px/1.4 ui-sans-serif,system-ui;background:#0e1512;color:#cfe0d7;
          display:grid;grid-template-rows:auto 1fr;height:${HEIGHT}px}
-    .bar{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:8px 10px 0}
+    .bar{display:grid;grid-template-columns:${solo ? '1fr' : '1fr 1fr'};gap:2px;padding:8px 10px 0}
     .bar span{padding:4px 8px}
-    .panes{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:6px 10px 10px;min-height:0}
+    .panes{display:grid;grid-template-columns:${solo ? '1fr' : '1fr 1fr'};gap:2px;padding:6px 10px 10px;min-height:0}
     .pane{position:relative;overflow:hidden;border-radius:8px;background:#fff}
     /* The prototype is a fixed 1180px app; scale it to the pane rather than crop it. */
     #proto{width:1520px;height:${Math.round(HEIGHT / 0.46)}px;transform:scale(.46);
@@ -97,15 +119,22 @@ function composite(screen, origin) {
      * office collapses its sidebar to a strip below 60rem, so an unscaled 720px pane photographs
      * the *narrow* layout and makes it look as though no sidebar was built.
      */
-    #live{width:1520px;height:${Math.round(HEIGHT / 0.46)}px;transform:scale(.46);
-          transform-origin:top left;border:0;background:#fff}
+    /*
+     * A realistic desktop viewport, scaled to the pane — never a viewport nobody owns.
+     * The first solo shot rendered 3160px wide, which made the content look as though it stretched
+     * badly when the real cause was the harness inventing a screen twice the size of a laptop.
+     */
+    #live{width:${solo ? 1560 : 1520}px;height:${Math.round(HEIGHT / (solo ? 0.9 : 0.46))}px;
+          transform:scale(${solo ? 0.9 : 0.46});transform-origin:top left;border:0;background:#fff}
     .missing{width:100%;height:100%;border:0;border-radius:8px}
     .missing{display:flex;flex-direction:column;align-items:center;justify-content:center;
              gap:6px;color:#8f271c;background:#fbecea;font-size:20px}
     .missing span{font-size:13px;color:#7b8a83}
   </style>
-  <div class="bar"><span>PROTOTYPE — #${screen.key}</span><span>LIVE — ${screen.live ?? 'nothing built'}</span></div>
-  <div class="panes"><div class="pane"><iframe id="proto" src="file://${PROTOTYPE}"></iframe></div>
+  <div class="bar">${solo
+      ? `<span>NO PROTOTYPE SCREEN — judged against the shell's own vocabulary · ${screen.live}</span>`
+      : `<span>PROTOTYPE — #${screen.prototype}</span><span>LIVE — ${screen.live ?? 'nothing built'}</span>`}</div>
+  <div class="panes">${solo ? '' : `<div class="pane"><iframe id="proto" src="file://${PROTOTYPE}"></iframe></div>`}
   <div class="pane">${right}</div></div>`;
 }
 
@@ -172,10 +201,11 @@ for (const screen of list) {
    * prototype tooling, not a design element, and it eats a third of the pane.
    */
   await send('Runtime.evaluate', {
-    expression: `(() => { const w = document.getElementById('proto').contentWindow;
+    expression: `(() => { const p = document.getElementById('proto'); if (!p) return 'solo';
+      const w = p.contentWindow;
       const r = w.document.getElementById('rail'); if (r) r.style.display = 'none';
       const a = w.document.getElementById('app'); if (a) { a.style.maxWidth = 'none'; a.style.height = '1900px'; }
-      if (typeof w.go === 'function') { w.go(${JSON.stringify(screen.key)}); return 'ok'; }
+      if (typeof w.go === 'function') { w.go(${JSON.stringify(screen.prototype)}); return 'ok'; }
       return 'no go()'; })()`,
     returnByValue: true,
   });

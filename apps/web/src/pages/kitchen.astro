@@ -15,11 +15,12 @@
  * `mark-delivered` and back-office sign-in — belong to another thread, so the screen is built and
  * reviewable now and the swap is one line in the script below.
  */
-import BackofficeNav from '../components/BackofficeNav.astro';
+import BackofficeShell from '../components/BackofficeShell.astro';
 
 import '../styles/tokens.css';
 import '../styles/site.css';
 import '../styles/kitchen.css';
+import '../styles/backoffice.css';
 
 import { CANCEL_REASONS } from '../lib/kitchen/types.js';
 ---
@@ -36,15 +37,16 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
   </head>
 
   <body>
-    <div class="kitchen">
-      <!--
-        The date is the question; everything else is a refinement.
-
-        This was four dropdowns of equal weight all reading "All", which told nobody what they
-        were looking at. At 7am the only thing anyone needs to know is which day this is, so the
-        date is the largest thing on the screen and moves one tap at a time — a picker is three
-        interactions to answer a question that is almost always "today" or "tomorrow".
-      -->
+    <!--
+      The kitchen board is on the shell too — `E10-61`.
+      See the note above `.bo--board` in `backoffice.css` for why the frame is shared and the
+      board's own layout is not.
+    -->
+    <BackofficeShell
+      current="/kitchen"
+      title="Kitchen"
+      subtitle="Today's orders, what to cook, and handing food over"
+    >
       <header class="kitchen__bar">
         <div class="kitchen__bar-inner">
           <div class="daynav">
@@ -90,7 +92,6 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
             the filter chips, and placing the nav after them put it on a row of its own — 60px of
             a sticky bar `E09-37` had just cut from 270 to 136, for one button.
           -->
-          <BackofficeNav current="/kitchen" />
 
           <div class="kitchen__filters" id="k-filters" hidden></div>
         </div>
@@ -103,7 +104,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         <div id="k-summary"></div>
         <div id="k-board"></div>
       </main>
-    </div>
+    </BackofficeShell>
 
     <!--
       A real dialog, not `window.prompt`.
@@ -191,7 +192,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
     </dialog>
 
     <script>
-      import { mountNav } from '../lib/backoffice/nav-mount.js';
+      import { mountShell } from '../lib/backoffice/shell.js';
       import { fixtureTransport } from '../lib/kitchen/fixture.js';
       import { liveTransport } from '../lib/kitchen/live.js';
       import { currentUser } from '../lib/backoffice/session.js';
@@ -1083,7 +1084,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         // populate here — which is also why a school appearing tomorrow needs no code change.
         await load();
       })();
-    void mountNav();
+    void mountShell();
     </script>
   </body>
 </html>

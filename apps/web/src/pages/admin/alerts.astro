@@ -44,7 +44,7 @@ import '../../styles/backoffice.css';
       subtitle="Who hears when an order is paid"
     >
       <button id="al-reload" class="btn btn--ghost" slot="actions" type="button">Refresh</button>
-
+      <div class="pad">
         <div id="al-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
         <p class="m">
@@ -55,6 +55,7 @@ import '../../styles/backoffice.css';
         </p>
 
         <div id="al-body"></div>
+      </div>
       </BackofficeShell>
 
     <script>
@@ -100,8 +101,8 @@ import '../../styles/backoffice.css';
         const on = mine.filter((r) => r.isEnabled).length;
 
         return (
-          `<section class="admin__section" aria-labelledby="k-${esc(kitchen.id)}">` +
-            `<h2 id="k-${esc(kitchen.id)}">${esc(kitchen.name)}</h2>` +
+          `<div class="card" style="margin-bottom:14px">` +
+            `<div class="sec">${esc(kitchen.name)}</div>` +
             `<p class="m">` +
               (mine.length === 0
                 // The state that matters most, said plainly. An empty list is silence, and
@@ -116,29 +117,30 @@ import '../../styles/backoffice.css';
             (mine.length > 0
               ? `<ul class="alist">` +
                   mine.map((r) =>
-                    `<li class="alist__row${r.isEnabled ? '' : ' alist__row--off'}">` +
-                      `<label class="alist__toggle">` +
+                    `<li class="gate ${r.isEnabled ? 'gate--pass' : 'gate--warn'}">` +
+                      `<span class="ic" aria-hidden="true">${r.isEnabled ? '\u2713' : '\u00b7'}</span>` +
+                      `<span class="t">${esc(r.email)}` +
+                        `<span>${r.label ? esc(r.label) + ' · ' : ''}` +
+                        `${r.isEnabled ? 'alerted on every paid order' : 'paused — receives nothing'}</span>` +
+                      `</span>` +
+                      `<label class="alistswitch">` +
                         `<input type="checkbox" data-toggle="${esc(r.id)}"${r.isEnabled ? ' checked' : ''} />` +
                         `<span class="visually-hidden">Alerts to ${esc(r.email)}</span>` +
                       `</label>` +
-                      `<span class="alist__who">` +
-                        `<b>${esc(r.email)}</b>` +
-                        (r.label ? `<span class="alist__label">${esc(r.label)}</span>` : '') +
-                      `</span>` +
-                      `<span class="alist__state">${r.isEnabled ? 'On' : 'Paused'}</span>` +
-                      `<button class="chip" type="button" ` +
+                      `<button class="btn btn--ghost btn--sm" type="button" ` +
                         `data-remove="${esc(r.id)}" data-email="${esc(r.email)}">Remove</button>` +
                     `</li>`).join('') +
                 `</ul>`
               : '') +
 
-            `<form class="aform" data-add="${esc(kitchen.id)}">` +
-              `<div class="admin__field">` +
+            `<div class="sec">Add someone</div>` +
+            `<form class="aform two" data-add="${esc(kitchen.id)}">` +
+              `<div class="field">` +
                 `<label for="em-${esc(kitchen.id)}">Add an address</label>` +
                 `<input id="em-${esc(kitchen.id)}" name="email" type="email" ` +
                   `required placeholder="name@example.com" autocomplete="off" />` +
               `</div>` +
-              `<div class="admin__field">` +
+              `<div class="field">` +
                 `<label for="lb-${esc(kitchen.id)}">Who is it (optional)</label>` +
                 `<input id="lb-${esc(kitchen.id)}" name="label" type="text" ` +
                   `maxlength="80" placeholder="Kitchen lead" />` +
@@ -146,7 +148,7 @@ import '../../styles/backoffice.css';
               `<button class="btn" type="submit">Add</button>` +
             `</form>` +
             `<p class="notice notice--err" data-err="${esc(kitchen.id)}" role="alert" hidden></p>` +
-          `</section>`
+          `</div>`
         );
       }
 

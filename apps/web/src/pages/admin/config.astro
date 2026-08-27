@@ -46,7 +46,7 @@ import '../../styles/backoffice.css';
       subtitle="Settings a school inherits, and where they are overridden"
     >
       <button id="c-reload" class="btn btn--ghost" slot="actions" type="button">Refresh</button>
-
+      <div class="pad">
         <div id="c-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
         <p class="m">
@@ -65,6 +65,7 @@ import '../../styles/backoffice.css';
 
         <div id="c-banner"></div>
         <div id="c-body"></div>
+      </div>
       </BackofficeShell>
 
     <script>
@@ -235,10 +236,10 @@ import '../../styles/backoffice.css';
           case 'weekdays': {
             const on = new Set((Array.isArray(r.value) ? r.value : []).map(Number));
             control =
-              `<fieldset class="admin__days">` +
+              `<fieldset class="checks">` +
                 `<legend>Served on</legend>` +
                 WEEKDAYS.map((d, i) =>
-                  `<label class="admin__day">` +
+                  `<label class="checkspill">` +
                     `<input type="checkbox" name="${esc(key)}" value="${i + 1}"` +
                     `${on.has(i + 1) ? ' checked' : ''} /> ${d}` +
                   `</label>`,
@@ -366,7 +367,7 @@ import '../../styles/backoffice.css';
         el.status.textContent = `${view.settings.length} settings, ${overridden} overridden for this school.`;
 
         el.body.innerHTML =
-          `<section class="admin__section" aria-labelledby="c-set-h">` +
+          `<section class="sec-wrap" aria-labelledby="c-set-h">` +
             `<h2 id="c-set-h">Settings</h2>` +
             `<p class="m">` +
               (overridden === 0
@@ -377,7 +378,7 @@ import '../../styles/backoffice.css';
             view.settings.map(settingRow).join('') +
           `</section>` +
 
-          `<section class="admin__section" aria-labelledby="c-brk-h">` +
+          `<section class="sec-wrap" aria-labelledby="c-brk-h">` +
             `<h2 id="c-brk-h">Break times</h2>` +
             `<p class="m">` +
               `Break windows are held per school and are not inherited — there is no platform ` +

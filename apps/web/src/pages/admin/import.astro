@@ -56,7 +56,8 @@ import '../../styles/backoffice.css';
       title="Check an import file"
       subtitle="See exactly what a file would change, before it changes it"
     >
-      
+
+      <div class="pad">      
 
         <div id="i-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
@@ -66,7 +67,7 @@ import '../../styles/backoffice.css';
           read with your own permissions. <b>Nothing is written from this page.</b>
         </p>
 
-        <form id="i-form" class="admin__section">
+        <form id="i-form" class="sec-wrap">
           <div class="admin__field">
             <label for="i-kind">What is in the file</label>
             <select id="i-kind">
@@ -87,6 +88,7 @@ import '../../styles/backoffice.css';
         </form>
 
         <div id="i-body"></div>
+      </div>
       </BackofficeShell>
 
     <script>
@@ -237,7 +239,7 @@ import '../../styles/backoffice.css';
 
         const clean = result.errors.length === 0 && blockers.length === 0;
         el.body.innerHTML =
-          `<section class="admin__section">` +
+          `<section class="sec-wrap">` +
             `<h2>${esc(name)}</h2>` +
             `<p class="m">` +
               `${rows.length} row${rows.length === 1 ? '' : 's'} read · ` +
@@ -308,7 +310,7 @@ import '../../styles/backoffice.css';
             apply: true,
           });
           el.body.innerHTML =
-            `<section class="admin__section">` +
+            `<section class="sec-wrap">` +
               `<h2>Applied ${esc(loaded.name)}</h2>` +
               `<p class="m">` +
                 `<b>${result.applied ?? result.changes} row${(result.applied ?? result.changes) === 1 ? '' : 's'} written.</b> ` +
