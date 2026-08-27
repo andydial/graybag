@@ -206,6 +206,7 @@ export {
   KitchenPayloadError,
   fetchKitchenOrders,
   fetchKitchenSchools,
+  fetchMyAccess,
   fetchMyGrants,
   updateKitchenOrderStatus,
   type ApiKitchenOrder,
@@ -374,3 +375,19 @@ export {
   type PlanDayInput,
   type OrderableDay,
 } from './meal-packs.js';
+
+/*
+ * Re-exported through `api` rather than as a root namespace of its own — `E10-50`.
+ *
+ * These rules exist so the browser and the Edge Function refuse the same things, and the browser
+ * reaches them at the moment it is about to call `createMenu`. Keeping them next to that call is
+ * what stops a second, drifting copy appearing in a page.
+ */
+export {
+  MENU_NAME_MAX,
+  copyName,
+  normaliseMenuName,
+  validateMenuCreate,
+  validateMenuDuplicate,
+  validateMenuName,
+} from '../validation/menu-write.js';

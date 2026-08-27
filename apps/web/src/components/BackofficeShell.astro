@@ -1,0 +1,99 @@
+---
+/**
+ * The back office frame — `E10-55`.
+ *
+ * The prototype's shell, which the first build of these screens never adopted: a **persistent
+ * sidebar** with four labelled groups and live counts, a header carrying a **title and a
+ * subtitle**, and a mount point for **drawer** editing on any screen that edits.
+ *
+ * Andy: *"Shell first, then migrate screens into it."* So every back-office page becomes
+ * `<BackofficeShell title=… subtitle=…>` wrapping its own body, and nothing else decides its
+ * frame.
+ *
+ * ## The sidebar renders empty and is filled by the client
+ *
+ * Same reason `BackofficeNav` did: the site is static, so the server cannot know which grants the
+ * reader holds. Links ship `hidden` and `nav-mount.ts` reveals the ones their grants allow. A
+ * link that is visible but refuses on click is worse than one that was never offered — it reads
+ * as broken rather than as not-for-you.
+ *
+ * ## Counts are a promise, so they are opt-in per item
+ *
+ * The prototype shows open orders on Today, blocking dishes on Dishes, and schools that cannot
+ * trade on Schools. A count that is stale or wrong is worse than no count, so an item only gets
+ * one when a page can supply it — `setNavCount()` — rather than every item rendering a zero that
+ * may or may not mean anything.
+ */
+import { NAV, NAV_GROUPS } from '../lib/backoffice/nav';
+
+interface Props {
+  /** The route this page is, so the sidebar can mark it current. */
+  current: string;
+  title: string;
+  /** The line under the title. Every prototype screen has one; no live screen did. */
+  subtitle: string;
+}
+
+const { current, title, subtitle } = Astro.props;
+---
+
+<div class="bo">
+  <nav class="bo__nav" aria-label="Back office" data-bonav>
+    <span class="bo__brand"><i></i> GrayBag</span>
+
+    {NAV_GROUPS.map((group) => (
+      <>
+        <p class="bo__group" data-nav-group={group} hidden>{group}</p>
+        {NAV.filter((item) => item.group === group).map((item) => (
+          <a
+            class="bo__link"
+            href={item.href}
+            data-nav-item={item.href}
+            data-nav-requires={item.requires.join(' ')}
+            aria-current={item.href === current ? 'page' : undefined}
+            hidden
+          >
+            <span>{item.label}</span>
+            <span class="bo__count" data-nav-count={item.href} hidden></span>
+          </a>
+        ))}
+      </>
+    ))}
+
+    <!--
+      Who is signed in, and as what. The old back office never said — you could be looking at a
+      kitchen operator's view and a platform admin's and not be able to tell them apart.
+    -->
+    <p class="bo__who" data-nav-who hidden><b data-nav-email></b><span data-nav-role></span></p>
+  </nav>
+
+  <div class="bo__main">
+    <header class="bo__top">
+      <div>
+        <h1 class="bo__title">{title}</h1>
+        <p class="bo__sub">{subtitle}</p>
+      </div>
+      <div class="bo__spacer"></div>
+      <slot name="actions" />
+    </header>
+
+    <div class="bo__scroll">
+      <slot />
+    </div>
+
+    <!-- Drawer editing, available to any screen rather than only the dish workbench. -->
+    <div class="bo__scrim" data-drawer-scrim hidden></div>
+    <aside class="bo__drawer" data-drawer hidden role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+      <header class="bo__drawer-head">
+        <div>
+          <h3 id="drawer-title" data-drawer-title>Edit</h3>
+          <p class="sub" data-drawer-sub></p>
+        </div>
+        <div class="bo__spacer"></div>
+        <button class="btn btn--ghost btn--sm" type="button" data-drawer-close>Close</button>
+      </header>
+      <div class="bo__drawer-body" data-drawer-body></div>
+      <div class="bo__drawer-foot" data-drawer-foot hidden></div>
+    </aside>
+  </div>
+</div>

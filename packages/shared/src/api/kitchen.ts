@@ -236,6 +236,28 @@ export async function fetchMyGrants(): Promise<string[]> {
   return [...codes].sort();
 }
 
+/**
+ * The same grants, with the scope each was granted at — `E10-55`.
+ *
+ * `fetchMyGrants` deliberately collapses to a sorted set of codes, which is exactly right for
+ * "may this person open that screen" and useless for "what job is this". The same `orders.view` is
+ * one kitchen or every kitchen depending on where it hangs (`D3`), so the sidebar's "who you are"
+ * line needs the scope and the reveal logic does not.
+ *
+ * A second read rather than widening the first: making every caller of `fetchMyGrants` carry a
+ * shape they do not use is how a narrow API becomes a wide one nobody can change.
+ */
+export async function fetchMyAccess(): Promise<{ permissionCode: string; scopeType: string }[]> {
+  const rows = await runQuery<unknown>((t) =>
+    t.from('permission_grant').select('permission_code,scope_type').is('revoked_at', null),
+  );
+
+  return rows.filter(isRecord).map((row) => ({
+    permissionCode: str(row.permission_code) ?? '',
+    scopeType: str(row.scope_type) ?? '',
+  })).filter((g) => g.permissionCode !== '');
+}
+
 export interface KitchenSchool {
   id: string;
   name: string;

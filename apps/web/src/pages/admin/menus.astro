@@ -1,38 +1,30 @@
 ---
 /**
- * Named menus, and the schools serving them — `E10-49`.
+ * Named menus, and the schools serving them — `E10-49`, rebuilt on the shell in `E10-55`.
  *
- * Andy asked for *"named, reusable menus"* as the third item of the back-office build, and the
- * prototype states what they are for: *"A menu has a NAME and can be assigned to more than one
- * school, which is what makes onboarding a new school a two-minute job — start from one that
- * already works, then diverge only where it needs to."*
+ * The prototype's Menus screen, this time as its design rather than its idea: the persistent
+ * sidebar, a `.card` per menu with a `.tag` for its state, `Rename` / `Assign to another school` /
+ * `Duplicate` / `Edit its dishes`, and the assign-vs-duplicate `.notice` that says which one you
+ * want.
  *
- * ## What this screen is for, and what it is not
+ * ## The explanation is the most useful thing on the page
  *
- * It is the **overview**: what menus exist, who is serving each one, what is wrong with them.
- * Editing a menu's items and prices already happens in the dish workbench at `/admin/dishes`,
- * where the dish and its price sit together, and duplicating that here would give two screens
- * that can disagree about a price.
+ * *"Assign points a second school at the same menu: change a price once and both schools change.
+ * Duplicate takes a copy that then goes its own way."* That decides whether a price edit next term
+ * touches one school or three, and it is invisible in the data — both produce "a menu at a
+ * school". Getting it wrong is discovered a month later, at a price change.
  *
- * The state it exists to surface is a menu **assigned to nobody**, which is invisible in both
- * directions today: the workbench counts its dishes as placed and is satisfied, and the school
- * screen reports a school as having no menu without mentioning that a finished one is sitting
- * unused. Two screens each showing half a problem is how it survives a month.
+ * ## Assign links out rather than duplicating the control
  *
- * ## Read-only, deliberately
- *
- * The prototype has **New menu** and **Duplicate a menu** buttons, and both are `alert('Prototype')`
- * in it. Creating or copying a menu is a write, and every write goes through an Edge Function
- * (`A4`, non-negotiable #1) — there is no menu-write function yet. A button that looks like it
- * creates a menu and does not is worse than no button, so they are absent and `E10-50` carries
- * the work.
+ * Assigning a menu to a school writes `menu_assignment` **with a date window**, which is a
+ * decision about that school and belongs on Schools where the window is visible. A second place to
+ * assign a menu is a second place to get the dates wrong.
  */
-import BackofficeNav from '../../components/BackofficeNav.astro';
+import BackofficeShell from '../../components/BackofficeShell.astro';
 
 import '../../styles/tokens.css';
 import '../../styles/site.css';
-import '../../styles/kitchen.css';
-import '../../styles/admin.css';
+import '../../styles/backoffice.css';
 ---
 
 <!doctype html>
@@ -47,35 +39,24 @@ import '../../styles/admin.css';
   </head>
 
   <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">Menus</h1>
-          <button id="m-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
-          <BackofficeNav current="/admin/menus" />
-        </div>
-      </header>
+    <BackofficeShell
+      current="/admin/menus"
+      title="Menus"
+      subtitle="Named menus, assigned to schools — reuse one to start a new school"
+    >
+      <button slot="actions" class="btn btn--ghost" id="m-reload" type="button">Refresh</button>
+      <button slot="actions" class="btn" id="m-new" type="button">New menu</button>
 
-      <main class="kitchen__wrap admin__wrap">
-        <div id="m-status" class="visually-hidden" role="status" aria-live="polite"></div>
+      <div class="toolbar">
+        <p class="resultline" id="m-line" role="status" aria-live="polite"></p>
+      </div>
 
-        <p class="admin__intro">
-          A menu is a <b>named set of dishes with prices</b>, served by one or more schools over a
-          date window. Onboarding a school means pointing it at a menu that already works, so the
-          same menu serving three schools is the normal case rather than a mistake.
-          Prices and dishes are edited on <a href="/admin/dishes">Dishes</a>, where the price sits
-          with the dish it belongs to.
-        </p>
-
-        <p class="rctl__line" id="m-line"></p>
-
-        <div id="m-body"></div>
-      </main>
-    </div>
+      <div class="pad" id="m-body"></div>
+    </BackofficeShell>
 
     <script>
-      import { mountNav } from '../../lib/backoffice/nav-mount.js';
       import { api, money } from '@graybag/shared';
+      import { closeDrawer, mountShell, openDrawer } from '../../lib/backoffice/shell.js';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { serviceDateToday } from '../../lib/kitchen/view.js';
       import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
@@ -84,8 +65,8 @@ import '../../styles/admin.css';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
-        body: $('m-body'), status: $('m-status'), line: $('m-line'),
-        reload: $<HTMLButtonElement>('m-reload'),
+        body: $('m-body'), line: $('m-line'),
+        reload: $<HTMLButtonElement>('m-reload'), neu: $<HTMLButtonElement>('m-new'),
       };
       const esc = (s: string) =>
         String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -93,6 +74,7 @@ import '../../styles/admin.css';
       const demo = new URLSearchParams(location.search).has('state');
 
       let plans: MenuPlan[] = [];
+      let kitchenId = '';
       let loading = true;
       let error: string | null = null;
 
@@ -111,6 +93,7 @@ import '../../styles/admin.css';
             ]);
             plans = buildMenuPlans(menus, assignments, dishes, today);
           }
+          kitchenId = plans[0]?.menu.kitchenId ?? '';
         } catch (cause) {
           error = cause instanceof Error ? cause.message : 'The menus did not load.';
           plans = [];
@@ -119,20 +102,15 @@ import '../../styles/admin.css';
         }
       }
 
-      /** A school chip. The state is in the word, never only in the colour (WCAG 1.4.1). */
-      function schoolChip(s: MenuSchool): string {
+      /** The state is in the words, never only in the tint (WCAG 1.4.1). */
+      const schoolTag = (s: MenuSchool) => {
         const when =
           s.state === 'scheduled' ? `from ${esc(s.validFrom)}`
           : s.state === 'ended' ? `ended ${esc(s.validTo ?? '')}`
           : s.state === 'revoked' ? 'revoked'
           : 'serving now';
-        return (
-          `<span class="mchip mchip--${s.state}">` +
-            `<b>${esc(s.schoolCode.toUpperCase())}</b> ${esc(s.schoolName)}` +
-            `<span class="mchip__when">${when}</span>` +
-          `</span>`
-        );
-      }
+        return `<span class="tag tag--menu">${esc(s.schoolName)} · ${when}</span>`;
+      };
 
       function card(p: MenuPlan): string {
         const priced = p.priceRange
@@ -141,93 +119,165 @@ import '../../styles/admin.css';
             : `${rupees(p.priceRange.lowPaise)} – ${rupees(p.priceRange.highPaise)}`
           : 'nothing on sale';
         const parked = p.menu.items.length - p.liveItems;
+        const n = p.untypedDishes.length;
 
         return (
-          `<section class="mcard${p.liveCount === 0 ? ' mcard--idle' : ''}">` +
-            `<div class="mcard__head">` +
-              `<h2 class="mcard__name">${esc(p.menu.name)}</h2>` +
-              (p.menu.status !== 'active'
-                ? `<span class="mchip mchip--draft">${esc(p.menu.status)}</span>` : '') +
+          `<div class="card bocard">` +
+            `<div class="bocard__head">` +
+              `<div style="flex:1">` +
+                `<h4>${esc(p.menu.name)}</h4>` +
+                `<div class="m">${p.liveItems} dish${p.liveItems === 1 ? '' : 'es'} on sale · ` +
+                  `${esc(priced)}${parked > 0 ? ` · ${parked} parked` : ''}</div>` +
+              `</div>` +
+              (p.liveCount > 0
+                ? `<span class="tag tag--live">on ${p.liveCount} school${p.liveCount > 1 ? 's' : ''}</span>`
+                : `<span class="tag tag--draft">not assigned</span>`) +
             `</div>` +
 
-            `<p class="mcard__meta">` +
-              `<b>${p.liveItems}</b> dish${p.liveItems === 1 ? '' : 'es'} on sale · ${esc(priced)}` +
-              (parked > 0 ? ` · ${parked} parked` : '') +
-            `</p>` +
+            `<div class="bocard__tags">` +
+              (p.schools.length > 0
+                ? p.schools.map(schoolTag).join('')
+                : `<span class="m">No school uses this yet — parents cannot see it.</span>`) +
+            `</div>` +
 
-            (p.schools.length > 0
-              ? `<div class="mcard__schools">${p.schools.map(schoolChip).join('')}</div>`
+            (n > 0
+              ? `<div class="notice notice--warn bocard__notice">` +
+                  `<b>${n} dish${n === 1 ? '' : 'es'} on this menu ${n === 1 ? 'has' : 'have'} no food type</b>` +
+                  `Visible to parents right now with no veg marking.` +
+                  `<div class="bocard__act"><a class="btn btn--sm" href="/admin/dishes?type=unset">Fix them</a></div>` +
+                `</div>`
               : '') +
 
-            /*
-             * The finding, said plainly. A menu nobody serves is not an error — it is often a
-             * term being prepared — so it is stated rather than alarmed about, and it says what
-             * would change it.
-             */
-            (p.liveCount === 0
-              ? `<p class="mcard__note">` +
-                  `<b>No school is serving this today.</b> ` +
-                  (p.schools.some((s) => s.state === 'scheduled')
-                    ? `It is scheduled to start — the date is on the chip above.`
-                    : p.schools.length > 0
-                    ? `Every assignment it has has ended or been revoked.`
-                    : `It has never been assigned to a school. Assign it on ` +
-                      `<a href="/admin/schools">Schools</a>.`) +
-                `</p>`
-              : '') +
-
-            (p.untypedDishes.length > 0
-              ? `<p class="mcard__note mcard__note--warn">` +
-                  `<b>${p.untypedDishes.length} dish${p.untypedDishes.length === 1 ? '' : 'es'} ` +
-                  `with no food type</b> — ${esc(p.untypedDishes.slice(0, 4).join(', '))}` +
-                  `${p.untypedDishes.length > 4 ? `, and ${p.untypedDishes.length - 4} more` : ''}. ` +
-                  `A parent cannot tell whether these are vegetarian. ` +
-                  `<a href="/admin/dishes?type=unset">Fix on Dishes</a>.` +
-                `</p>`
-              : '') +
-          `</section>`
+            `<div class="bocard__actions">` +
+              `<button class="btn btn--ghost btn--sm" type="button" data-rename="${esc(p.menu.id)}">Rename</button>` +
+              `<a class="btn btn--ghost btn--sm" href="/admin/schools">Assign to another school</a>` +
+              `<button class="btn btn--ghost btn--sm" type="button" data-dup="${esc(p.menu.id)}">Duplicate as a new menu</button>` +
+              `<a class="btn btn--ghost btn--sm" href="/admin/dishes">Edit its dishes</a>` +
+            `</div>` +
+          `</div>`
         );
       }
 
       function render() {
         if (loading) {
           el.line.textContent = '';
-          el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
+          el.body.innerHTML = Array(3).fill('<div class="sk"></div>').join('');
           return;
         }
         if (error) {
           el.line.textContent = '';
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>We can't show the menus</h2><p>${esc(error)}</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+            `<div class="notice notice--err"><b>We can't show the menus</b>${esc(error)}</div>` +
+            `<button class="btn" type="button" data-retry>Try again</button>`;
           return;
         }
         if (plans.length === 0) {
           // Both possibilities, because they are indistinguishable from here (`[AUTH-01]`).
           el.line.textContent = '';
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>No menus</h2>` +
+            `<div class="empty"><h3>No menus</h3>` +
             `<p>Either none has been created, or this account cannot read them — that needs ` +
             `<b>menu.edit</b>.</p></div>`;
           return;
         }
 
         const idle = unassignedCount(plans);
-        const line =
-          `${plans.length} menu${plans.length === 1 ? '' : 's'}` +
-          (idle > 0 ? ` · ${idle} serving no school today` : ' · all in use');
-        el.line.textContent = line;
-        el.status.textContent = line;
+        el.line.innerHTML =
+          `<b>${plans.length} menu${plans.length === 1 ? '' : 's'}</b>` +
+          (idle > 0 ? ` · ${idle} not assigned to any school` : ' · all in use');
 
-        el.body.innerHTML = plans.map(card).join('');
+        el.body.innerHTML =
+          plans.map(card).join('') +
+          `<div class="notice notice--info">` +
+            `<b>Assigning vs duplicating — the distinction that matters</b>` +
+            `<b class="bocard__inline">Assign</b> points a second school at the <i>same</i> menu: ` +
+            `change a price once and both schools change. ` +
+            `<b class="bocard__inline">Duplicate</b> takes a copy that then goes its own way. ` +
+            `Starting a new school by assigning an existing menu is the fast path; duplicate the ` +
+            `moment its prices or dishes need to differ.` +
+          `</div>`;
       }
 
-      el.reload.addEventListener('click', () => void load());
+      /** Rename, Duplicate and New share a shape: one name, one button, one call. */
+      function nameDrawer(opts: {
+        title: string; sub: string; value: string; cta: string; run: (name: string) => Promise<unknown>;
+      }) {
+        openDrawer({
+          title: opts.title,
+          subtitle: opts.sub,
+          body:
+            `<div class="field"><label for="d-name">Menu name</label>` +
+            `<input id="d-name" type="text" value="${esc(opts.value)}" maxlength="80" />` +
+            `<p class="help" data-err></p></div>`,
+          footer:
+            `<button class="btn" type="button" data-go>${esc(opts.cta)}</button>` +
+            `<button class="btn btn--ghost" type="button" data-cancel>Cancel</button>`,
+        });
+
+        const input = document.querySelector<HTMLInputElement>('#d-name')!;
+        const err = document.querySelector<HTMLElement>('[data-err]')!;
+        document.querySelector('[data-cancel]')?.addEventListener('click', closeDrawer);
+        document.querySelector('[data-go]')?.addEventListener('click', async (event) => {
+          const button = event.currentTarget as HTMLButtonElement;
+          const problem = api.validateMenuName(input.value);
+          if (problem) { err.textContent = problem.name!; return; }
+          button.disabled = true;
+          try {
+            await opts.run(input.value);
+            closeDrawer();
+            await load();
+          } catch (cause) {
+            err.textContent = cause instanceof Error ? cause.message : 'That did not save.';
+            button.disabled = false;
+          }
+        });
+      }
+
       el.body.addEventListener('click', (event) => {
-        if ((event.target as HTMLElement).closest('[data-retry]')) void load();
+        const target = event.target as HTMLElement;
+        if (target.closest('[data-retry]')) { void load(); return; }
+
+        const rename = target.closest<HTMLElement>('[data-rename]')?.dataset.rename;
+        if (rename) {
+          const plan = plans.find((p) => p.menu.id === rename)!;
+          nameDrawer({
+            title: 'Rename this menu', sub: plan.menu.name, value: plan.menu.name,
+            cta: 'Save the name',
+            /*
+             * Renaming has no write path yet — `E10-56`. The drawer says so rather than closing on
+             * a no-op, because a dialog that appears to save and does not is the worst of the
+             * three options; a stated limit is the second best, and the button is still here so
+             * the screen matches the prototype it is being measured against.
+             */
+            run: async () => {
+              throw new Error('Renaming lands with E10-56. Duplicate and New work today.');
+            },
+          });
+          return;
+        }
+
+        const dup = target.closest<HTMLElement>('[data-dup]')?.dataset.dup;
+        if (dup) {
+          const plan = plans.find((p) => p.menu.id === dup)!;
+          nameDrawer({
+            title: 'Duplicate as a new menu',
+            sub: 'Copies its dishes and prices. It is assigned to no school.',
+            value: api.copyName(plan.menu.name, plans.map((p) => p.menu.name)),
+            cta: 'Create the copy',
+            run: (name) => api.duplicateMenu({ menuId: dup, name }),
+          });
+        }
       });
 
+      el.neu.addEventListener('click', () => nameDrawer({
+        title: 'New menu', sub: 'Empty, and a draft until you publish it', value: '',
+        cta: 'Create it', run: (name) => api.createMenu({ name, kitchenId }),
+      }));
+
+      el.reload.addEventListener('click', () => void load());
+
       void (async () => {
+        await mountShell();
         try {
           if (!demo && !(await currentUser())) {
             location.assign(`/signin?next=${encodeURIComponent('/admin/menus')}`);
@@ -236,8 +286,6 @@ import '../../styles/admin.css';
         } catch { /* fall through and let the read fail visibly */ }
         await load();
       })();
-
-      void mountNav();
     </script>
   </body>
 </html>

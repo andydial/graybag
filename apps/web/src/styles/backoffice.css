@@ -1,0 +1,643 @@
+/**
+ * The back office design system — `E10-55`.
+ *
+ * This is `docs/prototype/graybag-admin-prototype.html`'s stylesheet, adopted as the real thing
+ * rather than reinterpreted. Andy, 2026-08-27:
+ *
+ *   "Adopt the prototype's component vocabulary as the actual system — .card, .tag, .notice,
+ *    .toolbar, .sec, .grid, .empty, .bulk, .drawer — rather than keeping mcard/mchip/wbchip/
+ *    jobcard alongside. Two vocabularies is how this happens again."
+ *
+ * ## The class names are the prototype's, unprefixed
+ *
+ * `.card`, not `.bo-card`. Unprefixed global names are usually a mistake and here they are the
+ * point: the prototype is the acceptance criteria, and somebody holding it beside this file should
+ * find the same words in both. A rename is a translation layer, and a translation layer is where
+ * "built to the concept, not the design" happened the first time.
+ *
+ * They are namespaced by `.bo` on the shell root instead, so nothing here can reach the marketing
+ * site or the kitchen board — both of which have their own, deliberate, different designs.
+ *
+ * ## Colours come from tokens, not from the prototype's hex values
+ *
+ * The prototype declares `--green:#00af52`, `--deep:#145f48`, `--amber:#ffbb39`, `--lime:#b3cf3f`,
+ * `--pale:#e5ea98`. Five of those are already tokens, exactly:
+ *
+ *     --green -> --gb-bg-surface-brand-flat      --lime -> --gb-ramp-lime-500
+ *     --deep  -> --gb-bg-surface-inverse         --pale -> --gb-bg-surface-accent
+ *     --amber -> --gb-badge-bg
+ *
+ * `tokens.css` is generated from the design package, so copying the literals would fork the brand
+ * and go stale the first time a colour moved there — the same two-vocabularies failure, one layer
+ * down. The local aliases below exist only so the rules read like the prototype's.
+ */
+
+.bo {
+  --green: var(--gb-bg-surface-brand-flat);
+  --deep: var(--gb-bg-surface-inverse);
+  --amber: var(--gb-badge-bg);
+  --lime: var(--gb-ramp-lime-500);
+  --pale: var(--gb-bg-surface-accent);
+  --ink: var(--gb-text-primary);
+  --muted: var(--gb-text-secondary);
+  --line: var(--gb-border-subtle);
+  --field: var(--gb-bg-surface-muted);
+  --danger: var(--gb-text-danger);
+  --warn-bg: var(--gb-bg-surface-warning);
+  --warn-line: var(--gb-border-danger);
+  --ok-bg: var(--gb-bg-surface-muted);
+  --ok-line: var(--gb-border-brand);
+}
+
+/* ------------------------------------------------------------------ the frame */
+
+.bo {
+  display: flex;
+  min-height: 100vh;
+  color: var(--ink);
+  background: var(--gb-bg-surface);
+}
+
+/*
+ * The sidebar. Persistent, not a hamburger.
+ *
+ * The prototype's is 212px and always visible, and that is the single biggest thing the first
+ * build missed. It collapses to a top strip below the layout breakpoint, because a 212px rail on a
+ * 390px phone leaves 178px of content — but it never becomes a menu you have to open on a laptop,
+ * which is where this is used.
+ */
+.bo__nav {
+  width: 13.25rem;
+  flex: 0 0 13.25rem;
+  background: var(--deep);
+  color: var(--gb-text-on-brand);
+  padding: var(--gb-space-4) var(--gb-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.bo__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-2);
+  padding: 2px var(--gb-space-2) var(--gb-space-5);
+  font-weight: var(--gb-font-weight-display);
+  color: var(--gb-text-on-brand);
+  font-size: var(--gb-font-size-body-lg);
+}
+
+.bo__brand i {
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 7px 7px 3px 3px;
+  background: var(--lime);
+  display: block;
+  flex: none;
+}
+
+.bo__group {
+  font-size: var(--gb-font-size-overline);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  opacity: 0.72;
+  margin: var(--gb-space-4) var(--gb-space-2) var(--gb-space-1);
+  font-weight: var(--gb-font-weight-overline);
+}
+
+.bo__link {
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-2);
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  font-size: var(--gb-font-size-body-sm);
+  padding: var(--gb-space-2);
+  border-radius: var(--gb-radius-md);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.bo__link:hover { background: rgb(255 255 255 / 7%); }
+
+.bo__link[aria-current='page'] {
+  background: var(--gb-bg-surface);
+  color: var(--deep);
+  font-weight: var(--gb-font-weight-display);
+}
+
+/* A live number on a nav item — open orders, blocking dishes, schools that cannot trade. */
+.bo__count {
+  margin-left: auto;
+  font-size: var(--gb-font-size-caption);
+  font-weight: var(--gb-font-weight-display);
+  background: rgb(255 255 255 / 16%);
+  padding: 2px var(--gb-space-2);
+  border-radius: 999px;
+}
+
+.bo__link[aria-current='page'] .bo__count { background: var(--pale); color: var(--deep); }
+
+/* Who is signed in, and as what. The live back office never said. */
+.bo__who {
+  margin-top: auto;
+  font-size: var(--gb-font-size-body-sm);
+  opacity: 0.85;
+  padding: var(--gb-space-3) var(--gb-space-2) 0;
+  border-top: var(--gb-border-width-hairline) solid rgb(255 255 255 / 12%);
+}
+
+.bo__who b { display: block; font-weight: var(--gb-font-weight-body-strong); }
+
+.bo__main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+
+/* The page header: a title AND a subtitle. No live screen had one. */
+.bo__top {
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-3);
+  padding: var(--gb-space-4) var(--gb-space-5) var(--gb-space-3);
+  border-bottom: var(--gb-border-width-hairline) solid var(--line);
+}
+
+.bo__title { font-size: var(--gb-font-size-h2); margin: 0; font-weight: var(--gb-font-weight-display); }
+.bo__sub { font-size: var(--gb-font-size-body-sm); color: var(--muted); margin: 2px 0 0; }
+.bo__spacer { flex: 1; }
+.bo__scroll { flex: 1; min-width: 0; padding-bottom: var(--gb-space-8); }
+
+/* ------------------------------------------------------------------ controls */
+
+/*
+ * The primary button uses the **action** green, not the flat brand green.
+ *
+ * The prototype fills it with `--green` (#00af52) and white text, which measures **2.89:1** —
+ * below the 4.5:1 WCAG AA needs at this size, and `check:a11y` failed it on three buttons. This is
+ * the one place the prototype is not followed literally, and it is not really a disagreement with
+ * it: `tokens.css` already ships `--gb-action-primary-bg` (#007e3b) for exactly this job, and a
+ * static mock never had to pass a contrast check. Same shape, same brand, a colour the design
+ * package itself nominates for text on a fill.
+ */
+.bo .btn {
+  background: var(--gb-action-primary-bg);
+  color: var(--gb-action-primary-fg);
+  border: 0;
+  border-radius: var(--gb-radius-md);
+  padding: var(--gb-space-2) var(--gb-space-4);
+  font: inherit;
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body-strong);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gb-space-2);
+  min-height: 2.75rem;
+}
+
+.bo .btn:hover { background: var(--gb-action-primary-bg-pressed); }
+.bo .btn--ghost {
+  background: var(--gb-bg-surface);
+  color: var(--ink);
+  border: var(--gb-border-width-default) solid var(--line);
+}
+.bo .btn--ghost:hover { border-color: var(--green); filter: none; }
+.bo .btn--sm { padding: var(--gb-space-1) var(--gb-space-3); font-size: var(--gb-font-size-caption); min-height: 2rem; }
+.bo .btn:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+.bo .btn:focus-visible { outline: var(--gb-focus-ring); outline-offset: 2px; }
+
+.bo .toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--gb-bg-surface);
+  padding: var(--gb-space-3) var(--gb-space-5);
+  border-bottom: var(--gb-border-width-hairline) solid var(--line);
+}
+
+.bo .searchrow { display: flex; gap: var(--gb-space-2); align-items: center; flex-wrap: wrap; }
+
+.bo .search {
+  flex: 1 1 14rem;
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-2);
+  background: var(--field);
+  border: var(--gb-border-width-default) solid transparent;
+  border-radius: var(--gb-radius-md);
+  padding: var(--gb-space-2) var(--gb-space-3);
+}
+
+.bo .search:focus-within { border-color: var(--green); background: var(--gb-bg-surface); }
+.bo .search input { flex: 1; border: 0; background: none; font: inherit; outline: none; color: var(--ink); min-width: 0; }
+
+.bo select,
+.bo input[type='date'],
+.bo input[type='text'],
+.bo input[type='number'],
+.bo input[type='search'] {
+  font: inherit;
+  font-size: var(--gb-font-size-body-sm);
+  border: var(--gb-border-width-default) solid var(--line);
+  border-radius: var(--gb-radius-md);
+  padding: var(--gb-space-2) var(--gb-space-3);
+  background: var(--gb-bg-surface);
+  color: var(--ink);
+  min-height: 2.75rem;
+  max-width: 100%;
+}
+
+.bo select:focus-visible,
+.bo input:focus-visible { outline: var(--gb-focus-ring); outline-offset: 2px; }
+
+.bo .chips { display: flex; gap: var(--gb-space-2); flex-wrap: wrap; margin-top: var(--gb-space-3); }
+
+.bo .chip {
+  background: var(--field);
+  border: var(--gb-border-width-default) solid transparent;
+  border-radius: 999px;
+  padding: var(--gb-space-1) var(--gb-space-3);
+  font: inherit;
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body-strong);
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gb-space-1);
+  min-height: 2.25rem;
+}
+
+.bo .chip:hover { border-color: var(--gb-border-default); }
+.bo .chip[aria-pressed='true'] { background: var(--deep); color: var(--gb-text-on-brand); }
+/* A chip counting a problem. Zero is good news and is deliberately not warned. */
+.bo .chip--warn { color: var(--gb-text-warning); }
+.bo .chip--warn[aria-pressed='true'] { background: var(--amber); color: var(--gb-text-on-amber); }
+.bo .chip b { font-weight: var(--gb-font-weight-display); opacity: 0.75; }
+.bo .chip:focus-visible { outline: var(--gb-focus-ring); outline-offset: 2px; }
+
+.bo .resultline {
+  font-size: var(--gb-font-size-body-sm);
+  color: var(--muted);
+  margin-top: var(--gb-space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-2);
+  flex-wrap: wrap;
+}
+
+.bo .resultline b { color: var(--ink); }
+
+/* ------------------------------------------------------------------ tables */
+
+/*
+ * Wide tables scroll inside their own box rather than pushing the page.
+ *
+ * `/admin/growth` was 531px wide inside a 375px viewport and `/reports` 750px, so the whole page
+ * scrolled sideways and the title left the screen. Andy asked for these to be "fast and readable
+ * on a phone"; a page that slides under your thumb is neither.
+ */
+.bo .tablewrap { overflow-x: auto; }
+.bo table { width: 100%; border-collapse: collapse; }
+
+.bo thead th {
+  text-align: left;
+  font-size: var(--gb-font-size-overline);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  padding: var(--gb-space-2) var(--gb-space-3);
+  border-bottom: var(--gb-border-width-hairline) solid var(--line);
+  font-weight: var(--gb-font-weight-display);
+  white-space: nowrap;
+}
+
+.bo tbody tr { border-bottom: var(--gb-border-width-hairline) solid var(--line); }
+.bo tbody tr:hover { background: var(--field); }
+.bo td, .bo tbody th { padding: var(--gb-space-3); font-size: var(--gb-font-size-body-sm); vertical-align: middle; text-align: left; }
+.bo td.num, .bo th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.bo td.name, .bo tbody th { font-weight: var(--gb-font-weight-body-strong); }
+.bo td .sub { font-size: var(--gb-font-size-caption); color: var(--muted); font-weight: 400; margin-top: 2px; }
+
+.bo .thumb {
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: var(--gb-radius-md);
+  background: var(--pale);
+  flex: 0 0 2.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.bo .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.bo .cellflex { display: flex; align-items: center; gap: var(--gb-space-3); }
+
+/* ------------------------------------------------------------------ tags */
+
+.bo .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gb-space-1);
+  font-size: var(--gb-font-size-caption);
+  font-weight: var(--gb-font-weight-display);
+  padding: 3px var(--gb-space-2);
+  border-radius: 999px;
+  background: var(--field);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.bo .tag--veg { background: var(--ok-bg); color: var(--gb-text-link); }
+.bo .tag--egg { background: var(--warn-bg); color: var(--gb-text-warning); }
+.bo .tag--nonveg { background: var(--gb-bg-surface-warning); color: var(--gb-text-danger); }
+/* Dashed, because "nobody has said" is a different state from "declared none". */
+.bo .tag--none { background: var(--warn-bg); color: var(--gb-text-warning); border: 1px dashed var(--warn-line); }
+.bo .tag--menu { background: var(--field); color: var(--muted); }
+.bo .tag--live { background: var(--ok-bg); color: var(--gb-text-link); }
+.bo .tag--draft { background: var(--field); color: var(--muted); }
+.bo .dot { width: 7px; height: 7px; border-radius: 50%; background: currentcolor; display: inline-block; }
+
+/* ------------------------------------------------------------------ cards and panels */
+
+.bo .pad { padding: var(--gb-space-4) var(--gb-space-5); }
+.bo .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--gb-space-3); }
+
+.bo .card {
+  border: var(--gb-border-width-default) solid var(--line);
+  border-radius: var(--gb-radius-lg);
+  padding: var(--gb-space-4);
+  background: var(--gb-bg-surface);
+}
+
+.bo .card h4 { margin: 0 0 var(--gb-space-1); font-size: var(--gb-font-size-body); font-weight: var(--gb-font-weight-display); }
+.bo .card .k { font-size: var(--gb-font-size-display); font-weight: var(--gb-font-weight-display); letter-spacing: -0.02em; margin: 2px 0; }
+.bo .card .m { font-size: var(--gb-font-size-body-sm); color: var(--muted); line-height: 1.55; }
+.bo .card--warn { background: var(--warn-bg); border-color: var(--warn-line); }
+.bo .card--ok { background: var(--ok-bg); border-color: var(--ok-line); }
+
+/* A section rule with a label. 24 uses in the prototype; it is how every screen is divided. */
+.bo .sec {
+  font-size: var(--gb-font-size-overline);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  font-weight: var(--gb-font-weight-display);
+  margin: var(--gb-space-5) 0 var(--gb-space-3);
+  padding-top: var(--gb-space-4);
+  border-top: var(--gb-border-width-hairline) solid var(--line);
+}
+
+.bo .sec:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+
+/* A pass / warn / fail row. Schools' readiness gates, and Today's order list. */
+.bo .gate {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gb-space-3);
+  padding: var(--gb-space-3) 0;
+  border-bottom: var(--gb-border-width-hairline) solid var(--line);
+}
+
+.bo .gate:last-child { border-bottom: 0; }
+
+.bo .gate .ic {
+  flex: 0 0 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--gb-font-size-caption);
+  font-weight: var(--gb-font-weight-display);
+  color: var(--gb-text-on-brand);
+  margin-top: 1px;
+}
+
+.bo .gate--pass .ic { background: var(--green); }
+.bo .gate--fail .ic { background: var(--danger); }
+.bo .gate--warn .ic { background: var(--amber); color: var(--gb-text-on-amber); }
+.bo .gate .t { flex: 1; font-size: var(--gb-font-size-body-sm); font-weight: var(--gb-font-weight-body-strong); }
+.bo .gate .t span { display: block; font-size: var(--gb-font-size-body-sm); color: var(--muted); font-weight: 400; margin-top: 3px; line-height: 1.55; }
+
+/*
+ * A notice. Three kinds, and the kind is carried by the border and the leading bold line as well
+ * as the tint, so it survives greyscale (WCAG 1.4.1).
+ */
+.bo .notice {
+  border-radius: var(--gb-radius-lg);
+  padding: var(--gb-space-3) var(--gb-space-4);
+  font-size: var(--gb-font-size-body-sm);
+  line-height: 1.6;
+  margin: 0 0 var(--gb-space-4);
+  border: var(--gb-border-width-default) solid;
+}
+
+.bo .notice b { display: block; margin-bottom: 3px; }
+.bo .notice--warn { background: var(--warn-bg); border-color: var(--warn-line); color: var(--gb-text-primary); }
+.bo .notice--err { background: var(--gb-bg-surface-warning); border-color: var(--gb-border-danger); color: var(--gb-text-primary); }
+.bo .notice--info { background: var(--ok-bg); border-color: var(--ok-line); color: var(--gb-text-primary); }
+
+.bo .empty { text-align: center; padding: var(--gb-space-8) var(--gb-space-5); color: var(--muted); }
+.bo .empty h3 { color: var(--ink); font-size: var(--gb-font-size-body-lg); margin: 0 0 var(--gb-space-2); }
+.bo .empty p { font-size: var(--gb-font-size-body-sm); line-height: 1.65; max-width: 25rem; margin: 0 auto var(--gb-space-4); }
+
+.bo .sk {
+  background: linear-gradient(90deg, var(--field) 25%, var(--gb-bg-surface) 37%, var(--field) 63%);
+  background-size: 400% 100%;
+  animation: bo-sheen 1.3s infinite;
+  border-radius: var(--gb-radius-md);
+  height: 3.5rem;
+  margin-bottom: var(--gb-space-2);
+}
+
+@keyframes bo-sheen {
+  0% { background-position: 100% 0; }
+  100% { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bo .sk { animation: none; }
+}
+
+/* ------------------------------------------------------------------ bulk bar */
+
+.bo .bulk {
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  background: var(--deep);
+  color: var(--gb-text-on-brand);
+  display: flex;
+  align-items: center;
+  gap: var(--gb-space-3);
+  padding: var(--gb-space-3) var(--gb-space-5);
+  font-size: var(--gb-font-size-body-sm);
+  flex-wrap: wrap;
+}
+
+.bo .bulk .spacer { flex: 1; }
+
+.bo .bulk button {
+  background: rgb(255 255 255 / 14%);
+  color: var(--gb-text-on-brand);
+  border: 0;
+  border-radius: var(--gb-radius-md);
+  padding: var(--gb-space-2) var(--gb-space-3);
+  font: inherit;
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body-strong);
+  cursor: pointer;
+  min-height: 2.25rem;
+}
+
+.bo .bulk button:hover { background: rgb(255 255 255 / 24%); }
+.bo .bulk button.go { background: var(--lime); color: var(--gb-text-on-tonal); }
+
+/* ------------------------------------------------------------------ drawer */
+
+/*
+ * Editing happens in a drawer, on every screen that edits — not just Dishes.
+ *
+ * The prototype's rule, and the reason it exists: opening an editor must not re-render or
+ * re-scroll the list behind it. Andy's original complaint about the old dish screen was "I hunt
+ * for a dish, edit it, save, and get thrown back to the top to start again."
+ */
+.bo__scrim {
+  position: fixed;
+  inset: 0;
+  background: rgb(10 20 16 / 34%);
+  z-index: 20;
+}
+
+.bo__drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 28.75rem;
+  max-width: 92vw;
+  background: var(--gb-bg-surface);
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -18px 0 44px rgb(0 0 0 / 16%);
+}
+
+.bo__drawer-head {
+  padding: var(--gb-space-4) var(--gb-space-4) var(--gb-space-3);
+  border-bottom: var(--gb-border-width-hairline) solid var(--line);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gb-space-3);
+}
+
+.bo__drawer-head h3 { margin: 0; font-size: var(--gb-font-size-body-lg); font-weight: var(--gb-font-weight-display); }
+.bo__drawer-head .sub { font-size: var(--gb-font-size-body-sm); color: var(--muted); margin-top: 3px; }
+.bo__drawer-body { flex: 1; overflow: auto; padding: var(--gb-space-4); }
+.bo__drawer-foot {
+  padding: var(--gb-space-3) var(--gb-space-4);
+  border-top: var(--gb-border-width-hairline) solid var(--line);
+  display: flex;
+  gap: var(--gb-space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.bo .field { margin: 0 0 var(--gb-space-4); }
+
+.bo .field label {
+  display: block;
+  font-size: var(--gb-font-size-overline);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  font-weight: var(--gb-font-weight-display);
+  margin: 0 0 var(--gb-space-1);
+}
+
+.bo .field input,
+.bo .field select,
+.bo .field textarea { width: 100%; }
+.bo .field .help { font-size: var(--gb-font-size-body-sm); color: var(--muted); margin-top: var(--gb-space-1); line-height: 1.55; }
+
+/* An on/off control that reads as one. Used for pack visibility and alert recipients. */
+.bo .switch {
+  flex: 0 0 2.625rem;
+  width: 2.625rem;
+  height: 1.5625rem;
+  border-radius: 999px;
+  border: 0;
+  background: var(--gb-border-default);
+  position: relative;
+  cursor: pointer;
+}
+
+.bo .switch[aria-pressed='true'] { background: var(--green); }
+.bo .switch i { position: absolute; top: 3px; left: 3px; width: 1.1875rem; height: 1.1875rem; border-radius: 50%; background: var(--gb-bg-surface); transition: left 0.16s; }
+.bo .switch[aria-pressed='true'] i { left: 1.25rem; }
+.bo .switch:focus-visible { outline: var(--gb-focus-ring); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bo .switch i { transition: none; }
+}
+
+/* ------------------------------------------------------------------ narrow */
+
+/*
+ * Below the layout breakpoint the rail becomes a horizontal strip rather than a hamburger.
+ *
+ * It stays visible: the whole point of the sidebar is that where you are and where you can go are
+ * always on screen. A menu you have to open is what this replaced.
+ */
+@media (width < 60rem) {
+  .bo { flex-direction: column; }
+
+  .bo__nav {
+    width: auto;
+    flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gb-space-1);
+    padding: var(--gb-space-2) var(--gb-space-3);
+  }
+
+  .bo__brand { padding: 0 var(--gb-space-2) 0 0; }
+  /* The group labels are a scanning aid on a tall rail and noise on one line. */
+  .bo__group { display: none; }
+  .bo__link { width: auto; }
+  .bo__who { margin: 0 0 0 auto; border-top: 0; padding: 0 var(--gb-space-2); }
+  .bo__who b { display: inline; }
+  .bo__top { padding: var(--gb-space-3) var(--gb-space-4); }
+  .bo .pad, .bo .toolbar { padding-left: var(--gb-space-4); padding-right: var(--gb-space-4); }
+}
+
+/* ------------------------------------------------- the menu card (`E10-49`) */
+
+.bo .bocard { margin-bottom: var(--gb-space-3); }
+.bo .bocard__head { display: flex; align-items: flex-start; gap: var(--gb-space-3); }
+.bo .bocard__tags { display: flex; gap: var(--gb-space-1); flex-wrap: wrap; align-items: center; margin-top: var(--gb-space-3); }
+.bo .bocard__notice { margin: var(--gb-space-3) 0 0; }
+.bo .bocard__act { margin-top: var(--gb-space-2); }
+.bo .bocard__actions { margin-top: var(--gb-space-3); display: flex; gap: var(--gb-space-2); flex-wrap: wrap; }
+/* `.notice b` is a block by default — the leading line. These two are mid-sentence. */
+.bo .notice b.bocard__inline { display: inline; margin: 0; }
+
+/*
+ * `[hidden]` must win over every `display` in this file.
+ *
+ * **The sixth time this has bitten this project.** `[hidden]` is `display:none` at *user-agent*
+ * specificity, so any author rule setting `display` — `.bo__drawer{display:flex}` — beats it and
+ * the element stays on screen. Here that rendered the edit drawer open over half of every screen,
+ * on load, before anything had been clicked.
+ *
+ * Written once, for everything, rather than per component: the trap is that the next component
+ * with a `display` and a `hidden` attribute reintroduces it silently.
+ */
+.bo [hidden] { display: none !important; }

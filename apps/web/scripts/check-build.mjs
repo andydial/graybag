@@ -28,7 +28,22 @@ const DIST = join(WEB, 'dist');
  */
 const BUDGETS = {
   homeHtmlGz: 45_000,
-  cssGz: 18_000,
+  /*
+   * **21,000 is an interim ceiling and must come back down — `E10-55`.**
+   *
+   * The back office is being rebuilt on the prototype's design system (`backoffice.css`), and
+   * while that is in progress the old `admin.css` vocabulary and the new one both ship: every
+   * screen still on the old chrome needs its rules, and every screen already migrated needs the
+   * new ones. The overlap is temporary by construction — `admin.css` shrinks with each screen
+   * moved and is deleted when the last one lands.
+   *
+   * Raised rather than worked around, and named rather than nudged: the honest reading of this
+   * number today is "two design systems are in the tree at once", which is a real cost and should
+   * be visible. `E10-62` lowers it **below the original 18,000** when `admin.css` goes, because
+   * one vocabulary should cost less than the one-and-a-bit it replaces. If that task is still open
+   * and this is still 21,000, the migration stalled and this comment is the evidence.
+   */
+  cssGz: 21_000,
   jsGz: 10_000,
   totalHomePayload: 400_000,
   thirdPartyRequests: 0,
