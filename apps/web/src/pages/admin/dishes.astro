@@ -342,14 +342,14 @@ import '../../styles/backoffice.css';
 
       function render() {
         if (loading) {
-          el.list.innerHTML = Array(8).fill('<li class="kitchen__skeleton"></li>').join('');
+          el.list.innerHTML = Array(8).fill('<li class="sk"></li>').join('');
           el.count.textContent = 'Loading…';
           return;
         }
         if (error) {
           el.list.innerHTML =
-            `<li class="kitchen__state"><h2>We can't show the catalogue</h2><p>${esc(error)}</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></li>`;
+            `<li class="empty"><h2>We can't show the catalogue</h2><p>${esc(error)}</p>` +
+            `<button class="btn" data-retry>Try again</button></li>`;
           el.count.textContent = 'Could not load.';
           return;
         }
@@ -371,9 +371,9 @@ import '../../styles/backoffice.css';
         renderChips();
 
         el.list.innerHTML = shown.length === 0
-          ? `<li class="kitchen__state"><h2>Nothing matches</h2>` +
+          ? `<li class="empty"><h2>Nothing matches</h2>` +
             `<p>No dish matches that search and those filters.</p>` +
-            `<button class="kitchen__btn" data-clear>Clear them</button></li>`
+            `<button class="btn btn--ghost" data-clear>Clear them</button></li>`
           : shown.map(rowHtml).join('');
 
         renderBulk();
@@ -397,10 +397,10 @@ import '../../styles/backoffice.css';
           `<span class="bulkcount"><b>${picked.size}</b> selected</span>` +
           `<span class="spacer">Set food type: ` +
             ['veg', 'egg', 'non_veg'].map((v) =>
-              `<button class="kitchen__btn kitchen__btn--primary" data-apply="${v}">${esc(PILL[v]!)}</button>`).join('') +
+              `<button class="btn" data-apply="${v}">${esc(PILL[v]!)}</button>`).join('') +
           `</span>` +
-          `<button class="kitchen__btn" data-selall>Select all ${shown.length} shown</button>` +
-          `<button class="kitchen__btn" data-selnone>Clear selection</button>`;
+          `<button class="btn btn--ghost" data-selall>Select all ${shown.length} shown</button>` +
+          `<button class="btn btn--ghost" data-selnone>Clear selection</button>`;
       }
 
       async function applyFoodType(value: string) {
@@ -456,78 +456,78 @@ import '../../styles/backoffice.css';
 
           `<form data-dish="${esc(d.id)}" class="boform">` +
             `<div class="admin__field">` +
-              `<label class="admin__label" for="${f('nm')}">Name</label>` +
-              `<input class="admin__input" id="${f('nm')}" name="name" type="text" required maxlength="200" value="${esc(d.name)}" />` +
+              `<label  for="${f('nm')}">Name</label>` +
+              `<input  id="${f('nm')}" name="name" type="text" required maxlength="200" value="${esc(d.name)}" />` +
             `</div>` +
 
             `<div class="admin__field">` +
-              `<label class="admin__label" for="${f('ft')}">Food type</label>` +
-              `<select class="admin__select" id="${f('ft')}" name="foodType">` +
+              `<label  for="${f('ft')}">Food type</label>` +
+              `<select  id="${f('ft')}" name="foodType">` +
                 ([['', 'Not set'], ['veg', 'Veg'], ['non_veg', 'Non-veg'], ['egg', 'Egg']] as [string, string][])
                   .map(([v, l]) => `<option value="${esc(v)}"${(d.foodType ?? '') === v ? ' selected' : ''}>${esc(l)}</option>`).join('') +
               `</select>` +
-              `<p class="admin__hint">What a family filters on. Separate from the egg <b>allergen</b> below — a cake made with egg is veg and contains egg.</p>` +
+              `<p class="m">What a family filters on. Separate from the egg <b>allergen</b> below — a cake made with egg is veg and contains egg.</p>` +
             `</div>` +
 
             `<fieldset class="admin__days">` +
-              `<legend class="admin__label">Allergens</legend>` +
+              `<legend >Allergens</legend>` +
               allergenCodes.map((a) =>
                 `<label class="admin__day"><input type="checkbox" name="allergens" value="${esc(a)}"${on.has(a) ? ' checked' : ''} /> ${esc(a.replace('_', ' '))}</label>`).join('') +
             `</fieldset>` +
             `<label class="admin__day"><input type="checkbox" name="declaredNone"${d.allergensDeclaredNone ? ' checked' : ''} /> Checked — contains none</label>` +
-            `<p class="admin__hint">Ticking replaces the whole set. <b>Empty and unchecked means nobody has looked</b>, which is not the same as none.</p>` +
+            `<p class="m">Ticking replaces the whole set. <b>Empty and unchecked means nobody has looked</b>, which is not the same as none.</p>` +
 
             `<div class="admin__field">` +
-              `<label class="admin__label" for="${f('ds')}">Description</label>` +
-              `<textarea class="admin__input" id="${f('ds')}" name="description" rows="2">${esc(d.description ?? '')}</textarea>` +
+              `<label  for="${f('ds')}">Description</label>` +
+              `<textarea  id="${f('ds')}" name="description" rows="2">${esc(d.description ?? '')}</textarea>` +
             `</div>` +
 
             `<details class="setting__edit"><summary>Nutrition and portion</summary>` +
-              `<div class="admin__field"><label class="admin__label" for="${f('ck')}">Calories (kcal)</label>` +
-                `<input class="admin__input" id="${f('ck')}" name="caloriesKcal" type="number" min="0" max="10000" value="${d.caloriesKcal ?? ''}" /></div>` +
-              `<div class="admin__field"><label class="admin__label" for="${f('ct')}">Calories as text</label>` +
-                `<input class="admin__input" id="${f('ct')}" name="caloriesText" type="text" value="${esc(d.caloriesText ?? '')}" />` +
-                `<p class="admin__hint">For a range — <b>330-370</b>.</p></div>` +
-              `<div class="admin__field"><label class="admin__label" for="${f('pt')}">Portion</label>` +
-                `<input class="admin__input" id="${f('pt')}" name="portionText" type="text" value="${esc(d.portionText ?? '')}" /></div>` +
-              `<div class="admin__field"><label class="admin__label" for="${f('it')}">Ingredients</label>` +
-                `<textarea class="admin__input" id="${f('it')}" name="ingredientsText" rows="2">${esc(d.ingredientsText ?? '')}</textarea></div>` +
-              `<p class="admin__hint">These four are all the schema holds — there are no protein, fat or carbohydrate columns.</p>` +
+              `<div class="admin__field"><label  for="${f('ck')}">Calories (kcal)</label>` +
+                `<input  id="${f('ck')}" name="caloriesKcal" type="number" min="0" max="10000" value="${d.caloriesKcal ?? ''}" /></div>` +
+              `<div class="admin__field"><label  for="${f('ct')}">Calories as text</label>` +
+                `<input  id="${f('ct')}" name="caloriesText" type="text" value="${esc(d.caloriesText ?? '')}" />` +
+                `<p class="m">For a range — <b>330-370</b>.</p></div>` +
+              `<div class="admin__field"><label  for="${f('pt')}">Portion</label>` +
+                `<input  id="${f('pt')}" name="portionText" type="text" value="${esc(d.portionText ?? '')}" /></div>` +
+              `<div class="admin__field"><label  for="${f('it')}">Ingredients</label>` +
+                `<textarea  id="${f('it')}" name="ingredientsText" rows="2">${esc(d.ingredientsText ?? '')}</textarea></div>` +
+              `<p class="m">These four are all the schema holds — there are no protein, fat or carbohydrate columns.</p>` +
             `</details>` +
 
             `<label class="admin__day"><input type="checkbox" name="isActive"${d.isActive ? ' checked' : ''} /> On the catalogue</label>` +
 
-            `<div class="setting__actions"><button class="kitchen__btn kitchen__btn--primary" type="submit">Save dish</button></div>` +
+            `<div class="setting__actions"><button class="btn" type="submit">Save dish</button></div>` +
           `</form>` +
 
           `<div class="admin__field">` +
-            `<p class="admin__label">Photo</p>` +
-            (url ? `<img class="dishthumb" src="${esc(url)}" alt="" width="160" />` : `<p class="admin__hint">No photo.</p>`) +
-            `<input class="admin__input" type="file" accept="image/jpeg,image/png,image/webp" data-image="${esc(d.id)}" />` +
-            `<p class="admin__hint">Resized to ${MAX_EDGE}px here before uploading.</p>` +
-            (d.imageAssetId ? `<div class="setting__actions"><button class="kitchen__btn" type="button" data-image-remove="${esc(d.id)}">Remove photo</button></div>` : '') +
+            `<p >Photo</p>` +
+            (url ? `<img class="dishthumb" src="${esc(url)}" alt="" width="160" />` : `<p class="m">No photo.</p>`) +
+            `<input  type="file" accept="image/jpeg,image/png,image/webp" data-image="${esc(d.id)}" />` +
+            `<p class="m">Resized to ${MAX_EDGE}px here before uploading.</p>` +
+            (d.imageAssetId ? `<div class="setting__actions"><button class="btn btn--ghost" type="button" data-image-remove="${esc(d.id)}">Remove photo</button></div>` : '') +
           `</div>` +
 
           `<h3 class="sec">On ${r.placements.length} menu${r.placements.length === 1 ? '' : 's'}</h3>` +
           (r.placements.length === 0
-            ? `<p class="admin__hint"><b>This dish is on no menu</b>, so it has no price and nobody can order it. Adding it to one is <code>tools/bulk-import</code>.</p>`
+            ? `<p class="m"><b>This dish is on no menu</b>, so it has no price and nobody can order it. Adding it to one is <code>tools/bulk-import</code>.</p>`
             : r.placements.map((p) =>
               `<form class="placement" data-menu="${esc(p.menuId)}" data-dish-id="${esc(d.id)}">` +
-                `<p class="admin__label">${esc(p.menuName)}</p>` +
+                `<p >${esc(p.menuName)}</p>` +
                 `<div class="admin__field">` +
-                  `<label class="admin__label" for="p-${esc(p.menuId)}-${esc(d.id)}">Price in paise</label>` +
-                  `<input class="admin__input" id="p-${esc(p.menuId)}-${esc(d.id)}" name="pricePaise" type="number" min="0" step="1" value="${p.pricePaise}" required />` +
-                  `<p class="admin__hint">Whole paise. <b>₹45.00 is 4500</b>. Currently ${esc(rupees(p.pricePaise))}.</p>` +
+                  `<label  for="p-${esc(p.menuId)}-${esc(d.id)}">Price in paise</label>` +
+                  `<input  id="p-${esc(p.menuId)}-${esc(d.id)}" name="pricePaise" type="number" min="0" step="1" value="${p.pricePaise}" required />` +
+                  `<p class="m">Whole paise. <b>₹45.00 is 4500</b>. Currently ${esc(rupees(p.pricePaise))}.</p>` +
                 `</div>` +
-                `<fieldset class="admin__days"><legend class="admin__label">Available on</legend>` +
+                `<fieldset class="admin__days"><legend >Available on</legend>` +
                   WEEKDAYS.map((w, i) =>
                     `<label class="admin__day"><input type="checkbox" name="availableDays" value="${i + 1}"${p.availableDays.includes(i + 1) ? ' checked' : ''} /> ${w}</label>`).join('') +
                 `</fieldset>` +
                 `<label class="admin__day"><input type="checkbox" name="isActive"${p.isActive ? ' checked' : ''} /> On this menu</label>` +
-                `<div class="setting__actions"><button class="kitchen__btn" type="submit">Save price and days</button></div>` +
+                `<div class="setting__actions"><button class="btn btn--ghost" type="submit">Save price and days</button></div>` +
               `</form>`).join('')) +
 
-          `<p class="kitchen__oneway kitchen__oneway--block">Editing a dish needs <b>dish.edit</b>; a price needs <b>menu.edit</b>. A price change applies from now on — orders already placed keep what they were charged.</p>`
+          `<p class="notice notice--info">Editing a dish needs <b>dish.edit</b>; a price needs <b>menu.edit</b>. A price change applies from now on — orders already placed keep what they were charged.</p>`
         );
       }
 
@@ -543,7 +543,7 @@ import '../../styles/backoffice.css';
         if (!box) {
           box = document.createElement('p');
           box.setAttribute('data-err', ''); box.setAttribute('role', 'alert');
-          box.className = 'admin__error';
+          box.className = 'notice notice--err';
           form.append(box);
         }
         box.textContent = message;

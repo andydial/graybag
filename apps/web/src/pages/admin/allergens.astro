@@ -28,12 +28,11 @@
  *
  * `?state=demo` renders fixtures, so `check:a11y` audits this rather than the sign-in redirect.
  */
-import BackofficeNav from '../../components/BackofficeNav.astro';
+import BackofficeShell from '../../components/BackofficeShell.astro';
 
 import '../../styles/tokens.css';
 import '../../styles/site.css';
-import '../../styles/kitchen.css';
-import '../../styles/admin.css';
+import '../../styles/backoffice.css';
 ---
 
 <!doctype html>
@@ -48,19 +47,16 @@ import '../../styles/admin.css';
   </head>
 
   <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">Allergen tagging</h1>
-          <button id="g-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
-          <button id="g-save" class="kitchen__btn kitchen__btn--primary" type="button" disabled>
+    <BackofficeShell
+      current="/admin/allergens"
+      title="Allergens"
+      subtitle="Tagging every dish, so a parent can trust the badge"
+    >
+      <button id="g-reload" class="btn btn--ghost" slot="actions" type="button">Refresh</button>
+          <button id="g-save" class="btn" slot="actions" type="button" disabled>
             Save
           </button>
-          <BackofficeNav current="/admin/allergens" />
-        </div>
-      </header>
 
-      <main class="kitchen__wrap admin__wrap">
         <div id="g-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
         <div class="guessbanner" role="note">
@@ -76,11 +72,10 @@ import '../../styles/admin.css';
         </div>
 
         <div id="g-body"></div>
-      </main>
-    </div>
+      </BackofficeShell>
 
     <script>
-      import { mountNav } from '../../lib/backoffice/nav-mount.js';
+      import { mountShell } from '../../lib/backoffice/shell.js';
       import { api } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
@@ -161,7 +156,7 @@ import '../../styles/admin.css';
               `<p class="srow__meta">Currently ${esc(STATE_WORD[state])}</p>` +
 
               `<fieldset class="admin__days">` +
-                `<legend class="admin__label">Contains</legend>` +
+                `<legend>Contains</legend>` +
                 ALLERGEN_CODES.map((code) => {
                   const s = suggested.get(code);
                   const on = now.codes.has(code);
@@ -179,12 +174,12 @@ import '../../styles/admin.css';
 
               `<div class="setting__actions">` +
                 (acceptable.length > 0
-                  ? `<button class="kitchen__btn" type="button" data-accept>` +
+                  ? `<button class="btn btn--ghost" type="button" data-accept>` +
                     `Accept ${acceptable.length} guess${acceptable.length === 1 ? '' : 'es'}</button>`
                   : '') +
-                `<button class="kitchen__btn" type="button" data-none` +
+                `<button class="btn btn--ghost" type="button" data-none` +
                   `${now.declaredNone && now.codes.size === 0 ? ' disabled' : ''}>Contains none</button>` +
-                (dirty ? `<button class="kitchen__btn" type="button" data-undo>Undo</button>` : '') +
+                (dirty ? `<button class="btn btn--ghost" type="button" data-undo>Undo</button>` : '') +
               `</div>` +
             `</div>` +
           `</div>`
@@ -193,13 +188,13 @@ import '../../styles/admin.css';
 
       function render() {
         if (loading) {
-          el.body.innerHTML = Array(4).fill('<div class="kitchen__skeleton"></div>').join('');
+          el.body.innerHTML = Array(4).fill('<div class="sk"></div>').join('');
           return;
         }
         if (error) {
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>We can't show the catalogue</h2><p>${esc(error)}</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+            `<div class="empty"><h2>We can't show the catalogue</h2><p>${esc(error)}</p>` +
+            `<button class="btn" data-retry>Try again</button></div>`;
           return;
         }
 
@@ -215,7 +210,7 @@ import '../../styles/admin.css';
         el.body.innerHTML =
           `<section class="admin__section" aria-labelledby="tag-h">` +
             `<h2 id="tag-h">${dishes.length} dishes · ${unchecked} not checked</h2>` +
-            `<p class="admin__section-note">` +
+            `<p class="m">` +
               (unchecked > 0
                 ? `<b>${unchecked} dishes have no tags and no declaration.</b> To a parent that ` +
                   `currently reads as "contains nothing", which is not what it means.`
@@ -340,7 +335,7 @@ import '../../styles/admin.css';
         } catch { /* an unconfigured build falls through to the error state */ }
         await load();
       })();
-    void mountNav();
+    void mountShell();
     </script>
   </body>
 </html>

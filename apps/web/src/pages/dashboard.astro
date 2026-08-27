@@ -24,13 +24,12 @@
  * enforced by RLS, and a card revealed in error opens a screen that refuses — which is the same
  * position we were in when there were no cards at all.
  */
-import BackofficeNav from '../components/BackofficeNav.astro';
+import BackofficeShell from '../components/BackofficeShell.astro';
 import { NAV } from '../lib/backoffice/nav.js';
 
 import '../styles/tokens.css';
 import '../styles/site.css';
-import '../styles/kitchen.css';
-import '../styles/admin.css';
+import '../styles/backoffice.css';
 ---
 
 <!doctype html>
@@ -45,18 +44,16 @@ import '../styles/admin.css';
   </head>
 
   <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">GrayBag</h1>
-          <BackofficeNav current="/dashboard" />
-        </div>
-      </header>
+    <BackofficeShell
+      current="/dashboard"
+      title="Today"
+      subtitle="What needs you, and what the kitchen is doing"
+    >
+      
 
-      <main class="kitchen__wrap admin__wrap">
         <div id="d-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
-        <p class="admin__intro">
+        <p class="m">
           Everything this account can open. Screens you do not have permission for are not listed —
           <b>ask for the permission rather than the URL</b>, because the server refuses either way.
         </p>
@@ -72,17 +69,16 @@ import '../styles/admin.css';
           }
         </div>
 
-        <div class="kitchen__state" id="d-empty" hidden>
+        <div class="empty" id="d-empty" hidden>
           <h2>Nothing to show you yet</h2>
           <p id="d-empty-why"></p>
         </div>
-      </main>
-    </div>
+      </BackofficeShell>
 
     <script>
       import { api } from '@graybag/shared';
 
-      import { mountNav } from '../lib/backoffice/nav-mount.js';
+      import { mountShell } from '../lib/backoffice/shell.js';
       import { NAV, noAccessReason } from '../lib/backoffice/nav.js';
       import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
 
@@ -105,7 +101,7 @@ import '../styles/admin.css';
       async function load(): Promise<void> {
         if (demo) {
           reveal(new Set(NAV.flatMap((i) => i.requires)));
-          await mountNav();
+          await mountShell();
           return;
         }
 
@@ -128,7 +124,7 @@ import '../styles/admin.css';
           $('d-empty').hidden = false;
           $('d-empty-why').textContent =
             'We could not read this account’s permissions. Try again, and if it persists the database is unreachable.';
-          await mountNav();
+          await mountShell();
           return;
         }
 
@@ -140,7 +136,7 @@ import '../styles/admin.css';
         }
 
         $('d-status').textContent = `${reveal(held)} screens available.`;
-        await mountNav();
+        await mountShell();
       }
 
       void load();
