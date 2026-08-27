@@ -25,8 +25,50 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # `E17-63`. This job exists to make one specific failure legible, and it deliberately has
+  # NO `environment:` key — that is the whole point of it.
+  #
+  # The `production` environment's `deployment_branch_policy` admits tags matching `v*` and
+  # nothing else. So dispatching this workflow from a BRANCH is refused by GitHub at the
+  # environment gate, before the runner starts: the run appears, fails in about a second,
+  # records **zero steps**, and writes no logs at all. There is nothing to click into and
+  # nothing to read. On 2026-08-25 that run was reported as "failed on the Migrations job",
+  # which is the natural reading and is wrong — the Migrations job never began.
+  #
+  # A job with no environment is not gated, so this one always runs and always leaves a
+  # message. The cost of the trap was three days of migrations and nine Edge Functions
+  # sitting unapplied while the deploy looked attempted.
+  #
+  # Note `workflow_dispatch` is kept, because it is legitimately useful — dispatched
+  # against a TAG (`--ref v1.2.3`), which the branch policy admits.
+  preflight:
+    name: Check the ref can deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refuse a ref production will not accept
+        if: github.ref_type != 'tag'
+        run: |
+          echo "::error::Production deploys run from a TAG, not from '${{ github.ref_name }}'."
+          echo ""
+          echo "The 'production' environment admits only refs matching v* of type tag."
+          echo "A run from a branch is rejected at the environment gate before any step"
+          echo "runs, which is why such a run shows no logs and no steps."
+          echo ""
+          echo "To deploy:      git tag v1.2.3 && git push origin v1.2.3"
+          echo "To re-run one:  gh workflow run deploy-production.yml --ref v1.2.3"
+          exit 1
+
+      - name: Ref accepted
+        run: echo "Deploying from tag ${{ github.ref_name }}."
+
   database:
-    name: Migrations
+    # Named for both halves deliberately. It was called "Migrations", and the Edge Function
+    # deployment at the bottom of it is invisible under that name — so "the Migrations job
+    # failed" reads as a database problem when what actually did not happen was also nine
+    # function deployments.
+    name: Migrations and Edge Functions
+    needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production

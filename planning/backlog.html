@@ -5917,13 +5917,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/57</span>
+          <span class="meter-num">0/58</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 57 tasks</summary>
+        <summary>Context &amp; 58 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -6386,6 +6386,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Two threads wrote <code>docs/decisions-27aug.md</code> on the same night, and the numbering did not collide by luck.</strong> The mobile thread used <code>D1</code>–<code>D10</code>, the web thread used <code>1.</code>–<code>4.</code>; had both reached for the same scheme the merge would have produced two <code>D3</code>s meaning different things, in a file whose whole purpose is that a decision can be cited later. Same class as the <code>E17-29</code> task-id collision and the same cause — a shared, dated artefact with no ownership rule. Options: one file per thread per night (<code>decisions-27aug-mobile.md</code>), or a prefix per thread (<code>M1</code>, <code>W1</code>). Prefer the prefix: the point of a dated file is that everything from that night is in one place</span>
+      </li>
+      <li class="task" data-id="E17-63" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-63"></button>
+        <code class="tid">E17-63</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The production deploy had never run once, and the one attempt failed where nothing could see it.</strong> Reported as *&quot;failed on the Migrations job&quot;* on 2026-08-25; the Migrations job never started. Run <code>32843422002</code> was a <code>workflow_dispatch</code> from <code>main</code>, and the <code>production</code> environment&#39;s <code>deployment_branch_policy</code> admits <code>{name: v*, type: tag}</code> and nothing else — so GitHub refused the ref at the environment gate <strong>before the runner started</strong>: <code>started_at 11:39:16</code>, <code>completed_at 11:39:17</code>, <strong>zero steps, no logs, nothing to click into</strong>. The natural reading of that run is the wrong one, and it cost three days in which eight migrations (<code>0068</code>–<code>0075</code>) and nine Edge Functions sat unapplied behind an apparently-attempted deploy. No <code>v*</code> tag has ever existed, so the tag path had never fired either — <strong>every one of production&#39;s 67 migrations and 20 functions was applied by hand.</strong> Fixed with a <code>preflight</code> job that carries <strong>no <code>environment:</code> key</strong>, which is the entire point of it: an ungated job always runs and can therefore report the gate, where a gated one is silenced by exactly the rule it exists to explain. It refuses <code>github.ref_type != &#39;tag&#39;</code> with the two commands that do work. <code>database</code> now <code>needs: preflight</code>, and is renamed <strong>Migrations and Edge Functions</strong> because the function deployment at the bottom of it was invisible under the old name — &quot;the Migrations job failed&quot; reads as a database problem when nine function deployments also did not happen. <code>scripts/test/deploy-production-ref.test.mjs</code>, 5 assertions, <strong>mutation-checked four ways</strong>: gating <code>preflight</code> on the environment, dropping <code>needs</code>, removing <code>exit 1</code>, and inverting the condition each fail exactly one test. The environment&#39;s required-reviewer rule is untouched — the guard is legibility, never the control</span>
       </li></ul>
       </details>
     </article>

@@ -3392,3 +3392,45 @@ job in a run, and the Integration workflow holds three — it handed back the st
 Second, this is a good argument for the permanently-red `Supabase project config (staging)` job
 being fixed rather than tolerated: it is the noise that made a genuinely new failure take three
 commands to find instead of one.
+
+## A failure with no logs is not the failure you think it is (2026-08-28)
+
+The production deploy was reported as having *"failed on the Migrations job"*. It had not. The
+run was a `workflow_dispatch` from `main`, and the `production` environment's
+`deployment_branch_policy` admits `{name: "v*", type: "tag"}` only — so GitHub rejected the ref
+**at the environment gate, before the runner started**. The evidence is the shape of the run,
+not its contents:
+
+```
+started_at   2026-08-25T11:39:16Z
+completed_at 2026-08-25T11:39:17Z     # one second
+steps        0                        # not "failed" — never began
+```
+
+`gh run view --log` returns nothing for such a run, and the UI shows a red job with no
+expandable steps. **That absence is the diagnosis, and it reads exactly like a job whose logs
+have not loaded yet.**
+
+Two things generalise:
+
+- **A one-second run with zero steps is an environment or permissions rejection, never a step
+  failure.** Check `gh api repos/OWNER/REPO/environments/NAME` before reading anything into it.
+  `deployment_branch_policy` is the usual culprit, and a `workflow_dispatch` trigger declared in
+  the workflow file does **not** imply the environment will accept the ref it is dispatched from.
+- **A job that enforces a rule must not be subject to it.** The fix is a `preflight` job with no
+  `environment:` key. Had it been gated on `production` like the job it protects, it would have
+  been rejected by the same policy and gone just as silent — a guard that is only quiet in the
+  one case it exists for. The test asserts the *absence* of the `environment` key for this
+  reason, which is an unusual thing to assert and the load-bearing one.
+
+The corollary was worse than the bug. Because no `v*` tag has ever existed either, the tag path
+had never fired, so **the production deploy workflow has never once succeeded** — all 67
+migrations and 20 Edge Functions on production were applied by hand. "The deploy failed" quietly
+implied there had been working deploys before it. There had not, and nobody had checked
+`gh run list --workflow` for the total count. One command:
+
+```bash
+gh run list --workflow "Deploy to production" --json databaseId,conclusion --limit 100 | jq length
+```
+
+Same class as the CI misdiagnosis on 2026-08-27 — check the premise before applying the remedy.
