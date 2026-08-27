@@ -27,12 +27,11 @@
  * runtime and are readable by a screen reader when the numbers are in a table beside them, which
  * they are.
  */
-import BackofficeNav from '../../components/BackofficeNav.astro';
+import BackofficeShell from '../../components/BackofficeShell.astro';
 
 import '../../styles/tokens.css';
 import '../../styles/site.css';
-import '../../styles/kitchen.css';
-import '../../styles/admin.css';
+import '../../styles/backoffice.css';
 ---
 
 <!doctype html>
@@ -47,31 +46,27 @@ import '../../styles/admin.css';
   </head>
 
   <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">Growth</h1>
-          <button id="g-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
-          <BackofficeNav current="/admin/growth" />
-        </div>
-      </header>
+    <BackofficeShell
+      current="/admin/growth"
+      title="Growth"
+      subtitle="Are new families arriving"
+    >
+      <button id="g-reload" class="btn btn--ghost" slot="actions" type="button">Refresh</button>
 
-      <main class="kitchen__wrap admin__wrap">
         <div id="g-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
-        <p class="admin__intro">
+        <p class="m">
           Registered accounts, how far they get, and which schools they are at.
           <b>No child appears anywhere on this page</b> — not a name, a class or a section.
           The one personal detail here is a <b>parent's email</b>, and only in the list of people
           who registered and never added a child, because that list exists to be emailed.
         </p>
 
-        <div id="g-body"></div>
-      </main>
-    </div>
+        <div class="pad" id="g-body"></div>
+      </BackofficeShell>
 
     <script>
-      import { mountNav } from '../../lib/backoffice/nav-mount.js';
+      import { mountShell } from '../../lib/backoffice/shell.js';
       import { api, money } from '@graybag/shared';
       import { growth } from '../../lib/admin/growth.js';
       import { area, columns } from '../../lib/admin/chart.js';
@@ -126,10 +121,11 @@ import '../../styles/admin.css';
       }
 
       /** A number and what it means, for the row of headline figures. */
+      /** The prototype's card: the label first, then the number, then the note. */
       const stat = (value: string, label: string, note = '') =>
-        `<div class="gstat"><p class="gstat__n">${esc(value)}</p>` +
-        `<p class="gstat__l">${esc(label)}</p>` +
-        (note ? `<p class="gstat__note">${esc(note)}</p>` : '') + `</div>`;
+        `<div class="card"><h4>${esc(label)}</h4>` +
+        `<div class="k">${esc(value)}</div>` +
+        (note ? `<div class="m">${esc(note)}</div>` : '') + `</div>`;
 
       /**
        * Two charts, sharing an axis width — `E11-10`.
@@ -159,7 +155,7 @@ import '../../styles/admin.css';
         return (
           `<section class="admin__section" aria-labelledby="chart-h">` +
             `<h2 id="chart-h">Total accounts</h2>` +
-            `<p class="admin__section-note">` +
+            `<p class="m">` +
               `${esc(g.daily[0]!.date)} to ${esc(last.date)} · ending at <b>${last.cumulative}</b>` +
             `</p>` +
             area(cumulative, { label: `Total registered accounts, ending at ${last.cumulative}` }) +
@@ -189,11 +185,11 @@ import '../../styles/admin.css';
         return (
           `<details class="admin__section">` +
             `<summary><b>${g.stuck.length} to email</b> — registered, no child added</summary>` +
-            `<p class="admin__hint">` +
+            `<p class="m">` +
               `They cannot order until a child exists. Newest first, capped at ${g.stuck.length}. ` +
               `Nothing about a child is shown here because nothing about a child is read.` +
             `</p>` +
-            `<table class="otable">` +
+            `<table>` +
               `<thead><tr><th scope="col">Email</th><th scope="col">Registered</th></tr></thead>` +
               `<tbody>` +
                 g.stuck.map((u) =>
@@ -214,15 +210,15 @@ import '../../styles/admin.css';
       /** Where the funnel went, and a way to get there. */
       function whereConversionWent(): string {
         return (
-          `<section class="admin__section admin__section--note" aria-labelledby="wcw-h">` +
-            `<h2 id="wcw-h">Where conversion went</h2>` +
+          `<div class="notice notice--info">` +
+            `<b>Where conversion went</b>` +
             `<p>` +
               `Registered → added a child → first order → ordered again now lives on ` +
               `<b>Reports</b>, over a date range, beside the revenue it explains. This page ` +
               `answers whether new families are arriving; that one answers whether a family who ` +
               `arrives gets to an order.` +
             `</p>` +
-            `<p><a class="kitchen__btn" href="/reports">Open Reports</a></p>` +
+            `<p><a class="btn btn--ghost" href="/reports">Open Reports</a></p>` +
           `</section>`
         );
       }
@@ -232,12 +228,12 @@ import '../../styles/admin.css';
         return (
           `<section class="admin__section" aria-labelledby="school-h">` +
             `<h2 id="school-h">By school</h2>` +
-            `<p class="admin__section-note">` +
+            `<p class="m">` +
               `A family is counted <b>once per school</b>, however many children they have there. ` +
               `<b>Ordered at least once</b> is all-time and counts accounts, not orders — a school ` +
               `with families and none of them ordering is the row worth a phone call.` +
             `</p>` +
-            `<table class="otable">` +
+            `<table>` +
               `<thead><tr><th scope="col">School</th><th scope="col">Families</th>` +
               `<th scope="col">Children</th><th scope="col">Ordered at least once</th>` +
               `<th scope="col">Share</th></tr></thead>` +
@@ -245,12 +241,12 @@ import '../../styles/admin.css';
                 g.bySchool.map((s) =>
                   `<tr>` +
                     `<th scope="row">${esc(s.name)}</th>` +
-                    `<td class="otable__num">${s.guardians}</td>` +
-                    `<td class="otable__num">${s.children}</td>` +
+                    `<td class="num">${s.guardians}</td>` +
+                    `<td class="num">${s.children}</td>` +
                     // The column that makes this an acquisition table rather than a registration
                     // one. A school with families and none of them ordering is the row to act on,
                     // so it is a number rather than a bar — a zero bar is invisible.
-                    `<td class="otable__num">${s.ordered || '—'}</td>` +
+                    `<td class="num">${s.ordered || '—'}</td>` +
                     `<td>` +
                       // A track with a fill, not a bare bar: at 0% a bare bar is invisible, and
                       // "no families here" is the most actionable row on this table.
@@ -273,13 +269,13 @@ import '../../styles/admin.css';
         return (
           `<details class="admin__section">` +
             `<summary><b>Day by day</b> — the last ${recent.length} days</summary>` +
-            `<table class="otable">` +
+            `<table>` +
               `<thead><tr><th scope="col">Date</th><th scope="col">New</th><th scope="col">Total</th></tr></thead>` +
               `<tbody>` +
                 recent.map((d) =>
                   `<tr><th scope="row">${esc(d.date)}</th>` +
-                  `<td class="otable__num">${d.registrations}</td>` +
-                  `<td class="otable__num">${d.cumulative}</td></tr>`).join('') +
+                  `<td class="num">${d.registrations}</td>` +
+                  `<td class="num">${d.cumulative}</td></tr>`).join('') +
               `</tbody>` +
             `</table>` +
           `</details>`
@@ -288,14 +284,14 @@ import '../../styles/admin.css';
 
       function render() {
         if (loading) {
-          el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
+          el.body.innerHTML = Array(3).fill('<div class="sk"></div>').join('');
           return;
         }
         if (error) {
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>We can't show growth</h2><p>${esc(error)}</p>` +
+            `<div class="empty"><h2>We can't show growth</h2><p>${esc(error)}</p>` +
             `<p>This screen needs <b>users.view</b> at platform scope.</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+            `<button class="btn" data-retry>Try again</button></div>`;
           return;
         }
         const g = data;
@@ -305,7 +301,7 @@ import '../../styles/admin.css';
           // Ambiguous by nature, exactly like `/reports`: no registrations, or no permission to
           // count them. Say both rather than picking one (`[AUTH-01]`).
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>No registrations to show</h2>` +
+            `<div class="empty"><h2>No registrations to show</h2>` +
             `<p>Either nobody has registered yet, or this account cannot read the user list — ` +
             `it needs <b>users.view</b> at platform scope.</p></div>`;
           return;
@@ -330,7 +326,7 @@ import '../../styles/admin.css';
            * for that tile would be worse than not having it, so the slot goes to the conversion
            * gap instead and `E11-23` records what it would take to show the real thing.
            */
-          `<div class="gstats">` +
+          `<div class="grid">` +
             stat(String(g.totalUsers), 'Registered accounts',
               `+${week.now} this week · ${delta(week)}`) +
             stat(String(g.totalChildren), 'Children added',
@@ -369,7 +365,7 @@ import '../../styles/admin.css';
         await load();
       })();
 
-      void mountNav();
+      void mountShell();
     </script>
   </body>
 </html>
