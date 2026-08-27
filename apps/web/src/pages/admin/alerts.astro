@@ -19,12 +19,11 @@
  * recipient stays on the list, greyed, with the switch that put it there — so "turn my alerts
  * back on" is one tap and does not require remembering an address.
  */
-import BackofficeNav from '../../components/BackofficeNav.astro';
+import BackofficeShell from '../../components/BackofficeShell.astro';
 
 import '../../styles/tokens.css';
 import '../../styles/site.css';
-import '../../styles/kitchen.css';
-import '../../styles/admin.css';
+import '../../styles/backoffice.css';
 ---
 
 <!doctype html>
@@ -39,19 +38,16 @@ import '../../styles/admin.css';
   </head>
 
   <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">Order alerts</h1>
-          <button id="al-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
-          <BackofficeNav current="/admin/alerts" />
-        </div>
-      </header>
+    <BackofficeShell
+      current="/admin/alerts"
+      title="Order alerts"
+      subtitle="Who hears when an order is paid"
+    >
+      <button id="al-reload" class="btn btn--ghost" slot="actions" type="button">Refresh</button>
 
-      <main class="kitchen__wrap admin__wrap">
         <div id="al-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
-        <p class="admin__intro">
+        <p class="m">
           When an order is paid, everyone switched on below is emailed — the order code, school,
           break, service date, items and total, plus <b>which number it is that day</b>.
           <b>No child’s name is ever in the alert</b>; email is not a controlled channel and the
@@ -59,11 +55,10 @@ import '../../styles/admin.css';
         </p>
 
         <div id="al-body"></div>
-      </main>
-    </div>
+      </BackofficeShell>
 
     <script>
-      import { mountNav } from '../../lib/backoffice/nav-mount.js';
+      import { mountShell } from '../../lib/backoffice/shell.js';
       import { api } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { ALERTS_FIXTURE } from '../../lib/admin/alerts-fixture.js';
@@ -107,7 +102,7 @@ import '../../styles/admin.css';
         return (
           `<section class="admin__section" aria-labelledby="k-${esc(kitchen.id)}">` +
             `<h2 id="k-${esc(kitchen.id)}">${esc(kitchen.name)}</h2>` +
-            `<p class="admin__section-note">` +
+            `<p class="m">` +
               (mine.length === 0
                 // The state that matters most, said plainly. An empty list is silence, and
                 // silence is indistinguishable from a broken mail provider from the outside.
@@ -131,7 +126,7 @@ import '../../styles/admin.css';
                         (r.label ? `<span class="alist__label">${esc(r.label)}</span>` : '') +
                       `</span>` +
                       `<span class="alist__state">${r.isEnabled ? 'On' : 'Paused'}</span>` +
-                      `<button class="kitchen__btn kitchen__btn--small" type="button" ` +
+                      `<button class="chip" type="button" ` +
                         `data-remove="${esc(r.id)}" data-email="${esc(r.email)}">Remove</button>` +
                     `</li>`).join('') +
                 `</ul>`
@@ -139,37 +134,37 @@ import '../../styles/admin.css';
 
             `<form class="aform" data-add="${esc(kitchen.id)}">` +
               `<div class="admin__field">` +
-                `<label class="admin__label" for="em-${esc(kitchen.id)}">Add an address</label>` +
-                `<input class="admin__input" id="em-${esc(kitchen.id)}" name="email" type="email" ` +
+                `<label for="em-${esc(kitchen.id)}">Add an address</label>` +
+                `<input id="em-${esc(kitchen.id)}" name="email" type="email" ` +
                   `required placeholder="name@example.com" autocomplete="off" />` +
               `</div>` +
               `<div class="admin__field">` +
-                `<label class="admin__label" for="lb-${esc(kitchen.id)}">Who is it (optional)</label>` +
-                `<input class="admin__input" id="lb-${esc(kitchen.id)}" name="label" type="text" ` +
+                `<label for="lb-${esc(kitchen.id)}">Who is it (optional)</label>` +
+                `<input id="lb-${esc(kitchen.id)}" name="label" type="text" ` +
                   `maxlength="80" placeholder="Kitchen lead" />` +
               `</div>` +
-              `<button class="kitchen__btn kitchen__btn--primary" type="submit">Add</button>` +
+              `<button class="btn" type="submit">Add</button>` +
             `</form>` +
-            `<p class="admin__error" data-err="${esc(kitchen.id)}" role="alert" hidden></p>` +
+            `<p class="notice notice--err" data-err="${esc(kitchen.id)}" role="alert" hidden></p>` +
           `</section>`
         );
       }
 
       function render() {
         if (loading) {
-          el.body.innerHTML = Array(2).fill('<div class="kitchen__skeleton"></div>').join('');
+          el.body.innerHTML = Array(2).fill('<div class="sk"></div>').join('');
           return;
         }
         if (error) {
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>We can't show the alert list</h2><p>${esc(error)}</p>` +
+            `<div class="empty"><h2>We can't show the alert list</h2><p>${esc(error)}</p>` +
             `<p>This screen needs <b>kitchen.edit</b>.</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+            `<button class="btn" data-retry>Try again</button></div>`;
           return;
         }
         if (kitchens.length === 0) {
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>No kitchens</h2>` +
+            `<div class="empty"><h2>No kitchens</h2>` +
             `<p>Either none exist, or this account cannot see them — that needs ` +
             `<b>kitchen.edit</b>.</p></div>`;
           return;
@@ -269,7 +264,7 @@ import '../../styles/admin.css';
         await load();
       })();
 
-      void mountNav();
+      void mountShell();
     </script>
   </body>
 </html>

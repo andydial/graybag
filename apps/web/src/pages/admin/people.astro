@@ -22,12 +22,11 @@
  *
  * `?state=demo` renders fixtures, so `check:a11y` audits this rather than the sign-in redirect.
  */
-import BackofficeNav from '../../components/BackofficeNav.astro';
+import BackofficeShell from '../../components/BackofficeShell.astro';
 
 import '../../styles/tokens.css';
 import '../../styles/site.css';
-import '../../styles/kitchen.css';
-import '../../styles/admin.css';
+import '../../styles/backoffice.css';
 ---
 
 <!doctype html>
@@ -42,16 +41,13 @@ import '../../styles/admin.css';
   </head>
 
   <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">Staff and access</h1>
-          <button id="a-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
-          <BackofficeNav current="/admin/people" />
-        </div>
-      </header>
+    <BackofficeShell
+      current="/admin/people"
+      title="People"
+      subtitle="Registration is the same for everyone — access is a grant"
+    >
+      <button id="a-reload" class="btn btn--ghost" slot="actions" type="button">Refresh</button>
 
-      <main class="kitchen__wrap admin__wrap">
         <div id="a-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
         <!--
@@ -63,7 +59,7 @@ import '../../styles/admin.css';
           a large list that does not make much sense to me."* The architecture note now sits at the
           bottom of the screen, next to the revoke warning where it explains something.
         -->
-        <p class="admin__intro">
+        <p class="m">
           Give somebody a <b>job</b> and they get the permissions that job needs. Each one says
           exactly what it grants before you give it, and you can still grant a single permission on
           its own. Somebody has to <b>sign in once</b> before they can be given anything — after
@@ -82,10 +78,10 @@ import '../../styles/admin.css';
           address. Andy: *"how will this list look like in 1 week where 400 people have registered?"*
         -->
         <div class="admin__field psearch">
-          <label class="admin__label" for="a-search">Find someone to give access to</label>
-          <input class="admin__input" id="a-search" type="search" autocomplete="off"
+          <label for="a-search">Find someone to give access to</label>
+          <input id="a-search" type="search" autocomplete="off"
                  placeholder="Their email address, or a name" />
-          <p class="admin__hint">
+          <p class="m">
             They must have <b>signed in once</b> before they can be given anything. Two letters
             minimum; the newest accounts are the ones that just signed up.
           </p>
@@ -103,11 +99,10 @@ import '../../styles/admin.css';
           explainer nobody trusts.
         -->
         <div id="a-roles"></div>
-      </main>
-    </div>
+      </BackofficeShell>
 
     <script>
-      import { mountNav } from '../../lib/backoffice/nav-mount.js';
+      import { mountShell } from '../../lib/backoffice/shell.js';
       import { api } from '@graybag/shared';
       import { JOBS, describeAccess, jobByKey } from '../../lib/admin/jobs.js';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
@@ -236,7 +231,7 @@ import '../../styles/admin.css';
                           // teaches people to ignore failures — but the reason is said once,
                           // below the list, not thirty-one times down the side of it.
                           ? ''
-                          : ` <button class="kitchen__btn kitchen__btn--small" type="button" ` +
+                          : ` <button class="chip" type="button" ` +
                             `data-revoke="${esc(g.grantId)}" ` +
                             `data-what="${esc(g.displayName)}" data-who="${esc(a.email)}">Revoke</button>`) +
                       `</li>`,
@@ -245,7 +240,7 @@ import '../../styles/admin.css';
                 : '') +
 
               (isMe
-                ? `<p class="admin__hint">Your own access is managed with ` +
+                ? `<p class="m">Your own access is managed with ` +
                   `<code>scripts/grant-operator.mjs</code>, which needs the database password. ` +
                   `An account that can widen itself makes every other check advisory.</p>`
                 : grantForm(a)) +
@@ -266,7 +261,7 @@ import '../../styles/admin.css';
       function grantForm(a: api.AccessAccount): string {
         if (PROTECTED_ACCOUNT.test(a.email)) {
           return (
-            `<p class="admin__hint">` +
+            `<p class="m">` +
               `<b>Deliberately holds nothing.</b> This is the customer persona — it is what proves ` +
               `parent access is actually restricted, and <code>authorization.test.sql</code> fails ` +
               `if it acquires a grant. Give it one and both the proof and the test guarding the ` +
@@ -299,23 +294,23 @@ import '../../styles/admin.css';
             `<summary>Give ${esc(a.email)} a job</summary>` +
             `<form data-job="${esc(a.userId)}">` +
               `<div class="admin__field">` +
-                `<label class="admin__label" for="job-${esc(a.userId)}">Job</label>` +
-                `<select class="admin__select" id="job-${esc(a.userId)}" name="jobKey" required>` +
+                `<label for="job-${esc(a.userId)}">Job</label>` +
+                `<select id="job-${esc(a.userId)}" name="jobKey" required>` +
                   JOBS.map((j) =>
                     `<option value="${esc(j.key)}">${esc(j.label)}</option>`).join('') +
                 `</select>` +
                 `<div class="jobnote" id="jobnote-${esc(a.userId)}"></div>` +
               `</div>` +
               `<div class="admin__field">` +
-                `<label class="admin__label" for="jscope-${esc(a.userId)}">Where</label>` +
-                `<select class="admin__select" id="jscope-${esc(a.userId)}" name="scopeType" required></select>` +
+                `<label for="jscope-${esc(a.userId)}">Where</label>` +
+                `<select id="jscope-${esc(a.userId)}" name="scopeType" required></select>` +
               `</div>` +
               `<div class="admin__field" data-scope-target hidden>` +
-                `<label class="admin__label" for="jsid-${esc(a.userId)}">Which one</label>` +
-                `<select class="admin__select" id="jsid-${esc(a.userId)}" name="scopeId"></select>` +
+                `<label for="jsid-${esc(a.userId)}">Which one</label>` +
+                `<select id="jsid-${esc(a.userId)}" name="scopeId"></select>` +
               `</div>` +
               `<div class="setting__actions">` +
-                `<button class="kitchen__btn kitchen__btn--primary" type="submit">Give this job</button>` +
+                `<button class="btn" type="submit">Give this job</button>` +
               `</div>` +
             `</form>` +
 
@@ -323,8 +318,8 @@ import '../../styles/admin.css';
             `<summary>Or grant one permission at a time</summary>` +
             `<form data-grant="${esc(a.userId)}">` +
               `<div class="admin__field">` +
-                `<label class="admin__label" for="perm-${esc(a.userId)}">Permission</label>` +
-                `<select class="admin__select" id="perm-${esc(a.userId)}" name="permissionCode" required>` +
+                `<label for="perm-${esc(a.userId)}">Permission</label>` +
+                `<select id="perm-${esc(a.userId)}" name="permissionCode" required>` +
                   [...byCategory.entries()].map(([category, list]) =>
                     `<optgroup label="${esc(category)}">` +
                       list.map((p) =>
@@ -336,27 +331,27 @@ import '../../styles/admin.css';
                 `</select>` +
               `</div>` +
               `<div class="admin__field">` +
-                `<label class="admin__label" for="scope-${esc(a.userId)}">Scope</label>` +
-                `<select class="admin__select" id="scope-${esc(a.userId)}" name="scopeType" required>` +
+                `<label for="scope-${esc(a.userId)}">Scope</label>` +
+                `<select id="scope-${esc(a.userId)}" name="scopeType" required>` +
                   ['platform', 'city', 'kitchen', 'school'].map((s) =>
                     `<option value="${esc(s)}">${esc(s)}</option>`).join('') +
                 `</select>` +
-                `<p class="admin__hint">` +
+                `<p class="m">` +
                   `<b>platform</b> means everywhere. Anything narrower needs the id of the ` +
                   `city, kitchen or school below — a narrow scope with no id would silently ` +
                   `mean <b>all</b> of them, so the server refuses it.` +
                 `</p>` +
               `</div>` +
               `<div class="admin__field">` +
-                `<label class="admin__label" for="sid-${esc(a.userId)}">Scope id</label>` +
-                `<input class="admin__input" id="sid-${esc(a.userId)}" name="scopeId" type="text" ` +
+                `<label for="sid-${esc(a.userId)}">Scope id</label>` +
+                `<input id="sid-${esc(a.userId)}" name="scopeId" type="text" ` +
                   `placeholder="leave empty for platform" />` +
               `</div>` +
               (held.size > 0
-                ? `<p class="admin__hint">Already held: ${[...held].map((h) => `<code>${esc(h)}</code>`).join(' ')}</p>`
+                ? `<p class="m">Already held: ${[...held].map((h) => `<code>${esc(h)}</code>`).join(' ')}</p>`
                 : '') +
               `<div class="setting__actions">` +
-                `<button class="kitchen__btn kitchen__btn--primary" type="submit">Grant</button>` +
+                `<button class="btn" type="submit">Grant</button>` +
               `</div>` +
             `</form>` +
             `</details>` +
@@ -366,14 +361,14 @@ import '../../styles/admin.css';
 
       function render() {
         if (loading) {
-          el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
+          el.body.innerHTML = Array(3).fill('<div class="sk"></div>').join('');
           return;
         }
         if (error) {
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>We can't show access</h2><p>${esc(error)}</p>` +
+            `<div class="empty"><h2>We can't show access</h2><p>${esc(error)}</p>` +
             `<p>This screen needs <b>grants.manage</b> and <b>users.view</b>.</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+            `<button class="btn" data-retry>Try again</button></div>`;
           return;
         }
 
@@ -384,7 +379,7 @@ import '../../styles/admin.css';
           // Reachable, and not an error: every grant could have been revoked. It is also what a
           // caller without `grants.manage` sees, so it must not claim the first as a fact.
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>Nobody holds back-office access</h2>` +
+            `<div class="empty"><h2>Nobody holds back-office access</h2>` +
             `<p>Either no grants exist yet, or this account cannot read them — that needs ` +
             `<b>grants.manage</b> and <b>users.view</b>. Search above to give somebody a job.</p></div>`;
           return;
@@ -393,7 +388,7 @@ import '../../styles/admin.css';
         el.body.innerHTML =
           `<section class="admin__section" aria-labelledby="access-h">` +
             `<h2 id="access-h">Who has access</h2>` +
-            `<p class="admin__section-note">` +
+            `<p class="m">` +
               `<b>${accounts.length}</b> account${accounts.length === 1 ? '' : 's'} with ` +
               `back-office access. Parents are not listed here — <b>search above</b> to find ` +
               `anyone else and give them a job.` +
@@ -401,7 +396,7 @@ import '../../styles/admin.css';
             accounts.map(accountRow).join('') +
           `</section>` +
 
-          `<p class="kitchen__oneway kitchen__oneway--block">` +
+          `<p class="notice notice--info">` +
             `Revoking is <b>not</b> a delete — the row is kept with who revoked it and when, so ` +
             `access history survives. Granting and revoking both need <b>grants.manage</b> at ` +
             `platform scope.` +
@@ -422,7 +417,7 @@ import '../../styles/admin.css';
           box = document.createElement('p');
           box.setAttribute('data-err', '');
           box.setAttribute('role', 'alert');
-          box.className = 'admin__error';
+          box.className = 'notice notice--err';
           form.append(box);
         }
         box.textContent = message;
@@ -626,7 +621,7 @@ import '../../styles/admin.css';
         }
         if (demo) {
           el.results.innerHTML =
-            `<p class="admin__hint">Demo view — search reads the live account list.</p>`;
+            `<p class="m">Demo view — search reads the live account list.</p>`;
           return;
         }
         try {
@@ -641,19 +636,19 @@ import '../../styles/admin.css';
 
           if (found.length === 0) {
             el.results.innerHTML =
-              `<p class="admin__hint">No account matches that. They have to sign in once first.</p>`;
+              `<p class="m">No account matches that. They have to sign in once first.</p>`;
             return;
           }
           el.results.innerHTML =
             (found.length - fresh.length > 0
-              ? `<p class="admin__hint">${found.length - fresh.length} already listed below.</p>`
+              ? `<p class="m">${found.length - fresh.length} already listed below.</p>`
               : '') +
             fresh.map(accountRow).join('');
           syncJobNotes();
         } catch (cause) {
           if (mine !== searchSeq) return;
           el.results.innerHTML =
-            `<p class="admin__error" role="alert">${esc(cause instanceof Error ? cause.message : 'The search failed.')}</p>`;
+            `<p class="notice notice--err" role="alert">${esc(cause instanceof Error ? cause.message : 'The search failed.')}</p>`;
         }
       }
 
@@ -727,7 +722,7 @@ import '../../styles/admin.css';
         el.roles.innerHTML =
           `<section class="admin__section" aria-labelledby="roles-h">` +
             `<h2 id="roles-h">What each job can see</h2>` +
-            `<p class="admin__section-note">` +
+            `<p class="m">` +
               `Derived from the permissions each job grants, so it cannot drift from what they ` +
               `actually do. <b>Anyone who signs up is a parent</b> — back-office access is granted ` +
               `afterwards, which is why kitchen staff appear in the account list looking exactly ` +
@@ -749,7 +744,7 @@ import '../../styles/admin.css';
       }
 
     renderRoles();
-    void mountNav();
+    void mountShell();
     </script>
   </body>
 </html>

@@ -21,12 +21,11 @@
  * `?state=demo` renders fixtures instead of reaching the backend, the same trick `/kitchen` uses,
  * so `check:a11y` can audit this page rather than being bounced to `/signin`.
  */
-import BackofficeNav from '../../components/BackofficeNav.astro';
+import BackofficeShell from '../../components/BackofficeShell.astro';
 
 import '../../styles/tokens.css';
 import '../../styles/site.css';
-import '../../styles/kitchen.css';
-import '../../styles/admin.css';
+import '../../styles/backoffice.css';
 ---
 
 <!doctype html>
@@ -41,19 +40,16 @@ import '../../styles/admin.css';
   </head>
 
   <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">School configuration</h1>
-          <button id="c-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
-          <BackofficeNav current="/admin/config" />
-        </div>
-      </header>
+    <BackofficeShell
+      current="/admin/config"
+      title="Configuration"
+      subtitle="Settings a school inherits, and where they are overridden"
+    >
+      <button id="c-reload" class="btn btn--ghost" slot="actions" type="button">Refresh</button>
 
-      <main class="kitchen__wrap admin__wrap">
         <div id="c-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
-        <p class="admin__intro">
+        <p class="m">
           Every setting below applies to the school you pick. A value is either
           <b>set for this school</b>, inherited from its <b>kitchen</b>, or the <b>platform
           default</b> — and the row says which. Changing a platform default changes it for every
@@ -62,18 +58,17 @@ import '../../styles/admin.css';
 
         <div class="admin__picker">
           <div>
-            <label class="admin__label" for="c-school">School</label>
-            <select class="admin__select" id="c-school"><option>Loading…</option></select>
+            <label for="c-school">School</label>
+            <select id="c-school"><option>Loading…</option></select>
           </div>
         </div>
 
         <div id="c-banner"></div>
         <div id="c-body"></div>
-      </main>
-    </div>
+      </BackofficeShell>
 
     <script>
-      import { mountNav } from '../../lib/backoffice/nav-mount.js';
+      import { mountShell } from '../../lib/backoffice/shell.js';
       import { api } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { CONFIG_FIXTURE } from '../../lib/admin/config-fixture.js';
@@ -227,21 +222,21 @@ import '../../styles/admin.css';
           case 'time': {
             const hhmm = String(r.value ?? '00:00:00').slice(0, 5);
             control =
-              `<label class="admin__label" for="${id}">Cutoff time</label>` +
-              `<input class="admin__input" id="${id}" name="${esc(key)}" type="time" value="${esc(hhmm)}" required />`;
+              `<label for="${id}">Cutoff time</label>` +
+              `<input id="${id}" name="${esc(key)}" type="time" value="${esc(hhmm)}" required />`;
             break;
           }
           case 'integer':
             control =
-              `<label class="admin__label" for="${id}">Days</label>` +
-              `<input class="admin__input" id="${id}" name="${esc(key)}" type="number" min="0" ` +
+              `<label for="${id}">Days</label>` +
+              `<input id="${id}" name="${esc(key)}" type="number" min="0" ` +
               `value="${esc(String(r.value ?? 0))}" required />`;
             break;
           case 'weekdays': {
             const on = new Set((Array.isArray(r.value) ? r.value : []).map(Number));
             control =
               `<fieldset class="admin__days">` +
-                `<legend class="admin__label">Served on</legend>` +
+                `<legend>Served on</legend>` +
                 WEEKDAYS.map((d, i) =>
                   `<label class="admin__day">` +
                     `<input type="checkbox" name="${esc(key)}" value="${i + 1}"` +
@@ -261,11 +256,11 @@ import '../../styles/admin.css';
             `<form data-setting="${esc(r.spec.key)}" data-kind="${esc(r.spec.kind)}" data-key="${esc(key)}">` +
               control +
               `<div class="setting__actions">` +
-                `<button class="kitchen__btn kitchen__btn--primary" type="submit">Save override</button>` +
+                `<button class="btn" type="submit">Save override</button>` +
                 // Only offered when there IS one. A "remove" on an inherited row would either do
                 // nothing or, worse, write a null that looks like a change in the audit log.
                 (r.source === 'school'
-                  ? `<button class="kitchen__btn" type="button" data-clear>Remove override</button>`
+                  ? `<button class="btn btn--ghost" type="button" data-clear>Remove override</button>`
                   : '') +
               `</div>` +
             `</form>` +
@@ -334,7 +329,7 @@ import '../../styles/admin.css';
           box = document.createElement('p');
           box.setAttribute('data-err', '');
           box.setAttribute('role', 'alert');
-          box.className = 'admin__error';
+          box.className = 'notice notice--err';
           form.append(box);
         }
         box.textContent = message;
@@ -342,7 +337,7 @@ import '../../styles/admin.css';
 
       function render() {
         if (loading) {
-          el.body.innerHTML = Array(5).fill('<div class="kitchen__skeleton"></div>').join('');
+          el.body.innerHTML = Array(5).fill('<div class="sk"></div>').join('');
           return;
         }
 
@@ -351,18 +346,18 @@ import '../../styles/admin.css';
           // `fetchSchoolConfig` refuses on an empty `platform_config` precisely because a missing
           // grant and a missing row look identical through PostgREST — [AUTH-01].
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>We can't show this configuration</h2>` +
+            `<div class="empty"><h2>We can't show this configuration</h2>` +
             `<p>${esc(error)}</p>` +
             `<p>If this says the platform defaults came back empty, it usually means this account ` +
             `does not hold <b>config.platform_edit</b>. That is different from the school having ` +
             `no settings, which is why nothing is drawn.</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+            `<button class="btn" data-retry>Try again</button></div>`;
           return;
         }
 
         if (!view) {
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>Pick a school</h2>` +
+            `<div class="empty"><h2>Pick a school</h2>` +
             `<p>Choose a school above to see how it is configured.</p></div>`;
           return;
         }
@@ -373,7 +368,7 @@ import '../../styles/admin.css';
         el.body.innerHTML =
           `<section class="admin__section" aria-labelledby="c-set-h">` +
             `<h2 id="c-set-h">Settings</h2>` +
-            `<p class="admin__section-note">` +
+            `<p class="m">` +
               (overridden === 0
                 ? 'Nothing is overridden for this school — every value below is inherited.'
                 : `<b>${overridden}</b> setting${overridden === 1 ? ' is' : 's are'} set specifically for this school. ` +
@@ -384,13 +379,13 @@ import '../../styles/admin.css';
 
           `<section class="admin__section" aria-labelledby="c-brk-h">` +
             `<h2 id="c-brk-h">Break times</h2>` +
-            `<p class="admin__section-note">` +
+            `<p class="m">` +
               `Break windows are held per school and are not inherited — there is no platform ` +
               `default to fall back to. <b>A school with no windows cannot be ordered from at ` +
               `all</b> (<code>P19</code>), so an empty list here is a closed school rather than ` +
               `an empty state.</p>` +
             (breaks.length === 0
-              ? `<div class="kitchen__state"><h2>No break windows</h2>` +
+              ? `<div class="empty"><h2>No break windows</h2>` +
                 `<p>This school cannot be ordered from until its windows are agreed and added.</p></div>`
               : `<ul class="breaks">` +
                 breaks.map((b) =>
@@ -402,7 +397,7 @@ import '../../styles/admin.css';
                 `</ul>`) +
           `</section>` +
 
-          `<p class="kitchen__oneway kitchen__oneway--block">` +
+          `<p class="notice notice--info">` +
             `Changes are written by the <code>admin-school</code> Edge Function and need the ` +
             `<b>school.config_edit</b> permission, which is separate from being able to onboard a ` +
             `school. Every change writes a <code>config_change_log</code> row naming you — that ` +
@@ -461,7 +456,7 @@ import '../../styles/admin.css';
         }
         await load();
       })();
-    void mountNav();
+    void mountShell();
     </script>
   </body>
 </html>

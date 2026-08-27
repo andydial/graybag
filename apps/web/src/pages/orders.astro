@@ -10,11 +10,10 @@
  *
  * `noindex`, like every back-office page.
  */
-import BackofficeNav from '../components/BackofficeNav.astro';
+import BackofficeShell from '../components/BackofficeShell.astro';
 
 import '../styles/tokens.css';
 import '../styles/site.css';
-import '../styles/kitchen.css';
 ---
 
 <!doctype html>
@@ -29,33 +28,37 @@ import '../styles/kitchen.css';
   </head>
 
   <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner">
-          <div class="daynav">
-            <button class="daynav__step" id="o-prev" type="button" aria-label="Previous day">‹</button>
-            <div class="daynav__label">
-              <p class="daynav__date" id="o-date-label">—</p>
-              <p class="daynav__count" id="o-count">—</p>
-            </div>
-            <button class="daynav__step" id="o-next" type="button" aria-label="Next day">›</button>
-            <button class="kitchen__btn daynav__today" id="o-today" type="button" hidden>Today</button>
-          </div>
-          <button id="o-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
-          <BackofficeNav current="/orders" />
+    <BackofficeShell
+      current="/orders"
+      title="Orders"
+      subtitle="Move between days · filter · open one for the detail"
+    >
+      <!--
+        The day switcher stays in the header, where the prototype puts it: moving between days is
+        the thing this screen is for, and burying it in the body would make the most-used control
+        the least reachable.
+      -->
+      <div slot="actions" class="daynav">
+        <button class="daynav__step" id="o-prev" type="button" aria-label="Previous day">‹</button>
+        <div class="daynav__label">
+          <p class="daynav__date" id="o-date-label">—</p>
+          <p class="daynav__count" id="o-count">—</p>
         </div>
-      </header>
+        <button class="daynav__step" id="o-next" type="button" aria-label="Next day">›</button>
+        <button class="btn btn--ghost btn--sm daynav__today" id="o-today" type="button" hidden>Today</button>
+      </div>
+      <button id="o-reload" slot="actions" class="btn btn--ghost" type="button">Refresh</button>
 
-      <main class="kitchen__wrap">
+      <div class="pad">
         <div id="o-status" class="visually-hidden" role="status" aria-live="polite"></div>
         <div id="o-banner"></div>
         <div id="o-summary"></div>
         <div id="o-board"></div>
-      </main>
-    </div>
+      </div>
+    </BackofficeShell>
 
     <script>
-      import { mountNav } from '../lib/backoffice/nav-mount.js';
+      import { mountShell } from '../lib/backoffice/shell.js';
       import { api, money } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
       import { describeDate, serviceDateToday, shiftDate } from '../lib/kitchen/view.js';
@@ -125,17 +128,17 @@ import '../styles/kitchen.css';
           el.count.textContent = '—';
           el.summary.innerHTML = '';
           el.board.innerHTML =
-            `<div class="kitchen__state"><h2>You can see orders, not money</h2>` +
+            `<div class="empty"><h2>You can see orders, not money</h2>` +
             `<p>This page shows totals and refunds, which needs the <b>orders.view_financials</b> ` +
             `permission. Your account does not have it. There may well be orders today — this is ` +
             `about what you may see, not about whether there are any.</p>` +
-            `<a class="kitchen__btn kitchen__btn--primary" href="/kitchen">Go to the kitchen board</a></div>`;
+            `<a class="btn" href="/kitchen">Go to the kitchen board</a></div>`;
           return;
         }
 
         if (loading) {
           el.count.textContent = 'Loading…';
-          el.board.innerHTML = Array(4).fill('<div class="kitchen__skeleton"></div>').join('');
+          el.board.innerHTML = Array(4).fill('<div class="sk"></div>').join('');
           return;
         }
 
@@ -143,9 +146,9 @@ import '../styles/kitchen.css';
           el.count.textContent = '—';
           el.summary.innerHTML = '';
           el.board.innerHTML =
-            `<div class="kitchen__state"><h2>We can't reach the order list</h2>` +
+            `<div class="empty"><h2>We can't reach the order list</h2>` +
             `<p>${esc(error)}</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+            `<button class="btn" data-retry>Try again</button></div>`;
           return;
         }
 
@@ -157,7 +160,7 @@ import '../styles/kitchen.css';
         if (orders.length === 0) {
           el.summary.innerHTML = '';
           el.board.innerHTML =
-            `<div class="kitchen__state"><h2>Nobody ordered on this day</h2>` +
+            `<div class="empty"><h2>Nobody ordered on this day</h2>` +
             `<p>Not an error — there are simply no orders for ${esc(describeDate(serviceDate, today))}.</p></div>`;
           return;
         }
@@ -184,11 +187,11 @@ import '../styles/kitchen.css';
                   `</div>` +
                   `<p class="kitchen__progress">${money.formatPaise(gt.netPaise)}</p>` +
                 `</header>` +
-                `<table class="otable">` +
+                `<table >` +
                   `<thead><tr>` +
                     `<th scope="col">Order</th><th scope="col">Child</th><th scope="col">Class</th>` +
-                    `<th scope="col">Status</th><th scope="col" class="otable__num">Total</th>` +
-                    `<th scope="col" class="otable__num">Refunded</th>` +
+                    `<th scope="col">Status</th><th scope="col" class="num">Total</th>` +
+                    `<th scope="col" class="num">Refunded</th>` +
                   `</tr></thead>` +
                   `<tbody>` +
                     group.orders.map((o) =>
@@ -198,8 +201,8 @@ import '../styles/kitchen.css';
                         `<td>${esc([o.classLabel, o.sectionLabel].filter(Boolean).join('-'))}` +
                           `${o.breakLabel ? ` · ${esc(o.breakLabel)}` : ''}</td>` +
                         `<td>${esc(STATUS_WORD[o.status] ?? o.status)}</td>` +
-                        `<td class="otable__num">${money.formatPaise(o.totalPaise)}</td>` +
-                        `<td class="otable__num">${o.refundedPaise ? money.formatPaise(o.refundedPaise) : '—'}</td>` +
+                        `<td class="num">${money.formatPaise(o.totalPaise)}</td>` +
+                        `<td class="num">${o.refundedPaise ? money.formatPaise(o.refundedPaise) : '—'}</td>` +
                       `</tr>`,
                     ).join('') +
                   `</tbody>` +
@@ -218,7 +221,7 @@ import '../styles/kitchen.css';
          * unavailable to you, which is a different and wronger thing to say.
          */
         el.board.innerHTML +=
-          `<p class="kitchen__oneway kitchen__oneway--block">` +
+          `<p class="notice notice--info">` +
             `Refunds are not issued from here yet — no endpoint exists to move money. ` +
             `<b>Cancelling an order on the kitchen board does not refund anyone either.</b> ` +
             `See docs/kitchen-write-contract.md §2.2.` +
@@ -246,7 +249,7 @@ import '../styles/kitchen.css';
         }
         await load();
       })();
-    void mountNav();
+    void mountShell();
     </script>
   </body>
 </html>

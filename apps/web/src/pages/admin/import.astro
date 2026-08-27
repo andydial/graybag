@@ -32,12 +32,11 @@
  *
  * `?state=demo` renders a worked example, so `check:a11y` audits this rather than the redirect.
  */
-import BackofficeNav from '../../components/BackofficeNav.astro';
+import BackofficeShell from '../../components/BackofficeShell.astro';
 
 import '../../styles/tokens.css';
 import '../../styles/site.css';
-import '../../styles/kitchen.css';
-import '../../styles/admin.css';
+import '../../styles/backoffice.css';
 ---
 
 <!doctype html>
@@ -52,18 +51,16 @@ import '../../styles/admin.css';
   </head>
 
   <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">Check an import file</h1>
-          <BackofficeNav current="/admin/import" />
-        </div>
-      </header>
+    <BackofficeShell
+      current="/admin/import"
+      title="Check an import file"
+      subtitle="See exactly what a file would change, before it changes it"
+    >
+      
 
-      <main class="kitchen__wrap admin__wrap">
         <div id="i-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
-        <p class="admin__intro">
+        <p class="m">
           Drop a CSV or JSON file in and see <b>exactly what it would change</b>. This runs the
           importer's own parse, validate and plan — the same code, not a copy — against live data,
           read with your own permissions. <b>Nothing is written from this page.</b>
@@ -71,8 +68,8 @@ import '../../styles/admin.css';
 
         <form id="i-form" class="admin__section">
           <div class="admin__field">
-            <label class="admin__label" for="i-kind">What is in the file</label>
-            <select class="admin__select" id="i-kind">
+            <label for="i-kind">What is in the file</label>
+            <select id="i-kind">
               <option value="schools">Schools</option>
               <option value="dishes">Dishes</option>
               <option value="menu">Menu assignment</option>
@@ -80,9 +77,9 @@ import '../../styles/admin.css';
             </select>
           </div>
           <div class="admin__field">
-            <label class="admin__label" for="i-file">The file</label>
-            <input class="admin__input" id="i-file" type="file" accept=".csv,.json,text/csv,application/json" />
-            <p class="admin__hint">
+            <label for="i-file">The file</label>
+            <input id="i-file" type="file" accept=".csv,.json,text/csv,application/json" />
+            <p class="m">
               The formats are in <code>docs/import-format.md</code>. A file is read in your
               browser and never uploaded anywhere.
             </p>
@@ -90,11 +87,10 @@ import '../../styles/admin.css';
         </form>
 
         <div id="i-body"></div>
-      </main>
-    </div>
+      </BackofficeShell>
 
     <script>
-      import { mountNav } from '../../lib/backoffice/nav-mount.js';
+      import { mountShell } from '../../lib/backoffice/shell.js';
       import { api } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { snapshotReader } from '../../lib/admin/import-snapshot.js';
@@ -162,7 +158,7 @@ import '../../styles/admin.css';
       }
 
       async function check(name: string, text: string, kind: string) {
-        el.body.innerHTML = '<p class="admin__intro">Reading…</p>';
+        el.body.innerHTML = '<p class="m">Reading…</p>';
         loaded = { name, text, kind };
 
         // 1. Parse. A malformed file fails here in under a second, with no database read at all —
@@ -174,7 +170,7 @@ import '../../styles/admin.css';
           const why = cause instanceof ParseError || cause instanceof Error
             ? cause.message : 'could not be read';
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>That file could not be read</h2>` +
+            `<div class="empty"><h2>That file could not be read</h2>` +
             `<p>${esc(name)}: ${esc(why)}</p>` +
             `<p>The formats are in <code>docs/import-format.md</code>.</p></div>`;
           el.status.textContent = 'The file could not be read.';
@@ -222,7 +218,7 @@ import '../../styles/admin.css';
         } catch (cause) {
           const why = cause instanceof Error ? cause.message : 'the live data could not be read';
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>We can't compare it to what's there</h2>` +
+            `<div class="empty"><h2>We can't compare it to what's there</h2>` +
             `<p>${esc(why)}</p>` +
             `<p>This page reads with <b>your</b> permissions, so a table you cannot read stops ` +
             `the plan rather than quietly shrinking it.</p></div>`;
@@ -243,7 +239,7 @@ import '../../styles/admin.css';
         el.body.innerHTML =
           `<section class="admin__section">` +
             `<h2>${esc(name)}</h2>` +
-            `<p class="admin__section-note">` +
+            `<p class="m">` +
               `${rows.length} row${rows.length === 1 ? '' : 's'} read · ` +
               `${changeCount} change${changeCount === 1 ? '' : 's'} · ` +
               `${result.errors.length} error${result.errors.length === 1 ? '' : 's'} · ` +
@@ -253,18 +249,18 @@ import '../../styles/admin.css';
 
             `<h3>Applying it</h3>` +
             (clean
-              ? `<p class="admin__hint">` +
+              ? `<p class="m">` +
                   `Nothing above is blocking. <b>Apply re-checks the file on the server first</b> — ` +
                   `the plan below is computed here for speed, and the one that gets written is ` +
                   `computed again there, from the file, using the same code.` +
                 `</p>` +
                 `<div class="setting__actions">` +
-                  `<button class="kitchen__btn kitchen__btn--primary" type="button" data-apply>` +
+                  `<button class="btn" type="button" data-apply>` +
                     `Apply ${changeCount} change${changeCount === 1 ? '' : 's'}</button>` +
                 `</div>`
-              : `<p class="admin__hint"><b>Fix the errors and blockers above first.</b> ` +
+              : `<p class="m"><b>Fix the errors and blockers above first.</b> ` +
                 `Apply is refused while any remain — by this page and by the server.</p>`) +
-            `<p class="admin__hint">The same thing from a terminal, if you prefer:</p>` +
+            `<p class="m">The same thing from a terminal, if you prefer:</p>` +
             `<pre class="import__report" tabindex="0" role="region" ` +
               `aria-label="The command to apply this file">` +
               `set -a; . ~/.graybag-secrets/prod.env; set +a\n` +
@@ -290,7 +286,7 @@ import '../../styles/admin.css';
         if (!loaded) return;
         if (demo) {
           el.body.insertAdjacentHTML('beforeend',
-            '<p class="admin__error" role="alert">This is the demo view — nothing is written.</p>');
+            '<p class="notice notice--err" role="alert">This is the demo view — nothing is written.</p>');
           return;
         }
 
@@ -314,14 +310,14 @@ import '../../styles/admin.css';
           el.body.innerHTML =
             `<section class="admin__section">` +
               `<h2>Applied ${esc(loaded.name)}</h2>` +
-              `<p class="admin__section-note">` +
+              `<p class="m">` +
                 `<b>${result.applied ?? result.changes} row${(result.applied ?? result.changes) === 1 ? '' : 's'} written.</b> ` +
                 `This is the server's own report:` +
               `</p>` +
               pre(result.report, 'What the server did') +
               `<div class="setting__actions">` +
-                `<button class="kitchen__btn" type="button" data-recheck>Check it again</button>` +
-                `<a class="kitchen__btn" href="/admin/menus">See the catalogue</a>` +
+                `<button class="btn btn--ghost" type="button" data-recheck>Check it again</button>` +
+                `<a class="btn btn--ghost" href="/admin/menus">See the catalogue</a>` +
               `</div>` +
             `</section>`;
           el.status.textContent = `Applied. ${result.applied ?? result.changes} rows written.`;
@@ -330,7 +326,7 @@ import '../../styles/admin.css';
         } catch (cause) {
           const message = cause instanceof Error ? cause.message : 'The import did not run.';
           el.body.insertAdjacentHTML('beforeend',
-            `<p class="admin__error" role="alert">${esc(message)}</p>`);
+            `<p class="notice notice--err" role="alert">${esc(message)}</p>`);
           if (button) { button.disabled = false; button.textContent = 'Apply'; }
         }
       }
@@ -349,7 +345,7 @@ import '../../styles/admin.css';
         const reader = new FileReader();
         reader.onload = () => void check(file.name, String(reader.result ?? ''), el.kind.value);
         reader.onerror = () => {
-          el.body.innerHTML = `<div class="kitchen__state"><h2>That file could not be opened</h2></div>`;
+          el.body.innerHTML = `<div class="empty"><h2>That file could not be opened</h2></div>`;
         };
         reader.readAsText(file);
       });
@@ -371,7 +367,7 @@ import '../../styles/admin.css';
           }
         } catch { /* an unconfigured build falls through to the empty state */ }
       })();
-    void mountNav();
+    void mountShell();
     </script>
   </body>
 </html>
