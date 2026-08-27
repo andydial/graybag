@@ -34,12 +34,11 @@
  *
  * `?state=demo` renders fixtures so `check:a11y` audits the screen rather than the sign-in redirect.
  */
-import BackofficeNav from '../../components/BackofficeNav.astro';
+import BackofficeShell from '../../components/BackofficeShell.astro';
 
 import '../../styles/tokens.css';
 import '../../styles/site.css';
-import '../../styles/kitchen.css';
-import '../../styles/admin.css';
+import '../../styles/backoffice.css';
 ---
 
 <!doctype html>
@@ -53,58 +52,70 @@ import '../../styles/admin.css';
     <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
   </head>
 
-  <body class="wb">
-    <header class="wb__bar">
-      <div class="wb__bar-row">
-        <h1 class="wb__title">Dishes</h1>
-        <BackofficeNav current="/admin/dishes" />
-      </div>
+  <body>
+    <BackofficeShell
+      current="/admin/dishes"
+      title="Dishes"
+      subtitle="Every dish once, carrying the menus it is on"
+    >
+      <button slot="actions" class="btn" id="d-new" type="button">New dish</button>
 
-      <div class="wb__bar-row wb__controls">
-        <div class="wb__search">
-          <label class="visually-hidden" for="q">Search dishes</label>
-          <input class="wb__input" id="q" type="search" autocomplete="off" spellcheck="false"
-                 placeholder="Search dishes, ingredients or menus…   (press /)" />
+      <div class="toolbar">
+        <div class="searchrow">
+          <div class="search">
+            <label class="visually-hidden" for="q">Search dishes</label>
+            <input id="q" type="search" autocomplete="off" spellcheck="false"
+                   placeholder="Search dishes, ingredients or menus…   (press /)" />
+          </div>
+          <label class="visually-hidden" for="f-menu">Menu</label>
+          <select id="f-menu"></select>
+          <label class="visually-hidden" for="f-type">Food type</label>
+          <select id="f-type"></select>
+          <label class="visually-hidden" for="f-allerg">Allergens</label>
+          <select id="f-allerg"></select>
+          <label class="visually-hidden" for="f-photo">Photo</label>
+          <select id="f-photo"></select>
+          <label class="visually-hidden" for="f-sort">Sort</label>
+          <select id="f-sort"></select>
+          <button class="btn btn--ghost btn--sm" id="f-clear" type="button" hidden>Clear</button>
         </div>
-        <label class="wb__field"><span>Menu</span><select class="wb__select" id="f-menu"></select></label>
-        <label class="wb__field"><span>Type</span><select class="wb__select" id="f-type"></select></label>
-        <label class="wb__field"><span>Allergens</span><select class="wb__select" id="f-allerg"></select></label>
-        <label class="wb__field"><span>Photo</span><select class="wb__select" id="f-photo"></select></label>
-        <label class="wb__field"><span>Sort</span><select class="wb__select" id="f-sort"></select></label>
-        <button class="kitchen__btn" id="f-clear" type="button" hidden>Clear</button>
+
+        <!--
+          The prototype's central idea: the problems are on the toolbar with their counts, one
+          click each. The selects above express more (a specific menu, the declared-none/not-checked
+          distinction) and stay; both render from one `query`, so they cannot disagree.
+        -->
+        <div class="chips" id="chips" role="group" aria-label="Filter by what needs doing"></div>
+
+        <p class="resultline" id="count" role="status" aria-live="polite"></p>
       </div>
 
-      <!--
-        The prototype's central idea, and the reason this screen exists: the problems are on the
-        toolbar with their counts, one click each. The selects below them can express more (a
-        specific menu, a specific allergen state) and stay; both are rendered from the same
-        `query`, so they cannot disagree with each other.
-      -->
-      <div class="wb__chips" id="chips" role="group" aria-label="Filter by what needs doing"></div>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col"><span class="visually-hidden">Select</span></th>
+              <th scope="col">Dish</th>
+              <th scope="col">Food type</th>
+              <th scope="col">Allergens</th>
+              <th scope="col">On menus</th>
+              <th scope="col" class="num">Price</th>
+            </tr>
+          </thead>
+          <tbody id="list"></tbody>
+        </table>
+      </div>
 
-      <p class="wb__count" id="count" role="status" aria-live="polite"></p>
-      <div class="wb__bulk" id="bulk" hidden></div>
-    </header>
-
-    <main class="wb__main">
-      <ol class="wb__list" id="list"></ol>
-    </main>
-
-    <!--
-      One drawer, reused. A panel per dish would put 79 forms in the document and make every
-      keystroke in the search box re-render all of them.
-    -->
-    <div class="wb__scrim" id="scrim" hidden></div>
-    <aside class="wb__drawer" id="drawer" hidden aria-labelledby="drawer-title" role="dialog" aria-modal="true">
-      <header class="wb__drawer-head">
-        <h2 class="wb__drawer-title" id="drawer-title">Edit</h2>
-        <button class="kitchen__btn" id="drawer-close" type="button">Close</button>
-      </header>
-      <div class="wb__drawer-body" id="drawer-body"></div>
-    </aside>
+      <div class="bulk" id="bulk" hidden></div>
+    </BackofficeShell>
 
     <script>
-      import { mountNav } from '../../lib/backoffice/nav-mount.js';
+      import {
+  closeDrawer as shellCloseDrawer,
+  mountShell,
+  drawerIsOpen,
+  openDrawer as shellOpenDrawer,
+} from '../../lib/backoffice/shell.js';
       import { api, money } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
@@ -115,11 +126,15 @@ import '../../styles/admin.css';
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
         q: $<HTMLInputElement>('q'), list: $('list'), count: $('count'), bulk: $('bulk'),
-        drawer: $('drawer'), scrim: $('scrim'), body: $('drawer-body'), title: $('drawer-title'),
         clear: $<HTMLButtonElement>('f-clear'), chips: $('chips'),
         menu: $<HTMLSelectElement>('f-menu'), type: $<HTMLSelectElement>('f-type'),
         allerg: $<HTMLSelectElement>('f-allerg'), photo: $<HTMLSelectElement>('f-photo'),
         sort: $<HTMLSelectElement>('f-sort'),
+        /*
+         * The drawer's body belongs to the shell now, so it is looked up by its data attribute
+         * rather than by an id this page owns. The form inside it is still this page's.
+         */
+        drawerBody: document.querySelector<HTMLElement>('[data-drawer-body]')!,
       };
 
       const esc = (s: string) =>
@@ -235,36 +250,40 @@ import '../../styles/admin.css';
         const url = imageUrl(d);
         const live = r.placements.filter((p) => p.isActive);
         const parked = r.placements.length - live.length;
+        const prices = live.map((p) => p.pricePaise);
+        const range = prices.length === 0 ? '—'
+          : Math.min(...prices) === Math.max(...prices) ? rupees(prices[0]!)
+          : `${rupees(Math.min(...prices))} – ${rupees(Math.max(...prices))}`;
 
         return (
-          `<li class="drow${r.problems.length ? ' drow--attention' : ''}" data-dish="${esc(d.id)}">` +
-            `<label class="drow__pick"><input type="checkbox" data-pick="${esc(d.id)}"${picked.has(d.id) ? ' checked' : ''} ` +
-              `aria-label="Select ${esc(d.name)}" /></label>` +
-            (url
-              ? `<img class="drow__img" src="${esc(url)}" alt="" loading="lazy" width="48" height="48" />`
-              : `<span class="drow__img drow__img--none" aria-hidden="true"></span>`) +
-            `<button class="drow__main" type="button" data-open="${esc(d.id)}">` +
-              `<span class="drow__name">${esc(d.name)}</span>` +
-              `<span class="drow__meta">` +
-                `<span class="drow__cat">${esc(d.categoryName)}</span>` +
-                (d.foodType
-                  ? `<span class="pill pill--${esc(d.foodType)}">${esc(PILL[d.foodType] ?? d.foodType)}</span>`
-                  : `<span class="pill pill--warn">No type</span>`) +
-                (d.allergens.length
-                  ? `<span class="pill">${d.allergens.map((a) => esc(a.replace('_', ' '))).join(' · ')}</span>`
-                  : d.allergensDeclaredNone
-                    ? `<span class="pill pill--ok">No allergens</span>`
-                    : `<span class="pill pill--warn">Not checked</span>`) +
-                (d.isActive ? '' : `<span class="pill pill--off">Retired</span>`) +
+          `<tr data-dish="${esc(d.id)}">` +
+            `<td><label><span class="visually-hidden">Select ${esc(d.name)}</span>` +
+              `<input type="checkbox" data-pick="${esc(d.id)}"${picked.has(d.id) ? ' checked' : ''} /></label></td>` +
+            `<td class="name"><button class="cellflex" type="button" data-open="${esc(d.id)}" ` +
+              `style="background:none;border:0;font:inherit;text-align:left;cursor:pointer;padding:0">` +
+              `<span class="thumb">` +
+                (url ? `<img src="${esc(url)}" alt="" loading="lazy" width="38" height="38" />` : '') +
               `</span>` +
-            `</button>` +
-            `<span class="drow__menus">` +
-              (live.length === 0
-                ? `<span class="pill pill--warn">On no menu</span>`
-                : live.map((p) => `<span class="menupill"><b>${esc(rupees(p.pricePaise))}</b> ${esc(p.menuName)}</span>`).join('')) +
-              (parked > 0 ? `<span class="pill pill--off">${parked} parked</span>` : '') +
-            `</span>` +
-          `</li>`
+              `<span><span>${esc(d.name)}</span>` +
+                `<span class="sub">${esc(d.categoryName)}` +
+                (d.caloriesKcal ? ` · ${d.caloriesKcal} kcal` : '') +
+                (d.isActive ? '' : ' · retired') + `</span></span>` +
+            `</button></td>` +
+            `<td>` + (d.foodType
+              ? `<span class="tag tag--${esc(d.foodType === 'non_veg' ? 'nonveg' : d.foodType)}">` +
+                `<span class="dot"></span>${esc(PILL[d.foodType] ?? d.foodType)}</span>`
+              : `<span class="tag tag--none">not set</span>`) + `</td>` +
+            `<td>` + (d.allergens.length
+              ? d.allergens.map((a) => `<span class="tag">${esc(a.replace('_', ' '))}</span>`).join(' ')
+              : d.allergensDeclaredNone
+                ? `<span class="tag tag--veg">declared none</span>`
+                : `<span class="tag tag--none">not checked</span>`) + `</td>` +
+            `<td>` + (live.length === 0
+              ? `<span class="tag tag--none">on no menu</span>`
+              : live.map((p) => `<span class="tag tag--menu">${esc(p.menuName)}</span>`).join(' ')) +
+              (parked > 0 ? ` <span class="tag tag--draft">${parked} parked</span>` : '') + `</td>` +
+            `<td class="num">${esc(range)}</td>` +
+          `</tr>`
         );
       }
 
@@ -375,8 +394,8 @@ import '../../styles/admin.css';
         if (picked.size === 0) { el.bulk.hidden = true; el.bulk.innerHTML = ''; return; }
         el.bulk.hidden = false;
         el.bulk.innerHTML =
-          `<span class="wb__bulk-count"><b>${picked.size}</b> selected</span>` +
-          `<span class="wb__bulk-actions">Set food type: ` +
+          `<span class="bulkcount"><b>${picked.size}</b> selected</span>` +
+          `<span class="spacer">Set food type: ` +
             ['veg', 'egg', 'non_veg'].map((v) =>
               `<button class="kitchen__btn kitchen__btn--primary" data-apply="${v}">${esc(PILL[v]!)}</button>`).join('') +
           `</span>` +
@@ -406,26 +425,24 @@ import '../../styles/admin.css';
 
       // -------------------------------------------------------------------------------- drawer
 
-      function openDrawer(dishId: string) {
+      /*
+       * The drawer is the shell's now, not this page's — `E10-55`.
+       *
+       * It behaves identically (the list behind it is never re-rendered, focus returns to the row
+       * that opened it) and it is the same drawer every other screen uses, which is the point:
+       * editing in a panel was the prototype's rule for the whole back office and this screen was
+       * the only one that had it.
+       */
+      function openDish(dishId: string) {
         const r = rows.find((x) => x.dish.id === dishId);
         if (!r) return;
         openDishId = dishId;
-        el.title.textContent = r.dish.name;
-        el.body.innerHTML = drawerHtml(r);
-        el.drawer.hidden = false;
-        el.scrim.hidden = false;
-        (el.body.querySelector('input,select,textarea') as HTMLElement | null)?.focus();
+        shellOpenDrawer({ title: r.dish.name, subtitle: r.dish.categoryName, body: drawerHtml(r) });
       }
 
       function closeDrawer() {
-        const returning = openDishId;
         openDishId = null;
-        el.drawer.hidden = true;
-        el.scrim.hidden = true;
-        // Focus goes back to the row that opened it, so a keyboard user is not dropped at the top.
-        if (returning) {
-          (el.list.querySelector(`[data-open="${CSS.escape(returning)}"]`) as HTMLElement | null)?.focus();
-        }
+        shellCloseDrawer();
       }
 
       function drawerHtml(r: DishRow): string {
@@ -435,9 +452,9 @@ import '../../styles/admin.css';
         const f = (k: string) => `${k}-${esc(d.id)}`;
 
         return (
-          `<p class="wb__saved" data-saved hidden role="status"></p>` +
+          `<p class="notice notice--info" data-saved hidden role="status"></p>` +
 
-          `<form data-dish="${esc(d.id)}" class="wb__form">` +
+          `<form data-dish="${esc(d.id)}" class="boform">` +
             `<div class="admin__field">` +
               `<label class="admin__label" for="${f('nm')}">Name</label>` +
               `<input class="admin__input" id="${f('nm')}" name="name" type="text" required maxlength="200" value="${esc(d.name)}" />` +
@@ -491,7 +508,7 @@ import '../../styles/admin.css';
             (d.imageAssetId ? `<div class="setting__actions"><button class="kitchen__btn" type="button" data-image-remove="${esc(d.id)}">Remove photo</button></div>` : '') +
           `</div>` +
 
-          `<h3 class="wb__drawer-sub">On ${r.placements.length} menu${r.placements.length === 1 ? '' : 's'}</h3>` +
+          `<h3 class="sec">On ${r.placements.length} menu${r.placements.length === 1 ? '' : 's'}</h3>` +
           (r.placements.length === 0
             ? `<p class="admin__hint"><b>This dish is on no menu</b>, so it has no price and nobody can order it. Adding it to one is <code>tools/bulk-import</code>.</p>`
             : r.placements.map((p) =>
@@ -515,7 +532,7 @@ import '../../styles/admin.css';
       }
 
       function saidSaved(message: string) {
-        const box = el.body.querySelector('[data-saved]') as HTMLElement | null;
+        const box = el.drawerBody.querySelector('[data-saved]') as HTMLElement | null;
         if (!box) return;
         box.hidden = false;
         box.textContent = message;
@@ -594,7 +611,8 @@ import '../../styles/admin.css';
             });
 
             Object.assign(d, patch);
-            el.title.textContent = name;
+            // The drawer's own heading, kept in step after a rename.
+            document.querySelector<HTMLElement>('[data-drawer-title]')!.textContent = name;
             repaintRow(d.id);
             saidSaved(result.changed.length
               ? `Saved ${result.changed.join(', ')}.`
@@ -642,7 +660,7 @@ import '../../styles/admin.css';
           d.imageAssetId = res.assetId;
           assetPaths.set(res.assetId, res.path);
           repaintRow(dishId);
-          openDrawer(dishId);
+          openDish(dishId);
           saidSaved('Photo uploaded.');
         } catch (cause) {
           saidSaved(cause instanceof Error ? cause.message : 'The photo was not uploaded.');
@@ -657,7 +675,7 @@ import '../../styles/admin.css';
           const d = dishes.find((x) => x.id === dishId)!;
           d.imageAssetId = null;
           repaintRow(dishId);
-          openDrawer(dishId);
+          openDish(dishId);
           saidSaved('Photo removed.');
         } catch (cause) {
           saidSaved(cause instanceof Error ? cause.message : 'The photo was not removed.');
@@ -689,7 +707,7 @@ import '../../styles/admin.css';
         if (t.closest('[data-retry]')) { void load(); return; }
         if (t.closest('[data-clear]')) { clearAll(); return; }
         const open = t.closest('[data-open]') as HTMLElement | null;
-        if (open) openDrawer(open.dataset.open!);
+        if (open) openDish(open.dataset.open!);
       });
 
       el.list.addEventListener('change', (event) => {
@@ -708,26 +726,27 @@ import '../../styles/admin.css';
         if (t.closest('[data-selall]')) { shown.forEach((r) => picked.add(r.dish.id)); render(); }
       });
 
-      el.body.addEventListener('submit', (event) => {
+      el.drawerBody.addEventListener('submit', (event) => {
         const form = (event.target as HTMLElement).closest('form') as HTMLFormElement | null;
         if (!form) return;
         event.preventDefault();
         void save(form);
       });
-      el.body.addEventListener('change', (event) => {
+      el.drawerBody.addEventListener('change', (event) => {
         const input = event.target as HTMLInputElement;
         if (input.dataset?.image) void uploadImage(input.dataset.image, input);
       });
-      el.body.addEventListener('click', (event) => {
+      el.drawerBody.addEventListener('click', (event) => {
         const rm = (event.target as HTMLElement).closest('[data-image-remove]') as HTMLElement | null;
         if (rm) void removeImage(rm.dataset.imageRemove!);
       });
 
-      $('drawer-close').addEventListener('click', closeDrawer);
-      el.scrim.addEventListener('click', closeDrawer);
+      // Close, scrim and Escape are the shell's — see `mountShell`. This page only has to forget
+      // which dish was open, which `closeDrawer` above does.
+      document.querySelector('[data-drawer-close]')?.addEventListener('click', () => { openDishId = null; });
 
       addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !el.drawer.hidden) { closeDrawer(); return; }
+        if (event.key === 'Escape' && drawerIsOpen()) { closeDrawer(); return; }
         // `/` to search is what every list-with-search does, and it is the difference between
         // reaching for the mouse and not.
         if (event.key === '/' && document.activeElement !== el.q) {
@@ -747,7 +766,7 @@ import '../../styles/admin.css';
         } catch { /* an unconfigured build falls through to the error state */ }
         await load();
       })();
-    void mountNav();
+    void mountShell();
     </script>
   </body>
 </html>

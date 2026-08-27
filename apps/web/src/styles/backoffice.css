@@ -320,7 +320,7 @@
 .bo td, .bo tbody th { padding: var(--gb-space-3); font-size: var(--gb-font-size-body-sm); vertical-align: middle; text-align: left; }
 .bo td.num, .bo th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .bo td.name, .bo tbody th { font-weight: var(--gb-font-weight-body-strong); }
-.bo td .sub { font-size: var(--gb-font-size-caption); color: var(--muted); font-weight: 400; margin-top: 2px; }
+.bo td .sub { display: block; font-size: var(--gb-font-size-caption); color: var(--muted); font-weight: 400; margin-top: 2px; }
 
 .bo .thumb {
   width: 2.375rem;
