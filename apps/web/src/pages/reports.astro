@@ -31,12 +31,11 @@
  * `REPORT_ORDER_COLUMNS` reads no recipient, class or section (non-negotiable #4). None of this
  * rebuild widens it.
  */
-import BackofficeNav from '../components/BackofficeNav.astro';
+import BackofficeShell from '../components/BackofficeShell.astro';
 
 import '../styles/tokens.css';
 import '../styles/site.css';
-import '../styles/kitchen.css';
-import '../styles/admin.css';
+import '../styles/backoffice.css';
 ---
 
 <!doctype html>
@@ -51,16 +50,13 @@ import '../styles/admin.css';
   </head>
 
   <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">Revenue</h1>
-          <button id="r-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
-          <BackofficeNav current="/reports" />
-        </div>
-      </header>
+    <BackofficeShell
+      current="/reports"
+      title="Reports"
+      subtitle="Revenue, usage and conversion — over a range you choose"
+    >
+      <button id="r-reload" class="btn btn--ghost" slot="actions" type="button">Refresh</button>
 
-      <main class="kitchen__wrap admin__wrap">
         <div id="r-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
         <!--
@@ -68,45 +64,46 @@ import '../styles/admin.css';
           changing a date without pressing it showed the previous answer while looking like the
           new one. A control that silently does nothing is worse than no control.
         -->
-        <div class="rctl">
-          <div class="rctl__presets" role="group" aria-label="Range">
-            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="7">7 days</button>
-            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="30">30 days</button>
-            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="month">This month</button>
-            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="last">Last month</button>
-            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="180">6 months</button>
-          </div>
-
-          <div class="rctl__dates">
-            <label class="admin__label" for="r-from">From</label>
-            <input class="admin__input" id="r-from" type="date" required />
-            <label class="admin__label" for="r-to">To</label>
-            <input class="admin__input" id="r-to" type="date" required />
-          </div>
-
-          <div class="rctl__group">
-            <label class="admin__label" for="r-school">School</label>
-            <select class="admin__select" id="r-school">
-              <option value="">All schools</option>
+        <!--
+          The prototype's toolbar: range chips, the filters beside them, and the result line under
+          both. The controls apply on change — there is no Show button, deliberately, because one
+          existed and changing a date without pressing it showed the previous answer while looking
+          like the new one.
+        -->
+        <div class="toolbar">
+          <div class="searchrow">
+            <div class="chips" style="margin:0;flex:1" role="group" aria-label="Range">
+              <button class="chip" type="button" data-preset="7">Last 7 days</button>
+              <button class="chip" type="button" data-preset="30">Last 30 days</button>
+              <button class="chip" type="button" data-preset="month">This month</button>
+              <button class="chip" type="button" data-preset="last">Last month</button>
+              <button class="chip" type="button" data-preset="180">6 months</button>
+            </div>
+            <label class="visually-hidden" for="r-school">School</label>
+            <select id="r-school"><option value="">All schools</option></select>
+            <label class="visually-hidden" for="r-by">Group by</label>
+            <select id="r-by">
+              <option value="day">By day</option>
+              <option value="month" selected>By month</option>
+              <option value="school">By school</option>
             </select>
+            <!--
+              Exports what is on the screen, from the same rows the table renders. A second query
+              for the export is how a CSV comes to disagree with the table above it.
+            -->
+            <button class="btn btn--ghost" id="r-export" type="button">Export CSV</button>
           </div>
 
-          <div class="rctl__group">
-            <label class="admin__label" for="r-by">Group by</label>
-            <select class="admin__select" id="r-by">
-              <option value="day">Day</option>
-              <option value="month" selected>Month</option>
-              <option value="school">School</option>
-            </select>
+          <div class="searchrow" style="margin-top:11px">
+            <label class="visually-hidden" for="r-from">From</label>
+            <input id="r-from" type="date" required />
+            <span class="m">to</span>
+            <label class="visually-hidden" for="r-to">To</label>
+            <input id="r-to" type="date" required />
           </div>
+
+          <p class="resultline" id="r-line"></p>
         </div>
-
-        <div class="rctl__actions">
-          <!--
-            Exports what is on the screen, from the same rows the table renders. A second query
-            for the export is how a CSV ends up quietly disagreeing with the table above it.
-          -->
-          <button class="kitchen__btn" id="r-export" type="button">Download CSV</button>
         </div>
 
         <!--
@@ -117,14 +114,13 @@ import '../styles/admin.css';
           that started this screen's rebuild: when every range returns the same rows, a sentence
           that changes is the only proof the control did anything.
         -->
-        <p class="rctl__line" id="r-line"></p>
+        
 
-        <div id="r-body"></div>
-      </main>
-    </div>
+        <div class="pad" id="r-body"></div>
+      </BackofficeShell>
 
     <script>
-      import { mountNav } from '../lib/backoffice/nav-mount.js';
+      import { mountShell } from '../lib/backoffice/shell.js';
       import { api, money } from '@graybag/shared';
       import { csvFilename, downloadCsv, reportToCsv } from '../lib/admin/csv-export.js';
       import { funnelForCohort, usageInRange } from '../lib/admin/growth.js';
@@ -289,10 +285,11 @@ import '../styles/admin.css';
         }
       }
 
+      /** The prototype's card: the label first, then the number, then the note. */
       const stat = (value: string, label: string, note = '', tone = '') =>
-        `<div class="gstat${tone ? ` gstat--${tone}` : ''}">` +
-        `<p class="gstat__n">${esc(value)}</p><p class="gstat__l">${esc(label)}</p>` +
-        (note ? `<p class="gstat__note">${esc(note)}</p>` : '') + `</div>`;
+        `<div class="card${tone === 'warn' ? ' card--warn' : ''}">` +
+        `<h4>${esc(label)}</h4><div class="k">${esc(value)}</div>` +
+        (note ? `<div class="m">${esc(note)}</div>` : '') + `</div>`;
 
       /**
        * The per-school breakdown, always on — `E11-17`.
@@ -318,17 +315,17 @@ import '../styles/admin.css';
           const active = usage.bySchool.get(b.key) ?? 0;
           return `<tr>` +
             `<th scope="row">${esc(b.label)}</th>` +
-            `<td class="otable__num">${paid || '—'}</td>` +
-            `<td class="otable__num">${esc(rupees(b.netPaise))}</td>` +
-            `<td class="otable__num">${paid > 0 ? esc(rupees(Math.round(b.netPaise / paid))) : '—'}</td>` +
+            `<td class="num">${paid || '—'}</td>` +
+            `<td class="num">${esc(rupees(b.netPaise))}</td>` +
+            `<td class="num">${paid > 0 ? esc(rupees(Math.round(b.netPaise / paid))) : '—'}</td>` +
             // A dash rather than 0 when the growth read was refused — see the Usage note.
-            `<td class="otable__num">${growthOrders.length === 0 ? '—' : active || '—'}</td>` +
+            `<td class="num">${growthOrders.length === 0 ? '—' : active || '—'}</td>` +
           `</tr>`;
         };
 
         return `<section class="admin__section" aria-labelledby="sch-h">` +
           `<h2 id="sch-h">By school</h2>` +
-          `<table class="otable">` +
+          `<table>` +
             `<thead><tr>` +
               `<th scope="col">School</th><th scope="col">Paid orders</th>` +
               `<th scope="col">Net</th><th scope="col">Average order</th>` +
@@ -343,19 +340,19 @@ import '../styles/admin.css';
 
       function render() {
         if (loading) {
-          el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
+          el.body.innerHTML = Array(3).fill('<div class="sk"></div>').join('');
           return;
         }
         if (error) {
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>We can't show the report</h2><p>${esc(error)}</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+            `<div class="empty"><h2>We can't show the report</h2><p>${esc(error)}</p>` +
+            `<button class="btn" data-retry>Try again</button></div>`;
           return;
         }
         if (rows.length === 0) {
           // Both possibilities, because they are indistinguishable from here (`[AUTH-01]`).
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>Nothing in this range</h2>` +
+            `<div class="empty"><h2>Nothing in this range</h2>` +
             `<p>Either no orders were served between <b>${esc(el.from.value)}</b> and ` +
             `<b>${esc(el.to.value)}</b>, or this account cannot read them — that needs ` +
             `<b>reports.view</b>, and what it shows is scoped to the schools you are granted.</p></div>`;
@@ -405,7 +402,7 @@ import '../styles/admin.css';
 
         const pendingChart = t.pendingPaise > 0
           ? `<section class="admin__section"><h2>Placed but not paid</h2>` +
-            `<p class="admin__section-note">` +
+            `<p class="m">` +
               `<b>${rupees(t.pendingPaise)}</b> across ${t.pending} order` +
               `${t.pending === 1 ? '' : 's'}. <b>This is not revenue</b> — it is what those orders ` +
               `would be worth if they were paid.</p>` +
@@ -414,7 +411,7 @@ import '../styles/admin.css';
           : '';
 
         el.body.innerHTML =
-          `<div class="gstats">` +
+          `<div class="grid">` +
             stat(rupees(t.netPaise), 'Net revenue', `${rupees(t.grossPaise)} gross`) +
             stat(String(paidOrders), 'Paid orders', `${t.orders} placed in total`) +
             // The prototype's fourth money card. Over **paid** orders only — dividing by every
@@ -444,12 +441,12 @@ import '../styles/admin.css';
 
           `<section class="admin__section" aria-labelledby="use-h">` +
             `<h2 id="use-h">Usage</h2>` +
-            `<p class="admin__section-note">` +
+            `<p class="m">` +
               `Whether the families we already have keep ordering — a different question from the ` +
               `funnel below, and a product can look healthy on one while dying on the other. ` +
               `Counted on the same paid orders and the same service dates as the money above.` +
             `</p>` +
-            `<div class="gstats">` +
+            `<div class="grid">` +
               stat(String(usage.activeParents), 'Parents who ordered',
                 usage.activeParents === 1 ? 'in this range' : 'distinct, in this range') +
               stat(usage.activeParents > 0 ? usage.ordersPerParent.toFixed(1) : '—',
@@ -465,7 +462,7 @@ import '../styles/admin.css';
             (growthOrders.length === 0
               // Said rather than shown as zeros: three dashes with no explanation reads as "nobody
               // is using it", which is a very different message from "this account cannot see it".
-              ? `<p class="admin__hint">Usage needs <b>users.view</b> as well as ` +
+              ? `<p class="m">Usage needs <b>users.view</b> as well as ` +
                 `<b>reports.view</b>. The revenue above does not, which is why it is still here.</p>`
               : usage.paidOrders !== paidOrders && !demo
               /*
@@ -482,14 +479,14 @@ import '../styles/admin.css';
                * Exempt in the demo, where the two fixtures are deliberately independent datasets
                * and disagreeing is what they are supposed to do.
                */
-              ? `<p class="admin__hint admin__hint--warn">These counts are built from a second ` +
+              ? `<p class="notice notice--warn">These counts are built from a second ` +
                 `read that found <b>${usage.paidOrders}</b> paid orders where the revenue above ` +
                 `found <b>${paidOrders}</b>. They should be identical. Treat the parent counts as ` +
                 `a floor and tell Andy. Two things cause this: the order read being truncated ` +
                 `(<b>E11-19</b>), or a new order status that nothing has classified — ` +
                 `<code>scripts/test/order-status-partition.test.mjs</code> fails on the second, so ` +
                 `if that test is green it is the first.</p>`
-              : `<p class="admin__hint">A parent who ordered before this range and again inside ` +
+              : `<p class="m">A parent who ordered before this range and again inside ` +
                 `it counts here as one order, not a repeat. That understates loyalty, and it is ` +
                 `the right direction to be wrong in — the alternative reads all-time history into ` +
                 `a seven-day window and reports a repeat rate that can never fall.</p>`) +
@@ -498,7 +495,7 @@ import '../styles/admin.css';
           (funnel && funnel.cohort > 0
             ? `<section class="admin__section" aria-labelledby="fn-h">` +
                 `<h2 id="fn-h">Of the families who arrived in this range</h2>` +
-                `<p class="admin__section-note">` +
+                `<p class="m">` +
                   `The <b>${funnel.cohort}</b> parents who registered between ` +
                   `${esc(el.from.value)} and ${esc(el.to.value)}, and how far they have got ` +
                   `<b>since</b> — not only within the range. A parent who registered on the last ` +
@@ -533,7 +530,7 @@ import '../styles/admin.css';
 
           `<section class="admin__section" aria-labelledby="tbl-h">` +
             `<h2 id="tbl-h">The numbers</h2>` +
-            `<table class="otable">` +
+            `<table>` +
               `<thead><tr>` +
                 `<th scope="col">${by === 'school' ? 'School' : by === 'month' ? 'Month' : 'Day'}</th>` +
                 `<th scope="col">Paid</th><th scope="col">Unpaid</th><th scope="col">Cancelled</th>` +
@@ -544,29 +541,29 @@ import '../styles/admin.css';
                 buckets.map((b) =>
                   `<tr>` +
                     `<th scope="row">${esc(by === 'school' ? b.label : label(b.key, by))}</th>` +
-                    `<td class="otable__num">${b.orders - b.cancelled - b.pending}</td>` +
-                    `<td class="otable__num">${b.pending || '—'}</td>` +
-                    `<td class="otable__num">${b.cancelled || '—'}</td>` +
-                    `<td class="otable__num">${esc(rupees(b.grossPaise))}</td>` +
-                    `<td class="otable__num">${esc(rupees(b.taxPaise))}</td>` +
-                    `<td class="otable__num">${b.refundedPaise ? esc(rupees(b.refundedPaise)) : '—'}</td>` +
-                    `<td class="otable__num"><b>${esc(rupees(b.netPaise))}</b></td>` +
+                    `<td class="num">${b.orders - b.cancelled - b.pending}</td>` +
+                    `<td class="num">${b.pending || '—'}</td>` +
+                    `<td class="num">${b.cancelled || '—'}</td>` +
+                    `<td class="num">${esc(rupees(b.grossPaise))}</td>` +
+                    `<td class="num">${esc(rupees(b.taxPaise))}</td>` +
+                    `<td class="num">${b.refundedPaise ? esc(rupees(b.refundedPaise)) : '—'}</td>` +
+                    `<td class="num"><b>${esc(rupees(b.netPaise))}</b></td>` +
                   `</tr>`).join('') +
               `</tbody>` +
               // The total is a `<tfoot>`, so it stays with the table when it scrolls and is
               // announced as a summary rather than as one more row of data.
               `<tfoot><tr>` +
                 `<th scope="row">Total</th>` +
-                `<td class="otable__num">${t.orders - t.cancelled - t.pending}</td>` +
-                `<td class="otable__num">${t.pending || '—'}</td>` +
-                `<td class="otable__num">${t.cancelled || '—'}</td>` +
-                `<td class="otable__num">${esc(rupees(t.grossPaise))}</td>` +
-                `<td class="otable__num">${esc(rupees(t.taxPaise))}</td>` +
-                `<td class="otable__num">${t.refundedPaise ? esc(rupees(t.refundedPaise)) : '—'}</td>` +
-                `<td class="otable__num"><b>${esc(rupees(t.netPaise))}</b></td>` +
+                `<td class="num">${t.orders - t.cancelled - t.pending}</td>` +
+                `<td class="num">${t.pending || '—'}</td>` +
+                `<td class="num">${t.cancelled || '—'}</td>` +
+                `<td class="num">${esc(rupees(t.grossPaise))}</td>` +
+                `<td class="num">${esc(rupees(t.taxPaise))}</td>` +
+                `<td class="num">${t.refundedPaise ? esc(rupees(t.refundedPaise)) : '—'}</td>` +
+                `<td class="num"><b>${esc(rupees(t.netPaise))}</b></td>` +
               `</tr></tfoot>` +
             `</table>` +
-            `<p class="admin__hint">` +
+            `<p class="m">` +
               `<b>Unpaid orders are not counted as revenue.</b> Cancelled orders are counted in ` +
               `the order total so it reconciles with the kitchen, and excluded from gross.` +
             `</p>` +
@@ -627,7 +624,7 @@ import '../styles/admin.css';
         await load();
       })();
 
-      void mountNav();
+      void mountShell();
     </script>
   </body>
 </html>

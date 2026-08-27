@@ -32,12 +32,11 @@
  * `REPORT_ORDER_COLUMNS` gained exactly one field for this screen — `placed_at`, a business
  * timestamp. Still no recipient, class or section.
  */
-import BackofficeNav from '../../components/BackofficeNav.astro';
+import BackofficeShell from '../../components/BackofficeShell.astro';
 
 import '../../styles/tokens.css';
 import '../../styles/site.css';
-import '../../styles/kitchen.css';
-import '../../styles/admin.css';
+import '../../styles/backoffice.css';
 ---
 
 <!doctype html>
@@ -52,19 +51,16 @@ import '../../styles/admin.css';
   </head>
 
   <body>
-    <div class="kitchen">
-      <header class="kitchen__bar">
-        <div class="kitchen__bar-inner kitchen__bar-inner--admin">
-          <h1 class="kitchen__title">Sales</h1>
-          <button id="s-reload" class="kitchen__btn kitchen__refresh" type="button">Refresh</button>
-          <BackofficeNav current="/admin/sales" />
-        </div>
-      </header>
+    <BackofficeShell
+      current="/admin/sales"
+      title="Sales"
+      subtitle="Orders by the day they were placed"
+    >
+      <button id="s-reload" class="btn btn--ghost" slot="actions" type="button">Refresh</button>
 
-      <main class="kitchen__wrap admin__wrap">
         <div id="s-status" class="visually-hidden" role="status" aria-live="polite"></div>
 
-        <p class="admin__intro">
+        <p class="m">
           <b>Paid orders only</b>, by the day they were placed rather than the day the food is
           served — so a busy evening shows up on the evening it happened. Days are <b>IST</b>: an
           order taken at 11pm counts for that night, which is when most of them arrive.
@@ -74,23 +70,23 @@ import '../../styles/admin.css';
 
         <div class="rctl">
           <div class="rctl__presets" role="group" aria-label="Range">
-            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="7">7 days</button>
-            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="30">30 days</button>
-            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="90">90 days</button>
-            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="month">This month</button>
-            <button class="kitchen__btn kitchen__btn--small" type="button" data-preset="last">Last month</button>
+            <button class="chip" type="button" data-preset="7">7 days</button>
+            <button class="chip" type="button" data-preset="30">30 days</button>
+            <button class="chip" type="button" data-preset="90">90 days</button>
+            <button class="chip" type="button" data-preset="month">This month</button>
+            <button class="chip" type="button" data-preset="last">Last month</button>
           </div>
 
           <div class="rctl__dates">
-            <label class="admin__label" for="s-from">From</label>
-            <input class="admin__input" id="s-from" type="date" required />
-            <label class="admin__label" for="s-to">To</label>
-            <input class="admin__input" id="s-to" type="date" required />
+            <label for="s-from">From</label>
+            <input id="s-from" type="date" required />
+            <label for="s-to">To</label>
+            <input id="s-to" type="date" required />
           </div>
 
           <div class="rctl__group">
-            <label class="admin__label" for="s-by">Show by</label>
-            <select class="admin__select" id="s-by">
+            <label for="s-by">Show by</label>
+            <select id="s-by">
               <option value="placedDay" selected>Day</option>
               <option value="placedWeek">Week</option>
               <option value="placedMonth">Month</option>
@@ -99,12 +95,11 @@ import '../../styles/admin.css';
           </div>
         </div>
 
-        <div id="s-body"></div>
-      </main>
-    </div>
+        <div class="pad" id="s-body"></div>
+      </BackofficeShell>
 
     <script>
-      import { mountNav } from '../../lib/backoffice/nav-mount.js';
+      import { mountShell } from '../../lib/backoffice/shell.js';
       import { api, money } from '@graybag/shared';
       import { columns } from '../../lib/admin/chart.js';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
@@ -249,32 +244,30 @@ import '../../styles/admin.css';
           }
         }
         return (
-          `<div class="gstat">` +
-            `<p class="gstat__n">${esc(value)}</p>` +
-            `<p class="gstat__l">${esc(title)}</p>` +
-            (delta
-              ? `<p class="gstat__note${toneOf(c)}">${esc(delta)}</p>`
-              : '') +
-            (note ? `<p class="gstat__note">${esc(note)}</p>` : '') +
+          `<div class="card">` +
+            `<h4>${esc(title)}</h4>` +
+            `<div class="k">${esc(value)}</div>` +
+            (delta ? `<div class="m">${esc(delta)}</div>` : '') +
+            (note ? `<div class="m">${esc(note)}</div>` : '') +
           `</div>`
         );
       }
 
       function render() {
         if (loading) {
-          el.body.innerHTML = Array(3).fill('<div class="kitchen__skeleton"></div>').join('');
+          el.body.innerHTML = Array(3).fill('<div class="sk"></div>').join('');
           return;
         }
         if (error) {
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>We can't show sales</h2><p>${esc(error)}</p>` +
+            `<div class="empty"><h2>We can't show sales</h2><p>${esc(error)}</p>` +
             `<p>This screen needs <b>reports.view</b> and <b>orders.view_financials</b>.</p>` +
-            `<button class="kitchen__btn kitchen__btn--primary" data-retry>Try again</button></div>`;
+            `<button class="btn" data-retry>Try again</button></div>`;
           return;
         }
         if (rows.length === 0) {
           el.body.innerHTML =
-            `<div class="kitchen__state"><h2>No paid orders in this range</h2>` +
+            `<div class="empty"><h2>No paid orders in this range</h2>` +
             `<p>Nothing was paid for between <b>${esc(el.from.value)}</b> and ` +
             `<b>${esc(el.to.value)}</b> — or this account cannot read orders, which needs ` +
             `<b>reports.view</b>. Those look the same from here.</p></div>`;
@@ -321,7 +314,7 @@ import '../../styles/admin.css';
         );
 
         el.body.innerHTML =
-          `<div class="gstats">` +
+          `<div class="grid">` +
             stat(String(paid), 'Paid orders', api.compare(paid, paidPrev)) +
             stat(rupees(t.netPaise), 'Net revenue', api.compare(t.netPaise, p.netPaise)) +
             stat(rupees(aov), 'Average order', api.compare(aov, aovPrev)) +
@@ -342,7 +335,7 @@ import '../../styles/admin.css';
 
           `<section class="admin__section" aria-labelledby="st-h">` +
             `<h2 id="st-h">The numbers</h2>` +
-            `<table class="otable">` +
+            `<table>` +
               `<thead><tr>` +
                 `<th scope="col">${by === 'school' ? 'School' : 'Placed'}</th>` +
                 `<th scope="col">Paid orders</th>` +
@@ -360,25 +353,25 @@ import '../../styles/admin.css';
                   `<tr>` +
                     // The table is where the full name belongs — the code is for the axis.
                     `<th scope="row">${esc(by === 'school' ? b.label : label(b.key, by))}</th>` +
-                    `<td class="otable__num">${b.paid}</td>` +
-                    `<td class="otable__num">${esc(rupees(b.grossPaise))}</td>` +
-                    `<td class="otable__num">${esc(rupees(b.taxPaise))}</td>` +
-                    `<td class="otable__num">${b.refundedPaise ? esc(rupees(b.refundedPaise)) : '—'}</td>` +
-                    `<td class="otable__num"><b>${esc(rupees(b.netPaise))}</b></td>` +
-                    `<td class="otable__num">${b.paid ? esc(rupees(Math.round(b.netPaise / b.paid))) : '—'}</td>` +
+                    `<td class="num">${b.paid}</td>` +
+                    `<td class="num">${esc(rupees(b.grossPaise))}</td>` +
+                    `<td class="num">${esc(rupees(b.taxPaise))}</td>` +
+                    `<td class="num">${b.refundedPaise ? esc(rupees(b.refundedPaise)) : '—'}</td>` +
+                    `<td class="num"><b>${esc(rupees(b.netPaise))}</b></td>` +
+                    `<td class="num">${b.paid ? esc(rupees(Math.round(b.netPaise / b.paid))) : '—'}</td>` +
                   `</tr>`).join('') +
               `</tbody>` +
               `<tfoot><tr>` +
                 `<th scope="row">Total</th>` +
-                `<td class="otable__num">${paid}</td>` +
-                `<td class="otable__num">${esc(rupees(t.grossPaise))}</td>` +
-                `<td class="otable__num">${esc(rupees(t.taxPaise))}</td>` +
-                `<td class="otable__num">${t.refundedPaise ? esc(rupees(t.refundedPaise)) : '—'}</td>` +
-                `<td class="otable__num"><b>${esc(rupees(t.netPaise))}</b></td>` +
-                `<td class="otable__num">${esc(rupees(aov))}</td>` +
+                `<td class="num">${paid}</td>` +
+                `<td class="num">${esc(rupees(t.grossPaise))}</td>` +
+                `<td class="num">${esc(rupees(t.taxPaise))}</td>` +
+                `<td class="num">${t.refundedPaise ? esc(rupees(t.refundedPaise)) : '—'}</td>` +
+                `<td class="num"><b>${esc(rupees(t.netPaise))}</b></td>` +
+                `<td class="num">${esc(rupees(aov))}</td>` +
               `</tr></tfoot>` +
             `</table>` +
-            `<p class="admin__hint">` +
+            `<p class="m">` +
               `Compared against <b>${esc(api.previousWindow(el.from.value, el.to.value).from)}</b> to ` +
               `<b>${esc(api.previousWindow(el.from.value, el.to.value).to)}</b> — the window of the same ` +
               `length immediately before this one, so a shorter month never reads as a decline. ` +
@@ -420,7 +413,7 @@ import '../../styles/admin.css';
         await load();
       })();
 
-      void mountNav();
+      void mountShell();
     </script>
   </body>
 </html>

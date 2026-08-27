@@ -641,3 +641,65 @@
  * with a `display` and a `hidden` attribute reintroduces it silently.
  */
 .bo [hidden] { display: none !important; }
+
+/* ----------------------------------- charts and the funnel (ported in `E10-55`) */
+/*
+ * Ported from `admin.css` unchanged, because they belong to the back office's design system rather
+ * than to the chrome it replaces — the prototype draws bars and a funnel too, and `chart.ts`
+ * already emits these class names.
+ *
+ * Dropping `admin.css` from the migrated pages without bringing these rendered every chart as a
+ * black rectangle. The parity screenshot caught it on the first Reports shot, which is twice now
+ * that looking has found something no other check could.
+ */
+.bo .cx {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: var(--gb-space-3) 0 var(--gb-space-2);
+  /* Room for the tooltip and the top gridline label to breathe. */
+  overflow: visible;
+}.bo .cx__grid { stroke: var(--gb-border-subtle); stroke-width: 1; }.bo .cx__axis { stroke: var(--gb-border-strong); stroke-width: 1; }.bo .cx__xtick {
+  fill: var(--gb-text-secondary);
+  font-family: var(--gb-font-family);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}.bo .cx__bar { fill: var(--gb-ramp-forest-500); }.bo .cx__bar:hover { fill: var(--gb-ramp-forest-700); }.bo .cx__line {
+  stroke: var(--gb-ramp-forest-700);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}.bo .cx__area { fill: var(--gb-ramp-forest-200); opacity: 0.55; }.bo .cx__dot { fill: var(--gb-ramp-forest-700); }.bo .cx__dot:hover { r: 4; }.bo .cx__bar--pending { fill: var(--gb-ramp-amber-300); }.bo .cx__bar--pending:hover { fill: var(--gb-ramp-amber-500); }.bo .cx__bar,
+.bo .cx__dot { transition: fill var(--gb-duration-fast) var(--gb-ease-standard); }.bo .fnl { list-style: none; margin: var(--gb-space-3) 0 0; padding: 0; counter-reset: step; }.bo .fnl__step {
+  position: relative;
+  padding: var(--gb-space-3) var(--gb-space-4);
+  border-radius: var(--gb-radius-md);
+  margin-bottom: var(--gb-space-2);
+  overflow: hidden;
+}.bo .fnl__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w, 0%);
+  background: var(--gb-bg-surface-accent);
+  z-index: 0;
+}.bo .fnl__body { position: relative; z-index: 1; display: block; }.bo .fnl__top { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--gb-space-2); }.bo .fnl__n { font-size: var(--gb-font-size-h2); font-variant-numeric: tabular-nums; }.bo .fnl__label { font-weight: var(--gb-font-semibold); }.bo .fnl__rate { color: var(--gb-text-secondary); font-size: var(--gb-font-size-body-sm); }.bo .fnl__lost {
+  display: block;
+  margin-top: var(--gb-space-1);
+  color: var(--gb-text-secondary);
+  font-size: var(--gb-font-size-body-sm);
+}.bo .gtrack {
+  display: inline-block;
+  width: 5rem;
+  height: 0.5rem;
+  margin-right: var(--gb-space-2);
+  border-radius: var(--gb-radius-full);
+  background: var(--gb-bg-surface-muted);
+  vertical-align: middle;
+  overflow: hidden;
+}.bo .gfill {
+  display: block;
+  width: var(--w, 0%);
+  height: 100%;
+  border-radius: var(--gb-radius-full);
+  background: var(--gb-ramp-forest-500);
+}.bo .gbar__pc { color: var(--gb-text-secondary); font-size: var(--gb-font-size-body-sm); font-variant-numeric: tabular-nums; }
