@@ -1,0 +1,378 @@
+---
+/**
+ * Meal pack offers — `E21-60`.
+ *
+ * The last prototype screen with nothing behind it. Its shape is the prototype's: a summary line,
+ * a table of offers with their rules, price, validity, schools and sales, and a drawer to edit one.
+ *
+ * ## Two switches, both deliberate
+ *
+ * Andy: *"An offer is off by default — new offers are drafts, and a school shows packs only when
+ * both the offer is live and the school's switch is on. Two switches, both mine."*
+ *
+ * So the table shows each independently, and neither implies the other. A single "live at these
+ * schools" control would be easier to use and would make "live everywhere" the accident this is
+ * designed to prevent.
+ *
+ * ## Editing an offer that has already sold
+ *
+ * Most of an offer is stamped onto a pack when it sells — price, tax, `meals_total`, `expires_at`
+ * — so editing those changes what the *next* buyer gets and nothing else. Two fields are not
+ * stamped: `items_per_meal` and `required_category_id` are read live by `meal_pack_balance` when a
+ * meal is spent, so changing either would rewrite what somebody already paid for.
+ *
+ * Those two are locked once a pack exists, with the reason on screen rather than a disabled field
+ * and a shrug. Enforcement is server-side in `admin-pack-offer` — this is the explanation, not the
+ * gate.
+ *
+ * ## Nothing pack-related reaches a kitchen surface
+ *
+ * `meal_packs.manage` is platform-only by `0070`'s `valid_scope_types`, this screen is behind it,
+ * and its nav entry is hidden without it. A kitchen operator cannot open it, see it, or learn from
+ * the navigation that it exists.
+ */
+import BackofficeShell from '../../components/BackofficeShell.astro';
+
+import '../../styles/tokens.css';
+import '../../styles/site.css';
+import '../../styles/backoffice.css';
+---
+
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Meal packs — GrayBag</title>
+    <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
+  </head>
+
+  <body>
+    <BackofficeShell
+      current="/admin/packs"
+      title="Meal packs"
+      subtitle="Sell meals up front · offered school by school"
+    >
+      <button slot="actions" class="btn btn--ghost" id="p-reload" type="button">Refresh</button>
+      <button slot="actions" class="btn" id="p-new" type="button">New pack</button>
+
+      <div class="toolbar">
+        <p class="resultline" id="p-line" role="status" aria-live="polite"></p>
+      </div>
+
+      <div class="pad" id="p-body"></div>
+    </BackofficeShell>
+
+    <script>
+      import { api, money } from '@graybag/shared';
+      import { closeDrawer, mountShell, openDrawer } from '../../lib/backoffice/shell.js';
+      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { PACKS_FIXTURE } from '../../lib/admin/packs-fixture.js';
+
+      const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+      const el = {
+        body: $('p-body'), line: $('p-line'),
+        reload: $<HTMLButtonElement>('p-reload'), neu: $<HTMLButtonElement>('p-new'),
+      };
+      const esc = (s: string) =>
+        String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+      const rupees = (p: number) => money.formatPaise(p);
+      const demo = new URLSearchParams(location.search).has('state');
+
+      let offers: api.AdminPackOffer[] = [];
+      let sold: Record<string, number> = {};
+      let schools: { id: string; name: string }[] = [];
+      let categories: { id: string; name: string }[] = [];
+      let loading = true;
+      let error: string | null = null;
+
+      async function load() {
+        loading = true; error = null; render();
+        try {
+          if (demo) {
+            offers = PACKS_FIXTURE.offers;
+            sold = PACKS_FIXTURE.sold;
+            schools = PACKS_FIXTURE.schools;
+            categories = PACKS_FIXTURE.categories;
+          } else {
+            configureBackofficeApi();
+            const [list, schoolRows, categoryRows] = await Promise.all([
+              api.fetchAdminPackOffers(),
+              api.fetchSchools(),
+              api.fetchDishCategories(),
+            ]);
+            offers = list;
+            schools = schoolRows.map((s) => ({ id: s.id, name: s.name }));
+            categories = categoryRows.map((c) => ({ id: c.id, name: c.displayName }));
+            /*
+             * The sales count is allowed to fail on its own. It needs the Edge Function, and the
+             * offers themselves are readable without it — a screen that refuses to show anything
+             * because it could not count purchases is worse than one that shows the offers and
+             * says the count is unavailable.
+             */
+            sold = await api.fetchPackOfferSales().catch(() => ({}));
+          }
+        } catch (cause) {
+          error = cause instanceof Error ? cause.message : 'The offers did not load.';
+          offers = [];
+        } finally {
+          loading = false; render();
+        }
+      }
+
+      const liveSchools = (o: api.AdminPackOffer) => o.schools.filter((s) => s.isEnabled);
+
+      function row(o: api.AdminPackOffer): string {
+        const n = sold[o.id] ?? 0;
+        const on = liveSchools(o);
+        return (
+          `<tr data-offer="${esc(o.id)}">` +
+            `<td class="name"><button type="button" data-open="${esc(o.id)}" class="linkish">` +
+              `${esc(o.name)}</button>` +
+              `<span class="sub">${o.isActive
+                ? '<span class="tag tag--live">live</span>'
+                : '<span class="tag tag--draft">draft</span>'}</span></td>` +
+            `<td>${o.mealsCount} meals · ${o.itemsPerMeal} item${o.itemsPerMeal === 1 ? '' : 's'} each` +
+              (o.requiredCategoryName ? ` · one from ${esc(o.requiredCategoryName)}` : '') + `</td>` +
+            `<td class="num"><b>${esc(rupees(o.netPricePaise))}</b>` +
+              `<span class="sub">${esc(rupees(Math.round(o.netPricePaise / Math.max(1, o.mealsCount))))} a meal` +
+              ` · saves ${esc(rupees(api.packSavingPaise(o)))}</span></td>` +
+            `<td class="num">${o.validityDays} days</td>` +
+            `<td>${on.length > 0
+              ? on.map((s) => `<span class="tag tag--menu">${esc(s.schoolName)}</span>`).join(' ')
+              : '<span class="tag tag--none">no school</span>'}</td>` +
+            `<td class="num">${n > 0 ? `<b>${n}</b>` : '—'}</td>` +
+          `</tr>`
+        );
+      }
+
+      function render() {
+        if (loading) {
+          el.line.textContent = '';
+          el.body.innerHTML = Array(3).fill('<div class="sk"></div>').join('');
+          return;
+        }
+        if (error) {
+          el.line.textContent = '';
+          el.body.innerHTML =
+            `<div class="notice notice--err"><b>We can't show the offers</b>${esc(error)}</div>` +
+            `<button class="btn" type="button" data-retry>Try again</button>`;
+          return;
+        }
+        if (offers.length === 0) {
+          // The prototype's empty state, which explains what a pack *is* — this screen is the one
+          // place somebody meets the idea for the first time.
+          el.line.textContent = '';
+          el.body.innerHTML =
+            `<div class="empty"><h3>No packs yet</h3>` +
+            `<p>A pack is a number of meals bought up front at a lower price per meal. You choose ` +
+            `the rules, the price, how long it lasts, and which schools it is offered at.</p>` +
+            `<p>If you expected offers here and see none, this account may not hold ` +
+            `<b>meal_packs.manage</b> — that is the only thing that shows them.</p>` +
+            `<button class="btn" type="button" data-new>Create the first pack</button></div>`;
+          return;
+        }
+
+        const live = offers.filter((o) => o.isActive).length;
+        const totalSold = Object.values(sold).reduce((n, x) => n + x, 0);
+        const outstanding = offers.reduce((n, o) => n + (sold[o.id] ?? 0) * o.mealsCount, 0);
+
+        el.line.innerHTML =
+          `<b>${live} live</b> · ${offers.length} offer${offers.length === 1 ? '' : 's'}` +
+          (totalSold > 0 ? ` · ${totalSold} sold · ${outstanding} meals outstanding` : '');
+
+        el.body.innerHTML =
+          /*
+           * The prototype's notice, and the sentence that matters most on this screen: a sold pack
+           * is money held against food not yet served. It is the reason expiry exists.
+           */
+          `<div class="notice notice--info"><b>Outstanding meals are money you already hold</b>` +
+            `A sold pack is revenue collected and food not yet served. Expiry is what bounds it — ` +
+            `every pack expires a fixed number of days after purchase, and unused meals are not ` +
+            `refundable.</div>` +
+
+          `<div class="tablewrap"><table>` +
+            `<thead><tr>` +
+              `<th scope="col">Pack</th><th scope="col">Rules</th>` +
+              `<th scope="col" class="num">Price</th><th scope="col" class="num">Valid</th>` +
+              `<th scope="col">Offered at</th><th scope="col" class="num">Sold</th>` +
+            `</tr></thead>` +
+            `<tbody>${offers.map(row).join('')}</tbody>` +
+          `</table></div>`;
+      }
+
+      /* ------------------------------------------------------------------ the drawer */
+
+      function field(id: string, label: string, value: string | number, type = 'number', help = '') {
+        return `<div class="field"><label for="${id}">${esc(label)}</label>` +
+          `<input id="${id}" type="${type}" value="${esc(String(value))}" ${type === 'number' ? 'min="1" step="1"' : 'maxlength="80"'} />` +
+          (help ? `<p class="help">${help}</p>` : '') + `</div>`;
+      }
+
+      function openOffer(offer: api.AdminPackOffer | null) {
+        const n = offer ? (sold[offer.id] ?? 0) : 0;
+        const o = offer ?? {
+          id: '', name: '', mealsCount: 10, itemsPerMeal: 2, requiredCategoryId: categories[0]?.id ?? '',
+          requiredCategoryName: '', netPricePaise: 0, alacarteReferencePaise: 0, validityDays: 90,
+          isActive: false, schools: [],
+        } as api.AdminPackOffer;
+
+        const frozen = n > 0;
+        const categoryOptions = categories
+          .map((c) => `<option value="${esc(c.id)}"${c.id === o.requiredCategoryId ? ' selected' : ''}>${esc(c.name)}</option>`)
+          .join('');
+
+        const schoolRows = offer
+          ? schools.map((s) => {
+              const link = o.schools.find((x) => x.schoolId === s.id);
+              const on = link?.isEnabled === true;
+              return `<label class="gate ${on ? 'gate--pass' : 'gate--warn'}">` +
+                `<span class="ic" aria-hidden="true">${on ? '✓' : '·'}</span>` +
+                `<span class="t">${esc(s.name)}<span>${on ? 'offered here' : 'not offered here'}</span></span>` +
+                `<input type="checkbox" data-school="${esc(s.id)}"${on ? ' checked' : ''} />` +
+              `</label>`;
+            }).join('')
+          : `<p class="help">Save the offer first, then choose which schools it is offered at.</p>`;
+
+        openDrawer({
+          title: offer ? offer.name : 'New pack',
+          subtitle: offer
+            ? `${n > 0 ? `${n} sold` : 'nothing sold yet'} · ${o.isActive ? 'live' : 'draft'}`
+            : 'A draft until you make it live',
+          body:
+            (frozen
+              ? `<div class="notice notice--warn"><b>${n} pack${n === 1 ? ' has' : 's have'} been bought under this offer</b>` +
+                `How many items a meal is, and which category one of them must come from, are read ` +
+                `when a meal is spent — so changing them now would change what those packs can buy. ` +
+                `They are locked. Price, name and validity are stamped onto a pack when it sells, ` +
+                `so editing those only affects future buyers.</div>`
+              : '') +
+            `<div class="sec">The pack</div>` +
+            field('f-name', 'Name', o.name, 'text') +
+            `<div class="two">` +
+              field('f-meals', 'Meals in the pack', o.mealsCount) +
+              field('f-items', 'Items per meal', o.itemsPerMeal) +
+            `</div>` +
+            `<div class="field"><label for="f-cat">One item must come from</label>` +
+              `<select id="f-cat"${frozen ? ' disabled' : ''}>${categoryOptions}</select>` +
+              `<p class="help">Configured, never hardcoded — the rule is enforced when the meal is spent.</p></div>` +
+            `<div class="sec">Money</div>` +
+            `<div class="two">` +
+              field('f-price', 'Pack price, ex-GST (paise)', o.netPricePaise) +
+              field('f-alacarte', 'Same meals bought singly (paise)', o.alacarteReferencePaise) +
+            `</div>` +
+            field('f-days', 'Valid for (days)', o.validityDays, 'number',
+              'From the day it is bought. Unused meals are not refundable.') +
+            `<div class="sec">Offered at</div>${schoolRows}` +
+            `<p class="help" data-err></p>`,
+          footer:
+            `<button class="btn" type="button" data-save>${offer ? 'Save' : 'Create it'}</button>` +
+            (offer
+              ? `<button class="btn btn--ghost" type="button" data-active>` +
+                `${o.isActive ? 'Withdraw' : 'Make it live'}</button>`
+              : '') +
+            `<button class="btn btn--ghost" type="button" data-cancel>Cancel</button>`,
+        });
+
+        if (frozen) {
+          document.querySelector<HTMLInputElement>('#f-items')!.disabled = true;
+        }
+
+        const err = document.querySelector<HTMLElement>('[data-err]')!;
+        const read = () => ({
+          name: document.querySelector<HTMLInputElement>('#f-name')!.value,
+          mealsCount: Number(document.querySelector<HTMLInputElement>('#f-meals')!.value),
+          itemsPerMeal: Number(document.querySelector<HTMLInputElement>('#f-items')!.value),
+          requiredCategoryId: document.querySelector<HTMLSelectElement>('#f-cat')!.value,
+          netPricePaise: Number(document.querySelector<HTMLInputElement>('#f-price')!.value),
+          alacarteReferencePaise: Number(document.querySelector<HTMLInputElement>('#f-alacarte')!.value),
+          validityDays: Number(document.querySelector<HTMLInputElement>('#f-days')!.value),
+        });
+
+        document.querySelector('[data-cancel]')?.addEventListener('click', closeDrawer);
+
+        document.querySelector('[data-save]')?.addEventListener('click', async (event) => {
+          const button = event.currentTarget as HTMLButtonElement;
+          const input = read();
+          const problems = api.validatePackOffer(input);
+          if (problems) { err.textContent = Object.values(problems)[0]!; return; }
+
+          button.disabled = true;
+          try {
+            if (offer) {
+              /*
+               * The two frozen fields are **omitted** for a sold offer, not sent as undefined.
+               *
+               * The server distinguishes absent from present — that is how it decides whether an
+               * edit touches them — so `{ itemsPerMeal: undefined }` would read as an attempt to
+               * change it. `exactOptionalPropertyTypes` catches exactly this, and it was right to.
+               */
+              const { itemsPerMeal, requiredCategoryId, ...stamped } = input;
+              await api.updatePackOffer(offer.id, frozen ? stamped : input);
+            } else {
+              await api.createPackOffer(input);
+            }
+            closeDrawer();
+            await load();
+          } catch (cause) {
+            err.textContent = cause instanceof Error ? cause.message : 'That did not save.';
+            button.disabled = false;
+          }
+        });
+
+        document.querySelector('[data-active]')?.addEventListener('click', async (event) => {
+          const button = event.currentTarget as HTMLButtonElement;
+          button.disabled = true;
+          try {
+            await api.setPackOfferActive(o.id, !o.isActive);
+            closeDrawer();
+            await load();
+          } catch (cause) {
+            err.textContent = cause instanceof Error ? cause.message : 'That did not save.';
+            button.disabled = false;
+          }
+        });
+
+        for (const box of document.querySelectorAll<HTMLInputElement>('[data-school]')) {
+          box.addEventListener('change', async () => {
+            box.disabled = true;
+            try {
+              await api.setPackOfferSchool(o.id, box.dataset.school!, box.checked);
+              await load();
+              // Re-open on the fresh data, so the switch's own row redraws with its new state.
+              openOffer(offers.find((x) => x.id === o.id) ?? null);
+            } catch (cause) {
+              err.textContent = cause instanceof Error ? cause.message : 'That did not save.';
+              box.checked = !box.checked;
+              box.disabled = false;
+            }
+          });
+        }
+      }
+
+      el.body.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('[data-retry]')) { void load(); return; }
+        if (target.closest('[data-new]')) { openOffer(null); return; }
+        const id = target.closest<HTMLElement>('[data-open]')?.dataset.open;
+        if (id) openOffer(offers.find((o) => o.id === id) ?? null);
+      });
+
+      el.neu.addEventListener('click', () => openOffer(null));
+      el.reload.addEventListener('click', () => void load());
+
+      void (async () => {
+        await mountShell();
+        try {
+          if (!demo && !(await currentUser())) {
+            location.assign(`/signin?next=${encodeURIComponent('/admin/packs')}`);
+            return;
+          }
+        } catch { /* fall through and let the read fail visibly */ }
+        await load();
+      })();
+    </script>
+  </body>
+</html>

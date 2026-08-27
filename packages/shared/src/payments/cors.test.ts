@@ -87,6 +87,11 @@ describe('every browser-callable Edge Function', () => {
     'confirm-pack-plan',
     // `E10-20`. Browser-callable for the same reason `admin-school` is.
     'admin-dish',
+    // `E21-60`. Meal pack offers. Browser-callable because the admin screen calls it directly, and
+    // a function rather than table writes because it enforces the one rule RLS cannot express:
+    // an offer that has sold packs may not have `items_per_meal` or `required_category_id`
+    // changed, since a bought pack still reads those live when a meal is spent.
+    'admin-pack-offer',
     // `E10-24`. Dish photos. The bytes go through a function because `storage.objects` has no
     // policies at all — a browser cannot write to the bucket, and opening that up would mean a
     // broad policy on a public bucket.

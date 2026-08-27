@@ -1339,3 +1339,24 @@
   .bo__scroll { padding: 0; }
   .bo__scroll > * { max-width: none; }
 }
+
+/*
+ * A button that reads as the text it wraps.
+ *
+ * A table row that opens a drawer needs a real `<button>` for the keyboard, and a real button
+ * carries a border and a background that make a name look like a chip. This removes the chrome and
+ * leaves the affordance — underline on hover, a focus ring that is still visible.
+ */
+.bo .linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: var(--gb-font-weight-body-strong);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 0;
+}
+.bo .linkish:hover { text-decoration: underline; }
+.bo .linkish:focus-visible { outline: var(--gb-focus-ring); outline-offset: 2px; }

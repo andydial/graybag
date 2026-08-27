@@ -107,6 +107,9 @@ export const JOBS: Job[] = [
       'school.edit', 'school.onboard', 'school.config_edit', 'kitchen.view', 'kitchen.edit',
       'kitchen.config_edit', 'users.view', 'users.manage', 'grants.manage', 'config.platform_edit',
       'reports.view',
+      // Meal packs are money taken before food is served, so `0070` makes this permission
+      // platform-only and undelegable. It belongs to exactly this job and no other.
+      'meal_packs.manage',
     ],
     sensitive: 'Can grant and revoke access, including their own, and can issue refunds.',
   },
