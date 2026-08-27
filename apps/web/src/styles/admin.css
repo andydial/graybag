@@ -318,6 +318,21 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--gb-space-2) var(--gb-space-3);
+  /*
+   * **The header column must match the content column** — the offset Andy reported.
+   *
+   * `.kitchen__bar-inner` is capped at `--gb-layout-container-max-width` (1200px) while every
+   * admin page's `<main>` carries `.admin__wrap`, capped at 60rem (960px). Both are centred, so
+   * on any viewport wider than 1200 the title sat **120px to the left** of the content it heads,
+   * and the whole page read as shifted. It was not one screen: ten pages share this shell, and it
+   * has been that way since the first of them.
+   *
+   * Fixed on the modifier rather than on `.kitchen__bar-inner`, because the kitchen board wants
+   * the full 1200 — its board is the content — and narrowing that would be a regression on the
+   * one screen that runs on a tablet in a kitchen all day.
+   */
+  max-width: 60rem;
+  margin-inline: auto;
 }
 
 .kitchen__bar-inner--admin .kitchen__title {
