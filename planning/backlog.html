@@ -4315,13 +4315,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/55</span>
+          <span class="meter-num">0/56</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 55 tasks</summary>
+        <summary>Context &amp; 56 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4763,6 +4763,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Lower the CSS budget below 18,000 once <code>admin.css</code> is deleted.</strong> Raised to 21,000 in <code>E10-55</code> because two design systems are in the tree while screens migrate. One vocabulary should cost <strong>less</strong> than the one-and-a-bit it replaces, so the end state is a number below where this started, not back at it. If this task is open and the constant still reads 21,000, the migration stalled</span>
+      </li>
+      <li class="task" data-id="E10-64" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-64"></button>
+        <code class="tid">E10-64</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A platform admin was named &quot;Kitchen manager, plus 23 more permissions&quot;.</strong> Andy, seeing his own account on <code>/admin/people</code>: *&quot;a screen that names the wrong job is worse than one that names none.&quot;* Correct, and the cause was mine from the same morning. <code>describeAccess</code> required a job&#39;s grants to be held <strong>entirely</strong>; <code>E21-60</code> added <code>meal_packs.manage</code> to the platform-admin bundle; he does not hold it — the permission is seeded by <code>0070</code>, which has not reached production — so that bundle stopped matching, was filtered out, and the largest remaining *complete* match was Kitchen manager&#39;s eight grants. Thirty-one held minus eight explained is the &quot;23 more&quot;. <strong>The rule itself was the defect</strong>: &quot;every grant must be held&quot; means adding one grant to a bundle silently relabels every existing holder as something unrelated — not vaguer, but wrong and confident. Now it ranks by how much of the <strong>job</strong> is held, prefers the job least incomplete, and <strong>states the gap</strong>: *&quot;Platform admin, missing meal_packs.manage&quot;*, which is both truer and the only version that says what to do. A floor at half stops a fragment being dressed as a role — one third of Delivery is Custom. <strong>Two existing tests asserted the old contract and were rewritten rather than deleted</strong>, and the replacements are stricter: the safety property is no longer &quot;a partial job never matches&quot; but &quot;a label must never imply an ability somebody lacks&quot;, which is a claim about what a person reads rather than about an internal match. The regression test uses Andy&#39;s <strong>real production grants</strong>, read from the database</span>
       </li></ul>
       </details>
     </article>

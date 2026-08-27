@@ -66,12 +66,31 @@ describe('describeAccess', () => {
     expect(describeAccess([]).label).toMatch(/holds nothing/i);
   });
 
-  it('falls back to Custom rather than guessing', () => {
-    // Half of Kitchen staff is not Kitchen staff. Telling somebody it is would be the one failure
-    // this screen cannot have: they would believe a cook can hand food over when they cannot.
+  /*
+   * **Rewritten in `E10-64`, and the contract changed deliberately.**
+   *
+   * This asserted that anything short of a whole bundle is "Custom". That rule is what named a
+   * platform admin "Kitchen manager, plus 23 more permissions" on production: adding one grant to
+   * the platform-admin bundle dropped him out of it entirely, and a smaller bundle he happened to
+   * contain won instead.
+   *
+   * The property worth keeping is **not** "never name a partial job" — it is "never let somebody
+   * believe they can do a job they cannot". Naming the job *and its gap* satisfies that and is
+   * more useful, because it says what to grant.
+   */
+  it('names a near-complete job together with what is missing from it', () => {
+    // Two of Delivery's three. Named, with the gap stated — not silently promoted to Delivery.
     const summary = describeAccess(at('kitchen', 'orders.view', 'orders.view_pii'));
+    expect(summary.job?.key).toBe('delivery');
+    expect(summary.label).toContain('missing orders.mark_delivered');
+  });
+
+  it('still falls back to Custom when it holds too little of any job to name one', () => {
+    // One grant is a third of the smallest job. Below the floor, guessing would be dressing a
+    // fragment up as a role.
+    const summary = describeAccess(at('kitchen', 'orders.view'));
     expect(summary.job).toBeNull();
-    expect(summary.label).toMatch(/^Custom — 2 permissions/);
+    expect(summary.label).toMatch(/^Custom — 1 permission/);
   });
 
   it('names the job and the extras when somebody holds more than it', () => {
@@ -100,14 +119,87 @@ describe('describeAccess', () => {
     expect(summary.scopeType).toBeNull();
   });
 
-  it('never claims a job the person cannot actually do', () => {
-    // Property check across every job: removing any single grant must stop it matching that job.
+  /*
+   * The safety property, restated for the new contract — `E10-64`.
+   *
+   * It used to be "removing any grant stops the job matching". Now a near-match is named, so the
+   * property that actually protects somebody is: **a label must never imply an ability they do not
+   * have.** If any of the job's grants is absent, the label has to say so.
+   *
+   * That is the same guarantee, stated over the thing a person reads rather than over an internal
+   * match — which is stricter, because the old version said nothing about the label at all.
+   */
+  it('never lets a label imply a job somebody cannot actually do', () => {
     for (const job of JOBS) {
-      for (const missing of job.grants) {
-        const partial = job.grants.filter((g) => g !== missing);
+      for (const absent of job.grants) {
+        const partial = job.grants.filter((g) => g !== absent);
         const summary = describeAccess(at('kitchen', ...partial));
-        expect(summary.job?.key, `${job.key} without ${missing}`).not.toBe(job.key);
+        if (summary.job?.key === job.key) {
+          expect(summary.label, `${job.key} without ${absent} reads as complete`).toContain('missing');
+        }
       }
     }
+  });
+});
+
+describe('naming a job when the bundle has moved on — E10-64', () => {
+  /*
+   * Andy's real production grants on 2026-08-28, read from the database rather than imagined.
+   *
+   * Thirty-one permissions, every one at platform scope, and NOT `meal_packs.manage` — that
+   * permission is seeded by migration 0070, which has not reached production. So he holds a
+   * superset of the platform-admin bundle in every respect except the one grant added to that
+   * bundle the same morning.
+   *
+   * The old matcher required a bundle to be held entirely, so it discarded Platform admin and
+   * named him **"Kitchen manager, plus 23 more permissions"**. This is that exact input.
+   */
+  const ANDY = [
+    'audit.view', 'config.platform_edit', 'consent.view', 'dish.edit', 'grants.manage',
+    'invoices.view', 'kitchen.config_edit', 'kitchen.edit', 'kitchen.view', 'menu.edit',
+    'menu.import', 'menu.publish', 'menu.view', 'orders.cancel', 'orders.create_on_behalf',
+    'orders.mark_delivered', 'orders.refund', 'orders.view', 'orders.view_financials',
+    'orders.view_pii', 'payouts.manage', 'payouts.view', 'reports.financial_view', 'reports.view',
+    'school.config_edit', 'school.edit', 'school.onboard', 'school.view', 'users.impersonate',
+    'users.manage', 'users.view',
+  ].map((permissionCode) => ({ permissionCode, scopeType: 'platform' }));
+
+  it('calls a platform admin a platform admin, not a kitchen manager', () => {
+    const access = describeAccess(ANDY);
+    expect(access.job?.key).toBe('platform_admin');
+    expect(access.label).not.toContain('Kitchen');
+  });
+
+  it('names the grant they are missing, because that is the actionable half', () => {
+    // "missing meal_packs.manage" tells you what to grant. "plus 23 more" tells you nothing you
+    // can act on, and hides the gap under the surplus.
+    expect(describeAccess(ANDY).label).toContain('missing meal_packs.manage');
+  });
+
+  it('still names an exact match plainly, with nothing appended', () => {
+    const admin = jobByKey('platform_admin')!;
+    const exact = admin.grants.map((permissionCode) => ({ permissionCode, scopeType: 'platform' }));
+    expect(describeAccess(exact).label).toBe('Platform admin');
+  });
+
+  it('does not promote a smaller complete job over a larger near-complete one', () => {
+    // The heart of the bug: Kitchen manager fitted perfectly inside what he held, and perfection
+    // on a fragment beat near-perfection on the truth.
+    const access = describeAccess(ANDY);
+    expect(access.job?.grants.length).toBeGreaterThan(jobByKey('kitchen_manager')!.grants.length);
+  });
+
+  it('prefers the complete job when two cover the same amount', () => {
+    // Exactly Kitchen staff: it and Kitchen manager both cover five, and only one is complete.
+    const staff = jobByKey('kitchen_staff')!;
+    const held = staff.grants.map((permissionCode) => ({ permissionCode, scopeType: 'kitchen' }));
+    expect(describeAccess(held).job?.key).toBe('kitchen_staff');
+  });
+
+  it('refuses to dress a fragment up as a job', () => {
+    // One third of Delivery is not Delivery. Below half, it is Custom.
+    const held = [{ permissionCode: 'orders.view', scopeType: 'kitchen' }];
+    expect(describeAccess(held).job).toBeNull();
+    expect(describeAccess(held).label).toContain('Custom');
   });
 });
