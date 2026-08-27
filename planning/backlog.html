@@ -4291,13 +4291,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/53</span>
+          <span class="meter-num">0/54</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 53 tasks</summary>
+        <summary>Context &amp; 54 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4723,6 +4723,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The suite floors had drifted to a quarter of the real counts.</strong> <code>check-suites-ran.mjs</code> fails a suite that runs fewer tests than its floor, and a floor is only worth what the gap between it and reality is small. The web floor was set at <strong>100</strong> when the suite held 388; it now holds <strong>455</strong>, so the guard would have let three quarters of the suite vanish without a word — and the failure it exists for, a glob quietly matching fewer files after a rename, is exactly the middling loss a stale floor sleeps through. Raised to roughly 90% of current: scripts 150→170, shared 800→950, web 100→420. The header now says floors are to be <strong>raised in the commit that grows a suite</strong>, with a dated table of where they stand, so the next person has a rule rather than a judgement call. This is the same class of problem as the guard itself — something that looks fine because it never fails</span>
+      </li>
+      <li class="task" data-id="E10-54" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-54"></button>
+        <code class="tid">E10-54</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The back office header sat 120px left of its own content, on every page.</strong> Reported by Andy on <code>/admin/menus</code> — *&quot;the page is horizontally offset with the title cut off at the left edge&quot;* — and it is not that page: <strong>ten screens share the shell and all ten had it</strong>, since the first of them was built. <code>.kitchen__bar-inner</code> is capped at <code>--gb-layout-container-max-width</code> (1200px); every admin page&#39;s <code>&lt;main&gt;</code> carries <code>.admin__wrap</code>, capped at 60rem (960px). Both are centred, so on any viewport wider than 1200 the title and its controls sat 120px to the left of the content they head, and the page read as shifted. Measured rather than eyeballed: at 1512px the bar&#39;s left edge was 156 and the content&#39;s was 276. Fixed on <code>.kitchen__bar-inner--admin</code> rather than on <code>.kitchen__bar-inner</code>, because the kitchen board wants the full 1200 — there the board *is* the content — and narrowing it would regress the one screen that runs on a tablet in a kitchen all day. <strong>Two hypotheses were checked and discarded first</strong>, which is worth recording so nobody re-runs them: it was not content overflow (<code>scrollWidth === clientWidth</code> at every width on that page) and not missing CSS (the <code>.mcard</code> rules are present in the deployed stylesheet). Both were plausible and both were wrong</span>
       </li></ul>
       </details>
     </article>
