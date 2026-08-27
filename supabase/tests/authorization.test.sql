@@ -732,13 +732,43 @@ select is_empty($$ select p.proname from pg_proc p
                                       where d.objid = p.oid and d.deptype = 'e') $$,
                 '§12: every SECURITY DEFINER function in public pins search_path');
 
+/**
+ * Every view in public is `security_invoker` — **except `order_money`, named here on purpose.**
+ *
+ * The rule exists because a definer view skips the base table's policies and the failure is
+ * silent: it simply returns rows it should not. That is right for every view we have had until
+ * now, and `order_money` (`E02-36`) is the first deliberate exception.
+ *
+ * It has to be definer. From step 3 of `E02-36` the money columns are revoked from
+ * `authenticated`, and an invoker view would hit that revoke and return nothing to **everybody** —
+ * parents, admins and reports at once. Definer is what lets it keep the privileges the revoke
+ * removes, which is the entire mechanism.
+ *
+ * **The price of the exception is that it must restate every restriction it bypasses**, and this
+ * assertion is what found that it did not: `"order"` carries a RESTRICTIVE `deny_dead_accounts`
+ * using `auth_is_live_user()`, which the view skipped, so a disabled account would have read its
+ * own order money through it. The predicate now leads with `auth_is_live_user()`, and
+ * `order_money.test.sql` asserts a disabled account reads nothing — mutation-checked by removing
+ * the clause.
+ *
+ * A second exception should be argued for as hard as this one was.
+ */
 select is_empty($$ select c.relname from pg_class c
                     join pg_namespace n on n.oid = c.relnamespace
                    where n.nspname = 'public' and c.relkind = 'v'
+                     and c.relname <> 'order_money'
                      and coalesce(array_to_string(c.reloptions, ','), '') not like '%security_invoker=true%'
                      and not exists (select 1 from pg_depend d
                                       where d.objid = c.oid and d.deptype = 'e') $$,
-                '§12: every view in public is security_invoker — the failure is silent, the view simply returns rows it should not');
+                '§12: every view in public is security_invoker, except order_money (E02-36) — the failure is silent, the view simply returns rows it should not');
+
+-- And the exception is held to its own bargain: it is definer AND it restates the restriction it
+-- bypasses. A future edit that drops `auth_is_live_user()` from the predicate fails here as well
+-- as in `order_money.test.sql`.
+select matches(
+  (select pg_get_viewdef('order_money'::regclass, true)),
+  'auth_is_live_user',
+  '§12: order_money restates deny_dead_accounts, which being a definer view lets it bypass');
 
 select is_empty($$ select tablename || '.' || policyname from pg_policies
                     where schemaname = 'public'
