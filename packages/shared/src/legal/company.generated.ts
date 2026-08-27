@@ -14,7 +14,7 @@ export const COMPANY_JSON = {
   ],
   "legalName": "GRAYBAG SOLUTIONS PRIVATE LIMITED",
   "registeredAddress": "13, Sector 82, JLPL Industrial Area, GMADA Aerocity, Mohali, Punjab 140306",
-  "_registeredAddressComment": "Changed 2026-08-28 on Andy's instruction: this is the GST-registered address. It also RESOLVES an inconsistency rather than only updating a fact — the GSTIN begins 03, which is Punjab, while the previous address was in Chandigarh, state code 04. A tax invoice whose seller address and GSTIN disagree about the state is the kind of thing that is fine until somebody files with it.",
+  "_registeredAddressComment": "Changed 2026-08-27 (Andy), confirmed 2026-08-28. Was SCO-461-462, Top Floor, Sector 35-C, Chandigarh, 160022. This is the GST-registered address, and the change RESOLVES an inconsistency rather than only updating a fact: the GSTIN begins 03, which is Punjab, while the previous address was in Chandigarh, state code 04 — a tax invoice whose seller address and GSTIN disagree about the state is fine until somebody files with it. `company.test.ts` now asserts that agreement as a property, so it keeps holding the next time either moves. Invoices already issued are UNAFFECTED: `invoice.seller_address` is a per-row copy that `issue_invoice` writes at issue time, so a tax document keeps the address it was issued with and only future invoices carry the new one. That is the correct behaviour for a tax document and is the reason this file can be edited at all.",
   "gstin": "03AAMCG3438M1ZD",
   "sacCode": null,
   "signatureTreatment": null,
