@@ -104,7 +104,7 @@ const SCREENS = [
   // The landing page, which is not in the nav because it is what the nav hangs off.
   { key: 'today', live: '/dashboard.html?state=demo', prototype: 'today' },
   // In the prototype and not built at all.
-  { key: 'packs', live: null, prototype: 'packs' },
+  { key: 'packs', live: '/admin/packs.html?state=demo', prototype: 'packs' },
 ];
 
 const PORT = 8971;

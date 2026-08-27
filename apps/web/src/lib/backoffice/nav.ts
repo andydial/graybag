@@ -30,6 +30,7 @@
  * fails a test instead of silently hiding a screen.
  */
 export type Grant =
+  | 'meal_packs.manage'
   | 'orders.view'
   | 'orders.view_pii'
   | 'orders.mark_delivered'
@@ -70,6 +71,8 @@ export const SEEDED_PERMISSIONS = [
   'config.platform_edit', 'audit.view', 'consent.view',
   'reports.view', 'reports.financial_view',
   'invoices.view', 'payouts.view', 'payouts.manage',
+  // Seeded by 0070, platform scope only.
+  'meal_packs.manage',
 ] as const;
 
 export interface Operator {
@@ -149,6 +152,23 @@ export const NAV: NavItem[] = [
     label: 'Dishes',
     requires: ['menu.edit'],
     description: 'Every dish once, with what stops each one being publishable.',
+  },
+  /*
+   * Meal packs — `E21-60`.
+   *
+   * `meal_packs.manage` is platform-only by `0070`'s `valid_scope_types`, so this entry is
+   * invisible to a kitchen or school-scoped account: `nav-mount` reveals a link only when every
+   * requirement is held, and a school-scoped grant of this permission cannot exist to hold.
+   *
+   * Andy: *"Nothing pack-related appears anywhere in the kitchen surfaces."* That includes the
+   * navigation — learning a screen exists is itself a disclosure.
+   */
+  {
+    href: '/admin/packs',
+    group: 'The catalogue',
+    label: 'Meal packs',
+    requires: ['meal_packs.manage'],
+    description: 'Sell meals up front. Offers, prices, validity, and which schools see them.',
   },
   {
     href: '/admin/menus',
@@ -304,6 +324,9 @@ export const EXAMPLE_LEVELS = {
     // invisible to a full platform admin, which is the same silent failure the `Grant` union and
     // `SEEDED_PERMISSIONS` were added to catch. `visibleNav`'s count test is what surfaced it.
     'grants.manage', 'menu.import',
+    // Meal packs — the same silent failure as `grants.manage` above, caught the same way by the
+    // count test. Platform scope only (`0070`), which is also the only scope this set represents.
+    'meal_packs.manage',
     'config.platform_edit', 'school.config_edit', 'kitchen.config_edit', 'reports.view',
   ]),
   kitchenOperator: new Set<Grant>([

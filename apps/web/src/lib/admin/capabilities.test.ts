@@ -161,3 +161,28 @@ describe('a job with no order access at all', () => {
     expect(children.detail).toContain('right bag');
   });
 });
+
+describe('meal packs are platform-only — E21-60', () => {
+  /*
+   * Andy: *"Only the platform admin can see or manage meal pack offers. Not kitchen, not support,
+   * not school-scoped."* And `0070` constrains the permission's `valid_scope_types` to
+   * `{platform}`, so a school-scoped grant cannot be created at all.
+   *
+   * That constraint governs what may be *granted*. This governs what the jobs screen *offers*,
+   * which is the path a real person actually takes — nobody hand-writes a permission row.
+   */
+  it('is held by exactly one job, and that job is platform-scoped', () => {
+    const holders = JOBS.filter((j) => (j.grants as readonly string[]).includes('meal_packs.manage'));
+    expect(holders.map((j) => j.key)).toEqual(['platform_admin']);
+    expect(holders[0]!.scopes).toEqual(['platform']);
+  });
+
+  it('is held by no kitchen or school job, which is the disclosure that matters', () => {
+    // A pack is money taken before food is served. A kitchen operator has no business with the
+    // offer that sold it, and support has no business with the money.
+    for (const job of JOBS.filter((j) => !j.scopes.includes('platform'))) {
+      expect(job.grants as readonly string[], `${job.key} can manage meal packs`)
+        .not.toContain('meal_packs.manage');
+    }
+  });
+});

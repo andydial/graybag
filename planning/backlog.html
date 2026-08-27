@@ -3201,7 +3201,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Make the meal-pack tests isolated rather than relying on a serial runner.</strong> <code>E14-41</code> bought determinism by turning parallelism off, which treats the symptom: those tests share database state and assume nothing else is touching it, so they will fail again the moment the suite is parallel for any other reason — a CI runner with more cores, a future <code>--test-concurrency</code> change, or someone running two suites at once. The fix is per-test isolation: a unique pack and school per test rather than a shared fixture, so contention is between the test&#39;s own connections, which is what it is actually trying to prove. The mobile thread owns these tests</span>
+        <span class="ttext"><strong>Make the meal-pack tests isolated rather than relying on a serial runner.</strong> <code>E14-41</code> bought determinism by turning parallelism off, which treats the symptom: those tests share database state and assume nothing else is touching it, so they will fail again the moment the suite is parallel for any other reason — a CI runner with more cores, a future <code>--test-concurrency</code> change, or someone running two suites at once. The fix is per-test isolation: a unique pack and school per test rather than a shared fixture, so contention is between the test&#39;s own connections, which is what it is actually trying to prove. <strong>Observed again at concurrency 1 on 2026-08-28</strong>, which raises the priority: the serial runner reduced the flake and did not remove it. Four failures in one full-suite run, zero in the next with no change, zero in isolation twice. So the shared state is not only contended between *files* — something persists between runs, and the tests assume they start from a state they do not create. The mobile thread owns these tests</span>
       </li></ul>
       </details>
     </article>
@@ -6606,13 +6606,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/51</span>
+          <span class="meter-num">0/53</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 51 tasks</summary>
+        <summary>Context &amp; 53 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7051,6 +7051,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Packs ship dark on production, enforced rather than remembered.</strong> Andy, 2026-08-27: *&quot;Everything else merges and ships dark: <code>is_active</code> false on production, no offer live, no parent sees a thing.&quot;* The default already stopped an offer selling <strong>by existing</strong>; it did nothing about somebody activating one, and the person most likely to is whoever first points the new admin screens at production. <code>0075</code> adds <code>platform_config.meal_packs_confirmed</code> — false everywhere — and a trigger refusing an offer that goes live while <code>environment = &#39;production&#39;</code> and the flag is false. A <strong>trigger</strong> rather than a check constraint because the condition spans two tables, and because a trigger also refuses a hand-written <code>psql</code> statement, which is how the three cancelled orders reached production. The guard is on the <strong>transition into being sellable</strong>: creating a draft, editing one, and switching a live offer OFF are all unaffected — it must never become the reason a live offer is stuck. Mutation-checked by emptying the function, which fails the two assertions that matter</span>
+      </li>
+      <li class="task" data-id="E21-60" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-60"></button>
+        <code class="tid">E21-60</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Meal packs admin — the offer library, the editor, and the two switches.</strong> The last prototype screen with nothing behind it. Offer table with rules, price per meal, saving, validity, the schools it is offered at and how many have sold; a drawer to create or edit; per-school switches; activate and withdraw. <strong>Two switches, both Andy&#39;s</strong>: <code>is_active</code> on the offer and <code>is_enabled</code> per school are separate and neither implies the other, because one control meaning &quot;live everywhere&quot; is the accident the design exists to prevent. New offers are drafts because <code>0068</code>&#39;s column default says so — no code restates it. <strong>The important finding is what &quot;editing must not change terms for packs already bought&quot; actually requires.</strong> Most of an offer is stamped onto the pack at sale — price, both tax components, the tax point, <code>meals_total</code> and <code>expires_at</code> — so editing those changes what the *next* buyer gets, which is the point of being able to edit. <strong>Two fields are not stamped</strong>: <code>meal_pack_balance</code> joins the live offer for <code>items_per_meal</code> and <code>required_category_id</code>, so changing either would retroactively rewrite what a bought pack may be spent on — somebody who bought &quot;2 items, one a drink&quot; would silently hold &quot;3 items, one a dessert&quot;. Exactly those two are frozen once a pack exists, enforced <strong>server-side</strong> in <code>admin-pack-offer</code> because a form is not the only way a row arrives; the screen explains rather than gates. A blanket &quot;sold offers are immutable&quot; would have been easier and wrong — it blocks a price correction that harms nobody, and people route around rules broader than their reason. <strong>The sold count comes from the function, not a table read</strong>, because <code>meal_pack</code> has one policy — <code>meal_pack_read_own</code> — and a platform admin correctly cannot see other people&#39;s purchases; only a number per offer crosses the wire. Gated on <code>meal_packs.manage</code> at platform scope, checked for scope rather than code alone; the nav entry is invisible without it, because learning a screen exists is itself a disclosure. A test asserts exactly one job holds the permission and that no kitchen- or school-scoped job does. 11 API tests, 2 permission tests</span>
+      </li>
+      <li class="task" data-id="E21-61" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-61"></button>
+        <code class="tid">E21-61</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Stamp <code>items_per_meal</code> and <code>required_category_id</code> onto <code>meal_pack</code> at sale.</strong> The durable fix behind <code>E21-60</code>&#39;s freeze. <code>0068</code> already stamps price, tax, <code>meals_total</code> and <code>expires_at</code> with the reasoning written into the schema — *&quot;the offer&#39;s price can change and the config can be flipped; neither may retroactively alter a pack already sold&quot;* — and these two were missed, so <code>meal_pack_balance</code> reads them live from the offer. <code>E21-60</code> enforces the invariant in an Edge Function, which holds only as long as every write goes through it. Stamping them makes it a property of the row instead, and lets the admin edit a sold offer freely. Migration, so the mobile thread&#39;s</span>
       </li></ul>
       </details>
     </article>
