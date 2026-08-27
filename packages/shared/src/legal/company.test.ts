@@ -77,9 +77,19 @@ describe('one source for the company identity', () => {
     // These three are what `E12-25` was about: one answer, two documents.
     expect(COMPANY.legalName).toBe('GRAYBAG SOLUTIONS PRIVATE LIMITED');
     expect(COMPANY.gstin).toBe('03AAMCG3438M1ZD');
-    // Updated 2026-08-28: the GST-registered address moved to Mohali.
+    // Changed 2026-08-27, confirmed 2026-08-28. Was Chandigarh; the registered office moved to
+    // Mohali. Asserted rather than loosened: the point of pinning it is that a silent edit to
+    // `company.json` cannot change what every policy document and invoice states about the
+    // company. A deliberate change updates this line; an accidental one still fails here.
+    //
+    // Invoices already issued are unaffected — `invoice.seller_address` is a per-row copy that
+    // `issue_invoice` writes at issue time, so a tax document keeps the address it was issued
+    // with, and only future invoices carry the new one. That is the correct behaviour for a tax
+    // document and is the reason this file can be edited at all.
     expect(COMPANY.registeredAddress).toContain('Mohali');
+    expect(COMPANY.registeredAddress).toContain('140306');
   });
+
 
   /*
    * The seller's state and the GSTIN's state must agree — added with the address change.
