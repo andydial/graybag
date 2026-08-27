@@ -4291,13 +4291,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/54</span>
+          <span class="meter-num">0/55</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 54 tasks</summary>
+        <summary>Context &amp; 55 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4363,14 +4363,6 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext">Order dashboard across all kitchens with refund capability — <strong>the view is done, the refund is not and cannot be.</strong> <code>/orders</code> lists every order on a service date across every kitchen the caller&#39;s grants reach, with totals, refunds and per-school subtotals, gated on <code>orders.view_financials</code>. Its own <code>api/</code> module and its own column list rather than a flag on <code>kitchen.ts</code>: money is a separate grant (<code>D3</code>) and a redaction behind a boolean is one careless caller away from not being one. Scope is RLS, never a client-side kitchen filter. Unpaid and draft orders are <strong>kept</strong> here, unlike the kitchen board — <code>L5</code> keeps them off the cooking list, not out of the record, and an order that never got paid for is exactly what somebody opens this to investigate. <strong>Refunds are blocked</strong>: <code>order-lifecycle</code> §4.1 performs <code>cancelled -&gt; refunded</code> as <code>system</code> only and no endpoint performs it, so the page says so once at the foot rather than drawing a disabled button on every row. Refund UI tracked as <code>E10-18</code></span>
-      </li>
-      <li class="task" data-id="E10-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-18"></button>
-        <code class="tid">E10-18</code>
-        
-        
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Issue a refund from <code>/orders</code>.</strong> The other half of <code>E10-08</code>. Blocked on the refund endpoint (<code>E06</code>, <code>docs/kitchen-write-contract.md</code> §2.2): <code>cancelled -&gt; refunded</code> is a <code>system</code> transition and nothing performs it, so there is nothing for a button to call. Needs <code>orders.refund</code>, which exists as a permission and is granted to nobody. When it is built: idempotent per order, integer paise, and it must decide to-source vs to-wallet itself — the person clicking has no view on that and must not be asked</span>
       </li>
       <li class="task" data-id="E10-09" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-09"></button>
@@ -4443,6 +4435,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Build the six metrics of <code>docs/product-metrics.md</code> (<code>P17</code>)</strong> as server-side queries: activated users, weekly active orderers, orders per active orderer per week, AOV in paise, school penetration, cohort retention at N+4/N+8/N+12. Constraints are part of the task, not decoration — no column of <code>recipient</code> selected or joined for filtering, <code>recipient_id</code> counted but never described, small-number suppression built into the query rather than the template, integer paise throughout, an immature cohort cell rendered *not yet* rather than 0%, and school penetration rendered &quot;no enrolled count&quot; where <code>E10-16</code>&#39;s column is null</span>
+      </li>
+      <li class="task" data-id="E10-18" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-18"></button>
+        <code class="tid">E10-18</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Issue a refund from <code>/orders</code>.</strong> The other half of <code>E10-08</code>. Blocked on the refund endpoint (<code>E06</code>, <code>docs/kitchen-write-contract.md</code> §2.2): <code>cancelled -&gt; refunded</code> is a <code>system</code> transition and nothing performs it, so there is nothing for a button to call. Needs <code>orders.refund</code>, which exists as a permission and is granted to nobody. When it is built: idempotent per order, integer paise, and it must decide to-source vs to-wallet itself — the person clicking has no view on that and must not be asked</span>
       </li>
       <li class="task" data-id="E10-19" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-19"></button>
@@ -4532,6 +4532,14 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Check an import file in the browser — <code>/admin/import</code>.</strong> Every admin screen pointed at <code>tools/bulk-import</code> and gave no way to do anything from the browser. Drop a CSV or JSON in and get the importer&#39;s <strong>own</strong> report — creates, updates, unchanged, blockers and the verdict — against live data. It runs <code>parse</code>, <code>validate</code>, <code>plan</code> and <code>report</code> from <code>tools/bulk-import/src/</code> directly, aliased as <code>@bulk-import</code>: those four modules import nothing, so they are callable from a browser, and a preview that disagreed with the tool doing the real import would be worse than no preview. <code>connect.mjs</code> (the service-role client) was split out of <code>db.mjs</code> so <code>snapshot()</code> imports nothing either; the snapshot is read through the <code>api/</code> module under the operator&#39;s own grants and RLS, never the service role. The file is read in the browser and never uploaded</span>
       </li>
+      <li class="task" data-id="E10-30" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-30"></button>
+        <code class="tid">E10-30</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Apply an import from the browser.</strong> <code>admin-import</code> imports the CLI&#39;s own <code>parse</code>, <code>validate</code>, <code>plan</code> and <code>apply*</code> modules directly — the same functions the 17th&#39;s import ran, not a second write path. Made possible by <code>E10-29</code> splitting <code>connect.mjs</code> out of <code>db.mjs</code>, so every remaining function takes the client as an argument. The <strong>file</strong> is posted, never a plan computed in the browser: the server re-parses, re-validates and re-plans, and applies the result of that, because a client-supplied plan is an arbitrary write request wearing the shape of an audit trail. Refuses on any error or blocker with <code>409</code> and the full report, exactly as <code>cli.mjs --apply</code> does. Gated on <code>menu.import</code> at platform</span>
+      </li>
       <li class="task" data-id="E10-31" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-31"></button>
         <code class="tid">E10-31</code>
@@ -4555,14 +4563,6 @@
         
         <span class="badge r-mvp">v1</span>
         <span class="ttext"><strong>Allergen tagging — <code>/admin/allergens</code>, suggestions only.</strong> Every production dish is in <code>MI1</code>&#39;s third state (no tags, no declaration), which the app must warn about and which reads to a parent as &quot;contains nothing&quot;. Suggestions come from ingredient keywords, are <strong>never pre-applied</strong>, are drawn dashed with their evidence, and nothing is written until Save with a confirmation naming how many dishes will be tagged and how many recorded as containing none. <code>admin-dish</code> gained a bulk <code>dishAllergens</code> path and <code>allergensDeclaredNone</code>; it refuses tags and declaredNone together, refuses unknown codes, and is all-or-nothing — on this table a partial write is worse than a failure because the half that succeeded looks complete</span>
-      </li>
-      <li class="task" data-id="E10-30" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-30"></button>
-        <code class="tid">E10-30</code>
-        
-        
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Apply an import from the browser.</strong> <code>admin-import</code> imports the CLI&#39;s own <code>parse</code>, <code>validate</code>, <code>plan</code> and <code>apply*</code> modules directly — the same functions the 17th&#39;s import ran, not a second write path. Made possible by <code>E10-29</code> splitting <code>connect.mjs</code> out of <code>db.mjs</code>, so every remaining function takes the client as an argument. The <strong>file</strong> is posted, never a plan computed in the browser: the server re-parses, re-validates and re-plans, and applies the result of that, because a client-supplied plan is an arbitrary write request wearing the shape of an audit trail. Refuses on any error or blocker with <code>409</code> and the full report, exactly as <code>cli.mjs --apply</code> does. Gated on <code>menu.import</code> at platform</span>
       </li>
       <li class="task" data-id="E10-35" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-35"></button>
@@ -4660,14 +4660,6 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>/admin/people</code> did not survive contact with real parents.</strong> Andy: *&quot;How bad is UX for /admin/people — how will this list look like in 1 week where 400 people have registered?&quot;* Badly. <code>fetchAccess</code> selected <strong>every</strong> <code>app_user</code> row, unbounded, and the screen rendered a card per account, each carrying a five-option job select and a thirty-one-option permission select — at 400 registered parents that is roughly <strong>fourteen thousand <code>&lt;option&gt;</code> elements</strong> to show three members of staff. The old section note argued that listing accounts holding nothing was how you reach somebody to onboard them, which was true at four accounts and is exactly backwards at four hundred. Now: <strong>grants are read first and only the accounts they name are fetched</strong>, so the list is as long as the number of people with access and no longer; and finding anyone else is a <strong>debounced database search</strong> on email or either name, capped at 20, with stale responses discarded by sequence number because on a slow connection the answer for &quot;pri&quot; can land after the answer for &quot;priya&quot;. Searching in the browser was rejected for the obvious reason — fetching every account to filter it client-side is the same unbounded read wearing a search box. <code>SelectBuilder</code> gained <code>in()</code> and <code>or()</code>, each documented at the interface as <code>client.ts</code> asks. <code>%</code> and <code>_</code> in a typed term are escaped, or an address containing one would widen the search rather than narrow it</span>
       </li>
-      <li class="task" data-id="E09-40" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
-        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-40"></button>
-        <code class="tid">E09-40</code>
-        
-        
-        <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Move the kitchen board&#39;s status filter into the query.</strong> <code>fetchKitchenOrders</code> filters status in memory and its comment says it should move into the query once <code>SelectBuilder</code> has <code>in()</code> — which <code>E10-46</code> has now added. Left alone deliberately: it changes the query behind the live kitchen board and deserves its own verification rather than riding along with an unrelated change</span>
-      </li>
       <li class="task" data-id="E10-47" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-47"></button>
         <code class="tid">E10-47</code>
@@ -4731,6 +4723,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The back office header sat 120px left of its own content, on every page.</strong> Reported by Andy on <code>/admin/menus</code> — *&quot;the page is horizontally offset with the title cut off at the left edge&quot;* — and it is not that page: <strong>ten screens share the shell and all ten had it</strong>, since the first of them was built. <code>.kitchen__bar-inner</code> is capped at <code>--gb-layout-container-max-width</code> (1200px); every admin page&#39;s <code>&lt;main&gt;</code> carries <code>.admin__wrap</code>, capped at 60rem (960px). Both are centred, so on any viewport wider than 1200 the title and its controls sat 120px to the left of the content they head, and the page read as shifted. Measured rather than eyeballed: at 1512px the bar&#39;s left edge was 156 and the content&#39;s was 276. Fixed on <code>.kitchen__bar-inner--admin</code> rather than on <code>.kitchen__bar-inner</code>, because the kitchen board wants the full 1200 — there the board *is* the content — and narrowing it would regress the one screen that runs on a tablet in a kitchen all day. <strong>Two hypotheses were checked and discarded first</strong>, which is worth recording so nobody re-runs them: it was not content overflow (<code>scrollWidth === clientWidth</code> at every width on that page) and not missing CSS (the <code>.mcard</code> rules are present in the deployed stylesheet). Both were plausible and both were wrong</span>
+      </li>
+      <li class="task" data-id="E10-55" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-55"></button>
+        <code class="tid">E10-55</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The back office shell — the prototype&#39;s design, adopted rather than reinterpreted.</strong> Andy, after opening <code>/admin/menus</code>: *&quot;They&#39;ve been built to the prototype&#39;s concept, not its design.&quot;* The audit in <code>docs/prototype-gap-audit.md</code> found the shell had never been adopted at all and every screen was rebuilt in the old chrome — <code>.card</code>, <code>.tag</code>, <code>.notice</code>, <code>.toolbar</code>, <code>.sec</code>, <code>.grid</code>, <code>.empty</code>, <code>.bulk</code> and <code>.drawer</code> had <strong>zero</strong> occurrences in the live CSS. This is the frame: <code>backoffice.css</code> carrying the prototype&#39;s vocabulary under its own class names, a <code>BackofficeShell</code> with the <strong>persistent sidebar</strong> (four labelled groups, live counts, and who is signed in — none of which existed), a header with a <strong>title and a subtitle</strong>, and <strong>drawer editing available to any screen</strong> rather than only the dish workbench. Colours come from <code>--gb-*</code> tokens rather than the prototype&#39;s hex literals: five of its six map exactly, and copying them would fork a generated palette — the same two-vocabularies failure one layer down. <code>/admin/menus</code> is migrated as the proof, and gains the <strong>Rename / Assign / Duplicate</strong> actions and the assign-vs-duplicate explanation it was missing. Also ships <code>scripts/parity-shot.mjs</code>, which photographs the prototype and the live screen side by side, because *&quot;the check that would have caught this is opening the live screen next to the prototype&quot;* — and it earned itself on its first run by catching the drawer rendering open over half the page</span>
+      </li>
+      <li class="task" data-id="E10-62" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-62"></button>
+        <code class="tid">E10-62</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Lower the CSS budget below 18,000 once <code>admin.css</code> is deleted.</strong> Raised to 21,000 in <code>E10-55</code> because two design systems are in the tree while screens migrate. One vocabulary should cost <strong>less</strong> than the one-and-a-bit it replaces, so the end state is a number below where this started, not back at it. If this task is open and the constant still reads 21,000, the migration stalled</span>
       </li></ul>
       </details>
     </article>

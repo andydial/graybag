@@ -78,9 +78,21 @@ export interface Operator {
   grants: ReadonlySet<Grant>;
 }
 
+/**
+ * The four headings the prototype's sidebar groups its links under — `E10-55`.
+ *
+ * Not decoration. The back office has fourteen destinations and they answer four different
+ * questions: what is happening now, how are we doing, what do we sell, and who may touch it. A
+ * flat list of fourteen makes the reader scan all fourteen every time.
+ */
+export type NavGroup = 'Run the day' | 'Understand' | 'The catalogue' | 'Admin';
+
+export const NAV_GROUPS: NavGroup[] = ['Run the day', 'Understand', 'The catalogue', 'Admin'];
+
 export interface NavItem {
   href: string;
   label: string;
+  group: NavGroup;
   /** Every one of these must be held. An item with no requirement is reachable by anyone signed in. */
   requires: Grant[];
   /** A one-line explanation, shown when the item is visible but the person cannot use it. */
@@ -96,6 +108,7 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   {
     href: '/kitchen',
+    group: 'Run the day',
     label: 'Kitchen',
     requires: ['orders.view'],
     description: "Today's orders, what to cook, and handing food over.",
@@ -104,6 +117,7 @@ export const NAV: NavItem[] = [
     // `E09-34`. The board is where you change things; this is what you pack from, on paper or on
     // a phone. It was reachable from no link anywhere in the app — you had to know the URL.
     href: '/kitchen/sheet',
+    group: 'Run the day',
     label: 'Packing sheet',
     requires: ['orders.view'],
     description: "One day, grouped the way you physically pack it. Printable, and nothing on it is a button.",
@@ -116,6 +130,7 @@ export const NAV: NavItem[] = [
      * every href against the pages on disk, so a route that is renamed breaks a test.
      */
     href: '/orders',
+    group: 'Run the day',
     label: 'Orders',
     requires: ['orders.view', 'orders.view_financials'],
     description: 'Every kitchen, with refunds. Separate from the kitchen list because it shows money.',
@@ -130,18 +145,21 @@ export const NAV: NavItem[] = [
    */
   {
     href: '/admin/dishes',
+    group: 'The catalogue',
     label: 'Dishes',
     requires: ['menu.edit'],
     description: 'Every dish once, with what stops each one being publishable.',
   },
   {
     href: '/admin/menus',
+    group: 'The catalogue',
     label: 'Menus',
     requires: ['menu.edit'],
     description: 'Named menus and the schools serving them. Start a new school from one that works.',
   },
   {
     href: '/admin/schools',
+    group: 'The catalogue',
     label: 'Schools',
     requires: ['school.edit'],
     description: 'Onboarding, break times, and which kitchen serves each school.',
@@ -154,6 +172,7 @@ export const NAV: NavItem[] = [
      * somebody who may see its commercial terms.
      */
     href: '/admin/config',
+    group: 'The catalogue',
     label: 'Configuration',
     requires: ['config.platform_edit'],
     description: 'Cutoffs, service days and break times, and where each value is inherited from.',
@@ -164,6 +183,7 @@ export const NAV: NavItem[] = [
     // reads: it is the same task, and somebody who cannot run the import has no use for a
     // preview of one.
     href: '/admin/import',
+    group: 'Admin',
     label: 'Check an import file',
     requires: ['menu.import'],
     description: 'See exactly what a CSV would change, before running it.',
@@ -173,6 +193,7 @@ export const NAV: NavItem[] = [
     // the dish, edited by the same person on the same data, and it is only a separate screen
     // because tagging 79 dishes at once is a different job from editing one.
     href: '/admin/allergens',
+    group: 'The catalogue',
     label: 'Allergens',
     requires: ['menu.edit'],
     description: 'Tag dishes with what they contain, in bulk.',
@@ -181,12 +202,14 @@ export const NAV: NavItem[] = [
     // `E08-16`. `kitchen.edit` rather than a platform grant, so a kitchen manager can
     // maintain their own kitchen's list without being able to see anybody else's.
     href: '/admin/alerts',
+    group: 'Admin',
     label: 'Order alerts',
     requires: ['kitchen.edit'],
     description: 'Who is emailed when an order is paid, per kitchen. Switch a person off without losing the address.',
   },
   {
     href: '/admin/people',
+    group: 'Admin',
     label: 'People',
     // The two the screen actually needs: `grants.manage` reads and writes `permission_grant` and
     // the permission catalogue, `users.view` reads the accounts. `users.manage` is disabling an
@@ -196,6 +219,7 @@ export const NAV: NavItem[] = [
   },
   {
     href: '/reports',
+    group: 'Understand',
     label: 'Reports',
     requires: ['reports.view'],
     description: 'The monthly school report.',
@@ -204,6 +228,7 @@ export const NAV: NavItem[] = [
     // `E11-12`. Orders by the day they were **placed**, which is the growth question. `/reports`
     // is the same money by service date, which is the operational one.
     href: '/admin/sales',
+    group: 'Understand',
     label: 'Sales',
     /*
      * `orders.view_financials` as well as `reports.view` — the same pair `/orders` uses.
@@ -224,6 +249,7 @@ export const NAV: NavItem[] = [
      * counts accounts — a school viewer must not reach it.
      */
     href: '/admin/growth',
+    group: 'Understand',
     label: 'Growth',
     requires: ['users.view'],
     description: 'Registrations over time and by school. Counts only — nobody is named.',
