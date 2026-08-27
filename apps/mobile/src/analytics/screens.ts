@@ -44,6 +44,7 @@ const ROUTES: Record<string, string> = {
   MyPacks: 'my_packs',
   PackPlan: 'pack_plan',
   PlanDay: 'plan_day',
+  PackDetail: 'pack_detail',
 };
 
 /**

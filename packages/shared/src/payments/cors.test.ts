@@ -84,6 +84,10 @@ describe('every browser-callable Edge Function', () => {
     // `E21-47`. Confirming a meal-pack plan. Called from the app like `checkout`, and browser-
     // callable for the same reason: it is a write that spends a balance and posts to the ledger,
     // so the caller's identity is proved from their JWT here rather than trusted from a body.
+    // `E21-48`. Starting a pack purchase. Browser-callable like `checkout`, and for the same
+    // reason: it creates a group that money will be taken against, so the caller's identity is
+    // proved from their JWT here rather than trusted from a body.
+    'buy-meal-pack',
     'confirm-pack-plan',
     // `E10-20`. Browser-callable for the same reason `admin-school` is.
     'admin-dish',

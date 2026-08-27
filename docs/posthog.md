@@ -136,7 +136,7 @@ enumerated properties are validated against a closed vocabulary and anything els
 - `screen`: `home`, `menu`, `school_picker`, `dish_detail`, `cart`, `orders`, `order_detail`,
   `account`, `children`, `add_child`, `sign_in`, `sign_in_code`, `support`, `policy`,
   `policy_gate`, `delete_account`, `payment_waiting`, `order_placed`, `update_required`,
-  `cant_connect`, `packs`, `my_packs`, `pack_plan`, `plan_day`
+  `cant_connect`, `packs`, `my_packs`, `pack_plan`, `plan_day`, `pack_detail`
 - `method`: `google`, `apple`, `email_otp`
 - `reason`: `dismissed`, `expired`, `failed`
 - `outcome`: `completed`, `dismissed`, `failed`

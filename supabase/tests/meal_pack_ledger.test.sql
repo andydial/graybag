@@ -274,5 +274,197 @@ select is(
   'and every nightly check passes across the sale, the redemption, the return and the expiry'
 );
 
+-- =============================================================================
+-- 6. Buying a pack, end to end. `E21-48`.
+-- =============================================================================
+--
+-- The purchase goes through the EXISTING payment path, so what is asserted here is what that path
+-- does with a group that has no member orders: the totals, the invoice, and the moment the pack
+-- becomes spendable.
+
+create temporary table buy_offer as
+with ins as (
+  insert into meal_pack_offer (name, meals_count, items_per_meal, required_category_id,
+                               net_price_paise, alacarte_reference_paise, validity_days, is_active)
+  select 'Buyable 10-pack', 10, 2, drinks_id, 300000, 337500, 60, true from lf
+  returning id
+) select id from ins;
+
+insert into meal_pack_offer_school (offer_id, school_id, is_enabled)
+select (select id from buy_offer), (select school_id from lf), true;
+
+create temporary table bought as
+select start_meal_pack_purchase(
+  (select parent from lf), (select id from buy_offer), (select school_id from lf), 'buy-key-1'
+) as result;
+
+select is(
+  ((select result from bought) ->> 'payable_paise')::bigint,
+  315000::bigint,
+  'a 300000 pack is payable at 315000 — 5% GST added on top, because menu prices are GST-EXCLUSIVE'
+);
+
+select is(
+  (select status::text from meal_pack where order_group_id = ((select result from bought) ->> 'order_group_id')::uuid),
+  'pending',
+  'the pack exists but is PENDING — bought is not paid for'
+);
+
+select is(
+  (select meals_remaining from meal_pack
+    where status = 'pending' and order_group_id = ((select result from bought) ->> 'order_group_id')::uuid),
+  10,
+  'it carries its meals...'
+);
+
+select is(
+  parent_has_live_meal_pack((select parent from lf)),
+  false,
+  '...and yet the parent has NO live pack: a pending pack is not spendable'
+);
+
+select is(
+  (select ok from check_meal_pack_ledger_invariant() where leg = 'deferred_revenue'),
+  true,
+  'and it contributes NOTHING to the liability — money that has not arrived is not owed'
+);
+
+-- A retry returns the same purchase rather than a second pack.
+select is(
+  (select (start_meal_pack_purchase(
+     (select parent from lf), (select id from buy_offer), (select school_id from lf), 'buy-key-1'
+   ) ->> 'replayed')::boolean),
+  true,
+  'a retry with the same key replays'
+);
+
+select is(
+  (select count(*)::int from meal_pack where offer_id = (select id from buy_offer)),
+  1,
+  'and does NOT create a second pack'
+);
+
+-- The school switch is enforced server-side.
+select throws_ok(
+  format($$select start_meal_pack_purchase(%L::uuid, %L::uuid,
+            (select id from school where id <> %L limit 1), 'buy-key-elsewhere')$$,
+         (select parent from lf), (select id from buy_offer), (select school_id from lf)),
+  null,
+  'and a school we do not sell to is refused, whatever the client believes'
+);
+
+-- ── Settlement ────────────────────────────────────────────────────────────────────────────────
+-- Captured BEFORE, because section 1 of this file already posted a sale. Asserting an absolute
+-- CGST figure here would be asserting the fixture rather than this sale.
+create temporary table cgst_before as
+select ledger_balance(id) as amount from ledger_account where code = 'platform:tax_payable:cgst';
+
+select lives_ok(
+  format($$select activate_paid_meal_pack(%L::uuid, gen_random_uuid())$$,
+         ((select result from bought) ->> 'order_group_id')::uuid),
+  'settlement activates the pack'
+);
+
+select is(
+  parent_has_live_meal_pack((select parent from lf)),
+  true,
+  'NOW the parent holds spendable meals'
+);
+
+select is(
+  (select ok from check_meal_pack_ledger_invariant() where leg = 'deferred_revenue'),
+  true,
+  'and the liability appeared at the same instant — the invariant holds across the sale'
+);
+
+select is(
+  (select ledger_balance(id) from ledger_account where code = 'platform:revenue'),
+  0::bigint,
+  'REVENUE IS STILL ZERO after a sale. Money in, no food served'
+);
+
+select is(
+  (select ledger_balance(id) from ledger_account where code = 'platform:tax_payable:cgst')
+    - (select amount from cgst_before),
+  7500::bigint,
+  'the GST is due IN FULL at purchase — 2.5% CGST on 300000, tax point = sale, settled 2026-08-27'
+);
+
+select is(
+  (select ok from check_meal_pack_ledger_invariant() where leg = 'deferred_tax'),
+  true,
+  'and nothing sits in deferred tax, because this pack is stamped `sale`'
+);
+
+-- Settlement arrives more than once. It must not post the sale twice.
+select lives_ok(
+  format($$select activate_paid_meal_pack(%L::uuid, gen_random_uuid())$$,
+         ((select result from bought) ->> 'order_group_id')::uuid),
+  'a second settlement is accepted without error'
+);
+
+select is(
+  (select ledger_balance(id) from ledger_account where code = 'platform:tax_payable:cgst')
+    - (select amount from cgst_before),
+  7500::bigint,
+  'and posts NOTHING the second time — a webhook and the drain both deliver, and money counted twice is the failure that matters'
+);
+
+/**
+ * **Which mechanism stops the double-post, established by mutation rather than assumed.**
+ *
+ * Removing `activate_paid_meal_pack`'s `status = pending` guard alone changes nothing here: the
+ * ledger refuses the second posting on its own idempotency key. Only removing BOTH makes the
+ * assertion above fail. So **the ledger key protects the money**, and the status guard protects
+ * the ROW — without it, a repeat settlement re-runs the UPDATE and recomputes `expires_at` from
+ * `now()`, silently handing a parent extra validity when a webhook is redelivered days later.
+ *
+ * **That second property is NOT asserted here, and cannot be.** `now()` is frozen for the life of
+ * a transaction, so calling the function twice inside one produces identical timestamps and an
+ * assertion about the expiry moving would pass whether the guard existed or not. An assertion
+ * that cannot fail is worse than none.
+ *
+ * `E21-54` covers it properly, in the two-transaction style `meal-pack-concurrency.test.mjs`
+ * already uses for the things pgTAP cannot see.
+ */
+
+-- ── The invoice, which is where a ₹0 document would have been issued ──────────────────────────
+select lives_ok(
+  format($$select issue_invoice(%L::uuid)$$, ((select result from bought) ->> 'order_group_id')::uuid),
+  'the pack purchase can be invoiced'
+);
+
+select is(
+  (select total_paise from invoice
+    where order_group_id = ((select result from bought) ->> 'order_group_id')::uuid),
+  315000::bigint,
+  'THE INVOICE IS FOR THE REAL AMOUNT. Summing the (non-existent) member orders would have issued '
+  'a zero tax invoice against a real payment, and consumed a gapless number doing it'
+);
+
+select is(
+  (select count(*)::int from invoice_line il
+    join invoice i on i.id = il.invoice_id
+   where i.order_group_id = ((select result from bought) ->> 'order_group_id')::uuid),
+  1,
+  'with one line, the pack itself'
+);
+
+select is(
+  (select il.order_line_id from invoice_line il
+    join invoice i on i.id = il.invoice_id
+   where i.order_group_id = ((select result from bought) ->> 'order_group_id')::uuid),
+  null,
+  'and no order line behind it, because a pack is a sale of meals rather than of food'
+);
+
+select isnt(
+  (select il.description from invoice_line il
+    join invoice i on i.id = il.invoice_id
+   where i.order_group_id = ((select result from bought) ->> 'order_group_id')::uuid),
+  null,
+  'the line describes what was bought'
+);
+
 select * from finish();
 rollback;

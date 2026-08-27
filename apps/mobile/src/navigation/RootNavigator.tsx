@@ -51,6 +51,7 @@ import { formatServiceDateLong } from '../orders/OrderDetailScreen';
 import { useMealPackSurface } from '../packs/MealPackSurfaceContext';
 import { MyPacksScreen } from '../packs/MyPacksScreen';
 import { PackPlanScreen } from '../packs/PackPlanScreen';
+import { PackDetailScreen } from '../packs/PackDetailScreen';
 import { PlanDayScreen } from '../packs/PlanDayScreen';
 import { usePlanner } from '../packs/PlannerContext';
 import type { PackIneligibility } from '../packs/PackRedemptionStrip';
@@ -931,6 +932,74 @@ const PlanDayStackScreen = withScreenFrame(ConnectedPlanDayScreen, STACK_SCREEN_
   back: true,
 });
 
+/**
+ * `E21-48`. One offer, and buying it.
+ *
+ * The purchase starts here and pays through **the existing Razorpay path**: `startMealPackPurchase`
+ * returns an order group, `useCheckout().payForGroup` opens the same sheet a food order does, and
+ * `settle_payment` makes the pack spendable. There is no pack-specific payment code anywhere.
+ */
+function ConnectedPackDetailScreen({
+  route,
+}: NativeStackScreenProps<RootStackParamList, 'PackDetail'>) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { schoolId } = useSelectedSchool();
+  const [offer, setOffer] = useState<api.MealPackOffer | null>(null);
+  const [buying, setBuying] = useState(false);
+
+  // One key per screen mount, kept across retries. Generated at tap time it would be new on every
+  // tap, and a double tap would buy a second pack — and charge for it.
+  const idempotencyKey = useRef(`buy-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
+
+  useEffect(() => {
+    if (schoolId === null) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const offers = await api.fetchMealPackOffers(schoolId);
+        if (!cancelled) setOffer(offers.find((o) => o.id === route.params.offerId) ?? null);
+      } catch {
+        if (!cancelled) setOffer(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId, route.params.offerId]);
+
+  return (
+    <PackDetailScreen
+      offer={offer}
+      buying={buying}
+      onBuy={() => {
+        if (schoolId === null || offer === null) return;
+        track('pack_purchase_started');
+        setBuying(true);
+        void api
+          .startMealPackPurchase({
+            offerId: offer.id,
+            schoolId,
+            idempotencyKey: idempotencyKey.current,
+          })
+          .then(() => {
+            // `E21-55` opens the Razorpay sheet against the returned group, reusing
+            // `useCheckout`. Until then the purchase exists as `pending` and settles when the
+            // parent pays — which is honest: nothing is charged and nothing is spendable.
+            navigation.navigate('MyPacks');
+          })
+          .catch(() => {
+            // `E21-55` owns the failure copy.
+          })
+          .finally(() => setBuying(false));
+      }}
+    />
+  );
+}
+
+const PackDetailStackScreen = withScreenFrame(ConnectedPackDetailScreen, STACK_SCREEN_EDGES, {
+  back: true,
+});
+
 const PacksStackScreen = withScreenFrame(ConnectedPacksScreen, STACK_SCREEN_EDGES, { back: true });
 const MyPacksStackScreen = withScreenFrame(ConnectedMyPacksScreen, STACK_SCREEN_EDGES, {
   back: true,
@@ -1155,6 +1224,7 @@ export function RootNavigator() {
         <Stack.Screen name="MyPacks" component={MyPacksStackScreen} />
         <Stack.Screen name="PackPlan" component={PackPlanStackScreen} />
         <Stack.Screen name="PlanDay" component={PlanDayStackScreen} />
+        <Stack.Screen name="PackDetail" component={PackDetailStackScreen} />
         <Stack.Screen
           name="SignIn"
           component={SignInStackScreen}

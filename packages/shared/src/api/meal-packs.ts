@@ -314,3 +314,46 @@ export async function fetchMealPackBalances(userId: string): Promise<MealPackBal
     };
   });
 }
+
+export interface StartedPurchase {
+  orderGroupId: string;
+  mealPackId: string;
+  payablePaise: number;
+  replayed: boolean;
+}
+
+/**
+ * Start buying a pack. `E21-48`.
+ *
+ * **This does not take payment.** It returns an `order_group_id`, and the caller then goes through
+ * `createPaymentOrder` and the Razorpay sheet — the same path a food order takes. Andy chose that
+ * over a second payment linkage, because duplicating settlement, the webhook, the drain and
+ * reconciliation is a far bigger risk than the invariant it avoided.
+ *
+ * The pack exists as `pending` from this moment and becomes spendable only when
+ * `settle_payment` confirms the money. A parent who abandons the sheet has a pending pack that
+ * contributes nothing to their balance and nothing to the ledger.
+ *
+ * `idempotencyKey` must be the SAME across a retry, or a timeout becomes a second pack and a
+ * second charge.
+ */
+export async function startMealPackPurchase(input: {
+  offerId: string;
+  schoolId: string;
+  idempotencyKey: string;
+}): Promise<StartedPurchase> {
+  if (input.idempotencyKey.trim() === '') {
+    throw new ApiError('An idempotency key is required to buy a pack.');
+  }
+  const data = await invokeFunction<Record<string, unknown>>('buy-meal-pack', {
+    offer_id: input.offerId,
+    school_id: input.schoolId,
+    idempotency_key: input.idempotencyKey,
+  });
+  return {
+    orderGroupId: String(data.order_group_id ?? ''),
+    mealPackId: String(data.meal_pack_id ?? ''),
+    payablePaise: asInt(data.payable_paise, 'payable_paise'),
+    replayed: data.replayed === true,
+  };
+}
