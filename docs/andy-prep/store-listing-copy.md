@@ -105,6 +105,21 @@ pickup code. Tell us what you'd like to see next.
 
 ## Support and marketing URLs
 
-- Support URL — **[YOU]**, required by both stores. `graybag.in/support`
-- Marketing URL — `graybag.in` (`E12`)
+**Changed 2026-08-28 (`E17-60`).** These read `graybag.in`, which was never a domain Andy owns —
+it has no A record and never had one. He owns **`graybag.com`**, which resolves today and serves
+the legacy Bubble pages, and which will serve the new site when he cuts it over. Both URLs move
+there. Checked rather than assumed, because a store listing is not the place to discover a domain
+does not answer:
+
+```
+https://graybag.com       200        A 104.19.241.93, 104.19.240.93, 104.16.36.105, 104.16.42.105
+https://www.graybag.com   200 → apex
+https://graybag.com/support  404      ← which is why the Support URL is NOT /support
+```
+
+- Support URL — **`https://graybag.com`**, required by both stores. **Deliberately the apex, not
+  `/support`**, which 404s today. Apple rejects a Support URL that does not resolve, and a parent
+  who taps Support from the App Store and lands on a 404 is worse served than one who lands on the
+  home page. `E17-66` builds a real `/support` page on the new site; move this the day it ships
+- Marketing URL — **`https://graybag.com`** (`E12`)
 - Privacy policy URL — required, blocked on `E20-07` → `E20-21`

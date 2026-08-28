@@ -27,13 +27,26 @@ import { EnvError, loadServerEnv, type AppEnv } from '../packages/shared/src/env
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Which secrets go where. Deliberately explicit — a wrong entry here is a leak. */
+/**
+ * Which secrets go where. Deliberately explicit — a wrong entry here is a leak.
+ *
+ * `SUPABASE_DB_PASSWORD` was **missing from this list until `E17-64`**, and the omission was
+ * invisible for a specific reason: `deploy-staging.yml` and `deploy-production.yml` both read the
+ * unscoped name `secrets.SUPABASE_DB_PASSWORD`, and a repository-level secret holding *staging's*
+ * password satisfies both. Staging deploys therefore succeeded, which is exactly what made it look
+ * configured. A production deploy would have passed the credential guard — the name resolves — and
+ * then authenticated `db push` against production with staging's password.
+ *
+ * A secret that must differ per environment and is stored once at repository level is worse than a
+ * missing one, because the missing one fails loudly at the guard.
+ */
 const GITHUB_SECRETS = [
   'SUPABASE_URL',
   'SUPABASE_ANON_KEY',
   'SUPABASE_SERVICE_ROLE_KEY',
   'SUPABASE_PROJECT_REF',
   'SUPABASE_ACCESS_TOKEN',
+  'SUPABASE_DB_PASSWORD',
 ] as const;
 
 const EDGE_FUNCTION_SECRETS = [

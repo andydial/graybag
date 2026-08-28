@@ -3483,3 +3483,55 @@ constraints in `0070` were run as `SELECT count(*) FILTER (WHERE NOT predicate)`
 production first — `ALTER TABLE ... ADD CONSTRAINT CHECK` validates existing rows, so a migration
 that is inert on an empty staging table can still fail on live data. Six order groups, none
 failing.
+
+## Three faults, one symptom, each hiding the next (2026-08-28)
+
+The production deploy had never worked. Peeling it apart took three rounds, and each fault was
+only visible once the one in front of it was fixed:
+
+1. **The ref** (`E17-63`) — `workflow_dispatch` from `main`, refused at the environment gate.
+   Execution stopped before any step, so nothing downstream had ever been exercised.
+2. **The credentials** (`E17-64`) — the `production` environment had no secrets at all and
+   `SUPABASE_PROJECT_REF` existed nowhere. Found by checking before asking for an approval.
+3. **The script** — `SUPABASE_DB_PASSWORD` was in neither `GITHUB_SECRETS` nor `.env.example`,
+   though both deploy workflows read it.
+
+Fault 3 is the instructive one. Both workflows reference the **unscoped** name
+`secrets.SUPABASE_DB_PASSWORD`, and a single repository-level secret holding *staging's* password
+satisfies both. Staging deploys therefore succeeded — which is exactly what made the wiring look
+configured. Production would have passed its own credential guard, because the name resolves, and
+then authenticated `db push` against production with staging's password.
+
+**A secret that must differ per environment and is stored once at repository level is worse than
+a missing one.** The missing one fails loudly at the guard; the shared one authenticates
+somewhere. `scripts/test/deploy-secrets-coverage.test.mjs` now derives the required set from the
+workflows themselves, so a new `secrets.FOO` fails until the script knows how to set it.
+
+**Before writing live payment configuration, prove the write is a no-op.** `secrets:set` also
+pushes `RAZORPAY_*` to the project's Edge Function secrets. `supabase secrets list` returns
+sha256 digests, so the local values were hashed and compared first — all four identical. That
+turned "this is probably idempotent" into "this changes nothing", which is the difference between
+an assumption and a check on a system taking real payments.
+
+## `dig` cannot tell you whether a domain is yours (2026-08-28)
+
+`graybag.in` had no A record. The finding was right; the inference was not. I filed it as a DNS
+job for Andy at the registrar — point the apex at Netlify, add the custom domain. Andy:
+*"graybag.in was never a plan; I only own graybag.com."*
+
+**A missing A record has two causes that look identical from outside: misconfigured, or not
+yours.** I considered one. The tell was available and unexamined — nothing in the repository
+recorded ever buying `graybag.in`, while `graybag.com` appears throughout the legal documents as
+the contact domain (`info@graybag.com`, `support@graybag.com`). The email domain and the web
+domain disagreeing was the evidence, and it had been sitting in the policy files the whole time.
+
+Related, and caught only because it was checked: `graybag.com/support` returns **404** while the
+apex returns 200. A Support URL that 404s is rejected by Apple and useless to a parent, so both
+store URLs point at the apex until `E17-66` builds the page.
+
+## Writing a tag's name in prose re-applies the tag (2026-08-28)
+
+`build-backlog.mjs` matches `(owner:andy)` anywhere on a task line. Closing `E17-60` with the
+sentence *"so `(owner:andy)` is dropped"* put the literal string back on the line, so the task was
+re-tagged as Andy's and `sync-state.mjs` correctly refused to close it. The guard was working; the
+prose was the bug. Say "the owner tag is dropped", never the tag itself.
