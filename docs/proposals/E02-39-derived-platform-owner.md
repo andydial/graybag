@@ -1,6 +1,6 @@
 ---
 title: "E02-39 — one owner account, derived rather than enumerated"
-status: "Proposed 2026-08-28 by the web thread. Needs a migration number, and Andy's yes."
+status: "**Approved by Andy 2026-08-28**, boundary included. The DDL at the end is the mobile thread's to land. Blocked behind `E01-31` — migrations were reaching production not at all."
 ---
 
 # One owner, derived
@@ -169,3 +169,212 @@ each is a widening.
   migration resolves it to the id at apply time and fails loudly if the account is missing.
 - **Andy's yes**, particularly on "owner derives permissions, never relationships" — that is the
   line that decides whether this is a convenience or a hole.
+
+---
+
+# The DDL, for the mobile thread
+
+Approved as designed, boundary included. This is the whole database change.
+
+```sql
+-- =============================================================================
+-- E02-39. One owner, derived.
+--
+-- The short-circuit lives in auth_has_permission, the single function every auth_can* already
+-- resolves through.
+--
+-- It does NOT go in auth_can_reach_recipient, auth_can_manage_recipient or
+-- auth_can_order_for_recipient. Those answer whether a live guardian_link exists — a relationship
+-- a parent created — not whether a permission is held. Extending ownership into them would make
+-- one account the implicit guardian of every child, reading every allergy note and free-text
+-- medical detail on the one table whose whole design is that access follows a link somebody
+-- actually made. Andy, approving: "convenience is not a lawful basis."
+--
+-- Owner derives PERMISSIONS, never RELATIONSHIPS.
+-- =============================================================================
+
+create table platform_owner (
+  -- At most one row, at the storage layer rather than by convention: the primary key admits one
+  -- value and the check admits one value.
+  only_one  boolean primary key default true check (only_one),
+  user_id   uuid        not null references app_user(id) on delete restrict,
+  reason    text        not null,   -- ownership cannot move without a stated why
+  set_by    uuid        references app_user(id) on delete restrict,
+  set_at    timestamptz not null default now()
+);
+
+comment on table platform_owner is
+  'E02-39. The single account for which auth_has_permission returns true unconditionally. Its own table rather than a platform_config key: config is editable by anyone holding config.platform_edit, so an owner stored there would be a permission that grants itself everything. No write policy — ownership moves only by migration or service_role.';
+
+-- Append-only, because difficulty is not visibility.
+create table platform_owner_history (
+  id           bigint generated always as identity primary key,
+  old_user_id  uuid references app_user(id) on delete restrict,
+  new_user_id  uuid references app_user(id) on delete restrict,
+  reason       text not null,
+  changed_by   uuid references app_user(id) on delete restrict,
+  changed_at   timestamptz not null default now()
+);
+
+create function platform_owner_record_change() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into platform_owner_history (old_user_id, new_user_id, reason, changed_by)
+  values (
+    case when tg_op = 'INSERT' then null else old.user_id end,
+    case when tg_op = 'DELETE' then null else new.user_id end,
+    case when tg_op = 'DELETE' then 'ownership removed' else new.reason end,
+    case when tg_op = 'DELETE' then null else new.set_by end
+  );
+  return null;
+end;
+$$;
+
+create trigger platform_owner_history_trg
+  after insert or update or delete on platform_owner
+  for each row execute function platform_owner_record_change();
+
+alter table platform_owner         enable row level security;
+alter table platform_owner_history enable row level security;
+
+-- Readable, so the client can render for the owner at all. Writable by nobody.
+create policy platform_owner_read on platform_owner
+  for select to authenticated using (auth_is_back_office());
+create policy platform_owner_history_read on platform_owner_history
+  for select to authenticated using (auth_can_platform('audit.view'));
+
+-- ── the short-circuit ────────────────────────────────────────────────────────────────────────
+-- One boolean OR in front of the existing query, which is otherwise unchanged. The owner is
+-- subject to is_disabled and deleted_at exactly as a grant holder is: no account that cannot be
+-- switched off.
+create or replace function auth_has_permission(
+  p_user uuid, p_permission text, p_scope_type scope_type, p_scope_id uuid
+) returns boolean
+language sql stable security definer set search_path = public as $$
+  select
+       exists (select 1
+                 from platform_owner o
+                 join app_user u on u.id = o.user_id
+                where o.user_id     = p_user
+                  and u.is_disabled = false
+                  and u.deleted_at  is null)
+    or exists (
+      select 1
+        from permission_grant g
+        join app_user u on u.id = g.user_id
+       where g.user_id         = p_user
+         and g.permission_code = p_permission
+         and g.revoked_at is null
+         and (g.expires_at is null or g.expires_at > now())
+         and u.is_disabled = false
+         and u.deleted_at is null
+         and (
+              g.scope_type = 'platform'
+           or (g.scope_type = p_scope_type and g.scope_id = p_scope_id)
+           or (g.scope_type = 'city'    and p_scope_type = 'kitchen'
+               and exists (select 1 from kitchen k where k.id = p_scope_id and k.city_id    = g.scope_id))
+           or (g.scope_type = 'city'    and p_scope_type = 'school'
+               and exists (select 1 from school  s where s.id = p_scope_id and s.city_id    = g.scope_id))
+           or (g.scope_type = 'kitchen' and p_scope_type = 'school'
+               and exists (select 1 from school  s where s.id = p_scope_id and s.kitchen_id = g.scope_id))
+         )
+    );
+$$;
+
+-- `auth_has_any_grant` and `auth_is_back_office` do not route through the function above and are
+-- used to widen reference-data reads. Without the owner in them, the owner would hold every
+-- permission and still fail them — a strange partial experience rather than a safe one.
+create or replace function auth_is_owner() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1
+                   from platform_owner o
+                   join app_user u on u.id = o.user_id
+                  where o.user_id     = (select auth.uid())
+                    and u.is_disabled = false
+                    and u.deleted_at  is null);
+$$;
+
+grant execute on function auth_is_owner() to authenticated;
+
+create or replace function auth_is_back_office() returns boolean
+language sql stable security definer set search_path = public as $$
+  select auth_is_owner() or exists (
+    select 1 from permission_grant g join app_user u on u.id = g.user_id
+     where g.user_id = (select auth.uid())
+       and g.revoked_at is null
+       and (g.expires_at is null or g.expires_at > now())
+       and u.is_disabled = false
+       and u.deleted_at is null
+  );
+$$;
+
+create or replace function auth_has_any_grant(p_permission text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select auth_is_owner() or exists (
+    select 1 from permission_grant g join app_user u on u.id = g.user_id
+     where g.user_id         = (select auth.uid())
+       and g.permission_code = p_permission
+       and g.revoked_at is null
+       and (g.expires_at is null or g.expires_at > now())
+       and u.is_disabled = false
+       and u.deleted_at is null
+  );
+$$;
+
+-- ── who ──────────────────────────────────────────────────────────────────────────────────────
+-- Resolved from the email at apply time and loud if the account is missing, so no address is
+-- stored in the table and a typo cannot silently install nobody.
+do $$
+declare v_user uuid;
+begin
+  select id into v_user from app_user where email = 'anuragdial@gmail.com' and deleted_at is null;
+  if v_user is null then
+    raise exception 'E02-39: no live app_user for anuragdial@gmail.com — refusing to install an owner';
+  end if;
+
+  insert into platform_owner (user_id, reason, set_by)
+  values (v_user, 'Founder and sole operator. Approved 2026-08-28.', v_user)
+  on conflict (only_one) do update
+    set user_id = excluded.user_id, reason = excluded.reason,
+        set_by = excluded.set_by, set_at = now();
+end $$;
+```
+
+## The pgTAP the migration should bring with it
+
+Guard 2 is not optional and belongs beside the DDL rather than in a follow-up:
+
+```sql
+-- The owner is never a seeded persona. Fixture users carry `-7e57-` ("test") in their id.
+select ok(
+  (select user_id::text !~ '-7e57-' from platform_owner),
+  'the platform owner is not a seeded test persona'
+);
+
+-- Exactly one.
+select is((select count(*)::int from platform_owner), 1, 'exactly one owner row');
+
+-- The short-circuit works — proved with a THROWAWAY owner, inside a transaction that rolls back,
+-- so no test ever runs as the real one.
+savepoint owner_probe;
+  insert into platform_owner (only_one, user_id, reason)
+  values (true, '<a fixture user with no grants>', 'probe')
+  on conflict (only_one) do update set user_id = excluded.user_id;
+  -- ... assert a permission check that would otherwise deny now passes ...
+rollback to savepoint owner_probe;
+```
+
+Every other authorisation assertion keeps running as a scoped persona. The short-circuit is not a
+mode the suite runs in.
+
+## Sequencing
+
+Blocked behind **`E01-31`**, which fixed the production deploy workflow — it had been failing its
+own credential guard since 2026-08-25 because a required secret was never created, *and* would then
+have authenticated with staging's password. This migration lands behind that, with `0068`–`0075`
+and `E02-36`.
+
+The **client half is built and merged already**, and is inert until this lands: `auth_is_owner()`
+is called through a wrapper that treats "function does not exist" as `false`. That is the `E02-36`
+sequencing lesson applied in advance — the client works before and after, so neither half can break
+the other.
