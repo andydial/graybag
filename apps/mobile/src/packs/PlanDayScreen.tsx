@@ -50,6 +50,7 @@ export function PlanDayScreen({
   itemsPerMeal = 2,
   requiredCategoryId = '',
   requiredCategoryLabel = 'a drink',
+  allergensUnavailable = false,
   onToggleDish,
   onUseDay,
   testID = PLAN_DAY_TEST_ID,
@@ -63,6 +64,14 @@ export function PlanDayScreen({
   itemsPerMeal?: number;
   requiredCategoryId?: string;
   requiredCategoryLabel?: string;
+  /**
+   * The child's allergens could not be read, so **no dish below has been checked** — `E21-51`.
+   *
+   * Separate from `clashes` being empty, and that separation is the safety property. An empty
+   * `clashes` means *we looked and found nothing*; this flag means *we could not look*. Without
+   * it the two are indistinguishable on screen, and "we did not check" renders as "safe".
+   */
+  allergensUnavailable?: boolean;
   onToggleDish?: ((dishId: string) => void) | undefined;
   onUseDay?: (() => void) | undefined;
   testID?: string;
@@ -104,6 +113,16 @@ export function PlanDayScreen({
             your pack covers.
           </Text>
         </View>
+
+        {allergensUnavailable ? (
+          <View style={styles.pad}>
+            <Text style={styles.unavailable} testID={`${testID}-allergens-unavailable`}>
+              Allergy warnings aren’t available right now — we couldn’t load
+              {childName === '' ? ' this child’s' : ` ${childName}’s`} allergen list, so no dish
+              below has been checked.
+            </Text>
+          </View>
+        ) : null}
 
         {byCategory.map(([categoryId, group]) => (
           <View key={categoryId}>
@@ -207,6 +226,14 @@ const styles = StyleSheet.create({
   clash: {
     fontSize: scale.caption.size, lineHeight: scale.caption.lineHeight, color: text.danger,
     marginTop: space[1],
+  },
+  // The same amber notice `MenuScreen` uses for this exact sentence, deliberately rather than a
+  // quiet grey line. A parent who cannot be warned needs to notice that they cannot be warned,
+  // and the two screens saying it differently would read as two different severities.
+  unavailable: {
+    fontSize: scale.caption.size, lineHeight: scale.caption.lineHeight,
+    color: text.warning, backgroundColor: bg.surfaceWarning,
+    padding: space[3], borderRadius: radius.md, marginBottom: space[2],
   },
   footer: {
     paddingHorizontal: layout.gutter, paddingTop: space[3], paddingBottom: space[4],

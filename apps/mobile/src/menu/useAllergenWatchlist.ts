@@ -36,6 +36,83 @@ import { useOrderTarget } from '../session/OrderTargetContext';
  */
 export function useAllergenWatchlist(): AllergenWatchlist {
   const { target } = useOrderTarget();
+  const labels = useAllergenLabels();
+
+  if (target === null) return { status: 'none' };
+  return buildWatchlist(target.allergenIds, labels);
+}
+
+/**
+ * The same watchlist for a recipient the caller names — `E21-51`.
+ *
+ * ## Why this exists beside `useAllergenWatchlist` rather than replacing it
+ *
+ * `useAllergenWatchlist` answers for whoever is in `OrderTargetContext`, which is right for the
+ * menu and the cart: one child is selected and everything on screen is for them. **The planner
+ * is not like that.** A parent plans several days at once and picks a child *per day*, so there
+ * is no single order target to read, and the day being edited is the only thing that says whose
+ * allergies matter. Asking the context would warn about the wrong child, which is worse than not
+ * warning at all — it is a warning that is confidently about somebody else.
+ *
+ * Both go through `buildWatchlist` and both are read by `clashingAllergens`, so the two screens
+ * cannot come to different conclusions about the same dish.
+ *
+ * ## Loading counts as `unavailable`, deliberately
+ *
+ * The ids are fetched per recipient (tier S, on demand — the list read does not carry them), so
+ * there is a window where we do not yet know. That window renders as **`unavailable`**, not as
+ * `ready` with nothing: the alternative shows a dish with no warning on it while the answer is
+ * still in flight, which reads as *checked and safe*. `MenuScreen` already behaves this way for
+ * the label fetch, and this is the same trade in the same direction.
+ *
+ * ## The answer is stored WITH the recipient it is about
+ *
+ * Not as a bare list reset by an effect. An effect runs *after* render, so on the frame where
+ * the day changes to a different child the hook would still be holding the previous child's
+ * answer — and would hand it to the screen. One frame is enough to paint a dish as unflagged
+ * for a child whose allergies have not been read.
+ *
+ * Keyed, the stale answer is unrepresentable rather than merely short-lived: a result belonging
+ * to a different recipient does not match and reads as `unavailable`. `does not carry one
+ * child's clean result over to the next child` fails against the effect-reset version.
+ */
+export function useRecipientWatchlist(recipientId: string): AllergenWatchlist {
+  const labels = useAllergenLabels();
+  const [answer, setAnswer] = useState<{ recipientId: string; ids: readonly string[] } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (recipientId === '') return undefined;
+
+    let live = true;
+    api
+      .fetchRecipientAllergens(recipientId)
+      .then((ids) => {
+        if (live) setAnswer({ recipientId, ids });
+      })
+      .catch(() => {
+        // Cleared rather than left: "we cannot tell you", never "there are none". Nothing is
+        // logged — these ids are health data about a minor (non-negotiable #4).
+        if (live) setAnswer(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [recipientId]);
+
+  if (recipientId === '') return { status: 'none' };
+  // The guard that makes a stale answer impossible, not just brief.
+  const ids = answer !== null && answer.recipientId === recipientId ? answer.ids : null;
+  return buildWatchlist(ids, labels);
+}
+
+/**
+ * The allergen names, fetched once. Public menu reference data, unlike the ids.
+ *
+ * Shared by both hooks so a screen cannot end up with labels the other does not have.
+ */
+function useAllergenLabels(): Map<string, string> | null {
   const [labels, setLabels] = useState<Map<string, string> | null>(null);
 
   useEffect(() => {
@@ -56,13 +133,26 @@ export function useAllergenWatchlist(): AllergenWatchlist {
     };
   }, []);
 
-  if (target === null) return { status: 'none' };
-  if (target.allergenIds === null) return { status: 'unavailable' };
+  return labels;
+}
+
+/**
+ * Ids plus names into a watchlist, keeping the three states distinct.
+ *
+ * `null` ids and `null` labels both mean `unavailable`, and for the same reason: a flag we cannot
+ * raise and a flag we cannot name are equally unactionable. Only a real array with real labels
+ * becomes `ready`.
+ */
+function buildWatchlist(
+  allergenIds: readonly string[] | null,
+  labels: Map<string, string> | null,
+): AllergenWatchlist {
+  if (allergenIds === null) return { status: 'unavailable' };
   if (labels === null) return { status: 'unavailable' };
 
   return {
     status: 'ready',
-    avoid: target.allergenIds.map((allergenId) => ({
+    avoid: allergenIds.map((allergenId) => ({
       allergenId,
       // An id we hold but cannot name is still shown as a flag — the parent needs to know the
       // dish clashes even if we cannot say with what. Silence would be the wrong trade.

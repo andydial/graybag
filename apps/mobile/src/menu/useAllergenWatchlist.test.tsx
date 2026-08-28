@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { api } from '@graybag/shared';
 
-import { useAllergenWatchlist } from './useAllergenWatchlist';
+import { useAllergenWatchlist, useRecipientWatchlist } from './useAllergenWatchlist';
 import { OrderTargetProvider } from '../session/OrderTargetContext';
 import type { OrderTarget } from '../session/OrderTargetContext';
 
@@ -122,5 +122,128 @@ describe('useAllergenWatchlist', () => {
         'ready|an allergen you told us about',
       ),
     );
+  });
+});
+
+/**
+ * `useRecipientWatchlist` — `E21-51`.
+ *
+ * The planner picks a child per day, so it cannot ask `OrderTargetContext` whose allergies
+ * matter. This hook answers for a recipient the caller names, and it has to keep the same three
+ * states, because the planner is the screen where losing the distinction costs most: a parent
+ * chooses food for several days at once, so one silent "unchecked reads as safe" multiplies.
+ */
+function RecipientProbe({ recipientId }: { recipientId: string }) {
+  const watchlist = useRecipientWatchlist(recipientId);
+  const detail =
+    watchlist.status === 'ready' ? watchlist.avoid.map((a) => a.label).join(',') : '';
+  return <Text testID="watchlist">{`${watchlist.status}|${detail}`}</Text>;
+}
+
+describe('useRecipientWatchlist', () => {
+  let allergenRowsFail = false;
+  let linked = true;
+  let allergenRowsHang = false;
+
+  beforeEach(() => {
+    allergenRowsFail = false;
+    linked = true;
+    allergenRowsHang = false;
+    const builder = (data: unknown, error: unknown = null) => {
+      const b: Record<string, unknown> = {};
+      b.eq = () => b;
+      b.is = () => b;
+      b.order = () => b;
+      b.then = (onfulfilled: (r: { data: unknown; error: unknown }) => unknown) =>
+        Promise.resolve({ data, error }).then(onfulfilled);
+      return b;
+    };
+
+    /** A read that never settles — the only way to observe the window before an answer. */
+    const hanging = () => {
+      const b: Record<string, unknown> = {};
+      b.eq = () => b;
+      b.is = () => b;
+      b.order = () => b;
+      b.then = () => new Promise(() => {});
+      return b;
+    };
+
+    api.setApiTransport({
+      from: (table: string) => ({
+        select: () => {
+          if (table === 'allergen') {
+            return builder([
+              { id: 'a1', code: 'peanut', display_name: 'Peanuts', is_major: true },
+              { id: 'a2', code: 'milk', display_name: 'Milk', is_major: true },
+            ]);
+          }
+          if (table === 'guardian_link') {
+            return builder(linked ? [{ recipient_id: 'r-9' }] : []);
+          }
+          if (table === 'recipient_allergen') {
+            if (allergenRowsHang) return hanging();
+            return allergenRowsFail
+              ? builder(null, { message: 'network' })
+              : builder([{ allergen_id: 'a1' }]);
+          }
+          return builder([]);
+        },
+      }),
+      functions: { invoke: jest.fn() },
+      auth: {
+        getSession: () =>
+          Promise.resolve({ data: { session: { user: { id: 'u1' } } }, error: null }),
+      },
+    } as never);
+  });
+
+  afterEach(() => api.setApiTransport(null as never));
+
+  it('is "none" with no recipient — the planner has no day open', async () => {
+    await render(<RecipientProbe recipientId="" />);
+    expect(screen.getByTestId('watchlist')).toHaveTextContent('none|');
+  });
+
+  it('is "unavailable" BEFORE the read resolves, never "ready" with nothing', async () => {
+    // The window that would otherwise render a dish with no warning while the answer is still in
+    // flight, which a parent reads as "checked, and safe".
+    allergenRowsHang = true;
+    await render(<RecipientProbe recipientId="r-9" />);
+    expect(screen.getByTestId('watchlist')).toHaveTextContent('unavailable|');
+  });
+
+  it('names the allergens once they arrive', async () => {
+    await render(<RecipientProbe recipientId="r-9" />);
+    await waitFor(() => expect(screen.getByTestId('watchlist')).toHaveTextContent('ready|Peanuts'));
+  });
+
+  /** The safety property. A failed read is "we cannot tell you", never "there are none". */
+  it('is "unavailable" when the allergen read fails', async () => {
+    allergenRowsFail = true;
+    await render(<RecipientProbe recipientId="r-9" />);
+    await waitFor(() => expect(screen.getByTestId('watchlist')).toHaveTextContent('unavailable|'));
+    expect(screen.getByTestId('watchlist')).not.toHaveTextContent('ready');
+  });
+
+  it('is "ready" and empty when the child genuinely has none', async () => {
+    linked = false; // no guardian link → the function answers `[]`, which is a real answer
+    await render(<RecipientProbe recipientId="r-9" />);
+    await waitFor(() => expect(screen.getByTestId('watchlist')).toHaveTextContent('ready|'));
+  });
+
+  it('does not carry one child’s clean result over to the next child', async () => {
+    // Two days, two children. Without the reset the second child inherits the first child's
+    // answer for as long as the fetch takes — a warning, or the absence of one, about the
+    // wrong person.
+    const view = await render(<RecipientProbe recipientId="r-9" />);
+    await waitFor(() => expect(screen.getByTestId('watchlist')).toHaveTextContent('ready|Peanuts'));
+
+    // The second child's read is left in flight, which is the only window in which a stale
+    // answer is observable. Holding the previous child's result keyed to the previous child,
+    // the hook cannot serve it here; resetting in an effect, it serves it for a frame.
+    allergenRowsHang = true;
+    await view.rerender(<RecipientProbe recipientId="r-other" />);
+    expect(screen.getByTestId('watchlist')).toHaveTextContent('unavailable|');
   });
 });
