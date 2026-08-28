@@ -361,13 +361,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/28</span>
+          <span class="meter-num">0/30</span>
         </div>
       </header>
       <p class="summary">Repo, two real environments, secrets management, and the test harness that every later task depends on.</p>
       <p class="deps">Depends on <code>E00</code></p>
       <details>
-        <summary>Context &amp; 28 tasks</summary>
+        <summary>Context &amp; 30 tasks</summary>
         <div class="context"><h4>Why early</h4>
 <p>Everything after this inherits the quality bar set here. Getting tests and environments right on day one is what stops &quot;manually swapping Razorpay keys&quot; happening again.</p></div>
         <ul class="tasks">
@@ -594,6 +594,22 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Two auth settings are wrong on staging, and the check has been red on every pull request.</strong> <code>check-supabase-config.mjs</code> fails the *Supabase project config (staging)* job with <code>2 setting(s) wrong</code>, one of them <code>uri_allow_list = &quot;&quot;</code> — empty, which permits only the Site URL, so no deep link or OAuth callback can return to the staging app. These are dashboard settings, so they cannot be fixed in a pull request; this is the staging twin of <code>E01-29</code>. <strong>The reason it is worth a task rather than a shrug</strong> is what a permanently red check does to the other checks beside it: every PR now merges with a failure showing, and the habit that builds is reading red as normal. That is the same erosion <code>E15-23</code> was written about from the other direction — a check that says nothing, and a check nobody reads, fail identically. Either fix the two settings or, if staging deliberately does not need them, make the job skip with a stated reason so the row goes green honestly</span>
+      </li>
+      <li class="task" data-id="E01-31" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-31"></button>
+        <code class="tid">E01-31</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Migrations have not reached production since 25 August, and the deploy workflow was failing its own guard.</strong> Production is at <code>0067</code>; the tree is at <code>0075</code>. Eight migrations behind, including the whole meal-pack schema — so the packs admin screen shipped correct code against tables that do not exist there. <strong>Two faults, and fixing only the obvious one would have failed a step later with a worse message.</strong> First, <code>Deploy to production</code> required a repository secret <code>SUPABASE_PROJECT_REF</code> that <strong>was never created</strong>, so its credential guard exited 1 on every run; the last run was 2026-08-25 and it failed there. Second, it also read <code>SUPABASE_DB_PASSWORD</code> — which <code>deploy-staging.yml</code> uses, and which therefore holds <strong>staging&#39;s</strong> password. Adding the missing ref alone would have linked production and then failed to authenticate. The ref is now hardcoded exactly as staging hardcodes its own (a project ref is not a secret; it is in every URL, and the comment claiming &quot;the project does not exist yet&quot; was two months stale), and the password moves to <code>PRODUCTION_SUPABASE_DB_PASSWORD</code> with the guard naming it and saying explicitly that it differs from staging&#39;s. <strong>The wider fault is that nothing noticed</strong>: <code>[promote]</code> drives Netlify, which ships the web build, while migrations ride a <code>v*</code> tag on a separate workflow — so the app and the schema drifted apart for three days with every check green. <code>E01-32</code> puts that on the ops heartbeat</span>
+      </li>
+      <li class="task" data-id="E01-32" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E01-32"></button>
+        <code class="tid">E01-32</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The heartbeat should compare the applied migration to the tree.</strong> <code>E01-31</code> was invisible for three days because nothing compares them: the web deploy and the database deploy are different mechanisms on different triggers, and each was individually healthy. The daily digest already reads production; it should also read <code>max(version)</code> from <code>supabase_migrations.schema_migrations</code> and say so when it is behind the newest file in <code>supabase/migrations/</code>. One line in an email nobody has to remember to check. Being behind is often legitimate — a migration lands minutes before a deploy — so it wants a threshold rather than a strict equality: behind by more than one, or behind for more than a day</span>
       </li></ul>
       </details>
     </article>

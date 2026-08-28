@@ -76,7 +76,15 @@ jobs:
 
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # PRODUCTION's password, under its own name — `E01-31`.
+      #
+      # This read `secrets.SUPABASE_DB_PASSWORD`, which deploy-staging.yml also uses and which
+      # therefore holds STAGING's password. Adding the missing project ref alone would not have
+      # fixed this workflow: it would have linked production and then authenticated with the wrong
+      # database's password, failing one step later with a confusing error.
+      SUPABASE_DB_PASSWORD: ${{ secrets.PRODUCTION_SUPABASE_DB_PASSWORD }}
+      # Hardcoded, exactly as staging hardcodes its own. See the guard below.
+      SUPABASE_PROJECT_REF: bdamkuugbqjajbndjoxn
 
     steps:
       - uses: actions/checkout@v4
@@ -95,22 +103,28 @@ jobs:
       - name: Smoke test
         run: npm run smoke
 
-      # Production keeps its ref in a secret because the project does not exist yet and
-      # nobody has decided what it is called. The guard below is what stops the empty-string
-      # failure mode that cost staging three days — see deploy-staging.yml for the story.
+      # The ref used to come from `secrets.SUPABASE_PROJECT_REF`, on the grounds that "the project
+      # does not exist yet and nobody has decided what it is called". It exists, it takes real
+      # orders, and that secret was never created — so this workflow failed its own credential
+      # guard on every run since 2026-08-25 and production sat eight migrations behind while the
+      # web app kept shipping. A project ref is not a secret; it is in every URL. Hardcoding it
+      # removes a failure mode and matches what staging already does.
       - name: Check the deploy credentials are present
         run: |
           missing=""
           [ -n "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ] || missing="$missing SUPABASE_ACCESS_TOKEN"
-          [ -n "${{ secrets.SUPABASE_DB_PASSWORD }}" ]  || missing="$missing SUPABASE_DB_PASSWORD"
-          [ -n "${{ secrets.SUPABASE_PROJECT_REF }}" ]  || missing="$missing SUPABASE_PROJECT_REF"
+          [ -n "${{ secrets.PRODUCTION_SUPABASE_DB_PASSWORD }}" ] || missing="$missing PRODUCTION_SUPABASE_DB_PASSWORD"
           if [ -n "$missing" ]; then
-            echo "::error::Cannot deploy to PRODUCTION — missing:$missing"
+            echo "::error::Cannot deploy to PRODUCTION — missing:$missing."
+            echo "::error::These are repository secrets. PRODUCTION_SUPABASE_DB_PASSWORD is the"
+            echo "::error::production database password and is DIFFERENT from SUPABASE_DB_PASSWORD,"
+            echo "::error::which staging uses. Setting the wrong one links production and fails to"
+            echo "::error::authenticate, one step later, with a less obvious message."
             exit 1
           fi
 
       - name: Link the production project
-        run: npx supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+        run: npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
       # Printed before anything is applied, so the approver's decision and the actual
       # change are both in one log.
