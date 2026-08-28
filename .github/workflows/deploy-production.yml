@@ -40,7 +40,8 @@ jobs:
   # sitting unapplied while the deploy looked attempted.
   #
   # Note `workflow_dispatch` is kept, because it is legitimately useful — dispatched
-  # against a TAG (`--ref v1.2.3`), which the branch policy admits.
+  # against a TAG (`--ref v2026.08.28`), which the branch policy admits. Tags are dated
+  # rather than semver so they are never mistaken for the mobile app's version (`DP7`).
   preflight:
     name: Check the ref can deploy
     runs-on: ubuntu-latest
@@ -55,8 +56,8 @@ jobs:
           echo "A run from a branch is rejected at the environment gate before any step"
           echo "runs, which is why such a run shows no logs and no steps."
           echo ""
-          echo "To deploy:      git tag v1.2.3 && git push origin v1.2.3"
-          echo "To re-run one:  gh workflow run deploy-production.yml --ref v1.2.3"
+          echo "To deploy:      git tag v2026.08.28 && git push origin v2026.08.28   # DP7: dated, not semver"
+          echo "To re-run one:  gh workflow run deploy-production.yml --ref v2026.08.28"
           exit 1
 
       - name: Ref accepted
