@@ -3434,3 +3434,52 @@ gh run list --workflow "Deploy to production" --json databaseId,conclusion --lim
 ```
 
 Same class as the CI misdiagnosis on 2026-08-27 — check the premise before applying the remedy.
+
+## Two independent faults behind one symptom (2026-08-28)
+
+The production deploy had a ref problem (`E17-63`) *and* a credentials problem (`E17-64`), and the
+ref problem masked the credentials one completely: the run died at the environment gate, so it
+never reached the step that would have reported the missing `SUPABASE_PROJECT_REF`.
+
+Having fixed the ref, the tempting next move was to cut the tag and hand it to Andy to approve.
+That would have burned his approval on a run that fails four steps in. Checking
+`gh api repos/OWNER/REPO/environments/production/secrets` **before** asking for the approval cost
+one command and found it empty — no environment-scoped secrets at all, on either environment.
+
+Two general points:
+
+- **When you fix the first cause of a failure, look for the second before declaring it fixed.**
+  A fault that stops execution early hides every fault after it. The question to ask is not "is
+  this fixed?" but "what did this failure prevent from running, and has *that* ever run?"
+- **Repo-level secrets shared between environments quietly erase the distinction the environment
+  gate exists to create.** `SUPABASE_DB_PASSWORD` was unscoped and therefore staging's, because
+  staging deploys use the same name and succeed. Production would have authenticated with it.
+
+## A `db push` that hangs has usually already finished (2026-08-28)
+
+`supabase db push --linked --include-all` against production produced no output and was killed at
+a 10-minute timeout. CLAUDE.md #10 records `0060` being *recorded but not applied* because a
+`db push` was killed part-way, so the instinct is that the same thing has happened.
+
+It had not. All eight migrations were applied **and** recorded; the process hung after the work
+was done. Re-running blind would have been harmless this time and will not always be.
+
+**Verify in both directions, and do not let the ledger stand as evidence:**
+
+```sql
+select count(*), max(version) from supabase_migrations.schema_migrations;   -- the claim
+-- then, separately, that the objects those migrations create actually exist:
+select to_regprocedure('public.spend_meal_pack_meals(uuid,integer)') is not null;
+select exists(select 1 from pg_constraint where conname='order_group_payable_arithmetic');
+```
+
+Then run the domain's own invariants against real data — here `assert_ledger_integrity()` (5
+checks, 0 failures) and `check_meal_pack_ledger_invariant()` (both legs `0 = 0`). A ledger row is
+a claim about the database, not evidence of it, and that is the whole reason #10 exists.
+
+Worth doing before the push, too: `--dry-run` printed exactly the eight files and confirmed no
+seeds and no roles were in scope, so the blast radius was known in advance. And the three CHECK
+constraints in `0070` were run as `SELECT count(*) FILTER (WHERE NOT predicate)` against
+production first — `ALTER TABLE ... ADD CONSTRAINT CHECK` validates existing rows, so a migration
+that is inert on an empty staging table can still fail on live data. Six order groups, none
+failing.
