@@ -38,7 +38,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Environments and secrets](decisions/environments.md) | `EN1`–`EN11` | Test/live key isolation, load-time assertions, `secrets:set`, the client `.env` pattern, OTA |
 | [CI](decisions/ci.md) | `CI1`–`CI4` | Smoke test only on PR, integration on `supabase/**` |
 | [Seed data](decisions/seed-data.md) | `SD1`–`SD5` | Fixed UUIDs, no orders/money, fixtures chosen for untestable states |
-| [Deployment](decisions/deployment.md) | `DP1`–`DP7` | Environment approval gate, branch policies, the ungated ref guard, dated release tags, the repo is public |
+| [Deployment](decisions/deployment.md) | `DP1`–`DP9` | Environment approval gate, branch policies, the ungated ref guard, dated release tags, the repo is public, deploy credentials |
 | [Branch protection](decisions/branch-protection.md) | `BP1`–`BP4` | No bypass actors, PR required, strict status checks |
 | [Scope confirmations](decisions/scope-confirmations.md) | `SC1`–`SC3` | Mohali only; menu prices GST-exclusive; Amity launches with zero migration |
 | [Authorization fixes](decisions/authorization-fixes.md) | `AZ8`–`AZ22` | Fulfilment scope binding, public catalogue reads for signed-in users, and the one derived owner |

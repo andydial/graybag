@@ -4347,13 +4347,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/60</span>
+          <span class="meter-num">0/61</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 60 tasks</summary>
+        <summary>Context &amp; 61 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4835,6 +4835,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Sort the &quot;Needs you&quot; list by what it costs, not by school order.</strong> It currently lists every blocking school in read order, then dishes, then non-blocking gaps. Right for three schools; at thirty, a school that took ₹40,000 last month and one that has never traded read identically. Needs the revenue join Reports already computes</span>
+      </li>
+      <li class="task" data-id="E10-70" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-70"></button>
+        <code class="tid">E10-70</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>/orders</code> had no filters, no export, and was not in the a11y sweep.</strong> The prototype&#39;s Orders carries a school filter, a status filter and an Export CSV; this screen had none of the three, which is readable at three schools and a wall at ten — and the question somebody actually arrives with is *&quot;what did Amity take today&quot;* or *&quot;which orders were cancelled&quot;*. Chips are <strong>built from the day&#39;s own orders</strong>, so a school with nothing today does not offer a filter whose only possible result is an empty page, and each dimension counts against the other filter in force so the numbers match what pressing it would show. Filters live in the <strong>URL</strong>, because a filtered day is a thing somebody sends to somebody else and Refresh is this page&#39;s most-used button. <strong>Filtering is client-side</strong>: the day is already in memory, and a round trip to narrow a list you are holding is a round trip on a school-gate connection for no new information. The CSV is built from the rows on screen, filters included — Andy endorsed that on Reports and the reason is stronger here, since a second read would export a different set from the one being looked at. <code>&quot;Nobody ordered on this day&quot;</code> and <code>&quot;No orders match these filters&quot;</code> are now different empty states with different actions. Also <strong>added to <code>check:a11y</code></strong>, which had never audited it: absent for the same reason <code>parity-shot</code> could not photograph it, and that pairing is how it reached production unstyled. Deliberately <strong>not</strong> imported from the prototype: <code>Mark all delivered</code>, and grouping by class or dish. Those are <code>/kitchen</code>&#39;s, and the prototype has no kitchen screen to put them on — duplicating a write path onto the money view is what <code>D3</code> and <code>E10-08</code> argue against</span>
       </li></ul>
       </details>
     </article>
