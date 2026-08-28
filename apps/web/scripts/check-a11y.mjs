@@ -62,6 +62,15 @@ const PAGES = [
   '/admin/config.html?state=demo',
   '/admin/schools.html?state=demo',
   '/kitchen/sheet.html?state=default',
+  /*
+   * `E10-65` gave `/orders` a demo fixture, and this list is the second thing that was missing.
+   *
+   * The route was absent from here for the same reason `parity-shot` could not photograph it: with
+   * no fixture it redirected to `/signin`, so adding it would have audited the sign-in page and
+   * reported a pass. That is exactly how it reached production rendering as raw HTML. It carries
+   * the filter chips, a money table and two empty states, none of which had ever been audited.
+   */
+  '/orders.html?state=demo',
   '/admin/dishes.html?state=demo',
   '/admin/menus.html?state=demo',
   '/admin/packs.html?state=demo',

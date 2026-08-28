@@ -168,3 +168,45 @@ export function downloadCsv(content: string, filename: string): void {
   // Released on the next tick — revoking synchronously cancels the download in Safari.
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/**
+ * A day's orders, as the rows on screen — `E10-70`.
+ *
+ * **Built from what is displayed, not from a second query.** Andy endorsed that call on Reports
+ * (*"building the CSV from the rows already on screen rather than a second query"*), and the
+ * reason is stronger here: this list is filtered by school and status in the browser, so a second
+ * read would export a different set from the one somebody is looking at — a file that silently
+ * disagrees with the screen it came from.
+ *
+ * Money is a plain decimal with no symbol and no separators, for the same reason the revenue
+ * export is: a spreadsheet reads `1234.50` as a number and `₹1,234.50` as text, and a column of
+ * text is a column nobody can sum.
+ */
+export function ordersToCsv(
+  orders: readonly api.AdminOrder[],
+  options: { serviceDate: string; schoolName?: string | null; status?: string | null },
+): string {
+  const rows: string[] = [];
+
+  // A saved file has to say what it covers, or it is a mystery in six weeks' time.
+  rows.push(`GrayBag orders,${csvField(options.serviceDate)}`);
+  if (options.schoolName) rows.push(`School,${csvField(options.schoolName)}`);
+  if (options.status) rows.push(`Status,${csvField(options.status)}`);
+  rows.push('');
+
+  rows.push([
+    'Order', 'School', 'Child', 'Class', 'Section', 'Break', 'Status',
+    'Subtotal', 'Tax', 'Discount', 'Total', 'Refunded',
+  ].map(csvField).join(','));
+
+  for (const o of orders) {
+    rows.push([
+      o.orderRef, o.schoolName, o.recipientName, o.classLabel, o.sectionLabel, o.breakLabel,
+      o.status,
+      rupees(o.subtotalPaise), rupees(o.taxPaise), rupees(o.discountPaise),
+      rupees(o.totalPaise), rupees(o.refundedPaise),
+    ].map(csvField).join(','));
+  }
+
+  return rows.join('\r\n');
+}

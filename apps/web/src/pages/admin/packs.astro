@@ -177,21 +177,36 @@ import '../../styles/backoffice.css';
 
         const live = offers.filter((o) => o.isActive).length;
         const totalSold = Object.values(sold).reduce((n, x) => n + x, 0);
-        const outstanding = offers.reduce((n, o) => n + (sold[o.id] ?? 0) * o.mealsCount, 0);
+        /*
+         * Meals **sold**, and it used to say "outstanding" — `E10-67`.
+         *
+         * `sold × mealsCount` is how many meals have been paid for. Outstanding would be that
+         * minus the ones already eaten, and subtracting them needs `meal_pack_redemption`, whose
+         * only read policy is `meal_pack_redemption_read_own` (`0068`): no back-office account can
+         * read it at all.
+         *
+         * The two numbers are identical today, because packs are dark on production and nothing
+         * has been redeemed — and they diverge on the first day of real use, in the direction that
+         * overstates a liability. A label that is accidentally correct is still the wrong label,
+         * and this one would have been read as a liability figure. `E21-63` is the fix.
+         */
+        const mealsSold = offers.reduce((n, o) => n + (sold[o.id] ?? 0) * o.mealsCount, 0);
 
         el.line.innerHTML =
           `<b>${live} live</b> · ${offers.length} offer${offers.length === 1 ? '' : 's'}` +
-          (totalSold > 0 ? ` · ${totalSold} sold · ${outstanding} meals outstanding` : '');
+          (totalSold > 0 ? ` · ${totalSold} sold · ${mealsSold} meals sold` : '');
 
         el.body.innerHTML =
           /*
            * The prototype's notice, and the sentence that matters most on this screen: a sold pack
            * is money held against food not yet served. It is the reason expiry exists.
            */
-          `<div class="notice notice--info"><b class="notice__head">Outstanding meals are money you already hold</b>` +
+          `<div class="notice notice--info"><b class="notice__head">Meals sold are money you already hold</b>` +
             `A sold pack is revenue collected and food not yet served. Expiry is what bounds it — ` +
             `every pack expires a fixed number of days after purchase, and unused meals are not ` +
-            `refundable.</div>` +
+            `refundable. <b>How many are still unspent is not shown here</b>: redemptions live on a ` +
+            `table only the pack's owner may read, so this screen can say what was sold and not ` +
+            `what is left.</div>` +
 
           `<div class="tablewrap"><table>` +
             `<thead><tr>` +

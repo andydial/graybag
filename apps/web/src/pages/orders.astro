@@ -48,7 +48,23 @@ import '../styles/backoffice.css';
         <button class="daynav__step" id="o-next" type="button" aria-label="Next day">›</button>
         <button class="btn btn--ghost btn--sm daynav__today" id="o-today" type="button" hidden>Today</button>
       </div>
+      <a slot="actions" class="btn btn--ghost" href="/kitchen/sheet">Packing sheet</a>
+      <button id="o-export" slot="actions" class="btn btn--ghost" type="button">Export CSV</button>
       <button id="o-reload" slot="actions" class="btn btn--ghost" type="button">Refresh</button>
+
+      <!--
+        The filter line, in the prototype's `.toolbar` — `E10-70`.
+
+        This screen had no filters at all. At three schools an unfiltered day is readable; the
+        moment there are ten it is a wall, and the question somebody actually arrives with is
+        "what did Amity take today" or "which orders were cancelled". The chips are rendered from
+        the day's own data, so a school with nothing on this day does not offer a filter that
+        would return an empty page.
+      -->
+      <div class="toolbar" id="o-toolbar" hidden>
+        <div class="chips" id="o-schools" role="group" aria-label="Filter by school"></div>
+        <div class="chips" id="o-states" role="group" aria-label="Filter by status"></div>
+      </div>
 
       <div class="pad">
         <div id="o-status" class="visually-hidden" role="status" aria-live="polite"></div>
@@ -64,12 +80,15 @@ import '../styles/backoffice.css';
       import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
       import { describeDate, serviceDateToday, shiftDate } from '../lib/kitchen/view.js';
       import { ORDERS_FIXTURE } from '../lib/admin/orders-fixture.js';
+      import { downloadCsv, ordersToCsv } from '../lib/admin/csv-export.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
         dateLabel: $('o-date-label'), count: $('o-count'), today: $<HTMLButtonElement>('o-today'),
         banner: $('o-banner'), summary: $('o-summary'), board: $('o-board'),
         status: $('o-status'), reload: $<HTMLButtonElement>('o-reload'),
+        toolbar: $('o-toolbar'), schools: $('o-schools'), states: $('o-states'),
+        exportCsv: $<HTMLButtonElement>('o-export'),
       };
 
       const esc = (s: string) =>
@@ -89,6 +108,93 @@ import '../styles/backoffice.css';
       let access: api.Capabilities = api.capabilities([]);
       let loading = true;
       let error: string | null = null;
+
+      /*
+       * Filters live in the URL — `E10-70`.
+       *
+       * A filtered day is a thing somebody sends to somebody else ("look at Gem today"), and a
+       * filter held only in memory makes that impossible; it also loses the view on a refresh,
+       * which is the button most used on this page. Same reasoning, and the same shape, as the
+       * dish workbench's query.
+       */
+      const params = new URLSearchParams(location.search);
+      let schoolFilter = params.get('school') ?? 'all';
+      let statusFilter = params.get('status') ?? 'all';
+
+      function syncUrl(): void {
+        const next = new URLSearchParams(location.search);
+        for (const [key, value] of [['school', schoolFilter], ['status', statusFilter]] as const) {
+          if (value === 'all') next.delete(key); else next.set(key, value);
+        }
+        const query = next.toString();
+        history.replaceState(null, '', query ? `?${query}` : location.pathname);
+      }
+
+      /** The day, narrowed to what the chips ask for. */
+      const filtered = (): api.AdminOrder[] =>
+        orders.filter((o) =>
+          (schoolFilter === 'all' || o.schoolId === schoolFilter) &&
+          (statusFilter === 'all' || o.status === statusFilter));
+
+      const filtering = () => schoolFilter !== 'all' || statusFilter !== 'all';
+
+      /*
+       * `aria-pressed` carries the selected state and `<b>` carries the count, because that is what
+       * `.bo .chip` already styles. Inventing `.chip--on` and `.chip__n` here would be a second
+       * vocabulary for a thing the design system names once — the exact failure `E10-55` existed
+       * to end.
+       */
+      function chip(group: string, value: string, label: string, current: string, count: number): string {
+        return (
+          `<button class="chip" type="button" ` +
+            `data-filter="${esc(group)}" data-value="${esc(value)}" ` +
+            `aria-pressed="${current === value}">` +
+            `${esc(label)} <b>${count}</b>` +
+          `</button>`
+        );
+      }
+
+      /**
+       * The chips, built from the day's own orders.
+       *
+       * A school with nothing today does not get a chip: offering a filter whose only possible
+       * result is an empty page is offering somebody a way to confuse themselves. The counts are
+       * on the chips for the same reason — "Gem 0" would be a chip you can see is pointless, and
+       * a chip that is not there is better than one that is.
+       *
+       * Each dimension counts against the **other** filter in force, so the numbers add up to
+       * what you would actually see if you pressed it.
+       */
+      function renderFilters(): void {
+        if (loading || error || orders.length === 0) { el.toolbar.hidden = true; return; }
+        el.toolbar.hidden = false;
+
+        const byStatus = orders.filter((o) => statusFilter === 'all' || o.status === statusFilter);
+        const schools = new Map<string, { name: string; n: number }>();
+        for (const o of byStatus) {
+          const entry = schools.get(o.schoolId) ?? { name: o.schoolName || 'Unknown school', n: 0 };
+          entry.n += 1;
+          schools.set(o.schoolId, entry);
+        }
+
+        el.schools.innerHTML =
+          chip('school', 'all', 'All schools', schoolFilter, byStatus.length) +
+          [...schools.entries()]
+            .sort((a, b) => a[1].name.localeCompare(b[1].name))
+            .map(([id, s]) => chip('school', id, s.name, schoolFilter, s.n))
+            .join('');
+
+        const bySchool = orders.filter((o) => schoolFilter === 'all' || o.schoolId === schoolFilter);
+        const statuses = new Map<string, number>();
+        for (const o of bySchool) statuses.set(o.status, (statuses.get(o.status) ?? 0) + 1);
+
+        el.states.innerHTML =
+          chip('status', 'all', 'Any status', statusFilter, bySchool.length) +
+          [...statuses.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([code, n]) => chip('status', code, STATUS_WORD[code] ?? code, statusFilter, n))
+            .join('');
+      }
 
       const STATUS_WORD: Record<string, string> = {
         draft: 'Draft', pending_payment: 'Awaiting payment', paid: 'Paid',
@@ -171,16 +277,32 @@ import '../styles/backoffice.css';
           return;
         }
 
-        const t = api.totalsFor(orders);
-        el.count.textContent = orders.length === 0
-          ? 'No orders'
-          : `${t.orders} order${t.orders === 1 ? '' : 's'} · ${bySchool(orders).length} schools`;
+        renderFilters();
 
-        if (orders.length === 0) {
+        const shown = filtered();
+        const t = api.totalsFor(shown);
+        el.count.textContent = shown.length === 0
+          ? 'No orders'
+          : `${t.orders} order${t.orders === 1 ? '' : 's'} · ${bySchool(shown).length} schools` +
+            (filtering() ? ` of ${orders.length}` : '');
+
+        /*
+         * "Nobody ordered" and "nothing matches your filters" are different facts and must not
+         * share a screen — §5.21 again. The first is about the day and the second is about the
+         * chips, and only one of them has anything you can do about it.
+         */
+        if (shown.length === 0) {
           el.summary.innerHTML = '';
-          el.board.innerHTML =
-            `<div class="empty"><h2>Nobody ordered on this day</h2>` +
-            `<p>Not an error — there are simply no orders for ${esc(describeDate(serviceDate, today))}.</p></div>`;
+          el.board.innerHTML = orders.length === 0
+            ? `<div class="empty"><h2>Nobody ordered on this day</h2>` +
+              `<p>Not an error — there are simply no orders for ` +
+              `${esc(describeDate(serviceDate, today))}. If that is unexpected, check the cutoff ` +
+              `for that date rather than assuming the board is broken.</p></div>`
+            : `<div class="empty"><h2>No orders match these filters</h2>` +
+              `<p>There ${orders.length === 1 ? 'is' : 'are'} <b>${orders.length}</b> order` +
+              `${orders.length === 1 ? '' : 's'} on this day — none of them with the filters you ` +
+              `have set.</p>` +
+              `<button class="btn" type="button" data-clear-filters>Clear filters</button></div>`;
           return;
         }
 
@@ -194,7 +316,7 @@ import '../styles/backoffice.css';
             `</p>` +
           `</section>`;
 
-        el.board.innerHTML = bySchool(orders)
+        el.board.innerHTML = bySchool(shown)
           .map((group) => {
             const gt = api.totalsFor(group.orders);
             return (
@@ -248,8 +370,55 @@ import '../styles/backoffice.css';
       }
 
       el.board.addEventListener('click', (event) => {
-        if ((event.target as HTMLElement).closest('[data-retry]')) void load();
+        const target = event.target as HTMLElement;
+        if (target.closest('[data-retry]')) void load();
+        if (target.closest('[data-clear-filters]')) {
+          schoolFilter = 'all'; statusFilter = 'all'; syncUrl(); render();
+        }
       });
+
+      /*
+       * One listener on the toolbar rather than one per chip, because the chips are re-rendered on
+       * every filter change — a listener bound to a button that is about to be replaced is a leak
+       * and a bug in the same line.
+       *
+       * Filtering is client-side and re-renders without re-reading: the day is already in memory,
+       * and a round trip to narrow a list you are holding is a round trip on a school-gate
+       * connection for no new information.
+       */
+      el.toolbar.addEventListener('click', (event) => {
+        const chip = (event.target as HTMLElement).closest<HTMLElement>('[data-filter]');
+        if (!chip) return;
+        const value = chip.dataset.value ?? 'all';
+        if (chip.dataset.filter === 'school') schoolFilter = value;
+        else statusFilter = value;
+        syncUrl();
+        render();
+      });
+
+      /**
+       * The file is built from the rows on screen, filters included.
+       *
+       * A second read would export a different set from the one being looked at — and the person
+       * exporting has just narrowed the day to the thing they care about. A file that quietly
+       * disagrees with the screen it came from is worse than no export.
+       */
+      el.exportCsv.addEventListener('click', () => {
+        const shown = filtered();
+        if (shown.length === 0) return;
+        const schoolName = schoolFilter === 'all'
+          ? null
+          : shown[0]?.schoolName ?? null;
+        downloadCsv(
+          ordersToCsv(shown, {
+            serviceDate,
+            schoolName,
+            status: statusFilter === 'all' ? null : statusFilter,
+          }),
+          `graybag-orders-${serviceDate}.csv`,
+        );
+      });
+
       el.reload.addEventListener('click', () => void load());
       $('o-prev').addEventListener('click', () => { serviceDate = shiftDate(serviceDate, -1); void load(); });
       $('o-next').addEventListener('click', () => { serviceDate = shiftDate(serviceDate, 1); void load(); });

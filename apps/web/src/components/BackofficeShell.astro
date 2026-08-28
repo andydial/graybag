@@ -81,7 +81,7 @@ const { current, title, subtitle } = Astro.props;
     <header class="bo__top">
       <div>
         <h1 class="bo__title">{title}</h1>
-        <p class="bo__sub">{subtitle}</p>
+        <p class="bo__sub" data-page-sub>{subtitle}</p>
       </div>
       <div class="bo__spacer"></div>
       <slot name="actions" />

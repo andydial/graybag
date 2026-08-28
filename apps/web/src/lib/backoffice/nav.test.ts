@@ -137,7 +137,15 @@ describe('the nav table itself', () => {
     walk(pages, '');
 
     const navigable = new Set(NAV.map((i) => i.href.replace(/^\//, '')));
-    // The dashboard is where the navigation lives; it does not need to appear inside itself.
+    /*
+     * `/dashboard` is Today, and it is reached from the brand mark rather than from a nav item.
+     *
+     * The comment here used to read "the dashboard is where the navigation lives", which was true
+     * of the launcher `E10-43` built and stopped being true when `E10-55` put a sidebar on every
+     * screen — and completely so when `E10-67` made this a status page. It is deliberately not a
+     * fifteenth link: an item that means "the page you are already on, mostly" earns nothing in a
+     * rail whose whole argument is that fourteen destinations already make you scan.
+     */
     navigable.add('dashboard');
     const orphans = found.filter((p) => !NOT_BACK_OFFICE.has(p) && !navigable.has(p));
     expect(orphans, 'back-office pages no navigation reaches').toEqual([]);

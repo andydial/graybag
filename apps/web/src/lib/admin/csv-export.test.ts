@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { csvField, csvFilename, reportToCsv } from './csv-export.js';
+import type { api } from '@graybag/shared';
+
+import { csvField, csvFilename, ordersToCsv, reportToCsv } from './csv-export.js';
 
 const bucket = (over: Record<string, unknown> = {}) => ({
   key: '2026-08-17', label: '2026-08-17',
@@ -124,5 +126,77 @@ describe('csvFilename', () => {
   it('sorts and reads without being opened', () => {
     expect(csvFilename('2026-08-01', '2026-08-26', 'revenue'))
       .toBe('graybag-revenue-2026-08-01-to-2026-08-26.csv');
+  });
+});
+
+describe('ordersToCsv — E10-70', () => {
+  const order = (o: Partial<api.AdminOrder> & { orderRef: string }): api.AdminOrder => ({
+    id: `id-${o.orderRef}`, serviceDate: '2026-08-28', status: 'paid',
+    schoolId: 's-1', schoolName: 'Amity International, Mohali', kitchenId: 'k-1',
+    breakLabel: 'First break', recipientName: 'Demo Child', classLabel: '4', sectionLabel: 'B',
+    subtotalPaise: 18_000, taxPaise: 900, discountPaise: 0, totalPaise: 18_900, refundedPaise: 0,
+    ...o,
+  });
+
+  it('writes money as a plain decimal a spreadsheet can sum', () => {
+    const csv = ordersToCsv([order({ orderRef: 'GB-1', totalPaise: 123_456 })], {
+      serviceDate: '2026-08-28',
+    });
+    // The Total column, read as a field rather than searched for as a substring — `,189` appears
+    // in a correct row too, because a comma precedes every value.
+    const total = csv.split('\r\n').at(-1)!.split(',').at(-2);
+    expect(total).toBe('1234.56');
+    // No symbol and no thousands separator. `₹1,234.56` is text to a spreadsheet, and a column of
+    // text is a column nobody can total.
+    expect(total).not.toContain('₹');
+    expect(Number(total)).toBe(1234.56);
+  });
+
+  it('quotes a school name containing a comma — the ordinary case here, not the edge case', () => {
+    const csv = ordersToCsv([order({ orderRef: 'GB-1' })], { serviceDate: '2026-08-28' });
+    expect(csv).toContain('"Amity International, Mohali"');
+  });
+
+  it('records the filters in force, so a saved file still says what it covers', () => {
+    const csv = ordersToCsv([order({ orderRef: 'GB-1' })], {
+      serviceDate: '2026-08-28', schoolName: 'Gem Public School', status: 'cancelled',
+    });
+    expect(csv).toContain('School,Gem Public School');
+    expect(csv).toContain('Status,cancelled');
+  });
+
+  it('omits a filter line that is not in force rather than writing "all"', () => {
+    const csv = ordersToCsv([order({ orderRef: 'GB-1' })], { serviceDate: '2026-08-28' });
+    // The preamble only — the column header legitimately contains "School," and searching the
+    // whole file for it was the assertion being wrong, not the code.
+    const preamble = csv.split('\r\n\r\n')[0]!;
+    expect(preamble).toBe('GrayBag orders,2026-08-28');
+  });
+
+  it('exports exactly the rows it is given — the file is the screen', () => {
+    const csv = ordersToCsv(
+      [order({ orderRef: 'GB-1' }), order({ orderRef: 'GB-2' })],
+      { serviceDate: '2026-08-28' },
+    );
+    expect(csv.split('\r\n').filter((l) => l.startsWith('GB-'))).toHaveLength(2);
+  });
+
+  it('neutralises a leading formula character', () => {
+    // A CSV that can run a formula is a CSV that can exfiltrate the rest of the sheet. The guard
+    // is the leading tab; quoting is a separate concern and this value needs none, which is what
+    // the first version of this test got wrong about its own subject.
+    const csv = ordersToCsv([order({ orderRef: 'GB-1', recipientName: '=cmd()' })], {
+      serviceDate: '2026-08-28',
+    });
+    // Asserted as a delimited substring rather than by splitting on commas: the school field is
+    // quoted *because* it contains one, so naive splitting mis-parses the row — which is the
+    // second time this test's own parsing, not the code, was the thing that was wrong.
+    expect(csv).toContain(',\t=cmd(),');
+    expect(csv).not.toContain(',=cmd(),');
+  });
+
+  it('writes a header even when the day is empty, so the file is not a blank page', () => {
+    const csv = ordersToCsv([], { serviceDate: '2026-08-28' });
+    expect(csv).toContain('Order,School,Child');
   });
 });
