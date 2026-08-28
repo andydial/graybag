@@ -18,6 +18,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse } from 'yaml';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -71,4 +72,46 @@ test('.env.example documents every secret the script would push', () => {
     (n) => !new RegExp(`^${n}=`, 'm').test(example),
   );
   assert.deepEqual(undocumented, [], `.env.example is missing: ${undocumented.join(', ')}`);
+});
+
+/**
+ * `E17-68`. The union Andy chose: the ref visible, the password gated.
+ *
+ * The two halves pull in opposite directions and both are right, which is why this is asserted
+ * rather than left to a comment:
+ *
+ *   · A **project ref is not a secret** — it is in every Supabase URL the app ships with. Keeping
+ *     it in one bought nothing and hid the deploy target from anyone reading the file. It is also
+ *     how the workflow came to fail its own credential guard for three days: a secret nobody can
+ *     see is missing is a secret nobody notices was never created.
+ *   · A **repository-level password is readable by any workflow in the repo**, including one added
+ *     in a pull request, without ever passing the required-reviewer gate. Environment-scoped, it
+ *     is not. That is the gate doing its job rather than decorating the file.
+ *
+ * The failure this guards against is somebody "tidying up" by making both consistent — either
+ * direction loses one of the two properties.
+ */
+test('the production project ref is visible in the workflow, not hidden in a secret', () => {
+  const wf = read('.github/workflows/deploy-production.yml');
+  assert.match(
+    wf,
+    /SUPABASE_PROJECT_REF:\s*[a-z]{20}/,
+    'the ref must be a literal in the file, so the deploy target is readable at a glance',
+  );
+  assert.doesNotMatch(
+    wf,
+    /secrets\.SUPABASE_PROJECT_REF/,
+    'and must NOT also be read from a secret — two sources for one value is how they drift',
+  );
+});
+
+test('the production database password is still a secret, and still environment-scoped', () => {
+  const wf = read('.github/workflows/deploy-production.yml');
+  // A literal password would be the catastrophic version of the change above.
+  assert.match(wf, /SUPABASE_DB_PASSWORD:\s*\$\{\{\s*secrets\./, 'the password must stay a secret');
+  assert.match(
+    parse(wf).jobs.database.environment,
+    /^production$/,
+    'and the job must stay on the production environment, which is what scopes it',
+  );
 });

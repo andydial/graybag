@@ -76,7 +76,18 @@ jobs:
 
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      # Scoped to the `production` environment (`E17-64`), so it resolves to PRODUCTION's password
+      # here and staging's everywhere else, under one name. See the guard below for why that
+      # scoping is the security property and not just tidiness.
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # Hardcoded, exactly as staging hardcodes its own — `E17-68`.
+      #
+      # A project ref is not a secret: it is in every Supabase URL the app ships with, and in the
+      # anon key. Keeping it in a secret bought nothing and cost the one thing that mattered —
+      # you could not tell by reading this file which database it deploys to. It is also how the
+      # workflow came to fail its own credential guard, because a secret that nobody can see is
+      # missing is a secret nobody notices was never created.
+      SUPABASE_PROJECT_REF: bdamkuugbqjajbndjoxn
 
     steps:
       - uses: actions/checkout@v4
@@ -95,22 +106,32 @@ jobs:
       - name: Smoke test
         run: npm run smoke
 
-      # Production keeps its ref in a secret because the project does not exist yet and
-      # nobody has decided what it is called. The guard below is what stops the empty-string
-      # failure mode that cost staging three days — see deploy-staging.yml for the story.
+      # The guard that stops the empty-string failure mode that cost staging three days — see
+      # deploy-staging.yml for the story. It now checks two names rather than three, because the
+      # third is above in plain sight and cannot be absent.
+      #
+      # `SUPABASE_DB_PASSWORD` stays a SECRET and stays SCOPED to this environment, which is the
+      # half that is not merely convention: a repository-level secret is readable by any workflow
+      # in the repo, including one added in a pull request, without ever passing the
+      # required-reviewer gate. An environment-scoped one is not. The ref is public information;
+      # the production database password is the thing the gate exists to protect.
       - name: Check the deploy credentials are present
         run: |
           missing=""
           [ -n "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ] || missing="$missing SUPABASE_ACCESS_TOKEN"
           [ -n "${{ secrets.SUPABASE_DB_PASSWORD }}" ]  || missing="$missing SUPABASE_DB_PASSWORD"
-          [ -n "${{ secrets.SUPABASE_PROJECT_REF }}" ]  || missing="$missing SUPABASE_PROJECT_REF"
           if [ -n "$missing" ]; then
             echo "::error::Cannot deploy to PRODUCTION — missing:$missing"
+            echo "::error::Both are scoped to the 'production' GitHub Environment, not the"
+            echo "::error::repository. Set them with: npm run secrets:set -- production"
             exit 1
           fi
 
+      # Deploying to the ref printed here, from the env above, so the log names the target.
       - name: Link the production project
-        run: npx supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+        run: |
+          echo "Deploying to project $SUPABASE_PROJECT_REF"
+          npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
       # Printed before anything is applied, so the approver's decision and the actual
       # change are both in one log.
@@ -123,7 +144,7 @@ jobs:
       - name: Deploy Edge Functions
         run: |
           if [ -d supabase/functions ] && [ -n "$(ls -A supabase/functions 2>/dev/null)" ]; then
-            npx supabase functions deploy --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+            npx supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF"
           else
             echo "No Edge Functions yet — skipping. They arrive with E06."
           fi
