@@ -752,15 +752,27 @@ select is_empty($$ select p.proname from pg_proc p
  * the clause.
  *
  * A second exception should be argued for as hard as this one was.
+ *
+ * **`meal_pack_redemption_money` (`E21-63`) is that second exception, and the argument is
+ * different in kind.** `order_money` needed definer to survive a `revoke`; this one needs it
+ * because an INVOKER view would return nothing to the only audience it has — the back office holds
+ * no policy on `meal_pack_redemption` — and the obvious fix, adding one, is exactly what the
+ * design forbids: `recipient_id` is which child ate, RLS cannot filter columns, and one
+ * `authenticated` role is shared by the parents who may see it and the admins who may not. The
+ * column is therefore not in the view at all, and the base table gained no policy, so a
+ * back-office account cannot reach child identity here rather than merely being asked not to.
+ *
+ * It pays the same price: `meal_pack_redemption` carries the same RESTRICTIVE
+ * `deny_dead_accounts`, and the predicate leads with `auth_is_live_user()`.
  */
 select is_empty($$ select c.relname from pg_class c
                     join pg_namespace n on n.oid = c.relnamespace
                    where n.nspname = 'public' and c.relkind = 'v'
-                     and c.relname <> 'order_money'
+                     and c.relname not in ('order_money', 'meal_pack_redemption_money')
                      and coalesce(array_to_string(c.reloptions, ','), '') not like '%security_invoker=true%'
                      and not exists (select 1 from pg_depend d
                                       where d.objid = c.oid and d.deptype = 'e') $$,
-                '§12: every view in public is security_invoker, except order_money (E02-36) — the failure is silent, the view simply returns rows it should not');
+                '§12: every view in public is security_invoker, except order_money (E02-36) and meal_pack_redemption_money (E21-63) — the failure is silent, the view simply returns rows it should not');
 
 -- And the exception is held to its own bargain: it is definer AND it restates the restriction it
 -- bypasses. A future edit that drops `auth_is_live_user()` from the predicate fails here as well

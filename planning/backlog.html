@@ -6734,13 +6734,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/56</span>
+          <span class="meter-num">0/57</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 56 tasks</summary>
+        <summary>Context &amp; 57 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7212,13 +7212,21 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Stamp <code>items_per_meal</code> and <code>required_category_id</code> onto <code>meal_pack</code> at sale.</strong> The durable fix behind <code>E21-60</code>&#39;s freeze. <code>0068</code> already stamps price, tax, <code>meals_total</code> and <code>expires_at</code> with the reasoning written into the schema — *&quot;the offer&#39;s price can change and the config can be flipped; neither may retroactively alter a pack already sold&quot;* — and these two were missed, so <code>meal_pack_balance</code> reads them live from the offer. <code>E21-60</code> enforces the invariant in an Edge Function, which holds only as long as every write goes through it. Stamping them makes it a property of the row instead, and lets the admin edit a sold offer freely. Migration, so the mobile thread&#39;s</span>
       </li>
-      <li class="task" data-id="E21-63" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E21-63" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-63"></button>
         <code class="tid">E21-63</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>A back-office read of <code>meal_pack_redemption</code>, so revenue can separate prepaid meals.</strong> <code>0068</code> gives that table exactly one read policy — <code>meal_pack_redemption_read_own</code> — so no back-office account can see a redemption at all. Two screens are honest about it rather than guessing, and both would rather not be: <strong>Today&#39;s</strong> Revenue card cannot say *&quot;excludes pack redemptions&quot;* the way the prototype does, because an embed would come back empty and it would report &quot;0 paid with a pack&quot; — an unknown rendering as a known, on a money figure. <strong>Meal packs</strong> can say how many meals were *sold* and not how many are unspent, which is the actual liability. Needs a policy — <code>orders.view_financials</code> at the order&#39;s school, matching how <code>order</code> itself is scoped — and therefore a migration. Until then both screens name the gap on screen, which is the right interim and is not the fix</span>
+        <span class="ttext"><strong>The back office can tell pack-paid meals from cash revenue — without meeting a child.</strong> Asked for as a read policy on <code>meal_pack_redemption</code> gated on <code>orders.view_financials</code> at platform scope, *&quot;aggregates and order references only — no child identity through that path&quot;*. <strong>A row policy cannot satisfy that second half.</strong> <code>meal_pack_redemption.recipient_id</code> is which child ate; RLS filters rows and cannot filter columns, so a back-office SELECT policy hands it over for every redemption in the system. Nor can a column grant: one <code>authenticated</code> role is shared by parents and admins, and a parent legitimately reads <code>recipient_id</code> for their own redemptions — revoking it would take that from them too. <code>E02-36</code>&#39;s finding, in a second place. So it is a <strong>view without the column at all</strong>, <code>meal_pack_redemption_money</code>, and the base table gains no policy — a back-office account cannot reach child identity here rather than merely being asked not to. <code>reversal_reason</code> is excluded as well: free text an operator wrote about a cancelled meal is where identity leaks back in through the column nobody audits. The second deliberate <code>security_invoker</code> exception, argued in <code>authorization.test.sql</code> as that file demands. 13 assertions, most of them about what the path <strong>cannot</strong> do, because a view returning the right numbers *and* <code>recipient_id</code> would pass every test about numbers. <strong>Mutation-checking corrected the migration&#39;s own comment</strong>: removing <code>auth_is_live_user()</code> changed nothing, because <code>auth_can_platform</code> resolves through <code>auth_has_permission</code>, which already refuses a disabled account — unlike <code>order_money</code>, whose customer half asks no such question. The clause is kept as belt-and-braces with the redundancy stated, rather than a comment claiming a test that cannot fail. The first two mutation attempts also <strong>failed to mutate</strong> — <code>create or replace view</code> refuses a column inserted mid-list — and were only caught by checking the DDL succeeded instead of trusting a silenced error</span>
+      </li>
+      <li class="task" data-id="E21-64" data-seed="0" data-risk="medium" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-64"></button>
+        <code class="tid">E21-64</code>
+        <span class="badge r-medium">medium</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The pgTAP suite has <code>E14-42</code>&#39;s disease too: <code>meal_pack_ledger.test.sql</code> failed once in a full run and passed alone and on re-run.</strong> Four assertions, all the absolute liability invariant — *the ledger owes exactly what the pack owes* — on 2026-08-28. The same suite passed immediately before and after with no change to that file. <strong>Filed separately from <code>E14-42</code> on purpose</strong>: that one is the <code>node --test</code> scripts suite and its fix is per-test isolation in JavaScript; this is <code>supabase/tests/*.test.sql</code> run sequentially by <code>scripts/test-db.sh</code> against one database, where every file is supposed to be self-isolating via <code>begin; … rollback;</code>. If one is not, it contaminates every file after it and the blame lands on whoever&#39;s assertion notices first. The shape of the risk is in <code>meal_pack_ledger.test.sql</code>&#39;s own header: the <strong>absolute</strong> form of the invariant holds only because exactly one pack exists, so any earlier file leaving a committed <code>meal_pack</code> row breaks it. <code>recipient_erasure_commits.test.sql</code> commits by design but sorts after. Worth finding before it fails in CI on somebody else&#39;s branch and reads as their bug — a flaky assertion about whether the ledger balances is the one to chase, not tolerate</span>
       </li></ul>
       </details>
     </article>
