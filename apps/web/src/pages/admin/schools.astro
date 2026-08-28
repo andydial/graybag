@@ -53,6 +53,15 @@ import '../../styles/backoffice.css';
 
       <div class="toolbar">
         <p class="resultline" id="s-summary" role="status" aria-live="polite"></p>
+        <!--
+          One school at a time, behind a picker — `E10-71`.
+
+          Every school was stacked on one page, which reads fine at three and is a wall at thirty:
+          the answer to "is Amity ready" was somewhere in a scroll. The prototype picks one and
+          shows it whole, and the chips carry the state, so the page still answers "how is the
+          estate" without being read top to bottom.
+        -->
+        <div class="chips" id="s-picker" role="group" aria-label="Choose a school"></div>
       </div>
 
       <div class="pad">
@@ -126,6 +135,7 @@ import '../../styles/backoffice.css';
         form: $<HTMLFormElement>('s-form'), formError: $('s-form-error'),
         submit: $<HTMLButtonElement>('s-submit'), newBox: $<HTMLDetailsElement>('s-new'),
         city: $<HTMLSelectElement>('s-city'), kitchen: $<HTMLSelectElement>('s-kitchen'),
+        picker: $('s-picker'),
       };
 
       const esc = (s: string) =>
@@ -188,6 +198,45 @@ import '../../styles/backoffice.css';
         );
       }
 
+      /*
+       * Which school is on screen, in the URL — `E10-71`.
+       *
+       * "Look at Gem" has to be a link somebody can send, and Refresh must not throw you back to
+       * the first school. Same reasoning as the dish workbench's query and the orders filters.
+       */
+      let selected = new URLSearchParams(location.search).get('school');
+
+      /**
+       * The school being shown.
+       *
+       * Defaults to the **first one that is not live**, not to the first alphabetically. This
+       * screen exists to answer "what is stopping a school trading"; opening it on a school with
+       * nothing wrong makes you do the finding, which is the job it was built to do for you.
+       */
+      function chosen(): SchoolReadiness {
+        const byId = list.find((r) => r.school.id === selected || r.school.code === selected);
+        return byId ?? list.find((r) => r.blockers.length > 0) ?? list[0]!;
+      }
+
+      function renderPicker(): void {
+        const current = chosen();
+        el.picker.innerHTML = list
+          .map((r) => {
+            const blocked = r.blockers.length > 0;
+            return (
+              `<button class="chip${blocked ? ' chip--warn' : ''}" type="button" ` +
+                `data-school="${esc(r.school.id)}" ` +
+                `aria-pressed="${r.school.id === current.school.id}">` +
+                `${esc(r.school.name)}` +
+                // The count of what is wrong, on the chip. A picker that does not carry state
+                // makes you open all thirty to find the one that needs you.
+                (blocked ? ` <b>${r.blockers.length}</b>` : '') +
+              `</button>`
+            );
+          })
+          .join('');
+      }
+
       function cardHtml(r: SchoolReadiness): string {
         const s = r.school;
         return (
@@ -207,7 +256,46 @@ import '../../styles/backoffice.css';
                 ? `<p class="sch__why">Set up correctly — its menu has not started yet.</p>`
                 : '') +
             `<ol class="gates">${r.gates.map(gateHtml).join('')}</ol>` +
+            elsewhereHtml(r) +
           `</section>`
+        );
+      }
+
+      /**
+       * What else is true about this school, and where it is changed — `E10-71`.
+       *
+       * The prototype puts a **meal-packs toggle** and an **editable config block** on this page.
+       * Both are controls that already exist elsewhere: the per-school pack switch is on
+       * `/admin/packs`, and cutoffs and break windows are on `/admin/config`, where the
+       * inherited-vs-overridden model lives. It is worth being explicit about why they are not
+       * duplicated here rather than just leaving them out.
+       *
+       * The prototype has **one** screen per noun, so everything about a school has to be on the
+       * school. We have screens per **job**, and each of those two controls is gated on a
+       * different permission — `meal_packs.manage` at platform scope, `config.platform_edit` — so
+       * a second copy here would be a second write path with a second set of failure states, and
+       * the two would drift. `D3` and `E10-08` make the same argument about `/orders`.
+       *
+       * What is genuinely missing is the **information**, not the control: somebody checking a
+       * school should not have to guess whether it offers packs. So this is read-only, and it
+       * says where to go — which also means it is safe to render for an account that cannot open
+       * either screen, because a link they cannot follow is not a permission they gained.
+       */
+      function elsewhereHtml(r: SchoolReadiness): string {
+        const cutoff = r.gates.find((g) => g.key === 'serviceDays');
+        return (
+          `<div class="sch__elsewhere">` +
+            `<p class="m">` +
+              `<b>Meal packs</b> are offered school by school and are switched on where the offers ` +
+              `are configured. <a href="/admin/packs">Meal packs</a>` +
+            `</p>` +
+            `<p class="m">` +
+              `<b>Cutoffs, service days and break times</b> are inherited from the platform default ` +
+              `unless this school overrides them` +
+              (cutoff ? ` — currently ${esc(cutoff.detail)}` : '') +
+              `. <a href="/admin/config">Configuration</a>` +
+            `</p>` +
+          `</div>`
         );
       }
 
@@ -232,7 +320,8 @@ import '../../styles/backoffice.css';
           `${e.total} schools — ${e.live} live` +
           (e.scheduled ? `, ${e.scheduled} scheduled` : '') +
           (e.incomplete ? `, ${e.incomplete} not live` : '');
-        el.list.innerHTML = list.map(cardHtml).join('');
+        renderPicker();
+        el.list.innerHTML = cardHtml(chosen());
       }
 
       // ------------------------------------------------------------------------------- creating
@@ -270,6 +359,18 @@ import '../../styles/backoffice.css';
       }
 
       el.form.addEventListener('submit', (e) => void create(e as SubmitEvent));
+      el.picker.addEventListener('click', (event) => {
+        // One listener on the container: the chips are re-rendered whenever the data changes, so
+        // a listener bound per chip would outlive the button it was bound to.
+        const chip = (event.target as HTMLElement).closest<HTMLElement>('[data-school]');
+        if (!chip) return;
+        selected = chip.dataset.school ?? null;
+        const next = new URLSearchParams(location.search);
+        if (selected) next.set('school', selected); else next.delete('school');
+        history.replaceState(null, '', `?${next.toString()}`);
+        render();
+      });
+
       el.reload.addEventListener('click', () => { justCreated = null; void load(); });
       el.list.addEventListener('click', (event) => {
         if ((event.target as HTMLElement).closest('[data-retry]')) void load();
