@@ -141,3 +141,61 @@ export function blockReason(
   if (cutoffPassed) return 'cutoff_passed';
   return null;
 }
+
+/**
+ * What to show a parent when confirming a plan is refused — `E21-50`.
+ *
+ * ## The two failures are not the same promise, and saying so matters
+ *
+ * `confirm_meal_pack_plan` is one transaction. When the server **answers with a refusal code**,
+ * that transaction rolled back, so "nothing has been spent" is a guarantee we can make in those
+ * words. When there is **no answer at all** — a timeout, a dropped connection — we do not know
+ * whether it committed, and promising the same thing would be a guess dressed as a reassurance.
+ *
+ * A parent's first question on a failed confirm is *"have my meals gone?"*. Answering it
+ * confidently when we cannot know is the failure mode worth avoiding here, and the honest
+ * version is still reassuring, because the plan carries **one idempotency key across retries**
+ * (`E21-47`): pressing again cannot spend twice, whichever way the lost request landed.
+ *
+ * ## `stale` decides whether the fix is "try again" or "look at your plan"
+ *
+ * `cutoff_passed`, `day_after_expiry` and `insufficient_meals` all mean the world moved while
+ * the parent was choosing — another device spent a meal, a cutoff arrived. Retrying the same
+ * plan will be refused identically, so the calendar has to be reloaded first. Offering a bare
+ * "Try again" there sends a parent round a loop that cannot succeed.
+ */
+export interface PlanFailure {
+  /** The sentence the server sent, or ours when it never answered. */
+  message: string;
+  /** Can we promise nothing was spent? False only when the server never answered. */
+  spendKnown: boolean;
+  /** The plan itself is out of date; reload the days before trying again. */
+  stale: boolean;
+}
+
+/** Refusals that mean the plan no longer matches the world, so retrying it cannot help. */
+const STALE_CODES = new Set(['cutoff_passed', 'day_after_expiry', 'insufficient_meals']);
+
+export function planFailure(error: { message?: string; code?: string } | null): PlanFailure | null {
+  if (error === null) return null;
+
+  const code = error.code ?? '';
+  // No code means the request never reached a verdict — the Edge Function attaches one to every
+  // refusal it recognises. Anything else is a transport failure or a 500, and both are silent
+  // about what happened to the transaction.
+  if (code === '') {
+    return {
+      message:
+        'We couldn’t reach GrayBag to confirm those meals. Press Confirm again — the same plan ' +
+        'can’t be spent twice, so you won’t lose meals by retrying.',
+      spendKnown: false,
+      stale: false,
+    };
+  }
+
+  return {
+    message: error.message ?? 'We couldn’t plan those meals.',
+    spendKnown: true,
+    stale: STALE_CODES.has(code),
+  };
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { blockReason, planActionLabel, planMessage, summarisePlan } from './pack-plan.js';
+import { blockReason, planActionLabel, planFailure, planMessage, summarisePlan } from './pack-plan.js';
 
 /**
  * `E21-41`. The planner's arithmetic — the half where an over-spend would hide.
@@ -176,5 +176,63 @@ describe('blockReason — every refusal is shown ON the day it applies to', () =
     expect(blockReason('2026-10-18', { ...OPEN, serves: false, cutoffPassed: true })).toBe(
       'after_expiry',
     );
+  });
+});
+
+/**
+ * `E21-50`. What a parent is told when confirming is refused.
+ *
+ * The property under test is one sentence: **we may only promise "nothing has been spent" when
+ * the server actually answered.** A refusal means the transaction rolled back and the promise is
+ * safe. Silence means we do not know, and saying it anyway would be a guess dressed as a
+ * reassurance — on the question a parent asks first.
+ */
+describe('planFailure', () => {
+  it('is null when nothing failed', () => {
+    expect(planFailure(null)).toBeNull();
+  });
+
+  it('passes the server’s own sentence through, rather than inventing one', () => {
+    const failure = planFailure({
+      code: 'cutoff_passed',
+      message: 'Ordering has closed for one of those days.',
+    });
+    expect(failure?.message).toBe('Ordering has closed for one of those days.');
+  });
+
+  it('promises nothing was spent when the server refused', () => {
+    // Safe to promise: `confirm_meal_pack_plan` is one transaction, and a refusal rolled it back.
+    expect(planFailure({ code: 'not_eligible', message: 'x' })?.spendKnown).toBe(true);
+  });
+
+  it('does NOT promise it when there was no answer at all', () => {
+    // The one that matters. A timeout leaves the transaction's fate unknown, and a parent told
+    // "nothing has been spent" who then finds meals missing has been lied to at the worst moment.
+    expect(planFailure({ message: 'Network request failed' })?.spendKnown).toBe(false);
+  });
+
+  it('offers a retry that is honest about idempotency when it cannot say', () => {
+    // Reassurance we can actually back: one key per plan across retries (`E21-47`).
+    expect(planFailure({ message: 'timeout' })?.message).toMatch(
+      /can’t be spent twice/,
+    );
+  });
+
+  it.each(['cutoff_passed', 'day_after_expiry', 'insufficient_meals'])(
+    'marks %s stale, because retrying the same plan is refused identically',
+    (code) => {
+      expect(planFailure({ code, message: 'x' })?.stale).toBe(true);
+    },
+  );
+
+  it.each(['not_eligible', 'empty_plan', 'unknown_recipient'])(
+    'does not mark %s stale — the plan is wrong, not out of date',
+    (code) => {
+      expect(planFailure({ code, message: 'x' })?.stale).toBe(false);
+    },
+  );
+
+  it('a lost request is not stale — the plan may have been perfectly good', () => {
+    expect(planFailure({ message: 'offline' })?.stale).toBe(false);
   });
 });

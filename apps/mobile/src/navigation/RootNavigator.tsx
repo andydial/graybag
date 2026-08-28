@@ -11,7 +11,7 @@ import {
   type NativeStackNavigationProp,
   type NativeStackScreenProps,
 } from '@react-navigation/native-stack';
-import { api, design, packEligibility, money } from '@graybag/shared';
+import { api, design, packEligibility, packPlan, money } from '@graybag/shared';
 
 import {
   AccountScreen,
@@ -784,6 +784,7 @@ function ConnectedPackPlanScreen() {
   const recipientsState = useRecipients();
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [failure, setFailure] = useState<packPlan.PlanFailure | null>(null);
   const { days, plan, daysUnavailable, reloadDays } = usePlanner();
 
   /**
@@ -837,8 +838,14 @@ function ConnectedPackPlanScreen() {
       plan={plannedDays}
       confirming={confirming}
       daysUnavailable={daysUnavailable}
-      onRetryDays={reloadDays}
+      onRetryDays={() => {
+        // The refusal described the plan against the OLD calendar. Leaving it up beside fresh
+        // days would contradict what the parent is now looking at.
+        setFailure(null);
+        reloadDays();
+      }}
       onSelectRecipient={setSelectedRecipientId}
+      failure={failure}
       onOpenDay={(serviceDate: string) => navigation.navigate('PlanDay', { serviceDate })}
       onConfirm={() => {
         setConfirming(true);
@@ -851,10 +858,18 @@ function ConnectedPackPlanScreen() {
               lines: entry.dishIds.map((dishId) => ({ dishId, quantity: 1 })),
             })),
           })
-          .then(() => navigation.navigate('Orders'))
-          .catch(() => {
-            // `E21-50` owns the failure copy. Inventing one now would be a promise about
-            // behaviour that does not exist yet.
+          .then(() => {
+            setFailure(null);
+            navigation.navigate('Orders');
+          })
+          .catch((error: unknown) => {
+            // `E21-50`. The code is what separates "the server refused, so nothing was spent"
+            // from "we never heard back, so we cannot say" — `planFailure` owns that judgement.
+            const shaped =
+              error instanceof api.ApiError
+                ? { message: error.message, ...(error.code === undefined ? {} : { code: error.code }) }
+                : {};
+            setFailure(packPlan.planFailure(shaped));
           })
           .finally(() => setConfirming(false));
       }}
