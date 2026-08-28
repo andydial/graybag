@@ -5989,13 +5989,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/62</span>
+          <span class="meter-num">0/63</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 62 tasks</summary>
+        <summary>Context &amp; 63 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -6498,6 +6498,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>planning/backlog-state.json</code> conflicts on every rebase, and hand-resolving it reverts other people&#39;s ticks.</strong> Five consecutive rebases on 2026-08-28, and the fifth did real damage: regenerating mid-rebase, against a tree holding <code>main</code>&#39;s state file beside the branch&#39;s older markdown, <strong>un-ticked eleven <code>owner:andy</code> tasks</strong> — including <code>E17-64</code>, confirmed by Andy hours earlier. Nothing failed; the suite was green and the loss was eleven single-character changes inside a 273-line commit. The resolution is always the same — take <code>main</code>, finish the rebase, then regenerate — which is exactly the shape of thing that should not be a manual step performed under time pressure. Options: a git merge driver registered by the same setup that installs the <code>post-commit</code> hook, so the file resolves itself; or a <code>scripts/resolve-backlog-state.mjs</code> that CI can also run; or stop tracking the generated half and derive it at read time. Whichever is chosen, the check that catches the failure is one line and belongs in the smoke test or a pre-push hook: <code>git diff origin/main -- planning/backlog/ | grep -E &#39;^[-+]- \[&#39;</code> must list only tasks the branch owns. Prefer the merge driver — it removes the manual step rather than adding a second one to remember</span>
+      </li>
+      <li class="task" data-id="E17-68" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-68"></button>
+        <code class="tid">E17-68</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The deploy target is readable in the file; the password still passes the gate.</strong> The union Andy chose after two threads fixed <code>E01-31</code>/<code>E17-64</code> differently — *&quot;both your arguments are right and they&#39;re not in tension.&quot;* The web thread&#39;s point stands: a project ref is in every Supabase URL, hiding it bought nothing, and <strong>it is how the fault survived three days</strong> — a secret nobody can see is missing is a secret nobody notices was never created. It is now a literal, echoed before <code>link</code> so the log names the target. The password stays a secret <strong>scoped to the <code>production</code> environment</strong>, which is the half that is not convention: a repository-level secret is readable by any workflow in the repo, including one added in a pull request, without ever passing the required-reviewer gate. The credential guard drops to two names because the third is now in plain sight and cannot be absent. <code>DP8</code>. The failure mode is a later tidy-up making both consistent, so the test asserts both properties and is <strong>mutation-checked three ways</strong> — ref back into a secret, password hardcoded, environment removed</span>
       </li></ul>
       </details>
     </article>
