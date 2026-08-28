@@ -1042,9 +1042,17 @@ select set_eq(
     -- deliberately no customer-plane counterpart: offers reach parents through
     -- `meal_pack_offers_for_school()`, so no policy on these tables faces a parent at all.
     ('meal_pack_offer.meal_pack_offer_read_backoffice'),
-    ('meal_pack_offer_school.meal_pack_offer_school_read_backoffice')
+    ('meal_pack_offer_school.meal_pack_offer_school_read_backoffice'),
+    -- `E02-41`. Both are READS and there is deliberately no write policy on either table: an
+    -- owner that could be changed through an API is a permission that grants itself everything,
+    -- which is the escalation the design avoids by keeping ownership in a migration.
+    -- `platform_owner` is readable by any back-office account because the client has to know it
+    -- is the owner in order to render at all — an account holding no grant rows otherwise sees an
+    -- empty sidebar. The history is narrower, on `audit.view`.
+    ('platform_owner.platform_owner_read'),
+    ('platform_owner_history.platform_owner_history_read')
   $$,
-  '§12 item 5: the set of permissive policies in public is EXACTLY the 152 in §7 of the authorization model plus [AUTH-01]''s twelve, 0027''s break_time, 0066''s kitchen_alert_recipient and E21''s five meal-pack policies');
+  '§12 item 5: the set of permissive policies in public is EXACTLY the 152 in §7 of the authorization model plus [AUTH-01]''s twelve, 0027''s break_time, 0066''s kitchen_alert_recipient and E21''s five meal-pack policies and E02-41''s two owner reads');
 
 -- §5 Rule 5. Restrictive, so it ANDs with everything else and cannot be defeated by
 -- adding a permissive policy later. This is what makes "account deletion stops
@@ -1076,9 +1084,9 @@ select is_empty($$ select tablename || '.' || policyname from pg_policies
                       and policyname <> 'deny_dead_accounts' $$,
                 '§5 Rule 5: deny_dead_accounts is the only restrictive policy in the schema');
 
-select is((select count(*)::int from pg_policies where schemaname = 'public'), 201,
-          '§12 item 5: 201 policies in public — 159 permissive (140 from §7 + [AUTH-01]''s 12 + 0027''s break_time '
-          '+ 0066''s kitchen_alert_recipient + E21''s 5) + 42 restrictive. E21 adds three '
+select is((select count(*)::int from pg_policies where schemaname = 'public'), 203,
+          '§12 item 5: 203 policies in public — 161 permissive (140 from §7 + [AUTH-01]''s 12 + 0027''s break_time '
+          '+ 0066''s kitchen_alert_recipient + E21''s 5 + E02-41''s 2) + 42 restrictive. E21 adds three '
           'customer-plane reads (meal_pack, meal_pack_redemption, meal_pack_plan — each own-rows-only) '
           'and two back-office reads on the offer tables under meal_packs.manage at PLATFORM scope. '
           'It adds NO anon policy and no customer policy on the offer tables at all: parents reach '
@@ -1119,9 +1127,14 @@ select set_eq(
     -- the back office reads them under `meal_packs.manage` at platform scope, and there is no
     -- customer policy at all, because offers reach parents through a security definer function.
     ('meal_pack'), ('meal_pack_redemption'), ('meal_pack_plan'),
-    ('meal_pack_offer'), ('meal_pack_offer_school')
+    ('meal_pack_offer'), ('meal_pack_offer_school'),
+    -- Added by `0081` (E02-41). Both are **class 2 and read-only**: back office reads, no
+    -- customer policy, and — unlike every other class 2 table — no write policy for anyone.
+    -- Ownership moves by migration or `service_role` only, because an owner editable through an
+    -- API would be a permission that grants itself everything.
+    ('platform_owner'), ('platform_owner_history')
   $$,
-  '§8: public contains exactly the 70 tables the matrix classifies — a new table must be added to the matrix. '
+  '§8: public contains exactly the 72 tables the matrix classifies — a new table must be added to the matrix. '
   '61 -> 62: ops_alert (E06-39), which is class 3 by the strictest reading — no persona may read or write it, '
   'because it names payment ids and failure counts and service_role (which bypasses RLS) is the only intended reader. '
   '62 -> 64: enquiry and enquiry_rate (E12-15), class 3 for the same reason — an enquiry names a member of staff '
