@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { SEEDED_PERMISSIONS } from '../backoffice/nav.js';
-import { JOBS, describeAccess, jobByKey } from './jobs.js';
+import { JOBS, OWNER_LABEL, describeAccess, jobByKey } from './jobs.js';
 import type { HeldGrant } from './jobs.js';
 
 const at = (scopeType: string, ...codes: string[]): HeldGrant[] =>
@@ -201,5 +201,45 @@ describe('naming a job when the bundle has moved on — E10-64', () => {
     const held = [{ permissionCode: 'orders.view', scopeType: 'kitchen' }];
     expect(describeAccess(held).job).toBeNull();
     expect(describeAccess(held).label).toContain('Custom');
+  });
+});
+
+/**
+ * The owner's label — `E02-39`.
+ *
+ * Andy: *"Its own label: 'Owner — everything, by construction'. Don't let it borrow a job name it
+ * isn't."* After `E10-64` this file has strong opinions about naming somebody a job they are not,
+ * and the owner is the sharpest case: they hold none of Platform admin's twenty-two grants.
+ */
+describe('the platform owner is named as itself — E02-39', () => {
+  it('is labelled "Owner — everything, by construction"', () => {
+    expect(describeAccess([], { isOwner: true }).label).toBe(OWNER_LABEL);
+    expect(OWNER_LABEL).toBe('Owner — everything, by construction');
+  });
+
+  it('does not borrow a job name — it matches no bundle, and must claim none', () => {
+    expect(describeAccess([], { isOwner: true }).job).toBeNull();
+    expect(describeAccess([], { isOwner: true }).label).not.toContain('Platform admin');
+  });
+
+  /*
+   * Order matters here. The owner holds nothing, so the empty case would otherwise catch them
+   * first and the account that can do everything would be described as holding nothing.
+   */
+  it('is not described as "No access", which is what an empty grant list otherwise means', () => {
+    expect(describeAccess([]).label).toBe('No access — signed in, holds nothing');
+    expect(describeAccess([], { isOwner: true }).label).toBe(OWNER_LABEL);
+  });
+
+  it('stays the owner even if the account also happens to hold grants', () => {
+    // Not the intended state, and not one to render wrongly either: the grants are not what this
+    // account can do, so summarising them would understate it.
+    expect(describeAccess(jobHeld('kitchen_staff'), { isOwner: true }).label).toBe(OWNER_LABEL);
+  });
+
+  it('leaves everybody else exactly as they were — the option defaults off', () => {
+    expect(describeAccess(jobHeld('kitchen_staff')).label).toBe('Kitchen staff');
+    expect(describeAccess(jobHeld('kitchen_staff'), {}).label).toBe('Kitchen staff');
+    expect(describeAccess(jobHeld('kitchen_staff'), { isOwner: false }).label).toBe('Kitchen staff');
   });
 });

@@ -204,11 +204,16 @@ export {
 export {
   KITCHEN_ORDER_COLUMNS,
   KitchenPayloadError,
+  capabilities,
+  fetchIsOwner,
   fetchKitchenOrders,
   fetchKitchenSchools,
   fetchMyAccess,
+  fetchMyCapabilities,
   fetchMyGrants,
   updateKitchenOrderStatus,
+  type Capabilities,
+  type MyAccess,
   type ApiKitchenOrder,
   type ApiKitchenOrderLine,
   type KitchenSchool,
@@ -347,6 +352,7 @@ export {
   PERMISSION_COLUMNS,
   ACCOUNT_SEARCH_LIMIT,
   fetchAccess,
+  fetchPlatformOwner,
   searchAccounts,
   fetchPermissions,
   grantPermission,
@@ -355,6 +361,7 @@ export {
   type GrantRequest,
   type HeldGrant,
   type PermissionInfo,
+  type PlatformOwner,
 } from './admin-grants.js';
 
 // Meal packs, parent side (`E21`). Reads only — buying, planning and redeeming are Edge

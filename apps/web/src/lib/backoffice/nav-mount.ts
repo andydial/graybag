@@ -29,7 +29,7 @@ const $ = <T extends HTMLElement>(selector: string): T | null => document.queryS
  * Reads the requirement from the DOM rather than re-deriving it, so the markup and the decision
  * cannot disagree — the attribute was written from the same `NAV` entry that produced the link.
  */
-function reveal(held: ReadonlySet<string>): number {
+function reveal(held: { has(code: string): boolean }): number {
   let shown = 0;
   for (const item of document.querySelectorAll<HTMLElement>('[data-nav-item]')) {
     const requires = (item.dataset.requires ?? '').split(' ').filter(Boolean);
@@ -49,10 +49,14 @@ function reveal(held: ReadonlySet<string>): number {
  * already distinguishes "no grants at all" from "grants that open no screen", because those need
  * different things done about them.
  */
-function explainEmpty(held: ReadonlySet<string>): void {
+function explainEmpty(held: api.Capabilities): void {
   const panel = $<HTMLElement>('[data-bonav-panel]');
   if (!panel) return;
-  const operator: Operator = { name: '', grants: held as ReadonlySet<Grant> };
+  const operator: Operator = {
+    name: '',
+    grants: new Set(held.codes) as ReadonlySet<Grant>,
+    isOwner: held.isOwner,
+  };
   const reason = noAccessReason(operator);
   if (!reason) return;
   const note = document.createElement('p');
@@ -87,15 +91,17 @@ export async function mountNav(): Promise<void> {
    * signs nobody out.
    */
   if (new URLSearchParams(location.search).has('state')) {
-    reveal(new Set(NAV.flatMap((item) => item.requires)));
+    reveal(api.capabilities(NAV.flatMap((item) => item.requires)));
     const who = $<HTMLElement>('[data-bonav-who]');
     if (who) who.textContent = 'Demo view';
     return;
   }
 
-  let held: ReadonlySet<string> = new Set();
+  // `fetchMyCapabilities`, not `fetchMyGrants`: the platform owner holds no grant rows and would
+  // otherwise be shown an empty bar (`E02-39`).
+  let held: api.Capabilities = api.capabilities([]);
   try {
-    held = new Set(await api.fetchMyGrants());
+    held = await api.fetchMyCapabilities();
   } catch {
     // Leave the bar empty. A failed grant read must not open routes, and the page's own error
     // handling is what tells the person the screen did not load.

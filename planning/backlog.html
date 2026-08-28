@@ -1217,13 +1217,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/37</span>
+          <span class="meter-num">0/40</span>
         </div>
       </header>
       <p class="summary">The target schema and the permission model. The single biggest failure of the legacy system was authorization, so it is designed and tested first.</p>
       <p class="deps">Depends on <code>E01</code></p>
       <details>
-        <summary>Context &amp; 37 tasks</summary>
+        <summary>Context &amp; 40 tasks</summary>
         <div class="context"><h4>Why this is critical</h4>
 <p>In Bubble, <code>Order</code> is readable by everyone and 10 types have no privacy rules at all — including <code>Child</code> (minors&#39; names, class, allergies, parent email). Authorization must be enforced server-side and covered by tests before any feature is built on top of it.</p>
 <h4>Design decisions already locked</h4>
@@ -1531,6 +1531,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>E02-36</code> step 1 — the <code>order_money</code> view, and nothing else.</strong> <code>0076</code>. Purely additive, so <code>kitchen-scope.test.mjs</code> still passes and must until step 3; the web thread is unblocked for step 2. <strong>The proposal&#39;s SQL had a gap, found by <code>authorization.test.sql</code></strong>: its rule that every view in <code>public</code> be <code>security_invoker</code> exists because a definer view bypasses the base table&#39;s RLS — and <code>&quot;order&quot;</code> carries a RESTRICTIVE <code>deny_dead_accounts</code>. The proposed predicate would have let a <strong>disabled account read its own order money</strong> through the view while RLS refused it on the table. The predicate now leads with <code>auth_is_live_user()</code>, the exception is declared by name with that bargain asserted, and the disabled-account case is mutation-checked. The rule worth carrying: a definer view must restate <strong>every</strong> restriction it bypasses, not only the one it exists to work around</span>
+      </li>
+      <li class="task" data-id="E02-39" data-seed="0" data-risk="" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-39"></button>
+        <code class="tid">E02-39</code>
+        
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>One owner account, derived rather than enumerated.</strong> Andy, 2026-08-28: *&quot;Stop granting me permissions one at a time… my preference is that the owner is derived rather than enumerated: a single recorded account against which permission checks pass, not a list of grants somebody keeps in step.&quot;* Design in <code>docs/proposals/E02-39-derived-platform-owner.md</code>, <strong>not yet built</strong> — it needs a migration number the mobile thread holds, and a decision from Andy on one line in particular. <strong>The shape</strong>: a single-row <code>platform_owner</code> table and one boolean <code>or</code> inside <code>auth_has_permission</code>, which is the chokepoint every <code>auth_can*</code> already resolves through. Its own table rather than a <code>platform_config</code> key, because config is editable by anyone holding <code>config.platform_edit</code> and an owner stored there would be a permission that can grant itself everything. No write policy at all, so changing it takes a migration; <code>reason</code> is <code>not null</code>, so it cannot change without a stated why; an append-only history table makes the change visible, because difficulty is not visibility. <strong>The line needing Andy&#39;s yes</strong>: the short-circuit goes in <code>auth_has_permission</code> and *not* in <code>auth_can_reach_recipient</code> and its siblings. Those answer a relationship question — is there a live guardian link — not a permission question, and extending ownership into them would silently make one account the guardian of every child, reading every allergy note on a table designed so access follows a link somebody created. <strong>Owner derives permissions, never relationships.</strong> <strong>The consequence easiest to miss</strong>: the back office would render *empty* for the owner, because <code>nav-mount</code> reveals links from <code>permission_grant</code> rows and the owner has none — so it needs <code>auth_is_owner()</code> through to <code>visibleNav</code> and a <code>describeAccess</code> label of its own. Tagged <code>owner:andy</code> because it is a decision about what a superuser means, not build work</span>
+      </li>
+      <li class="task" data-id="E02-40" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-40"></button>
+        <code class="tid">E02-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The client half of the derived owner, built to be inert until the DDL lands.</strong> <code>E02-39</code> is Andy&#39;s decision and the design; this is the code, and it ships <strong>before</strong> the migration on purpose. <code>auth_is_owner()</code> is called through <code>fetchIsOwner()</code>, which reads <code>PGRST202</code>/<code>PGRST203</code>/<code>42883</code> — PostgREST&#39;s and PostgreSQL&#39;s ways of saying the function does not exist — as <code>false</code>; <code>fetchPlatformOwner()</code> reads <code>PGRST205</code>/<code>42P01</code> as <code>null</code> the same way. Both are the truthful answer *&quot;there is no owner yet&quot;*, so the back office behaves identically either side of the migration and neither half can break the other — <code>E02-36</code>&#39;s sequencing lesson applied in advance rather than learned again. Nothing else is swallowed: a network failure still throws, because a failed read and a real answer are different facts. <strong>What it changes for the owner</strong>: <code>fetchMyAccess</code> returns the flag beside the grants; a new <code>fetchMyCapabilities()</code> answers *&quot;may I&quot;* rather than *&quot;is this code in the list&quot;*, because the owner holds <strong>no grant rows</strong> and every screen that gated on a <code>Set</code> of codes would have drawn the sidebar for somebody who can do everything and then hidden every button on it; <code>canReach</code>/<code>visibleNav</code> treat the owner as satisfying every requirement; <code>describeAccess</code> labels it <strong>&quot;Owner — everything, by construction&quot;</strong> — its own words, never a borrowed job name (<code>AZ22</code>). <code>/admin/people</code> gains an owner section, because <code>fetchAccess</code> lists accounts that *hold* something and the most powerful account would otherwise be invisible on the screen whose whole job is answering who can do what. <code>fetchMyGrants</code> is unchanged and still returns the rows that exist; inventing rows would make that screen display permissions nobody granted. Decisions <code>AZ14</code>–<code>AZ22</code></span>
+      </li>
+      <li class="task" data-id="E02-41" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E02-41"></button>
+        <code class="tid">E02-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Land the <code>E02-39</code> DDL.</strong> The SQL and its pgTAP are written and approved, at the end of <code>docs/proposals/E02-39-derived-platform-owner.md</code>. It needs a <strong>migration number</strong> from the mobile thread — <code>0077</code> or later, since <code>0076</code> is <code>order_money</code> — and then the hand-apply-and-record operation CLAUDE.md §10 sanctions, which is how <code>0068</code>–<code>0075</code> reached production. The pgTAP travels with it and is not a follow-up: the <code>-7e57-</code> assertion is Andy&#39;s second guard (<code>AZ19</code>), and a short-circuit whose &quot;no test runs as the owner&quot; rule arrives a week later is a short-circuit that ran untested for a week. The client half (<code>E02-40</code>) is already live and inert</span>
       </li></ul>
       </details>
     </article>
@@ -4323,13 +4347,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/56</span>
+          <span class="meter-num">0/58</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 56 tasks</summary>
+        <summary>Context &amp; 58 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4779,6 +4803,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A platform admin was named &quot;Kitchen manager, plus 23 more permissions&quot;.</strong> Andy, seeing his own account on <code>/admin/people</code>: *&quot;a screen that names the wrong job is worse than one that names none.&quot;* Correct, and the cause was mine from the same morning. <code>describeAccess</code> required a job&#39;s grants to be held <strong>entirely</strong>; <code>E21-60</code> added <code>meal_packs.manage</code> to the platform-admin bundle; he does not hold it — the permission is seeded by <code>0070</code>, which has not reached production — so that bundle stopped matching, was filtered out, and the largest remaining *complete* match was Kitchen manager&#39;s eight grants. Thirty-one held minus eight explained is the &quot;23 more&quot;. <strong>The rule itself was the defect</strong>: &quot;every grant must be held&quot; means adding one grant to a bundle silently relabels every existing holder as something unrelated — not vaguer, but wrong and confident. Now it ranks by how much of the <strong>job</strong> is held, prefers the job least incomplete, and <strong>states the gap</strong>: *&quot;Platform admin, missing meal_packs.manage&quot;*, which is both truer and the only version that says what to do. A floor at half stops a fragment being dressed as a role — one third of Delivery is Custom. <strong>Two existing tests asserted the old contract and were rewritten rather than deleted</strong>, and the replacements are stricter: the safety property is no longer &quot;a partial job never matches&quot; but &quot;a label must never imply an ability somebody lacks&quot;, which is a claim about what a person reads rather than about an internal match. The regression test uses Andy&#39;s <strong>real production grants</strong>, read from the database</span>
+      </li>
+      <li class="task" data-id="E10-65" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-65"></button>
+        <code class="tid">E10-65</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>/orders</code> could not be verified by the tool built to verify it, and the day nav was invisible on it.</strong> Two defects, one screenshot. The route had <strong>no <code>?state=demo</code> fixture</strong>, so <code>parity-shot</code> was redirected to <code>/signin</code> and measured a sign-in page — which is how it shipped unstyled in the first place, and the reason the &quot;not a shell page&quot; branch was changed to fail loudly rather than pass. <code>ORDERS_FIXTURE</code> gives it a day with a cancelled order, a partly refunded one, two schools, two breaks and a row with no break label, so the arithmetic the screen exists for is on screen. The second defect was in the day nav: <code>.daynav</code> was written for the kitchen board&#39;s green bar and coloured <code>--gb-text-on-brand</code> throughout, so in the shell&#39;s <strong>white</strong> header the date and both arrow glyphs were white-on-white — only the borders had contrast, and it read as a deliberate pair of empty rings. The light header is now the default, the green bar asks for its own</span>
+      </li>
+      <li class="task" data-id="E10-66" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-66"></button>
+        <code class="tid">E10-66</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A CSS port dropped a media query and prefixed the inside of a comment.</strong> Folding <code>kitchen.css</code> into <code>backoffice.css</code> lost <code>@media (max-width: 30rem)</code> around the day nav&#39;s narrow rules, so the phone layout applied at 1440px, and prefixed a comment line by line — which once stripped parses as the selector <code>.bo .daynav__count</code>, making a <code>display: none</code> written for phones unconditional. <code>24 orders · 6 classes · 2 breaks</code> was missing from the kitchen board and from <code>/orders</code> on production and looked like a count nobody had built. Nothing we run can see either: a dropped media query is not a syntax error, and a stripped comment leaves a legal selector. Found by opening a parity screenshot. Same pass fixed <code>.notice &gt; b:first-child</code>, which was written to bold only a *leading* headline and does not, because CSS <code>:first-child</code> counts elements and ignores text nodes — <code>Revoking is &lt;b&gt;not&lt;/b&gt; a delete</code> matched it, and People had a three-sentence explanation rendered as a column of fragments under a comment claiming it was fixed. The headline is now <code>.notice__head</code>, asked for by name</span>
       </li></ul>
       </details>
     </article>

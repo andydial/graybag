@@ -1,6 +1,6 @@
 # Andy's TODO
 
-Your tasks only — 72 open of 82.
+Your tasks only — 73 open of 83.
 Everything here is a **decision**, a **validation**, or something only you have the
 credentials to do. Everything else is build work and is not your problem.
 

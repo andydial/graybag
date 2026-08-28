@@ -26,7 +26,7 @@ const all = <T extends HTMLElement>(sel: string): T[] => [...document.querySelec
  * The requirement is read back from the DOM rather than re-derived, so the markup and the decision
  * cannot disagree — the attribute was written from the same `NAV` entry that produced the link.
  */
-function reveal(held: ReadonlySet<string>): number {
+function reveal(held: { has(code: string): boolean }): number {
   let shown = 0;
   for (const link of all<HTMLAnchorElement>('[data-nav-item]')) {
     const requires = (link.dataset.navRequires ?? '').split(' ').filter(Boolean);
@@ -142,14 +142,20 @@ export async function mountShell(): Promise<void> {
   }
 
   try {
-    const grants = await api.fetchMyAccess();
-    reveal(new Set(grants.map((g) => g.permissionCode)));
+    const access = await api.fetchMyAccess();
+    // The owner satisfies every requirement while holding no grant row — `E02-39`. Revealing on
+    // the codes alone would give the account that can do everything an empty rail.
+    const held = access.isOwner
+      ? { has: () => true }
+      : new Set(access.grants.map((g) => g.permissionCode));
+    reveal(held);
 
     const who = q<HTMLElement>('[data-nav-who]');
     if (who) {
       const me = await currentUser().catch(() => null);
       q<HTMLElement>('[data-nav-email]')!.textContent = me?.email ?? 'Signed in';
-      q<HTMLElement>('[data-nav-role]')!.textContent = describeAccess(grants).label;
+      q<HTMLElement>('[data-nav-role]')!.textContent =
+        describeAccess(access.grants, { isOwner: access.isOwner }).label;
       who.hidden = false;
     }
   } catch {

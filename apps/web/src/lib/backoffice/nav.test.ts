@@ -187,3 +187,40 @@ describe('the nav table itself', () => {
     expect(canReach(item, operator(EXAMPLE_LEVELS.kitchenOperator))).toBe(false);
   });
 });
+
+/**
+ * The platform owner — `E02-39`.
+ *
+ * Andy's second guard is that **no test may run as the owner**, and it is worth being precise
+ * about what that forbids: it forbids using the owner as a *convenience* — signing the suite in
+ * as an account everything passes for, which is how a broken policy hides. It does not forbid
+ * testing the short-circuit itself. Every assertion below is about the short-circuit, and every
+ * other test in this file still runs as a scoped persona.
+ */
+describe('the owner reaches everything, holding nothing — E02-39', () => {
+  const owner: Operator = { name: 'Owner', grants: new Set<Grant>(), isOwner: true };
+
+  it('sees every route, with no grants at all', () => {
+    // The whole consequence the design has to answer for. Reading the grants alone, this account
+    // sees an empty sidebar — the person who can do everything, shown nothing.
+    expect(owner.grants.size).toBe(0);
+    expect(visibleNav(owner)).toHaveLength(NAV.length);
+  });
+
+  it('is never told it has no permissions', () => {
+    expect(noAccessReason(owner)).toBeNull();
+  });
+
+  it('changes nothing for anyone else — the flag is opt-in, and absent means absent', () => {
+    // `isOwner` is optional, so every existing `Operator` literal is unchanged by construction.
+    // This asserts the thing that would actually be catastrophic: a falsy flag must not widen.
+    const nobody: Operator = { name: 'Nobody', grants: new Set<Grant>() };
+    expect(visibleNav(nobody)).toHaveLength(0);
+    expect(visibleNav({ ...nobody, isOwner: false })).toHaveLength(0);
+    expect(noAccessReason({ ...nobody, isOwner: false })).toContain('no back-office permissions');
+
+    const viewer = operator(EXAMPLE_LEVELS.schoolViewer);
+    expect(visibleNav(viewer)).toHaveLength(1);
+    expect(visibleNav({ ...viewer, isOwner: false })).toHaveLength(1);
+  });
+});

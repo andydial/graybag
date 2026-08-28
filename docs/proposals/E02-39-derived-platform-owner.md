@@ -1,6 +1,6 @@
 ---
 title: "E02-39 — one owner account, derived rather than enumerated"
-status: "**Approved by Andy 2026-08-28**, boundary included. The DDL at the end is the mobile thread's to land. Blocked behind `E01-31` — migrations were reaching production not at all."
+status: "**Approved by Andy 2026-08-28**, boundary included. The client half is built and merged, and is inert until the DDL at the end lands. The DDL is the mobile thread's to number and apply."
 ---
 
 # One owner, derived
@@ -369,12 +369,33 @@ mode the suite runs in.
 
 ## Sequencing
 
-Blocked behind **`E01-31`**, which fixed the production deploy workflow — it had been failing its
-own credential guard since 2026-08-25 because a required secret was never created, *and* would then
-have authenticated with staging's password. This migration lands behind that, with `0068`–`0075`
-and `E02-36`.
+**Corrected 2026-08-28.** This section previously said the migration was blocked behind `E01-31`,
+because migrations were reaching production not at all. That was true when it was written and was
+already false by the time Andy read it: `E17-63`/`E17-64` found the real fault — the `production`
+environment admits `v*` tags only and no tag has ever existed, so the workflow has **never once
+run** — and applied `0068`–`0075` **by hand** the same day, recording each in the ledger. Production
+is at `0075`.
+
+So this is not blocked. What it needs is a **migration number** — `0077` or later, since `0076` is
+`order_money` — from the mobile thread, and then the same hand-apply-and-record operation CLAUDE.md
+§10 sanctions. `E01-31` is still worth merging (the workflow names `SUPABASE_PROJECT_REF`, which
+exists at no level, and `SUPABASE_DB_PASSWORD`, which holds *staging's* password) but nothing here
+waits on it.
 
 The **client half is built and merged already**, and is inert until this lands: `auth_is_owner()`
-is called through a wrapper that treats "function does not exist" as `false`. That is the `E02-36`
-sequencing lesson applied in advance — the client works before and after, so neither half can break
-the other.
+is called through a wrapper that treats "function does not exist" as `false`, and
+`fetchPlatformOwner()` treats a missing *table* the same way. That is the `E02-36` sequencing lesson
+applied in advance — the client works before and after, so neither half can break the other.
+
+### What the client already does, today, with none of this applied
+
+| Surface | Before the DDL | After |
+|---|---|---|
+| `fetchIsOwner()` | `false`, from a `PGRST202` | the function's answer |
+| `fetchPlatformOwner()` | `null`, from a `PGRST205` | the row, with its reason |
+| The sidebar | revealed by grants, exactly as now | every link, for the owner |
+| `describeAccess` | unchanged for everyone | `Owner — everything, by construction` |
+| `/admin/people` | no owner section rendered | the owner, named above the grant holders |
+
+Nothing above changes behaviour for any account that is not the owner, and there is no owner until
+the migration installs one.
