@@ -3585,3 +3585,39 @@ claiming the problem was fixed.
 
 There is no selector for "the first node". The headline is now a class — `.notice__head` — which is
 unambiguous, and a `b` in running prose is left alone whatever position it happens to be in.
+
+## A red suite that was really a shared machine — 2026-08-28
+
+Twelve failures in one smoke run, every one reading:
+
+```
+psql failed: ERROR:  relation "city" does not exist
+LINE 2:     with c as (select id from city limit 1),
+```
+
+The tempting reading — and the one I had already written into `E14-42` earlier the same day — is
+that the meal-pack tests contend over shared database state even at `--test-concurrency=1`. It is a
+good story: those tests *do* share a fixture, they *had* flaked before, and a suite that fails
+twelve tests and then passes looks exactly like a race.
+
+It was not a race. **The local Supabase database was mid-`db reset` while the suite ran.** The give-
+away was in the database, not the failure: `supabase_migrations.schema_migrations` was at `0081`
+while the tree was at `0080`, because another thread was pushing migrations at that moment. A psql
+connection during a reset sees exactly this — tables genuinely absent for a few seconds.
+
+What settled it was **running the same suite on `origin/main` and on the branch, back to back, in
+the same checkout with the same `node_modules`**: `205 pass, 0 fail` both times. Then three
+consecutive `test:scripts` runs green, then two consecutive full smokes green.
+
+Two things worth carrying:
+
+- **A shared local database is shared state between *threads*, not just between tests.** Two agents
+  working the same repo can reset each other's database mid-run, and every symptom looks like a
+  flaky test in whatever suite happened to be reading.
+- **"It failed, then passed, so it is flaky" is a conclusion, not an observation.** The observation
+  is that it failed and then passed. I wrote the conclusion into the backlog as though it were
+  evidence, and it would have sent the mobile thread hunting a persistence bug that does not exist.
+  Corrected in `E14-42` in place, rather than left to be read.
+
+The first check on a red suite whose failures name missing tables: `select version from
+supabase_migrations.schema_migrations order by version desc limit 1`, against the tree.
