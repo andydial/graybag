@@ -3585,3 +3585,41 @@ claiming the problem was fixed.
 
 There is no selector for "the first node". The headline is now a class — `.notice__head` — which is
 unambiguous, and a `b` in running prose is left alone whatever position it happens to be in.
+
+## `git commit` during a rebase conflict silently absorbs the wrong commit (2026-08-28)
+
+Resolving a rebase conflict with `git add -A && git commit -m "..."` **completes the conflicted
+commit under your message**, discarding the original. It does not create a new commit, and the
+rebase stays in progress with no visible sign that a commit message has just been overwritten.
+
+`E21-50` disappeared into a commit called "regenerate backlog state after rebase". The two tasks
+stopped being separately revertable, which is the whole point of CLAUDE.md's one-task-one-commit
+rule. Use `git rebase --continue` — it reuses the original message.
+
+## Regenerating a state file mid-rebase reverts other people's work (2026-08-28)
+
+Worse, and from the same sequence. `planning/backlog-state.json` has now conflicted on **five
+consecutive rebases**. The resolution is always "take `main`, regenerate" — but running
+`build-backlog.mjs` and `sync-state.mjs` *while the rebase is still in progress* runs them against
+a tree holding **main's state file beside the branch's older markdown**. `sync-state` then writes
+markdown from state and **un-ticked eleven `owner:andy` tasks**, including `E17-64`, which Andy
+had explicitly confirmed hours earlier.
+
+Nothing failed. The suite was green, the diff looked like a routine regeneration, and the loss was
+eleven single-character changes buried in a 273-line commit.
+
+**Two rules from this:**
+
+- **Finish the rebase before regenerating anything.** Generators assume a coherent tree; a rebase
+  in progress is by definition not one.
+- **After any rebase that touches `planning/`, diff the task states against `main` and expect to
+  recognise every line:**
+
+  ```bash
+  git diff origin/main -- planning/backlog/ | grep -E '^[-+]- \['
+  ```
+
+  Only the tasks the branch actually owns may appear. Anything else is a silent revert. That one
+  command is what caught this, and it should have been run four rebases earlier — I had already
+  written down that hand-resolving this file risks "silently mis-ticking a task", then did exactly
+  that within the hour rather than filing the fix.
