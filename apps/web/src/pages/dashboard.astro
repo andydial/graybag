@@ -1,31 +1,35 @@
 ---
 /**
- * Where signing in lands you — `E10-43`.
+ * Today — the status page, not the launcher — `E10-67`.
  *
- * Andy: *"I should login into a dashboard and should have options to navigate to all other
- * available web screens / reports etc. Currently I need to find and paste URL endpoints to open
- * some / many of those."*
+ * ## What this replaced, and why
  *
- * ## Why a page and not just the bar
+ * `E10-43` built this as fourteen cards, one per route, each with the one-line description
+ * `nav.ts` holds. That was right for the complaint it answered — Andy: *"I need to find and paste
+ * URL endpoints"* — and it stopped being right the moment `E10-55` put a persistent sidebar on
+ * every screen. A second navigation underneath the first is a screen spent saying nothing, and it
+ * was the first thing anyone saw every morning.
  *
- * The bar in `BackofficeNav.astro` carries labels. A label is enough once you know what a screen
- * is; it is not enough the first time, and it is not enough for kitchen staff who will be given an
- * account and told to get on with it. This page carries the one-line description that `nav.ts` has
- * always held for every route — what the screen is *for* — so the answer to "where do I do X" is
- * readable rather than guessable.
+ * The prototype's Today is a **status page**: what is blocking orders, what today has taken, what
+ * needs a person, and what the kitchen is doing right now. That is the question this URL is
+ * actually opened with.
  *
- * It is also the honest destination for sign-in. Before this, `/signin` sent everybody to
- * `/kitchen` whatever they held, so an account with only `reports.view` landed on a screen it
- * could not read and had no way to discover the one it could.
+ * ## Assembled from reads other screens already make
  *
- * ## Nothing here decides access
+ * Nothing here is a new source of truth and nothing here is a control. Every figure is derived
+ * from data RLS has already scoped, and every line says where to go and fix what it names — the
+ * page's whole job is to be the shortest path to the screen that can do something.
  *
- * The cards are filtered by `fetchMyGrants()` for presentation only. Every route behind them is
- * enforced by RLS, and a card revealed in error opens a screen that refuses — which is the same
- * position we were in when there were no cards at all.
+ * ## Panels are independent, and a panel that cannot be read says so
+ *
+ * Six reads behind five different grants. A kitchen operator legitimately cannot read most of
+ * them, and a failed read must not blank the page — so each panel is fetched, gated and rendered
+ * on its own, and one failing leaves the others standing.
+ *
+ * **A number that could not be read is never rendered as zero.** `ux-spec` §5.21, and here it is
+ * load-bearing: "₹0 today" is a sentence somebody would act on. See `Panel` in `today.ts`.
  */
 import BackofficeShell from '../components/BackofficeShell.astro';
-import { NAV } from '../lib/backoffice/nav.js';
 
 import '../styles/tokens.css';
 import '../styles/site.css';
@@ -38,7 +42,7 @@ import '../styles/backoffice.css';
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>Dashboard — GrayBag</title>
+    <title>Today — GrayBag</title>
     <link rel="preload" href="/fonts/nunito-latin-var.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" href="/img/favicon.png" type="image/png" sizes="64x64" />
   </head>
@@ -49,64 +53,304 @@ import '../styles/backoffice.css';
       title="Today"
       subtitle="What needs you, and what the kitchen is doing"
     >
+      <button id="d-reload" slot="actions" class="btn btn--ghost" type="button">Refresh</button>
 
-      <div class="pad">      
-
+      <div class="pad">
         <div id="d-status" class="visually-hidden" role="status" aria-live="polite"></div>
-
-        <p class="m">
-          Everything this account can open. Screens you do not have permission for are not listed —
-          <b>ask for the permission rather than the URL</b>, because the server refuses either way.
-        </p>
-
-        <div class="dash" id="d-cards">
-          {
-            NAV.map((item) => (
-              <a class="dash__card" href={item.href} data-nav-item data-requires={item.requires.join(' ')} hidden>
-                <span class="dash__label">{item.label}</span>
-                <span class="dash__desc">{item.description}</span>
-              </a>
-            ))
-          }
-        </div>
-
-        <div class="empty" id="d-empty" hidden>
-          <h2>Nothing to show you yet</h2>
-          <p id="d-empty-why"></p>
-        </div>
+        <div id="d-banner"></div>
+        <div id="d-cards"></div>
+        <div id="d-board"></div>
       </div>
-      </BackofficeShell>
+    </BackofficeShell>
 
     <script>
-      import { api } from '@graybag/shared';
+      import { api, money } from '@graybag/shared';
 
       import { mountShell } from '../lib/backoffice/shell.js';
-      import { NAV, noAccessReason } from '../lib/backoffice/nav.js';
       import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
+      import { describeDate, serviceDateToday } from '../lib/kitchen/view.js';
+      import { schoolMenuRows } from '../lib/admin/catalogue-view.js';
+      import { readiness } from '../lib/admin/school-readiness.js';
+      import { TODAY_FIXTURE, TODAY_FIXTURE_GRANTS } from '../lib/admin/today-fixture.js';
+      import {
+        attention, boardRows, dishesBlockingOrders, ordersToday, packsToday, revenueToday,
+        sortBoard, readable, unreadable,
+        type AttentionItem, type BlockingDishes, type BoardRow, type OrdersToday,
+        type PacksToday, type Panel, type RevenueToday,
+      } from '../lib/admin/today.js';
 
       const $ = (id: string) => document.getElementById(id)!;
-      const demo = new URLSearchParams(location.search).has('state');
+      const esc = (s: string) =>
+        s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-      /** Reveal the cards whose every required grant is held. Same rule as the bar, same data. */
-      function reveal(held: { has(code: string): boolean }): number {
-        let shown = 0;
-        for (const card of document.querySelectorAll<HTMLElement>('#d-cards [data-nav-item]')) {
-          const requires = (card.dataset.requires ?? '').split(' ').filter(Boolean);
-          if (requires.every((g) => held.has(g))) {
-            card.hidden = false;
-            shown += 1;
+      const demo = new URLSearchParams(location.search).has('state');
+      const today = serviceDateToday(new Date());
+
+      /**
+       * Every panel starts unreadable, with the reason it would be.
+       *
+       * The default is *"you do not hold the grant"* rather than *"loading"*, so a read that never
+       * runs — because the grant is absent — renders the true reason rather than an empty card
+       * that looks like a failure. A read that runs and fails overwrites this with its own why.
+       */
+      const NO_GRANT = (grant: string) => `Needs ${grant}.`;
+
+      let blocking: Panel<BlockingDishes> = unreadable(NO_GRANT('menu.edit'));
+      let orders: Panel<OrdersToday> = unreadable(NO_GRANT('orders.view'));
+      let revenue: Panel<RevenueToday> = unreadable(NO_GRANT('orders.view_financials'));
+      let packs: Panel<PacksToday> = unreadable(NO_GRANT('meal_packs.manage'));
+      let needs: Panel<AttentionItem[]> = unreadable(NO_GRANT('school.edit'));
+      let board: Panel<BoardRow[]> = unreadable(NO_GRANT('orders.view'));
+      let loading = true;
+
+      /* ------------------------------------------------------------------ rendering */
+
+      /** A card whose figure could not be read says why, in place of the figure. */
+      function card(
+        title: string, panel: Panel<unknown>,
+        show: (value: never) => { k: string; m: string }, kind = '',
+      ): string {
+        const body = panel.readable
+          ? (() => {
+              const { k, m } = show(panel.value as never);
+              return `<div class="k">${k}</div><div class="m">${m}</div>`;
+            })()
+          // Never a zero. "₹0 today" and "you may not see this" are different facts, and only one
+          // of them is something to act on.
+          : `<div class="k k--none">—</div><div class="m">${esc(panel.why)}</div>`;
+        return `<div class="card${kind}"><h4>${esc(title)}</h4>${body}</div>`;
+      }
+
+      function renderBanner(): void {
+        // Only when there is something to say. A banner that is always present is furniture.
+        if (!blocking.readable || blocking.value.count === 0) {
+          $('d-banner').innerHTML = '';
+          return;
+        }
+        const b = blocking.value;
+        const shown = b.names.slice(0, 3).map(esc).join(', ');
+        const rest = b.names.length > 3 ? `, and ${b.names.length - 3} more` : '';
+        $('d-banner').innerHTML =
+          `<div class="notice notice--warn">` +
+            `<b class="notice__head">${b.count} dish${b.count === 1 ? '' : 'es'} on a live menu ` +
+            `${b.count === 1 ? 'has' : 'have'} no veg or non-veg marking</b>` +
+            `A parent cannot tell what they are ordering. ${shown}${rest}` +
+            (b.schools.length ? ` — on ${b.schools.map(esc).join(', ')}` : '') +
+            `. <a href="/admin/dishes?type=unset">Set them in Dishes</a>, filtered to the ones ` +
+            `that need it.` +
+          `</div>`;
+      }
+
+      function renderCards(): void {
+        $('d-cards').innerHTML =
+          `<div class="grid">` +
+            card('Orders today', orders, (o: OrdersToday) => ({
+              k: String(o.total),
+              m: o.total === 0
+                ? 'Nothing ordered for today yet.'
+                : Object.entries(o.byStatus)
+                    .map(([status, n]) => `${n} ${esc(status)}`).join(' · '),
+            })) +
+            card('Revenue today', revenue, (r: RevenueToday) => ({
+              k: money.formatPaise(r.netPaise),
+              m:
+                `${money.formatPaise(r.grossPaise)} taken` +
+                (r.refundedPaise > 0 ? ` · ${money.formatPaise(r.refundedPaise)} refunded` : '') +
+                (r.cancelled > 0 ? ` · ${r.cancelled} cancelled, not counted` : '') +
+                // Stated rather than silently omitted — see `revenueToday`'s note. A meal paid
+                // from a pack sits in a table no back-office account may read (`E21-63`).
+                `<br>Meals paid from a pack are not separated out yet`,
+            })) +
+            card('Packs sold', packs, (p: PacksToday) => ({
+              k: String(p.packsSold),
+              m: p.packsSold === 0
+                ? `${p.liveOffers} offer${p.liveOffers === 1 ? '' : 's'} live · none sold yet`
+                : `${money.formatPaise(p.collectedPaise)} collected · ${p.mealsSold} meals sold`,
+            })) +
+            card('Needs you', needs, (items: AttentionItem[]) => ({
+              k: String(items.length),
+              m: items.length === 0
+                ? 'Nothing is blocking an order.'
+                : items.slice(0, 3).map((i) =>
+                    esc(i.text) +
+                    (i.fix ? ` <a href="${esc(i.fix.href)}">${esc(i.fix.label)}</a>` : ''),
+                  ).join('<br>') +
+                  (items.length > 3 ? `<br>and ${items.length - 3} more` : ''),
+            }), needs.readable && needs.value.length > 0 ? ' card--warn' : '') +
+          `</div>`;
+      }
+
+      function renderBoard(): void {
+        if (!board.readable) {
+          $('d-board').innerHTML =
+            `<div class="sec">Kitchen, right now</div>` +
+            `<div class="empty"><h2>Not visible to this account</h2><p>${esc(board.why)}</p></div>`;
+          return;
+        }
+
+        const rows = sortBoard(board.value);
+        if (rows.length === 0) {
+          $('d-board').innerHTML =
+            `<div class="sec">Kitchen, right now</div>` +
+            `<div class="empty"><h2>Nothing for today</h2>` +
+            `<p>No orders have been placed for ${esc(today)}. That is a real answer, not a ` +
+            `failed read — the kitchen list would be empty too.</p></div>`;
+          return;
+        }
+
+        $('d-board').innerHTML =
+          `<div class="sec">Kitchen, right now</div>` +
+          rows.map((r) => {
+            const done = r.status === 'delivered';
+            const off = r.status === 'cancelled';
+            return (
+              `<div class="gate ${done ? 'gate--pass' : off ? 'gate--fail' : 'gate--warn'}">` +
+                `<div class="ic" aria-hidden="true">${done ? '✓' : off ? '×' : '·'}</div>` +
+                `<div class="t">${esc(r.recipientName)}` +
+                  (r.classLabel ? ` · Class ${esc(r.classLabel)}` : '') +
+                  `<span>${esc(r.schoolName)}` +
+                    (r.breakLabel ? ` · ${esc(r.breakLabel)}` : '') +
+                    ` · ${r.items} item${r.items === 1 ? '' : 's'}` +
+                    // `null` is "you may not see money", which is not the same as ₹0 — a
+                    // pack-paid meal is genuinely zero, and the two must not read alike.
+                    (r.totalPaise === null ? '' : ` · ${money.formatPaise(r.totalPaise)}`) +
+                  `</span></div>` +
+                `<span class="tag tag--${done ? 'live' : 'draft'}">${esc(r.status)}</span>` +
+              `</div>`
+            );
+          }).join('');
+      }
+
+      function render(): void {
+        /*
+         * The subtitle is the **date**, replacing the static sentence once we know which day is
+         * on screen. The prototype does the same, and it is the right call: a status page whose
+         * heading does not say which day it is about is one you have to trust rather than read —
+         * and this is the page somebody opens at 7am to find out whether today looks right.
+         */
+        const sub = document.querySelector<HTMLElement>('[data-page-sub]');
+        if (sub) sub.textContent = `${describeDate(today, today)} · Mohali`;
+
+        renderBanner();
+        renderCards();
+        renderBoard();
+
+        const said: string[] = [];
+        if (loading) said.push('Loading today.');
+        else {
+          if (orders.readable) said.push(`${orders.value.total} orders today.`);
+          if (needs.readable) said.push(`${needs.value.length} things need you.`);
+          if (blocking.readable && blocking.value.count > 0) {
+            said.push(`${blocking.value.count} dishes are blocking orders.`);
           }
         }
-        return shown;
+        $('d-status').textContent = said.join(' ');
+      }
+
+      /* ------------------------------------------------------------------ loading */
+
+      /**
+       * Run a panel's read, turning a refusal into a sentence rather than into a crash.
+       *
+       * Each panel is separately awaited so that one failing read leaves the rest of the page
+       * standing. A screen that goes blank because the packs Edge Function is down is a screen
+       * that cannot tell you the kitchen has 40 orders waiting.
+       */
+      async function panel<T>(
+        held: boolean, grant: string, read: () => Promise<T>,
+      ): Promise<Panel<T>> {
+        if (!held) return unreadable(NO_GRANT(grant));
+        try {
+          return readable(await read());
+        } catch (cause) {
+          return unreadable(cause instanceof Error ? cause.message : 'That read did not complete.');
+        }
       }
 
       async function load(): Promise<void> {
+        loading = true; render();
+
+        const caps = demo
+          ? api.capabilities(TODAY_FIXTURE_GRANTS)
+          : await api.fetchMyCapabilities().catch(() => api.capabilities([]));
+
         if (demo) {
-          reveal(api.capabilities(NAV.flatMap((i) => i.requires)));
+          blocking = readable(TODAY_FIXTURE.blocking);
+          orders = readable(TODAY_FIXTURE.orders);
+          revenue = readable(TODAY_FIXTURE.revenue);
+          packs = readable(TODAY_FIXTURE.packs);
+          needs = readable(TODAY_FIXTURE.attention);
+          board = readable(TODAY_FIXTURE.board);
+          loading = false; render();
           await mountShell();
           return;
         }
 
+        /*
+         * The catalogue reads feed two panels — the banner and half of "Needs you" — so they are
+         * fetched once and shared. `readiness` needs six tables; they are small, and one parallel
+         * batch costs one round trip of wall-clock rather than six.
+         */
+        const catalogue = caps.has('menu.edit') || caps.has('school.edit')
+          ? Promise.all([
+              api.fetchAdminSchools(), api.fetchMenuAssignments(), api.fetchAdminMenus(),
+              api.fetchAdminDishes(), api.fetchAllBreakTimes(), api.fetchServiceDaysBySchool(),
+            ]).catch(() => null)
+          : Promise.resolve(null);
+
+        const [kitchenPanel, moneyOrders, packPanel, cat] = await Promise.all([
+          // Orders and the board come from ONE kitchen read. It carries the child, the break and
+          // the lines and no money column at all, which is `D3`'s split and why the kitchen path
+          // cannot leak a total by mistake.
+          panel(caps.has('orders.view'), 'orders.view', () => api.fetchKitchenOrders(today)),
+          caps.has('orders.view_financials')
+            ? api.fetchAdminOrders(today).catch(() => null)
+            : Promise.resolve(null),
+          panel(caps.has('meal_packs.manage'), 'meal_packs.manage', async () => {
+            const [offers, sold] = await Promise.all([
+              api.fetchAdminPackOffers(), api.fetchPackOfferSales(),
+            ]);
+            return packsToday(offers, sold);
+          }),
+          catalogue,
+        ]);
+
+        orders = kitchenPanel.readable ? readable(ordersToday(kitchenPanel.value)) : kitchenPanel;
+        board = kitchenPanel.readable
+          ? readable(boardRows(kitchenPanel.value, moneyOrders))
+          : kitchenPanel;
+        packs = packPanel;
+
+        revenue = !caps.has('orders.view_financials')
+          ? unreadable(NO_GRANT('orders.view_financials'))
+          : moneyOrders === null
+            ? unreadable('The money read did not complete.')
+            : readable(revenueToday(moneyOrders));
+
+        if (cat === null) {
+          const why = caps.has('menu.edit') || caps.has('school.edit')
+            ? 'The catalogue read did not complete.'
+            : NO_GRANT('menu.edit or school.edit');
+          blocking = unreadable(why);
+          needs = unreadable(why);
+        } else {
+          const [schools, assignments, menus, dishes, breaks, days] = cat;
+          const rows = schoolMenuRows(schools, assignments, menus, dishes, today);
+          const found = dishesBlockingOrders(rows, dishes);
+          blocking = readable(found);
+          needs = readable(
+            attention(readiness(schools, assignments, menus, dishes, breaks, days, today), found),
+          );
+        }
+
+        loading = false; render();
+        await mountShell();
+      }
+
+      $('d-reload').addEventListener('click', () => void load());
+
+      void (async () => {
+        if (demo) { await load(); return; }
         configureBackofficeApi();
 
         // Signed out is the common case for this URL — it is the one people bookmark.
@@ -118,32 +362,8 @@ import '../styles/backoffice.css';
         } catch {
           // Fall through: a failed session read should not strand somebody on a blank page.
         }
-
-        // Capabilities rather than grants: the platform owner holds no rows and would otherwise
-        // be told this account can open no back-office screen (`E02-39`).
-        let held: api.Capabilities = api.capabilities([]);
-        try {
-          held = await api.fetchMyCapabilities();
-        } catch {
-          $('d-empty').hidden = false;
-          $('d-empty-why').textContent =
-            'We could not read this account’s permissions. Try again, and if it persists the database is unreachable.';
-          await mountShell();
-          return;
-        }
-
-        if (reveal(held) === 0) {
-          $('d-empty').hidden = false;
-          $('d-empty-why').textContent =
-            noAccessReason({ name: '', grants: new Set(held.codes) as never, isOwner: held.isOwner }) ??
-            'This account can open no back-office screen.';
-        }
-
-        $('d-status').textContent = `${reveal(held)} screens available.`;
-        await mountShell();
-      }
-
-      void load();
+        await load();
+      })();
     </script>
   </body>
 </html>

@@ -3233,7 +3233,7 @@
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Make the meal-pack tests isolated rather than relying on a serial runner.</strong> <code>E14-41</code> bought determinism by turning parallelism off, which treats the symptom: those tests share database state and assume nothing else is touching it, so they will fail again the moment the suite is parallel for any other reason — a CI runner with more cores, a future <code>--test-concurrency</code> change, or someone running two suites at once. The fix is per-test isolation: a unique pack and school per test rather than a shared fixture, so contention is between the test&#39;s own connections, which is what it is actually trying to prove. <strong>Observed again at concurrency 1 on 2026-08-28</strong>, which raises the priority: the serial runner reduced the flake and did not remove it. Four failures in one full-suite run, zero in the next with no change, zero in isolation twice. So the shared state is not only contended between *files* — something persists between runs, and the tests assume they start from a state they do not create. The mobile thread owns these tests</span>
+        <span class="ttext"><strong>Make the meal-pack tests isolated rather than relying on a serial runner.</strong> <code>E14-41</code> bought determinism by turning parallelism off, which treats the symptom: those tests share database state and assume nothing else is touching it, so they will fail again the moment the suite is parallel for any other reason — a CI runner with more cores, a future <code>--test-concurrency</code> change, or someone running two suites at once. The fix is per-test isolation: a unique pack and school per test rather than a shared fixture, so contention is between the test&#39;s own connections, which is what it is actually trying to prove. <strong>Correction, 2026-08-28.</strong> I previously recorded this as &quot;observed again at concurrency 1&quot;, concluding the serial runner had not removed the flake and something persisted between runs. <strong>That diagnosis was wrong and is withdrawn.</strong> Twelve failures later the same day, all reading <code>relation &quot;city&quot; does not exist</code>, had a mundane cause: the <strong>local database was mid-<code>db reset</code> while the suite ran</strong> — it was at <code>0081</code> while the tree was at <code>0080</code>, because another thread was pushing migrations at that moment. Green immediately afterwards, three times, and green twice on the full smoke; <code>origin/main</code> and this branch both scored <code>205 pass, 0 fail</code> back to back in the same checkout. So the evidence for a concurrency-1 flake was really evidence for a shared *machine*. The isolation work below is still worth doing — the tests do share fixture state and would fail on a parallel runner — but it is not urgent, and nobody should go hunting the between-runs persistence I claimed. The mobile thread owns these tests</span>
       </li></ul>
       </details>
     </article>
@@ -4347,13 +4347,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/58</span>
+          <span class="meter-num">0/60</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 58 tasks</summary>
+        <summary>Context &amp; 60 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4819,6 +4819,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A CSS port dropped a media query and prefixed the inside of a comment.</strong> Folding <code>kitchen.css</code> into <code>backoffice.css</code> lost <code>@media (max-width: 30rem)</code> around the day nav&#39;s narrow rules, so the phone layout applied at 1440px, and prefixed a comment line by line — which once stripped parses as the selector <code>.bo .daynav__count</code>, making a <code>display: none</code> written for phones unconditional. <code>24 orders · 6 classes · 2 breaks</code> was missing from the kitchen board and from <code>/orders</code> on production and looked like a count nobody had built. Nothing we run can see either: a dropped media query is not a syntax error, and a stripped comment leaves a legal selector. Found by opening a parity screenshot. Same pass fixed <code>.notice &gt; b:first-child</code>, which was written to bold only a *leading* headline and does not, because CSS <code>:first-child</code> counts elements and ignores text nodes — <code>Revoking is &lt;b&gt;not&lt;/b&gt; a delete</code> matched it, and People had a three-sentence explanation rendered as a column of fragments under a comment claiming it was fixed. The headline is now <code>.notice__head</code>, asked for by name</span>
+      </li>
+      <li class="task" data-id="E10-67" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-67"></button>
+        <code class="tid">E10-67</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Today — the status page, not the launcher.</strong> <code>/dashboard</code> was fourteen cards, one per route, which was right for <code>E10-43</code>&#39;s complaint (*&quot;I need to find and paste URL endpoints&quot;*) and stopped being right the moment <code>E10-55</code> put a persistent sidebar on every screen. A second navigation underneath the first is a screen spent saying nothing, and it was the first thing anyone saw every morning. Now it answers the question the URL is actually opened with: a <strong>banner</strong> for dishes on a live menu with no veg/non-veg marking (the one catalogue fault a parent meets directly, and every imported dish starts in it — <code>[DM-17]</code>), four cards — <strong>Orders today</strong>, <strong>Revenue today</strong>, <strong>Packs sold</strong>, <strong>Needs you</strong> — and <strong>Kitchen, right now</strong>. The subtitle is the date, because a status page whose heading does not say which day it covers is one you have to trust rather than read. Every figure is derived from a read another screen already makes; nothing here is a source of truth and nothing here is a control. <strong>Panels are independent</strong>: six reads behind five grants, each gated and rendered on its own, so a kitchen operator sees what they may see and one failing read leaves the rest standing. <strong>A number that could not be read renders as an em dash and the reason, never as zero</strong> — <code>ux-spec</code> §5.21, load-bearing here because &quot;₹0 today&quot; is a sentence somebody would act on, and because <code>null</code> (may not see money) and <code>0</code> (a pack-paid meal) are genuinely different facts on the same row</span>
+      </li>
+      <li class="task" data-id="E10-68" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-68"></button>
+        <code class="tid">E10-68</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Sort the &quot;Needs you&quot; list by what it costs, not by school order.</strong> It currently lists every blocking school in read order, then dishes, then non-blocking gaps. Right for three schools; at thirty, a school that took ₹40,000 last month and one that has never traded read identically. Needs the revenue join Reports already computes</span>
       </li></ul>
       </details>
     </article>
@@ -6702,13 +6718,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/55</span>
+          <span class="meter-num">0/56</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 55 tasks</summary>
+        <summary>Context &amp; 56 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7179,6 +7195,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Stamp <code>items_per_meal</code> and <code>required_category_id</code> onto <code>meal_pack</code> at sale.</strong> The durable fix behind <code>E21-60</code>&#39;s freeze. <code>0068</code> already stamps price, tax, <code>meals_total</code> and <code>expires_at</code> with the reasoning written into the schema — *&quot;the offer&#39;s price can change and the config can be flipped; neither may retroactively alter a pack already sold&quot;* — and these two were missed, so <code>meal_pack_balance</code> reads them live from the offer. <code>E21-60</code> enforces the invariant in an Edge Function, which holds only as long as every write goes through it. Stamping them makes it a property of the row instead, and lets the admin edit a sold offer freely. Migration, so the mobile thread&#39;s</span>
+      </li>
+      <li class="task" data-id="E21-63" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-63"></button>
+        <code class="tid">E21-63</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A back-office read of <code>meal_pack_redemption</code>, so revenue can separate prepaid meals.</strong> <code>0068</code> gives that table exactly one read policy — <code>meal_pack_redemption_read_own</code> — so no back-office account can see a redemption at all. Two screens are honest about it rather than guessing, and both would rather not be: <strong>Today&#39;s</strong> Revenue card cannot say *&quot;excludes pack redemptions&quot;* the way the prototype does, because an embed would come back empty and it would report &quot;0 paid with a pack&quot; — an unknown rendering as a known, on a money figure. <strong>Meal packs</strong> can say how many meals were *sold* and not how many are unspent, which is the actual liability. Needs a policy — <code>orders.view_financials</code> at the order&#39;s school, matching how <code>order</code> itself is scoped — and therefore a migration. Until then both screens name the gap on screen, which is the right interim and is not the fix</span>
       </li></ul>
       </details>
     </article>

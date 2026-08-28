@@ -33,7 +33,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Release](decisions/release.md) | `R1`–`R8` | Closed beta, cutover freeze window, rollback-by-default gates |
 | [Policy documents](decisions/policy-documents.md) | `PP1`–`PP4` | Cross-reference not duplicate, retention tokens, allergy disclaimer |
 | [Store submission](decisions/store-submission.md) | `SUB1`–`SUB3` | Declarations derived from the policy, no tracking, no ad ID |
-| [Secret rotation and testing](decisions/secrets-and-testing.md) | `SR1`–`SR3` | Where secrets live, what gates merge, what CI cannot prove |
+| [Secret rotation and testing](decisions/secrets-and-testing.md) | `SR1`–`SR4` | Where secrets live, what gates merge, what CI cannot prove |
 | [Migrations](decisions/migrations.md) | `MG1`–`MG6` | Rollback location, reversibility, version numbering, immutability |
 | [Environments and secrets](decisions/environments.md) | `EN1`–`EN11` | Test/live key isolation, load-time assertions, `secrets:set`, the client `.env` pattern, OTA |
 | [CI](decisions/ci.md) | `CI1`–`CI4` | Smoke test only on PR, integration on `supabase/**` |

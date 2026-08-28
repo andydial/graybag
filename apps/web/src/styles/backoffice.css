@@ -396,6 +396,15 @@
 .bo .card h4 { margin: 0 0 var(--gb-space-1); font-size: var(--gb-font-size-body); font-weight: var(--gb-font-weight-display); }
 .bo .card .k { font-size: var(--gb-font-size-display); font-weight: var(--gb-font-weight-display); letter-spacing: -0.02em; margin: 2px 0; }
 .bo .card .m { font-size: var(--gb-font-size-body-sm); color: var(--muted); line-height: 1.55; }
+/*
+ * The figure a card could not read — `E10-67`.
+ *
+ * An em dash at the same size as a number, in the muted colour, with the reason underneath. It is
+ * deliberately not a zero and deliberately not blank: "₹0 today" is a sentence somebody acts on,
+ * and an empty card reads as a page that failed to load rather than as a permission they lack.
+ */
+.bo .card .k--none { color: var(--muted); }
+.bo .card .m a { color: inherit; text-decoration: underline; }
 .bo .card--warn { background: var(--warn-bg); border-color: var(--warn-line); }
 .bo .card--ok { background: var(--ok-bg); border-color: var(--ok-line); }
 
