@@ -46,7 +46,11 @@ import { useCheckout } from '../checkout/useCheckout';
 import { track } from '../analytics/analytics';
 import { screenNameFor } from '../analytics/screens';
 import { useBreakTimes } from '../cart/useBreakTimes';
-import { clashingAllergens, useAllergenWatchlist } from '../menu/useAllergenWatchlist';
+import {
+  clashingAllergens,
+  useAllergenWatchlist,
+  useRecipientWatchlist,
+} from '../menu/useAllergenWatchlist';
 import { formatServiceDateLong } from '../orders/OrderDetailScreen';
 import { useMealPackSurface } from '../packs/MealPackSurfaceContext';
 import { MyPacksScreen } from '../packs/MyPacksScreen';
@@ -889,19 +893,33 @@ function ConnectedPlanDayScreen({
       ? recipientsState.rows.find((row) => row.id === recipientId)
       : undefined;
 
+  /**
+   * `E21-51`. The allergens of the child **this day is for**, not of the order target.
+   *
+   * A parent plans several days at once and picks a child per day, so `useAllergenWatchlist`
+   * would answer for whoever the menu happens to have selected — a warning confidently about the
+   * wrong child, which is worse than none.
+   */
+  const watchlist = useRecipientWatchlist(recipientId);
+
+  const categoryNames = useMemo(
+    () => new Map((payload?.categories ?? []).map((category) => [category.id, category.label])),
+    [payload],
+  );
+
   const dishes = useMemo(
     () =>
       (payload?.dishes ?? []).map((dish) => ({
         id: dish.id,
         name: dish.name,
         categoryId: dish.categoryId,
-        categoryName: dish.categoryId,
+        // Was `dish.categoryId`, which rendered a raw uuid as the section heading. The payload
+        // has carried `categories: {id, label}` all along; nothing read it here.
+        categoryName: categoryNames.get(dish.categoryId) ?? dish.categoryId,
         pricePaise: dish.pricePaise,
-        // `E21-51` joins the child's allergens; an empty list here means "not yet checked", and
-        // the screen says nothing rather than implying the dish is safe.
-        clashes: [] as string[],
+        clashes: clashingAllergens(dish, watchlist),
       })),
-    [payload],
+    [payload, categoryNames, watchlist],
   );
 
   return (
@@ -913,7 +931,13 @@ function ConnectedPlanDayScreen({
       selected={entry?.dishIds ?? []}
       itemsPerMeal={surface.balance?.itemsPerMeal ?? 2}
       requiredCategoryId={surface.balance?.requiredCategoryId ?? ''}
-      requiredCategoryLabel="a drink"
+      // Read from the offer, not hardcoded. `PlanDayScreen` was built to name the required
+      // category from the pack precisely so a fruit pack does not say "a drink"; this connector
+      // was passing the literal string and undoing that.
+      requiredCategoryLabel={
+        categoryNames.get(surface.balance?.requiredCategoryId ?? '') ?? 'a required item'
+      }
+      allergensUnavailable={watchlist.status === 'unavailable'}
       onToggleDish={(dishId: string) => {
         const current = entry?.dishIds ?? [];
         setDay(serviceDate, {

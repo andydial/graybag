@@ -124,6 +124,13 @@ describe('the action cannot be pressed into a refusal', () => {
   });
 });
 
+/**
+ * The same dishes with every clash removed — what the screen is handed when the child's
+ * allergens could not be read. Identical on screen to a child with no allergies, which is the
+ * whole reason `allergensUnavailable` has to be a separate signal.
+ */
+const unchecked = base.dishes.map((dish) => ({ ...dish, clashes: [] as string[] }));
+
 describe('allergens warn, and never hide', () => {
   it('warns in the child’s name', async () => {
     await render(<PlanDayScreen {...base} />);
@@ -148,6 +155,59 @@ describe('allergens warn, and never hide', () => {
 
   it('a clashing dish still makes a valid meal — the warning is not a veto', async () => {
     await render(<PlanDayScreen {...base} selected={['d-pasta', 'd-milk']} />);
+    expect(screen.getByTestId('screen-plan-day-use').props.accessibilityState.disabled).toBe(
+      false,
+    );
+  });
+});
+
+/**
+ * `E21-51`. The distinction between "we looked and found nothing" and "we could not look".
+ *
+ * These four exist because the screen has exactly one way to be dangerously wrong: showing a
+ * dish with no warning on it when the child's allergens were never read. Both states render no
+ * clash line, so nothing above this block can tell them apart — which is precisely how the
+ * planner shipped with an empty list and looked correct.
+ */
+describe('an unchecked child is not a safe child', () => {
+  it('says so, rather than showing dishes with no warnings on them', async () => {
+    await render(<PlanDayScreen {...base} dishes={unchecked} allergensUnavailable />);
+    expect(screen.getByTestId('screen-plan-day-allergens-unavailable')).toHaveTextContent(
+      /no dish below has been checked/,
+    );
+  });
+
+  it('names the child, so it is clear whose allergies are unknown', async () => {
+    await render(<PlanDayScreen {...base} dishes={unchecked} allergensUnavailable />);
+    expect(screen.getByTestId('screen-plan-day-allergens-unavailable')).toHaveTextContent(
+      /Aarav’s allergen list/,
+    );
+  });
+
+  it('shows no clash lines when it cannot check — it must not invent one', async () => {
+    await render(<PlanDayScreen {...base} dishes={unchecked} allergensUnavailable />);
+    expect(screen.queryByTestId('screen-plan-day-clash-d-pasta')).toBeNull();
+  });
+
+  it('stays silent when allergens WERE checked and nothing clashed', async () => {
+    // The other half of the property, and the one that fails if a later change decides to show
+    // the notice whenever `clashes` happens to be empty. A parent whose child has no allergies
+    // must not be told every day that we could not check.
+    await render(<PlanDayScreen {...base} dishes={unchecked} />);
+    expect(screen.queryByTestId('screen-plan-day-allergens-unavailable')).toBeNull();
+  });
+
+  it('still lets the day be used — not being able to check is not a block', async () => {
+    // Refusing to plan would be the safe-looking choice and the wrong one: it strands a parent
+    // whose only fault is a failed network read, on a screen with no way forward.
+    await render(
+      <PlanDayScreen
+        {...base}
+        dishes={unchecked}
+        allergensUnavailable
+        selected={['d-pasta', 'd-milk']}
+      />,
+    );
     expect(screen.getByTestId('screen-plan-day-use').props.accessibilityState.disabled).toBe(
       false,
     );
