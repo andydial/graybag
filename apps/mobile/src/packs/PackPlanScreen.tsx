@@ -80,6 +80,7 @@ export function PackPlanScreen({
   plan = [],
   confirming = false,
   daysUnavailable = false,
+  failure = null,
   onRetryDays,
   onSelectRecipient,
   onOpenDay,
@@ -97,6 +98,11 @@ export function PackPlanScreen({
    * own state with a retry, because "no days to plan" would be a lie about the school.
    */
   daysUnavailable?: boolean;
+  /**
+   * The confirm was refused — `E21-50`. Built by `packPlan.planFailure`, which decides the one
+   * thing this screen must not get wrong: whether we can promise nothing was spent.
+   */
+  failure?: packPlan.PlanFailure | null;
   onRetryDays?: (() => void) | undefined;
   onSelectRecipient?: ((recipientId: string) => void) | undefined;
   onOpenDay?: ((date: string) => void) | undefined;
@@ -243,6 +249,23 @@ export function PackPlanScreen({
         finished items for five of them.
       */}
       <View style={styles.footer} testID={`${testID}-footer`}>
+        {failure === null ? null : (
+          <View style={styles.failure} testID={`${testID}-failure`}>
+            <Text style={styles.failureText}>{failure.message}</Text>
+            <Text style={styles.failureText} testID={`${testID}-failure-spend`}>
+              {failure.spendKnown
+                ? 'Nothing has been spent — your meals are still in your pack.'
+                : 'We can’t confirm yet whether those meals were spent. Your balance will show ' +
+                  'the truth either way.'}
+            </Text>
+            {failure.stale && onRetryDays !== undefined ? (
+              <>
+                <View style={{ height: space[2] }} />
+                <Button label="Refresh the days" onPress={onRetryDays} variant="secondary" />
+              </>
+            ) : null}
+          </View>
+        )}
         <Text
           style={[
             styles.footerText,
@@ -265,6 +288,13 @@ export function PackPlanScreen({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: bg.canvas },
+  failure: {
+    backgroundColor: bg.surfaceWarning, padding: space[3], borderRadius: radius.md,
+    gap: space[1],
+  },
+  failureText: {
+    fontSize: scale.caption.size, lineHeight: scale.caption.lineHeight, color: text.warning,
+  },
   content: { paddingBottom: space[8] },
   pad: { paddingHorizontal: layout.gutter, paddingTop: space[4] },
   lead: {

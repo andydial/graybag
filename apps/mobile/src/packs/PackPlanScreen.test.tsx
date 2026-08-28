@@ -253,3 +253,81 @@ describe('a failed calendar read is not an empty calendar', () => {
     expect(screen.getByTestId('screen-pack-plan-count')).toHaveTextContent(/Choose a day to start/);
   });
 });
+
+/**
+ * `E21-50`. The refusal, on screen.
+ *
+ * Before this the confirm caught its error and did nothing: a parent pressed Confirm, the button
+ * un-greyed, and the screen said exactly what it had said before. There was no way to tell a
+ * refusal from a slow tap.
+ */
+describe('a refused confirm says so, and says what happened to the meals', () => {
+  const refusal = {
+    message: 'Ordering has closed for one of those days.',
+    spendKnown: true,
+    stale: true,
+  };
+
+  it('shows the server’s own sentence', async () => {
+    await render(<PackPlanScreen days={DAYS} recipients={KIDS} failure={refusal} />);
+    expect(screen.getByTestId('screen-pack-plan-failure')).toHaveTextContent(
+      /Ordering has closed for one of those days/,
+    );
+  });
+
+  it('answers the parent’s first question — have my meals gone', async () => {
+    await render(<PackPlanScreen days={DAYS} recipients={KIDS} failure={refusal} />);
+    expect(screen.getByTestId('screen-pack-plan-failure-spend')).toHaveTextContent(
+      /Nothing has been spent/,
+    );
+  });
+
+  it('does NOT claim that when the server never answered', async () => {
+    // The whole point of `spendKnown`. Promising safety after a timeout is a guess about money.
+    await render(
+      <PackPlanScreen
+        days={DAYS} recipients={KIDS}
+        failure={{ message: 'We couldn’t reach GrayBag', spendKnown: false, stale: false }}
+      />,
+    );
+    const spend = screen.getByTestId('screen-pack-plan-failure-spend');
+    expect(spend).toHaveTextContent(/can’t confirm yet whether those meals were spent/);
+    expect(spend).not.toHaveTextContent(/Nothing has been spent/);
+  });
+
+  it('offers a refresh when the plan is stale, because retrying it cannot work', async () => {
+    const onRetryDays = jest.fn();
+    await render(<PackPlanScreen days={DAYS} recipients={KIDS} failure={refusal} onRetryDays={onRetryDays} />);
+    await userEvent.press(screen.getByText('Refresh the days'));
+    expect(onRetryDays).toHaveBeenCalled();
+  });
+
+  it('does not offer a refresh when the plan is simply wrong', async () => {
+    await render(
+      <PackPlanScreen
+        days={DAYS} recipients={KIDS}
+        failure={{ message: 'One of those days isn’t a valid pack meal.', spendKnown: true, stale: false }}
+        onRetryDays={jest.fn()}
+      />,
+    );
+    expect(screen.queryByText('Refresh the days')).toBeNull();
+  });
+
+  it('says nothing at all when there has been no failure', async () => {
+    await render(<PackPlanScreen days={DAYS} recipients={KIDS} />);
+    expect(screen.queryByTestId('screen-pack-plan-failure')).toBeNull();
+  });
+
+  it('leaves Confirm usable, so a parent can act on what they were told', async () => {
+    // A refusal that also disabled the button would strand a parent on a screen with the fix
+    // described and no way to apply it. The plan below is valid, so the ONLY thing that could
+    // disable the button here is the failure — which it must not.
+    const plan = [{ date: '2026-08-28', recipientId: 'r-1', items: meal() }];
+    await render(
+      <PackPlanScreen days={DAYS} recipients={KIDS} plan={plan} failure={refusal} />,
+    );
+    expect(
+      screen.getByTestId('screen-pack-plan-confirm').props.accessibilityState.disabled,
+    ).toBe(false);
+  });
+});
