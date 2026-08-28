@@ -1288,6 +1288,37 @@
   .bo .daynav__count { display: none; }
   .bo .daynav__date { font-size: var(--gb-font-size-body-strong); line-height: 1.2; }
 }
+/*
+ * "This is true here, and it is changed over there" — `E10-71`.
+ *
+ * Muted and below the gates, because it is context rather than a task. The gates are the reason
+ * somebody opened this screen; this is the answer to the question they ask next.
+ */
+/*
+ * An account's permissions, collapsed — `E10-71`.
+ *
+ * The summary is the affordance and it carries the count, so the number you were scanning for is
+ * readable without opening anything. Styled as a control rather than as text because a disclosure
+ * that does not look pressable is one people scroll past.
+ */
+.bo .srow__detail > summary {
+  cursor: pointer;
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body-strong);
+  color: var(--gb-text-link);
+  padding: var(--gb-space-1) 0;
+}
+.bo .srow__detail > summary:focus-visible { outline: var(--gb-focus-ring); outline-offset: 2px; }
+.bo .srow__detail[open] > summary { margin-bottom: var(--gb-space-2); }
+
+.bo .sch__elsewhere {
+  margin-top: var(--gb-space-4);
+  padding-top: var(--gb-space-3);
+  border-top: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+}
+.bo .sch__elsewhere .m { margin: 0 0 var(--gb-space-2); }
+.bo .sch__elsewhere .m:last-child { margin-bottom: 0; }
+
 /* ------------------------------------------- screens with no prototype (`E10-60`) */
 
 /*
