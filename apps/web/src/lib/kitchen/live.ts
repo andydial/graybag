@@ -11,9 +11,14 @@ import type { KitchenDay, KitchenFilters, KitchenPermissions, KitchenTransport }
  * That is the point of `A4`: the one place that knows the backend exists stays one place.
  */
 
-/** Grant codes → the three booleans the screen draws from. */
-function toPermissions(grants: string[]): KitchenPermissions {
-  const held = new Set(grants);
+/**
+ * What this account may do → the three booleans the screen draws from.
+ *
+ * Capabilities rather than a set of grant codes, because the platform owner holds no grant rows
+ * (`E02-39`) and would otherwise be shown the board with every control missing — the server would
+ * accept the write and the screen would not offer it.
+ */
+function toPermissions(held: api.Capabilities): KitchenPermissions {
   return {
     viewOrders: held.has('orders.view'),
     markDelivered: held.has('orders.mark_delivered'),
@@ -28,9 +33,9 @@ export function liveTransport(): KitchenTransport {
 
       // Both reads together: the grants decide which controls exist, and a screen that renders
       // the list before it knows would flash buttons the operator may not use.
-      const [orders, grants, schools] = await Promise.all([
+      const [orders, held, schools] = await Promise.all([
         api.fetchKitchenOrders(filters.serviceDate),
-        api.fetchMyGrants(),
+        api.fetchMyCapabilities(),
         api.fetchKitchenSchools(),
       ]);
 
@@ -70,7 +75,7 @@ export function liveTransport(): KitchenTransport {
 
       return {
         serviceDate: filters.serviceDate,
-        permissions: toPermissions(grants),
+        permissions: toPermissions(held),
         orders,
         schools: offered.map(({ id, name }) => ({ id, name })),
         breaks: [...breaks].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label)),

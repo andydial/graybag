@@ -167,7 +167,7 @@ import '../../styles/backoffice.css';
         if (error) {
           el.line.textContent = '';
           el.body.innerHTML =
-            `<div class="notice notice--err"><b>We can't show the menus</b>${esc(error)}</div>` +
+            `<div class="notice notice--err"><b class="notice__head">We can't show the menus</b>${esc(error)}</div>` +
             `<button class="btn" type="button" data-retry>Try again</button>`;
           return;
         }

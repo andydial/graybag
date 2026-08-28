@@ -63,6 +63,7 @@ import '../styles/backoffice.css';
       import { api, money } from '@graybag/shared';
       import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
       import { describeDate, serviceDateToday, shiftDate } from '../lib/kitchen/view.js';
+      import { ORDERS_FIXTURE } from '../lib/admin/orders-fixture.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
@@ -75,9 +76,17 @@ import '../styles/backoffice.css';
         s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
       const today = serviceDateToday(new Date());
+      /*
+       * The demo state — `E10-63`. Without it this route redirects to `/signin`, which is what
+       * let it ship unstyled: `parity-shot` photographed and measured the sign-in page and
+       * reported the route as fine. It reads no session and signs nobody out.
+       */
+      const demo = new URLSearchParams(location.search).has('state');
       let serviceDate = today;
       let orders: api.AdminOrder[] = [];
-      let grants: string[] = [];
+      // Capabilities, not a grant list: the platform owner holds no rows (`E02-39`) and the
+      // money column would silently disappear for the one account that may see everything.
+      let access: api.Capabilities = api.capabilities([]);
       let loading = true;
       let error: string | null = null;
 
@@ -88,11 +97,20 @@ import '../styles/backoffice.css';
 
       async function load() {
         loading = true; error = null; render();
+        if (demo) {
+          orders = ORDERS_FIXTURE;
+          // Every control shown, for the same reason the demo sidebar reveals every link: this is
+          // what the a11y gate and the parity shot walk, and a screen filtered down to nothing
+          // leaves the money column untested.
+          access = api.capabilities(['orders.view', 'orders.view_financials']);
+          loading = false; render();
+          return;
+        }
         try {
           configureBackofficeApi();
-          [orders, grants] = await Promise.all([
+          [orders, access] = await Promise.all([
             api.fetchAdminOrders(serviceDate),
-            api.fetchMyGrants(),
+            api.fetchMyCapabilities(),
           ]);
         } catch (cause) {
           error = cause instanceof Error ? cause.message : 'The order list did not load.';
@@ -125,7 +143,7 @@ import '../styles/backoffice.css';
          * "nothing here". An admin without `orders.view_financials` seeing an empty page would
          * reasonably conclude there were no orders, and act on that.
          */
-        if (!loading && !grants.includes('orders.view_financials')) {
+        if (!loading && !access.has('orders.view_financials')) {
           el.count.textContent = '—';
           el.summary.innerHTML = '';
           el.board.innerHTML =
@@ -239,8 +257,10 @@ import '../styles/backoffice.css';
 
       void (async () => {
         // Same guard as `/kitchen`: a signed-out visitor is sent to sign in rather than shown an
-        // empty page that looks like a day with no orders.
+        // empty page that looks like a day with no orders. The demo state is exempt — it is the
+        // whole point of it, and it is why this route could not be verified before.
         try {
+          if (demo) { await load(); return; }
           if (!(await currentUser())) {
             location.assign(`/signin?next=${encodeURIComponent('/orders')}`);
             return;

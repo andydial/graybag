@@ -157,7 +157,7 @@ import '../../styles/backoffice.css';
         if (error) {
           el.line.textContent = '';
           el.body.innerHTML =
-            `<div class="notice notice--err"><b>We can't show the offers</b>${esc(error)}</div>` +
+            `<div class="notice notice--err"><b class="notice__head">We can't show the offers</b>${esc(error)}</div>` +
             `<button class="btn" type="button" data-retry>Try again</button>`;
           return;
         }
@@ -188,7 +188,7 @@ import '../../styles/backoffice.css';
            * The prototype's notice, and the sentence that matters most on this screen: a sold pack
            * is money held against food not yet served. It is the reason expiry exists.
            */
-          `<div class="notice notice--info"><b>Outstanding meals are money you already hold</b>` +
+          `<div class="notice notice--info"><b class="notice__head">Outstanding meals are money you already hold</b>` +
             `A sold pack is revenue collected and food not yet served. Expiry is what bounds it — ` +
             `every pack expires a fixed number of days after purchase, and unused meals are not ` +
             `refundable.</div>` +
@@ -243,7 +243,7 @@ import '../../styles/backoffice.css';
             : 'A draft until you make it live',
           body:
             (frozen
-              ? `<div class="notice notice--warn"><b>${n} pack${n === 1 ? ' has' : 's have'} been bought under this offer</b>` +
+              ? `<div class="notice notice--warn"><b class="notice__head">${n} pack${n === 1 ? ' has' : 's have'} been bought under this offer</b>` +
                 `How many items a meal is, and which category one of them must come from, are read ` +
                 `when a meal is spent — so changing them now would change what those packs can buy. ` +
                 `They are locked. Price, name and validity are stamped onto a pack when it sells, ` +

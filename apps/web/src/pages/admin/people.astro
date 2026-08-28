@@ -105,7 +105,7 @@ import '../../styles/backoffice.css';
     <script>
       import { mountShell } from '../../lib/backoffice/shell.js';
       import { api } from '@graybag/shared';
-      import { JOBS, describeAccess, jobByKey } from '../../lib/admin/jobs.js';
+      import { JOBS, OWNER_LABEL, describeAccess, jobByKey } from '../../lib/admin/jobs.js';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
       import { PEOPLE_FIXTURE } from '../../lib/admin/people-fixture.js';
 
@@ -133,6 +133,16 @@ import '../../styles/backoffice.css';
 
       let accounts: api.AccessAccount[] = [];
       let permissions: api.PermissionInfo[] = [];
+      /*
+       * The platform owner — `E02-39`. `null` until that migration lands, and `null` is also the
+       * honest answer today: `fetchPlatformOwner` reads a table that does not exist yet and says
+       * so rather than failing.
+       *
+       * It is read here because the owner holds **no grant rows**, so `fetchAccess` — which lists
+       * accounts that hold something — cannot see them. Without this, the account that can do
+       * everything is absent from the screen whose entire job is answering who can do what.
+       */
+      let owner: api.PlatformOwner | null = null;
       let meId: string | null = null;
       let loading = true;
       let error: string | null = null;
@@ -152,14 +162,17 @@ import '../../styles/backoffice.css';
               { id: 'demo-s2', name: 'Gem Public School' },
             ];
             kitchens = [{ id: 'demo-k1', name: 'Mohali Central' }];
+            owner = PEOPLE_FIXTURE.owner;
           } else {
             configureBackofficeApi();
-            const [a, p, me, sc, kt] = await Promise.all([
+            const [a, p, me, sc, kt, ow] = await Promise.all([
               api.fetchAccess(), api.fetchPermissions(), currentUser(),
               // Named, so "Which one" can offer Amity rather than a UUID (`E10-47`).
               api.fetchAdminSchools(), api.fetchKitchens(),
+              api.fetchPlatformOwner(),
             ]);
             accounts = a;
+            owner = ow;
             permissions = p;
             schools = sc.map((x) => ({ id: x.id, name: x.name }));
             kitchens = kt.map((x) => ({ id: x.id, name: x.name }));
@@ -209,6 +222,9 @@ import '../../styles/backoffice.css';
                 (() => {
                   const summary = describeAccess(
                     a.held.map((g) => ({ permissionCode: g.permissionCode, scopeType: g.scopeType })),
+                    // An owner who also happens to hold grants must still be named as the owner:
+                    // the grants are not what they can do (`E02-39`).
+                    { isOwner: owner?.userId === a.userId },
                   );
                   const where = summary.scopeType && summary.scopeType !== 'platform'
                     ? ` at ${esc(summary.scopeType)}` : '';
@@ -360,6 +376,49 @@ import '../../styles/backoffice.css';
         );
       }
 
+      /**
+       * The owner, named first and named as itself — `E02-39`.
+       *
+       * Andy: *"Its own label: 'Owner — everything, by construction'. Don't let it borrow a job
+       * name it isn't."* So this is a separate block above the grant holders rather than a row
+       * among them, because it is a different kind of answer: everyone below holds a list, and
+       * this one holds nothing and can do everything.
+       *
+       * It says how ownership moves, because the only honest thing to put where a Revoke button
+       * would go is the reason there is not one.
+       */
+      function ownerCard(): string {
+        if (!owner) return '';
+        return (
+          `<section class="sec-wrap" aria-labelledby="owner-h">` +
+            `<h2 id="owner-h">The owner</h2>` +
+            `<div class="srow">` +
+              `<div class="srow__main">` +
+                `<p class="srow__name">${esc(owner.email)}` +
+                  (owner.userId === meId ? ' <span class="tag">you</span>' : '') +
+                  (owner.isDisabled ? ' <span class="tag">disabled</span>' : '') +
+                `</p>` +
+                `<p class="srow__meta">` +
+                  (owner.displayName ? `${esc(owner.displayName)} · ` : '') +
+                  `<b>${esc(OWNER_LABEL)}</b>` +
+                `</p>` +
+                `<p class="srow__why">${esc(owner.reason)}</p>` +
+              `</div>` +
+            `</div>` +
+            `<p class="notice notice--info">` +
+              `The owner holds <b>no permission rows</b>, which is why they are not in the list ` +
+              `below. Every check passes for this account by construction, so a new permission ` +
+              `never has to be granted to it and the label above can never go stale.` +
+              `<br><br>` +
+              `There is <b>exactly one</b>, and no screen can change it — the table has no write ` +
+              `policy. Moving it takes a migration, with a reason, and the old owner is kept in ` +
+              `an append-only history. Being disabled still stops this account, exactly as it ` +
+              `stops anyone else.` +
+            `</p>` +
+          `</section>`
+        );
+      }
+
       function render() {
         if (loading) {
           el.body.innerHTML = Array(3).fill('<div class="sk"></div>').join('');
@@ -379,7 +438,11 @@ import '../../styles/backoffice.css';
         if (accounts.length === 0) {
           // Reachable, and not an error: every grant could have been revoked. It is also what a
           // caller without `grants.manage` sees, so it must not claim the first as a fact.
+          // The owner still appears. "Nobody holds back-office access" is literally true — the
+          // owner holds nothing — and would be the most misleading sentence on the screen if it
+          // were the only one (`E02-39`).
           el.body.innerHTML =
+            ownerCard() +
             `<div class="empty"><h2>Nobody holds back-office access</h2>` +
             `<p>Either no grants exist yet, or this account cannot read them — that needs ` +
             `<b>grants.manage</b> and <b>users.view</b>. Search above to give somebody a job.</p></div>`;
@@ -387,6 +450,7 @@ import '../../styles/backoffice.css';
         }
 
         el.body.innerHTML =
+          ownerCard() +
           `<section class="sec-wrap" aria-labelledby="access-h">` +
             `<h2 id="access-h">Who has access</h2>` +
             `<p class="m">` +

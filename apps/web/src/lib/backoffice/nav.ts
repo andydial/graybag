@@ -79,6 +79,15 @@ export interface Operator {
   /** Display only. Never used to decide access — that is what `grants` is for. */
   name: string;
   grants: ReadonlySet<Grant>;
+  /**
+   * The platform owner — `E02-39`. Satisfies every requirement while holding nothing.
+   *
+   * This is the one exception to "navigation is derived from grants", and it is not a role
+   * sneaking back in: there is exactly one owner, it is a single recorded row rather than a
+   * value on an account, and `auth_has_permission` answers the same way server-side. A screen
+   * that read the grants alone would render an empty rail for the person who can do everything.
+   */
+  isOwner?: boolean;
 }
 
 /**
@@ -277,6 +286,7 @@ export const NAV: NavItem[] = [
 ];
 
 export function canReach(item: NavItem, operator: Operator): boolean {
+  if (operator.isOwner === true) return true;
   return item.requires.every((grant) => operator.grants.has(grant));
 }
 
@@ -302,6 +312,9 @@ export function visibleNav(operator: Operator): NavItem[] {
  */
 export function noAccessReason(operator: Operator): string | null {
   if (visibleNav(operator).length > 0) return null;
+  // Unreachable while `NAV` has an entry, since the owner reaches all of them — but "the owner
+  // has no permissions yet" would be a spectacularly wrong sentence to leave reachable.
+  if (operator.isOwner === true) return null;
   if (operator.grants.size === 0) {
     return 'This account has no back-office permissions yet. An administrator needs to grant them.';
   }

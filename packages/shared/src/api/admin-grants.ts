@@ -10,7 +10,7 @@
  * `permission_grant` has **no write policy at all** and must not have one: a table that grants
  * access cannot be writable by the thing whose access it grants.
  */
-import { invokeFunction, runQuery } from './client.js';
+import { ApiError, invokeFunction, runQuery } from './client.js';
 
 export interface AccessAccount {
   userId: string;
@@ -198,6 +198,79 @@ export async function fetchAccess(): Promise<AccessAccount[]> {
         ),
       };
     });
+}
+
+/**
+ * The platform owner, if there is one — `E02-39`.
+ *
+ * ## Why the access screen has to read this
+ *
+ * `fetchAccess` lists accounts **that hold a grant**, which is the correct definition of the
+ * access list right up until one account is defined by holding none. The owner would be absent
+ * from the one screen whose whole job is answering "who can do what?" — the most powerful account
+ * on the platform, invisible on the access audit. That is worse than `E10-64`'s wrong label: a
+ * wrong name is at least a row somebody can query.
+ *
+ * ## Why a missing table is `null` rather than a failure
+ *
+ * The same reason `fetchIsOwner` treats a missing function as `false`: this ships before the
+ * migration that creates the table, deliberately, and the screen must work either side of it. An
+ * absent table means there is no owner yet, which is exactly true.
+ *
+ * Nothing else is swallowed — a network failure still throws, because "the access list could not
+ * load" and "there is no owner" are different facts and a screen that cannot tell them apart will
+ * eventually render one as the other.
+ */
+export interface PlatformOwner {
+  userId: string;
+  email: string;
+  displayName: string;
+  isDisabled: boolean;
+  /** Why this account is the owner. The table requires one — ownership cannot move unexplained. */
+  reason: string;
+  setAt: string;
+}
+
+/** PostgREST's ways of saying the table is not there. */
+const NO_SUCH_TABLE = new Set(['PGRST205', 'PGRST200', '42P01']);
+
+export async function fetchPlatformOwner(): Promise<PlatformOwner | null> {
+  let rows: unknown[];
+  try {
+    rows = await runQuery<unknown>((t) =>
+      t.from('platform_owner').select('user_id,reason,set_at'),
+    );
+  } catch (cause) {
+    if (cause instanceof ApiError && cause.code !== undefined && NO_SUCH_TABLE.has(cause.code)) {
+      return null;
+    }
+    throw cause;
+  }
+
+  const row = rows.filter(isRecord)[0];
+  const userId = row ? str(row.user_id) : null;
+  if (!row || !userId) return null;
+
+  // A second read rather than an embedded join: `platform_owner` has two foreign keys to
+  // `app_user` — `user_id` and `set_by` — so PostgREST cannot resolve an embed without a
+  // constraint-name hint, and a hint is a string that breaks silently if the constraint is ever
+  // renamed. `fetchAccess` reads the same table the same way, two lines up.
+  const users = await runQuery<unknown>((t) =>
+    t.from('app_user').select(ACCESS_USER_COLUMNS).in('id', [userId]),
+  );
+  const user = users.filter(isRecord)[0];
+  if (!user) return null;
+
+  const first = str(user.first_name) ?? '';
+  const last = str(user.last_name) ?? '';
+  return {
+    userId,
+    email: str(user.email) ?? '',
+    displayName: `${first} ${last}`.trim(),
+    isDisabled: user.is_disabled === true,
+    reason: str(row.reason) ?? '',
+    setAt: str(row.set_at) ?? '',
+  };
 }
 
 export interface GrantRequest {

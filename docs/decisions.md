@@ -41,7 +41,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Deployment](decisions/deployment.md) | `DP1`–`DP7` | Environment approval gate, branch policies, the ungated ref guard, dated release tags, the repo is public |
 | [Branch protection](decisions/branch-protection.md) | `BP1`–`BP4` | No bypass actors, PR required, strict status checks |
 | [Scope confirmations](decisions/scope-confirmations.md) | `SC1`–`SC3` | Mohali only; menu prices GST-exclusive; Amity launches with zero migration |
-| [Authorization fixes](decisions/authorization-fixes.md) | `AZ8`–`AZ13` | Fulfilment scope binding, and public catalogue reads for signed-in users |
+| [Authorization fixes](decisions/authorization-fixes.md) | `AZ8`–`AZ22` | Fulfilment scope binding, public catalogue reads for signed-in users, and the one derived owner |
 | [Legacy assets outside git](decisions/legacy-assets.md) | `RH1`–`RH5` | Why the 46 MB design package and the fonts are not in history |
 | [The privilege baseline](decisions/privilege-baseline.md) | `PB1`–`PB5` | GRANT written down, not inherited from the platform |
 | [Bubble export constraints](decisions/bubble-export.md) | `BR1`, `BR3`–`BR5`, `BR7` | Migration key, draft orders, label mapping, regulated free text |

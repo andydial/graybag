@@ -17,7 +17,7 @@
  * a kitchen porter every total in the school. The named column list below is the only thing that
  * does — the same reasoning, and the same shape, as `SCHOOL_COLUMNS` in `schools.ts`.
  */
-import { ApiError, invokeFunction, runQuery } from './client.js';
+import { ApiError, invokeFunction, runQuery, runRpc } from './client.js';
 
 /** The statuses the kitchen may act on. `pending_payment` is excluded — `L5`. */
 export type KitchenOrderStatus = 'paid' | 'preparing' | 'delivered' | 'cancelled';
@@ -247,15 +247,113 @@ export async function fetchMyGrants(): Promise<string[]> {
  * A second read rather than widening the first: making every caller of `fetchMyGrants` carry a
  * shape they do not use is how a narrow API becomes a wide one nobody can change.
  */
-export async function fetchMyAccess(): Promise<{ permissionCode: string; scopeType: string }[]> {
-  const rows = await runQuery<unknown>((t) =>
-    t.from('permission_grant').select('permission_code,scope_type').is('revoked_at', null),
-  );
+export interface MyAccess {
+  grants: { permissionCode: string; scopeType: string }[];
+  /**
+   * The one account `auth_has_permission` returns true for unconditionally — `E02-39`.
+   *
+   * It holds **no grant rows**, so `grants` is `[]` for the owner and every enumerating client
+   * would render an empty back office for the person who can do everything. That is the whole
+   * consequence the owner design has to answer for on the client, and this flag is the answer.
+   */
+  isOwner: boolean;
+}
 
-  return rows.filter(isRecord).map((row) => ({
+export async function fetchMyAccess(): Promise<MyAccess> {
+  const [rows, isOwner] = await Promise.all([
+    runQuery<unknown>((t) =>
+      t.from('permission_grant').select('permission_code,scope_type').is('revoked_at', null),
+    ),
+    fetchIsOwner(),
+  ]);
+
+  const grants = rows.filter(isRecord).map((row) => ({
     permissionCode: str(row.permission_code) ?? '',
     scopeType: str(row.scope_type) ?? '',
   })).filter((g) => g.permissionCode !== '');
+
+  return { grants, isOwner };
+}
+
+/**
+ * PostgREST's ways of saying "there is no such function".
+ *
+ * `PGRST202` is the schema cache miss — the function is not in the exposed schema — and `42883` is
+ * PostgreSQL's own `undefined_function`. Both are reachable depending on whether the cache has
+ * been reloaded, so both are handled.
+ */
+const NO_SUCH_FUNCTION = new Set(['PGRST202', 'PGRST203', '42883']);
+
+/**
+ * Whether this account is the platform owner — `E02-39`.
+ *
+ * ## Why a missing function is `false` rather than a failure
+ *
+ * This ships **before** the migration that creates `auth_is_owner()`, deliberately. `E02-36` is
+ * the lesson: a client and a migration that must land together land in the wrong order eventually,
+ * and the half that arrived first should keep working rather than break the screen. So "no such
+ * function" is read as "there is no owner yet", which is exactly true until the DDL lands, and the
+ * back office behaves precisely as it does today.
+ *
+ * Nothing else is swallowed. A network failure, a 500, a transport with no `rpc` — those are real
+ * failures and the caller's own error path is better than a silent `false` that would look like
+ * "you are not the owner" and be indistinguishable from the truth.
+ *
+ * It is also the safe direction to be wrong in: a false `false` costs the owner their
+ * short-circuit and leaves them with whatever their grants give them. A false `true` would be a
+ * client that draws every link for somebody the server will refuse.
+ */
+export async function fetchIsOwner(): Promise<boolean> {
+  try {
+    return (await runRpc<boolean | null>('auth_is_owner')) === true;
+  } catch (cause) {
+    if (cause instanceof ApiError && cause.code !== undefined && NO_SUCH_FUNCTION.has(cause.code)) {
+      return false;
+    }
+    throw cause;
+  }
+}
+
+/**
+ * What this account may do, asked one code at a time — `E02-39`.
+ *
+ * ## Why this exists next to `fetchMyGrants`
+ *
+ * Every screen that gates a control does the same two lines: read the codes, put them in a `Set`,
+ * ask `has`. That is correct while access *is* the set of grant rows, and it is exactly what the
+ * owner breaks — the owner holds none, so a screen doing those two lines draws the sidebar for
+ * somebody who can do everything and then hides every button on it. The proposal calls that "a
+ * strange partial experience rather than a safe one" and it is worse than either extreme.
+ *
+ * So the question a screen asks moves from *"is this code in the list"* to *"may I"*, and the one
+ * place that knows about the owner answers it. `fetchMyGrants` is unchanged and still returns the
+ * rows that exist: an owner's grant list is genuinely empty, and a function that invented rows to
+ * paper over that would make `/admin/people` display permissions nobody granted.
+ *
+ * `codes` is therefore the honest list, and `has` is the honest answer. They differ for exactly
+ * one account.
+ */
+export interface Capabilities {
+  /** True when the code is held — or when this is the owner, who satisfies everything. */
+  has(code: string): boolean;
+  /** The grant codes actually held, sorted. **Empty for the owner**, who holds no rows. */
+  readonly codes: readonly string[];
+  readonly isOwner: boolean;
+}
+
+/** Build a `Capabilities` from what is already known. Exported for fixtures and tests. */
+export function capabilities(codes: Iterable<string>, isOwner = false): Capabilities {
+  const held = new Set(codes);
+  return {
+    has: (code) => isOwner || held.has(code),
+    codes: [...held].sort(),
+    isOwner,
+  };
+}
+
+export async function fetchMyCapabilities(): Promise<Capabilities> {
+  const [codes, isOwner] = await Promise.all([fetchMyGrants(), fetchIsOwner()]);
+  return capabilities(codes, isOwner);
 }
 
 export interface KitchenSchool {

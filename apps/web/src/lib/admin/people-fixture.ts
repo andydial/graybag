@@ -12,6 +12,13 @@ import type { api } from '@graybag/shared';
 export const PEOPLE_FIXTURE: {
   accounts: api.AccessAccount[];
   permissions: api.PermissionInfo[];
+  /*
+   * The owner — `E02-39`. Deliberately an account that is **not** in `accounts`, because that is
+   * the production shape: the owner holds no grant rows, so nothing that reads
+   * `permission_grant` can see them. A fixture whose owner also held grants would demo a state
+   * the design cannot produce, and the a11y gate walks this page.
+   */
+  owner: api.PlatformOwner;
 } = {
   accounts: [
     {
@@ -83,4 +90,13 @@ export const PEOPLE_FIXTURE: {
       isSensitive: true, validScopeTypes: ['platform'],
     },
   ],
+
+  owner: {
+    userId: 'u-owner',
+    email: 'owner@graybag.com',
+    displayName: 'The owner',
+    isDisabled: false,
+    reason: 'Founder and sole operator.',
+    setAt: '2026-08-28T00:00:00.000Z',
+  },
 };

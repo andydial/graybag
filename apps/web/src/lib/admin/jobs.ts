@@ -159,7 +159,33 @@ export interface AccessSummary {
  */
 const NEAR_MATCH_FLOOR = 0.5;
 
-export function describeAccess(held: HeldGrant[]): AccessSummary {
+/**
+ * The owner's label — `E02-39`, and Andy set the words.
+ *
+ * *"Its own label: 'Owner — everything, by construction'. Don't let it borrow a job name it
+ * isn't."* It is not the Platform admin job: that job is a bundle of twenty-two grants somebody
+ * was given, and this account holds none of them. Naming it Platform admin would be `E10-64`'s
+ * bug in reverse — a confident label for a set of permissions the person does not hold — and the
+ * whole reason the owner exists is that nobody has to keep a bundle in step with it.
+ *
+ * "by construction" is doing real work in that sentence: it says the answer is derived rather
+ * than granted, so there is nothing to audit against and nothing that can drift.
+ */
+export const OWNER_LABEL = 'Owner — everything, by construction';
+
+export function describeAccess(
+  held: HeldGrant[],
+  options: { isOwner?: boolean } = {},
+): AccessSummary {
+  /*
+   * Checked before the empty case, and that order is the point: the owner's grant list is empty,
+   * so "No access — signed in, holds nothing" is what this screen would otherwise say about the
+   * account that can do everything.
+   */
+  if (options.isOwner === true) {
+    return { job: null, scopeType: 'platform', extra: [], label: OWNER_LABEL };
+  }
+
   if (held.length === 0) {
     return { job: null, scopeType: null, extra: [], label: 'No access — signed in, holds nothing' };
   }
