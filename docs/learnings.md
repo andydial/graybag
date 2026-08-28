@@ -3535,3 +3535,53 @@ store URLs point at the apex until `E17-66` builds the page.
 sentence *"so `(owner:andy)` is dropped"* put the literal string back on the line, so the task was
 re-tagged as Andy's and `sync-state.mjs` correctly refused to close it. The guard was working; the
 prose was the bug. Say "the owner tag is dropped", never the tag itself.
+
+## A CSS port dropped a media query and prefixed the inside of a comment — 2026-08-28
+
+Found by opening a parity screenshot of `/orders`, not by any check.
+
+When `kitchen.css` was folded into `backoffice.css`, the script that prefixed every selector with
+`.bo` did two things wrong to the same block, and both survived review:
+
+```css
+/* what the port produced */
+.bo .daynav { flex: 1 1 100%; }
+.bo /* The count wraps to a second line at this width,
+.bo which doubles the tallest thing in the bar
+   * for information that is already on the board below. */
+  .daynav__count { display: none; }
+```
+
+1. **The `@media (max-width: 30rem)` wrapper was dropped**, so the phone layout applied at every
+   width. The day nav took a full row of the header and the date shrank to body text on a 1440px
+   screen.
+2. **The comment was prefixed line by line**, and once the comment is stripped what is left parses
+   as the selector `.bo .daynav__count` — so a `display: none` written for phones became
+   unconditional. `24 orders · 6 classes · 2 breaks` was missing from the kitchen board and from
+   `/orders`, on production, and looked like a count nobody had built.
+
+Neither is detectable by anything we run. `check:css-tokens` reads `var(--gb-…)` names and does not
+parse structure; the CSS was valid; every unit test passed; the a11y sweep passed. **A dropped
+media query is not a syntax error and a stripped comment leaves a legal selector.**
+
+The same port left a second defect of a different kind: `.daynav` was written for the kitchen
+board's **green** bar and coloured `--gb-text-on-brand` throughout. `/orders` put it in the shell's
+**white** header, where the date and both arrow glyphs became white-on-white. Only the borders had
+contrast, so it read as a deliberate pair of empty rings rather than as text that had failed. Fixed
+by making the light header the default — the one a new screen gets by accident — and having the
+green bar ask for its own.
+
+**Carry forward:** a mechanical CSS port needs a human looking at a rendered page, per context the
+component appears in. `parity-shot.mjs` is that, and it found all three in one image. A selector
+prefixer should also refuse to touch anything inside `/* … */`.
+
+### And `:first-child` is not "the first thing"
+
+The related fix in the same pass. `.bo .notice > b:first-child { display: block }` was written to
+make only a notice's *leading* bold line a headline, and it did not work: CSS `:first-child` counts
+**elements** and ignores text nodes, so `Revoking is <b>not</b> a delete` matches it. People had a
+three-sentence explanation broken into a column of fragments, in production, under a comment
+claiming the problem was fixed.
+
+There is no selector for "the first node". The headline is now a class — `.notice__head` — which is
+unambiguous, and a `b` in running prose is left alone whatever position it happens to be in.

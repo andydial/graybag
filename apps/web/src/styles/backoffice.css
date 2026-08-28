@@ -458,14 +458,23 @@
 }
 
 /*
- * Only the **leading** `b` is a block — the notice's headline.
+ * The notice's headline is a block. It is asked for by name.
  *
  * The prototype's notices open with a bold line and then run prose, and that prose often contains
  * bold mid-sentence ("**Assign** points a second school…"). Making every `b` a block turned those
  * into a column of fragments — visible on People, where a three-sentence explanation broke into
  * eight lines.
+ *
+ * `> b:first-child` was the first attempt at "only the leading one" and **did not work**, because
+ * CSS `:first-child` counts elements and ignores text nodes. "Revoking is <b>not</b> a delete"
+ * puts the `b` after a text node and *still* matches, so People kept breaking in exactly the way
+ * the rule was written to stop — for another two weeks, in production, with a comment above it
+ * claiming it was fixed.
+ *
+ * There is no selector for "the first node". So the headline is a class, which is unambiguous,
+ * and a `b` in running prose is left alone whatever position it happens to be in.
  */
-.bo .notice > b:first-child { display: block; margin-bottom: 3px; }
+.bo .notice > .notice__head { display: block; margin-bottom: 3px; }
 .bo .notice--warn { background: var(--warn-bg); border-color: var(--warn-line); color: var(--gb-text-primary); }
 .bo .notice--err { background: var(--gb-bg-surface-warning); border-color: var(--gb-border-danger); color: var(--gb-text-primary); }
 .bo .notice--info { background: var(--ok-bg); border-color: var(--ok-line); color: var(--gb-text-primary); }
@@ -1115,32 +1124,52 @@
   gap: var(--gb-space-3);
   margin-right: auto;
 }
+/*
+ * The day nav has two backgrounds, so it needs two sets of colours.
+ *
+ * It was written for the kitchen board's green bar and coloured `--gb-text-on-brand` throughout.
+ * `/orders` then put the same component in the shell's **white** header, where white-on-white is
+ * exactly as visible as it sounds: the date and both arrow glyphs vanished, leaving two empty
+ * circles either side of nothing. The border was the only part with any contrast, which is why it
+ * read as a deliberate pair of rings rather than as text that had failed.
+ *
+ * So the default is the light header — the more common of the two, and the one a new screen will
+ * get by accident — and the green bar asks for its own.
+ */
 .bo .daynav__step {
   min-width: 3.5rem;
   min-height: 3.5rem;
-  border: var(--gb-border-width-default) solid var(--gb-ramp-forest-600);
+  border: var(--gb-border-width-default) solid var(--gb-border-default);
   border-radius: var(--gb-radius-full);
   background: transparent;
-  color: var(--gb-text-on-brand);
+  color: var(--gb-text-primary);
   font-family: inherit;
   font-size: var(--gb-font-size-h2);
   line-height: 1;
   cursor: pointer;
 }
-.bo .daynav__step:hover { background: var(--gb-ramp-forest-600); }
+.bo .daynav__step:hover { background: var(--gb-bg-surface-accent); }
+.bo .kitchen__bar .daynav__step {
+  border-color: var(--gb-ramp-forest-600);
+  color: var(--gb-text-on-brand);
+}
+.bo .kitchen__bar .daynav__step:hover { background: var(--gb-ramp-forest-600); }
 .bo .daynav__label { flex: 1 1 15rem; min-width: 0; }
 .bo .daynav__date {
   font-size: var(--gb-font-size-h2);
   line-height: var(--gb-line-height-h2);
   font-weight: var(--gb-font-semibold);
-  color: var(--gb-text-on-brand);
+  color: var(--gb-text-primary);
 }
+/** "24 orders · 3 classes · 2 breaks" — does today look right, before reading a single name. */
 .bo .daynav__count {
   font-size: var(--gb-font-size-body-sm);
   line-height: var(--gb-line-height-body-sm);
-  color: var(--gb-ramp-lime-200);
+  color: var(--gb-text-secondary);
   font-variant-numeric: tabular-nums;
 }
+.bo .kitchen__bar .daynav__date { color: var(--gb-text-on-brand); }
+.bo .kitchen__bar .daynav__count { color: var(--gb-ramp-lime-200); }
 .bo .daynav__today { min-height: 3rem; padding-inline: var(--gb-space-5); }
 .bo .kitchen__summary {
   display: flex;
@@ -1226,14 +1255,30 @@
   font-variant-numeric: tabular-nums;
   color: var(--gb-text-secondary);
 }
-.bo .daynav { flex: 1 1 100%; }
-.bo /* The count wraps to a second line at this width,
-.bo which doubles the tallest thing in the bar
+/*
+ * The narrow layout, and the reason it is written out here again.
+ *
+ * These five rules came from `kitchen.css`, where they sat inside `@media (max-width: 30rem)`.
+ * The script that ported that file prefixed every selector with `.bo` and **dropped the media
+ * query**, so the phone layout applied at every width: the day nav took a full row of the header,
+ * the date shrank to body text, and `.daynav__count` — "24 orders · 3 classes · 2 breaks" — was
+ * `display: none` on a 1440px screen. It was missing from the kitchen board and from `/orders`,
+ * on production, and looked like a count nobody had built.
+ *
+ * The same pass also prefixed the *inside of a comment*, leaving `.bo /* … *\/ .daynav__count`,
+ * which parses as a selector once the comment is stripped. That is how a `display: none` meant
+ * for phones ended up unconditional.
+ *
+ * `check:css-tokens` reads variables, not structure, so nothing failed. What found it was the
+ * parity screenshot, which is the whole argument for taking one.
+ */
+@media (width <= 30rem) {
+  .bo .daynav { flex: 1 1 100%; gap: var(--gb-space-2); }
+  /* The count wraps to a second line at this width, which doubles the tallest thing in the bar
    * for information that is already on the board below. */
-  .daynav__count { display: none; }
-.bo .daynav { gap: var(--gb-space-2); }
-.bo .daynav__date { font-size: var(--gb-font-size-body-strong); line-height: 1.2; }
-.bo .daynav__count { font-size: var(--gb-font-size-caption); }
+  .bo .daynav__count { display: none; }
+  .bo .daynav__date { font-size: var(--gb-font-size-body-strong); line-height: 1.2; }
+}
 /* ------------------------------------------- screens with no prototype (`E10-60`) */
 
 /*
