@@ -5965,13 +5965,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/61</span>
+          <span class="meter-num">0/62</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 61 tasks</summary>
+        <summary>Context &amp; 62 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -6466,6 +6466,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A <code>supabase db push</code> that appears to hang has usually already finished.</strong> The push of <code>0068</code>–<code>0075</code> to production was killed at a 10-minute timeout with no output. The obvious reading — and the dangerous one, because it is exactly the <code>0060</code> incident in CLAUDE.md #10, where a killed <code>db push</code> left a migration recorded but not applied — is that it died part-way. It had not: <strong>all eight were applied and all eight recorded</strong>, and the CLI was hung after the work was complete. Re-running blind would have been harmless here and is not in general. What settled it was verifying <strong>both directions</strong> rather than reading the ledger alone: 75 rows with <code>0075</code> latest, then the fourteen functions, constraints and columns those eight migrations create checked individually for existence, then <code>assert_ledger_integrity()</code> (5 checks, 0 failures) and <code>check_meal_pack_ledger_invariant()</code> (both legs <code>0 = 0</code>) against production&#39;s real data. A ledger row is a claim about the database, not evidence of it. Worth making the push non-interactive and streaming its output so the next one does not have to be reconstructed after the fact</span>
+      </li>
+      <li class="task" data-id="E17-67" data-seed="0" data-risk="high" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-67"></button>
+        <code class="tid">E17-67</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>planning/backlog-state.json</code> conflicts on every rebase, and hand-resolving it reverts other people&#39;s ticks.</strong> Five consecutive rebases on 2026-08-28, and the fifth did real damage: regenerating mid-rebase, against a tree holding <code>main</code>&#39;s state file beside the branch&#39;s older markdown, <strong>un-ticked eleven <code>owner:andy</code> tasks</strong> — including <code>E17-64</code>, confirmed by Andy hours earlier. Nothing failed; the suite was green and the loss was eleven single-character changes inside a 273-line commit. The resolution is always the same — take <code>main</code>, finish the rebase, then regenerate — which is exactly the shape of thing that should not be a manual step performed under time pressure. Options: a git merge driver registered by the same setup that installs the <code>post-commit</code> hook, so the file resolves itself; or a <code>scripts/resolve-backlog-state.mjs</code> that CI can also run; or stop tracking the generated half and derive it at read time. Whichever is chosen, the check that catches the failure is one line and belongs in the smoke test or a pre-push hook: <code>git diff origin/main -- planning/backlog/ | grep -E &#39;^[-+]- \[&#39;</code> must list only tasks the branch owns. Prefer the merge driver — it removes the manual step rather than adding a second one to remember</span>
       </li></ul>
       </details>
     </article>
