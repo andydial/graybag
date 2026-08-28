@@ -9,7 +9,7 @@
 --
 -- irreversible: this is a `create or replace` of `settle_payment`, and the previous body is
 -- recoverable from git rather than from a down migration. Reverting it would leave a paid pack at
--- `pending` for ever — see `0077`'s rollback note.
+-- `pending` for ever — see `0078`'s rollback note.
 
 begin;
 

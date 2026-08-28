@@ -1,7 +1,7 @@
 // POST /buy-meal-pack — start a pack purchase. `E21-48`.
 //
 // A shell, like `checkout`. Everything with consequences lives in `start_meal_pack_purchase()` in
-// migration `0077`: the offer must be active, the school must be switched on, the tax is stamped
+// migration `0078`: the offer must be active, the school must be switched on, the tax is stamped
 // from config, and the group's totals are verified against the pack at COMMIT.
 //
 // ## It does not take payment

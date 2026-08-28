@@ -1,4 +1,4 @@
--- Down for 0077. Purchases can no longer be started, and a paid pack can no longer be activated.
+-- Down for 0078. Purchases can no longer be started, and a paid pack can no longer be activated.
 --
 -- **Any pack sitting at `pending` is stranded by this**: the money may have arrived and nothing
 -- will make it spendable. Check for them before rolling back —

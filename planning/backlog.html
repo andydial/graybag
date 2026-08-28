@@ -6654,13 +6654,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/53</span>
+          <span class="meter-num">0/55</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 53 tasks</summary>
+        <summary>Context &amp; 55 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7068,13 +7068,13 @@
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The Edge Function shell over <code>confirm_meal_pack_plan</code>.</strong> Thin, like <code>checkout</code>: prove the caller from their JWT, then one service-role RPC. A body field named <code>user_id</code> is ignored — there is no code path that reads one. The <code>Idempotency-Key</code> is <strong>required rather than generated</strong>, because a key the server invents differs per attempt and defeats the whole mechanism; and in the app it is made once per screen mount in a <code>useRef</code>, since one made at tap time would be new on every tap and the second tap would look like a second plan. <code>confirming</code> and its double-tap test came back with the wire (<code>D8</code>) — belt to the server&#39;s braces, since <code>confirm_meal_pack_plan</code> replays correctly anyway; what the prop protects is what the parent SEES. <code>cors.test.ts</code> caught the new function immediately, which is the coverage list doing its job</span>
       </li>
-      <li class="task" data-id="E21-48" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+      <li class="task" data-id="E21-48" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-48"></button>
         <code class="tid">E21-48</code>
         
         
         <span class="badge r-later">later</span>
-        <span class="ttext"><strong>Buying a pack, end to end.</strong> <code>PackDetail</code>, and an Edge Function creating a <code>meal_pack_purchase</code> order group, taking payment through the <strong>existing</strong> Razorpay path — Andy chose that over a second payment linkage, because duplicating settlement, the webhook, the drain and reconciliation is a far bigger risk than the invariant — and writing the pack plus its ledger legs in one transaction. <strong>Blocked on <code>E21-22</code></strong>: the sale&#39;s legs differ by tax point, and the value is stamped onto the pack at sale, so building it before the answer would mean either guessing or reissuing tax documents later. The offers screen already lists what is on sale; there is deliberately no Buy button yet rather than one that looks like it works</span>
+        <span class="ttext"><strong>Buying a pack, end to end.</strong> <code>PackDetail</code>, and an Edge Function creating a <code>meal_pack_purchase</code> order group, taking payment through the <strong>existing</strong> Razorpay path — Andy chose that over a second payment linkage, because duplicating settlement, the webhook, the drain and reconciliation is a far bigger risk than the invariant — and writing the pack plus its ledger legs in one transaction. Unblocked 2026-08-27: <strong>tax point = sale</strong>, taxed in full at purchase, invoice issued then, no further GST at redemption (<code>E21-53</code>). <code>0078</code> writes the pack as <strong><code>pending</code></strong> — a state every balance, liability and spend function already ignored, so it needed no changes to any of them, which is the check on whether it was added in the right place. <code>0080</code> activates it from <code>settle_payment</code>, so the balance and the sale&#39;s ledger legs land in the transaction that makes the group paid.</span>
       </li>
       <li class="task" data-id="E21-50" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-50"></button>
@@ -7099,6 +7099,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Packs ship dark on production, enforced rather than remembered.</strong> Andy, 2026-08-27: *&quot;Everything else merges and ships dark: <code>is_active</code> false on production, no offer live, no parent sees a thing.&quot;* The default already stopped an offer selling <strong>by existing</strong>; it did nothing about somebody activating one, and the person most likely to is whoever first points the new admin screens at production. <code>0075</code> adds <code>platform_config.meal_packs_confirmed</code> — false everywhere — and a trigger refusing an offer that goes live while <code>environment = &#39;production&#39;</code> and the flag is false. A <strong>trigger</strong> rather than a check constraint because the condition spans two tables, and because a trigger also refuses a hand-written <code>psql</code> statement, which is how the three cancelled orders reached production. The guard is on the <strong>transition into being sellable</strong>: creating a draft, editing one, and switching a live offer OFF are all unaffected — it must never become the reason a live offer is stuck. Mutation-checked by emptying the function, which fails the two assertions that matter</span>
+      </li>
+      <li class="task" data-id="E21-54" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-54"></button>
+        <code class="tid">E21-54</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The status guard&#39;s real property, in two transactions.</strong> <code>activate_paid_meal_pack</code>&#39;s <code>status = pending</code> check stops a late redelivery recomputing <code>expires_at</code>. It cannot be asserted in pgTAP: <code>now()</code> is frozen for a transaction, so calling the function twice inside one produces identical timestamps and the assertion would pass whether the guard existed or not — an assertion that cannot fail is worse than none, so it was removed rather than kept. Needs the two-connection style <code>meal-pack-concurrency.test.mjs</code> already uses</span>
+      </li>
+      <li class="task" data-id="E21-55" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-55"></button>
+        <code class="tid">E21-55</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Open the Razorpay sheet after <code>startMealPackPurchase</code>.</strong> The purchase creates the group and the app navigates to the balance; it does not yet pay. Reuse <code>useCheckout</code> against the returned <code>order_group_id</code> — the same sheet a food order opens — and own the failure copy for both this and the plan confirm (<code>E21-50</code>)</span>
       </li>
       <li class="task" data-id="E21-60" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
         <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-60"></button>
