@@ -156,7 +156,7 @@ import '../../styles/backoffice.css';
             // against, and the a11y gate walks this page.
             accounts = PEOPLE_FIXTURE.accounts.filter((a) => a.held.length > 0);
             permissions = PEOPLE_FIXTURE.permissions;
-            meId = 'u-1';
+            meId = PEOPLE_FIXTURE.accounts[0]?.userId ?? null;
             schools = [
               { id: 'demo-s1', name: 'Amity International, Mohali' },
               { id: 'demo-s2', name: 'Gem Public School' },
@@ -190,6 +190,52 @@ import '../../styles/backoffice.css';
 
       const scopeLabel = (g: api.HeldGrant) =>
         g.scopeId ? `${g.scopeType} · ${g.scopeId.slice(0, 8)}` : g.scopeType;
+
+      /**
+       * The account id, with a one-click copy — `E10-73`.
+       *
+       * Andy: *"to see what a specific parent did in PostHog, I have to open the Supabase SQL
+       * editor and run `select id from app_user where email = …`, because PostHog identifies
+       * people by user id and deliberately never receives an email."*
+       *
+       * That last clause is the whole reason this belongs here and is not a leak. `app_user.id` is
+       * the **pseudonymous** identifier analytics is allowed to hold precisely because it carries
+       * no name, no email and no child — non-negotiable #4 and `DP2` are what make it the only
+       * join between "a parent emailed me" and "here is what they did". Putting it next to an
+       * email this screen already shows discloses nothing new; it just stops the join requiring
+       * the SQL editor.
+       *
+       * ## It is on the search results, not only the access list
+       *
+       * This mattered more than the copy button. `/admin/people` lists accounts that **hold a
+       * grant**, and a parent holds none — so the id on those rows would never once have answered
+       * the question that prompted this. `searchAccounts` reads every `app_user`, which is the
+       * path to a parent, and it renders through this same function. One change covers both.
+       *
+       * The id is shown in full rather than truncated. A shortened id beside a button that copies
+       * the whole thing is a trap the first time somebody reads one off the screen instead.
+       *
+       * ## The fact this rests on
+       *
+       * **`app_user.id` and `auth.users.id` are the same value.** `0001` declares the column as a
+       * primary key that *references* `auth.users(id)` and `0018` inserts `new.id` from the auth
+       * trigger, so they are equal by construction — verified on production, 18 of 18. The mobile
+       * app identifies to PostHog with the id from `auth.getUser()`, which is that same value.
+       *
+       * If `app_user` ever grows its own uuid with an `auth_user_id` beside it, this screen keeps
+       * rendering an id, the copy button keeps working, and the value silently matches nothing.
+       * `scripts/test/account-id-is-the-analytics-id.test.mjs` is what fails instead.
+       */
+      function accountIdHtml(userId: string): string {
+        if (!userId) return '';
+        return (
+          `<span class="acctid">` +
+            `<code class="acctid__value">${esc(userId)}</code>` +
+            `<button class="chip acctid__copy" type="button" data-copy-id="${esc(userId)}" ` +
+              `title="Copy the account id">Copy</button>` +
+          `</span>`
+        );
+      }
 
       function accountRow(a: api.AccessAccount): string {
         const isMe = a.userId === meId;
@@ -232,6 +278,7 @@ import '../../styles/backoffice.css';
                     (sensitive > 0 ? ` · ${sensitive} sensitive` : '');
                 })() +
               `</p>` +
+              `<p class="srow__meta">${accountIdHtml(a.userId)}</p>` +
               marks.map((m) => `<p class="srow__why">${esc(m)}</p>`).join('') +
 
               /*
@@ -433,6 +480,7 @@ import '../../styles/backoffice.css';
                   (owner.displayName ? `${esc(owner.displayName)} · ` : '') +
                   `<b>${esc(OWNER_LABEL)}</b>` +
                 `</p>` +
+                `<p class="srow__meta">${accountIdHtml(owner.userId)}</p>` +
                 `<p class="srow__why">${esc(owner.reason)}</p>` +
               `</div>` +
             `</div>` +
@@ -778,12 +826,66 @@ import '../../styles/backoffice.css';
         event.preventDefault();
         void grant(form);
       });
+      /**
+       * Copy an account id — `E10-73`.
+       *
+       * ## The failure path is the point
+       *
+       * `navigator.clipboard` needs a secure context and can be refused by permission policy, and
+       * a copy button that silently does nothing is worse than no button: you paste the last
+       * thing you copied into PostHog and look at the wrong person's session. So a refusal
+       * **selects the id instead**, says so, and leaves ⌘C working — the id is rendered as real
+       * selectable text rather than as a value hidden behind the button, which is what makes that
+       * fallback possible at all.
+       *
+       * The confirmation goes to the existing `role="status"` region as well as onto the button,
+       * because a label change on a button somebody has just pressed is invisible to a screen
+       * reader that has moved on.
+       */
+      async function copyAccountId(button: HTMLElement): Promise<void> {
+        const id = button.dataset.copyId ?? '';
+        if (!id) return;
+        const say = (text: string) => {
+          const was = button.textContent;
+          button.textContent = text;
+          el.status.textContent = `${text} ${id}`;
+          setTimeout(() => { button.textContent = was; }, 1500);
+        };
+
+        try {
+          await navigator.clipboard.writeText(id);
+          say('Copied');
+        } catch {
+          // Selected, not silently failed. The id is text on the page precisely so this works.
+          const value = button.closest('.acctid')?.querySelector('.acctid__value');
+          if (value) {
+            const range = document.createRange();
+            range.selectNodeContents(value);
+            const selection = getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+          }
+          say('Selected — press copy');
+        }
+      }
+
       el.body.addEventListener('click', (event) => {
         const t = event.target as HTMLElement;
         if (t.closest('[data-retry]')) { void load(); return; }
+        const copy = t.closest<HTMLElement>('[data-copy-id]');
+        if (copy) { void copyAccountId(copy); return; }
         const r = t.closest('[data-revoke]') as HTMLElement | null;
         if (r) void revoke(r);
       });
+
+      // The search results are a separate container, and they are the ones that carry a parent —
+      // the access list only ever holds grant holders. A copy button that worked on one and not
+      // the other would fail on exactly the path this was built for.
+      el.results.addEventListener('click', (event) => {
+        const copy = (event.target as HTMLElement).closest<HTMLElement>('[data-copy-id]');
+        if (copy) void copyAccountId(copy);
+      });
+
       el.reload.addEventListener('click', () => void load());
 
       void (async () => {

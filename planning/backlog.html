@@ -4347,13 +4347,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/63</span>
+          <span class="meter-num">0/64</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 63 tasks</summary>
+        <summary>Context &amp; 64 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4859,6 +4859,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>/admin/people</code> rows open a drawer, as the prototype has them.</strong> <code>E10-71</code> used a <code>&lt;details&gt;</code> because the timing was wrong for anything else — the drawer means moving the revoke buttons and the job form into it, re-binding their handlers and re-rendering after every write, on the one screen where a bug is an authorisation bug. Worth doing when there is not a rollout on</span>
+      </li>
+      <li class="task" data-id="E10-73" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-73"></button>
+        <code class="tid">E10-73</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The account id on <code>/admin/people</code>, with one-click copy.</strong> Andy: *&quot;to see what a specific parent did in PostHog, I have to open the Supabase SQL editor and run <code>select id from app_user where email = …</code>, because PostHog identifies people by user id and deliberately never receives an email. That id is the join between &#39;a parent emailed me&#39; and &#39;here&#39;s what they actually did&#39;, and it&#39;s the step I repeat every time.&quot;* <strong>The part that mattered was where it goes.</strong> <code>/admin/people</code> lists accounts that hold a <strong>grant</strong>, and a parent holds none — so putting the id on those rows alone would never once have answered the question that prompted this. <code>searchAccounts</code> reads every <code>app_user</code>, which is the path to a parent, and it renders through the same <code>accountRow</code>, so one change covers both; the copy handler is bound to the search container as well as the list. Shown in <strong>full</strong>, monospace, muted: a shortened id beside a button that copies the whole thing is a trap the first time somebody reads one off the screen. A clipboard refusal <strong>selects the id and says so</strong> rather than failing silently — a copy button that quietly does nothing means pasting the previous clipboard contents into PostHog and reading the wrong person&#39;s session. <strong>No new disclosure</strong>: <code>app_user.id</code> is the pseudonymous identifier analytics is allowed to hold precisely because it carries no name, no email and no child, and it now sits beside an email this screen already showed. Nothing else was added — no child, no order, no financial detail. The fixture&#39;s <code>u-1</code> ids became real-shaped uuids, because a 36-character value is a different layout problem from a three-character stub and the a11y gate and parity shot both walk that data. <strong>The coupling is now tested</strong>: <code>app_user.id</code> equals <code>auth.users.id</code> by construction (<code>0001</code>&#39;s FK, <code>0018</code>&#39;s trigger; 18 of 18 on production), and the mobile app identifies to PostHog with that same value — if <code>app_user</code> ever grows its own uuid the screen would keep showing an id that matches nothing, and <code>scripts/test/account-id-is-the-analytics-id.test.mjs</code> fails instead</span>
       </li></ul>
       </details>
     </article>
@@ -6005,13 +6013,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/63</span>
+          <span class="meter-num">0/64</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 63 tasks</summary>
+        <summary>Context &amp; 64 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -6522,6 +6530,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The deploy target is readable in the file; the password still passes the gate.</strong> The union Andy chose after two threads fixed <code>E01-31</code>/<code>E17-64</code> differently — *&quot;both your arguments are right and they&#39;re not in tension.&quot;* The web thread&#39;s point stands: a project ref is in every Supabase URL, hiding it bought nothing, and <strong>it is how the fault survived three days</strong> — a secret nobody can see is missing is a secret nobody notices was never created. It is now a literal, echoed before <code>link</code> so the log names the target. The password stays a secret <strong>scoped to the <code>production</code> environment</strong>, which is the half that is not convention: a repository-level secret is readable by any workflow in the repo, including one added in a pull request, without ever passing the required-reviewer gate. The credential guard drops to two names because the third is now in plain sight and cannot be absent. This <strong>implements</strong> <code>DP8</code> and <code>DP9</code>, which the web thread recorded on <code>main</code> while this branch was in flight — their decision, this implementation. My own draft added a third <code>DP8</code> for the same ruling, which would have been the <code>E17-62</code> collision in the decision log rather than the backlog: two threads, one shared artefact, no ownership rule, and ids that are permanent by <code>DOC1</code>. Dropped in the rebase; theirs stands. The failure mode is a later tidy-up making both consistent, so the test asserts both properties and is <strong>mutation-checked three ways</strong> — ref back into a secret, password hardcoded, environment removed</span>
+      </li>
+      <li class="task" data-id="E17-69" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-69"></button>
+        <code class="tid">E17-69</code>
+        <span class="badge r-high">high</span>
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Staging&#39;s <code>site_url</code> is unset and its redirect allow-list is empty — check production has neither fault.</strong> <code>check:config</code> has been failing on <code>main</code> since before <code>E10-71</code>, on two assertions: <code>site_url = &quot;&quot;</code> and <code>uri_allow_list = &quot;&quot;</code> on the <strong>staging</strong> Supabase project. Not a required check, so it has been red without blocking anything. It matters now because Amity has begun rolling out to parents. <strong>What it would break:</strong> any link Supabase generates is built from <code>site_url</code>, so unset means a recipient&#39;s phone opens a blank localhost page; an empty allow-list means only Site URL is permitted, so <code>graybag-staging://</code> cannot receive a deep link or an OAuth callback. Email OTP sends a <strong>code</strong> rather than a link, which is what has kept this invisible — but the check&#39;s own wording notes a password-less email can fall back to a link, and Sign in with Apple and Google both return through a redirect. <strong>This is <code>owner:andy</code> because it is two fields in the Supabase dashboard, and because verifying production needs a <code>SUPABASE_ACCESS_TOKEN</code>, which <code>~/.graybag-secrets/prod.env</code> does not carry</strong> — so I can confirm the staging failure and cannot confirm or clear production from here. The one thing to do first is run the same check against production: <code>SUPABASE_ACCESS_TOKEN=… SUPABASE_PRODUCTION_REF=bdamkuugbqjajbndjoxn node scripts/check-supabase-config.mjs production</code></span>
       </li></ul>
       </details>
     </article>

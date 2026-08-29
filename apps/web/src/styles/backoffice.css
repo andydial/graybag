@@ -1301,6 +1301,24 @@
  * readable without opening anything. Styled as a control rather than as text because a disclosure
  * that does not look pressable is one people scroll past.
  */
+/*
+ * An account id, next to the email — `E10-73`.
+ *
+ * Monospace and full length: this value is read, compared and pasted, and a proportional font
+ * makes `l` and `1` the same shape in a string where that matters. Muted, because it is a key
+ * rather than a fact about the person — it should be findable without competing with their name.
+ */
+.bo .acctid { display: inline-flex; align-items: center; gap: var(--gb-space-2); }
+.bo .acctid__value {
+  /* The same stack `code` uses above. There is no mono token — `check:css-tokens` caught me
+   * inventing one, which is exactly the typo it exists to refuse. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--gb-font-size-caption);
+  color: var(--gb-text-secondary);
+  user-select: all;
+}
+.bo .acctid__copy { padding-block: 2px; }
+
 .bo .srow__detail > summary {
   cursor: pointer;
   font-size: var(--gb-font-size-body-sm);

@@ -9,6 +9,15 @@
  */
 import type { api } from '@graybag/shared';
 
+/*
+ * The ids are **real-shaped uuids**, not `u-1` — `E10-73`.
+ *
+ * `app_user.id` is now rendered on this screen, and a 36-character uuid is a different layout
+ * problem from a three-character stub: it wraps, it competes with the email, and a fixture that
+ * hides that is a fixture the screen gets designed against. Same rule this file already follows
+ * about demonstrating states production can actually produce. The a11y gate and the parity shot
+ * both walk this data.
+ */
 export const PEOPLE_FIXTURE: {
   accounts: api.AccessAccount[];
   permissions: api.PermissionInfo[];
@@ -22,7 +31,7 @@ export const PEOPLE_FIXTURE: {
 } = {
   accounts: [
     {
-      userId: 'u-1', email: 'andy@example.com', displayName: 'Andy', isDisabled: false,
+      userId: 'a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d', email: 'andy@example.com', displayName: 'Andy', isDisabled: false,
       held: [
         {
           grantId: 'g-1', permissionCode: 'config.platform_edit', displayName: 'Edit platform config',
@@ -37,7 +46,7 @@ export const PEOPLE_FIXTURE: {
       ],
     },
     {
-      userId: 'u-2', email: 'cook@example.com', displayName: 'Priya', isDisabled: false,
+      userId: 'b2c3d4e5-6f7a-4b8c-9d0e-1f2a3b4c5d6e', email: 'cook@example.com', displayName: 'Priya', isDisabled: false,
       held: [
         {
           grantId: 'g-3', permissionCode: 'orders.mark_delivered', displayName: 'Mark delivered',
@@ -55,10 +64,10 @@ export const PEOPLE_FIXTURE: {
     },
     // Signed in, holds nothing. The state everybody starts in, and the reason this list is not
     // filtered to privileged accounts — there would be no way to reach the person being onboarded.
-    { userId: 'u-3', email: 'newcook@example.com', displayName: '', isDisabled: false, held: [] },
+    { userId: 'c3d4e5f6-7a8b-4c9d-8e1f-2a3b4c5d6e7f', email: 'newcook@example.com', displayName: '', isDisabled: false, held: [] },
     // Disabled and still holding access. Easy to miss, and the thing an audit is looking for.
     {
-      userId: 'u-4', email: 'former@example.com', displayName: 'Ravi', isDisabled: true,
+      userId: 'd4e5f6a7-8b9c-4d0e-9f2a-3b4c5d6e7f8a', email: 'former@example.com', displayName: 'Ravi', isDisabled: true,
       held: [
         {
           grantId: 'g-5', permissionCode: 'orders.refund', displayName: 'Refund orders',
@@ -92,7 +101,7 @@ export const PEOPLE_FIXTURE: {
   ],
 
   owner: {
-    userId: 'u-owner',
+    userId: 'e5f6a7b8-9c0d-4e1f-8a3b-4c5d6e7f8a9b',
     email: 'owner@graybag.com',
     displayName: 'The owner',
     isDisabled: false,
