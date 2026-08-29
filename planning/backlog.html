@@ -4347,13 +4347,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/63</span>
+          <span class="meter-num">0/64</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 63 tasks</summary>
+        <summary>Context &amp; 64 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4859,6 +4859,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>/admin/people</code> rows open a drawer, as the prototype has them.</strong> <code>E10-71</code> used a <code>&lt;details&gt;</code> because the timing was wrong for anything else — the drawer means moving the revoke buttons and the job form into it, re-binding their handlers and re-rendering after every write, on the one screen where a bug is an authorisation bug. Worth doing when there is not a rollout on</span>
+      </li>
+      <li class="task" data-id="E10-73" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-73"></button>
+        <code class="tid">E10-73</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The account id on <code>/admin/people</code>, with one-click copy.</strong> Andy: *&quot;to see what a specific parent did in PostHog, I have to open the Supabase SQL editor and run <code>select id from app_user where email = …</code>, because PostHog identifies people by user id and deliberately never receives an email. That id is the join between &#39;a parent emailed me&#39; and &#39;here&#39;s what they actually did&#39;, and it&#39;s the step I repeat every time.&quot;* <strong>The part that mattered was where it goes.</strong> <code>/admin/people</code> lists accounts that hold a <strong>grant</strong>, and a parent holds none — so putting the id on those rows alone would never once have answered the question that prompted this. <code>searchAccounts</code> reads every <code>app_user</code>, which is the path to a parent, and it renders through the same <code>accountRow</code>, so one change covers both; the copy handler is bound to the search container as well as the list. Shown in <strong>full</strong>, monospace, muted: a shortened id beside a button that copies the whole thing is a trap the first time somebody reads one off the screen. A clipboard refusal <strong>selects the id and says so</strong> rather than failing silently — a copy button that quietly does nothing means pasting the previous clipboard contents into PostHog and reading the wrong person&#39;s session. <strong>No new disclosure</strong>: <code>app_user.id</code> is the pseudonymous identifier analytics is allowed to hold precisely because it carries no name, no email and no child, and it now sits beside an email this screen already showed. Nothing else was added — no child, no order, no financial detail. The fixture&#39;s <code>u-1</code> ids became real-shaped uuids, because a 36-character value is a different layout problem from a three-character stub and the a11y gate and parity shot both walk that data. <strong>The coupling is now tested</strong>: <code>app_user.id</code> equals <code>auth.users.id</code> by construction (<code>0001</code>&#39;s FK, <code>0018</code>&#39;s trigger; 18 of 18 on production), and the mobile app identifies to PostHog with that same value — if <code>app_user</code> ever grows its own uuid the screen would keep showing an id that matches nothing, and <code>scripts/test/account-id-is-the-analytics-id.test.mjs</code> fails instead</span>
       </li></ul>
       </details>
     </article>
