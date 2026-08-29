@@ -234,8 +234,28 @@ import '../../styles/backoffice.css';
               `</p>` +
               marks.map((m) => `<p class="srow__why">${esc(m)}</p>`).join('') +
 
+              /*
+               * The detail collapses — `E10-71`.
+               *
+               * Every account rendered its full grant list, its revoke buttons and its job form
+               * open, so seven accounts made a page you scroll and thirty would make one nobody
+               * reads. The prototype answers this with a table whose rows open a drawer.
+               *
+               * This is a `<details>` and not a drawer, deliberately, and the reason is the date
+               * rather than the design: this is the screen that grants and revokes authorisation,
+               * Amity starts rolling out to parents tomorrow, and moving the revoke buttons and
+               * the job form into a drawer means re-binding their handlers and re-rendering after
+               * every write. `<details>` gets the scannability with the same DOM, the same
+               * delegated handlers and the same write paths — nothing about granting changed.
+               *
+               * The summary carries the count, so the thing you were scanning for is visible
+               * without opening anything. `E10-72` is the drawer, when there is not a rollout on.
+               */
               (a.held.length > 0
-                ? `<ul class="admin__plain">` +
+                ? `<details class="srow__detail">` +
+                  `<summary>${a.held.length} permission${a.held.length === 1 ? '' : 's'}` +
+                  (sensitive > 0 ? ` · ${sensitive} sensitive` : '') + `</summary>` +
+                  `<ul class="admin__plain">` +
                     a.held.map((g) =>
                       `<li>` +
                         `<b>${esc(g.displayName)}</b> <code>${esc(g.permissionCode)}</code> ` +
@@ -253,14 +273,25 @@ import '../../styles/backoffice.css';
                             `data-what="${esc(g.displayName)}" data-who="${esc(a.email)}">Revoke</button>`) +
                       `</li>`,
                     ).join('') +
-                  `</ul>`
+                  `</ul>` +
+                  (isMe
+                    ? `<p class="m">Your own access is managed with ` +
+                      `<code>scripts/grant-operator.mjs</code>, which needs the database ` +
+                      `password. An account that can widen itself makes every other check ` +
+                      `advisory.</p>`
+                    : grantForm(a)) +
+                  `</details>`
                 : '') +
 
-              (isMe
-                ? `<p class="m">Your own access is managed with ` +
-                  `<code>scripts/grant-operator.mjs</code>, which needs the database password. ` +
-                  `An account that can widen itself makes every other check advisory.</p>`
-                : grantForm(a)) +
+              // An account holding nothing has no detail to collapse, so its form stays open —
+              // it is the one row where the whole point is to give somebody a job.
+              (a.held.length > 0
+                ? ''
+                : isMe
+                  ? `<p class="m">Your own access is managed with ` +
+                    `<code>scripts/grant-operator.mjs</code>, which needs the database password. ` +
+                    `An account that can widen itself makes every other check advisory.</p>`
+                  : grantForm(a)) +
             `</div>` +
           `</div>`
         );
