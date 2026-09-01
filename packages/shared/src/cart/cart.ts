@@ -141,3 +141,59 @@ export function cartServiceDates(cart: Cart): ServiceDate[] {
 }
 
 export type { Cart, CartLine, CartLineInput };
+
+/**
+ * Move the whole cart to another delivery day — `E05-52`.
+ *
+ * ## Why the whole cart, and not a line
+ *
+ * The For block has always stated **one day for the entire order**, and `useOrderFor` reads that
+ * day from `cart.lines[0]`. Andy, 2026-09-01: *"the data should say the same thing."* A per-line
+ * date would be a rule a parent hits without being able to see it — the screen shows one day, so
+ * changing it changes the order.
+ *
+ * ## The merge is the dangerous part, and it is the same merge `addToCart` already does
+ *
+ * `serviceDate` is part of `lineKey`, so re-dating a line changes its identity. Two lines that
+ * differed **only** by date become the same line, and they have to collapse into one.
+ *
+ * **Quantities sum; they do not overwrite.** Overwriting is the silent version of this bug: a
+ * parent with 2 idli on Wednesday and 3 on Thursday moves everything to Thursday and finds 2 —
+ * three portions of a child's lunch gone, with nothing on screen to say so. That is the case
+ * `moves quantities together rather than over each other` exists for.
+ *
+ * The **last** line's price and name win on collapse, matching `addToCart`: the cart renders one
+ * row per key, and the row a parent last saw is the one whose price they were shown.
+ *
+ * Returns the cart unchanged when every line is already on that day, so a caller can call this
+ * on every render without producing a new object and a re-render loop.
+ */
+export function moveCartToDate(cart: Cart, serviceDate: ServiceDate): Cart {
+  if (cart.lines.every((line) => line.serviceDate === serviceDate)) return cart;
+
+  const merged: CartLine[] = [];
+  const byKey = new Map<string, number>();
+
+  for (const line of cart.lines) {
+    const moved = { ...line, serviceDate };
+    const key = lineKey(moved);
+    const at = byKey.get(key);
+
+    if (at === undefined) {
+      byKey.set(key, merged.length);
+      merged.push({ ...moved, key });
+      continue;
+    }
+
+    const existing = merged[at] as CartLine;
+    merged[at] = {
+      ...existing,
+      quantity: existing.quantity + line.quantity,
+      // Last wins, as in `addToCart` — see the note above.
+      unitPricePaise: line.unitPricePaise,
+      dishName: line.dishName,
+    };
+  }
+
+  return { lines: merged };
+}
