@@ -188,13 +188,22 @@ export function nextOrderableDate(days: readonly OrderableDayView[]): string | n
 }
 
 /**
- * The days a picker may show as choosable.
+ * The days a picker may OFFER — `E05-52`.
  *
- * A non-service day is **not offered at all** rather than offered-and-disabled: Sunday is not a
- * day this school is closed on, it is not a day this school has. A cutoff that has passed is
- * different — that day exists and was orderable this morning — so it stays visible and disabled,
- * which is what lets a parent understand that tomorrow will work.
+ * Only orderable ones. An earlier version of this kept a closed-but-real day visible and
+ * disabled, on the theory that seeing "tomorrow, closed" teaches a parent when to come back.
+ * Andy's rule is stricter and he is right: *"non-service days and closed days are not offered —
+ * not offered-then-refused."*
+ *
+ * The evidence is nine refused checkouts. The cart pinned a date the parent could not change, the
+ * pinned date was closed, and the refusal blamed a dish — one parent pressed Place order five
+ * times in 65 seconds. Every day this returns is a day the server will accept, so the picker
+ * cannot be the thing that sets that trap again.
+ *
+ * The **reason** a day is missing still belongs on screen; it is just not a row you can tap.
+ * `nextOrderableDate` returning `null` is how a caller knows to say so.
  */
-export function selectableDays<T extends OrderableDayView>(days: readonly T[]): readonly T[] {
-  return days.filter((day) => day.reason !== 'not_a_service_day');
+export function offerableDays<T extends OrderableDayView>(days: readonly T[]): readonly T[] {
+  return days.filter((day) => day.isOrderable);
 }
+
