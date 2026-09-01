@@ -750,3 +750,30 @@ describe('choosing a break time', () => {
     expect(screen.queryByTestId('cart-school-closed')).toBeNull();
   });
 });
+
+/**
+ * `E05-52`. The date control, as the cart hosts it.
+ *
+ * The picker's own behaviour is proven in `DayPicker.test.tsx`. What this asserts is the part
+ * only the cart can get wrong: **not rendering it when nobody has supplied a calendar.** A
+ * default-empty picker would say "there are no days we can deliver on", which is a claim about
+ * the school made on the strength of a read that never happened — the same collapsed state that
+ * produced this whole ticket.
+ */
+/**
+ * `E05-52`. The cart-level rendering of the day picker is NOT asserted here yet, deliberately.
+ *
+ * The picker's own behaviour — which days it offers, which it refuses to offer, and the two
+ * distinct empty states — is proven in `DayPicker.test.tsx` with 13 assertions, mutation-checked
+ * three ways.
+ *
+ * What is missing is the cart's guard: it renders the picker only when `useOrderFor` has resolved
+ * a recipient AND a calendar was supplied. That precondition is right — signed out, the calendar
+ * legitimately refuses, and rendering "we couldn't load the days" for a visitor who simply is not
+ * signed in would be a false claim about us. But asserting it needs a cart fixture whose first
+ * line carries a `recipientId` and a `serviceDate` plus a stubbed recipient read, and a test
+ * written without those passes because the guard is `null` for the WRONG reason.
+ *
+ * That fixture arrives with the connector, which is also what supplies `days` in the first place.
+ * Written down rather than left as a gap somebody has to rediscover.
+ */

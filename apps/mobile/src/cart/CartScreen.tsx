@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { track } from '../analytics/analytics';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { api, cart as cartDomain, design, money } from '@graybag/shared';
+import { api, cart as cartDomain, design, money, ordering } from '@graybag/shared';
 
 import { AllergenFlag, BrandHeader, FoodTypeMark, PatternTile } from '../components';
 import { Button } from '../components/Button';
@@ -13,6 +13,7 @@ import { BreakTimePicker } from './BreakTimePicker';
 import { KitchenNoteLine } from './KitchenNote';
 import { CartTotals } from './CartTotals';
 import { PackRedemptionStrip, type PackIneligibility } from '../packs/PackRedemptionStrip';
+import { DayPicker } from './DayPicker';
 import { OrderForBlock, type OrderFor } from './OrderForBlock';
 
 const { bg, text, border, scale, space, radius, borderWidth, touchTarget, layout, action } = design;
@@ -119,6 +120,26 @@ export interface CartScreenProps {
   onChangeRecipient?: () => void;
   /** The cutoff-passed notice's way forward. §7: never a dead end. */
   onChooseAnotherDay?: () => void;
+  /**
+   * The days this school can deliver on, and the one chosen — `E05-52`.
+   *
+   * Passed straight to `DayPicker`, which does the filtering. The cart does not decide which
+   * days are offerable, because the answer has to be the server's: a client that recomputed
+   * service days or cutoffs would disagree with `assert_cutoff_open`, and the disagreement
+   * always surfaces as a parent being refused after choosing.
+   */
+  days?: readonly ordering.OrderableDayView[];
+  /** The calendar read FAILED, which is not the same as there being no days (§5.21). */
+  daysUnavailable?: boolean;
+  /**
+   * The chosen day as `YYYY-MM-DD`.
+   *
+   * Separate from `orderFor.serviceDate`, which is already **formatted for a human** — comparing
+   * "Wednesday 2 September" against a calendar row would either never match or need the format
+   * reversed, and a date parsed back out of prose is a bug waiting for a locale change.
+   */
+  selectedDay?: string | null;
+  onSelectDay?: (serviceDate: string) => void;
   /** The empty state's way out — §5.7 sends it at the menu, never at sign-in (`AR7`). */
   onBrowseMenu?: () => void;
   /** Retry for the repricing error. */
@@ -193,6 +214,10 @@ export function CartScreen({
   onSelectBreakTime,
   onChangeRecipient,
   onChooseAnotherDay,
+  days = [],
+  daysUnavailable = false,
+  selectedDay = null,
+  onSelectDay,
   onBrowseMenu,
   onRetry,
   offline = false,
@@ -323,6 +348,30 @@ export function CartScreen({
             ? {}
             : { onChange: onChangeRecipient })}
         />
+
+        {/*
+          `E05-52`. Directly under the For block and never behind a tap.
+
+          Andy, 2026-09-01: *"Sits with the delivery details, where 'when should we deliver?'
+          already is, not hidden behind a person picker."* The cart used to state the day as a
+          fact and offer only a Change that swapped the child — which is why nine checkouts were
+          refused on production and none succeeded.
+
+          Rendered when there is a recipient AND the caller has actually supplied a calendar —
+          either days, or `daysUnavailable` to say the read failed. A caller that passes neither
+          has not wired it yet, and rendering "there are no days we can deliver on" for that
+          would be a lie about the school rather than a fact about us. The picker's own copy
+          keeps those two apart once it IS wired; this guard keeps a third state — nobody asked —
+          from being rendered as either.
+        */}
+        {orderFor === null || (days.length === 0 && !daysUnavailable) ? null : (
+          <DayPicker
+            days={days}
+            selected={selectedDay}
+            unavailable={daysUnavailable}
+            {...(onSelectDay === undefined ? {} : { onSelect: onSelectDay })}
+          />
+        )}
 
         {cart.lines.map((line) => (
           <CartLineRow
