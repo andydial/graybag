@@ -148,3 +148,31 @@ guard was satisfied by the wrong pair. Only the manifest check above sees it.
 footer. `· bundled` means the binary's own JS; `· OTA c4342c44…` means this update applied. That
 binary was compiled before the OTA segment existed, so the segment cannot appear unless an update
 replaced its JS.
+
+## 2026-09-01 — the date picker, and the three fixes behind it
+
+Update group `83b2db4d-f79a-4a50-a2bd-9622031f1a94`, runtime 4.0.0, both platforms, from `691fb20`.
+
+    iOS      01a05b57-004a-79b0-a1da-7b18da92e231
+    Android  01a05b57-004a-7fd0-be1e-009bcf9fe0b6
+
+Verified against what the server serves, not against the local build — `appEnv=production` on both
+platforms and the served ids equal the published ones. That is the `E17-57` check, and it is
+mandatory: manifest-200-and-ids-match was true on the day the first production OTA pointed at
+staging with a test payment key.
+
+**What is in it.** `E05-52`'s date picker — the cart had no date control at all and stated the day
+as a fact — plus `moveCartToDate`, `useOrderableDays`, and the client half of the calendar. The
+server halves (`0083`, `0084`) and the cutoff config went to production first, in that order,
+because a client that reads a calendar which still 404s is worse than one that never asks.
+
+**What is NOT in it.** `E05-58`, the allergy line that renders a known as an unknown. It fails
+safe, and the fix needs the consent flag surfaced out of `consent_record` — a view, a column or an
+RPC. Schema work on the parent path was not something to land on rollout day beside three other
+fixes.
+
+**Note for the next OTA.** `break_time_selected`, `place_order_tapped`, `payment_sheet_closed`,
+`add_child_submitted` and `remove_from_cart_tapped` are in a bundle parents can run for the first
+time — they landed nine hours after the previous update was cut and so had never fired for anyone.
+Their absence in PostHog before today proves nothing, and any funnel drawn from it is wrong.
+
