@@ -83,6 +83,11 @@ Deno.serve(async (request: Request) => {
   // something broke.
   if (error) {
     if (error.code === 'P0002') return json(404, { error: 'no configuration for that school' });
+    // `E05-52`. The calendar is now SECURITY DEFINER and authorises inside itself: a live
+    // `guardian_link` to a recipient at that school, or back office. A caller without one is
+    // refused rather than handed an empty list — "we could not check" and "there are no days"
+    // must not arrive as the same answer. 403 so the client can tell them apart.
+    if (error.code === '42501') return json(403, { error: 'not your school' });
     return json(500, { error: 'calendar lookup failed' });
   }
 
