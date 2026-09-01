@@ -144,3 +144,57 @@ export function orderCalendarResponse(
     },
   );
 }
+
+/**
+ * One calendar day as the CLIENT holds it.
+ *
+ * `CalendarRow` above is the database's snake_case shape; `api.fetchOrderableDays` maps it to
+ * this one. Declared structurally rather than imported from `api/` so the ordering rules stay
+ * free of a dependency on the transport — and so a caller with either shape can use them by
+ * mapping once, rather than the rules learning about two.
+ */
+export interface OrderableDayView {
+  serviceDate: string;
+  isOrderable: boolean;
+  reason: string | null;
+}
+
+/**
+ * The day a cart should default to, and the days it may offer — `E05-52`.
+ *
+ * ## Why this is a rule and not a `find` at the call site
+ *
+ * "Never offer a day we are going to refuse" is one sentence and three screens: the cart's
+ * default, the day picker, and the planner. Written at each of them it becomes three answers to
+ * one question, and the one that drifts is discovered by a parent meeting a refusal — which is
+ * exactly the failure `E05-55` documents and `E05-52` made unavoidable.
+ *
+ * ## The server's answer is the only answer
+ *
+ * There is deliberately no local weekday arithmetic here. `defaultServiceDateInIndia` guessed
+ * "tomorrow in India" and was right until the school stopped serving Sundays; the calendar knows
+ * about service days, cutoffs, the advance window and — when it grows them — holidays. A client
+ * that recomputes any part of that will disagree with `assert_cutoff_open`, and the disagreement
+ * always surfaces as a parent being refused after choosing.
+ *
+ * Returns `null` when the calendar offers nothing in range. `null` is not "today": a caller must
+ * say it cannot offer a day rather than fall back to one the server will refuse.
+ */
+export function nextOrderableDate(days: readonly OrderableDayView[]): string | null {
+  // `days` arrives ordered by the server. Sorting here would hide a server that stopped ordering
+  // them, and the first orderable day is only meaningful if the order is real.
+  const found = days.find((day) => day.isOrderable);
+  return found === undefined ? null : found.serviceDate;
+}
+
+/**
+ * The days a picker may show as choosable.
+ *
+ * A non-service day is **not offered at all** rather than offered-and-disabled: Sunday is not a
+ * day this school is closed on, it is not a day this school has. A cutoff that has passed is
+ * different — that day exists and was orderable this morning — so it stays visible and disabled,
+ * which is what lets a parent understand that tomorrow will work.
+ */
+export function selectableDays<T extends OrderableDayView>(days: readonly T[]): readonly T[] {
+  return days.filter((day) => day.reason !== 'not_a_service_day');
+}
