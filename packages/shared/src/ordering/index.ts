@@ -9,11 +9,18 @@
 export {
   CALENDAR_MAX_AGE_SECONDS,
   CALENDAR_MAX_RANGE_DAYS,
+  nextOrderableDate,
+  offerableDays,
   orderCalendarResponse,
   parseCalendarRequest,
 } from './calendar-endpoint.js';
 
-export type { CalendarRequest, CalendarResponse, CalendarRow } from './calendar-endpoint.js';
+export type {
+  CalendarRequest,
+  CalendarResponse,
+  CalendarRow,
+  OrderableDayView,
+} from './calendar-endpoint.js';
 
 // Break / drop time selection (E05-06). The class-group rule is the schema's, not this
 // module's: no `break_time_class` rows means the break applies to every class.
