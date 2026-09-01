@@ -8,6 +8,7 @@ import {
   cartSubtotalPaise,
   emptyCart,
   lineKey,
+  moveCartToDate,
   removeLine,
   setLineComment,
   setLineQuantity,
@@ -205,5 +206,117 @@ describe('service dates', () => {
 
   it('has no dates when empty', () => {
     expect(cartServiceDates(emptyCart())).toEqual([]);
+  });
+});
+
+/**
+ * `E05-52`. Moving the cart to another delivery day.
+ *
+ * The merge is the whole risk. `serviceDate` is part of `lineKey`, so re-dating changes a line's
+ * identity — and the failure mode is silent: a parent moves everything to Thursday and finds
+ * fewer portions than they put in, with nothing on screen to say so. Andy: *"that's the case that
+ * silently loses someone's food."*
+ */
+describe('moveCartToDate', () => {
+  it('moves every line to the new day', () => {
+    const cart = addToCart(addToCart(emptyCart(), IDLI), DOSA);
+    const moved = moveCartToDate(cart, '2026-08-12');
+    expect(moved.lines.map((l) => l.serviceDate)).toEqual(['2026-08-12', '2026-08-12']);
+  });
+
+  it('re-keys the lines, because the date is part of their identity', () => {
+    const cart = addToCart(emptyCart(), IDLI);
+    const moved = moveCartToDate(cart, '2026-08-12');
+    expect(moved.lines[0]?.key).toBe(lineKey({ ...IDLI, serviceDate: '2026-08-12' }));
+    expect(moved.lines[0]?.key).not.toBe(cart.lines[0]?.key);
+  });
+
+  it('COLLAPSES two lines that differed only by date into one', () => {
+    const cart = addToCart(
+      addToCart(emptyCart(), { ...IDLI, serviceDate: '2026-08-10' }),
+      { ...IDLI, serviceDate: '2026-08-11' },
+    );
+    expect(cart.lines).toHaveLength(2);
+
+    const moved = moveCartToDate(cart, '2026-08-11');
+    expect(moved.lines).toHaveLength(1);
+  });
+
+  it('MOVES QUANTITIES TOGETHER RATHER THAN OVER EACH OTHER', () => {
+    // The one that loses food. 2 on Wednesday + 3 on Thursday, all moved to Thursday, is 5 —
+    // never 3, and never 2. Overwriting is the silent version of this bug.
+    const cart = addToCart(
+      addToCart(emptyCart(), { ...IDLI, serviceDate: '2026-08-10', quantity: 2 }),
+      { ...IDLI, serviceDate: '2026-08-11', quantity: 3 },
+    );
+    const moved = moveCartToDate(cart, '2026-08-11');
+    expect(moved.lines).toHaveLength(1);
+    expect(moved.lines[0]?.quantity).toBe(5);
+  });
+
+  it('keeps the total item count whole across a collapsing move', () => {
+    // Asserted separately from the quantity above, because a future change could fix one line's
+    // quantity and still drop a line — and the count is what a parent actually sees on the badge.
+    const cart = addToCart(
+      addToCart(
+        addToCart(emptyCart(), { ...IDLI, serviceDate: '2026-08-10', quantity: 2 }),
+        { ...IDLI, serviceDate: '2026-08-11', quantity: 3 },
+      ),
+      { ...DOSA, serviceDate: '2026-08-10', quantity: 1 },
+    );
+    expect(cartItemCount(cart)).toBe(6);
+    expect(cartItemCount(moveCartToDate(cart, '2026-08-11'))).toBe(6);
+  });
+
+  it('keeps the subtotal whole across a collapsing move', () => {
+    const cart = addToCart(
+      addToCart(emptyCart(), { ...IDLI, serviceDate: '2026-08-10', quantity: 2 }),
+      { ...IDLI, serviceDate: '2026-08-11', quantity: 3 },
+    );
+    const before = cartSubtotalPaise(cart);
+    expect(cartSubtotalPaise(moveCartToDate(cart, '2026-08-11'))).toBe(before);
+  });
+
+  it('does not merge lines that differ by more than the date', () => {
+    // Two different dishes on two different days are still two lines afterwards. A merge that was
+    // too eager would be the same lost-food bug from the other direction.
+    const cart = addToCart(
+      addToCart(emptyCart(), { ...IDLI, serviceDate: '2026-08-10' }),
+      { ...DOSA, serviceDate: '2026-08-11' },
+    );
+    expect(moveCartToDate(cart, '2026-08-12').lines).toHaveLength(2);
+  });
+
+  it('does not merge lines that differ by comment', () => {
+    // The comment is part of the key on purpose: "no chilli" is a different thing to hand over.
+    const cart = addToCart(
+      addToCart(emptyCart(), { ...IDLI, serviceDate: '2026-08-10', comment: 'no chilli' }),
+      { ...IDLI, serviceDate: '2026-08-11', comment: null },
+    );
+    expect(moveCartToDate(cart, '2026-08-11').lines).toHaveLength(2);
+  });
+
+  it('takes the LAST line’s price on collapse, as addToCart does', () => {
+    // The cart renders one row per key. Keeping the older price would show a number the parent
+    // never saw and then hand it to checkout as the L7 comparison value.
+    const cart = addToCart(
+      addToCart(emptyCart(), { ...IDLI, serviceDate: '2026-08-10', unitPricePaise: 6000 }),
+      { ...IDLI, serviceDate: '2026-08-11', unitPricePaise: 6500 },
+    );
+    expect(moveCartToDate(cart, '2026-08-11').lines[0]?.unitPricePaise).toBe(6500);
+  });
+
+  it('returns the SAME cart when every line is already on that day', () => {
+    // Identity, not just equality: the connector calls this whenever the calendar resolves, and a
+    // fresh object every render is a re-render loop.
+    const cart = addToCart(emptyCart(), IDLI);
+    // The literal rather than `IDLI.serviceDate`: the input type allows null, and a test that
+    // has to widen its own fixture to compile is a test about the fixture.
+    expect(moveCartToDate(cart, '2026-08-10')).toBe(cart);
+  });
+
+  it('leaves an empty cart alone', () => {
+    const cart = emptyCart();
+    expect(moveCartToDate(cart, '2026-08-12')).toBe(cart);
   });
 });

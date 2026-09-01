@@ -15,6 +15,7 @@ export {
   cartSubtotalPaise,
   emptyCart,
   lineKey,
+  moveCartToDate,
   removeLine,
   setLineComment,
   setLineQuantity,

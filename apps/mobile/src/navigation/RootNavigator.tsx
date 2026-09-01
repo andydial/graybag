@@ -11,7 +11,7 @@ import {
   type NativeStackNavigationProp,
   type NativeStackScreenProps,
 } from '@react-navigation/native-stack';
-import { api, design, packEligibility, packPlan, money } from '@graybag/shared';
+import { api, design, menu as menuDomain, ordering, packEligibility, packPlan, money } from '@graybag/shared';
 
 import {
   AccountScreen,
@@ -40,6 +40,7 @@ import { TabIcon } from '../components/TabIcon';
 import { OrderDetailTabScreen } from '../orders/OrderDetailTabScreen';
 import { OrdersTabScreen } from '../orders/OrdersTabScreen';
 import { useCart } from '../cart/CartContext';
+import { useOrderableDays } from '../cart/useOrderableDays';
 import { OrderPlacedScreen, placedOrder } from '../checkout/OrderPlacedScreen';
 import { PENDING_AFTER_MS, PaymentWaitingScreen } from '../checkout/PaymentWaitingScreen';
 import { useCheckout } from '../checkout/useCheckout';
@@ -209,7 +210,7 @@ const MenuTab = withScreenFrame(MenuScreen, TAB_SCREEN_EDGES);
 function CartTabScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const audience = useAudience();
-  const { cart, clear: clearCart } = useCart();
+  const { cart, clear: clearCart, setServiceDate } = useCart();
   const checkout = useCheckout();
   // Destructured so the effect depends on a stable `useCallback`, never on the object.
   const { reset: resetCheckout } = checkout;
@@ -267,6 +268,34 @@ function CartTabScreen() {
    * setting up ordering for this school" while looking at their cart, not after committing.
    */
   const breakWindows = useBreakTimes(schoolId);
+
+  /**
+   * `E05-52`. The days this school can deliver on, and keeping the cart on one of them.
+   *
+   * The cart used to state a day it had guessed — `defaultServiceDate`'s blind "tomorrow in
+   * India" — with no control to change it. On production that day was always already closed,
+   * because the cutoff for tomorrow was midnight at the start of today, and nine checkouts were
+   * refused as a result.
+   *
+   * The effect below moves the cart onto the next orderable day **only when its current day is
+   * not one the server will accept**. It does not fight a parent who has chosen: once their day
+   * is in the offerable set, this stops touching it.
+   */
+  const { days: orderableDays, unavailable: daysUnavailable } = useOrderableDays(schoolId);
+  // The cart already read above — one `useCart()` per component, or two destructurings of the
+  // same context drift into looking like two carts.
+  const cartDay = cart.lines[0]?.serviceDate ?? null;
+
+  useEffect(() => {
+    if (orderableDays.length === 0) return;
+    if (cartDay !== null && orderableDays.some((d) => d.isOrderable && d.serviceDate === cartDay)) {
+      return;
+    }
+    const next = ordering.nextOrderableDate(orderableDays);
+    // `null` means the calendar offers nothing. Leaving the cart where it is beats moving it to a
+    // day we already know is refused — and the picker says so in words.
+    if (next !== null) setServiceDate(next as menuDomain.ServiceDate);
+  }, [orderableDays, cartDay, setServiceDate]);
   const [breakTimeId, setBreakTimeId] = useState<string | null>(null);
   // A window belongs to a school. Switching school must drop the choice, or a parent could
   // carry Amity's "Morning break" onto an order for somewhere else entirely.
@@ -633,6 +662,11 @@ function CartTabScreen() {
       /* The empty cart pointed at the menu and had no button to get there. */
       onBrowseMenu={() => navigation.navigate('Tabs', { screen: 'Menu' })}
       onChangeRecipient={() => navigation.navigate('Children')}
+      /* `E05-52`. The control the cart never had. */
+      days={orderableDays}
+      daysUnavailable={daysUnavailable}
+      selectedDay={cartDay}
+      onSelectDay={(serviceDate) => setServiceDate(serviceDate as menuDomain.ServiceDate)}
       {...(cartAllergens === undefined ? {} : { allergens: cartAllergens })}
       /*
        * `E21`. The redemption offer. `packBalance` comes from the surface context rather than a

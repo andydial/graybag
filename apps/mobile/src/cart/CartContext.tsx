@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { track } from '../analytics/analytics';
-import { cart as cartDomain } from '@graybag/shared';
+import { cart as cartDomain, menu as menuDomain } from '@graybag/shared';
 
 /**
  * The cart, as React state (`E05-04`).
@@ -28,6 +28,15 @@ interface CartValue {
   setQuantity: (key: string, quantity: number) => void;
   setComment: (key: string, comment: string | null) => void;
   remove: (key: string) => void;
+  /**
+   * Move the whole cart to another delivery day — `E05-52`.
+   *
+   * The whole cart, because the For block has always stated one day for the entire order. The
+   * merge (`moveCartToDate`) is the dangerous half: `serviceDate` is part of `lineKey`, so two
+   * lines differing only by date collapse into one and their quantities must SUM, or a parent
+   * silently loses food.
+   */
+  setServiceDate: (serviceDate: menuDomain.ServiceDate) => void;
   clear: () => void;
   /** Total items, for `M06`'s badge. */
   itemCount: number;
@@ -115,6 +124,15 @@ export function CartProvider({
     [guarded],
   );
 
+  const setServiceDate = useCallback(
+    (serviceDate: menuDomain.ServiceDate) =>
+      // `moveCartToDate` returns the SAME cart when nothing moves, so `setCart` with an identical
+      // reference is a no-op rather than a re-render — which matters because the connector calls
+      // this whenever the calendar resolves.
+      setCart((current) => cartDomain.moveCartToDate(current, serviceDate)),
+    [],
+  );
+
   const clear = useCallback(() => setCart(cartDomain.emptyCart()), []);
 
   const value = useMemo<CartValue>(
@@ -124,11 +142,12 @@ export function CartProvider({
       setQuantity,
       setComment,
       remove,
+      setServiceDate,
       clear,
       itemCount: cartDomain.cartItemCount(cart),
       subtotalPaise: cartDomain.cartSubtotalPaise(cart),
     }),
-    [cart, add, setQuantity, setComment, remove, clear],
+    [cart, add, setQuantity, setComment, remove, setServiceDate, clear],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
