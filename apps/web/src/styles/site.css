@@ -256,7 +256,18 @@ ul, ol { padding: 0; list-style: none; }
   margin-bottom: var(--gb-space-3);
 }
 .panel-deep .eyebrow { color: var(--gb-ramp-lime-200); }   /* 6.00 on forest-500 */
-.panel-pale .eyebrow { color: var(--gb-text-on-accent); }  /* primary-700 is 4.09 here (§2.5) */
+/*
+ * `--gb-text-on-accent` is the ink the design system assigns to the accent surface: `#145f48` on
+ * `#e5ea98` is **6.00**, where the default `--gb-text-link` — `#007e3b`, chosen against white — is
+ * **4.08** and fails AA for 12px text.
+ *
+ * `.band-app` was missed. It sets `--gb-bg-surface-accent` as its background without being a
+ * `.panel-pale`, so its eyebrow kept the white-background link colour on a pale lemon field. The
+ * a11y gate could not see it: `E12-40`'s reveal left everything below the fold mid-fade when axe
+ * fired, so the one page with a real violation on it was reported as passing (`E10-73`).
+ */
+.panel-pale .eyebrow,
+.band-app .eyebrow { color: var(--gb-text-on-accent); }
 
 .display {
   font-size: var(--display);

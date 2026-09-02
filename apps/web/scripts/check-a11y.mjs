@@ -227,6 +227,30 @@ for (const page of PAGES) {
   await send('Page.navigate', { url: `${origin}${page}` });
   await sleep(900);
 
+  /*
+   * Settle the scroll reveal before measuring — `E10-73`.
+   *
+   * `E12-40` made the home page reveal **per element**, four steps of 80ms over 780ms, driven by
+   * an IntersectionObserver adding `.is-in`. Everything below the fold therefore begins at
+   * `opacity: 0` and stays there until it is scrolled to, and axe fired at 900ms was measuring
+   * elements **mid-fade**: it read the food section's ink as `#e2e897` on `#cedb8f` — 1.14 — and
+   * failed the gate. Opening the page and looking at it shows dark ink on pale lime, correct and
+   * legible. The violation was a frame, not a defect, and it made `main` red on `check:a11y`.
+   *
+   * Marking every section `.is-in` puts the page in the state a reader who has scrolled to it
+   * sees, which is the state worth auditing — a rule about contrast is a rule about the settled
+   * page. It is deliberately not `prefers-reduced-motion`, which would audit a *different*
+   * stylesheet from the one most people get.
+   */
+  await send('Runtime.evaluate', {
+    expression: `
+      for (const el of document.querySelectorAll('[data-reveal], .hero')) el.classList.add('is-in');
+      window.scrollTo(0, 0);
+    `,
+  });
+  // One transition's worth. The longest is 780ms plus a 240ms stagger.
+  await sleep(1100);
+
   await send('Runtime.evaluate', { expression: axeSource });
 
   const { result } = await send('Runtime.evaluate', {
