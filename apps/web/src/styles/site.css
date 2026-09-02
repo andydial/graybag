@@ -1230,18 +1230,50 @@ ul, ol { padding: 0; list-style: none; }
  * Hidden only under `html.js`, which the motion module adds. No script, blocked script, old
  * browser — nothing is ever hidden and the page reads exactly as it would have.
  */
-html.js [data-reveal]:not(.is-in) > .wrap {
-  opacity: 0;
-  transform: translateY(1.5rem);
+/*
+ * The tempo, as page-local properties rather than tokens.
+ *
+ * `--gb-duration-slow` is 320ms because it times a menu opening under a thumb. A section arriving
+ * as you scroll a marketing page is a different job: at 320ms it reads as a flicker, and the page
+ * feels like a stack of slides rather than something that flows. Nothing in the product wants a
+ * 780ms transition, so this is not a token — it belongs to this page and stops here.
+ */
+:root {
+  --rv-duration: 780ms;
+  --rv-ease: cubic-bezier(0.16, 0.72, 0.14, 1);
+  --rv-step: 80ms;
+  --rv-lift: 2rem;
 }
 
-html.js [data-reveal] > .wrap {
+/*
+ * The content column arrives a line at a time, not as one slab.
+ *
+ * The first version animated `.wrap` itself, so a section's eyebrow, heading, lead and grid all
+ * moved together — correct, and dead. Sequencing the direct children costs five `nth-child` rules
+ * and is most of the difference between "it fades in" and "it flows".
+ *
+ * Still `> .wrap > *` and never deeper. `.pattern` is a sibling of `.wrap`, never a child of it,
+ * which is what keeps this rule off the layer a blanket selector once destroyed (see above).
+ */
+html.js [data-reveal]:not(.is-in) > .wrap > * {
+  opacity: 0;
+  transform: translateY(var(--rv-lift));
+}
+
+html.js [data-reveal] > .wrap > * {
   opacity: 1;
   transform: none;
   transition:
-    opacity var(--gb-duration-slow) var(--gb-ease-enter),
-    transform var(--gb-duration-slow) var(--gb-ease-enter);
+    opacity var(--rv-duration) var(--rv-ease),
+    transform var(--rv-duration) var(--rv-ease);
+  transition-delay: calc(var(--n, 0) * var(--rv-step));
 }
+
+html.js [data-reveal] > .wrap > :nth-child(2) { --n: 1; }
+html.js [data-reveal] > .wrap > :nth-child(3) { --n: 2; }
+html.js [data-reveal] > .wrap > :nth-child(4) { --n: 3; }
+/* Capped at four steps: past ~320ms of delay a reader has arrived before the content has. */
+html.js [data-reveal] > .wrap > :nth-child(n + 5) { --n: 4; }
 
 /*
  * Staggered children. The delay is a custom property set once per element by the module, so there
@@ -1250,16 +1282,18 @@ html.js [data-reveal] > .wrap {
  */
 html.js [data-reveal]:not(.is-in) [data-stagger] > * {
   opacity: 0;
-  transform: translateY(0.75rem);
+  transform: translateY(1.25rem);
 }
 
 html.js [data-reveal] [data-stagger] > * {
   opacity: 1;
   transform: none;
   transition:
-    opacity var(--gb-duration-base) var(--gb-ease-enter),
-    transform var(--gb-duration-base) var(--gb-ease-enter);
-  transition-delay: calc(var(--i, 0) * 70ms);
+    opacity var(--rv-duration) var(--rv-ease),
+    transform var(--rv-duration) var(--rv-ease);
+  /* The 160ms is the block they sit in getting under way first, so a grid does not race its own
+     heading. Then one card after another. */
+  transition-delay: calc(160ms + var(--i, 0) * var(--rv-step));
 }
 
 /* ----------------------------------------------------------------------------- the hero, on load */
@@ -1271,15 +1305,15 @@ html.js [data-reveal] [data-stagger] > * {
  */
 html.js .hero:not(.is-in) [data-stagger] > * {
   opacity: 0;
-  transform: translateY(1rem);
+  transform: translateY(1.5rem);
 }
 
 html.js .hero [data-stagger] > * {
   opacity: 1;
   transform: none;
   transition:
-    opacity var(--gb-duration-slow) var(--gb-ease-enter),
-    transform var(--gb-duration-slow) var(--gb-ease-enter);
+    opacity var(--rv-duration) var(--rv-ease),
+    transform var(--rv-duration) var(--rv-ease);
   transition-delay: calc(var(--i, 0) * 90ms);
 }
 
@@ -1339,6 +1373,136 @@ html.js .hero:not(.is-in) .hero__device { opacity: 0; transform: translateY(2rem
 .card__icon { transition: transform var(--gb-duration-base) var(--gb-ease-standard); }
 .card:hover .card__icon { transform: scale(1.08) rotate(-3deg); }
 
+/* ------------------------------------------------------------------------ the hero's light */
+
+/*
+ * Two soft fields of colour drifting behind the hero, slowly enough that you register the page as
+ * alive without ever catching them move. Transform and nothing else, on a layer that paints
+ * nothing anyone has to read, inside a panel that already clips.
+ *
+ * The opacity is 0.18 and not more for a contrast reason, not a taste one: white on `forest-500`
+ * is 7.61, and a fifth of `primary-400` laid over it still leaves it comfortably past 4.5. A
+ * prettier glow that eats the legal margin on the page's own headline is not a trade worth making.
+ */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: -25% -15%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background:
+    radial-gradient(34% 40% at 22% 26%, var(--gb-ramp-primary-400), transparent 66%),
+    radial-gradient(30% 36% at 78% 72%, var(--gb-ramp-amber-500), transparent 64%);
+  animation: gb-drift 34s var(--gb-ease-standard) infinite alternate;
+}
+
+@keyframes gb-drift {
+  from { transform: translate3d(-2%, -1.5%, 0) scale(1); }
+  to   { transform: translate3d(2%, 1.5%, 0) scale(1.08); }
+}
+
+/* ------------------------------------------------------------------- scroll-driven, no script */
+
+/*
+ * A reading line across the top, driven by the scroll position itself. No listener, no timer, no
+ * JavaScript — and in a browser without scroll timelines it stays at `scaleX(0)`, which is
+ * invisible. There is no fallback to write because the absence of it costs nothing.
+ */
+.scroll-line {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 3px;
+  z-index: 40;
+  background: var(--gb-badge-bg);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  pointer-events: none;
+}
+
+@keyframes gb-progress { to { transform: scaleX(1); } }
+
+@supports (animation-timeline: scroll()) {
+  html.js .scroll-line {
+    animation: gb-progress linear both;
+    animation-timeline: scroll(root block);
+  }
+}
+
+/*
+ * The pattern layer drifts against the section it sits in as that section crosses the viewport —
+ * the same trick as the hero device, one layer deeper and with no scroll handler at all. The
+ * inset is widened first so the mask never uncovers an edge as it moves.
+ */
+@keyframes gb-parallax {
+  from { transform: translate3d(0, -3%, 0); }
+  to   { transform: translate3d(0, 3%, 0); }
+}
+
+@supports (animation-timeline: view()) {
+  html.js .section > .pattern {
+    inset: -8% 0;
+    animation: gb-parallax linear both;
+    animation-timeline: view();
+  }
+}
+
+/*
+ * The answer opening rather than appearing. `::details-content` is what makes a `<details>`
+ * animatable at all, and `interpolate-size` is what lets `auto` be a transition endpoint; both
+ * are recent, both are behind the same support query, and without them the accordion works
+ * exactly as it does today.
+ */
+@supports selector(::details-content) {
+  :root { interpolate-size: allow-keywords; }
+
+  .faq details::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size var(--gb-duration-slow) var(--gb-ease-standard),
+      content-visibility var(--gb-duration-slow) allow-discrete;
+  }
+
+  .faq details[open]::details-content { block-size: auto; }
+}
+
+/* ------------------------------------------------------------------------ the lift, extended */
+
+/*
+ * The same hover the cards already had, given to the other things on the page that are plainly
+ * one object: a menu tile, the visit card, the sample report, a button. Transform and shadow, so
+ * every one of them is a composited property and none of them moves the layout.
+ */
+.range__item,
+.visit__card,
+.report__sheet {
+  transition:
+    transform var(--gb-duration-base) var(--gb-ease-standard),
+    box-shadow var(--gb-duration-base) var(--gb-ease-standard);
+}
+
+.range__item:hover,
+.visit__card:hover,
+.report__sheet:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--gb-elevation-1);
+}
+
+.range__photo { transition: transform var(--gb-duration-slow) var(--gb-ease-standard); }
+.range__item:hover .range__photo { transform: scale(1.04); }
+
+.btn {
+  transition:
+    background var(--gb-duration-fast) var(--gb-ease-standard),
+    transform var(--gb-duration-fast) var(--gb-ease-standard),
+    box-shadow var(--gb-duration-fast) var(--gb-ease-standard);
+}
+.btn:hover { transform: translateY(-2px); box-shadow: var(--gb-elevation-1); }
+
+.step__n { transition: transform var(--gb-duration-base) var(--gb-ease-standard); }
+.step:hover .step__n { transform: scale(1.08); }
+
 /* --------------------------------------------------------------------------- asked not to move */
 
 /*
@@ -1346,8 +1510,8 @@ html.js .hero:not(.is-in) .hero__device { opacity: 0; transform: translateY(2rem
  * apply — this block is the second line of defence, for a preference that changes after load.
  */
 @media (prefers-reduced-motion: reduce) {
-  html.js [data-reveal]:not(.is-in) > .wrap,
-  html.js [data-reveal] > .wrap,
+  html.js [data-reveal]:not(.is-in) > .wrap > *,
+  html.js [data-reveal] > .wrap > *,
   html.js [data-reveal]:not(.is-in) [data-stagger] > *,
   html.js [data-reveal] [data-stagger] > *,
   html.js .hero:not(.is-in) [data-stagger] > *,
@@ -1363,6 +1527,16 @@ html.js .hero:not(.is-in) .hero__device { opacity: 0; transform: translateY(2rem
   .card, .card__icon { transition: none; }
   .card:hover { transform: none; }
   .card:hover .card__icon { transform: none; }
+
+  /* Ambient and scroll-driven motion is removed, not slowed: there is no gentle version of a
+     background that never stops moving. */
+  .hero::after { animation: none; transform: none; }
+  html.js .scroll-line { animation: none; }
+  html.js .section > .pattern { animation: none; transform: none; inset: 0; }
+  .faq details::details-content { transition: none; }
+  .range__item, .visit__card, .report__sheet, .range__photo, .btn, .step__n { transition: none; }
+  .range__item:hover, .visit__card:hover, .report__sheet:hover,
+  .range__item:hover .range__photo, .btn:hover, .step:hover .step__n { transform: none; }
 }
 
 /* ---------------------------------------------------------------------------------- the ledger */

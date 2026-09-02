@@ -99,6 +99,13 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
 ---
 
 <Base title="Home" description={SITE.description} path="/">
+  <!--
+    The reading line. Purely decorative and driven entirely by CSS scroll timelines, so there is
+    no script behind it and nothing at all in a browser that does not support them — see
+    `.scroll-line` in `site.css`.
+  -->
+  <div class="scroll-line" aria-hidden="true"></div>
+
   <!-- ============================================================ hero -->
   <section class="panel-deep on-dark hero">
     <div class="pattern" aria-hidden="true"></div>
@@ -204,7 +211,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
         the device frame, which bleeds down past this point. That is a padding, not a narrower
         band: the line still reads edge to edge.
       -->
-      <ul class="facts">
+      <ul class="facts" data-stagger>
         {FACTS.map((fact) => (
           <li class="fact">
             <p class="fact__value">{fact.value}</p>
@@ -369,7 +376,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
       <h2 class="heading" id="food-heading">{FOOD.heading}</h2>
       <p class="lead">{FOOD.lead}</p>
 
-      <ul class="range">
+      <ul class="range" data-stagger>
         {FOOD.categories.map((category) => (
           <li class="range__item">
             <!--
@@ -475,7 +482,7 @@ const endpoint = import.meta.env.PUBLIC_ENQUIRY_ENDPOINT ?? '/api/dev/enquiry';
       <p class="eyebrow">Questions</p>
       <h2 class="heading" id="faq-heading">What administrators ask us</h2>
 
-      <div class="faq">
+      <div class="faq" data-stagger>
         {FAQ.map((item) => (
           <details>
             <summary>{item.q}</summary>
