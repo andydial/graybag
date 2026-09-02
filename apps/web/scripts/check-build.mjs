@@ -29,6 +29,17 @@ const DIST = join(WEB, 'dist');
 const BUDGETS = {
   homeHtmlGz: 45_000,
   /*
+   * **17,700, up from 17,000 — the motion layer (`E12-36`, second pass).**
+   *
+   * Raised deliberately and once. The reveal, the hero's drifting light, the scroll-driven line
+   * and the extended hover set are about 640 B gzipped of the total, and they are the difference
+   * between a page that fades in and one that flows — which is what the section was asked for.
+   * The number is still tight against the measured value, which is the property that makes a
+   * budget fire.
+   *
+   * Note what this budget counts: every stylesheet in `dist/`, including the back office's, which
+   * a marketing visitor never downloads. The home page's own CSS is under half of it.
+   *
    * **17,000, down from 18,000 — `E10-62`, and the interim 21,000 is gone.**
    *
    * The back office migration deleted `admin.css` entirely: one design system (`backoffice.css`)
@@ -36,7 +47,7 @@ const BUDGETS = {
    * at 16,384 B — smaller than before the rebuild started, not larger. The ceiling follows it
    * down, because a budget with 5 KB of slack is a budget that never fires.
    */
-  cssGz: 17_000,
+  cssGz: 17_700,
   jsGz: 10_000,
   totalHomePayload: 400_000,
   thirdPartyRequests: 0,

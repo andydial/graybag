@@ -5112,13 +5112,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/39</span>
+          <span class="meter-num">0/40</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 39 tasks</summary>
+        <summary>Context &amp; 40 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -5433,6 +5433,14 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Share the PostHog project key</strong> as <code>PUBLIC_POSTHOG_KEY</code> in Netlify (production context). Until it is set the analytics code returns immediately and nothing is collected, so the site is unaffected. The mobile thread owns the project; this needs the same one</span>
+      </li>
+      <li class="task" data-id="E12-40" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-40"></button>
+        <code class="tid">E12-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The home page reads as one flowing page rather than a stack of panels.</strong> Andy, pointing at <code>quoteleads.com.au</code>: *&quot;dynamic or fluid… seems to be moving and flowing as we scroll&quot;*. That site uses <strong>no animation library at all</strong> — an <code>IntersectionObserver</code> adding one class, CSS transitions, <code>clamp()</code> type and a drifting background — which is what this page already had; the gap was granularity and tempo, not technique. Four changes. <strong>(1)</strong> The reveal moved from <code>&gt; .wrap</code> to <code>&gt; .wrap &gt; *</code>, so a section&#39;s eyebrow, heading, lead and grid arrive in sequence instead of as one slab, capped at four steps of 80ms. <strong>(2)</strong> Tempo: 780ms on a long ease, from page-local properties rather than tokens, because <code>--gb-duration-slow</code> is 320ms for a good reason — it times a menu opening under a thumb — and a 780ms token would be wrong everywhere in the product. <strong>(3)</strong> Ambient and scroll-driven motion with <strong>zero</strong> JavaScript: two colour fields drifting behind the hero at 0.18 opacity (chosen for contrast, not taste — white on <code>forest-500</code> stays past 4.5), a reading line driven by <code>animation-timeline: scroll()</code>, the pattern layer drifting against <code>view()</code>, and the FAQ answers opening through <code>::details-content</code>. Every one is behind <code>@supports</code> and degrades to exactly today&#39;s page. <strong>(4)</strong> The card lift extended to the menu tiles, the visit card, the sample report and the buttons. <code>prefers-reduced-motion</code> switches all of it <strong>off</strong>, including the ambient layer — there is no gentle version of a background that never stops moving. Cost: <strong>640 B</strong> of gzipped CSS and <strong>no new JavaScript at all</strong>; the <code>cssGz</code> budget went 17,000 → 17,700, raised once and deliberately, still tight against the measured 17,424</span>
       </li></ul>
       </details>
     </article>
