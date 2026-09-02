@@ -56,8 +56,15 @@ describe('site.css', () => {
     // the app's role map has no name for — the amber CTA on a green field, the pattern tint,
     // the hairlines inside a dark panel. Each is deliberate; the assertion is that the list
     // stays short and visible rather than growing quietly.
+    //
+    // **Eight → ten, 2026-09-02.** `E12-40`'s hero glow added `primary-400` and `amber-500` in
+    // two radial gradients on `.hero::after`, and did not raise this. `main` has been red on
+    // this assertion ever since — which is the ceiling doing exactly its job and nobody
+    // answering it. Both are decorative fills on a marketing surface with no role-map name, so
+    // this is the "deliberate, and visible in a diff" case the comment above describes, and the
+    // fix is the number rather than the gradient.
     const ramps = [...site.matchAll(/var\((--gb-ramp-[a-z0-9-]+)/g)].map((m) => m[1]);
-    expect(new Set(ramps).size).toBeLessThanOrEqual(8);
+    expect(new Set(ramps).size).toBeLessThanOrEqual(10);
   });
 
   it('sets no font-family literal outside the token', () => {
