@@ -195,7 +195,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       import { mountShell } from '../lib/backoffice/shell.js';
       import { fixtureTransport } from '../lib/kitchen/fixture.js';
       import { liveTransport } from '../lib/kitchen/live.js';
-      import { currentUser } from '../lib/backoffice/session.js';
+      import { requireBackofficeAccess } from '../lib/backoffice/guard.js';
       import { CANCEL_REASONS, MIN_CANCEL_DETAIL } from '../lib/kitchen/types.js';
       import type { KitchenAction, KitchenDay, KitchenFilters, KitchenStatus } from '../lib/kitchen/types.js';
       import {
@@ -1073,10 +1073,9 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
       void (async () => {
         // Signed out against the real server is not an empty kitchen — it is a locked door, and
         // §5.21's N3 says the two must never look alike. Fixtures need no session.
-        if (useLive && !(await currentUser().catch(() => null))) {
-          location.assign(`/signin?next=${encodeURIComponent(location.pathname + location.search)}`);
-          return;
-        }
+        // The gate, not a session check — `E10-73`. An account that reaches no screen
+        // is signed out at the door rather than shown a frame it cannot fill.
+        if (useLive && !(await requireBackofficeAccess('/kitchen'))) return;
         // Populate the filter options from the first load rather than from `day`: TypeScript
         // cannot see an assignment made inside `load()` from out here, and narrowing a
         // module-level `let` across an await is exactly where that analysis gives up.

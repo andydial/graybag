@@ -68,7 +68,8 @@ import '../../styles/backoffice.css';
     <script>
       import { api, money } from '@graybag/shared';
       import { closeDrawer, mountShell, openDrawer } from '../../lib/backoffice/shell.js';
-      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { configureBackofficeApi } from '../../lib/backoffice/session.js';
+      import { requireBackofficeAccess } from '../../lib/backoffice/guard.js';
       import { PACKS_FIXTURE } from '../../lib/admin/packs-fixture.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -381,10 +382,9 @@ import '../../styles/backoffice.css';
       void (async () => {
         await mountShell();
         try {
-          if (!demo && !(await currentUser())) {
-            location.assign(`/signin?next=${encodeURIComponent('/admin/packs')}`);
-            return;
-          }
+          // The gate, not a session check — `E10-73`. An account that reaches no screen
+          // is signed out at the door rather than shown a frame it cannot fill.
+          if (!demo && !(await requireBackofficeAccess('/admin/packs'))) return;
         } catch { /* fall through and let the read fail visibly */ }
         await load();
       })();

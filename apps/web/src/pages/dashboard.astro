@@ -60,6 +60,7 @@ import '../styles/backoffice.css';
         <div id="d-banner"></div>
         <div id="d-cards"></div>
         <div id="d-board"></div>
+        <div id="d-nothing"></div>
       </div>
     </BackofficeShell>
 
@@ -67,14 +68,15 @@ import '../styles/backoffice.css';
       import { api, money } from '@graybag/shared';
 
       import { mountShell } from '../lib/backoffice/shell.js';
-      import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
+      import { reachable } from '../lib/backoffice/gate.js';
+      import { requireBackofficeAccess } from '../lib/backoffice/guard.js';
       import { describeDate, serviceDateToday } from '../lib/kitchen/view.js';
       import { schoolMenuRows } from '../lib/admin/catalogue-view.js';
       import { readiness } from '../lib/admin/school-readiness.js';
       import { TODAY_FIXTURE, TODAY_FIXTURE_GRANTS } from '../lib/admin/today-fixture.js';
       import {
         attention, boardRows, dishesBlockingOrders, ordersToday, packsToday, revenueToday,
-        sortBoard, readable, unreadable,
+        isShown, sortBoard, readable, unreadable, withheld,
         type AttentionItem, type BlockingDishes, type BoardRow, type OrdersToday,
         type PacksToday, type Panel, type RevenueToday,
       } from '../lib/admin/today.js';
@@ -87,36 +89,55 @@ import '../styles/backoffice.css';
       const today = serviceDateToday(new Date());
 
       /**
-       * Every panel starts unreadable, with the reason it would be.
+       * Every panel starts **withheld**, with the reason kept for the code rather than the screen.
        *
-       * The default is *"you do not hold the grant"* rather than *"loading"*, so a read that never
-       * runs — because the grant is absent — renders the true reason rather than an empty card
-       * that looks like a failure. A read that runs and fails overwrites this with its own why.
+       * It used to start `unreadable('Needs orders.view_financials.')` and render that sentence,
+       * which was the bug Andy caught on 2026-09-02: the page introduced itself to an account
+       * with no access by listing the four things it was not going to show it, and named the
+       * grant behind each one. *"Other employees (kitchen) can't know that we track reports,
+       * access, even revenue using this web dashboard."*
+       *
+       * So a panel this account may not have is **absent**, not explained. A panel it may have
+       * and we failed to fetch is still explained — see `Panel` in `today.js` for why those two
+       * must not share a rendering.
        */
       const NO_GRANT = (grant: string) => `Needs ${grant}.`;
 
-      let blocking: Panel<BlockingDishes> = unreadable(NO_GRANT('menu.edit'));
-      let orders: Panel<OrdersToday> = unreadable(NO_GRANT('orders.view'));
-      let revenue: Panel<RevenueToday> = unreadable(NO_GRANT('orders.view_financials'));
-      let packs: Panel<PacksToday> = unreadable(NO_GRANT('meal_packs.manage'));
-      let needs: Panel<AttentionItem[]> = unreadable(NO_GRANT('school.edit'));
-      let board: Panel<BoardRow[]> = unreadable(NO_GRANT('orders.view'));
+      let blocking: Panel<BlockingDishes> = withheld(NO_GRANT('menu.edit'));
+      let orders: Panel<OrdersToday> = withheld(NO_GRANT('orders.view'));
+      let revenue: Panel<RevenueToday> = withheld(NO_GRANT('orders.view_financials'));
+      let packs: Panel<PacksToday> = withheld(NO_GRANT('meal_packs.manage'));
+      let needs: Panel<AttentionItem[]> = withheld(NO_GRANT('school.edit'));
+      let board: Panel<BoardRow[]> = withheld(NO_GRANT('orders.view'));
       let loading = true;
+      /** What this account can open, for the empty state. Set once the gate has answered. */
+      let elsewhere: { href: string; label: string }[] = [];
+      /** The last capabilities we successfully read. Never downgraded by a failed refresh. */
+      let held: api.Capabilities | null = null;
 
       /* ------------------------------------------------------------------ rendering */
 
-      /** A card whose figure could not be read says why, in place of the figure. */
+      /**
+       * A card, or nothing at all.
+       *
+       * Three outcomes, not two:
+       *
+       *  - **withheld** — no card. Not a placeholder, not a dash, not a title. A heading reading
+       *    "Revenue today" over an explanation is still the sentence "we track revenue".
+       *  - **failed** — the card, with why in place of the figure. Never a zero: "₹0 today" is
+       *    something somebody would act on, and this reader is entitled to the real number.
+       *  - **readable** — the figure.
+       */
       function card(
         title: string, panel: Panel<unknown>,
         show: (value: never) => { k: string; m: string }, kind = '',
       ): string {
+        if (!isShown(panel)) return '';
         const body = panel.readable
           ? (() => {
               const { k, m } = show(panel.value as never);
               return `<div class="k">${k}</div><div class="m">${m}</div>`;
             })()
-          // Never a zero. "₹0 today" and "you may not see this" are different facts, and only one
-          // of them is something to act on.
           : `<div class="k k--none">—</div><div class="m">${esc(panel.why)}</div>`;
         return `<div class="card${kind}"><h4>${esc(title)}</h4>${body}</div>`;
       }
@@ -142,8 +163,7 @@ import '../styles/backoffice.css';
       }
 
       function renderCards(): void {
-        $('d-cards').innerHTML =
-          `<div class="grid">` +
+        const cards =
             card('Orders today', orders, (o: OrdersToday) => ({
               k: String(o.total),
               m: o.total === 0
@@ -176,15 +196,25 @@ import '../styles/backoffice.css';
                     (i.fix ? ` <a href="${esc(i.fix.href)}">${esc(i.fix.label)}</a>` : ''),
                   ).join('<br>') +
                   (items.length > 3 ? `<br>and ${items.length - 3} more` : ''),
-            }), needs.readable && needs.value.length > 0 ? ' card--warn' : '') +
-          `</div>`;
+            }), needs.readable && needs.value.length > 0 ? ' card--warn' : '');
+
+        // No grid when there are no cards. An empty four-column grid is a visible gap that reads
+        // as something that failed to load.
+        $('d-cards').innerHTML = cards === '' ? '' : `<div class="grid">${cards}</div>`;
       }
 
       function renderBoard(): void {
+        // Withheld: no section, no heading. "Kitchen, right now — not visible to this account"
+        // still tells the reader there is a live kitchen board in here, which is the disclosure.
+        if (!isShown(board)) {
+          $('d-board').innerHTML = '';
+          return;
+        }
+
         if (!board.readable) {
           $('d-board').innerHTML =
             `<div class="sec">Kitchen, right now</div>` +
-            `<div class="empty"><h2>Not visible to this account</h2><p>${esc(board.why)}</p></div>`;
+            `<div class="empty"><h2>That did not load</h2><p>${esc(board.why)}</p></div>`;
           return;
         }
 
@@ -221,6 +251,34 @@ import '../styles/backoffice.css';
           }).join('');
       }
 
+      /**
+       * When every panel is withheld, say something true rather than nothing at all.
+       *
+       * A school viewer holds `reports.view` and nothing else: no order count, no money, no
+       * packs, no board. Every one of those is correctly absent, and the result would be a page
+       * with a title and a blank — the *"is this broken?"* state `ux-spec` §5.21 exists to
+       * prevent, arrived at from the opposite direction.
+       *
+       * So this points at what they *can* open, taken from the same navigation they already see
+       * in the sidebar. It discloses nothing: everything it names is a link they are looking at.
+       */
+      function renderNothing(): void {
+        const anything =
+          $('d-banner').innerHTML !== '' || $('d-cards').innerHTML !== '' ||
+          $('d-board').innerHTML !== '' || loading;
+        if (anything) { $('d-nothing').innerHTML = ''; return; }
+
+        $('d-nothing').innerHTML =
+          `<div class="empty"><h2>Nothing on Today is for you</h2>` +
+          `<p>Today gathers the kitchen's day, and this account does not work on it. ` +
+          (elsewhere.length > 0
+            ? `What you can open is in the sidebar.</p>`
+            : `</p>`) +
+          elsewhere.map((item) =>
+            `<a class="btn" href="${esc(item.href)}">${esc(item.label)}</a> `).join('') +
+          `</div>`;
+      }
+
       function render(): void {
         /*
          * The subtitle is the **date**, replacing the static sentence once we know which day is
@@ -234,6 +292,7 @@ import '../styles/backoffice.css';
         renderBanner();
         renderCards();
         renderBoard();
+        renderNothing();
 
         const said: string[] = [];
         if (loading) said.push('Loading today.');
@@ -259,7 +318,10 @@ import '../styles/backoffice.css';
       async function panel<T>(
         held: boolean, grant: string, read: () => Promise<T>,
       ): Promise<Panel<T>> {
-        if (!held) return unreadable(NO_GRANT(grant));
+        // Not held is `withheld`, which renders nothing. Held and broken is `unreadable`, which
+        // renders the reason. The read is never even attempted for the first, so a refusal never
+        // reaches the network and never needs interpreting.
+        if (!held) return withheld(NO_GRANT(grant));
         try {
           return readable(await read());
         } catch (cause) {
@@ -267,12 +329,28 @@ import '../styles/backoffice.css';
         }
       }
 
-      async function load(): Promise<void> {
+      /**
+       * @param known the capabilities the gate already read, on first load. Refresh passes none
+       *   and re-reads them, because a grant can be revoked while a tab is open.
+       */
+      async function load(known?: api.Capabilities): Promise<void> {
         loading = true; render();
 
+        /*
+         * A failed capability read falls back to **what we last knew**, not to nothing.
+         *
+         * `.catch(() => api.capabilities([]))` was the old fallback and it is the wrong direction
+         * now that an absent grant hides a panel rather than explaining it: one blink of the
+         * network on Refresh and the page would silently become the "nothing here for you"
+         * screen for the person who runs the kitchen.
+         */
         const caps = demo
           ? api.capabilities(TODAY_FIXTURE_GRANTS)
-          : await api.fetchMyCapabilities().catch(() => api.capabilities([]));
+          : known
+            ?? (await api.fetchMyCapabilities().catch(() => held))
+            ?? api.capabilities([]);
+        held = caps;
+        elsewhere = demo ? [] : reachable(caps).map((i) => ({ href: i.href, label: i.label }));
 
         if (demo) {
           blocking = readable(TODAY_FIXTURE.blocking);
@@ -322,17 +400,19 @@ import '../styles/backoffice.css';
         packs = packPanel;
 
         revenue = !caps.has('orders.view_financials')
-          ? unreadable(NO_GRANT('orders.view_financials'))
+          ? withheld(NO_GRANT('orders.view_financials'))
           : moneyOrders === null
             ? unreadable('The money read did not complete.')
             : readable(revenueToday(moneyOrders));
 
         if (cat === null) {
-          const why = caps.has('menu.edit') || caps.has('school.edit')
+          const entitled = caps.has('menu.edit') || caps.has('school.edit');
+          // Entitled and broken says so; not entitled says nothing at all, on both panels.
+          const why = entitled
             ? 'The catalogue read did not complete.'
             : NO_GRANT('menu.edit or school.edit');
-          blocking = unreadable(why);
-          needs = unreadable(why);
+          blocking = entitled ? unreadable(why) : withheld(why);
+          needs = entitled ? unreadable(why) : withheld(why);
         } else {
           const [schools, assignments, menus, dishes, breaks, days] = cat;
           const rows = schoolMenuRows(schools, assignments, menus, dishes, today);
@@ -347,22 +427,24 @@ import '../styles/backoffice.css';
         await mountShell();
       }
 
+      // Refresh re-reads capabilities as well as data, so a revoked grant takes a panel away
+      // from an open tab rather than waiting for a reload.
       $('d-reload').addEventListener('click', () => void load());
 
       void (async () => {
         if (demo) { await load(); return; }
-        configureBackofficeApi();
 
-        // Signed out is the common case for this URL — it is the one people bookmark.
-        try {
-          if (!(await currentUser())) {
-            location.assign(`/signin?next=${encodeURIComponent('/dashboard')}`);
-            return;
-          }
-        } catch {
-          // Fall through: a failed session read should not strand somebody on a blank page.
-        }
-        await load();
+        /*
+         * The gate, not a session check — `E10-73`.
+         *
+         * This used to ask only *"is anybody signed in"*, and this URL is the one people
+         * bookmark, so it is where an account with no access landed and was shown the shape of
+         * the system. `requireBackofficeAccess` answers the harder question and has already
+         * navigated away by the time it returns `null`.
+         */
+        const caps = await requireBackofficeAccess('/dashboard');
+        if (!caps) return;
+        await load(caps);
       })();
     </script>
   </body>

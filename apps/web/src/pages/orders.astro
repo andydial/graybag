@@ -77,7 +77,8 @@ import '../styles/backoffice.css';
     <script>
       import { mountShell } from '../lib/backoffice/shell.js';
       import { api, money } from '@graybag/shared';
-      import { configureBackofficeApi, currentUser } from '../lib/backoffice/session.js';
+      import { configureBackofficeApi } from '../lib/backoffice/session.js';
+      import { requireBackofficeAccess } from '../lib/backoffice/guard.js';
       import { describeDate, serviceDateToday, shiftDate } from '../lib/kitchen/view.js';
       import { ORDERS_FIXTURE } from '../lib/admin/orders-fixture.js';
       import { downloadCsv, ordersToCsv } from '../lib/admin/csv-export.js';
@@ -430,10 +431,9 @@ import '../styles/backoffice.css';
         // whole point of it, and it is why this route could not be verified before.
         try {
           if (demo) { await load(); return; }
-          if (!(await currentUser())) {
-            location.assign(`/signin?next=${encodeURIComponent('/orders')}`);
-            return;
-          }
+          // The gate, not a session check — `E10-73`. An account that reaches no screen
+          // is signed out at the door rather than shown a frame it cannot fill.
+          if (!(await requireBackofficeAccess('/orders'))) return;
         } catch {
           /* An unconfigured build falls through to the error state below. */
         }

@@ -61,7 +61,8 @@ import '../../styles/backoffice.css';
     <script>
       import { mountShell } from '../../lib/backoffice/shell.js';
       import { api } from '@graybag/shared';
-      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { configureBackofficeApi } from '../../lib/backoffice/session.js';
+      import { requireBackofficeAccess } from '../../lib/backoffice/guard.js';
       import { ALERTS_FIXTURE } from '../../lib/admin/alerts-fixture.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -258,10 +259,9 @@ import '../../styles/backoffice.css';
 
       void (async () => {
         try {
-          if (!demo && !(await currentUser())) {
-            location.assign(`/signin?next=${encodeURIComponent('/admin/alerts')}`);
-            return;
-          }
+          // The gate, not a session check — `E10-73`. An account that reaches no screen
+          // is signed out at the door rather than shown a frame it cannot fill.
+          if (!demo && !(await requireBackofficeAccess('/admin/alerts'))) return;
         } catch { /* fall through and let the read fail visibly */ }
         await load();
       })();

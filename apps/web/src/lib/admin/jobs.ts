@@ -129,6 +129,16 @@ export interface AccessSummary {
   extra: string[];
   /** One line for the card, whether or not a job matched. */
   label: string;
+  /**
+   * The same, without the shortfall — `E10-73`.
+   *
+   * `label` names what a near-match is *missing*, which is the actionable half on
+   * `/admin/people`, where somebody is deciding what to grant. It is the wrong sentence to show
+   * a person about themselves: the sidebar read *"Kitchen manager, missing menu.import and
+   * kitchen.view"* to a kitchen operator, naming two permissions they cannot act on and two
+   * capabilities nobody told them existed. This is what the sidebar shows instead.
+   */
+  shortLabel: string;
 }
 
 /**
@@ -173,6 +183,15 @@ const NEAR_MATCH_FLOOR = 0.5;
  */
 export const OWNER_LABEL = 'Owner — everything, by construction';
 
+/**
+ * What an account holding nothing is called.
+ *
+ * Since `E10-73` this is reachable only on `/admin/people`, where an administrator is looking at
+ * somebody else's access: the back office itself no longer admits an account that reaches no
+ * screen, so nobody is ever shown this about themselves.
+ */
+export const NO_ACCESS_LABEL = 'No access — signed in, holds nothing';
+
 export function describeAccess(
   held: HeldGrant[],
   options: { isOwner?: boolean } = {},
@@ -183,11 +202,17 @@ export function describeAccess(
    * account that can do everything.
    */
   if (options.isOwner === true) {
-    return { job: null, scopeType: 'platform', extra: [], label: OWNER_LABEL };
+    return {
+      job: null, scopeType: 'platform', extra: [],
+      label: OWNER_LABEL, shortLabel: OWNER_LABEL,
+    };
   }
 
   if (held.length === 0) {
-    return { job: null, scopeType: null, extra: [], label: 'No access — signed in, holds nothing' };
+    return {
+      job: null, scopeType: null, extra: [],
+      label: NO_ACCESS_LABEL, shortLabel: NO_ACCESS_LABEL,
+    };
   }
 
   const codes = new Set(held.map((g) => g.permissionCode));
@@ -219,6 +244,9 @@ export function describeAccess(
       scopeType: null,
       extra: [],
       label: `Custom — ${codes.size} permission${codes.size === 1 ? '' : 's'}`,
+      // Not the count, to the holder. "Custom — 3 permissions" is a number they can do nothing
+      // with, on a line whose job is to say who they are signed in as.
+      shortLabel: 'Back office',
     };
   }
 
@@ -253,7 +281,7 @@ export function describeAccess(
 
   const label = parts.length === 0 ? job.label : `${job.label}, ${parts.join(', ')}`;
 
-  return { job, scopeType, extra, label };
+  return { job, scopeType, extra, label, shortLabel: job.label };
 }
 
 /** The job a key names, or `null`. */

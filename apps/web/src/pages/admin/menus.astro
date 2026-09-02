@@ -57,7 +57,8 @@ import '../../styles/backoffice.css';
     <script>
       import { api, money } from '@graybag/shared';
       import { closeDrawer, mountShell, openDrawer } from '../../lib/backoffice/shell.js';
-      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { configureBackofficeApi } from '../../lib/backoffice/session.js';
+      import { requireBackofficeAccess } from '../../lib/backoffice/guard.js';
       import { serviceDateToday } from '../../lib/kitchen/view.js';
       import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
       import { buildMenuPlans, unassignedCount } from '../../lib/admin/menu-plans.js';
@@ -279,10 +280,9 @@ import '../../styles/backoffice.css';
       void (async () => {
         await mountShell();
         try {
-          if (!demo && !(await currentUser())) {
-            location.assign(`/signin?next=${encodeURIComponent('/admin/menus')}`);
-            return;
-          }
+          // The gate, not a session check — `E10-73`. An account that reaches no screen
+          // is signed out at the door rather than shown a frame it cannot fill.
+          if (!demo && !(await requireBackofficeAccess('/admin/menus'))) return;
         } catch { /* fall through and let the read fail visibly */ }
         await load();
       })();

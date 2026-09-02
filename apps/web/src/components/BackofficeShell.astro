@@ -10,12 +10,24 @@
  * `<BackofficeShell title=… subtitle=…>` wrapping its own body, and nothing else decides its
  * frame.
  *
- * ## The sidebar renders empty and is filled by the client
+ * ## The sidebar renders empty and is **built** by the client — `E10-73`
  *
- * Same reason `BackofficeNav` did: the site is static, so the server cannot know which grants the
- * reader holds. Links ship `hidden` and `nav-mount.ts` reveals the ones their grants allow. A
- * link that is visible but refuses on click is worse than one that was never offered — it reads
- * as broken rather than as not-for-you.
+ * The site is static, so the server cannot know which grants the reader holds. This used to ship
+ * every link with `hidden` and let `shell.ts` remove the attribute from the ones the grants
+ * allowed, which is fine for the reader and wrong for the document: **every route, its label and
+ * the grants it requires were in the HTML of every back-office page**, and these pages are served
+ * to anyone who asks for them. `view-source` was a complete map of the back office, no account
+ * required — the same disclosure Andy objected to on `/dashboard`, one layer down and available
+ * without even signing in.
+ *
+ * So the rail ships **empty** and `shell.ts` creates the links the reader may actually use. A
+ * link that is visible but refuses on click is still worse than one that was never offered; now
+ * neither exists.
+ *
+ * The route table itself is in the page's JavaScript, because a static site has to route in the
+ * browser. That is a genuinely weaker hiding place than a server would give us and it is the
+ * honest limit of this: a minified bundle is not a secret. It is still the difference between
+ * reading the markup and reverse-engineering a chunk.
  *
  * ## Counts are a promise, so they are opt-in per item
  *
@@ -24,8 +36,6 @@
  * one when a page can supply it — `setNavCount()` — rather than every item rendering a zero that
  * may or may not mean anything.
  */
-import { NAV, NAV_GROUPS } from '../lib/backoffice/nav';
-
 interface Props {
   /** The route this page is, so the sidebar can mark it current. */
   current: string;
@@ -38,7 +48,7 @@ const { current, title, subtitle } = Astro.props;
 ---
 
 <div class="bo">
-  <nav class="bo__nav" aria-label="Back office" data-bonav>
+  <nav class="bo__nav" aria-label="Back office" data-bonav data-nav-current={current}>
     <!--
       The real mark, not a lime square.
 
@@ -51,24 +61,11 @@ const { current, title, subtitle } = Astro.props;
       <img src="/img/logo-white.webp" width="560" height="184" alt="GrayBag" />
     </a>
 
-    {NAV_GROUPS.map((group) => (
-      <>
-        <p class="bo__group" data-nav-group={group} hidden>{group}</p>
-        {NAV.filter((item) => item.group === group).map((item) => (
-          <a
-            class="bo__link"
-            href={item.href}
-            data-nav-item={item.href}
-            data-nav-requires={item.requires.join(' ')}
-            aria-current={item.href === current ? 'page' : undefined}
-            hidden
-          >
-            <span>{item.label}</span>
-            <span class="bo__count" data-nav-count={item.href} hidden></span>
-          </a>
-        ))}
-      </>
-    ))}
+    <!--
+      Empty on purpose. `shell.ts` fills it with the links this reader may use and nothing else —
+      see the note above on why the list is not in the document.
+    -->
+    <div data-nav-rail></div>
 
     <!--
       Who is signed in, and as what. The old back office never said — you could be looking at a

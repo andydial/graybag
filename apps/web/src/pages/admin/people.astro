@@ -107,6 +107,7 @@ import '../../styles/backoffice.css';
       import { api } from '@graybag/shared';
       import { JOBS, OWNER_LABEL, describeAccess, jobByKey } from '../../lib/admin/jobs.js';
       import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { requireBackofficeAccess } from '../../lib/backoffice/guard.js';
       import { PEOPLE_FIXTURE } from '../../lib/admin/people-fixture.js';
 
       import { PARENT_BASELINE, allCapabilities } from '../../lib/admin/capabilities.js';
@@ -788,10 +789,9 @@ import '../../styles/backoffice.css';
 
       void (async () => {
         try {
-          if (!demo && !(await currentUser())) {
-            location.assign(`/signin?next=${encodeURIComponent('/admin/people')}`);
-            return;
-          }
+          // The gate, not a session check — `E10-73`. An account that reaches no screen
+          // is signed out at the door rather than shown a frame it cannot fill.
+          if (!demo && !(await requireBackofficeAccess('/admin/people'))) return;
         } catch { /* an unconfigured build falls through to the error state */ }
         await load();
       })();
