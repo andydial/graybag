@@ -94,7 +94,8 @@ import '../../styles/backoffice.css';
     <script>
       import { mountShell } from '../../lib/backoffice/shell.js';
       import { api } from '@graybag/shared';
-      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { configureBackofficeApi } from '../../lib/backoffice/session.js';
+      import { requireBackofficeAccess } from '../../lib/backoffice/guard.js';
       import { snapshotReader } from '../../lib/admin/import-snapshot.js';
       import { DEMO_IMPORT } from '../../lib/admin/import-fixture.js';
 
@@ -364,9 +365,9 @@ import '../../styles/backoffice.css';
           return;
         }
         try {
-          if (!(await currentUser())) {
-            location.assign(`/signin?next=${encodeURIComponent('/admin/import')}`);
-          }
+          // The gate, not a session check — `E10-73`. An account that reaches no screen
+          // is signed out at the door rather than shown a frame it cannot fill.
+          if (!(await requireBackofficeAccess('/admin/import'))) return;
         } catch { /* an unconfigured build falls through to the empty state */ }
       })();
     void mountShell();

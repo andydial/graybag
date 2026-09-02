@@ -1,52 +1,73 @@
 /**
- * Filling the back-office shell — `E10-55`.
+ * Filling the back-office shell — `E10-55`, and `E10-73`.
  *
- * `BackofficeShell.astro` ships a sidebar whose links are all `hidden`, an empty "who" block, and
- * an unmounted drawer. This fills them in the browser, where the reader's grants are knowable.
+ * `BackofficeShell.astro` ships an **empty** rail, an empty "who" block, and an unmounted drawer.
+ * This fills them in the browser, where the reader's grants are knowable.
  *
- * Three jobs, none of which the old `nav-mount` did:
+ * Three jobs:
  *
- *  - **reveal**, and hide a whole group whose every item is hidden, so an operator with two links
- *    does not see four empty headings;
+ *  - **build the rail** from `visibleNav`, groups included, so an operator with two links does
+ *    not see four empty headings — and so the document itself never carried the other twelve;
  *  - **who is signed in**, and what job their grants add up to — the old back office never said;
  *  - **the drawer**, available to any screen rather than only the dish workbench.
+ *
+ * It used to *reveal* pre-rendered links instead of creating them. See `BackofficeShell.astro`
+ * for why that shipped the whole route table to anyone who viewed source, signed in or not.
  */
 import { api } from '@graybag/shared';
 
 import { describeAccess } from '../admin/jobs.js';
+import { operatorOf } from './gate.js';
 import { currentUser } from './session.js';
-import { NAV } from './nav.js';
+import { NAV, NAV_GROUPS, visibleNav, type NavItem } from './nav.js';
 
 const q = <T extends HTMLElement>(sel: string): T | null => document.querySelector<T>(sel);
-const all = <T extends HTMLElement>(sel: string): T[] => [...document.querySelectorAll<T>(sel)];
 
 /**
- * Reveal the links whose every requirement is held, then the groups that kept a link.
+ * Create the links this reader may use, under the headings that keep one.
  *
- * The requirement is read back from the DOM rather than re-derived, so the markup and the decision
- * cannot disagree — the attribute was written from the same `NAV` entry that produced the link.
+ * Nothing is hidden and later shown: an element that is not built cannot be un-hidden by a
+ * stylesheet, a devtools toggle or the next person to touch this file.
  */
-function reveal(held: { has(code: string): boolean }): number {
-  let shown = 0;
-  for (const link of all<HTMLAnchorElement>('[data-nav-item]')) {
-    const requires = (link.dataset.navRequires ?? '').split(' ').filter(Boolean);
-    if (requires.every((grant) => held.has(grant))) {
-      link.hidden = false;
-      shown += 1;
+function build(items: NavItem[]): number {
+  const rail = q<HTMLElement>('[data-nav-rail]');
+  if (!rail) return 0;
+  const current = q<HTMLElement>('[data-bonav]')?.dataset.navCurrent ?? '';
+
+  rail.replaceChildren();
+  for (const group of NAV_GROUPS) {
+    const inGroup = items.filter((item) => item.group === group);
+    // A heading with nothing under it is worse than no heading: it reads as a section that failed
+    // to load rather than one this account has no business in.
+    if (inGroup.length === 0) continue;
+
+    const heading = document.createElement('p');
+    heading.className = 'bo__group';
+    heading.dataset.navGroup = group;
+    heading.textContent = group;
+    rail.append(heading);
+
+    for (const item of inGroup) {
+      const link = document.createElement('a');
+      link.className = 'bo__link';
+      link.href = item.href;
+      link.dataset.navItem = item.href;
+      if (item.href === current) link.setAttribute('aria-current', 'page');
+
+      const label = document.createElement('span');
+      label.textContent = item.label;
+
+      const count = document.createElement('span');
+      count.className = 'bo__count';
+      count.dataset.navCount = item.href;
+      count.hidden = true;
+
+      link.append(label, count);
+      rail.append(link);
     }
   }
 
-  for (const heading of all<HTMLElement>('[data-nav-group]')) {
-    const group = heading.dataset.navGroup;
-    const items = NAV.filter((item) => item.group === group).map((item) => item.href);
-    // A heading with nothing under it is worse than no heading: it reads as a section that failed
-    // to load rather than one this account has no business in.
-    heading.hidden = !items.some(
-      (href) => q<HTMLElement>(`[data-nav-item="${CSS.escape(href)}"]`)?.hidden === false,
-    );
-  }
-
-  return shown;
+  return items.length;
 }
 
 /** A count on a nav item. Only a page that can answer honestly should call this. */
@@ -130,8 +151,9 @@ export async function mountShell(): Promise<void> {
   // The demo state has no session and must still render the frame, or `check:a11y` audits a
   // sign-in redirect instead of the screen.
   if (new URLSearchParams(location.search).has('state')) {
-    for (const link of all<HTMLElement>('[data-nav-item]')) link.hidden = false;
-    for (const heading of all<HTMLElement>('[data-nav-group]')) heading.hidden = false;
+    // Every route, because this is what `check:a11y` walks and a rail filtered to nothing would
+    // leave the navigation unaudited. It reads no session and reaches no server.
+    build(NAV);
     const who = q<HTMLElement>('[data-nav-who]');
     if (who) {
       q<HTMLElement>('[data-nav-email]')!.textContent = 'demo@graybag.com';
@@ -143,28 +165,42 @@ export async function mountShell(): Promise<void> {
 
   try {
     const access = await api.fetchMyAccess();
-    // The owner satisfies every requirement while holding no grant row — `E02-39`. Revealing on
+    // The owner satisfies every requirement while holding no grant row — `E02-39`. Building from
     // the codes alone would give the account that can do everything an empty rail.
-    const held = access.isOwner
-      ? { has: () => true }
-      : new Set(access.grants.map((g) => g.permissionCode));
-    reveal(held);
+    build(visibleNav(operatorOf(api.capabilities(
+      access.grants.map((g) => g.permissionCode), access.isOwner,
+    ))));
 
     const who = q<HTMLElement>('[data-nav-who]');
     if (who) {
       const me = await currentUser().catch(() => null);
       q<HTMLElement>('[data-nav-email]')!.textContent = me?.email ?? 'Signed in';
+      /*
+       * The job, and **only** the job — `E10-73`.
+       *
+       * `describeAccess` also computes what a near-match is missing, which is exactly right on
+       * `/admin/people`, where an administrator is deciding what to grant. Shown to the person
+       * themselves it read *"Kitchen manager, missing menu.import and kitchen.view"*: two
+       * permission codes they cannot act on, naming two capabilities they were not told about.
+       */
       q<HTMLElement>('[data-nav-role]')!.textContent =
-        describeAccess(access.grants, { isOwner: access.isOwner }).label;
+        describeAccess(access.grants, { isOwner: access.isOwner }).shortLabel;
       who.hidden = false;
     }
   } catch {
     /*
-     * A failed grant read must not leave an empty rail with no way out. Everything is revealed;
-     * each screen still refuses on its own read, which is the check that actually matters — the
-     * sidebar is a signpost, not a gate.
+     * A failed grant read reveals **nothing** — `E10-73`.
+     *
+     * This used to reveal every link, reasoning that the sidebar is a signpost rather than a gate
+     * and that each screen refuses on its own read anyway. Both halves are true and the
+     * conclusion was still wrong: the list of screens is itself the disclosure. Andy, 2026-09-02:
+     * *"Other employees (kitchen) can't know that we track reports, access, even revenue using
+     * this web dashboard."* A dropped request would have shown a kitchen operator all fourteen.
+     *
+     * `nav-mount.ts` has always failed this way and said why — *"a script that fails must not
+     * advertise the shape of the system"*. The two are now the same. Nobody is stranded: the
+     * page's own gate (`guard.ts`) is what handles a reader who cannot get anywhere, and the
+     * brand mark at the top of the rail is still a link home.
      */
-    for (const link of all<HTMLElement>('[data-nav-item]')) link.hidden = false;
-    for (const heading of all<HTMLElement>('[data-nav-group]')) heading.hidden = false;
   }
 }

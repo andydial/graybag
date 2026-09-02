@@ -10,8 +10,12 @@ import {
   dishesBlockingOrders,
   ordersToday,
   packsToday,
+  readable,
   revenueToday,
   sortBoard,
+  isShown,
+  unreadable,
+  withheld,
 } from './today.js';
 
 const kitchenOrder = (o: Partial<api.ApiKitchenOrder> = {}): api.ApiKitchenOrder => ({
@@ -337,5 +341,35 @@ describe('sortBoard — an unlabelled break', () => {
       null,
     );
     expect(sortBoard(rows).map((r) => r.id)).toEqual(['four', 'none']);
+  });
+});
+
+describe('Panel — withheld is not the same as failed (E10-73)', () => {
+  it('marks a grant the account does not hold as withheld', () => {
+    const panel = withheld<number>('Needs orders.view_financials.');
+    expect(panel.readable).toBe(false);
+    if (panel.readable) throw new Error('unreachable');
+    expect(panel.withheld).toBe(true);
+  });
+
+  it('marks a read that failed as not withheld, so the screen still says so', () => {
+    // The distinction that matters: an operator who *is* entitled to today's revenue and gets
+    // nothing must be told the read failed, or they take an outage for a quiet day.
+    const panel = unreadable<number>('The money read did not complete.');
+    if (panel.readable) throw new Error('unreachable');
+    expect(panel.withheld).toBe(false);
+    expect(panel.why).toMatch(/did not complete/);
+  });
+
+  it('shows a failed panel and hides a withheld one', () => {
+    expect(isShown(withheld<number>('Needs orders.view.'))).toBe(false);
+    expect(isShown(unreadable<number>('That read did not complete.'))).toBe(true);
+    expect(isShown(readable(0))).toBe(true);
+  });
+
+  it('keeps a readable zero readable', () => {
+    // §5.21 has not moved. Nought orders is a fact; it is the two unreadable states that are not.
+    const panel = readable(0);
+    expect(panel).toEqual({ readable: true, value: 0 });
   });
 });

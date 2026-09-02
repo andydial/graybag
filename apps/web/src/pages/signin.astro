@@ -76,13 +76,17 @@ import '../styles/kitchen.css';
     </div>
 
     <script>
+      import { api } from '@graybag/shared';
+
       import { looksLikeEmail } from '../lib/enquiry.js';
+      import { NO_ACCESS_MESSAGE, hasBackofficeAccess, wasDenied } from '../lib/backoffice/gate.js';
       import {
         RESEND_AFTER_MS,
         currentUser,
         looksLikeCode,
         resendAvailableIn,
         sendCode,
+        signOut,
         verifyCode,
       } from '../lib/backoffice/session.js';
 
@@ -193,6 +197,7 @@ import '../styles/kitchen.css';
         verifyBtn.textContent = 'Signing in…';
         try {
           await verifyCode(emailInput.value.trim().toLowerCase(), code);
+          if (!(await mayBeHere())) { await refuse(); return; }
           location.assign(next);
         } catch (cause) {
           // The code is kept, not cleared. Re-typing five correct digits because the sixth was
@@ -252,13 +257,62 @@ import '../styles/kitchen.css';
         emailInput.focus();
       });
 
+      // ------------------------------------------------------------- the access check
+
+      /**
+       * Does this account reach any back-office screen at all? — `E10-73`.
+       *
+       * The correct code is not the same question as "may you be here". Signing up is open by
+       * design — the same `signInWithOtp` is how a **parent** creates an account (`U1`) — so an
+       * address having an account has never meant the person works here, and until this check
+       * existed the back office treated it as though it did. Andy, 2026-09-02: *"if they have no
+       * privileges assigned — they should NOT be able to login into the web backend at all."*
+       *
+       * A capability read that **fails** is not a refusal. It is unknown, and the safe answer to
+       * unknown at a door is still no — but the page then says the read failed rather than
+       * telling somebody who works here that they do not.
+       */
+      async function mayBeHere(): Promise<boolean> {
+        const caps = await api.fetchMyCapabilities().catch(() => null);
+        if (caps === null) {
+          await signOut().catch(() => undefined);
+          say('We could not check your access just now. Please try again in a moment.');
+          return false;
+        }
+        return hasBackofficeAccess(caps);
+      }
+
+      /**
+       * Turn away an account that holds nothing, and **end its session**.
+       *
+       * Signing out is the substance of this: a session left alive is a session that reaches
+       * `/dashboard` by typing the URL, which is exactly the state the screenshot showed. It also
+       * stops the redirect below bouncing them straight back in.
+       */
+      async function refuse(): Promise<void> {
+        await signOut().catch(() => undefined);
+        codeForm.hidden = true;
+        emailForm.hidden = false;
+        codeInput.value = '';
+        say(NO_ACCESS_MESSAGE);
+      }
+
       // ------------------------------------------------------------------ start
 
       void (async () => {
         try {
+          // Sent here by a back-office page that refused them. The account is already signed
+          // out by then — this is only the sentence explaining why they are looking at a login
+          // form again.
+          if (wasDenied(location.search)) say(NO_ACCESS_MESSAGE);
+
           // Already signed in — a shared tablet where somebody left a session open is the
-          // common case, not the rare one.
-          if (await currentUser()) location.assign(next);
+          // common case, not the rare one. Still has to pass the same check: a session that
+          // predates this gate, or outlives a revoked grant, must not be waved through.
+          if (await currentUser()) {
+            if (await mayBeHere()) location.assign(next);
+            else await refuse();
+          }
         } catch (cause) {
           // A misconfigured build must say so here rather than let every later screen fail in
           // its own way. ux-spec §5.20's lesson, applied to the back office.

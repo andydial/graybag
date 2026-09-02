@@ -71,7 +71,8 @@ import '../../styles/backoffice.css';
     <script>
       import { mountShell } from '../../lib/backoffice/shell.js';
       import { api } from '@graybag/shared';
-      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { configureBackofficeApi } from '../../lib/backoffice/session.js';
+      import { requireBackofficeAccess } from '../../lib/backoffice/guard.js';
       import { CONFIG_FIXTURE } from '../../lib/admin/config-fixture.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -437,10 +438,9 @@ import '../../styles/backoffice.css';
 
       void (async () => {
         try {
-          if (!demo && !(await currentUser())) {
-            location.assign(`/signin?next=${encodeURIComponent(location.pathname + location.search)}`);
-            return;
-          }
+          // The gate, not a session check — `E10-73`. An account that reaches no screen
+          // is signed out at the door rather than shown a frame it cannot fill.
+          if (!demo && !(await requireBackofficeAccess('/admin/config'))) return;
           if (!demo) configureBackofficeApi();
           await loadSchools();
           el.school.innerHTML = schools

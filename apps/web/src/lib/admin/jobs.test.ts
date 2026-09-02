@@ -85,6 +85,27 @@ describe('describeAccess', () => {
     expect(summary.label).toContain('missing orders.mark_delivered');
   });
 
+  it('tells the holder the job and not the shortfall (E10-73)', () => {
+    // `label` is for `/admin/people`, where somebody is deciding what to grant. `shortLabel` is
+    // for the sidebar, where the reader is the account itself — and *"Kitchen manager, missing
+    // menu.import and kitchen.view"* names two permissions they cannot act on and two
+    // capabilities nobody told them existed.
+    const summary = describeAccess(at('kitchen', 'orders.view', 'orders.view_pii'));
+    expect(summary.label).toContain('missing');
+    expect(summary.shortLabel).toBe('Delivery');
+  });
+
+  it('says nothing countable to a holder whose grants match no job', () => {
+    const summary = describeAccess(at('kitchen', 'orders.view'));
+    expect(summary.label).toMatch(/^Custom — 1 permission/);
+    expect(summary.shortLabel).toBe('Back office');
+  });
+
+  it('names the owner the same way on both lines', () => {
+    const summary = describeAccess([], { isOwner: true });
+    expect(summary.shortLabel).toBe(OWNER_LABEL);
+  });
+
   it('still falls back to Custom when it holds too little of any job to name one', () => {
     // One grant is a third of the smallest job. Below the floor, guessing would be dressing a
     // fragment up as a role.

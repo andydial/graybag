@@ -30,11 +30,53 @@ import type { api } from '@graybag/shared';
 import type { SchoolMenuRow } from './catalogue-view.js';
 import type { SchoolReadiness } from './school-readiness.js';
 
-/** Readable with a value, or unreadable with a reason. Never a zero standing in for either. */
-export type Panel<T> = { readable: true; value: T } | { readable: false; why: string };
+/**
+ * Readable with a value, or unreadable with a reason. Never a zero standing in for either.
+ *
+ * ## Why "unreadable" is two different things — `E10-73`
+ *
+ * This started as one state and it was hiding a disclosure. *"Needs `orders.view_financials`"*
+ * and *"the money read did not complete"* both render as "a figure you are not getting", and
+ * they are opposite facts:
+ *
+ *  - the first is **withheld** — this account has no business with this number, and saying its
+ *    grant code out loud teaches a stranger that we track revenue at all;
+ *  - the second is a **failure** — this account is entitled to the number and we could not
+ *    fetch it, which is exactly the thing that must be said out loud, or the reader takes an
+ *    outage for a quiet day.
+ *
+ * So a withheld panel is not rendered at all (Andy, 2026-09-02: *"Any section you don't have
+ * rights to should NOT be visible at all"*) and a failed one still says what went wrong. Both
+ * remain distinct from `readable`, because `ux-spec` §5.21 has not moved: neither may render as
+ * a zero.
+ */
+export type Panel<T> =
+  | { readable: true; value: T }
+  | { readable: false; withheld: boolean; why: string };
 
 export const readable = <T>(value: T): Panel<T> => ({ readable: true, value });
-export const unreadable = <T>(why: string): Panel<T> => ({ readable: false, why });
+
+/** The read failed, and the reader is entitled to know. Rendered. */
+export const unreadable = <T>(why: string): Panel<T> => ({ readable: false, withheld: false, why });
+
+/**
+ * This account may not have it. **Not rendered** — the reason is for the code, not the screen.
+ *
+ * The `why` is kept so a panel is never a bare boolean in a debugger and so the two constructors
+ * have the same shape, not because anything puts it in front of a person.
+ */
+export const withheld = <T>(why: string): Panel<T> => ({ readable: false, withheld: true, why });
+
+/**
+ * Does this panel appear on the page at all?
+ *
+ * A named rule rather than an inline `!p.readable && p.withheld`, because it is the rule the
+ * whole of `E10-73` turns on and it is asserted in `today.test.ts`: **withheld is absent, failed
+ * is present and says why.** A card, its heading, and the section heading above it are all
+ * governed by this one answer — a heading reading "Revenue today" over an apology is still the
+ * sentence "we track revenue".
+ */
+export const isShown = <T>(panel: Panel<T>): boolean => panel.readable || !panel.withheld;
 
 /* ------------------------------------------------------------------ orders today */
 

@@ -3659,3 +3659,53 @@ Two things worth carrying:
 
 The first check on a red suite whose failures name missing tables: `select version from
 supabase_migrations.schema_migrations order by version desc limit 1`, against the tree.
+
+## Hiding a control is not hiding a capability — `E10-73`, 2026-09-02
+
+A back-office account with no grants at all signed in and was shown a working `/dashboard`: four
+cards reading *"Needs `orders.view`"*, *"Needs `orders.view_financials`"*, *"Needs
+`meal_packs.manage`"*, *"Needs `menu.edit` or `school.edit`"*, and a **"Kitchen, right now"**
+heading. Every read behind them had been correctly refused by RLS. The screen was, in a sense,
+working perfectly.
+
+**The information leaked was not in any of those reads.** It was the *existence and name* of each
+one: that we track revenue, that we sell meal packs, that permissions are separable and what they
+are called. Andy: *"Other employees (kitchen) can't know that we track reports, access, even
+revenue using this web dashboard."*
+
+Three things this cost, each worth keeping:
+
+1. **An explanation of a refusal is a disclosure.** The card said "you may not see this" and by
+   saying it named the thing. `ux-spec` §5.21 taught us that an unknown must never render as a
+   known; the same rule run backwards says a *withheld* must not render as an *unreadable*, because
+   the honest error message for a person who is entitled to a number is the wrong sentence entirely
+   for a person who is not. Two states that looked identical in the type — `{ readable: false;
+   why }` — were opposite facts.
+
+2. **"Signed in" was standing in for "works here", and never meant it.** `signInWithOtp` creates
+   the account, deliberately, because it is the same code path a **parent** signs up through. So
+   anyone who can receive email at any address could reach the back-office shell. Every page
+   checked `currentUser()` and none of them checked anything else. The check that reads as an
+   authorization check because it sits where one belongs is worth looking at twice.
+
+3. **Hidden markup is shipped markup.** The sidebar rendered all fourteen routes with `hidden` and
+   let the client un-hide the permitted ones. These are static pages on a CDN: `view-source` on
+   `/dashboard.html` was a complete map of the back office, with each link's required grants in a
+   `data-nav-requires` attribute, **available without signing in at all**. "Not visible" and "not
+   present" are different, and only one of them survives devtools. The rail is now built by the
+   client from `visibleNav`.
+
+The related trap in the fix: **a failed capability read must not be treated as a refusal.** The
+first cut signed people out when `fetchMyCapabilities()` threw, which turns one dropped request on
+a kitchen tablet into a logout. It now renders nothing and says to try again — fail closed, stay
+put. "We do not know" and "we know, and it is nothing" need different answers.
+
+### Testing a browser-only gate without credentials
+
+None of this is reachable from a unit test and all of it is above RLS, so it is invisible to
+pgTAP. It was proved by driving the built site in headless Chrome (the same CDP plumbing
+`check:a11y` uses) against a **stubbed Supabase** on a second port — auth, `permission_grant` and
+`auth_is_owner` answered from a fixture with a control endpoint to change the grants between
+scenarios. Nine scenarios, 27 assertions, no credentials, and nothing that could reach production.
+Two of the first run's failures were real: the who-line naming missing grants, and the route table
+in the HTML. Build with `PUBLIC_SUPABASE_URL` pointed at the stub and the whole client believes it.

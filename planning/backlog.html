@@ -4355,13 +4355,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/63</span>
+          <span class="meter-num">0/64</span>
         </div>
       </header>
       <p class="summary">The backend Andy needs to run the business — school onboarding, menu management, config, users, money.</p>
       <p class="deps">Depends on <code>E02</code> <code>E04</code> <code>E07</code></p>
       <details>
-        <summary>Context &amp; 63 tasks</summary>
+        <summary>Context &amp; 64 tasks</summary>
         <div class="context"></div>
         <ul class="tasks">
       <li class="task" data-id="E10-01" data-seed="1" data-risk="" data-owner="build" data-mvp="1" data-seed="1">
@@ -4867,6 +4867,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>/admin/people</code> rows open a drawer, as the prototype has them.</strong> <code>E10-71</code> used a <code>&lt;details&gt;</code> because the timing was wrong for anything else — the drawer means moving the revoke buttons and the job form into it, re-binding their handlers and re-rendering after every write, on the one screen where a bug is an authorisation bug. Worth doing when there is not a rollout on</span>
+      </li>
+      <li class="task" data-id="E10-73" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E10-73"></button>
+        <code class="tid">E10-73</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Signing in with no permissions showed the shape of the whole back office.</strong> Andy, seeing his own screenshot of <code>/dashboard</code> as an account holding nothing: *&quot;They should not even see what sections are present if they have no access to it. Rather I would enforce that if they have no privileges assigned — they should NOT be able to login into the web backend at all. Other employees (kitchen) can&#39;t know that we track reports, access, even revenue using this web dashboard.&quot;* The account was shown four cards reading <strong>&quot;Needs <code>orders.view</code>&quot;</strong>, <strong>&quot;Needs <code>orders.view_financials</code>&quot;</strong>, <strong>&quot;Needs <code>meal_packs.manage</code>&quot;</strong>, <strong>&quot;Needs <code>menu.edit</code> or <code>school.edit</code>&quot;</strong>, and a <strong>&quot;Kitchen, right now&quot;</strong> heading — that we track revenue, that we sell packs, that permissions are named and separable, handed to anyone who can receive email at an address with an account. And an account exists for anyone who asks, because <code>signInWithOtp</code> creates one and that is the same path a <strong>parent</strong> signs up through (<code>U1</code>): &quot;has an account&quot; has never meant &quot;works here&quot;. Three changes. <strong>A gate</strong> (<code>gate.ts</code>, <code>guard.ts</code>): access to the back office is *reaching at least one screen*, not holding a grant — <code>orders.view_pii</code> alone opens nothing, and admitting its holder shows a frame with no contents, which is the same disclosure in a smaller size. Every page awaits it; an account that reaches nothing is <strong>signed out at the door</strong> and told so in a sentence that names no screen and no grant; one that belongs here but not on that route lands on <code>/dashboard</code>. A capability read that *fails* is not a refusal — it renders nothing and says to try again, because a dropped connection is not a revocation and throwing somebody off a shared kitchen tablet because the network blinked is its own outage. <strong>Withheld is not the same as failed</strong> (<code>Panel</code> in <code>today.ts</code>): a panel this account may not have is now <strong>absent</strong>, and only a panel it is entitled to and we could not fetch explains itself — §5.21&#39;s rule that an unknown must never render as a known has always cut both ways. <strong>The sidebar is built rather than revealed</strong>: it shipped every route, its label and its required grants as <code>hidden</code> markup in every back-office page, and these pages are served to anyone who asks — <code>view-source</code> was a complete map of the back office with no account at all. The rail now ships empty and the client creates only the links the reader may use; a failed grant read reveals nothing rather than everything. Also: the who-line said *&quot;Kitchen manager, missing menu.import and kitchen.view&quot;* to the operator themselves — the shortfall is for <code>/admin/people</code>, where somebody is deciding what to grant, so <code>describeAccess</code> gained <code>shortLabel</code>. RLS was and is the real control — a stranger with a session could read nothing, which is why every card said &quot;Needs …&quot; rather than a number. This stops the product describing itself to people with no business reading the description. Proved in a headless browser against a stubbed backend: nine scenarios, 27 assertions, no credentials and nothing that could touch production</span>
       </li></ul>
       </details>
     </article>
@@ -5112,13 +5120,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/40</span>
+          <span class="meter-num">0/41</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 40 tasks</summary>
+        <summary>Context &amp; 41 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -5441,6 +5449,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The home page reads as one flowing page rather than a stack of panels.</strong> Andy, pointing at <code>quoteleads.com.au</code>: *&quot;dynamic or fluid… seems to be moving and flowing as we scroll&quot;*. That site uses <strong>no animation library at all</strong> — an <code>IntersectionObserver</code> adding one class, CSS transitions, <code>clamp()</code> type and a drifting background — which is what this page already had; the gap was granularity and tempo, not technique. Four changes. <strong>(1)</strong> The reveal moved from <code>&gt; .wrap</code> to <code>&gt; .wrap &gt; *</code>, so a section&#39;s eyebrow, heading, lead and grid arrive in sequence instead of as one slab, capped at four steps of 80ms. <strong>(2)</strong> Tempo: 780ms on a long ease, from page-local properties rather than tokens, because <code>--gb-duration-slow</code> is 320ms for a good reason — it times a menu opening under a thumb — and a 780ms token would be wrong everywhere in the product. <strong>(3)</strong> Ambient and scroll-driven motion with <strong>zero</strong> JavaScript: two colour fields drifting behind the hero at 0.18 opacity (chosen for contrast, not taste — white on <code>forest-500</code> stays past 4.5), a reading line driven by <code>animation-timeline: scroll()</code>, the pattern layer drifting against <code>view()</code>, and the FAQ answers opening through <code>::details-content</code>. Every one is behind <code>@supports</code> and degrades to exactly today&#39;s page. <strong>(4)</strong> The card lift extended to the menu tiles, the visit card, the sample report and the buttons. <code>prefers-reduced-motion</code> switches all of it <strong>off</strong>, including the ambient layer — there is no gentle version of a background that never stops moving. Cost: <strong>640 B</strong> of gzipped CSS and <strong>no new JavaScript at all</strong>; the <code>cssGz</code> budget went 17,000 → 17,700, raised once and deliberately, still tight against the measured 17,424</span>
+      </li>
+      <li class="task" data-id="E12-41" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-41"></button>
+        <code class="tid">E12-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The accessibility gate was auditing a frame of the scroll reveal, and passing the one page with a real violation on it.</strong> <code>E12-40</code> made the home page reveal <strong>per element</strong> — four steps of 80ms over 780ms, an IntersectionObserver adding <code>.is-in</code> — so everything below the fold sits at <code>opacity: 0</code> until it is scrolled to. <code>check:a11y</code> fires axe 900ms after navigate, which caught the food section <strong>mid-fade</strong> and read its ink as <code>#e2e897</code> on <code>#cedb8f</code>: <strong>1.14</strong>, a serious violation, and <code>main</code> has been red on <code>npm run test:all</code> ever since. Opening the page shows dark ink on pale lime, entirely legible — the violation was a frame, not a defect. The gate now marks every <code>[data-reveal]</code> and the hero <code>.is-in</code> and waits one transition before measuring, which is the state a reader who has scrolled sees and the only state a contrast rule is about. Deliberately <strong>not</strong> <code>prefers-reduced-motion</code>, which would audit a different stylesheet from the one most people get. <strong>And with the settled page in view it immediately found a real one</strong>: <code>.band-app</code> sets <code>--gb-bg-surface-accent</code> as its background without being a <code>.panel-pale</code>, so its eyebrow kept <code>--gb-text-link</code> — <code>#007e3b</code>, chosen against white — on pale lemon, at <strong>4.08</strong>, failing AA for 12px text and live on production. The design system already names the ink for that surface: <code>--gb-text-on-accent</code> is 6.00 there. One rule, applied to the section that was missed. The gate had been unable to see it for the same reason it was failing on the section that was fine</span>
       </li></ul>
       </details>
     </article>

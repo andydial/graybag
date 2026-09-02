@@ -118,7 +118,8 @@ import '../../styles/backoffice.css';
   openDrawer as shellOpenDrawer,
 } from '../../lib/backoffice/shell.js';
       import { api, money } from '@graybag/shared';
-      import { configureBackofficeApi, currentUser } from '../../lib/backoffice/session.js';
+      import { configureBackofficeApi } from '../../lib/backoffice/session.js';
+      import { requireBackofficeAccess } from '../../lib/backoffice/guard.js';
       import { MENUS_FIXTURE } from '../../lib/admin/menus-fixture.js';
       import { MAX_EDGE, prepareDishImage } from '../../lib/admin/dish-image.js';
       import { EMPTY_QUERY, buildRows, facets, queryDishes } from '../../lib/admin/dish-index.js';
@@ -760,10 +761,9 @@ import '../../styles/backoffice.css';
 
       void (async () => {
         try {
-          if (!demo && !(await currentUser())) {
-            location.assign(`/signin?next=${encodeURIComponent('/admin/dishes')}`);
-            return;
-          }
+          // The gate, not a session check — `E10-73`. An account that reaches no screen
+          // is signed out at the door rather than shown a frame it cannot fill.
+          if (!demo && !(await requireBackofficeAccess('/admin/dishes'))) return;
         } catch { /* an unconfigured build falls through to the error state */ }
         await load();
       })();

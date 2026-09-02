@@ -43,12 +43,12 @@
  * of the new count. Slack enough that deleting one obsolete test does not fail the build; tight
  * enough that deleting a file does.
  *
- * | | floor | actual, 2026-08-27 |
+ * | | floor | actual, 2026-09-02 |
  * |---|---|---|
- * | scripts | 170 | 182 |
+ * | scripts | 170 | 207 |
  * | mobile plugins | 20 | 25 |
- * | shared | 950 | 1009 |
- * | web | 420 | 455 |
+ * | shared | 950 | 1135 |
+ * | web | 505 | 566 |
  */
 import { execSync } from 'node:child_process';
 
@@ -85,7 +85,9 @@ const SUITES = [
     name: 'web app (vitest)',
     command: 'npm --prefix apps/web run --silent test',
     parse: (out) => Number(/Tests\s+.*?\((\d+)\)/.exec(out)?.[1] ?? -1),
-    floor: 420,
+    // 420 → 505 on 2026-09-02, when `E10-73` took the suite from 455 to 566. A floor is only
+    // worth the size of its gap: 420 would have let a fifth of the suite vanish unnoticed.
+    floor: 505,
   },
 ];
 
