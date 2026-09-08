@@ -146,6 +146,46 @@
 
 .bo__who b { display: block; font-weight: var(--gb-font-weight-body-strong); }
 
+/*
+ * Sign out — `E12-74`.
+ *
+ * Quiet by design: an outline on the sidebar's dark ground, not a filled button. It is the one
+ * destructive control on every back-office page and it is used once a shift at most, so it needs
+ * to be *findable* rather than prominent — a solid button here would compete with the screen's
+ * own primary action for the whole product.
+ *
+ * Full width and directly under the account it ends, so the name and the way to end it read as
+ * one block. The 44px minimum is the touch target: this is used on a tablet with wet hands.
+ */
+.bo__signout {
+  margin: var(--gb-space-2) var(--gb-space-2) var(--gb-space-3);
+  padding: var(--gb-space-2) var(--gb-space-3);
+  min-height: 44px;
+  font: inherit;
+  font-size: var(--gb-font-size-body-sm);
+  font-weight: var(--gb-font-weight-body-strong);
+  color: rgb(255 255 255 / 90%);
+  background: transparent;
+  border: var(--gb-border-width-hairline) solid rgb(255 255 255 / 28%);
+  border-radius: var(--gb-radius-sm);
+  cursor: pointer;
+}
+
+.bo__signout:hover:not(:disabled) { background: rgb(255 255 255 / 10%); color: rgb(255 255 255); }
+.bo__signout:disabled { opacity: 0.6; cursor: default; }
+
+/* The rail is dark, so the focus ring has to be light or it disappears into the background. */
+.bo__signout:focus-visible {
+  outline: var(--gb-border-width-emphasis) solid rgb(255 255 255 / 90%);
+  outline-offset: 2px;
+}
+
+/*
+ * When the "who" block is hidden — no session yet, or a failed read — nothing above pushes this
+ * down, so it carries the `margin-top: auto` instead and still sits at the foot of the rail.
+ */
+.bo__who[hidden] + .bo__signout { margin-top: auto; }
+
 .bo__main { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
 
 /* The page header: a title AND a subtitle. No live screen had one. */

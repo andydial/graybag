@@ -18,7 +18,7 @@ import { api } from '@graybag/shared';
 
 import { describeAccess } from '../admin/jobs.js';
 import { operatorOf } from './gate.js';
-import { currentUser } from './session.js';
+import { currentUser, signOut } from './session.js';
 import { NAV, NAV_GROUPS, visibleNav, type NavItem } from './nav.js';
 
 const q = <T extends HTMLElement>(sel: string): T | null => document.querySelector<T>(sel);
@@ -139,6 +139,33 @@ export function closeDrawer(): void {
 
 export const drawerIsOpen = (): boolean => q<HTMLElement>('[data-drawer]')?.hidden === false;
 
+/* ----------------------------------------------------------------- signing out */
+
+/**
+ * Reveal Sign out and make it work — `E12-74`.
+ *
+ * Shown only once there is a session to end. The button navigates to `/signin` **whether or not
+ * the server call succeeds**, because `signOut()` purges local storage in a `finally`: the token
+ * is gone either way, and leaving somebody on a back-office page after they pressed Sign out
+ * would tell them it had failed when it had not.
+ *
+ * `E12-74` made the session last 30 days. This is the other half of that change and it is not
+ * optional — a kitchen tablet is shared, the board carries children's names, and a long session
+ * with no way to end it is worse than the short one it replaced.
+ */
+function mountSignOut(): void {
+  const button = q<HTMLButtonElement>('[data-nav-signout]');
+  if (!button) return;
+  button.hidden = false;
+  button.addEventListener('click', () => {
+    button.disabled = true;
+    button.textContent = 'Signing out…';
+    void signOut()
+      .catch(() => undefined)
+      .then(() => location.assign('/signin'));
+  });
+}
+
 /* ------------------------------------------------------------------ mount */
 
 export async function mountShell(): Promise<void> {
@@ -160,8 +187,22 @@ export async function mountShell(): Promise<void> {
       q<HTMLElement>('[data-nav-role]')!.textContent = 'Demo — not a real session';
       who.hidden = false;
     }
+    // Revealed but **not wired**: `check:a11y` needs the control in the document to audit its
+    // contrast and its name, and there is no session here for a click to end.
+    const out = q<HTMLButtonElement>('[data-nav-signout]');
+    if (out) out.hidden = false;
     return;
   }
+
+  /*
+   * Sign out is mounted **before** the grant read and outside its `try` — `E12-74`.
+   *
+   * Every page reaching this point has already passed `requireBackofficeAccess`, so there is a
+   * session. If `fetchMyAccess` then fails the rail is deliberately left empty (see the `catch`),
+   * and mounting sign-out inside the `try` would mean the one failure mode that strands somebody
+   * on a bare frame is also the one that takes away their way out of it.
+   */
+  mountSignOut();
 
   try {
     const access = await api.fetchMyAccess();

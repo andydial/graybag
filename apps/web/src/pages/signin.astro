@@ -83,7 +83,9 @@ import '../styles/kitchen.css';
       import {
         RESEND_AFTER_MS,
         currentUser,
+        lastEmail,
         looksLikeCode,
+        rememberEmail,
         resendAvailableIn,
         sendCode,
         signOut,
@@ -196,8 +198,21 @@ import '../styles/kitchen.css';
         verifyBtn.disabled = true;
         verifyBtn.textContent = 'Signing in…';
         try {
-          await verifyCode(emailInput.value.trim().toLowerCase(), code);
+          const address = emailInput.value.trim().toLowerCase();
+          await verifyCode(address, code);
           if (!(await mayBeHere())) { await refuse(); return; }
+          /*
+           * Remembered **after** the code is accepted, never when it is sent — `E12-74`.
+           *
+           * Storing on send would prefill this browser with any address somebody typed into it,
+           * including a typo and including a colleague's, and the field is `type="email"` so the
+           * browser would then offer both. The address that signed in is the one worth offering
+           * back.
+           *
+           * The address and nothing else. `rememberEmail` refuses anything that is not an email,
+           * so no code and no token can reach storage through this path.
+           */
+          rememberEmail(address);
           location.assign(next);
         } catch (cause) {
           // The code is kept, not cleared. Re-typing five correct digits because the sixth was
@@ -254,7 +269,11 @@ import '../styles/kitchen.css';
         emailForm.hidden = false;
         codeInput.value = '';
         say('');
+        // Selected rather than focused — the button says "use a different address", so the first
+        // keystroke should replace the one that is there rather than append to it. With `E12-74`
+        // prefilling the field this is the only way off a remembered address in one action.
         emailInput.focus();
+        emailInput.select();
       });
 
       // ------------------------------------------------------------- the access check
@@ -299,8 +318,31 @@ import '../styles/kitchen.css';
 
       // ------------------------------------------------------------------ start
 
+      /**
+       * Offer back the address that last signed in on this browser — `E12-74`.
+       *
+       * Kitchen and admin accounts are shared organisational addresses that nobody has committed
+       * to memory the way they have their own, and the OTP dance began with retyping one. The
+       * browser's own `autocomplete="email"` does not cover it: it offers the *person's* saved
+       * addresses, which on a kitchen tablet is often nobody's, and it needs a tap either way.
+       *
+       * Prefilled, not submitted. It stays an editable field with the cursor placed to change it,
+       * because the second operator on a shared tablet is not the first.
+       */
+      function prefillLastEmail(): void {
+        const remembered = lastEmail();
+        if (!remembered || emailInput.value) return;
+        emailInput.value = remembered;
+        // Focus goes to the button, not the field: for the common case the address is already
+        // right and the next act is sending the code. `select()` on the input instead would
+        // stage the address for deletion, which is the opposite of what it usually needs.
+        sendBtn.focus();
+      }
+
       void (async () => {
         try {
+          prefillLastEmail();
+
           // Sent here by a back-office page that refused them. The account is already signed
           // out by then — this is only the sentence explaining why they are looking at a login
           // form again.
