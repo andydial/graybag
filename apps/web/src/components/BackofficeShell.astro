@@ -72,6 +72,22 @@ const { current, title, subtitle } = Astro.props;
       kitchen operator's view and a platform admin's and not be able to tell them apart.
     -->
     <p class="bo__who" data-nav-who hidden><b data-nav-email></b><span data-nav-role></span></p>
+
+    <!--
+      Sign out — `E12-74`, and it had gone missing.
+
+      `E10-43` put it in `BackofficeNav`; `E10-55` replaced that component with this shell and the
+      button was not carried across, so from that merge until now **no back-office page had a way
+      to sign out at all**. It went unnoticed because the session died with the tab, which made
+      closing the tab the sign-out. `E12-74` makes the session last 30 days, which removes the
+      accident that was covering the gap.
+
+      It sits under the account it ends rather than in the page header: it belongs to the person,
+      not the screen, and a destructive control among a screen's own actions is one mis-tap during
+      a service. `hidden` until `shell.ts` confirms there is a session — a Sign out button on a
+      page nobody is signed in to is an offer to do nothing.
+    -->
+    <button class="bo__signout" type="button" data-nav-signout hidden>Sign out</button>
   </nav>
 
   <div class="bo__main">
