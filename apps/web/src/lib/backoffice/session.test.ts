@@ -3,13 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
   LAST_EMAIL_KEY,
   RESEND_AFTER_MS,
-  SESSION_MAX_AGE_MS,
+  SESSION_ABSOLUTE_MAX_AGE_MS,
+  SESSION_IDLE_MAX_AGE_MS,
   type KeyValueStorage,
   lastEmail,
   looksLikeCode,
   purgeSession,
   rememberEmail,
   resendAvailableIn,
+  resetSessionWindow,
   sessionHasExpired,
 } from './session.js';
 
@@ -64,41 +66,117 @@ describe('resendAvailableIn', () => {
 });
 
 /**
- * The 30-day cap — `E12-42`.
+ * Two windows — `E12-42`, revised by Andy on 2026-09-08.
  *
- * The session moved from `sessionStorage` to `localStorage` so a kitchen tablet that reboots at
- * 3am does not demand an OTP. Supabase ends this session for nobody — `sessions_timebox` and
- * `sessions_inactivity_timeout` are both `0` on production and staging — so this function is the
- * only thing that bounds it, and it is worth testing at the edges rather than in the middle.
+ * *"Make the 30 days slide: each successful refresh extends the expiry to 30 days from that
+ * moment, so a device in regular use never sees an OTP. Keep the absolute cap sensible — 90 days
+ * from original sign-in — so an abandoned device does eventually expire."*
+ *
+ * Supabase ends this session for nobody — `sessions_timebox` and `sessions_inactivity_timeout`
+ * are both `0` on production and staging — so these two constants are the only bound that exists,
+ * and they are worth testing at the edges rather than in the middle.
  */
-describe('sessionHasExpired', () => {
+describe('sessionHasExpired — the sliding 30-day window', () => {
   const now = 1_800_000_000_000;
+  const ago = (ms: number) => String(now - ms);
+  const DAY = 24 * 60 * 60 * 1000;
 
-  it('treats an absent stamp as live, so a deploy does not sign everybody out', () => {
-    // A session written by the build before this one has no stamp. Signing those people out on
-    // the very deploy that gives them longer sessions would be a perverse way to ship it.
-    expect(sessionHasExpired(null, now)).toBe(false);
+  it('keeps a session alive right up to the idle limit', () => {
+    expect(sessionHasExpired({ startedAt: ago(60 * DAY), lastSeenAt: ago(29 * DAY) }, now)).toBe(false);
+    expect(
+      sessionHasExpired({ startedAt: ago(60 * DAY), lastSeenAt: ago(SESSION_IDLE_MAX_AGE_MS - 1000) }, now),
+    ).toBe(false);
   });
 
-  it('treats an unreadable stamp as expired', () => {
-    // Should not be reachable. The safe direction for a value we cannot interpret is the one that
-    // asks for an OTP, not the one that skips it.
-    expect(sessionHasExpired('not-a-number', now)).toBe(true);
-    expect(sessionHasExpired('', now)).toBe(true);
+  it('expires exactly at 30 idle days', () => {
+    expect(
+      sessionHasExpired({ startedAt: ago(31 * DAY), lastSeenAt: ago(SESSION_IDLE_MAX_AGE_MS) }, now),
+    ).toBe(true);
   });
 
-  it('keeps a session signed in for the whole window', () => {
-    expect(sessionHasExpired(String(now - 1), now)).toBe(false);
-    expect(sessionHasExpired(String(now - SESSION_MAX_AGE_MS + 1000), now)).toBe(false);
-  });
-
-  it('expires exactly at 30 days, and after', () => {
-    expect(sessionHasExpired(String(now - SESSION_MAX_AGE_MS), now)).toBe(true);
-    expect(sessionHasExpired(String(now - SESSION_MAX_AGE_MS * 4), now)).toBe(true);
+  it('a refresh yesterday keeps a session signed in that first signed in 80 days ago', () => {
+    // The whole point of the change: a device in regular use never sees an OTP.
+    expect(sessionHasExpired({ startedAt: ago(80 * DAY), lastSeenAt: ago(DAY) }, now)).toBe(false);
   });
 
   it('is 30 days, which is what was asked for', () => {
-    expect(SESSION_MAX_AGE_MS).toBe(30 * 24 * 60 * 60 * 1000);
+    expect(SESSION_IDLE_MAX_AGE_MS).toBe(30 * DAY);
+  });
+});
+
+describe('sessionHasExpired — the absolute 90-day ceiling', () => {
+  const now = 1_800_000_000_000;
+  const ago = (ms: number) => String(now - ms);
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it('ends a session 90 days after sign-in however recently it refreshed', () => {
+    // The ceiling is the thing that makes a sliding window safe. A tablet refreshing hourly must
+    // still stop eventually, and "refreshed a minute ago" must not save it.
+    expect(sessionHasExpired({ startedAt: ago(SESSION_ABSOLUTE_MAX_AGE_MS), lastSeenAt: ago(60_000) }, now))
+      .toBe(true);
+    expect(sessionHasExpired({ startedAt: ago(200 * DAY), lastSeenAt: ago(60_000) }, now)).toBe(true);
+  });
+
+  it('does not end it a day early', () => {
+    expect(sessionHasExpired({ startedAt: ago(89 * DAY), lastSeenAt: ago(60_000) }, now)).toBe(false);
+  });
+
+  it('is 90 days, and is longer than the idle window it bounds', () => {
+    expect(SESSION_ABSOLUTE_MAX_AGE_MS).toBe(90 * DAY);
+    expect(SESSION_ABSOLUTE_MAX_AGE_MS).toBeGreaterThan(SESSION_IDLE_MAX_AGE_MS);
+  });
+
+  it('either window alone is enough to end the session', () => {
+    const DAY_MS = DAY;
+    // Idle only.
+    expect(sessionHasExpired({ startedAt: ago(40 * DAY_MS), lastSeenAt: ago(31 * DAY_MS) }, now)).toBe(true);
+    // Absolute only.
+    expect(sessionHasExpired({ startedAt: ago(91 * DAY_MS), lastSeenAt: ago(DAY_MS) }, now)).toBe(true);
+    // Neither.
+    expect(sessionHasExpired({ startedAt: ago(40 * DAY_MS), lastSeenAt: ago(DAY_MS) }, now)).toBe(false);
+  });
+});
+
+describe('sessionHasExpired — stamps that are missing or unreadable', () => {
+  const now = 1_800_000_000_000;
+  const ago = (ms: number) => String(now - ms);
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it('treats both stamps absent as live, so a deploy does not sign everybody out', () => {
+    expect(sessionHasExpired({ startedAt: null, lastSeenAt: null }, now)).toBe(false);
+  });
+
+  it('measures the idle window from sign-in when only the sign-in stamp exists', () => {
+    // The real upgrade path, not a hypothetical: the first version of `E12-42` wrote only
+    // `started-at`, so every session it created arrives with exactly this shape.
+    expect(sessionHasExpired({ startedAt: ago(2 * DAY), lastSeenAt: null }, now)).toBe(false);
+    expect(sessionHasExpired({ startedAt: ago(31 * DAY), lastSeenAt: null }, now)).toBe(true);
+  });
+
+  it('treats an unreadable stamp as expired, on either side', () => {
+    expect(sessionHasExpired({ startedAt: 'nonsense', lastSeenAt: ago(60_000) }, now)).toBe(true);
+    expect(sessionHasExpired({ startedAt: ago(DAY), lastSeenAt: 'nonsense' }, now)).toBe(true);
+    expect(sessionHasExpired({ startedAt: '', lastSeenAt: '' }, now)).toBe(true);
+  });
+});
+
+describe('resetSessionWindow', () => {
+  it('writes both stamps, so a new sign-in does not inherit an old ceiling', () => {
+    // Signing in on a browser carrying an 89-day-old `started-at` would otherwise expire the new
+    // session a day later, for a reason nobody could work out.
+    const storage = fakeStorage({ 'gb.backoffice.started-at': '1' });
+    resetSessionWindow(storage);
+    expect(sessionHasExpired(
+      {
+        startedAt: storage.getItem('gb.backoffice.started-at'),
+        lastSeenAt: storage.getItem('gb.backoffice.last-seen-at'),
+      },
+      Date.now(),
+    )).toBe(false);
+  });
+
+  it('does not throw when there is no storage at all', () => {
+    expect(() => resetSessionWindow(null)).not.toThrow();
   });
 });
 
