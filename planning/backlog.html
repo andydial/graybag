@@ -6069,13 +6069,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/63</span>
+          <span class="meter-num">0/65</span>
         </div>
       </header>
       <p class="summary">Closed beta with real money, then a cutover weekend, then a phased store rollout with a halt button.</p>
       <p class="deps">Depends on <code>E06</code> <code>E07</code> <code>E09</code> <code>E10</code> <code>E14</code> <code>E15</code> <code>E16</code> <code>E20</code></p>
       <details>
-        <summary>Context &amp; 63 tasks</summary>
+        <summary>Context &amp; 65 tasks</summary>
         <div class="context"><h4>Agreed rollout</h4>
 <p>1. <strong>Closed beta, ~2 weeks</strong> — ~15 invited users (team, friendly parents, staff) on TestFlight and Play internal testing, placing real orders with real money. Bubble keeps serving everyone else.</p>
 <p>2. <strong>Cutover weekend</strong> — migrate all data, Bubble goes read-only.</p>
@@ -6586,6 +6586,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The deploy target is readable in the file; the password still passes the gate.</strong> The union Andy chose after two threads fixed <code>E01-31</code>/<code>E17-64</code> differently — *&quot;both your arguments are right and they&#39;re not in tension.&quot;* The web thread&#39;s point stands: a project ref is in every Supabase URL, hiding it bought nothing, and <strong>it is how the fault survived three days</strong> — a secret nobody can see is missing is a secret nobody notices was never created. It is now a literal, echoed before <code>link</code> so the log names the target. The password stays a secret <strong>scoped to the <code>production</code> environment</strong>, which is the half that is not convention: a repository-level secret is readable by any workflow in the repo, including one added in a pull request, without ever passing the required-reviewer gate. The credential guard drops to two names because the third is now in plain sight and cannot be absent. This <strong>implements</strong> <code>DP8</code> and <code>DP9</code>, which the web thread recorded on <code>main</code> while this branch was in flight — their decision, this implementation. My own draft added a third <code>DP8</code> for the same ruling, which would have been the <code>E17-62</code> collision in the decision log rather than the backlog: two threads, one shared artefact, no ownership rule, and ids that are permanent by <code>DOC1</code>. Dropped in the rebase; theirs stands. The failure mode is a later tidy-up making both consistent, so the test asserts both properties and is <strong>mutation-checked three ways</strong> — ref back into a secret, password hardcoded, environment removed</span>
+      </li>
+      <li class="task" data-id="E17-70" data-seed="0" data-risk="high" data-owner="andy" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-70"></button>
+        <code class="tid">E17-70</code>
+        <span class="badge r-high">high</span>
+        <span class="badge r-you">you</span>
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Production&#39;s <code>site_url</code> is <code>http://localhost:3000</code> too — set it, and the redirect allow-list with it.</strong> This is the answer to the question <code>E17-69</code> asks, and the answer is the bad one: <strong>the fault is not staging-only.</strong> Read from the management API on 2026-09-08 while checking session settings for <code>E12-42</code>: <code>bdamkuugbqjajbndjoxn</code> reports <code>site_url = &quot;http://localhost:3000&quot;</code>, exactly as staging does. <strong>Nothing has ever reported this</strong>, because <code>scripts/check-supabase-config.mjs</code> inspects the staging ref only — so the check that exists to catch this fault has been blind to the project it matters most on, and has been green about staging&#39;s twin of it for weeks while saying nothing about production. Low severity *today* and only by luck: our OTP is a six-digit code rather than a magic link (<code>E12-06</code>), so the one Supabase-generated link a parent normally receives does not depend on this. Any path that does generate a link — the magic-link fallback, an email-change confirmation, any future OAuth callback — builds it from <code>site_url</code> and would send a live customer to a dead <code>localhost</code> page on their phone. <strong>Andy&#39;s, because it is a dashboard setting.</strong> Two follow-ons that are mine and are not blocked by it: teach <code>check:config</code> to check <strong>both</strong> projects rather than staging alone, and fail the build on production&#39;s values rather than only reporting them. Numbered <code>E17-70</code> and not <code>E17-69</code> deliberately — <code>E17-69</code> is taken on the unmerged <code>e10-73-account-id</code> branch (PR #164), and reusing it would make one id mean two tasks in a state file keyed on ids, which is the failure <code>CLAUDE.md</code>&#39;s build-rhythm section records from <code>ux-spec-and-prototype</code></span>
+      </li>
+      <li class="task" data-id="E17-71" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E17-71"></button>
+        <code class="tid">E17-71</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>check:config</code> reads staging only; make it read production too, and fail on it.</strong> Surfaced by <code>E17-70</code>: <code>scripts/check-supabase-config.mjs</code> hard-codes the staging ref, so every assertion it makes — site URL, redirect allow-list, OTP shape, rate limits, autoconfirm, SMTP sender — has never once been evaluated against the project that takes real money. It found staging&#39;s missing <code>site_url</code> and was structurally incapable of noticing production had the identical fault. The check should run both, name which project each failure is on, and treat a production failure as fatal rather than advisory. Unowned build work; <code>E17-70</code> is the dashboard fix and does not block this</span>
       </li></ul>
       </details>
     </article>
