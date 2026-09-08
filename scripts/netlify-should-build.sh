@@ -25,12 +25,27 @@ CONTEXT="${CONTEXT:-production}"
 # behaviour, not the contents.
 COMMIT_MESSAGE="${COMMIT_MESSAGE:-$(git log -1 --pretty=%B 2>/dev/null || true)}"
 
+# Resolved from **this file's** location, never from the working directory — `E12-43`.
+#
+# It was `import "./scripts/lib/netlify-gate.mjs"`, which is relative to the CWD. Netlify runs the
+# `ignore` command from the site's **base directory** (`apps/web`), where that path does not
+# exist, so `node` threw `ERR_MODULE_NOT_FOUND` on every production build. `DECISION` came back
+# empty and the "do not freeze the site" fallback below chose BUILD — so **the gate has been open
+# since it was written**, and every merge to `main` published straight to production.
+#
+# The unit test did not catch it because it invoked this script with `cwd: ROOT`, where the
+# relative path happens to resolve. It asserted the right behaviour from the wrong directory.
+# `netlify-gate.test.mjs` now runs it from `apps/web` as well, which is the case that was broken.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GATE_MODULE="file://$SCRIPT_DIR/lib/netlify-gate.mjs"
+
 RESULT="$(
   CONTEXT="$CONTEXT" \
   COMMIT_MESSAGE="$COMMIT_MESSAGE" \
   PROMOTE_TO_PRODUCTION="${PROMOTE_TO_PRODUCTION:-}" \
+  GATE_MODULE="$GATE_MODULE" \
   node --input-type=module -e '
-    import { shouldBuild } from "./scripts/lib/netlify-gate.mjs";
+    const { shouldBuild } = await import(process.env.GATE_MODULE);
     const d = shouldBuild({
       context: process.env.CONTEXT,
       commitMessage: process.env.COMMIT_MESSAGE ?? "",

@@ -41,7 +41,41 @@ you, and neither can be caused by merging an ordinary pull request.
 A skipped production build is not a failure. Netlify records it as "Build skipped" and leaves the
 currently published deploy live and untouched.
 
-## READ THIS FIRST — the gate is inert until the repository is connected
+## READ THIS — the gate did not work until 2026-09-08, and this section is now the record of it
+
+**The repository is connected** (deploy previews appear on pull requests, so `E12-33` is done and
+the section below it is history). **The gate itself, however, was open from the day it was written
+until `E12-43` on 2026-09-08**, and everything above described a procedure that gated nothing.
+
+`netlify-should-build.sh` imported `./scripts/lib/netlify-gate.mjs` — a path relative to the
+**working directory**. Netlify runs an `ignore` command from the site's **base directory**,
+`apps/web`, where that path does not exist. Node threw `ERR_MODULE_NOT_FOUND`, the decision came
+back empty, and the wrapper's deliberate *"could not evaluate the gate — building rather than
+freezing the site"* fallback exited 1, meaning **BUILD**.
+
+So for the whole of that period **every merge to `main` published straight to production**, and
+"on `main`" and "promoted" meant the same thing. Nothing shipped that was not meant to be on
+`main`; the risk was that it could have, at any time, with no marker and no deliberate act.
+
+It was found by checking what was actually live *before* merging a promotion PR — the change was
+already there. **Do that check every time**; it costs one command and it is the only thing that
+would have caught this:
+
+```bash
+# A string only the new build contains. Empty output = not live yet.
+curl -sS https://graybag-web.netlify.app/kitchen | grep -o 'some-new-class-name'
+```
+
+Note also that **`graybag.com` is not this site** — it is still the legacy Bubble app
+(`x-powered-by: Express`, `x-bubble-perf`). The web app's production URL is
+`graybag-web.netlify.app`, and `graybag.com/kitchen` returns 404.
+
+`DP10` is the rule that came out of it, and it is about the test rather than the bug: the test
+exercised the real wrapper and asserted its inverted exit codes, but ran it from the repository
+root, where the relative import happens to resolve. It asserted the right behaviour from the wrong
+directory, and that is why this was recorded as "correct and tested" for three weeks.
+
+## History — the gate was inert before the repository was connected
 
 **The Netlify site has no Git repository attached.** Checked on 2026-08-15:
 `build_settings.repo_url`, `provider`, `cmd` and `base` are all null, and the most recent deploy

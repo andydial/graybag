@@ -19,6 +19,51 @@ Format — newest first:
 
 ---
 
+## 2026-09-08 — The promote gate was open the whole time, and its test proved the wrong thing
+
+**Context:** Promoting `E12-42`/`E09-40`. Before merging the promotion PR I checked what was
+live, so I could show the before and after.
+
+**What happened:** The rebuilt kitchen board was **already on the production URL**
+(`graybag-web.netlify.app` — `graybag.com` is still the legacy Bubble app), with `bo__signout`
+and `kitchen__ref` in the served bundle, and a build hash different from deploy-preview 170. It
+had gone live when #170 merged to `main`, with no `[promote]` marker anywhere.
+
+**Cause:** `scripts/netlify-should-build.sh` ran
+`node -e 'import "./scripts/lib/netlify-gate.mjs"'` — **relative to the working directory**.
+Netlify runs an `ignore` command from the site's **base directory**, which is `apps/web`, where
+that path does not exist. Node threw `ERR_MODULE_NOT_FOUND`, `DECISION` came back empty, and the
+wrapper's deliberate fallback — *"could not evaluate the gate — building rather than freezing the
+site"* — exited 1, which means BUILD.
+
+Every component did exactly what it was written to do. The gate module was correct. The exit-code
+inversion, which the comments correctly flagged as the most dangerous part, was right. The
+fallback's reasoning was sound. **The composition failed open**, and it did so on every
+production build since 2026-08-15.
+
+**And the test passed the entire time.** `netlify-gate.test.mjs` did the right thing on paper: it
+invoked the real shell wrapper rather than trusting it matched the module, and asserted the
+inverted exit codes end to end. It ran it with `cwd: ROOT`, where the relative import resolves.
+**It asserted the right behaviour from the wrong directory** — which is worse than having no
+test, because `E12-30` recorded the gate as "correct and tested" on the strength of it, and
+`docs/netlify-deploys.md` documented a promotion procedure that had never gated anything.
+
+**Fix / rule:**
+
+- **A script a build system invokes must resolve its dependencies from `${BASH_SOURCE[0]}`, not
+  the CWD.** You do not choose the working directory; the platform does, and here it is a
+  directory the repository's own layout rules keep the script out of.
+- **Test the invocation, not just the arguments.** Same working directory, same environment, same
+  relative paths as the real caller. The four wrapper cases now run twice — from the root and
+  from `apps/web` — and reverting the script fails exactly the two ungated-production assertions.
+- **Pin the assumption that made it wrong.** `existsSync(apps/web/netlify.toml)` is asserted, so
+  moving the site's base directory breaks the suite instead of silently reopening the gate.
+- **A "fail loud rather than freeze" fallback needs its reachable causes enumerated.** This one is
+  still right, but it was catching "the gate cannot find itself", which is not a reason to ship.
+- **Check what is actually live before promoting.** One `curl` of the production URL, grepping for
+  a string only the new build contains, is what found this. Comparing it against the deploy
+  preview's bundle hash is what ruled out "the preview is aliased".
+
 ## 2026-09-08 — A rebuilt screen that changed nothing, and a session bug that was never about tokens
 
 **Context:** `E12-42` and `E09-40` — a 30-day back-office session, and rebuilding the kitchen
