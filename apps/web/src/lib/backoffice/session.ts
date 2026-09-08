@@ -11,7 +11,7 @@ import { api, type ClientEnv } from '@graybag/shared';
  * The parent-facing app and this share `packages/shared/src/api/auth.ts`, so there is one OTP
  * implementation and one set of rules about what a wrong code does.
  *
- * ## Where the session is kept — `localStorage`, capped at 30 days (`E12-74`)
+ * ## Where the session is kept — `localStorage`, capped at 30 days (`E12-42`)
  *
  * **This reverses a deliberate earlier decision, so the reasoning for both is kept.** The session
  * used to live in `sessionStorage`: it survived a reload and a navigation and died when the tab
@@ -59,7 +59,7 @@ const SESSION_PREFIX = 'gb.backoffice.';
 const STARTED_AT_KEY = `${SESSION_PREFIX}started-at`;
 
 /**
- * The last address that signed in on this browser, so `/signin` can prefill it (`E12-74`).
+ * The last address that signed in on this browser, so `/signin` can prefill it (`E12-42`).
  *
  * **The address and nothing else.** Never a token, never a code, never a user id — a six-digit
  * code sitting in `localStorage` would turn "I have this device" into "I have this account", and

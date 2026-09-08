@@ -346,49 +346,55 @@
 }
 .kitchen__total span { color: var(--gb-text-primary); }
 
+/* One line, one number, in the same sentence a class uses — `E12-42`. */
 .kitchen__counts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--gb-space-4);
   font-size: var(--gb-font-size-body-sm);
   color: var(--gb-text-secondary);
+  font-variant-numeric: tabular-nums;
 }
-.kitchen__counts b { color: var(--gb-text-primary); font-variant-numeric: tabular-nums; }
 
 /* --------------------------------------------------------------------- groups */
 
+/**
+ * A class is a **heading over its orders**, not a card — `E12-42`.
+ *
+ * It was a bordered, filled card containing order cards, so the container and its contents read
+ * as the same kind of object and the eye had nothing to rank. Now the group has no surface of its
+ * own: it is a heading, some orders, and a quiet footer. The orders are the only cards, which is
+ * what makes them read as the unit.
+ *
+ * The status colour survives as a thin rule down the left of the *heading* only — it still
+ * answers "has this tray gone out" at a glance, without drawing a box that competes with the
+ * orders inside it.
+ */
+/*
+ * The gap below a group is larger than the gap inside it, so the bulk button at the foot reads as
+ * belonging to the orders above it and not to the heading below. With both gaps equal the button
+ * sat exactly between two classes and could be read as either — the one ambiguity that moving it
+ * beneath the content could have introduced.
+ */
 .kitchen__group {
-  background: var(--gb-bg-surface);
-  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
-  border-radius: var(--gb-radius-xl);
-  margin-bottom: var(--gb-space-5);
-  overflow: hidden;
+  margin-bottom: var(--gb-space-10);
+}
+
+.kitchen__group-head {
+  padding: 0 0 var(--gb-space-3) var(--gb-space-4);
+  border-left: var(--gb-space-1) solid var(--gb-border-strong);
+  margin-bottom: var(--gb-space-3);
 }
 
 /**
- * The group header carries the state, and it carries it three ways at once.
- *
- * The left border is a shape, the pill is a word, and the colour agrees with both. Remove any
- * one and the other two still answer "has this tray gone out".
+ * State three ways, as before: a shape (the rule), a word (the progress line) and a colour that
+ * agrees with both. Remove any one and the other two still answer the question — §2.10.
  */
-.kitchen__group[data-state='all']     { border-left: var(--gb-space-1) solid var(--gb-status-success); }
-.kitchen__group[data-state='partial'] { border-left: var(--gb-space-1) solid var(--gb-status-warning); }
-.kitchen__group[data-state='none']    { border-left: var(--gb-space-1) solid var(--gb-border-strong); }
-.kitchen__group[data-state='empty']   { border-left: var(--gb-space-1) solid var(--gb-border-subtle); }
+.kitchen__group[data-state='all'] .kitchen__group-head     { border-left-color: var(--gb-status-success); }
+.kitchen__group[data-state='partial'] .kitchen__group-head { border-left-color: var(--gb-status-warning); }
+.kitchen__group[data-state='none'] .kitchen__group-head    { border-left-color: var(--gb-border-strong); }
+.kitchen__group[data-state='empty'] .kitchen__group-head   { border-left-color: var(--gb-border-subtle); }
 
-.kitchen__group-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--gb-space-4);
-  padding: var(--gb-space-4) var(--gb-space-5);
-  background: var(--gb-bg-surface-muted);
-}
-
-.kitchen__group-who { margin-right: auto; }
 .kitchen__group-class {
-  font-size: var(--gb-font-size-h2);
-  line-height: var(--gb-line-height-h2);
+  font-size: var(--gb-font-size-h3);
+  line-height: var(--gb-line-height-h3);
   font-weight: var(--gb-font-semibold);
 }
 .kitchen__group-where {
@@ -397,28 +403,106 @@
   color: var(--gb-text-secondary);
 }
 
+/*
+ * The group's single counter, and it is deliberately quiet type rather than a badge. It reports;
+ * it is not a control, and it no longer sits beside a button competing to be pressed.
+ */
 .kitchen__progress {
-  font-size: var(--gb-font-size-body-strong);
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
   font-weight: var(--gb-font-semibold);
   font-variant-numeric: tabular-nums;
+  margin-top: var(--gb-space-1);
 }
 .kitchen__group[data-state='all'] .kitchen__progress     { color: var(--gb-status-success); }
 .kitchen__group[data-state='partial'] .kitchen__progress { color: var(--gb-status-warning); }
 .kitchen__group[data-state='none'] .kitchen__progress    { color: var(--gb-text-secondary); }
 
+/** The orders themselves, spaced so each is a distinct object rather than a row in a table. */
+.kitchen__orders { display: grid; gap: var(--gb-space-3); }
+
+/**
+ * The bulk action, **after** the orders it acts on and subordinate to them — `E12-42`.
+ *
+ * It was a filled primary button in the group header, above the content, which made the loudest
+ * thing on the screen the one you had not read yet. Here it is a normal-weight button, indented
+ * to the orders' left edge, at the end of the block — the place you arrive at having read the
+ * class.
+ */
+.kitchen__group-foot {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: var(--gb-space-3);
+}
+
+/*
+ * Smaller than an order's own buttons, on purpose. A per-order `Delivered` is the action of the
+ * service; this is the shortcut for when a whole tray goes at once, and the sizing says which is
+ * which without a word.
+ */
+.kitchen__bulk {
+  min-height: 2.75rem;
+  padding: var(--gb-space-2) var(--gb-space-4);
+  font-size: var(--gb-font-size-body-sm);
+  border-color: var(--gb-border-strong);
+  background: transparent;
+  color: var(--gb-text-secondary);
+}
+.kitchen__bulk:hover:not(:disabled) { background: var(--gb-bg-surface-muted); color: var(--gb-text-primary); }
+
 /* ---------------------------------------------------------------------- rows */
 
+/**
+ * One order, as a card, read top to bottom — `E12-42`.
+ *
+ * Four bands in a fixed order: **number**, **who**, **what**, **what you can do**. It was a
+ * horizontal flex row with the items on the left, the name beneath them, the pill floating in the
+ * middle and the buttons pushed right — which meant the eye had to travel sideways to assemble
+ * one order, and no two orders assembled the same way when the content was different lengths.
+ *
+ * A grid of stacked bands is the whole readability fix the kitchen lead asked for: *"order no X,
+ * 2 items, item names. Then next order no Y…"*
+ */
 .kitchen__order {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--gb-space-4);
-  padding: var(--gb-space-4) var(--gb-space-5);
-  border-top: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  display: grid;
+  gap: var(--gb-space-2);
+  padding: var(--gb-space-4);
+  background: var(--gb-bg-surface);
+  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-radius: var(--gb-radius-lg);
 }
 .kitchen__order[data-busy='true'] { opacity: var(--gb-opacity-pressed); }
 
-.kitchen__child { min-width: 12rem; margin-right: auto; }
+/* The number, the item count, then the status — left to right, most identifying first. */
+.kitchen__order-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gb-space-3);
+}
+
+/**
+ * The order number, monospaced and tabular.
+ *
+ * Its job is to be **matched against a label on a bag**, not read as a word, and a proportional
+ * font makes `GB-APGY7Q` and `GB-APGY70` look alike at arm's length. It was not on this screen at
+ * all until `E12-42`, despite `order_ref` being read from the server the whole time.
+ */
+.kitchen__ref {
+  /* The same stack `/admin/people` uses for the account id — there is no mono design token. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--gb-font-size-body-strong);
+  font-weight: var(--gb-font-weight-h1);
+  font-variant-numeric: tabular-nums;
+  color: var(--gb-text-primary);
+}
+
+/* "2 items" — the kitchen lead's own words, and derived from the lines below rather than stored. */
+.kitchen__count {
+  font-size: var(--gb-font-size-body-sm);
+  color: var(--gb-text-secondary);
+  margin-right: auto;
+}
 
 /**
  * The status pill: a word first, then a mark, then a colour.
@@ -444,7 +528,21 @@
 
 /* -------------------------------------------------------------------- buttons */
 
-.kitchen__actions { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); justify-content: flex-end; }
+/*
+ * The order's actions, **below** the order and left-aligned with it — `E12-42`.
+ *
+ * They were right-aligned on a horizontal row, which put them furthest from the content they act
+ * on and closest to the next order's. A separating rule marks them off as the "what you can do"
+ * band rather than more of the order.
+ */
+.kitchen__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gb-space-2);
+  justify-content: flex-start;
+  padding-top: var(--gb-space-2);
+  border-top: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+}
 
 .kitchen__btn {
   min-height: 3.5rem;                 /* 56px — bigger than the 48 floor. Wet hands, in a hurry. */
@@ -472,6 +570,25 @@
 .kitchen__btn--primary:hover:not(:disabled) { background: var(--gb-action-primary-bg-pressed); }
 
 .kitchen__btn--danger { color: var(--gb-text-danger); border-color: var(--gb-border-danger); }
+
+/*
+ * `Delivered` keeps its rank without keeping its volume — `E12-42`.
+ *
+ * It was `kitchen__btn--primary`: a filled accent button, the loudest element on the board, on
+ * every row. Ranking it mattered when it was one of three identical siblings; once the card has an
+ * order to read above it, a filled button on every row shouts over the child's name and the items.
+ * A tinted ground and a coloured border put it first among the actions and behind the content.
+ *
+ * **It must stay after `.kitchen__btn`.** Both are one class, so the later rule wins — written
+ * above the base rule it lost its background and rendered identically to `Start`, which is the
+ * whole distinction it exists to draw.
+ */
+.kitchen__act--main {
+  border-color: var(--gb-action-secondary-fg);
+  color: var(--gb-action-secondary-fg);
+  background: var(--gb-action-secondary-bg);
+}
+.kitchen__act--main:hover:not(:disabled) { background: var(--gb-ramp-forest-100); }
 
 /* --------------------------------------------------------------------- states */
 
@@ -591,13 +708,48 @@
   margin-right: var(--gb-space-2);
 }
 
-/* Secondary now: who it goes to, read at handover. */
+/**
+ * Who the order is for — `E12-42`.
+ *
+ * A flex row so the name, the class and the allergen badges sit on one line and wrap together.
+ * The name is no longer the quiet afterthought under a list of dishes: it is the second band of
+ * the card, because the sequence a person actually works in is find the order, check the child,
+ * read the items.
+ *
+ * It is still not the *loudest* thing on the card. Every one of these is a child's name (tier P)
+ * on a screen in a shared room, and `E09-15`'s reasoning holds — a name that does not dominate is
+ * a name a visitor does not read over somebody's shoulder.
+ */
 .kitchen__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gb-space-2);
   font-size: var(--gb-font-size-body-sm);
   line-height: var(--gb-line-height-body-sm);
-  font-weight: var(--gb-font-medium);
   color: var(--gb-text-secondary);
-  margin-top: var(--gb-space-1);
+}
+
+.kitchen__child-name {
+  font-size: var(--gb-font-size-body);
+  font-weight: var(--gb-font-semibold);
+  color: var(--gb-text-primary);
+}
+
+/*
+ * The class beside the name, and repeated from the group heading on purpose: the dish grouping
+ * has no class heading above it, and a card that means one thing in one view and another in the
+ * other is the inconsistency this rebuild removes.
+ */
+.kitchen__child-class {
+  padding: var(--gb-space-1) var(--gb-space-2);
+  border-radius: var(--gb-radius-sm);
+  background: var(--gb-bg-surface-muted);
+  font-size: var(--gb-font-size-caption);
+  line-height: var(--gb-line-height-caption);
+  font-weight: var(--gb-font-semibold);
+  color: var(--gb-text-secondary);
+  white-space: nowrap;
 }
 
 /**
@@ -765,17 +917,11 @@
   color: var(--gb-text-secondary);
 }
 
-/* The refund note, once at the foot of the board rather than on every row. */
-.kitchen__oneway--block {
-  max-width: none;
-  text-align: left;
-  margin-top: var(--gb-space-5);
-  padding: var(--gb-space-3) var(--gb-space-4);
-  background: var(--gb-ramp-amber-100);
-  border-left: var(--gb-space-1) solid var(--gb-ramp-amber-700);
-  border-radius: var(--gb-radius-sm);
-  font-size: var(--gb-font-size-body-sm);
-}
+/*
+ * `.kitchen__oneway--block` was here and is deleted in `E12-42`. No markup in `apps/web/src` used the modifier — it styled a foot-of-the-board refund note that was moved onto the row
+ * itself and the rule was left behind. Removed rather than kept "in case", because the CSS budget
+ * in `check-build.mjs` is real and dead bytes spend it.
+ */
 
 /* ------------------------------------------------- allergen badges (E09-33) */
 

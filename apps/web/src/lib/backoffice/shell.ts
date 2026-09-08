@@ -142,14 +142,14 @@ export const drawerIsOpen = (): boolean => q<HTMLElement>('[data-drawer]')?.hidd
 /* ----------------------------------------------------------------- signing out */
 
 /**
- * Reveal Sign out and make it work — `E12-74`.
+ * Reveal Sign out and make it work — `E12-42`.
  *
  * Shown only once there is a session to end. The button navigates to `/signin` **whether or not
  * the server call succeeds**, because `signOut()` purges local storage in a `finally`: the token
  * is gone either way, and leaving somebody on a back-office page after they pressed Sign out
  * would tell them it had failed when it had not.
  *
- * `E12-74` made the session last 30 days. This is the other half of that change and it is not
+ * `E12-42` made the session last 30 days. This is the other half of that change and it is not
  * optional — a kitchen tablet is shared, the board carries children's names, and a long session
  * with no way to end it is worse than the short one it replaced.
  */
@@ -195,7 +195,7 @@ export async function mountShell(): Promise<void> {
   }
 
   /*
-   * Sign out is mounted **before** the grant read and outside its `try` — `E12-74`.
+   * Sign out is mounted **before** the grant read and outside its `try` — `E12-42`.
    *
    * Every page reaching this point has already passed `requireBackofficeAccess`, so there is a
    * session. If `fetchMyAccess` then fails the rail is deliberately left empty (see the `catch`),

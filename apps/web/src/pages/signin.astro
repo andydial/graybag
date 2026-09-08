@@ -202,7 +202,7 @@ import '../styles/kitchen.css';
           await verifyCode(address, code);
           if (!(await mayBeHere())) { await refuse(); return; }
           /*
-           * Remembered **after** the code is accepted, never when it is sent — `E12-74`.
+           * Remembered **after** the code is accepted, never when it is sent — `E12-42`.
            *
            * Storing on send would prefill this browser with any address somebody typed into it,
            * including a typo and including a colleague's, and the field is `type="email"` so the
@@ -270,7 +270,7 @@ import '../styles/kitchen.css';
         codeInput.value = '';
         say('');
         // Selected rather than focused — the button says "use a different address", so the first
-        // keystroke should replace the one that is there rather than append to it. With `E12-74`
+        // keystroke should replace the one that is there rather than append to it. With `E12-42`
         // prefilling the field this is the only way off a remembered address in one action.
         emailInput.focus();
         emailInput.select();
@@ -319,7 +319,7 @@ import '../styles/kitchen.css';
       // ------------------------------------------------------------------ start
 
       /**
-       * Offer back the address that last signed in on this browser — `E12-74`.
+       * Offer back the address that last signed in on this browser — `E12-42`.
        *
        * Kitchen and admin accounts are shared organisational addresses that nobody has committed
        * to memory the way they have their own, and the OTP dance began with retyping one. The

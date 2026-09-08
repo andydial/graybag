@@ -48,6 +48,52 @@ export function allowedActions(status: KitchenStatus, permissions?: KitchenPermi
   });
 }
 
+/**
+ * The class and section as one label — `5-A`, or `No class` when neither is recorded.
+ *
+ * Extracted in `E12-42` because three places computed this expression independently: the class
+ * grouping key, the dish view's portion label, and now the order card, which shows it beside the
+ * child's name. Three copies of a `filter(Boolean).join('-')` is three chances for one of them to
+ * start saying `5 A` or `5/A`, and the whole point of the label is that the same class reads the
+ * same way wherever it appears.
+ */
+export function classSection(order: Pick<KitchenOrder, 'classLabel' | 'sectionLabel'>): string {
+  return [order.classLabel, order.sectionLabel].filter(Boolean).join('-') || 'No class';
+}
+
+/**
+ * How many items are in one order — `E12-42`.
+ *
+ * The kitchen lead's own words: *"it should simply mention order no X, 2 items, item names."*
+ * Quantities, not lines: two wraps on a single line is two items to put in the bag, and a count
+ * of lines would say one.
+ */
+export function itemCount(order: Pick<KitchenOrder, 'lines'>): number {
+  return order.lines.reduce((n, line) => n + line.quantity, 0);
+}
+
+/** `2 items`, or `1 item`. The label the order header carries beside its number. */
+export function itemCountLabel(order: Pick<KitchenOrder, 'lines'>): string {
+  const n = itemCount(order);
+  return `${n} item${n === 1 ? '' : 's'}`;
+}
+
+/**
+ * The one sentence this screen uses for progress, at every scope — `E12-42`.
+ *
+ * `groupProgress` and `dayProgress` both call it, so a class and a day can never come to describe
+ * the same arithmetic in different words. That is not a tidiness point: the screen this replaced
+ * showed *"3 items · 2 to hand over · 0 delivered"* directly above *"0 of 1 delivered"*, in three
+ * different units, and the kitchen read them as contradicting each other. They did not — they
+ * were counting different things at different scopes — but a screen whose numbers have to be
+ * reconciled before they can be believed is a screen that gets ignored.
+ */
+function progressPhrase(delivered: number, deliverable: number): string {
+  if (deliverable === 0) return 'Nothing to hand over';
+  if (delivered === deliverable) return `All ${deliverable} delivered`;
+  return `${delivered} of ${deliverable} delivered`;
+}
+
 export function applyFilters(orders: KitchenOrder[], filters: KitchenFilters): KitchenOrder[] {
   return orders.filter(
     (o) =>
@@ -82,7 +128,7 @@ export function groupByClass(orders: KitchenOrder[]): ClassGroup[] {
   const groups = new Map<string, ClassGroup>();
 
   for (const order of orders) {
-    const classLabel = [order.classLabel, order.sectionLabel].filter(Boolean).join('-') || 'No class';
+    const classLabel = classSection(order);
     const key = `${order.schoolId}|${order.breakId ?? ''}|${classLabel}`;
 
     let group = groups.get(key);
@@ -124,6 +170,14 @@ export function groupByClass(orders: KitchenOrder[]): ClassGroup[] {
 /** One order's worth of a single dish, as the person plating it sees it. */
 export interface DishPortion {
   orderId: string;
+  /**
+   * The order's human number — `E12-42`.
+   *
+   * Carried so both groupings name an order the same way. `orderId` is a uuid and identifies the
+   * row; `orderRef` is what is printed on the bag, and it is the only one of the two a person can
+   * match against anything physical.
+   */
+  orderRef: string;
   recipientName: string;
   schoolName: string;
   classLabel: string;
@@ -181,9 +235,10 @@ export function groupByDish(orders: KitchenOrder[]): DishGroup[] {
       group.quantity += line.quantity;
       group.portions.push({
         orderId: order.id,
+        orderRef: order.orderRef,
         recipientName: order.recipientName,
         schoolName: order.schoolName,
-        classLabel: [order.classLabel, order.sectionLabel].filter(Boolean).join('-') || 'No class',
+        classLabel: classSection(order),
         breakLabel: order.breakLabel,
         quantity: line.quantity,
         note: line.note,
@@ -214,9 +269,23 @@ export function groupState(group: ClassGroup): GroupState {
 }
 
 export function groupProgress(group: ClassGroup): string {
-  if (group.deliverable === 0) return 'Nothing to hand over';
-  if (group.delivered === group.deliverable) return `All ${group.deliverable} delivered`;
-  return `${group.delivered} of ${group.deliverable} delivered`;
+  return progressPhrase(group.delivered, group.deliverable);
+}
+
+/**
+ * The same sentence for the whole visible day — `E12-42`.
+ *
+ * It replaced a row of three counts in three units (`3 items · 2 to hand over · 0 delivered`)
+ * that sat directly above a group saying `0 of 1 delivered`. One number per scope, in one
+ * vocabulary, is the fix: this line and a group's line answer the same question about different
+ * amounts of the board, so they can be compared instead of reconciled.
+ *
+ * Cancelled orders are excluded on both sides, exactly as `groupByClass` excludes them — a
+ * cancelled lunch is not an undelivered one.
+ */
+export function dayProgress(orders: KitchenOrder[]): string {
+  const deliverable = orders.filter((o) => o.status !== 'cancelled');
+  return progressPhrase(deliverable.filter((o) => o.status === 'delivered').length, deliverable.length);
 }
 
 export interface DishTotal {
@@ -252,25 +321,20 @@ export function productionTotals(orders: KitchenOrder[]): DishTotal[] {
   return [...totals.values()].sort((a, b) => b.quantity - a.quantity || a.dishName.localeCompare(b.dishName));
 }
 
-export interface DaySummary {
-  orders: number;
-  items: number;
-  delivered: number;
-  outstanding: number;
-  cancelled: number;
-}
-
-export function summarise(orders: KitchenOrder[]): DaySummary {
-  return {
-    orders: orders.length,
-    items: orders
-      .filter((o) => o.status !== 'cancelled')
-      .reduce((n, o) => n + o.lines.reduce((m, l) => m + l.quantity, 0), 0),
-    delivered: orders.filter((o) => o.status === 'delivered').length,
-    outstanding: orders.filter((o) => o.status === 'paid' || o.status === 'preparing').length,
-    cancelled: orders.filter((o) => o.status === 'cancelled').length,
-  };
-}
+/*
+ * `summarise` and `DaySummary` were here, and are deleted in `E12-42`.
+ *
+ * They produced the day row `3 items · 2 to hand over · 0 delivered` — five numbers in three
+ * units, of which the screen drew four. It sat immediately above a class reading `0 of 1
+ * delivered`, and the kitchen read the two as contradicting each other. They never did: `items`
+ * counted portions and `1` counted orders, at two different scopes, and nothing on the screen
+ * said so.
+ *
+ * `dayProgress` replaces it with one number in the same sentence a class uses. The type is gone
+ * rather than left unused, so nothing can reintroduce the row by finding a convenient helper —
+ * and its tests went with it, because they tested a function that no longer exists rather than
+ * behaviour that moved.
+ */
 
 /**
  * What the screen is currently showing, as one value it must exhaust.

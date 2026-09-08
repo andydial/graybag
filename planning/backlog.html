@@ -4022,13 +4022,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/39</span>
+          <span class="meter-num">0/41</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 39 tasks</summary>
+        <summary>Context &amp; 41 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -4343,6 +4343,22 @@
         <span class="badge r-you">you</span>
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Decide whether kitchen staff should see who placed an order.</strong> Andy asked for this directly; <code>E09-38</code> solves the problem he hit without it, so it is now a preference rather than a blocker. It cannot be done without opening <code>app_user</code> to kitchen scope, which <code>0002</code> forbids in terms and which <code>E20-09</code> depends on. If the answer is yes it needs a deliberate policy change and a note in the DPDP record, not a column added to a query. On <code>/orders</code> there is no conflict — a platform admin already holds <code>users.view</code></span>
+      </li>
+      <li class="task" data-id="E09-40" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-40"></button>
+        <code class="tid">E09-40</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The kitchen board rebuilt with the order as the unit.</strong> The kitchen lead: *&quot;Also this is confusing — it should simply mention order no X, 2 items, item names. Then next order no Y, item 2, names of items.&quot;* Three faults, all of them layout. <strong>(1) The class rollup and an order looked like the same object</strong> — a bordered card containing bordered cards — and carried counts that read as contradicting each other: *&quot;3 items · 2 to hand over · 0 delivered&quot;* sitting directly above *&quot;0 of 1 delivered&quot;*. Every number was right; <code>items</code> counted portions and <code>1</code> counted orders, at two scopes, and nothing said so. <code>summarise</code>/<code>DaySummary</code> are <strong>deleted</strong>, not moved, and <code>dayProgress</code> and <code>groupProgress</code> now share one sentence builder, so a day and a class answer the same question in the same words and cannot disagree. <strong>(2) The order had no order number at all</strong> — <code>orderRef</code> was on <code>KitchenOrder</code> and read from the server (<code>api/kitchen.ts</code> selects <code>order_ref</code>) the whole time, simply never drawn, so the kitchen had bags labelled with a number that appeared nowhere on the screen meant to match them. The card is now four bands in a fixed sequence: <strong>number</strong> (monospaced and tabular — its job is matching a label on a bag, not being read as a word), <strong>who</strong> (name, class-section, allergen badges), <strong>what</strong> (items with quantities), <strong>what you can do</strong>. <strong>(3) The loudest control was above the content it acts on.</strong> <code>Mark all delivered</code> was a filled primary button in the group header; it is now a smaller, quieter button in a footer <strong>after</strong> the orders, drawn only when it could do something — a permanently disabled <code>(0)</code> under a finished class teaches an operator that controls here do nothing. Per-order <code>Delivered</code> keeps its rank and loses its volume: a tinted ground rather than a filled accent. The class is a <strong>heading with a coloured left rule</strong>, not a card, so the orders are the only cards on the board. The dish grouping got the same shape, so an order card does not mean two different things in two views. <strong>A duplicated copy of the board&#39;s styling was found under <code>.bo</code> in <code>backoffice.css</code></strong> — added by <code>E10-61</code> at specificity (0,2,0) against <code>kitchen.css</code>&#39;s (0,1,0) — which meant the first rebuild changed nothing on screen, because every rule was overridden by a copy of what was being replaced. Deleted; there is one source of truth again, and it took the CSS from 17,722 B (over budget) to 17,506. <strong>Nothing changed about what is visible</strong>: the name and allergen badges stay because the person handing a bag to a child cannot work without them, and no price, total or parent contact detail is on the screen — <code>orders.view_financials</code> is a separate grant. 22 pages, 0 a11y violations</span>
+      </li>
+      <li class="task" data-id="E09-41" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-41"></button>
+        <code class="tid">E09-41</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Allergen badges in the dish grouping.</strong> They are on the class grouping because that is the *handover* view — somebody is about to put a bag into a named child&#39;s hands. The dish grouping is the *cooking* view and has never shown them. Adding them is defensible on its own merits and was deliberately <strong>not</strong> smuggled into <code>E09-40</code>, which was asked to re-lay-out the screen rather than re-scope it (*&quot;don&#39;t change what&#39;s visible, only how it&#39;s laid out&quot;*). <code>DishPortion</code> would need <code>allergenCodes</code> carrying through <code>groupByDish</code>, which is one line; the question worth answering first is whether a cook plating ten wraps is helped or desensitised by ten badges</span>
       </li></ul>
       </details>
     </article>
@@ -5120,13 +5136,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/41</span>
+          <span class="meter-num">0/42</span>
         </div>
       </header>
       <p class="summary">graybag.com rebuilt — static, fast, beautiful, on brand. Same codebase as the admin app.</p>
       <p class="deps">Depends on <code>E02</code> <code>E03</code> <code>E13</code></p>
       <details>
-        <summary>Context &amp; 41 tasks</summary>
+        <summary>Context &amp; 42 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Getting fully off Bubble includes the public website. Largely static but it needs to look considerably better than the current one.</p></div>
         <ul class="tasks">
@@ -5457,6 +5473,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The accessibility gate was auditing a frame of the scroll reveal, and passing the one page with a real violation on it.</strong> <code>E12-40</code> made the home page reveal <strong>per element</strong> — four steps of 80ms over 780ms, an IntersectionObserver adding <code>.is-in</code> — so everything below the fold sits at <code>opacity: 0</code> until it is scrolled to. <code>check:a11y</code> fires axe 900ms after navigate, which caught the food section <strong>mid-fade</strong> and read its ink as <code>#e2e897</code> on <code>#cedb8f</code>: <strong>1.14</strong>, a serious violation, and <code>main</code> has been red on <code>npm run test:all</code> ever since. Opening the page shows dark ink on pale lime, entirely legible — the violation was a frame, not a defect. The gate now marks every <code>[data-reveal]</code> and the hero <code>.is-in</code> and waits one transition before measuring, which is the state a reader who has scrolled sees and the only state a contrast rule is about. Deliberately <strong>not</strong> <code>prefers-reduced-motion</code>, which would audit a different stylesheet from the one most people get. <strong>And with the settled page in view it immediately found a real one</strong>: <code>.band-app</code> sets <code>--gb-bg-surface-accent</code> as its background without being a <code>.panel-pale</code>, so its eyebrow kept <code>--gb-text-link</code> — <code>#007e3b</code>, chosen against white — on pale lemon, at <strong>4.08</strong>, failing AA for 12px text and live on production. The design system already names the ink for that surface: <code>--gb-text-on-accent</code> is 6.00 there. One rule, applied to the section that was missed. The gate had been unable to see it for the same reason it was failing on the section that was fine</span>
+      </li>
+      <li class="task" data-id="E12-42" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E12-42"></button>
+        <code class="tid">E12-42</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A 30-day back-office session, a Sign out that exists, and the address remembered on <code>/signin</code>.</strong> Kitchen and admin staff were re-doing the email-and-OTP dance constantly, *&quot;including at 3 AM&quot;*. <strong>It was never token expiry.</strong> <code>session.ts</code> kept the session in <code>sessionStorage</code> — deliberately, on the argument that a kitchen tablet is shared and never locked — and <code>sessionStorage</code> is scoped to the <strong>tab</strong>, so closing it, rebooting the tablet or opening the board in a second window destroyed the session. <code>persistSession</code> and <code>autoRefreshToken</code> have been on since <code>E03-20</code> and the refresh path always worked; it was storage lifetime. Supabase Auth was read from the management API before anything changed, and <strong>both projects are identical</strong>: <code>jwt_exp</code> 3600, rotation on, reuse interval 10s, <code>sessions_timebox</code> <strong>0</strong>, <code>sessions_inactivity_timeout</code> <strong>0</strong>, <code>sessions_single_per_user</code> <strong>false</strong>. Two things follow. <strong>Single-session-per-user is off</strong>, so signing into the mobile app has never ended a web session — the premise that it did was wrong, and nothing server-side needs changing to keep it that way. And <strong>nothing server-side ever ends this session at all</strong>, so the 30 days had to be a client-side cap or it would not be a cap. It is stamped at sign-in and <strong>never re-stamped on a refresh</strong>: Supabase rewrites that key roughly hourly, so re-stamping would slide the deadline forward for ever and the cap would never be reached by anyone still using the tool. An <strong>absent</strong> stamp reads as live — signing everybody out on the deploy that gives them longer sessions would be a perverse way to ship it — and an unreadable one reads as expired, because the safe direction for a value we cannot interpret is the one that asks for an OTP. Checked on every access rather than once at load: a board is left open for a whole service, and a start-up-only check leaves an expired session working until somebody reloads. <code>purgeSession</code> collects keys <strong>before</strong> removing any, because removing while walking <code>length</code>/<code>key(i)</code> skips every other entry and would leave a refresh token behind on sign-out; asserted with eight keys, not two. <strong>Sign out had gone missing from the entire product</strong> — <code>E10-43</code> put it in <code>BackofficeNav</code>, <code>E10-55</code> replaced that with <code>BackofficeShell</code> and did not carry the button across, so since that merge no back-office page has had one. It went unnoticed because the session died with the tab, which made closing the tab the sign-out — the accident this change removes. It is mounted <strong>before</strong> the grant read and outside its <code>try</code>, so the failure that strands somebody on an empty rail is not also the one that takes away their way out. <code>/signin</code> prefills the last address, written <strong>after</strong> the code is accepted so a typo never becomes the prefill; <code>rememberEmail</code> refuses anything that is not an email, asserted against a six-digit code and a JWT. <strong>The residual risk is stated rather than argued away:</strong> on a shared tablet this leaves a signed-in session for the next person until somebody signs out. <code>MEMORY_ONLY</code> is untouched, so what persists is a session and not a child&#39;s name. Decisions <code>U6</code>–<code>U8</code></span>
       </li></ul>
       </details>
     </article>
