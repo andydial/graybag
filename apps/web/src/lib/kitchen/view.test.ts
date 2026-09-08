@@ -7,7 +7,9 @@ import {
   applyFilters,
   boardState,
   allergenBadges,
+  classSection,
   countLine,
+  dayProgress,
   filterSummary,
   groupByDish,
   serviceDateToday,
@@ -16,10 +18,11 @@ import {
   groupByClass,
   groupProgress,
   groupState,
+  itemCount,
+  itemCountLabel,
   productionTotals,
   relativeDay,
   shiftDate,
-  summarise,
 } from './view.js';
 
 const DATE = '2026-08-13';
@@ -243,24 +246,15 @@ describe('applyFilters', () => {
   });
 });
 
-describe('summarise', () => {
-  it('counts orders, items, and each state of the day', () => {
-    const s = summarise(day.orders);
-    expect(s.orders).toBe(24);
-    expect(s.delivered).toBe(4);
-    expect(s.cancelled).toBe(1);
-    expect(s.outstanding).toBe(19);
-    expect(s.orders).toBe(s.delivered + s.outstanding + s.cancelled);
-  });
-
-  it('excludes cancelled orders from the item count', () => {
-    const s = summarise([
-      order({ id: 'a', lines: [{ dishId: 'd1', dishName: 'x', quantity: 2, note: null }] }),
-      order({ id: 'b', status: 'cancelled', lines: [{ dishId: 'd1', dishName: 'x', quantity: 9, note: null }] }),
-    ]);
-    expect(s.items).toBe(2);
-  });
-});
+/*
+ * The `summarise` block was here and is deleted with the function in `E12-42`.
+ *
+ * It tested the arithmetic behind the day row `3 items · 2 to hand over · 0 delivered`, which is
+ * gone — not moved. `dayProgress` above covers what replaced it, including the property the old
+ * row could not have: that the day and its groups count the same way and therefore cannot
+ * disagree. The one behaviour worth carrying over, "cancelled orders are excluded", is asserted
+ * there against both scopes.
+ */
 
 describe('boardState — emptiness is four different things (ux-spec §5.21)', () => {
   const base = { day, filters: filters(), loading: false, offline: false, error: null };
@@ -579,5 +573,114 @@ describe('the date, as a kitchen reads it', () => {
   it('shifts across a month boundary', () => {
     expect(shiftDate('2026-08-31', 1)).toBe('2026-09-01');
     expect(shiftDate('2026-09-01', -1)).toBe('2026-08-31');
+  });
+});
+
+/**
+ * The order as the unit — `E12-42`.
+ *
+ * The kitchen lead, on the screen this replaced: *"Also this is confusing — it should simply
+ * mention order no X, 2 items, item names. Then next order no Y, item 2, names of items."*
+ */
+describe('classSection', () => {
+  it('joins the class and the section the one way the whole screen uses', () => {
+    expect(classSection({ classLabel: '5', sectionLabel: 'A' })).toBe('5-A');
+  });
+
+  it('drops the half that is missing rather than leaving a dangling separator', () => {
+    expect(classSection({ classLabel: '5', sectionLabel: null })).toBe('5');
+    expect(classSection({ classLabel: null, sectionLabel: 'A' })).toBe('A');
+  });
+
+  it('names the absence, because a blank beside a name reads as a class of nothing', () => {
+    expect(classSection({ classLabel: null, sectionLabel: null })).toBe('No class');
+  });
+
+  it('agrees with the grouping, which is the reason it is one function', () => {
+    const orders = [order({ classLabel: '5', sectionLabel: 'A' })];
+    expect(groupByClass(orders)[0]!.classLabel).toBe(classSection(orders[0]!));
+  });
+});
+
+describe('itemCount', () => {
+  it('counts portions, not lines — two wraps is two things to put in the bag', () => {
+    expect(
+      itemCount({ lines: [{ dishId: 'd1', dishName: 'Wrap', quantity: 2, note: null }] }),
+    ).toBe(2);
+  });
+
+  it('adds across lines', () => {
+    expect(
+      itemCount({
+        lines: [
+          { dishId: 'd1', dishName: 'Wrap', quantity: 2, note: null },
+          { dishId: 'd2', dishName: 'Rajma', quantity: 1, note: null },
+        ],
+      }),
+    ).toBe(3);
+  });
+
+  it('is zero for an order with no lines rather than throwing', () => {
+    expect(itemCount({ lines: [] })).toBe(0);
+  });
+
+  it.each([
+    [1, '1 item'],
+    [2, '2 items'],
+    [0, '0 items'],
+  ])('labels %i as "%s"', (quantity, expected) => {
+    expect(itemCountLabel({ lines: [{ dishId: 'd', dishName: 'x', quantity, note: null }] })).toBe(
+      expected,
+    );
+  });
+});
+
+/**
+ * One counter per scope, in one vocabulary — `E12-42`.
+ *
+ * The screen used to carry `3 items · 2 to hand over · 0 delivered` immediately above a group
+ * reading `0 of 1 delivered`: three units at one scope, sitting on top of a different unit at
+ * another. Both were arithmetically right and the pair read as a contradiction.
+ */
+describe('dayProgress', () => {
+  it('speaks in exactly the same words as a group', () => {
+    const orders = [order({ id: 'a', status: 'delivered' }), order({ id: 'b', status: 'paid' })];
+    expect(dayProgress(orders)).toBe('1 of 2 delivered');
+    expect(groupProgress(groupByClass(orders)[0]!)).toBe('1 of 2 delivered');
+  });
+
+  it('cannot contradict the groups beneath it, because it counts the same way', () => {
+    // Two classes, one delivered in each. The day says 2 of 4; neither group can disagree.
+    const orders = [
+      order({ id: 'a', classLabel: '5', status: 'delivered' }),
+      order({ id: 'b', classLabel: '5', status: 'paid' }),
+      order({ id: 'c', classLabel: '6', status: 'delivered' }),
+      order({ id: 'd', classLabel: '6', status: 'preparing' }),
+    ];
+    expect(dayProgress(orders)).toBe('2 of 4 delivered');
+    expect(groupByClass(orders).map(groupProgress)).toEqual([
+      '1 of 2 delivered',
+      '1 of 2 delivered',
+    ]);
+  });
+
+  it('excludes cancelled orders on both sides, as the groups do', () => {
+    const orders = [
+      order({ id: 'a', status: 'delivered' }),
+      order({ id: 'b', status: 'cancelled' }),
+    ];
+    expect(dayProgress(orders)).toBe('All 1 delivered');
+  });
+
+  it('says nothing is outstanding when every order is cancelled', () => {
+    expect(dayProgress([order({ status: 'cancelled' })])).toBe('Nothing to hand over');
+  });
+
+  it('says nothing is outstanding for an empty day', () => {
+    expect(dayProgress([])).toBe('Nothing to hand over');
+  });
+
+  it('names the whole when the whole is done', () => {
+    expect(dayProgress([order({ id: 'a', status: 'delivered' })])).toBe('All 1 delivered');
   });
 });

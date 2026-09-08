@@ -64,7 +64,7 @@ describe('resendAvailableIn', () => {
 });
 
 /**
- * The 30-day cap — `E12-74`.
+ * The 30-day cap — `E12-42`.
  *
  * The session moved from `sessionStorage` to `localStorage` so a kitchen tablet that reboots at
  * 3am does not demand an OTP. Supabase ends this session for nobody — `sessions_timebox` and
@@ -142,7 +142,7 @@ describe('purgeSession', () => {
 });
 
 /**
- * Prefilling the address on `/signin` — `E12-74`.
+ * Prefilling the address on `/signin` — `E12-42`.
  *
  * Andy: *"remember the last email in localStorage and prefill it. Email only — never store a
  * token, code, or anything else client-side."* This is the only writer, so that rule is enforced

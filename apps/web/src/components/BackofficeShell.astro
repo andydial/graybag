@@ -74,12 +74,12 @@ const { current, title, subtitle } = Astro.props;
     <p class="bo__who" data-nav-who hidden><b data-nav-email></b><span data-nav-role></span></p>
 
     <!--
-      Sign out — `E12-74`, and it had gone missing.
+      Sign out — `E12-42`, and it had gone missing.
 
       `E10-43` put it in `BackofficeNav`; `E10-55` replaced that component with this shell and the
       button was not carried across, so from that merge until now **no back-office page had a way
       to sign out at all**. It went unnoticed because the session died with the tab, which made
-      closing the tab the sign-out. `E12-74` makes the session last 30 days, which removes the
+      closing the tab the sign-out. `E12-42` makes the session last 30 days, which removes the
       accident that was covering the gap.
 
       It sits under the account it ends rather than in the page header: it belongs to the person,

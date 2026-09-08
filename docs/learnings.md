@@ -19,6 +19,61 @@ Format — newest first:
 
 ---
 
+## 2026-09-08 — A rebuilt screen that changed nothing, and a session bug that was never about tokens
+
+**Context:** `E12-42` and `E09-40` — a 30-day back-office session, and rebuilding the kitchen
+board around the order after the kitchen lead called it confusing.
+
+**What happened:** Three separate things, each of which looked like something else first.
+
+**1. The OTP dance was not token expiry.** The brief assumed a session or cookie setting, and
+asked which cookie, with what `max-age`, `httpOnly`, `secure` and `sameSite`. **There is no
+cookie.** `apps/web` sets none — grepping the whole tree for `cookie` returns a PII test and a
+comment. The session lived in `sessionStorage`, which is scoped to the *tab*, so closing the
+tab or rebooting the tablet destroyed it. `persistSession` and `autoRefreshToken` had been on
+since `E03-20` and the refresh path always worked. **It was storage lifetime, and every hour
+spent on token settings would have been spent in the wrong file.**
+
+**2. Single-session-per-user was not the cause either, and the check was five minutes.** The
+premise offered was that signing into the mobile app killed the web session. Read from the
+management API: `sessions_single_per_user` is **false** on both projects, and has always been.
+So was `sessions_timebox` and `sessions_inactivity_timeout` — both `0`, meaning nothing
+server-side ever ends a back-office session at all, which is the fact that decided the design:
+the 30-day cap had to be client-side or there would be no cap.
+
+**3. The screen rebuild changed nothing, twice, and the CSS was not wrong.** `.kitchen__group`
+and five siblings were rewritten in `kitchen.css`; the rendered page was identical. `E10-61`
+had copied those same rules into `backoffice.css` under `.bo` when the board moved onto the
+shell — specificity (0,2,0) against (0,1,0) — so the copy was what rendered, and `kitchen.css`
+had been decorative on that page ever since. A second instance of the same class of bug in the
+same session: `.kitchen__act--main` was written *above* `.kitchen__btn`, both one class, so the
+base rule won on source order and the ranked button rendered identically to its siblings.
+
+**Cause:** In all three, a plausible-sounding cause was available and wrong, and the real one
+was one command away — `grep -rn cookie`, one management-API read, and reading the *computed*
+result rather than the source.
+
+**Fix / rule:**
+
+- **Check the premise of a bug report before designing against it**, exactly as CLAUDE.md #9
+  requires before deleting data. "Which cookie is it" had no answer because there was no cookie.
+  Answering the question as asked would have produced a confident, useless report.
+- **Read provider settings rather than reasoning about them.** `GET
+  /v1/projects/<ref>/config/auth` with `SUPABASE_ACCESS_TOKEN` (it is in
+  `~/.graybag-secrets/prod.env`, not the environment) answers JWT expiry, rotation, reuse
+  interval, time-box, inactivity timeout and single-session in one request, for both projects.
+- **A CSS change with no visible effect means something else is winning — screenshot, do not
+  re-read the file.** Two rules did it here in one afternoon: a `.bo`-scoped duplicate in
+  another stylesheet, and source order between two equal-specificity single-class rules. Both
+  were invisible in the diff and obvious in a rendered image.
+- **Never scope a copy of another stylesheet's rules to make them win inside a frame.** That is
+  what `E10-61` did and it created a second source of truth that silently outranked the first.
+  `S46`.
+- The headless-Chrome-over-CDP plumbing in `apps/web/scripts/check-a11y.mjs` is ~60 lines and
+  screenshots a built page from `dist/` or a deploy preview. Reuse it; it is faster than
+  reasoning about a layout and it is what caught both specificity bugs.
+
+
 ## 2026-08-15 — A fixture simpler than production is a fixture testing something else (twice in one day)
 
 **Context:** `E06-45` and `E06-46`, back to back. Both times the fixture was the thing at fault,
