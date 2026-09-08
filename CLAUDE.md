@@ -329,6 +329,35 @@ Anything not in that list is fast-follow, including anything you add later.
    If you find drift, reconcile it rather than dropping live objects, and write down which
    direction it was in — the two have opposite fixes.
 
+11. **`main` and production are different things. Nothing reaches production without a
+   `[promote]` merge.** Andy's rule, 2026-09-08. Merging to `main` means "this is ready"; it
+   does not mean "this is live", and the two must never be spoken about as if they were the
+   same. Production is reached only by a separate, deliberate act: an empty commit whose
+   **subject** carries `[promote]`, squash-merged so the marker lands on `main` — never
+   `--rebase`, which drops the empty commit and silently promotes nothing (`#88`).
+
+   This is a rule rather than a description because for three weeks it was false. `E12-43`
+   found that the Netlify gate had failed open from the day it was written: the `ignore` hook
+   resolved its decision module relative to the working directory, Netlify runs it from
+   `apps/web` where that path does not exist, and the wrapper's "do not freeze the site"
+   fallback chose BUILD. **Every merge to `main` published straight to production**, and the
+   gate's own test passed throughout because it ran the wrapper from the repository root,
+   where the path happens to resolve.
+
+   So: **check what is live before you promote, and check it again after.** One command, and
+   it is the only thing that caught this — the deploy gate cannot be trusted to have run:
+
+   ```bash
+   # A string only the new build contains. Empty output means it is not live.
+   curl -sS https://graybag-web.netlify.app/kitchen | grep -o 'some-new-class-name'
+   ```
+
+   **`graybag.com` is not the web app.** It is still the legacy Bubble app, and
+   `graybag.com/kitchen` returns 404. Production for `apps/web` is `graybag-web.netlify.app`.
+
+   Never report something as shipped because its PR merged. Merged is `main`; shipped is a
+   promotion you performed and then verified against the live URL.
+
 ## Performance priorities
 
 The real constraint is **network**, not device CPU — the audience is private schools in
