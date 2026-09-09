@@ -308,16 +308,40 @@
  *
  * It is dropped entirely in the dish grouping, where the group headers already say all of this.
  */
+/**
+ * "Everything to cook today" — a different **kind** of thing from the list below it (`E09-42`).
+ *
+ * Andy, 2026-09-09: *"Make the list of 'Everything to deliver today' bit more clearer and
+ * separated from orders."* It was an unlabelled strip of numbers on a white card with a hairline
+ * border, sitting directly above the first class heading — the same surface, the same border and
+ * the same radius as an order card, so nothing said it was a total for the day rather than part
+ * of the list.
+ *
+ * Now it is on the muted surface with a heavier rule beneath it: a header for the board, not
+ * another row in it. The title is visible rather than living only in an `aria-label`, so the
+ * people who needed it most were the ones who could not see it.
+ */
 .kitchen__summary {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--gb-space-2) var(--gb-space-5);
-  background: var(--gb-bg-surface);
+  background: var(--gb-bg-surface-muted);
   border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  border-bottom: var(--gb-space-1) solid var(--gb-border-strong);
   border-radius: var(--gb-radius-lg);
-  padding: var(--gb-space-2) var(--gb-space-3);
-  margin-bottom: var(--gb-space-3);
+  padding: var(--gb-space-3);
+  margin-bottom: var(--gb-space-6);
+}
+
+.kitchen__summary-title {
+  flex: 1 1 100%;
+  font-size: var(--gb-font-size-body-sm);
+  line-height: var(--gb-line-height-body-sm);
+  font-weight: var(--gb-font-weight-h1);
+  letter-spacing: var(--gb-tracking-overline);
+  text-transform: uppercase;
+  color: var(--gb-text-secondary);
 }
 
 .kitchen__totals {
@@ -378,10 +402,17 @@
 }
 
 .kitchen__group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gb-space-2) var(--gb-space-3);
   padding: 0 0 var(--gb-space-3) var(--gb-space-4);
   border-left: var(--gb-space-1) solid var(--gb-border-strong);
   margin-bottom: var(--gb-space-3);
 }
+
+/* The three lines of the heading, so the bulk button can sit beside them rather than under. */
+.kitchen__group-lines { flex: 1 1 12rem; min-width: 0; }
 
 /**
  * State three ways, as before: a shape (the rule), a word (the progress line) and a colour that
@@ -421,32 +452,26 @@
 /** The orders themselves, spaced so each is a distinct object rather than a row in a table. */
 .kitchen__orders { display: grid; gap: var(--gb-space-3); }
 
-/**
- * The bulk action, **after** the orders it acts on and subordinate to them — `E12-42`.
- *
- * It was a filled primary button in the group header, above the content, which made the loudest
- * thing on the screen the one you had not read yet. Here it is a normal-weight button, indented
- * to the orders' left edge, at the end of the block — the place you arrive at having read the
- * class.
- */
-.kitchen__group-foot {
-  display: flex;
-  justify-content: flex-start;
-  padding-top: var(--gb-space-3);
-}
-
 /*
- * Smaller than an order's own buttons, on purpose. A per-order `Delivered` is the action of the
- * service; this is the shortcut for when a whole tray goes at once, and the sizing says which is
- * which without a word.
+ * The bulk action, in the class heading and named after it — `E09-42`.
+ *
+ * `E12-42` had it in a footer under the group's orders. That was right about weight and wrong
+ * about place: a lone pill between the last order of one class and the heading of the next
+ * belongs visually to neither, and Andy read it as appearing once per *order*. Inside the heading
+ * it is unmistakably the class's own control.
+ *
+ * Still quiet — an outline, not the filled primary `E12-42` removed — and smaller than an order's
+ * own buttons, so the sizing says which is the shortcut without a word.
  */
 .kitchen__bulk {
-  min-height: 2.75rem;
-  padding: var(--gb-space-2) var(--gb-space-4);
+  flex: 0 0 auto;
+  min-height: 2.5rem;
+  padding: var(--gb-space-2) var(--gb-space-3);
   font-size: var(--gb-font-size-body-sm);
   border-color: var(--gb-border-strong);
   background: transparent;
   color: var(--gb-text-secondary);
+  white-space: nowrap;
 }
 .kitchen__bulk:hover:not(:disabled) { background: var(--gb-bg-surface-muted); color: var(--gb-text-primary); }
 
@@ -468,7 +493,16 @@
   gap: var(--gb-space-2);
   padding: var(--gb-space-4);
   background: var(--gb-bg-surface);
-  border: var(--gb-border-width-hairline) solid var(--gb-border-subtle);
+  /*
+   * A **stronger** edge than the hairline this had — `E09-42`.
+   *
+   * Andy, 2026-09-09: *"Make each order stand out as a separate order a bit more."* On a phone
+   * the cards are full-bleed and a 1px `--gb-border-subtle` line on white against a near-white
+   * canvas is close to invisible, so eight orders read as one long column of text. The border is
+   * the strong token and the radius is larger, which is the cheapest way to make "this is one
+   * order" survive being scrolled past.
+   */
+  border: var(--gb-border-width-default) solid var(--gb-border-strong);
   border-radius: var(--gb-radius-lg);
 }
 .kitchen__order[data-busy='true'] { opacity: var(--gb-opacity-pressed); }
@@ -482,19 +516,21 @@
 }
 
 /**
- * The order number, monospaced and tabular.
+ * **When the food is due** — the line that replaced the order reference in `E09-42`.
  *
- * Its job is to be **matched against a label on a bag**, not read as a word, and a proportional
- * font makes `GB-APGY7Q` and `GB-APGY70` look alike at arm's length. It was not on this screen at
- * all until `E12-42`, despite `order_ref` being read from the server the whole time.
+ * `.kitchen__ref` was here, rendering `order_ref` in monospace as the most prominent thing on
+ * every card. Andy, 2026-09-09: *"there is a weird code printed (example - GB-WR1HGZ)… if that
+ * code is not usable please remove it. Which break the order is for will be helpful instead."*
+ *
+ * Tabular figures so a column of times lines up on the colon, which is what makes a list of them
+ * scannable rather than read one by one.
  */
-.kitchen__ref {
-  /* The same stack `/admin/people` uses for the account id — there is no mono design token. */
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+.kitchen__when {
   font-size: var(--gb-font-size-body-strong);
   font-weight: var(--gb-font-weight-h1);
   font-variant-numeric: tabular-nums;
   color: var(--gb-text-primary);
+  white-space: nowrap;
 }
 
 /* "2 items" — the kitchen lead's own words, and derived from the lines below rather than stored. */
@@ -584,6 +620,16 @@
  * whole distinction it exists to draw.
  */
 .kitchen__act--main {
+  /*
+   * First, at every width — `E09-42`.
+   *
+   * `allowedActions` returns lifecycle order (`preparing, delivered, cancelled`), so the DOM puts
+   * `Start` before `Delivered`. `E09-37` ranked `Delivered` first because it is the action taken
+   * on nineteen orders in twenty, but the rule that did it lived inside the phone media query —
+   * so the ranking held on a phone and quietly did not on the desktop the screen was designed
+   * for. Same intent, applied once, at both widths.
+   */
+  order: -1;
   border-color: var(--gb-action-secondary-fg);
   color: var(--gb-action-secondary-fg);
   background: var(--gb-action-secondary-bg);
@@ -1012,24 +1058,55 @@
   .kitchen__totals { flex-wrap: wrap; overflow-x: visible; flex: 1 1 100%; }
 
   /*
-   * Delivered gets a full-width row of its own, first; the rarer actions share the row under it.
+   * **All three actions on one row** — `E09-42`, and this reverses the stacking below.
    *
-   * Flex with `order`, not a grid: the number of buttons depends on the order's status — a
-   * delivered order has different actions from one still to make — and a fixed two-column grid
-   * dropped them wherever the count happened to land.
+   * Andy, 2026-09-09: *"review and reduce the size of buttons used to mark status updates
+   * (delivered, start etc) as they are taking almost 40% of real estate of an order."* Measured
+   * at 390px it was worse than that: `Delivered` took a full-width 56px row of its own, `Start`
+   * and `Cancel` a second, and with the gaps that is ~130px of a ~330px card — **two fifths of
+   * every order spent on three buttons**.
+   *
+   * The previous rule was right for its moment and is wrong now. It reasoned that "the button
+   * pressed nineteen times out of twenty should be the one you cannot miss with a thumb", which
+   * was true when the card was a horizontal row and the buttons were all you could see. Now the
+   * card is four legible bands and the buttons are the last of them; making one of them span the
+   * width buys nothing and costs the order above it.
+   *
+   * `Delivered` keeps its rank by staying **first** and keeping its tinted ground — rank without
+   * bulk, the same trade `E12-42` made when it stopped being a filled primary.
    */
   .kitchen__actions { display: flex; flex-wrap: wrap; gap: var(--gb-space-2); width: 100%; }
-  .kitchen__actions > .kitchen__btn { flex: 1 1 calc(50% - var(--gb-space-2)); }
-  /* `1 0 100%` — no shrink. With `1 1 100%` it collapsed onto the same row as Start, which is
-   * the compact outcome and the wrong one: the button pressed nineteen times out of twenty
-   * should be the one you cannot miss with a thumb. */
+  .kitchen__actions > .kitchen__btn {
+    flex: 1 1 auto;
+    /*
+     * 44px, not the 56px this file sets everywhere else.
+     *
+     * The 56px floor is a deliberate departure from the 48px design-token minimum, for wet hands
+     * in a hurry, and it stays on everything that is *one* control on a screen — the day nav, the
+     * filter line, Refresh. Here there are three side by side on a 390px phone, and 56 is what
+     * made them eat the card. 44px is the WCAG 2.5.5 AAA target size and the platform minimum on
+     * both iOS and Android, so this is still above the accessible floor and comfortably tappable;
+     * it is a considered reduction, not a slip below the standard.
+     */
+    min-height: 2.75rem;
+    padding-inline: var(--gb-space-3);
+    font-size: var(--gb-font-size-body-sm);
+  }
   /*
-   * Selected through the parent so it out-specifies `.kitchen__actions > .kitchen__btn` above.
-   * As a bare class it lost — (0,1,0) against (0,2,0) — and Delivered quietly shared a row with
-   * Start, which is the compact outcome and the wrong one. Second specificity bug of the night;
-   * both were invisible in the code and obvious in the render.
+   * The card's first line has to hold all three of its parts — `E09-42`.
+   *
+   * At 390px `10:30–11:00 am` + `1 item` + the status pill overflowed by a few pixels, so the
+   * pill wrapped to a line of its own and every card grew by ~40px for one word. Tightening the
+   * gap and the pill's padding is the whole fix; nothing needed to be dropped.
    */
-  .kitchen__actions > .kitchen__act--main { order: -1; flex: 1 0 100%; }
+  .kitchen__order-head { gap: var(--gb-space-2); }
+  .kitchen__order-head .kitchen__pill { padding: var(--gb-space-1) var(--gb-space-3); }
+
+  /*
+   * The bulk action is the class's shortcut, not its headline. On a phone it wraps to its own
+   * row under the heading, where at full pill size it read as the primary thing to do.
+   */
+  .kitchen__bulk { min-height: 2.25rem; font-size: var(--gb-font-size-caption); }
 }
 
 /* ---------------------------------------------------------------------------------------------

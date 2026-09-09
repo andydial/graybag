@@ -399,6 +399,51 @@ export async function fetchKitchenSchools(): Promise<KitchenSchool[]> {
   return schools;
 }
 
+/** A break window, as the kitchen needs to read it: a name and the clock times it covers. */
+export interface KitchenBreakWindow {
+  id: string;
+  label: string;
+  /** `HH:MM:SS` from a Postgres `time` column. */
+  startsAt: string;
+  endsAt: string;
+}
+
+/**
+ * The break windows, so the board can say **when** rather than "second break" — `E09-42`.
+ *
+ * Andy, 2026-09-09: *"The break (ideally) should be the times (either that it starts or the
+ * interval) and not as first break or second break."* The order carries only
+ * `break_label_snapshot`, which is a name — and the names are worse than useless here, because
+ * Amity's labels currently hold time ranges while other schools' hold words, so the same column
+ * reads as two different kinds of fact depending on the school.
+ *
+ * **A separate read rather than an embed on the orders query, and that is the whole point.** An
+ * embed shares the orders query's fate: if `break_time` were ever unreadable for this operator the
+ * *entire board* would fail, and a kitchen with no order list at 7am is the worst outcome this
+ * screen has. Read separately, the caller can let it fail and fall back to the snapshot label —
+ * which is what `live.ts` does. Times are a nicety; the order list is not.
+ *
+ * No `school_id` filter: RLS already scopes `break_time` to what this account may see, and the
+ * board mixes schools. Filtering here would mean one request per school on a kitchen connection.
+ */
+export async function fetchKitchenBreakWindows(): Promise<KitchenBreakWindow[]> {
+  const rows = await runQuery<unknown>((t) =>
+    t.from('break_time').select('id,label,starts_at,ends_at').order('sort_order'),
+  );
+
+  const windows: KitchenBreakWindow[] = [];
+  for (const row of rows) {
+    if (!isRecord(row)) continue;
+    const id = str(row.id);
+    const startsAt = str(row.starts_at);
+    const endsAt = str(row.ends_at);
+    // A window without both ends cannot be rendered as an interval, and half a time range is
+    // more confusing than none — the caller falls back to the snapshot label for these.
+    if (id && startsAt && endsAt) windows.push({ id, label: str(row.label) ?? '', startsAt, endsAt });
+  }
+  return windows;
+}
+
 export interface KitchenStatusResult {
   updated: string[];
   /** Already in the target state. Not a failure — see the function's idempotency note. */

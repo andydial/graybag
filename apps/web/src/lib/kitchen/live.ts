@@ -33,10 +33,19 @@ export function liveTransport(): KitchenTransport {
 
       // Both reads together: the grants decide which controls exist, and a screen that renders
       // the list before it knows would flash buttons the operator may not use.
-      const [orders, held, schools] = await Promise.all([
+      const [orders, held, schools, windows] = await Promise.all([
         api.fetchKitchenOrders(filters.serviceDate),
         api.fetchMyCapabilities(),
         api.fetchKitchenSchools(),
+        /*
+         * The break windows, and **the only read on this screen allowed to fail** — `E09-42`.
+         *
+         * It exists so the board can say `10:30–11:00 am` instead of "second break". That is a
+         * readability improvement, not the job: a kitchen with no order list at 7am is the worst
+         * outcome this screen has, and it must not be reachable because a lookup table was
+         * briefly unreadable. `breakDisplay` falls back to the order's own snapshotted label.
+         */
+        api.fetchKitchenBreakWindows().catch(() => []),
       ]);
 
       /**
@@ -79,6 +88,9 @@ export function liveTransport(): KitchenTransport {
         orders,
         schools: offered.map(({ id, name }) => ({ id, name })),
         breaks: [...breaks].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label)),
+        breakWindows: new Map(
+          windows.map((w) => [w.id, { startsAt: w.startsAt, endsAt: w.endsAt }]),
+        ),
         // The moment the data was read, not the moment it is rendered. The offline banner quotes
         // this verbatim and must never be able to say "just now" about a list from 07:12.
         loadedAt: new Date().toISOString(),

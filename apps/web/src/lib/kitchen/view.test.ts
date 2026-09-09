@@ -7,10 +7,12 @@ import {
   applyFilters,
   boardState,
   allergenBadges,
+  breakDisplay,
   classSection,
   countLine,
   dayProgress,
   filterSummary,
+  formatBreakWindow,
   groupByDish,
   serviceDateToday,
   describeDate,
@@ -682,5 +684,69 @@ describe('dayProgress', () => {
 
   it('names the whole when the whole is done', () => {
     expect(dayProgress([order({ id: 'a', status: 'delivered' })])).toBe('All 1 delivered');
+  });
+});
+
+/**
+ * The break, as a time rather than a name — `E09-42`.
+ *
+ * Andy, 2026-09-09: *"The break (ideally) should be the times (either that it starts or the
+ * interval) and not as first break or second break."*
+ */
+describe('formatBreakWindow', () => {
+  it('prints the interval, not just the start', () => {
+    // "When does this need to be at the classroom by" is half the question a start time answers.
+    expect(formatBreakWindow('10:30:00', '11:00:00')).toBe('10:30–11:00 am');
+  });
+
+  it('prints the meridiem once when both ends share it', () => {
+    expect(formatBreakWindow('13:05:00', '13:35:00')).toBe('1:05–1:35 pm');
+  });
+
+  it('prints it on both ends across noon, which is the case that actually occurs', () => {
+    expect(formatBreakWindow('11:45:00', '12:15:00')).toBe('11:45 am–12:15 pm');
+  });
+
+  it('renders noon and midnight as 12, not 0', () => {
+    expect(formatBreakWindow('12:00:00', '12:30:00')).toBe('12:00–12:30 pm');
+    expect(formatBreakWindow('00:05:00', '00:20:00')).toBe('12:05–12:20 am');
+  });
+
+  it('accepts a time with no seconds, which is what some rows carry', () => {
+    expect(formatBreakWindow('09:00', '09:20')).toBe('9:00–9:20 am');
+  });
+
+  it('returns null for anything that is not a clock time', () => {
+    // Never a `Date`: a Postgres `time` has no date and no zone, and putting it through `new
+    // Date()` invents both. This codebase has been bitten by exactly that twice.
+    expect(formatBreakWindow('', '11:00:00')).toBeNull();
+    expect(formatBreakWindow('Morning break', '11:00:00')).toBeNull();
+    expect(formatBreakWindow('25:00:00', '26:00:00')).toBeNull();
+    expect(formatBreakWindow('10:75:00', '11:00:00')).toBeNull();
+  });
+});
+
+describe('breakDisplay', () => {
+  const windows = new Map([['b1', { startsAt: '10:30:00', endsAt: '11:00:00' }]]);
+
+  it('prefers the times', () => {
+    expect(breakDisplay({ breakId: 'b1', breakLabel: 'Morning break' }, windows)).toBe('10:30–11:00 am');
+  });
+
+  it('falls back to the snapshot label when the window read gave us nothing', () => {
+    // That read is allowed to fail. A board that lost its break column because one query 500'd
+    // would be worse than one saying "Morning break".
+    expect(breakDisplay({ breakId: 'b9', breakLabel: 'Morning break' }, windows)).toBe('Morning break');
+    expect(breakDisplay({ breakId: 'b1', breakLabel: 'Morning break' }, new Map())).toBe('Morning break');
+  });
+
+  it('is null when there is neither, which is a real state', () => {
+    // `break_label_snapshot` is nullable and a school may have no windows at all.
+    expect(breakDisplay({ breakId: null, breakLabel: null }, windows)).toBeNull();
+  });
+
+  it('falls back on a window whose times are unusable rather than showing half a range', () => {
+    const broken = new Map([['b1', { startsAt: 'nonsense', endsAt: '11:00:00' }]]);
+    expect(breakDisplay({ breakId: 'b1', breakLabel: 'Morning break' }, broken)).toBe('Morning break');
   });
 });

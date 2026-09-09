@@ -62,6 +62,61 @@ export function classSection(order: Pick<KitchenOrder, 'classLabel' | 'sectionLa
 }
 
 /**
+ * A break window as a kitchen reads it: `10:30–11:00 am` — `E09-42`.
+ *
+ * Andy, 2026-09-09: *"The break (ideally) should be the times (either that it starts or the
+ * interval) and not as first break or second break."*
+ *
+ * The interval, not just the start, because the question in a kitchen is *when does this need to
+ * be at the classroom by* — a start time alone answers half of it.
+ *
+ * The meridiem is printed **once** when both ends share it (`10:30–11:00 am`) and on both when
+ * they do not (`11:45 am–12:15 pm`). A break straddling noon is the one case where dropping the
+ * first is wrong, and it is exactly the case that occurs in a school day.
+ *
+ * Input is a Postgres `time` — `HH:MM:SS` — parsed by hand rather than through `Date`. A `time`
+ * has no date and no zone; putting it through `new Date()` invents both, and this codebase has
+ * already been bitten twice by that (`shiftDate`, `describeDate`).
+ */
+export function formatBreakWindow(startsAt: string, endsAt: string): string | null {
+  const start = clockParts(startsAt);
+  const end = clockParts(endsAt);
+  if (!start || !end) return null;
+  return start.meridiem === end.meridiem
+    ? `${start.time}–${end.time} ${end.meridiem}`
+    : `${start.time} ${start.meridiem}–${end.time} ${end.meridiem}`;
+}
+
+/** `13:05:00` → `{ time: '1:05', meridiem: 'pm' }`, or `null` when it is not a clock time. */
+function clockParts(raw: string): { time: string; meridiem: 'am' | 'pm' } | null {
+  const match = /^(\d{1,2}):(\d{2})/.exec(raw.trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || hours > 23 || minutes > 59) return null;
+  // 0 and 12 both render as 12 — midnight is 12 am, noon is 12 pm.
+  const twelve = hours % 12 === 0 ? 12 : hours % 12;
+  return { time: `${twelve}:${match[2]}`, meridiem: hours < 12 ? 'am' : 'pm' };
+}
+
+/**
+ * What to show for an order's break: the times if we have them, else the snapshotted label.
+ *
+ * **Falls back rather than failing.** The times come from a separate read that is allowed to fail
+ * (`fetchKitchenBreakWindows`), and a board that lost its break column because one query 500'd
+ * would be worse than one saying "Morning break". `null` when there is neither, which is a real
+ * state — `break_label_snapshot` is nullable and a school may have no windows at all.
+ */
+export function breakDisplay(
+  order: Pick<KitchenOrder, 'breakId' | 'breakLabel'>,
+  windows: ReadonlyMap<string, { startsAt: string; endsAt: string }>,
+): string | null {
+  const window = order.breakId ? windows.get(order.breakId) : undefined;
+  const times = window ? formatBreakWindow(window.startsAt, window.endsAt) : null;
+  return times ?? order.breakLabel ?? null;
+}
+
+/**
  * How many items are in one order — `E12-42`.
  *
  * The kitchen lead's own words: *"it should simply mention order no X, 2 items, item names."*
@@ -171,17 +226,16 @@ export function groupByClass(orders: KitchenOrder[]): ClassGroup[] {
 export interface DishPortion {
   orderId: string;
   /**
-   * The order's human number — `E12-42`.
+   * The break this portion is due at, already formatted — `E09-42`.
    *
-   * Carried so both groupings name an order the same way. `orderId` is a uuid and identifies the
-   * row; `orderRef` is what is printed on the bag, and it is the only one of the two a person can
-   * match against anything physical.
+   * Replaces `orderRef` and `breakLabel`. The reference was removed from both groupings (Andy,
+   * 2026-09-09: *"we don't know what that represents or why it's there"*), and the label was
+   * replaced by the times it stands for.
    */
-  orderRef: string;
+  breakWindow: string | null;
   recipientName: string;
   schoolName: string;
   classLabel: string;
-  breakLabel: string | null;
   quantity: number;
   note: string | null;
   status: KitchenStatus;
@@ -212,7 +266,10 @@ export interface DishGroup {
  *
  * Ordered by quantity descending: the biggest batch is the one to start.
  */
-export function groupByDish(orders: KitchenOrder[]): DishGroup[] {
+export function groupByDish(
+  orders: KitchenOrder[],
+  windows: ReadonlyMap<string, { startsAt: string; endsAt: string }> = new Map(),
+): DishGroup[] {
   const groups = new Map<string, DishGroup>();
 
   for (const order of orders) {
@@ -235,11 +292,10 @@ export function groupByDish(orders: KitchenOrder[]): DishGroup[] {
       group.quantity += line.quantity;
       group.portions.push({
         orderId: order.id,
-        orderRef: order.orderRef,
+        breakWindow: breakDisplay(order, windows),
         recipientName: order.recipientName,
         schoolName: order.schoolName,
         classLabel: classSection(order),
-        breakLabel: order.breakLabel,
         quantity: line.quantity,
         note: line.note,
         status: order.status,

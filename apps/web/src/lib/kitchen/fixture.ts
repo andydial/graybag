@@ -35,9 +35,16 @@ const CLASSES = [
   { label: '6', section: 'A' },
 ];
 
+/**
+ * Real clock times, because `E09-42` renders the interval rather than the name.
+ *
+ * The lunch window deliberately straddles noon: that is the one case where the meridiem cannot be
+ * printed once, and a fixture that never exercises it would leave the demo state agreeing with a
+ * bug.
+ */
 const BREAKS = [
-  { id: 'b7000000-0000-0000-0000-000000000001', label: 'Morning break' },
-  { id: 'b7000000-0000-0000-0000-000000000002', label: 'Lunch break' },
+  { id: 'b7000000-0000-0000-0000-000000000001', label: 'Morning break', startsAt: '10:30:00', endsAt: '11:00:00' },
+  { id: 'b7000000-0000-0000-0000-000000000002', label: 'Lunch break', startsAt: '11:45:00', endsAt: '12:15:00' },
 ];
 
 const DISHES = [
@@ -128,7 +135,8 @@ export function fixtureDay(
     // Every school, exactly as `liveTransport` now does: the list comes from the `school` table
     // and not from the day's orders, so the filter does not appear and disappear with the data.
     schools: SCHOOLS,
-    breaks: BREAKS,
+    breaks: BREAKS.map(({ id, label }) => ({ id, label })),
+    breakWindows: new Map(BREAKS.map((b) => [b.id, { startsAt: b.startsAt, endsAt: b.endsAt }])),
     loadedAt,
   };
 }

@@ -48,7 +48,7 @@ const { current, title, subtitle } = Astro.props;
 ---
 
 <div class="bo">
-  <nav class="bo__nav" aria-label="Back office" data-bonav data-nav-current={current}>
+  <nav class="bo__nav" aria-label="Back office" data-bonav data-menu="closed" data-nav-current={current}>
     <!--
       The real mark, not a lime square.
 
@@ -62,16 +62,34 @@ const { current, title, subtitle } = Astro.props;
     </a>
 
     <!--
+      The menu is a disclosure on a phone and a rail on a desktop — `E09-42`.
+
+      Andy, 2026-09-09: *"Many people are monitoring Kitchen tab for orders on Mobile but the
+      screen is only optimised for Desktop… Make Menu at top collapsible."* Below 60rem the nav
+      already reflowed from a tall rail into a wrapped row, which at 390px is fourteen links and
+      an account block occupying the top of the screen before a single order.
+
+      The button exists only under that breakpoint (CSS), so on a desktop the rail is simply
+      always open and this is inert. `data-menu` starts `closed`, which matters for the no-JS and
+      slow-JS cases: the collapsing rule is scoped to the attribute, so a phone gets a closed menu
+      immediately rather than a flash of the full list.
+    -->
+    <button class="bo__menu" type="button" data-nav-toggle aria-expanded="false" aria-controls="bo-menu-panel">
+      <span aria-hidden="true">☰</span> Menu
+    </button>
+
+    <!--
       Empty on purpose. `shell.ts` fills it with the links this reader may use and nothing else —
       see the note above on why the list is not in the document.
     -->
-    <div data-nav-rail></div>
+    <div class="bo__menu-panel" id="bo-menu-panel">
+      <div data-nav-rail></div>
 
     <!--
       Who is signed in, and as what. The old back office never said — you could be looking at a
       kitchen operator's view and a platform admin's and not be able to tell them apart.
     -->
-    <p class="bo__who" data-nav-who hidden><b data-nav-email></b><span data-nav-role></span></p>
+      <p class="bo__who" data-nav-who hidden><b data-nav-email></b><span data-nav-role></span></p>
 
     <!--
       Sign out — `E12-42`, and it had gone missing.
@@ -87,7 +105,8 @@ const { current, title, subtitle } = Astro.props;
       a service. `hidden` until `shell.ts` confirms there is a session — a Sign out button on a
       page nobody is signed in to is an offer to do nothing.
     -->
-    <button class="bo__signout" type="button" data-nav-signout hidden>Sign out</button>
+      <button class="bo__signout" type="button" data-nav-signout hidden>Sign out</button>
+    </div>
   </nav>
 
   <div class="bo__main">
