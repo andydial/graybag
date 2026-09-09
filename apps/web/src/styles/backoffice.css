@@ -680,6 +680,15 @@
  * It stays visible: the whole point of the sidebar is that where you are and where you can go are
  * always on screen. A menu you have to open is what this replaced.
  */
+/*
+ * The Menu button exists **only** below the breakpoint — `E09-42`.
+ *
+ * On a desktop the rail is always open and a disclosure would be a control that never usefully
+ * closes anything. `display: none` here rather than `hidden` in the markup, so there is no state
+ * to keep in step and no flash of a button that is about to vanish.
+ */
+.bo__menu { display: none; }
+
 @media (width < 60rem) {
   .bo { flex-direction: column; }
 
@@ -693,14 +702,46 @@
     padding: var(--gb-space-2) var(--gb-space-3);
   }
 
-  .bo__brand { padding: 0 var(--gb-space-2) 0 0; }
+  .bo__brand { padding: 0 var(--gb-space-2) 0 0; margin-right: auto; }
   /* The group labels are a scanning aid on a tall rail and noise on one line. */
   .bo__group { display: none; }
   .bo__link { width: auto; }
-  .bo__who { margin: 0 0 0 auto; border-top: 0; padding: 0 var(--gb-space-2); }
+  .bo__who { margin: 0; border-top: 0; padding: var(--gb-space-2); }
   .bo__who b { display: inline; }
   .bo__top { padding: var(--gb-space-3) var(--gb-space-4); }
   .bo .pad, .bo .toolbar { padding-left: var(--gb-space-4); padding-right: var(--gb-space-4); }
+
+  /*
+   * The disclosure. 44px so it is a real touch target — this is the only way to the rest of the
+   * back office on a phone.
+   */
+  .bo__menu {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--gb-space-2);
+    min-height: 44px;
+    padding: var(--gb-space-2) var(--gb-space-3);
+    font: inherit;
+    font-size: var(--gb-font-size-body-sm);
+    font-weight: var(--gb-font-weight-body-strong);
+    color: rgb(255 255 255 / 92%);
+    background: transparent;
+    border: var(--gb-border-width-hairline) solid rgb(255 255 255 / 30%);
+    border-radius: var(--gb-radius-sm);
+    cursor: pointer;
+  }
+  .bo__menu:focus-visible { outline: var(--gb-border-width-emphasis) solid rgb(255 255 255 / 90%); outline-offset: 2px; }
+
+  /* The panel takes the full row under the brand, so the links are not squeezed beside it. */
+  .bo__menu-panel {
+    flex: 1 1 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding-top: var(--gb-space-2);
+  }
+  .bo__nav[data-menu='closed'] .bo__menu-panel { display: none; }
+  .bo__signout { margin: var(--gb-space-2) 0 0; }
 }
 
 /* ------------------------------------------------- the menu card (`E10-49`) */

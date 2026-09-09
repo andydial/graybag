@@ -4022,13 +4022,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/41</span>
+          <span class="meter-num">0/42</span>
         </div>
       </header>
       <p class="summary">What the kitchen actually needs at 7am, plus the two delivery mechanisms and a permission split that lets a Delivery role exist later.</p>
       <p class="deps">Depends on <code>E02</code> <code>E05</code></p>
       <details>
-        <summary>Context &amp; 41 tasks</summary>
+        <summary>Context &amp; 42 tasks</summary>
         <div class="context"><h4>Context</h4>
 <p>Kitchen staff today log in via &quot;Admin Login&quot; on the website and see all orders. Kitchens serve multiple schools. The delivery function may later be handled by a separate party, so <code>orders.mark_delivered</code> is a distinct permission from refund and financial access.</p></div>
         <ul class="tasks">
@@ -4359,6 +4359,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Allergen badges in the dish grouping.</strong> They are on the class grouping because that is the *handover* view — somebody is about to put a bag into a named child&#39;s hands. The dish grouping is the *cooking* view and has never shown them. Adding them is defensible on its own merits and was deliberately <strong>not</strong> smuggled into <code>E09-40</code>, which was asked to re-lay-out the screen rather than re-scope it (*&quot;don&#39;t change what&#39;s visible, only how it&#39;s laid out&quot;*). <code>DishPortion</code> would need <code>allergenCodes</code> carrying through <code>groupByDish</code>, which is one line; the question worth answering first is whether a cook plating ten wraps is helped or desensitised by ten badges</span>
+      </li>
+      <li class="task" data-id="E09-42" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E09-42"></button>
+        <code class="tid">E09-42</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The kitchen board on a phone, and the break it is due at.</strong> Andy, 2026-09-09: *&quot;Many people are monitoring Kitchen tab for orders on Mobile but the screen is only optimised / designed for Desktop.&quot;* Six changes, all from that message. <strong>(1) The order reference is gone and the break time is in its place.</strong> *&quot;There is a weird code printed (example - GB-WR1HGZ)… if that code is not usable please remove it.&quot;* It <strong>was</strong> usable — <code>order_ref</code> is what a parent sees on their confirmation and invoice, and it is what <code>E12-42</code> added on the kitchen lead&#39;s *&quot;it should simply mention order no X&quot;* — but not <strong>here</strong>: nobody hands a bag to a reference, they hand it to a named child, and it was taking the most prominent line on every card to answer a question this screen is never asked. It stays on <code>/orders</code>, where somebody is answering *&quot;where is order GB-WR1HGZ&quot;*. <strong>(2) The break is the times, not the name</strong> — *&quot;the times (either that it starts or the interval) and not as first break or second break&quot;*. The order carries only <code>break_label_snapshot</code>, so <code>fetchKitchenBreakWindows</code> reads <code>break_time</code> <strong>as a separate query that is allowed to fail</strong>: an embed on the orders query would share its fate, and a kitchen with no order list at 7am is the worst outcome this screen has. <code>breakDisplay</code> falls back to the snapshot label, so a failed lookup costs a nicety and not the board. <code>formatBreakWindow</code> prints the meridiem once when both ends share it and on both when they do not — a break straddling noon is the case that actually occurs, and the fixture now contains one so the demo state cannot agree with a bug. Parsed by hand, never through <code>Date</code>: a Postgres <code>time</code> has no date and no zone, and this codebase has been bitten by inventing them twice. <strong>(3) The buttons stop eating the card.</strong> Measured at 390px: <code>Delivered</code> took a full-width 56px row, <code>Start</code> and <code>Cancel</code> a second — ~130px of a ~330px card, <strong>two fifths of every order</strong>. All three now share one row at <strong>44px</strong>, which is the WCAG 2.5.5 AAA target and the iOS/Android minimum; the 56px floor stays on controls that are alone on the screen. <code>Delivered</code> keeps its rank by staying first and tinted — and that ranking moved out of the phone media query, where it had been silently *not* applying on the desktop the screen was designed for. <strong>(4) The menu collapses.</strong> Below 60rem the rail was already a wrapped row, which at 390px is fourteen links before a single order; it is now a <code>Menu</code> disclosure, closed by default via an attribute so there is no flash of the full list. <strong>(5) &quot;Everything to cook today&quot; says so</strong> — it was an unlabelled strip of numbers on the same surface, border and radius as an order card, with its name in an <code>aria-label</code> where only a screen reader could reach it. <strong>(6) <code>Mark all delivered</code> moved into the class heading.</strong> *&quot;To mark ALL delivered you would need that button to appear once instead of once after every order.&quot;* It <strong>was</strong> once per class, but a lone pill between the last order of one class and the heading of the next belongs visually to neither, and on a phone the heading has scrolled away by the time you reach it. Inside the heading it names what it acts on. Orders also got a stronger border, because a hairline on white against a near-white canvas is invisible on a phone and eight of them read as one column of text. 22 pages, 0 a11y violations at 390px; 618 tests</span>
       </li></ul>
       </details>
     </article>

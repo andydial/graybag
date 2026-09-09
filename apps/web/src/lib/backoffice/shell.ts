@@ -168,7 +168,36 @@ function mountSignOut(): void {
 
 /* ------------------------------------------------------------------ mount */
 
+/**
+ * The phone menu disclosure — `E09-42`.
+ *
+ * Wired unconditionally, including in the demo state: it touches no session and reads no server,
+ * and `check:a11y` walks the page at 390px where this control is the navigation.
+ *
+ * Closing on a link press is not needed — the link navigates and the next page starts closed —
+ * but closing on Escape is, because a panel opened over the board with no keyboard way out is a
+ * trap. Focus returns to the button that opened it.
+ */
+function mountMenuToggle(): void {
+  const nav = q<HTMLElement>('[data-bonav]');
+  const toggle = q<HTMLButtonElement>('[data-nav-toggle]');
+  if (!nav || !toggle) return;
+
+  const set = (open: boolean) => {
+    nav.dataset.menu = open ? 'open' : 'closed';
+    toggle.setAttribute('aria-expanded', String(open));
+  };
+
+  toggle.addEventListener('click', () => set(nav.dataset.menu !== 'open'));
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || nav.dataset.menu !== 'open') return;
+    set(false);
+    toggle.focus();
+  });
+}
+
 export async function mountShell(): Promise<void> {
+  mountMenuToggle();
   q<HTMLElement>('[data-drawer-close]')?.addEventListener('click', closeDrawer);
   q<HTMLElement>('[data-drawer-scrim]')?.addEventListener('click', closeDrawer);
   document.addEventListener('keydown', (event) => {

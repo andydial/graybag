@@ -204,6 +204,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         applyFilters,
         boardState,
         allergenBadges,
+        breakDisplay,
         classSection,
         countLine,
         dayProgress,
@@ -571,9 +572,22 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         // wrapping, so its height is fixed however many dishes are on the menu — the card used
         // to be 178px of a 1080px screen and is now about 80.
         el.summary.innerHTML =
-          `<section class="kitchen__summary" aria-label="To cook${
-            sel.breakId ? `, ${esc(day?.breaks.find((b) => b.id === sel.breakId)?.label ?? '')}` : ''
-          }">` +
+          `<section class="kitchen__summary" aria-labelledby="k-cook-title">` +
+            /*
+             * The block says what it is — `E09-42`.
+             *
+             * Andy, 2026-09-09: *"Make the list of 'Everything to deliver today' bit more clearer
+             * and separated from orders."* It was an unlabelled strip of numbers directly above
+             * the first class heading, with nothing to say it was a different **kind** of thing —
+             * a total for the whole day rather than part of the list. The name was in an
+             * `aria-label`, so a screen reader heard it and nobody else did.
+             */
+            `<h2 class="kitchen__summary-title" id="k-cook-title">` +
+              `Everything to cook today` +
+              (sel.breakId
+                ? ` · ${esc(day?.breaks.find((b) => b.id === sel.breakId)?.label ?? '')}`
+                : '') +
+            `</h2>` +
             // `tabindex="0"` because it scrolls sideways: a scrollable region with nothing
             // focusable inside it cannot be reached by keyboard at all, so the dishes past the
             // right edge would be unreadable without a mouse. Labelled, so it is not an
@@ -670,30 +684,40 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
           .map((g) => {
             const canAct = !offline && g.outstandingIds.length > 0 && Boolean(day?.permissions.markDelivered);
             return (
+              /*
+               * The bulk action moved **into the class heading** — `E09-42`.
+               *
+               * `E12-42` put it in a footer under the group's orders, on the reasoning that an
+               * action belongs below the content it acts on. In use that read wrong: Andy,
+               * 2026-09-09 — *"'Mark ALL delivered' button after each order does not make much
+               * sense to me. To mark ALL delivered you would need that button to appear once
+               * instead of once after every order."* It **was** once per class, but a lone pill
+               * floating between the last order of one class and the heading of the next belongs
+               * visually to neither, and on a phone the class heading has usually scrolled away
+               * by the time you reach it.
+               *
+               * Attached to the heading it is unambiguous: it sits inside the thing it acts on,
+               * and it names it. It is still quiet — a small outline button, not the filled
+               * primary that `E12-42` was right to remove — so "above the content" is no longer
+               * the problem it was when this was the loudest control on the screen.
+               */
               `<section class="kitchen__group" data-state="${groupState(g)}" aria-labelledby="h-${esc(g.key)}">` +
                 `<header class="kitchen__group-head">` +
-                  `<h2 class="kitchen__group-class" id="h-${esc(g.key)}">Class ${esc(g.classLabel)}</h2>` +
-                  `<p class="kitchen__group-where">${esc(g.schoolName)}${g.breakLabel ? ` · ${esc(g.breakLabel)}` : ''}</p>` +
-                  // The group's single counter. Same sentence as the day's, one scope down.
-                  `<p class="kitchen__progress">${esc(groupProgress(g))}</p>` +
+                  `<div class="kitchen__group-lines">` +
+                    `<h2 class="kitchen__group-class" id="h-${esc(g.key)}">Class ${esc(g.classLabel)}</h2>` +
+                    `<p class="kitchen__group-where">${esc(g.schoolName)}</p>` +
+                    // The group's single counter. Same sentence as the day's, one scope down.
+                    `<p class="kitchen__progress">${esc(groupProgress(g))}</p>` +
+                  `</div>` +
+                  (day?.permissions.markDelivered && g.outstandingIds.length > 0
+                    ? `<button class="kitchen__btn kitchen__bulk" data-group="${esc(g.key)}" ${canAct ? '' : 'disabled'}>` +
+                        `Mark all ${g.outstandingIds.length}` +
+                        `<span class="visually-hidden"> in class ${esc(g.classLabel)} delivered</span>` +
+                        `<span aria-hidden="true"> delivered</span>` +
+                      `</button>`
+                    : '') +
                 `</header>` +
                 `<div class="kitchen__orders">${g.orders.map(renderOrder(offline)).join('')}</div>` +
-                /*
-                 * Below the orders, and deliberately quiet.
-                 *
-                 * It is drawn only when it could do something. A permanently disabled
-                 * `Mark all delivered (0)` under a class that is finished is a control teaching
-                 * the operator that controls here do nothing — the same argument `filterOptions`
-                 * makes for not drawing a filter that cannot change the answer.
-                 */
-                (day?.permissions.markDelivered && g.outstandingIds.length > 0
-                  ? `<div class="kitchen__group-foot">` +
-                      `<button class="kitchen__btn kitchen__bulk" data-group="${esc(g.key)}" ${canAct ? '' : 'disabled'}>` +
-                        `Mark all ${g.outstandingIds.length} delivered` +
-                        `<span class="visually-hidden"> in class ${esc(g.classLabel)}</span>` +
-                      `</button>` +
-                    `</div>`
-                  : '') +
               `</section>`
             );
           })
@@ -763,12 +787,27 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
         const label = { preparing: 'Start', delivered: 'Delivered', cancelled: 'Cancel' } as const;
         return (
           `<article class="kitchen__order" data-busy="${busy.has(o.id)}">` +
+            /*
+             * **The order reference is gone, and the break time is in its place** — `E09-42`.
+             *
+             * `E12-42` put `order_ref` at the top of every card, on the kitchen lead's *"it
+             * should simply mention order no X"*. Andy, 2026-09-09, looking at it in use: *"there
+             * is a weird code printed (example - GB-WR1HGZ)… we don't know what that represents
+             * or why it's there."* It is the reference a parent sees on their confirmation and
+             * invoice — real, and useful on `/orders` where somebody is answering *"where is
+             * order GB-WR1HGZ"*. It is not useful **here**: nobody hands a bag to a reference,
+             * they hand it to a named child, and the ref was taking the most prominent line on
+             * every card to answer a question this screen is never asked.
+             *
+             * What replaces it is what the same message asked for: **when the food is due**.
+             */
             `<header class="kitchen__order-head">` +
-              // The number first, and monospaced, because its job is to be matched against a
-              // label on a bag rather than read as a word.
-              `<p class="kitchen__ref">` +
-                `<span class="visually-hidden">Order number </span>${esc(o.orderRef)}` +
-              `</p>` +
+              (breakDisplay(o, day?.breakWindows ?? new Map())
+                ? `<p class="kitchen__when">` +
+                    `<span class="visually-hidden">Break </span>` +
+                    `${esc(breakDisplay(o, day?.breakWindows ?? new Map()) ?? '')}` +
+                  `</p>`
+                : '') +
               `<span class="kitchen__count">${esc(itemCountLabel(o))}</span>` +
               `<span class="kitchen__pill" data-status="${o.status}">` +
                 `<span aria-hidden="true">${({ paid: '○', preparing: '◐', delivered: '✓', cancelled: '✕' })[o.status]}</span>` +
@@ -799,7 +838,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
                    */
                   `<button class="kitchen__btn${a === 'delivered' ? ' kitchen__act--main' : ''}${a === 'cancelled' ? ' kitchen__btn--danger' : ''}" ` +
                   `data-order="${o.id}" data-action="${a}" ${offline || busy.has(o.id) ? 'disabled' : ''}>` +
-                  `${label[a]}<span class="visually-hidden"> ${esc(o.recipientName)}, order ${esc(o.orderRef)}</span></button>`,
+                  `${label[a]}<span class="visually-hidden"> — ${esc(o.recipientName)}</span></button>`,
                 )
                 .join('') +
               /**
@@ -855,7 +894,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
        * of grouping by dish is that you are looking at the line when you make it.
        */
       function renderDishGroups(orders: KitchenDay['orders'], offline: boolean): string {
-        const groups = groupByDish(orders);
+        const groups = groupByDish(orders, day?.breakWindows ?? new Map());
         if (groups.length === 0) return '';
 
         // "5-A" is two different classes when two schools are on the board, and the dish view
@@ -872,19 +911,34 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
               // order is: which order, who it is for, then the food.
               `<section class="kitchen__group" aria-labelledby="d-${esc(g.key)}">` +
                 `<header class="kitchen__group-head">` +
-                  `<h2 class="kitchen__group-class" id="d-${esc(g.key)}">` +
-                    `<span class="kitchen__group-qty">${g.quantity}</span> ${esc(g.dishName)}` +
-                  `</h2>` +
-                  `<p class="kitchen__group-where">${g.portions.length} order${g.portions.length === 1 ? '' : 's'}</p>` +
+                  `<div class="kitchen__group-lines">` +
+                    `<h2 class="kitchen__group-class" id="d-${esc(g.key)}">` +
+                      `<span class="kitchen__group-qty">${g.quantity}</span> ${esc(g.dishName)}` +
+                    `</h2>` +
+                    `<p class="kitchen__group-where">${g.portions.length} order${g.portions.length === 1 ? '' : 's'}</p>` +
+                  `</div>` +
+                  // Same placement as the class grouping — in the heading, naming what it acts on.
+                  (day?.permissions.markDelivered && g.outstandingIds.length > 0
+                    ? `<button class="kitchen__btn kitchen__bulk" data-dish-group="${esc(g.key)}" ${canAct ? '' : 'disabled'}>` +
+                        `Mark all ${g.outstandingIds.length}` +
+                        `<span class="visually-hidden"> orders for ${esc(g.dishName)} delivered</span>` +
+                        `<span aria-hidden="true"> delivered</span>` +
+                      `</button>`
+                    : '') +
                 `</header>` +
                 `<div class="kitchen__orders">` +
                   g.portions
                     .map((portion) =>
                       `<article class="kitchen__order" data-busy="${busy.has(portion.orderId)}">` +
                         `<header class="kitchen__order-head">` +
-                          `<p class="kitchen__ref">` +
-                            `<span class="visually-hidden">Order number </span>${esc(portion.orderRef)}` +
-                          `</p>` +
+                          // Same as the class view — `E09-42`. The reference is gone and the
+                          // break time takes its place; a card must not mean two different
+                          // things in two groupings.
+                          (portion.breakWindow
+                            ? `<p class="kitchen__when">` +
+                                `<span class="visually-hidden">Break </span>${esc(portion.breakWindow)}` +
+                              `</p>`
+                            : '') +
                           `<span class="kitchen__count">${portion.quantity} of this dish</span>` +
                           `<span class="kitchen__pill" data-status="${portion.status}">` +
                             `<span aria-hidden="true">${({ paid: '○', preparing: '◐', delivered: '✓', cancelled: '✕' })[portion.status]}</span>` +
@@ -895,7 +949,7 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
                           `<span class="kitchen__child-name">${esc(portion.recipientName)}</span>` +
                           `<span class="kitchen__child-class">${esc(portion.classLabel)}</span>` +
                           (manySchools ? `<span class="kitchen__child-class">${esc(portion.schoolName)}</span>` : '') +
-                          (portion.breakLabel ? `<span class="kitchen__child-class">${esc(portion.breakLabel)}</span>` : '') +
+
                           /*
                            * **No allergen badges here, and that is deliberate.**
                            *
@@ -918,14 +972,6 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
                     )
                     .join('') +
                 `</div>` +
-                (day?.permissions.markDelivered && g.outstandingIds.length > 0
-                  ? `<div class="kitchen__group-foot">` +
-                      `<button class="kitchen__btn kitchen__bulk" data-dish-group="${esc(g.key)}" ${canAct ? '' : 'disabled'}>` +
-                        `Mark all ${g.outstandingIds.length} delivered` +
-                        `<span class="visually-hidden"> for ${esc(g.dishName)}</span>` +
-                      `</button>` +
-                    `</div>`
-                  : '') +
               `</section>`
             );
           })

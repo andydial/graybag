@@ -117,6 +117,15 @@ export interface KitchenDay {
   /** Everything that could be filtered *to*, so the controls do not have to guess. */
   schools: { id: string; name: string }[];
   breaks: { id: string; label: string }[];
+  /**
+   * Clock times per break id, so the board can say `10:30–11:00 am` rather than "second break"
+   * (`E09-42`).
+   *
+   * **Empty is a supported state, not a failure.** It is filled by a read that is deliberately
+   * allowed to fail, and `breakDisplay` falls back to the order's snapshotted label. Times are a
+   * nicety; the order list is not.
+   */
+  breakWindows: Map<string, { startsAt: string; endsAt: string }>;
   /** When this data was read. Shown verbatim when offline — never "just now". */
   loadedAt: string;
 }
