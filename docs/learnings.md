@@ -19,6 +19,57 @@ Format — newest first:
 
 ---
 
+## 2026-09-10 — A required field, omitted, and a test suite that never took the normal path
+
+**Context:** `E15-24`. Andy asked why `cart_started` had fired for 2 people in 30 days while
+`add_to_cart_tapped` fired for 13, and why `signin_started` (2) could possibly be lower than
+`signin_completed` (18).
+
+**What happened:** Both numbers had one cause. `capture` built its payload as
+
+```js
+...(distinctId === null ? {} : { distinct_id: distinctId })
+```
+
+so while nobody was identified, the event went out with **no `distinct_id` at all**. PostHog's
+capture API requires it. Our `fetch` got a `200`, the client reported nothing, and the event was
+discarded at the far end. Every event a parent sent before signing in — for thirty days.
+
+The two symptoms follow exactly. `signin_started` fires on the sign-in screen, which is signed out
+by definition. `cart_started` fires on the 0→1 cart transition, and `AR7` has the cart filling
+before the gate — so the *later* adds landed (the parent had signed in by then) and the first one
+never did.
+
+**Cause:** A required field made conditional, plus a monitoring gap: the client has an `onReject`
+path for events the allowlist refuses and **no path at all** for events the vendor drops. Local
+validation passing was mistaken for delivery.
+
+**And the tests passed the whole time.** Every test in `client.test.ts` called `identify()` before
+`capture()`. The signed-out branch — the normal case for this product — was never once exercised.
+The suite was thorough about what it covered and silent about the majority path.
+
+**Fix / rule:**
+
+- **Read the vendor's required fields, and make them unconditional.** A field the API requires is
+  not a field to spread conditionally. If it can be absent, the absence needs a branch that says
+  what happens — not an object spread that quietly produces a different shape.
+- **When a metric looks impossible, the instrumentation is the suspect, not the users.**
+  `signin_completed` > `signin_started` cannot happen in reality. One HogQL query —
+  `select event, count(), count(distinct person_id), count(distinct distinct_id) ... group by event`
+  — showed `distinct_ids` equal to `persons` for every event, which is the fingerprint of *no
+  anonymous event has ever arrived*. That was five minutes and it replaced a day of guessing.
+- **Test the path most users take, not the path the fixture makes convenient.** `identify()` first
+  is the tidy setup; signed-out is the product. Ask which branch the tests never enter.
+- **Read the funnel as a sequence for one real user before trusting its order.** Querying every
+  event for the person who actually paid showed sign-in happening *at the gate* after
+  `place_order_tapped`, `menu_browsed` arriving *after* `add_to_cart_tapped`, and
+  `payment_completed` with no `payment_started` at all — the last because the handset left for a
+  UPI app and the in-memory buffer died with the process. None of that is visible in aggregate
+  counts, and all of it changes what the funnel means.
+- **A tap is not a step.** `place_order_tapped` fires three and four times in a row from one
+  frustrated parent. Anything used as a denominator must be emitted where the *work* starts, not
+  where the finger lands.
+
 ## 2026-09-08 — The promote gate was open the whole time, and its test proved the wrong thing
 
 **Context:** Promoting `E12-42`/`E09-40`. Before merging the promotion PR I checked what was

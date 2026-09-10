@@ -241,6 +241,8 @@ export {
   currentUser,
   linkingPolicy,
   looksLikeEmail,
+  looksLikeFirstSignIn,
+  NEW_ACCOUNT_WINDOW_MS,
   normaliseEmail,
   sendEmailOtp,
   signOut,

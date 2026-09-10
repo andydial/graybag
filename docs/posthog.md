@@ -101,9 +101,50 @@ Autocapture is off; nothing is sent that is not on this list.**
 | `child_added` | `POST /recipients` returns 201 | *(none — see below)* |
 | `menu_browsed` | A school's menu renders with items | `item_count` (int, bucketed) |
 | `cart_started` | First line added to an empty cart | `line_count` (int) |
-| `payment_started` | The Razorpay sheet opens | `attempt_no` (int), `resumed` (bool) |
-| `payment_completed` | `checkout-status` returns `paid` | *(none — the settlement response does not carry the attempt, and a hardcoded `1` would be a lie for a resumed payment; ask `payment_started`)* |
+| `payment_started` | The Razorpay sheet opens | `attempt_no` (int), `resumed` (bool), `order_value_inr` (int), `item_count` (int), `school_id`, `is_first_order` (bool), `days_until_delivery` (int) |
+| `payment_completed` | `checkout-status` returns `paid` | `order_value_inr` (int), `item_count` (int), `school_id`, `is_first_order` (bool), `days_until_delivery` (int) — still **no `attempt_no`**: the settlement response does not carry it and a hardcoded `1` would be a lie for a resumed payment; ask `payment_started` |
 | `payment_abandoned` | Sheet dismissed, or checkout expired | `reason` (`dismissed` \| `expired` \| `failed`) |
+
+### `E15-24` — the events the funnel was missing (2026-09-10)
+
+Andy: the funnel carried `app_env`, `app_version` and `platform` and nothing else, so it held
+**no revenue, no school and no basket size anywhere in it** — "which schools are converting" and
+"what is an order worth" could not be asked at all. And it recorded that parents dropped off
+without recording *why*.
+
+| Event | Fires | Properties |
+|---|---|---|
+| `signup_started` | The sign-in screen is reached and this install holds no session | `method` |
+| `signup_completed` | A verified OTP created the account — `AuthUser.isNewAccount` | `method` |
+| `order_blocked` | The cart cannot be ordered, once per distinct reason | `reason` (`cutoff_passed` \| `no_menu` \| `school_closed` \| `not_eligible` \| `other`), `school_id`, `days_until_delivery` (int) |
+| `payment_failed` | The provider or our own server refused | `reason` (`provider_declined` \| `server_refused` \| `price_changed` \| `cutoff_passed` \| `other`), `razorpay_error_code`, `order_value_inr` (int) |
+| `delivery_date_selected` | A parent taps a day in the picker | `days_until_delivery` (int), `is_next_school_day` (bool) |
+| `checkout_started` | `runCheckout` begins — **not** the tap | `item_count` (int), `order_value_inr` (int), `child_count` (int) |
+
+Four things about this set are deliberate:
+
+- **`signup_started` is an over-count and `signup_completed` is exact.** `U1` makes account
+  creation implicit — one `signInWithOtp` both creates and resumes — so at the moment the screen
+  opens nothing knows whether the address is new, and it must not: the "if that address has an
+  account" copy exists so the screen is not an account directory. The proxy is "this install
+  holds no session", which is also true of a reinstall. Read the pair as a ceiling and an actual.
+- **`checkout_started` exists because `place_order_tapped` cannot be a denominator.** The
+  production data shows that tap firing three and four times in a row as a parent presses a button
+  that does not appear to respond. `checkout_started` fires once, where `create_checkout` is
+  called.
+- **`reason` is per-event.** Three events use the key and they mean different things, so
+  `EVENT_ENUM_VALUES` overrides the global vocabulary. Unioning them would have made every value
+  legal on every event, and `order_blocked` could have reported `dismissed`.
+- **`order_value_inr` is whole rupees.** Money in the system is integer paise and stays that way
+  (non-negotiable #3); this is a dashboard figure from `rupeesFromPaise`, which rounds half-up.
+  **A PostHog revenue total will disagree with the ledger by up to fifty paise per order, by
+  construction.** The ledger is the authority.
+
+`school_id` is on `order_blocked` and both payment events, and it is **not** a child attribute: a
+school is an institution, and `0002` already records that class labels and break times are not
+personal data. What stays forbidden is `school_class_id` — *which class* — because that is an
+attribute of a child. `school_id` + `recipient_id` would be a child's school; `recipient_id` is in
+`FORBIDDEN_KEYS` and never leaves.
 
 ### `E15-21` — the path, not just the milestones
 
@@ -209,10 +250,46 @@ and the second is not a step towards the first.
 
 | Property | Example | Why it is safe |
 |---|---|---|
-| `distinct_id` | the parent's `app_user.id` | An opaque uuid. **Never an email** — Andy can join to the database when he needs a person |
+| `distinct_id` | the parent's `app_user.id`, or an `anon-…` id before sign-in | An opaque uuid. **Never an email** — Andy can join to the database when he needs a person. See the note below on why it is never absent |
 | `app_version` | `4.0.0` | Which build |
 | `platform` | `ios` \| `android` | |
 | `app_env` | `production` \| `staging` | So staging noise never pollutes a funnel |
+
+### `distinct_id` is never absent — and for thirty days it was (`E15-24`, 2026-09-10)
+
+`capture` omitted `distinct_id` **entirely** whenever nobody was identified. PostHog's capture API
+requires it, so every event a parent sent before signing in was accepted by our `fetch` and
+discarded at the far end. No local rejection, no log line, no symptom other than numbers that
+could not be true:
+
+| Event | Landed | Should have been near |
+|---|---|---|
+| `signin_started` | 2 | `signin_completed` = 30 |
+| `cart_started` | 3 | `add_to_cart_tapped` = 28 |
+
+Both were the same defect, and both events are ones that fire **before** the gate — `signin_started`
+by definition, and `cart_started` because `AR7` has the cart filling while signed out. `distinct_ids`
+equalled `persons` for every event in the project, which is the fingerprint: not one anonymous
+event ever arrived.
+
+**The tests passed throughout**, because every one of them called `identify()` first. The
+signed-out branch — the normal case — was never exercised. `client.test.ts` now has a describe
+block that does nothing else.
+
+The fix is an `anon-…` id from launch, plus a `$identify` carrying `$anon_distinct_id` when the
+parent signs in, which merges that launch's anonymous events onto them **retroactively**. It is
+emitted only when something actually went out anonymously — aliasing an id PostHog has never seen
+is a wasted request on a school-gate connection.
+
+Two honest costs:
+
+- **The anon id lasts one launch.** Persisting it needs storage, and this module ships over the
+  air with no native module. A parent who browses signed out across two launches is two anonymous
+  people until they sign in.
+- **`reset()` exists and is called on sign-out.** Without it the previous parent's id stayed in
+  the closure for the life of the process, so the next person on a shared handset had their
+  pre-sign-in taps filed under the first — which is also the mechanism behind the only two
+  `signin_started` events that ever landed.
 
 ### `child_added` carries nothing about the child, deliberately
 

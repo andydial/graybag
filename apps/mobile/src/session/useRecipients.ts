@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { resetAnalyticsIdentity } from '../analytics/analytics';
 import { api } from '@graybag/shared';
 
 import { useSession } from './SessionContext';
@@ -121,5 +122,18 @@ export function useSignOut(): () => Promise<void> {
   return useCallback(async () => {
     await api.signOut();
     setSession({ status: 'signedOut', userId: null, email: null });
+    /**
+     * `E15-24`. **Forget who that was, for analytics too.**
+     *
+     * The parent's `distinct_id` lived in the analytics closure for the life of the process, so
+     * on a shared handset the next person's pre-sign-in taps were filed under the one who had
+     * just left. It is also the mechanism behind the only two `signin_started` events that ever
+     * landed: they came from a re-sign-in where a stale id was still set, which is why that
+     * number looked like a trickle rather than nothing.
+     *
+     * Last, and outside nothing: it cannot fail, and it must not run before the session is
+     * actually gone.
+     */
+    resetAnalyticsIdentity();
   }, [setSession]);
 }

@@ -8,9 +8,14 @@ import {
   EVENT_PROPERTIES,
   FORBIDDEN_KEYS,
   ENUM_VALUES,
+  EVENT_ENUM_VALUES,
   checkEvent,
   checkIdentify,
   isEventSafe,
+  daysUntil,
+  orderBlockReason,
+  rupeesFromPaise,
+  serviceDateInIst,
   type AllowedEvent,
 } from './events.js';
 
@@ -245,5 +250,260 @@ describe('session replay can never be turned on through this client', () => {
     // Autocapture, pageviews and replay all arrive under `$`-prefixed names. If one ever appears
     // in ALLOWED_EVENTS, somebody has turned on a vendor feature rather than declared an event.
     expect(ALLOWED_EVENTS.filter((e) => e.startsWith('$'))).toEqual([]);
+  });
+});
+
+/**
+ * `E15-24`. The events Andy asked for, and the properties that make them worth having.
+ *
+ * The funnel had **no revenue, no school and no basket size anywhere in it** — every payment
+ * event carried `app_env`, `app_version` and `platform` and nothing else — so "which schools are
+ * converting" and "what is an order worth" could not be asked at all.
+ */
+describe('E15-24 — the new events', () => {
+  it.each([
+    ['order_blocked', { reason: 'cutoff_passed', school_id: 's-1', days_until_delivery: 1 }],
+    ['payment_failed', { reason: 'provider_declined', razorpay_error_code: 'GATEWAY_ERROR', order_value_inr: 145 }],
+    ['delivery_date_selected', { days_until_delivery: 2, is_next_school_day: false }],
+    ['checkout_started', { item_count: 3, order_value_inr: 217, child_count: 2 }],
+    ['signup_started', { method: 'email_otp' }],
+    ['signup_completed', { method: 'email_otp' }],
+  ])('%s is sendable with the properties it was specified with', (event, properties) => {
+    expect(checkEvent(event, properties)).toEqual([]);
+  });
+
+  it.each(['payment_started', 'payment_completed'])(
+    '%s now carries revenue, school and basket',
+    (event) => {
+      expect(
+        checkEvent(event, {
+          order_value_inr: 145,
+          item_count: 3,
+          school_id: 's-1',
+          is_first_order: true,
+          days_until_delivery: 1,
+        }),
+      ).toEqual([]);
+    },
+  );
+
+  it('still refuses an undeclared property on a new event', () => {
+    // The allowlist is the control, and adding events must not soften it.
+    expect(checkEvent('checkout_started', { dish_count: 3 })).toEqual([
+      { reason: 'undeclared_property', detail: 'dish_count' },
+    ]);
+  });
+});
+
+/**
+ * `reason` means three different things now, and a single global vocabulary made every value
+ * legal on every event — so `order_blocked` could have reported `dismissed`.
+ */
+describe('E15-24 — per-event vocabularies', () => {
+  it('accepts each event only its own reasons', () => {
+    expect(isEventSafe('order_blocked', { reason: 'no_menu' })).toBe(true);
+    expect(isEventSafe('payment_failed', { reason: 'provider_declined' })).toBe(true);
+    expect(isEventSafe('payment_abandoned', { reason: 'dismissed' })).toBe(true);
+  });
+
+  it('refuses a reason borrowed from another event', () => {
+    // The regression a union would have introduced.
+    expect(checkEvent('order_blocked', { reason: 'dismissed' })).toEqual([
+      { reason: 'forbidden_value', detail: 'reason' },
+    ]);
+    expect(checkEvent('payment_abandoned', { reason: 'no_menu' })).toEqual([
+      { reason: 'forbidden_value', detail: 'reason' },
+    ]);
+    expect(checkEvent('payment_failed', { reason: 'not_eligible' })).toEqual([
+      { reason: 'forbidden_value', detail: 'reason' },
+    ]);
+  });
+
+  it('leaves events with no per-event list on the global one', () => {
+    expect(EVENT_ENUM_VALUES.payment_abandoned).toBeUndefined();
+    expect(ENUM_VALUES.reason).toContain('dismissed');
+  });
+
+  it('names the key and never the value it refused', () => {
+    // A rejection is a log line, and the value is the thing being kept off the wire.
+    const [rejection] = checkEvent('order_blocked', { reason: "Aarav's class was closed" });
+    expect(rejection?.detail).toBe('reason');
+    expect(JSON.stringify(rejection)).not.toContain('Aarav');
+  });
+});
+
+describe('rupeesFromPaise', () => {
+  it('returns whole rupees, not a float', () => {
+    // Non-negotiable #3 protects arithmetic; this is a dashboard number and returns an integer so
+    // it cannot be mistaken for a precise amount or accumulate error when summed.
+    expect(rupeesFromPaise(7246)).toBe(72);
+    expect(Number.isInteger(rupeesFromPaise(7246))).toBe(true);
+  });
+
+  it('rounds half-up on the paise', () => {
+    expect(rupeesFromPaise(7250)).toBe(73);
+    expect(rupeesFromPaise(7249)).toBe(72);
+  });
+
+  it('reports an unknown total as null, never as zero', () => {
+    // `0` is a number somebody would average.
+    expect(rupeesFromPaise(null)).toBeNull();
+    expect(rupeesFromPaise(undefined)).toBeNull();
+    expect(rupeesFromPaise(Number.NaN)).toBeNull();
+  });
+});
+
+describe('serviceDateInIst', () => {
+  it('is already tomorrow in India late in the UTC evening', () => {
+    // The bug this shape avoids: between 18:30 UTC and midnight, UTC and IST are different days,
+    // so a UTC-derived "today" makes `days_until_delivery` wrong by one for every order placed
+    // in that window — which in IST is 00:00–05:30, exactly when nobody is watching.
+    expect(serviceDateInIst(new Date('2026-09-10T18:31:00Z'))).toBe('2026-09-11');
+    expect(serviceDateInIst(new Date('2026-09-10T18:29:00Z'))).toBe('2026-09-10');
+  });
+
+  it('does not use Intl, so it cannot depend on Hermes having full ICU', () => {
+    // A `timeZone` option on a Hermes build without ICU either throws or is silently ignored —
+    // the second being worse, because it returns UTC and looks like it worked.
+    expect(serviceDateInIst(new Date('2026-01-01T00:00:00Z'))).toBe('2026-01-01');
+  });
+});
+
+describe('daysUntil', () => {
+  it('counts whole days forward', () => {
+    expect(daysUntil('2026-09-11', '2026-09-10')).toBe(1);
+    expect(daysUntil('2026-09-10', '2026-09-10')).toBe(0);
+  });
+
+  it('goes negative for a day already past, which is what a cutoff looks like', () => {
+    expect(daysUntil('2026-09-09', '2026-09-10')).toBe(-1);
+  });
+
+  it('crosses a month and a year without drifting', () => {
+    // Parsed and differenced in UTC. `new Date(y, m, d)` is *local* midnight, and mixing the two
+    // makes this wrong by a day anywhere east of Greenwich — which is everywhere we operate.
+    expect(daysUntil('2026-10-01', '2026-09-30')).toBe(1);
+    expect(daysUntil('2027-01-01', '2026-12-31')).toBe(1);
+  });
+
+  it('is null rather than 0 when either side is not a date', () => {
+    expect(daysUntil('not-a-date', '2026-09-10')).toBeNull();
+    expect(daysUntil('2026-09-10', '')).toBeNull();
+  });
+});
+
+describe('orderBlockReason', () => {
+  const clear = { hasMenu: true, hasBreakWindows: true, dayOrderable: true, packIneligible: false };
+
+  it('is null when nothing is in the way', () => {
+    expect(orderBlockReason(clear)).toBeNull();
+  });
+
+  it.each([
+    ['no_menu', { ...clear, hasMenu: false }],
+    ['school_closed', { ...clear, hasBreakWindows: false }],
+    ['cutoff_passed', { ...clear, dayOrderable: false }],
+    ['not_eligible', { ...clear, packIneligible: true }],
+  ])('reports %s', (expected, state) => {
+    expect(orderBlockReason(state)).toBe(expected);
+  });
+
+  it('reports the cause a parent hits first, not the last one found', () => {
+    // A school with no menu AND no break windows is `no_menu`: reporting the later cause would
+    // send somebody to fix break times on a school that has nothing to sell.
+    expect(orderBlockReason({ ...clear, hasMenu: false, hasBreakWindows: false })).toBe('no_menu');
+    expect(orderBlockReason({ ...clear, hasBreakWindows: false, dayOrderable: false })).toBe(
+      'school_closed',
+    );
+  });
+
+  it('only ever returns a value the allowlist accepts', () => {
+    for (const state of [
+      { ...clear, hasMenu: false },
+      { ...clear, hasBreakWindows: false },
+      { ...clear, dayOrderable: false },
+      { ...clear, packIneligible: true },
+    ]) {
+      expect(isEventSafe('order_blocked', { reason: orderBlockReason(state) })).toBe(true);
+    }
+  });
+});
+
+/**
+ * `E15-24`. **The hard rule, applied to every event the funnel now has.**
+ *
+ * Andy, 2026-09-10: *"no child name, class, section or allergy data, and no parent email, in any
+ * event name or property. Identify by parent user id only. This is DPDP-regulated data."*
+ *
+ * The existing suite above proves the allowlist refuses a forbidden key. This proves the stronger
+ * thing about the six events just added: that none of them *declares* a property which is or
+ * contains a child attribute or an email — so the refusal is never the only thing standing
+ * between a child's name and a vendor.
+ */
+describe('E15-24 — no PII is declarable on any event', () => {
+  it('declares no forbidden key on any event, old or new', () => {
+    const forbidden = new Set<string>(FORBIDDEN_KEYS.map((k) => k.toLowerCase()));
+    const offenders: string[] = [];
+    for (const event of ALLOWED_EVENTS) {
+      for (const property of EVENT_PROPERTIES[event]) {
+        if (forbidden.has(property.toLowerCase())) offenders.push(`${event}.${property}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('declares nothing that reads as a name, an email, a class or an allergy', () => {
+    // Broader than `FORBIDDEN_KEYS`, which is an exact-match list. This catches a *new* property
+    // whose name contains a regulated word — `child_class`, `parent_email`, `allergen_count` —
+    // which is the shape a future addition would take.
+    const shapes = /(name|email|phone|class|section|allerg|dish|recipient|child_id|dob|birth)/i;
+    const offenders: string[] = [];
+    for (const event of ALLOWED_EVENTS) {
+      for (const property of EVENT_PROPERTIES[event]) {
+        // `child_count` is a COUNT of children, not an attribute of one, and is the one name that
+        // legitimately contains a regulated word. Pinned by value so a rename cannot smuggle
+        // something past this test.
+        if (property === 'child_count') continue;
+        if (shapes.test(property)) offenders.push(`${event}.${property}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('identifies by parent user id and refuses every person property', () => {
+    expect(checkIdentify('a-parent-uuid')).toEqual([]);
+    expect(checkIdentify('a-parent-uuid', { email: 'a@b.com' })).toEqual([
+      { reason: 'forbidden_property', detail: 'email' },
+    ]);
+    expect(checkIdentify('a-parent-uuid', { school_id: 's-1' })).toEqual([
+      { reason: 'undeclared_property', detail: 'school_id' },
+    ]);
+  });
+
+  it('refuses a child field on each of the six new events', () => {
+    for (const event of [
+      'order_blocked',
+      'payment_failed',
+      'delivery_date_selected',
+      'checkout_started',
+      'signup_started',
+      'signup_completed',
+    ]) {
+      expect(checkEvent(event, { recipient_name: 'Aarav' })).toEqual([
+        { reason: 'forbidden_property', detail: 'recipient_name' },
+      ]);
+      expect(checkEvent(event, { allergen_codes: ['milk'] })).toEqual([
+        { reason: 'forbidden_property', detail: 'allergen_codes' },
+      ]);
+    }
+  });
+
+  it('refuses school_class_id while allowing school_id, which is the line that matters', () => {
+    // A school is an institution; a class is an attribute of a child. `school_id` +
+    // `recipient_id` would be a child's school, and `recipient_id` never leaves.
+    expect(isEventSafe('order_blocked', { school_id: 's-1' })).toBe(true);
+    expect(checkEvent('order_blocked', { school_class_id: 'c-1' })).toEqual([
+      { reason: 'forbidden_property', detail: 'school_class_id' },
+    ]);
   });
 });

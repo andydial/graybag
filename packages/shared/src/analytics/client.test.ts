@@ -20,6 +20,8 @@ function harness(over: Partial<Parameters<typeof createAnalytics>[0]> = {}) {
 
   const analytics = createAnalytics({
     apiKey: 'phc_test',
+    // Pinned, so a test can assert the merge names the right anonymous id.
+    newAnonId: () => 'anon-fixed',
     commonProperties: { app_version: '4.0.0', platform: 'ios', app_env: 'production' },
     fetchImpl,
     onReject: (event, rejections) =>
@@ -28,6 +30,19 @@ function harness(over: Partial<Parameters<typeof createAnalytics>[0]> = {}) {
   });
 
   return { analytics, sent, rejected, fetchImpl };
+}
+
+/**
+ * Every event across every batch, in order.
+ *
+ * `identify()` flushes when it queues a merge, so what a test cares about is no longer reliably
+ * in `sent[0]` — asserting on one batch made these tests depend on flush timing rather than on
+ * behaviour.
+ */
+function allEvents(sent: unknown[]): { event: string; properties: Record<string, unknown> }[] {
+  return sent.flatMap(
+    (body) => (body as { batch: { event: string; properties: Record<string, unknown> }[] }).batch,
+  );
 }
 
 describe('nothing undeclared leaves the device', () => {
@@ -184,5 +199,121 @@ describe('a missing key is LOUD in production and quiet where silence is intende
   it('reports nothing wrong once a key is present', () => {
     createAnalytics({ apiKey: 'phc_x', appEnv: 'production', commonProperties: {} });
     expect(analyticsDisabledReason()).toBeNull();
+  });
+});
+
+/**
+ * **The thirty-day data loss — `E15-24`.**
+ *
+ * `capture` omitted `distinct_id` entirely while nobody was identified. PostHog requires it, so
+ * every event fired before sign-in was accepted by our `fetch` and discarded at the far end:
+ * `signin_started` landed 2 times against 30 `signin_completed`, and `cart_started` 3 against 28
+ * `add_to_cart_tapped`. One defect, both symptoms.
+ *
+ * **Every existing test in this file called `identify()` first**, which is exactly why it
+ * survived: the signed-out branch — the one `AR7` makes the normal case, since the cart fills
+ * before the gate — was never exercised.
+ */
+describe('events sent before sign-in', () => {
+  it('carries an anonymous distinct_id rather than none at all', async () => {
+    const { analytics, sent } = harness();
+    // No identify() — this is a parent browsing before the gate.
+    analytics.capture('cart_started', { line_count: 1 });
+    await analytics.flush();
+
+    expect(allEvents(sent)[0]?.properties.distinct_id).toBe('anon-fixed');
+  });
+
+  it('sends signin_started, which is by definition signed out', async () => {
+    // The event whose absence was impossible to explain: 2 starts against 30 completions.
+    const { analytics, sent } = harness();
+    analytics.capture('signin_started', { method: 'email_otp' });
+    await analytics.flush();
+    expect(allEvents(sent)[0]?.event).toBe('signin_started');
+  });
+
+  it('merges those events onto the parent when they sign in', async () => {
+    // Fixing `distinct_id` alone would only move the problem: the events would land on a
+    // separate anonymous person and still be missing from the parent's funnel. `$anon_distinct_id`
+    // is how PostHog is told the two are one person, retroactively.
+    const { analytics, sent } = harness();
+    analytics.capture('cart_started', { line_count: 1 });
+    analytics.identify('u-1');
+    await analytics.flush();
+
+    const merge = allEvents(sent).find((e) => e.event === '$identify');
+    expect(merge?.properties).toEqual({ distinct_id: 'u-1', $anon_distinct_id: 'anon-fixed' });
+  });
+
+  it('carries the parent id once identified', async () => {
+    const { analytics, sent } = harness();
+    analytics.identify('u-1');
+    analytics.capture('payment_completed', { item_count: 2 });
+    await analytics.flush();
+    expect(
+      allEvents(sent).find((e) => e.event === 'payment_completed')?.properties.distinct_id,
+    ).toBe('u-1');
+  });
+
+  it('merges only once, however many times identify is called', async () => {
+    // A token refresh re-identifies with the same id. A second `$identify` would be a second
+    // merge request for an alias PostHog already holds.
+    const { analytics, sent } = harness();
+    analytics.identify('u-1');
+    analytics.identify('u-1');
+    analytics.capture('menu_browsed', { item_count: 1 });
+    await analytics.flush();
+    // And none at all here: nothing went out anonymously, so there is nothing to alias.
+    expect(allEvents(sent).filter((e) => e.event === '$identify')).toHaveLength(0);
+  });
+
+  it('never puts a person property on the merge', async () => {
+    // The merge is the one payload that bypasses `checkEvent`, so what it contains is pinned.
+    const { analytics, sent } = harness();
+    analytics.capture('cart_started', { line_count: 1 });
+    analytics.identify('u-1');
+    await analytics.flush();
+    const merge = allEvents(sent).find((e) => e.event === '$identify');
+    expect(Object.keys(merge?.properties ?? {}).sort()).toEqual(['$anon_distinct_id', 'distinct_id']);
+  });
+});
+
+describe('reset, for a shared handset', () => {
+  it('stops attributing the next person to the last one', async () => {
+    // A handset is shared. The previous parent's id used to live in the closure for the life of
+    // the process — and is the reason the only two `signin_started` events that ever landed did.
+    let n = 0;
+    const { analytics, sent } = harness({ newAnonId: () => `anon-${++n}` });
+    analytics.identify('parent-a');
+    analytics.reset();
+    analytics.capture('signin_started', { method: 'email_otp' });
+    await analytics.flush();
+
+    const started = allEvents(sent).find((e) => e.event === 'signin_started');
+    expect(started?.properties.distinct_id).toBe('anon-2');
+    expect(started?.properties.distinct_id).not.toBe('parent-a');
+  });
+
+  it("gives the next parent their own anonymous id, and never the last parent's", async () => {
+    let n = 0;
+    const { analytics, sent } = harness({ newAnonId: () => `anon-${++n}` });
+    analytics.identify('parent-a');
+    analytics.reset();
+    analytics.capture('cart_started', { line_count: 1 });
+    analytics.identify('parent-b');
+    await analytics.flush();
+
+    /*
+     * **One merge, not two.** `parent-a` never sent anything anonymously, so there is no alias
+     * to make — asking PostHog to merge an id it has never seen is noise on a school-gate
+     * connection. `parent-b` browsed before signing in, so their `cart_started` is rescued.
+     */
+    const merges = allEvents(sent).filter((e) => e.event === '$identify');
+    expect(merges.map((m) => m.properties)).toEqual([
+      { distinct_id: 'parent-b', $anon_distinct_id: 'anon-2' },
+    ]);
+    // And the rescued event must not be filed under the previous parent.
+    const started = allEvents(sent).find((e) => e.event === 'cart_started');
+    expect(started?.properties.distinct_id).toBe('anon-2');
   });
 });

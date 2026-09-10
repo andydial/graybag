@@ -33,7 +33,12 @@ export interface AuthTransport {
       error: { message: string; status?: number } | null;
     }>;
     verifyOtp(params: { email: string; token: string; type: 'email' }): PromiseLike<{
-      data: { user: { id: string; email?: string } | null } | null;
+      // `created_at` / `last_sign_in_at` are read only to tell a new account from a returning
+      // one (`E15-24`) — see `isNewAccount` on `AuthUser`. Optional, because a test double should
+      // not have to supply them and their absence must mean "we do not know", not "new".
+      data: {
+        user: { id: string; email?: string; created_at?: string; last_sign_in_at?: string } | null;
+      } | null;
       error: { message: string; status?: number } | null;
     }>;
     signOut(): PromiseLike<{ error: { message: string } | null }>;
@@ -46,6 +51,53 @@ export interface AuthTransport {
 export interface AuthUser {
   userId: string;
   email: string | null;
+  /**
+   * Is this the account's **first ever** sign-in? — `E15-24`.
+   *
+   * `U1` makes signup implicit: one `signInWithOtp` both creates and resumes, so nothing in the
+   * app could tell a new family from a returning one, and `signup_completed` had no signal to
+   * fire on.
+   *
+   * Derived from how far apart `created_at` and `last_sign_in_at` are, **not** from comparing
+   * `created_at` to the clock — a handset with a wrong clock would otherwise mislabel everybody.
+   * Supabase writes the user row when the code is *requested* and stamps `last_sign_in_at` when
+   * it is *verified*, so on a first sign-in the two are minutes apart at most, and for a
+   * returning parent they are days or weeks apart.
+   *
+   * `null` when the provider did not send both fields — unknown, which the caller must not treat
+   * as either answer.
+   *
+   * **The error direction is deliberate.** `NEW_ACCOUNT_WINDOW_MS` is 30 minutes against an OTP
+   * that expires at 60, so a parent who requests a code and verifies it 40 minutes later is
+   * counted as *returning*. That under-counts signups rather than over-counting them: inventing
+   * new families is the worse mistake, because it makes acquisition look better than it is.
+   */
+  isNewAccount: boolean | null;
+}
+
+/**
+ * How close `created_at` and `last_sign_in_at` must be to mean "first sign-in" — `E15-24`.
+ *
+ * Thirty minutes, against `mailer_otp_exp` of 3600 seconds. Read the note on `isNewAccount` for
+ * which way this rounds and why that is the safe direction.
+ */
+export const NEW_ACCOUNT_WINDOW_MS = 30 * 60 * 1000;
+
+/**
+ * Were these two timestamps close enough to be one act? Exported for its test.
+ *
+ * Anything unparseable is `null` — "we do not know" — and never `false`, which would quietly
+ * report every signup as a returning parent the moment the provider changed a field name.
+ */
+export function looksLikeFirstSignIn(
+  createdAt: string | undefined,
+  lastSignInAt: string | undefined,
+): boolean | null {
+  if (!createdAt || !lastSignInAt) return null;
+  const created = Date.parse(createdAt);
+  const signedIn = Date.parse(lastSignInAt);
+  if (!Number.isFinite(created) || !Number.isFinite(signedIn)) return null;
+  return Math.abs(signedIn - created) <= NEW_ACCOUNT_WINDOW_MS;
 }
 
 /** Raised when a sign-in attempt fails in a way the user can act on. */
@@ -135,7 +187,11 @@ export async function verifyEmailOtp(email: string, token: string): Promise<Auth
     // forever against a backend that is never going to give them a session.
     throw new AuthError('Signed in, but no account came back. Please try again.', 'no_user');
   }
-  return { userId: user.id, email: user.email ?? null };
+  return {
+    userId: user.id,
+    email: user.email ?? null,
+    isNewAccount: looksLikeFirstSignIn(user.created_at, user.last_sign_in_at),
+  };
 }
 
 /** End the session. Never throws — a sign-out that fails must still sign you out locally. */
@@ -153,7 +209,21 @@ export async function signOut(): Promise<void> {
 export async function currentUser(): Promise<AuthUser | null> {
   const { data } = await authOf().getSession();
   const user = data?.session?.user;
-  return user ? { userId: user.id, email: user.email ?? null } : null;
+  return user
+    ? {
+        userId: user.id,
+        email: user.email ?? null,
+        /**
+         * `null`, not `false` — `E15-24`.
+         *
+         * A restored session is a *resumed* one, so this path cannot answer "was this account
+         * created just now" and must not pretend to. `false` would read as a confident "returning
+         * parent" and would be indistinguishable, at the call site, from a genuine answer.
+         * Signup is decided at `verifyEmailOtp`, which is the only place the act happens.
+         */
+        isNewAccount: null,
+      }
+    : null;
 }
 
 /**
