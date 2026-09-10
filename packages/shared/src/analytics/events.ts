@@ -54,9 +54,46 @@ export const ALLOWED_EVENTS = [
   'pack_plan_confirmed',
   'signin_started',
   'signin_completed',
+  /**
+   * `E15-24`. **Signup is a different question from sign-in and the app could not tell them
+   * apart.** `U1` makes account creation implicit — the same `signInWithOtp` both creates and
+   * resumes — so every new family was counted as a returning one, and "are new parents getting
+   * through the door" was unanswerable from PostHog.
+   *
+   * `AuthUser.isNewAccount` is what distinguishes them; see `api/auth.ts` for how, and for the
+   * error direction it prefers.
+   */
+  'signup_started',
+  'signup_completed',
   'child_added',
   'menu_browsed',
   'cart_started',
+  /**
+   * `E15-24`. The order was refused, or could not be attempted, and why.
+   *
+   * The funnel could show parents arriving at the cart and not ordering, and could not show
+   * **why** — so every drop-off looked like disinterest when some of it is a school with no
+   * break windows and a day whose cutoff had passed. `reason` is a closed vocabulary; there is
+   * no free text, because "why did it fail" is exactly where an error string carrying a child's
+   * name would reach a vendor.
+   */
+  'order_blocked',
+  /**
+   * `E15-24`. Distinct from `payment_abandoned`, which is a parent turning back. This is the
+   * provider or our own server refusing, and it carries the provider's error code so a run of
+   * failures is diagnosable without asking a parent what they saw.
+   */
+  'payment_failed',
+  /** `E15-24`. Which delivery day a parent chose, and how far ahead it was. */
+  'delivery_date_selected',
+  /**
+   * `E15-24`. The basket at the moment checkout begins.
+   *
+   * Deliberately separate from `place_order_tapped`: the tap is a *gesture*, and the real data
+   * shows it firing three and four times in a row as a parent presses a button that does not
+   * appear to respond. This fires once, where `create_checkout` is actually called.
+   */
+  'checkout_started',
   'payment_started',
   'payment_completed',
   'payment_abandoned',
@@ -83,18 +120,68 @@ export const EVENT_PROPERTIES: Record<AllowedEvent, readonly string[]> = {
   app_opened: ['is_first_open'],
   signin_started: ['method'],
   signin_completed: ['method'],
+  signup_started: ['method'],
+  signup_completed: ['method'],
   child_added: [],
   menu_browsed: ['item_count'],
   cart_started: ['line_count'],
-  payment_started: ['attempt_no', 'resumed'],
+
+  // --- `E15-24` ---
   /**
-   * **No `attempt_no`, and the reason is worth recording.** It is emitted where settlement is
+   * `school_id` is here, and it is worth saying why it is not a child attribute.
+   *
+   * A school is an **institution**, not a person: `0002`'s own comment says class labels and
+   * break times are not personal data, and a school id is one step further out than either. What
+   * `FORBIDDEN_KEYS` blocks is `school_class_id` — *which class*, which is an attribute of a
+   * child. Which school an order is for is an attribute of the order.
+   *
+   * The line is worth holding precisely because it is close: `school_id` + `recipient_id` would
+   * be a child's school, and `recipient_id` is forbidden. Andy asked for `school_id` explicitly
+   * and it stays on the institution side of that line.
+   */
+  order_blocked: ['reason', 'school_id', 'days_until_delivery'],
+  payment_failed: ['reason', 'razorpay_error_code', 'order_value_inr'],
+  delivery_date_selected: ['days_until_delivery', 'is_next_school_day'],
+  checkout_started: ['item_count', 'order_value_inr', 'child_count'],
+
+  /**
+   * `E15-24` adds the basket to both payment events.
+   *
+   * Until now these carried `app_env`, `app_version` and `platform` — so PostHog held a funnel
+   * with **no revenue, no school and no basket size anywhere in it**, and "which schools are
+   * converting" could not be asked at all.
+   *
+   * `order_value_inr` is whole **rupees**, not paise, and that is a deliberate narrowing rather
+   * than a slip against non-negotiable #3. Money in the system is integer paise and stays that
+   * way; this is a dashboard number produced by `rupeesFromPaise`, which rounds. The ledger
+   * remains the only place revenue is authoritative — see `docs/posthog.md`.
+   */
+  payment_started: [
+    'attempt_no',
+    'resumed',
+    'order_value_inr',
+    'item_count',
+    'school_id',
+    'is_first_order',
+    'days_until_delivery',
+  ],
+  /**
+   * **Still no `attempt_no`, and the reason is unchanged.** It is emitted where settlement is
    * CONFIRMED — `checkout-status` answering `paid` — and that response does not carry the
    * attempt number. Sending a hardcoded `1` would be a lie in exactly the case the funnel cares
    * about: a parent who resumed. The retry count is answerable from `payment_started`, which
    * does know it.
+   *
+   * The basket properties `E15-24` adds *are* available here, because the caller is the cart
+   * route, which still holds the cart and the school when the poll settles.
    */
-  payment_completed: [],
+  payment_completed: [
+    'order_value_inr',
+    'item_count',
+    'school_id',
+    'is_first_order',
+    'days_until_delivery',
+  ],
   payment_abandoned: ['reason'],
 
   // --- `E15-21` ---
@@ -149,6 +236,39 @@ export const ENUM_VALUES: Record<string, readonly string[]> = {
   method: ['google', 'apple', 'email_otp'],
   reason: ['dismissed', 'expired', 'failed'],
   outcome: ['completed', 'dismissed', 'failed'],
+};
+
+/**
+ * Vocabularies that differ **per event**, overriding `ENUM_VALUES` — `E15-24`.
+ *
+ * `reason` was a single global list because one event used it. Three do now, and they mean
+ * different things: `payment_abandoned.reason` is why a parent turned back, `order_blocked.reason`
+ * is why the order could not be attempted, and `payment_failed.reason` is who refused it. Unioning
+ * them into one list would have made every value legal on every event — so `order_blocked` could
+ * report `dismissed`, and the vocabulary would stop being a check on anything.
+ *
+ * Looked up before the global list, so an event without an entry here behaves exactly as before.
+ */
+export const EVENT_ENUM_VALUES: Partial<Record<AllowedEvent, Record<string, readonly string[]>>> = {
+  /**
+   * The five Andy named, and nothing else.
+   *
+   * `other` is the escape hatch and it is deliberately the only one: a `reason` built from an
+   * error message is how a database hint — or a child's name inside one — reaches a vendor, so
+   * anything unrecognised collapses to a constant rather than passing text through.
+   */
+  order_blocked: {
+    reason: ['cutoff_passed', 'no_menu', 'school_closed', 'not_eligible', 'other'],
+  },
+  /**
+   * Who refused, not what the parent was told. `provider_declined` is Razorpay saying no;
+   * `server_refused` is our own `create_checkout`/`begin_payment`; `price_changed` is the one
+   * refusal common enough to be worth naming on its own (it was every checkout on production
+   * before `E05-52`).
+   */
+  payment_failed: {
+    reason: ['provider_declined', 'server_refused', 'price_changed', 'cutoff_passed', 'other'],
+  },
 };
 
 /**
@@ -209,7 +329,11 @@ export function checkEvent(
     // A closed vocabulary where one exists — see `ENUM_VALUES`. The detail names the key, never
     // the offending value: a rejection message is a log line, and the value is the thing we are
     // refusing to let out.
-    const vocabulary = ENUM_VALUES[key];
+    //
+    // Per-event first (`E15-24`), so `order_blocked.reason` and `payment_abandoned.reason` are
+    // checked against their own lists rather than a union that would legalise both on both.
+    const vocabulary =
+      EVENT_ENUM_VALUES[event as AllowedEvent]?.[key] ?? ENUM_VALUES[key];
     if (vocabulary !== undefined && !vocabulary.includes(String(value))) {
       rejections.push({ reason: 'forbidden_value', detail: key });
     }
@@ -221,6 +345,66 @@ export function checkEvent(
 /** Convenience for call sites and tests: nothing to report. */
 export function isEventSafe(event: string, properties: Record<string, unknown> = {}): boolean {
   return checkEvent(event, properties).length === 0;
+}
+
+/**
+ * Paise → whole rupees, for a dashboard only — `E15-24`.
+ *
+ * **This is the one place money stops being integer paise, and it is not a breach of
+ * non-negotiable #3.** That rule protects arithmetic: nothing that computes a price, a tax
+ * component or a ledger entry may see a float, and none of them call this. Andy asked for
+ * `order_value_inr`, and a funnel that reports revenue in paise is a funnel nobody reads.
+ *
+ * It returns an **integer**, not a float, so the value cannot be mistaken for a precise amount
+ * and cannot accumulate representation error if somebody sums a column of them. Rounding is
+ * half-up on the paise, so ₹72.46 reports as 72 and ₹72.50 as 73. The ledger remains the only
+ * authoritative revenue figure — a PostHog total will disagree with it by up to fifty paise per
+ * order, by construction.
+ *
+ * `null` in, `null` out: an unknown total must not report as ₹0, which is a number somebody
+ * would average.
+ */
+export function rupeesFromPaise(paise: number | null | undefined): number | null {
+  if (paise === null || paise === undefined || !Number.isFinite(paise)) return null;
+  return Math.round(paise / 100);
+}
+
+/** IST is UTC+5:30 and India has no DST, so this is a constant rather than a lookup. */
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
+/**
+ * Today's service date **in the kitchen's timezone** — `E15-24`.
+ *
+ * Computed by offsetting the instant, **not** through `Intl.DateTimeFormat` with a `timeZone`.
+ * Hermes ships without full ICU unless it is explicitly enabled, and a `timeZone` option there
+ * either throws or is silently ignored — the second being far worse, because it would return UTC
+ * and quietly shift `days_until_delivery` by one for every order placed between midnight and
+ * 05:30 IST. India has no DST, so a fixed offset is exact rather than an approximation.
+ *
+ * `toISOString().slice(0, 10)` after the shift, because the shifted value is being read as a
+ * calendar label and not as an instant.
+ */
+export function serviceDateInIst(at: Date): string {
+  return new Date(at.getTime() + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/**
+ * Whole days from `today` to `serviceDate`, both `YYYY-MM-DD` — `E15-24`.
+ *
+ * `0` is same-day, `1` is tomorrow, negative is a day already past (which is a real answer: it is
+ * what a cutoff refusal looks like). `null` when either side is not a date, because `0` would read
+ * as "today" and is the one wrong answer that looks right.
+ *
+ * Parsed and differenced in **UTC**. Building `new Date('2026-09-10')` is UTC midnight but
+ * `new Date(2026, 8, 10)` is *local* midnight, and mixing the two makes the difference wrong by a
+ * day anywhere east of Greenwich — which is everywhere we operate. `shiftDate` in the kitchen
+ * view carries the same warning after the same bug.
+ */
+export function daysUntil(serviceDate: string, today: string): number | null {
+  const a = Date.parse(`${serviceDate}T00:00:00Z`);
+  const b = Date.parse(`${today}T00:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return Math.round((a - b) / 86_400_000);
 }
 
 /**
@@ -243,4 +427,45 @@ export function checkIdentify(
       : ('undeclared_property' as const),
     detail: key,
   }));
+}
+
+/**
+ * Why an order cannot be placed right now, as one of `order_blocked`'s five reasons — `E15-24`.
+ *
+ * Andy: the funnel could show parents reaching the cart and not ordering, and could not show
+ * **why** — so every drop-off read as disinterest when some of it is a school with no break
+ * windows and a day whose cutoff has passed.
+ *
+ * Pure and ordered, because the order is the finding. A school with no menu **and** no break
+ * windows is reported as `no_menu`: it is the one a parent hits first and the one we can act on,
+ * and reporting the later cause would send somebody to fix break times on a school that has
+ * nothing to sell. `null` means nothing is in the way.
+ *
+ * `not_eligible` is last of the real reasons deliberately — it means "this cart cannot use the
+ * meal pack it is trying to", which is a *choice* a parent can undo, unlike the three above it.
+ */
+export interface OrderBlockState {
+  /** The school's menu has no dishes at all. */
+  hasMenu: boolean;
+  /** `P19` — a school with no break windows cannot be ordered from. */
+  hasBreakWindows: boolean;
+  /** The calendar offers no orderable day, or the chosen day is not one of them. */
+  dayOrderable: boolean;
+  /** A pack meal is selected and this cart does not qualify for it. */
+  packIneligible: boolean;
+}
+
+export type OrderBlockReason =
+  | 'no_menu'
+  | 'school_closed'
+  | 'cutoff_passed'
+  | 'not_eligible'
+  | 'other';
+
+export function orderBlockReason(state: OrderBlockState): OrderBlockReason | null {
+  if (!state.hasMenu) return 'no_menu';
+  if (!state.hasBreakWindows) return 'school_closed';
+  if (!state.dayOrderable) return 'cutoff_passed';
+  if (state.packIneligible) return 'not_eligible';
+  return null;
 }

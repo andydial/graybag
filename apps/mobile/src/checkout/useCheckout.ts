@@ -55,6 +55,73 @@ export interface CheckoutInput {
   lines: api.CheckoutLine[];
   expectedTotalPaise: number | null;
   accountEmail?: string | null;
+  /**
+   * Non-PII funnel context, assembled by the caller — `E15-24`.
+   *
+   * The payment events carried `app_env`, `app_version` and `platform` and nothing else, so
+   * PostHog held a funnel with **no revenue, no school and no basket size in it at all**. The
+   * numbers live here rather than being derived inside this module because the school and the
+   * order history are the cart route's knowledge, not the checkout sequence's — this file
+   * deliberately knows only lines and a total.
+   *
+   * Optional throughout: a missing value is omitted from the event rather than defaulted, because
+   * `0` and `false` are numbers somebody would average.
+   */
+  funnel?: CheckoutFunnelContext;
+}
+
+/** What the payment events report beyond the attempt. All non-PII — see `analytics/events.ts`. */
+export interface CheckoutFunnelContext {
+  schoolId?: string | null;
+  itemCount?: number;
+  /** Whole rupees, from `analytics.rupeesFromPaise`. Never paise, never a float. */
+  orderValueInr?: number | null;
+  childCount?: number;
+  daysUntilDelivery?: number | null;
+  isFirstOrder?: boolean | null;
+}
+
+/**
+ * The funnel context as event properties, dropping anything unknown.
+ *
+ * A separate function because three events send the same set and a copy-pasted object literal is
+ * where one of them quietly loses a property.
+ */
+function funnelProperties(funnel: CheckoutFunnelContext | undefined): Record<string, unknown> {
+  if (funnel === undefined) return {};
+  const out: Record<string, unknown> = {};
+  if (funnel.schoolId != null) out.school_id = funnel.schoolId;
+  if (funnel.itemCount !== undefined) out.item_count = funnel.itemCount;
+  if (funnel.orderValueInr != null) out.order_value_inr = funnel.orderValueInr;
+  if (funnel.childCount !== undefined) out.child_count = funnel.childCount;
+  if (funnel.daysUntilDelivery != null) out.days_until_delivery = funnel.daysUntilDelivery;
+  if (funnel.isFirstOrder != null) out.is_first_order = funnel.isFirstOrder;
+  return out;
+}
+
+/**
+ * Which `payment_failed.reason` an error code means — `E15-24`.
+ *
+ * A closed vocabulary, and **the error message never travels**. A refusal from Postgres or a
+ * provider can carry a column name, a hint, or free text a parent typed; `reason` is one of five
+ * constants and `razorpay_error_code` is a provider enum. Anything unrecognised is `other`, which
+ * is the whole reason `other` exists.
+ */
+export function paymentFailureReason(code: string | undefined): string {
+  switch (code) {
+    case 'price_changed':
+    case 'amount_mismatch':
+      return 'price_changed';
+    case 'cutoff_passed':
+      return 'cutoff_passed';
+    case 'not_payable':
+    case 'nothing_payable':
+    case 'already_paid':
+    case 'not_authorized':
+      return 'server_refused';
+    default:
+      return code === undefined ? 'other' : 'server_refused';
+  }
 }
 
 /**
@@ -124,6 +191,18 @@ export async function runCheckout(
 
     let orderGroupId = session.placedGroupId;
 
+    /**
+     * `E15-24`. **The basket, once, where checkout really begins.**
+     *
+     * Deliberately not `place_order_tapped`, which is a *gesture* — the production data shows it
+     * firing three and four times in a row as a parent presses a button that does not appear to
+     * respond, so it cannot be the denominator of anything. This fires on the run, not the tap.
+     *
+     * Inside the `orderGroupId === null` branch would be wrong too: a retry after a decline
+     * reuses the group and is still a checkout being started.
+     */
+    track('checkout_started', funnelProperties(input.funnel));
+
     // ------------------------------------------------------------------ 1. place the orders
     if (orderGroupId === null) {
       if (session.idempotencyKey === null) {
@@ -141,6 +220,14 @@ export async function runCheckout(
       } catch (error) {
         const next = failure(error, null);
         log('createCheckout FAILED', { code: next.code ?? null, message: next.message });
+        // `E15-24`. Our own server refusing. The code, never the message — see
+        // `paymentFailureReason`.
+        track('payment_failed', {
+          reason: paymentFailureReason(next.code),
+          ...(input.funnel?.orderValueInr == null
+            ? {}
+            : { order_value_inr: input.funnel.orderValueInr }),
+        });
         setPhase(next);
         return next;
       }
@@ -158,6 +245,12 @@ export async function runCheckout(
     } catch (error) {
       const next = failure(error, orderGroupId);
       log('createPaymentOrder FAILED', { code: next.code ?? null, message: next.message });
+      track('payment_failed', {
+        reason: paymentFailureReason(next.code),
+        ...(input.funnel?.orderValueInr == null
+          ? {}
+          : { order_value_inr: input.funnel.orderValueInr }),
+      });
       setPhase(next);
       return next;
     }
@@ -171,6 +264,8 @@ export async function runCheckout(
     track('payment_started', {
       attempt_no: providerOrder.attemptNo,
       resumed: providerOrder.resumed === true,
+      // `E15-24`. Revenue, school and basket — the funnel had none of them.
+      ...funnelProperties(input.funnel),
     });
 
     const sheet: RazorpaySheetResult = await openRazorpayCheckout({
@@ -209,6 +304,22 @@ export async function runCheckout(
       // `failed`, not `dismissed` — a declined card and a closed sheet are different questions
       // about the funnel, and collapsing them would hide which one is losing orders.
       track('payment_abandoned', { reason: 'failed' });
+      /**
+       * `E15-24`. **The provider declining, with its own code.**
+       *
+       * `payment_abandoned` above says a parent's attempt ended; this says who ended it and why,
+       * which is the difference between "parents keep giving up" and "one bank is declining every
+       * UPI mandate". `sheet.providerCode` is a Razorpay enum (`BAD_REQUEST_ERROR`,
+       * `GATEWAY_ERROR`…) and never a description — a provider's `error.description` is free text
+       * and can quote the payer.
+       */
+      track('payment_failed', {
+        reason: 'provider_declined',
+        ...(sheet.providerCode === undefined ? {} : { razorpay_error_code: sheet.providerCode }),
+        ...(input.funnel?.orderValueInr == null
+          ? {}
+          : { order_value_inr: input.funnel.orderValueInr }),
+      });
       const next: CheckoutPhase = {
         kind: 'failed',
         orderGroupId,

@@ -129,12 +129,35 @@ export function SignInScreen({
    * inferring one keeps the property honest when they arrive: whoever wires them changes this
    * line, and the allowlist already permits the other two values.
    */
+  // Read before the effect below, which needs the status to tell a first sign-in on this
+  // install from a returning one — `E15-24`.
+  const { status: sessionStatus, setSession } = useSession();
+
   useEffect(() => {
     track('signin_started', { method: 'email_otp' });
+    /**
+     * `E15-24`. The signup half, and **the one property here that is an approximation** —
+     * stated rather than smoothed over.
+     *
+     * A true "signup started" would need to know at *this* moment that the address is new, and
+     * that is not knowable client-side: the send step refuses to reveal whether an account
+     * exists, by design. The available proxy is that this install holds no session, which is
+     * overwhelmingly a first-time parent — and also true of a reinstall or somebody who signed
+     * out. So it **over-counts**, and `signup_completed` (which is authoritative) is the number
+     * to trust; the pair reads as a ceiling and an actual, not a clean ratio.
+     *
+     * `app_opened`/`is_first_open` would be the honest signal and is declared in the allowlist
+     * with no emitter anywhere — it needs a persisted first-run flag, which needs storage this
+     * OTA-only change cannot add.
+     */
+    if (sessionStatus === 'signedOut') {
+      track('signup_started', { method: 'email_otp' });
+    }
+    // `sessionStatus` is read once on mount on purpose: this is the "reached the gate" step, and
+    // re-firing it when the status settles would double every count. `react-hooks/exhaustive-deps`
+    // is not configured in this repo, so there is no directive to silence — the empty dep array
+    // is the intent, stated here instead.
   }, []);
-
-
-  const { setSession } = useSession();
 
   const [step, setStep] = useState<'email' | 'code'>(() =>
     pending?.resendAt != null ? 'code' : 'email',
@@ -282,6 +305,27 @@ export function SignInScreen({
     try {
       const user = await api.verifyEmailOtp(email, code);
       clearPendingSignIn();
+      /**
+       * `E15-24`. **Signup, where it is the only place the act is decidable.**
+       *
+       * `U1` makes account creation implicit — one `signInWithOtp` both creates and resumes — so
+       * nothing earlier in this flow knows whether this address is new. It deliberately cannot:
+       * the "if that address has an account" copy on the send step exists so this screen is not
+       * an account directory, and telling the funnel would mean telling the client.
+       *
+       * `isNewAccount` is derived by the api layer from the provider's own timestamps, so this is
+       * authoritative rather than inferred. `null` means the provider did not say, and neither
+       * event fires — an unknown must not render as a known (`ux-spec` §5.21), and a guessed
+       * signup makes acquisition look better than it is.
+       *
+       * Fired **before** `setSession`, so it is still anonymous — which is now safe, because
+       * `identify` merges this launch's anonymous events onto the parent (`E15-24`). Before that
+       * fix it would have been silently discarded, which is exactly what happened to
+       * `signin_started` for thirty days.
+       */
+      if (user.isNewAccount === true) {
+        track('signup_completed', { method: 'email_otp' });
+      }
       setSession({ status: 'signedIn', userId: user.userId, email: user.email ?? email });
       onSignedIn?.();
     } catch (error) {

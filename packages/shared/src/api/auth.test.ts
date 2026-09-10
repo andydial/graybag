@@ -4,6 +4,7 @@ import {
   AuthError,
   currentUser,
   looksLikeEmail,
+  looksLikeFirstSignIn,
   normaliseEmail,
   sendEmailOtp,
   setApiTransport,
@@ -100,6 +101,9 @@ describe('verifyEmailOtp', () => {
     await expect(verifyEmailOtp('a@b.com', ' 123456 ')).resolves.toEqual({
       userId: 'u1',
       email: 'a@b.com',
+      // `E15-24`. `null` because this stub sends neither timestamp — "we do not know", which is
+      // what a test double should produce rather than an accidental verdict either way.
+      isNewAccount: null,
     });
   });
 
@@ -155,6 +159,54 @@ describe('currentUser', () => {
     authStub({
       getSession: vi.fn().mockResolvedValue({ data: { session: { user: { id: 'u9' } } } }),
     });
-    await expect(currentUser()).resolves.toEqual({ userId: 'u9', email: null });
+    /*
+     * `isNewAccount: null` — `E15-24`. A restored session is a *resumed* one, so this path cannot
+     * answer "was this account created just now" and must not pretend to. `false` would read as a
+     * confident "returning parent".
+     */
+    await expect(currentUser()).resolves.toEqual({
+      userId: 'u9',
+      email: null,
+      isNewAccount: null,
+    });
+  });
+});
+
+/**
+ * `E15-24`. Telling a new family from a returning one, when `U1` makes signup implicit.
+ *
+ * One `signInWithOtp` both creates and resumes an account, so nothing in the app could
+ * distinguish them and `signup_completed` had no signal to fire on.
+ */
+describe('looksLikeFirstSignIn', () => {
+  it('is true when the account was created in the same act as this sign-in', () => {
+    // Supabase writes the user row when the code is *requested* and stamps `last_sign_in_at` when
+    // it is *verified*, so a first sign-in has them minutes apart at most.
+    expect(looksLikeFirstSignIn('2026-09-10T10:00:00Z', '2026-09-10T10:02:00Z')).toBe(true);
+  });
+
+  it('is false for a parent who signed up weeks ago', () => {
+    expect(looksLikeFirstSignIn('2026-08-01T10:00:00Z', '2026-09-10T10:00:00Z')).toBe(false);
+  });
+
+  it('compares the two timestamps, never the device clock', () => {
+    // A handset with a wrong clock would otherwise mislabel everybody. Both values come from the
+    // provider, so a skewed device changes nothing.
+    expect(looksLikeFirstSignIn('2001-01-01T00:00:00Z', '2001-01-01T00:01:00Z')).toBe(true);
+  });
+
+  it('rounds a slow verification to "returning", which under-counts signups', () => {
+    // The error direction is deliberate: inventing new families makes acquisition look better
+    // than it is. The OTP expires at 60 minutes, so this only affects a parent who leaves the
+    // code sitting for over 30.
+    expect(looksLikeFirstSignIn('2026-09-10T10:00:00Z', '2026-09-10T10:31:00Z')).toBe(false);
+  });
+
+  it('is null — not false — when the provider did not say', () => {
+    // `false` would quietly report every signup as a returning parent the moment a field is
+    // renamed. The caller fires neither event on `null`.
+    expect(looksLikeFirstSignIn(undefined, '2026-09-10T10:00:00Z')).toBeNull();
+    expect(looksLikeFirstSignIn('2026-09-10T10:00:00Z', undefined)).toBeNull();
+    expect(looksLikeFirstSignIn('not-a-date', '2026-09-10T10:00:00Z')).toBeNull();
   });
 });

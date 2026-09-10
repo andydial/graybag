@@ -11,7 +11,16 @@ import {
   type NativeStackNavigationProp,
   type NativeStackScreenProps,
 } from '@react-navigation/native-stack';
-import { api, design, menu as menuDomain, ordering, packEligibility, packPlan, money } from '@graybag/shared';
+import {
+  analytics,
+  api,
+  design,
+  menu as menuDomain,
+  ordering,
+  packEligibility,
+  packPlan,
+  money,
+} from '@graybag/shared';
 
 import {
   AccountScreen,
@@ -326,6 +335,37 @@ function CartTabScreen() {
    * without you tapping it."* A remembered preference would spend a meal on an order the parent
    * never thought about.
    */
+  /**
+   * Is this the parent's first order? — `E15-24`, for `is_first_order`.
+   *
+   * **Read on mount, deliberately not on the Pay tap.** `is_first_order` is a dashboard property
+   * and must not be able to slow, block or fail a payment: a school goes live on the 15th and the
+   * checkout path is the last thing that should acquire a new dependency. The cart is a screen a
+   * parent sits on — choosing a day, a break, a quantity — so there is time for one light read
+   * long before they commit.
+   *
+   * `null` on failure and stays `null`: the property is then omitted from the event rather than
+   * reported as `false`, which would claim every order was a repeat.
+   *
+   * `=== 0` because this runs before the order exists. After checkout the parent has one.
+   */
+  const [isFirstOrder, setIsFirstOrder] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (audience.kind !== 'ordering') return;
+    let live = true;
+    api
+      .fetchOrders()
+      .then((rows) => {
+        if (live) setIsFirstOrder(rows.length === 0);
+      })
+      .catch(() => {
+        // Analytics never blocks a parent, and never guesses either.
+      });
+    return () => {
+      live = false;
+    };
+  }, [audience.kind]);
+
   const [usingPackMeal, setUsingPackMeal] = useState(false);
   const packSurface = useMealPackSurface();
 
@@ -433,6 +473,85 @@ function CartTabScreen() {
    */
   const nextPolicy = useNextPendingPolicy();
 
+  /**
+   * The non-PII funnel context both payment events and `checkout_started` report — `E15-24`.
+   *
+   * One memo, so `payment_started` (fired inside `runCheckout`) and `payment_completed` (fired by
+   * the poll below) cannot drift into describing the same order differently. Every value is a
+   * count, a rupee total, an institution or a day offset; nothing here is an attribute of a child.
+   *
+   * `child_count` is **how many children this order is for**, computed from the distinct
+   * recipients on the cart. It is a number, not an identity — the recipient ids themselves are in
+   * `FORBIDDEN_KEYS` and never leave.
+   */
+  const funnelContext = useMemo(() => {
+    const recipients = new Set(
+      cart.lines.map((line) => line.recipientId).filter((id): id is string => id !== null),
+    );
+    const totalPaise = money.gstBreakdown(
+      cart.lines.map((line) => ({ unitPricePaise: line.unitPricePaise, quantity: line.quantity })),
+    ).totalPaise;
+    return {
+      schoolId,
+      itemCount: cart.lines.reduce((n, line) => n + line.quantity, 0),
+      orderValueInr: analytics.rupeesFromPaise(totalPaise),
+      childCount: recipients.size,
+      daysUntilDelivery:
+        cartDay === null ? null : analytics.daysUntil(cartDay, analytics.serviceDateInIst(new Date())),
+      isFirstOrder,
+    };
+  }, [cart.lines, schoolId, cartDay, isFirstOrder]);
+
+  /**
+   * `order_blocked`, once per distinct reason — `E15-24`.
+   *
+   * **Fired from an effect with a guard, not on render.** The blocking states are derived from
+   * props that change on every quantity tap, so an unguarded emit would send hundreds of events
+   * for one stuck parent and make the reason counts meaningless. The ref holds the last reason
+   * reported, so a parent who stays blocked is one event and a parent who moves between reasons
+   * is one each.
+   *
+   * Reported while the parent is **looking at** the cart rather than after they tap, because
+   * three of the four reasons prevent the tap from doing anything — which is exactly why the
+   * drop-off was invisible.
+   */
+  const lastBlockReason = useRef<string | null>(null);
+  const blockReason = analytics.orderBlockReason({
+    hasMenu: (payload?.dishes.length ?? 0) > 0,
+    // `undefined` means the windows have not been read yet — not "none", which is `P19`'s
+    // "this school cannot be ordered from". Treating unknown as closed would report every
+    // school as shut for the moment before its windows arrive.
+    hasBreakWindows: breakWindows === undefined || breakWindows.length > 0,
+    dayOrderable:
+      orderableDays.length === 0
+        ? true
+        : cartDay !== null &&
+          orderableDays.some((d) => d.isOrderable && d.serviceDate === cartDay),
+    packIneligible: usingPackMeal && packIneligibility !== null,
+  });
+
+  useEffect(() => {
+    if (blockReason === null) {
+      lastBlockReason.current = null;
+      return;
+    }
+    // Nothing to report while the cart is empty: a parent with no lines is not blocked, they
+    // have not started.
+    if (cart.lines.length === 0) return;
+    if (lastBlockReason.current === blockReason) return;
+    lastBlockReason.current = blockReason;
+    track('order_blocked', {
+      reason: blockReason,
+      ...(schoolId == null ? {} : { school_id: schoolId }),
+      ...(cartDay === null
+        ? {}
+        : {
+            days_until_delivery:
+              analytics.daysUntil(cartDay, analytics.serviceDateInIst(new Date())) ?? 0,
+          }),
+    });
+  }, [blockReason, cart.lines.length, schoolId, cartDay]);
+
   const placeOrder = () => {
     switch (audience.kind) {
       case 'unknown':
@@ -503,6 +622,9 @@ function CartTabScreen() {
       lines,
       // Sent so the server CAN refuse (`L7`), never so it can be believed.
       expectedTotalPaise: expected,
+      // `E15-24`. Revenue, school and basket for `checkout_started`, `payment_started` and
+      // `payment_failed` — the funnel had none of them.
+      funnel: funnelContext,
     });
 
     /**
@@ -560,7 +682,27 @@ function CartTabScreen() {
              * does not leave the country — and no attempt number, because this response does not
              * carry one and a hardcoded 1 would be a lie for a resumed payment.
              */
-            track('payment_completed');
+            /**
+             * `E15-24` gives it the basket. Read from `funnelContext`, the same memo
+             * `payment_started` used, so the two events cannot describe one order differently.
+             *
+             * Assembled here rather than passed through `checkout-status`, whose response
+             * genuinely does not carry any of it — which is also why there is still no
+             * `attempt_no`.
+             */
+            track('payment_completed', {
+              ...(funnelContext.schoolId == null ? {} : { school_id: funnelContext.schoolId }),
+              item_count: funnelContext.itemCount,
+              ...(funnelContext.orderValueInr == null
+                ? {}
+                : { order_value_inr: funnelContext.orderValueInr }),
+              ...(funnelContext.daysUntilDelivery == null
+                ? {}
+                : { days_until_delivery: funnelContext.daysUntilDelivery }),
+              ...(funnelContext.isFirstOrder == null
+                ? {}
+                : { is_first_order: funnelContext.isFirstOrder }),
+            });
             setPlaced(result.order ?? null);
             clearCart();
             resetCheckout();
@@ -666,7 +808,25 @@ function CartTabScreen() {
       days={orderableDays}
       daysUnavailable={daysUnavailable}
       selectedDay={cartDay}
-      onSelectDay={(serviceDate) => setServiceDate(serviceDate as menuDomain.ServiceDate)}
+      onSelectDay={(serviceDate) => {
+        /**
+         * `E15-24`. Which day a parent chose, and how far ahead — Andy's
+         * `delivery_date_selected`.
+         *
+         * On the **tap**, not on the cart's day changing: the effect above moves the cart onto
+         * the next orderable day by itself when the current one is refused, and counting that as
+         * a parent's choice would report a decision nobody made.
+         *
+         * `is_next_school_day` says whether they took the earliest day offered or looked further
+         * out, which is the question behind "should we open a longer ordering window".
+         */
+        track('delivery_date_selected', {
+          days_until_delivery:
+            analytics.daysUntil(serviceDate, analytics.serviceDateInIst(new Date())) ?? 0,
+          is_next_school_day: serviceDate === ordering.nextOrderableDate(orderableDays),
+        });
+        setServiceDate(serviceDate as menuDomain.ServiceDate);
+      }}
       {...(cartAllergens === undefined ? {} : { allergens: cartAllergens })}
       /*
        * `E21`. The redemption offer. `packBalance` comes from the surface context rather than a

@@ -47,6 +47,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Bubble export constraints](decisions/bubble-export.md) | `BR1`, `BR3`–`BR5`, `BR7` | Migration key, draft orders, label mapping, regulated free text |
 | [Andy's rulings on the recon findings](decisions/recon-rulings.md) | `AR1`–`AR8` | Parent↔child from orders, binary roles, the moving email domain |
 | [Documentation](decisions/documentation.md) | `DOC1` | Why the decision log is one index plus per-area files |
+| [Analytics and the funnel](decisions/analytics.md) | `AN1`–`AN7` | Anonymous `distinct_id` and the merge, per-event vocabularies, rupees vs paise, where the DPDP line sits |
 
 ## Finding a decision by ID
 

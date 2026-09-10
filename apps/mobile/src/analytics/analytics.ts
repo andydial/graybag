@@ -53,7 +53,7 @@ const instance = (() => {
      * shared bundle failed to resolve: the guard would throw from inside the catch, so the very
      * failure it exists to absorb would take the app down with it.
      */
-    return { capture: () => {}, identify: () => {}, flush: async () => {} };
+    return { capture: () => {}, identify: () => {}, reset: () => {}, flush: async () => {} };
   }
 })();
 
@@ -71,6 +71,17 @@ export function track(event: string, properties: Record<string, unknown> = {}): 
 /** The parent's `app_user.id`, and nothing else. Never an email — `docs/posthog.md` §3. */
 export function identifyParent(userId: string): void {
   instance.identify(userId);
+}
+
+/**
+ * Forget the parent on sign-out — `E15-24`.
+ *
+ * A handset is shared: the previous parent's id used to persist in the client for the life of the
+ * process, so the next person's pre-sign-in taps were filed under the first. It is also the
+ * mechanism behind the only two `signin_started` events that ever landed.
+ */
+export function resetAnalyticsIdentity(): void {
+  instance.reset();
 }
 
 /**
