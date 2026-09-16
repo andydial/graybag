@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/57</span>
+          <span class="meter-num">0/60</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 57 tasks</summary>
+        <summary>Context &amp; 60 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7347,6 +7347,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The pgTAP suite has <code>E14-42</code>&#39;s disease too: <code>meal_pack_ledger.test.sql</code> failed once in a full run and passed alone and on re-run.</strong> Four assertions, all the absolute liability invariant — *the ledger owes exactly what the pack owes* — on 2026-08-28. The same suite passed immediately before and after with no change to that file. <strong>Filed separately from <code>E14-42</code> on purpose</strong>: that one is the <code>node --test</code> scripts suite and its fix is per-test isolation in JavaScript; this is <code>supabase/tests/*.test.sql</code> run sequentially by <code>scripts/test-db.sh</code> against one database, where every file is supposed to be self-isolating via <code>begin; … rollback;</code>. If one is not, it contaminates every file after it and the blame lands on whoever&#39;s assertion notices first. The shape of the risk is in <code>meal_pack_ledger.test.sql</code>&#39;s own header: the <strong>absolute</strong> form of the invariant holds only because exactly one pack exists, so any earlier file leaving a committed <code>meal_pack</code> row breaks it. <code>recipient_erasure_commits.test.sql</code> commits by design but sorts after. Worth finding before it fails in CI on somebody else&#39;s branch and reads as their bug — a flaky assertion about whether the ledger balances is the one to chase, not tolerate</span>
+      </li>
+      <li class="task" data-id="E21-65" data-seed="0" data-risk="critical" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-65"></button>
+        <code class="tid">E21-65</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A redeemed pack meal never reaches the kitchen, so the food is never cooked.</strong> Found auditing the rebuild, 2026-09-16, and it is the reason the rebuild stopped before designing anything. <code>confirm_meal_pack_plan</code> (<code>0073:142</code>) inserts the day&#39;s order with <code>status = &#39;pending_payment&#39;</code> — correct for a food order, which a payment then settles, and <strong>wrong here, because a pack meal has no payment to settle</strong>. The only <code>pending_payment → paid</code> transition in the schema is the loop inside <code>settle_payment</code> (<code>0080:77</code>), driven by a capture webhook, and it runs against <code>order_group_id = v_group.id</code> <strong>once</strong>, when the pack *purchase* settles. The redemption orders are inserted into <strong>that same, already-settled group</strong> (<code>0073:146</code> reuses <code>v_pack.order_group_id</code>) and are created *later*, when the parent plans their days — so nothing runs for them, ever. Two consequences, both silent: the kitchen board filters to <code>[&#39;paid&#39;,&#39;preparing&#39;,&#39;delivered&#39;,&#39;cancelled&#39;]</code> (<code>packages/shared/src/api/kitchen.ts:87</code>), so <strong>a redeemed meal is invisible to the kitchen</strong>; and <code>pickup_code</code> is allocated only in that same loop, so the meal has no code even if somebody found it. The parent&#39;s balance decrements correctly, the ledger recognises the revenue correctly, and the child gets nothing. <strong>Not an incident</strong>: every offer is <code>is_active = false</code> and no <code>meal_pack_offer_school</code> row exists, so no parent has ever redeemed one in production — this is latent, and it would fire on the first real redemption at Amity. <strong>The tests could not catch it</strong> because <code>meal_packs.test.sql</code> asserts only the leak direction — that the kitchen sees *nothing pack-related* — and never that a redemption *arrives*. Both directions need asserting: a redeemed meal appears on the kitchen board as an ordinary order, and carries nothing identifying it as pack-paid. Fix is a migration and therefore MOBILE&#39;s; the assertion that it reached the board is mine</span>
+      </li>
+      <li class="task" data-id="E21-66" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-66"></button>
+        <code class="tid">E21-66</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>order_ref</code> tells the kitchen the order was paid with a pack.</strong> <code>confirm_meal_pack_plan</code> (<code>0073:148</code>) mints its own reference as <code>&#39;PK-&#39; || …</code> while every food order gets <code>generate_order_ref()</code>, which is <code>&#39;GB-&#39; || …</code> (<code>0014:75</code>). <code>order_ref</code> is in <code>KITCHEN_ORDER_COLUMNS</code>, so the prefix crosses the wire to the kitchen client on every order. <code>E09-42</code> removed the reference from the card, so nothing draws it today — but the guarantee <code>meal_packs.test.sql:170</code> states is *&quot;a pack-paid order must be indistinguishable there&quot;*, and the test that backs it checks only that <code>order</code> carries no pack <strong>column</strong>. A prefix is not a column and smuggles the same fact past it. Either mint pack redemptions through <code>generate_order_ref()</code> like everything else, or drop <code>order_ref</code> from the kitchen column list — and assert the property the test claims rather than a proxy for it. Second, smaller: the <code>PK-</code> path has <strong>no collision retry</strong>, unlike <code>generate_order_ref()</code>&#39;s ten attempts, so a duplicate raises at the parent instead of redrawing</span>
+      </li>
+      <li class="task" data-id="E21-67" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-67"></button>
+        <code class="tid">E21-67</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>An offer&#39;s <code>name</code> is read live and is not frozen once sold.</strong> <code>E21-60</code> froze <code>items_per_meal</code> and <code>required_category_id</code> because <code>meal_pack_balance</code> joins the live offer for them; <code>name</code> is joined live in the same breath (<code>0072:42</code>, <code>0074:49</code>) and was not frozen, so renaming an offer <strong>retitles packs parents already hold</strong>. It also reaches a tax document: <code>issue_invoice</code> builds the pack&#39;s invoice line description from <code>o.name</code> live (<code>0079:144</code>). The amounts are safe — every money column on that line is <code>mp.*</code>, stamped at sale — and <code>invoice_line</code> is written once, so a rename cannot rewrite an issued invoice. The exposure is the window between sale and settlement: rename inside it and the invoice is issued under a name the pack was not sold under. Fold into <code>E21-61</code>&#39;s stamping rather than extending the frozen list — a name stamped on the pack fixes the balance screen and the invoice together, and shrinks the freeze instead of growing it</span>
       </li></ul>
       </details>
     </article>
