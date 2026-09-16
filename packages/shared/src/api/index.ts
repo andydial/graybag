@@ -152,6 +152,24 @@ export {
   type ReportRow,
 } from './admin-reports.js';
 
+// Meal pack money (`E21`, `M10`/`M11`). Kept deliberately separate from `admin-reports` above: a
+// pack sale is a LIABILITY on the day it happens, and the food revenue line must never absorb it.
+export {
+  PackReportError,
+  deferredOutstandingPaise,
+  deferredPaise,
+  packPeriodTotals,
+  reconcile,
+  redemptionRate,
+  summarisePackSales,
+  type ExpiryRow,
+  type LedgerPackMovements,
+  type OfferSales,
+  type PackPeriodTotals,
+  type PackRow,
+  type Reconciliation,
+} from './admin-pack-reports.js';
+
 // Order alert recipients (`E08-12`). Reads under the caller's session and scoped by
 // `kitchen.config_edit`; writes through the Edge Function, because the table has no write policy.
 export {
