@@ -215,7 +215,19 @@ async function race({ items, attempts, take }) {
        delete from order_group og where og.id not in (select order_group_id from meal_pack)
          and og.idempotency_key like 'e21-race-%';
        delete from meal_pack_offer o where o.name = 'E21 race pack'
-         and not exists (select 1 from meal_pack m where m.offer_id = o.id);`);
+         and not exists (select 1 from meal_pack m where m.offer_id = o.id);
+       -- AND THE ACCOUNTS. The first version of this cleanup stopped at the pack and left an
+       -- app_user behind per racer, 16 of them after a few runs. They are invisible until
+       -- something does "select id from app_user order by id limit 1", which is what the pgTAP
+       -- fixtures do, and then a suite that passed yesterday fails on a user with no guardian
+       -- link. Exactly the litter this comment block was already about, one table further down.
+       -- (No backticks in here: this is inside a JS template literal, and one ends the string.)
+       delete from app_user u using auth.users a
+        where a.id = u.id and a.email like 'e21-race-%'
+          and not exists (select 1 from meal_pack m where m.customer_user_id = u.id)
+          and not exists (select 1 from order_group g where g.customer_user_id = u.id);
+       delete from auth.users a where a.email like 'e21-race-%'
+          and not exists (select 1 from app_user u where u.id = a.id);`);
 
   return {
     succeeded: results.filter((r) => r === 'took').length,
