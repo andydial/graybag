@@ -155,19 +155,18 @@ export {
 // Meal pack money (`E21`, `M10`/`M11`). Kept deliberately separate from `admin-reports` above: a
 // pack sale is a LIABILITY on the day it happens, and the food revenue line must never absorb it.
 export {
+  PACK_MONEY_COLUMNS,
   PackReportError,
-  deferredOutstandingPaise,
-  deferredPaise,
+  fetchPackMoney,
   packPeriodTotals,
-  reconcile,
   redemptionRate,
+  soldBetween,
   summarisePackSales,
-  type ExpiryRow,
-  type LedgerPackMovements,
+  toPackMoneyRow,
   type OfferSales,
+  type PackMoneyRow,
   type PackPeriodTotals,
-  type PackRow,
-  type Reconciliation,
+  type Visibility,
 } from './admin-pack-reports.js';
 
 // Order alert recipients (`E08-12`). Reads under the caller's session and scoped by
