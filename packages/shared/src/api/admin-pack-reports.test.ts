@@ -187,9 +187,12 @@ describe('packPeriodTotals', () => {
      * back-office account reads NOTHING and naive aggregation renders a confident ₹0 deferred.
      * `E21-63` is the same finding: refuse to say "0" when the truth is "we can't see".
      */
-    const blind = packPeriodTotals([], [], 'blind');
-    expect(blind.visibility).toBe('blind');
-    expect(blind.deferredOutstandingPaise).toBe(0);
+    const hidden = packPeriodTotals([], [], 'hidden');
+    expect(hidden.visibility).toBe('hidden');
+    expect(hidden.deferredOutstandingPaise).toBe(0);
+
+    const unreadable = packPeriodTotals([], [], 'unreadable');
+    expect(unreadable.visibility).toBe('unreadable');
 
     const empty = packPeriodTotals([], [], 'visible');
     expect(empty.visibility).toBe('visible');
