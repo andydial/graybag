@@ -76,6 +76,98 @@ touches the ordering or payment path.
   follow-on change to it, not a re-do.
 ---
 
+## Handover to MOBILE — `E21-65`, and what it means for the rebuild
+
+Written 2026-09-16 by the web thread, at Andy's instruction, so MOBILE reads the evidence rather
+than a paraphrase. **Self-contained: every claim below has a file and line, and every one was read
+rather than remembered.**
+
+### The defect, in the code that exists on `main` today
+
+`confirm_meal_pack_plan` inserts the day's order with `status = 'pending_payment'`:
+
+- `supabase/migrations/0073_confirm_meal_pack_plan.sql:142-152` — the insert. The literal
+  `'pending_payment'` is on line **147**, and the order reuses the pack's existing group:
+  `select v_pack.order_group_id, …` on line **146**.
+
+That status is correct for a food order, which a payment then settles. **A pack meal has no payment
+to settle.** The only `pending_payment → paid` transition anywhere in the schema is the loop inside
+`settle_payment`:
+
+- `supabase/migrations/0080_settlement_activates_a_pack.sql:76-101` — `for v_order in select * from
+  "order" where order_group_id = v_group.id and status = 'pending_payment'`, then
+  `set status = 'paid', confirmed_at = now(), pickup_code = …` on lines **86-88**.
+
+That loop is driven by a capture webhook and runs **once per group**, when the pack *purchase*
+settles. The redemption orders are inserted into **that same, already-settled group**, and they are
+created *later* — when the parent plans their days. Nothing runs for them again, ever.
+
+Two consequences, both silent:
+
+1. **The kitchen never sees the meal.** The board filters to
+   `['paid','preparing','delivered','cancelled']` —
+   `packages/shared/src/api/kitchen.ts:87`. A `pending_payment` order is not in that set.
+2. **There is no `pickup_code`.** It is allocated only inside that same settlement loop
+   (`0080:88`), so even if somebody found the order, there is nothing to call out.
+
+The parent's balance decrements correctly. The ledger recognises the revenue correctly. The child
+gets nothing.
+
+### It has never fired, and that is checked, not assumed
+
+Read from production (`bdamkuugbqjajbndjoxn`) on 2026-09-16, read-only, counts only:
+
+| Table | Rows |
+|---|---|
+| `meal_pack_offer` | **0** |
+| `meal_pack_offer` where `is_active` | **0** |
+| `meal_pack_offer_school` | **0** |
+| `meal_pack` | **0** |
+| `meal_pack_redemption` | **0** |
+
+`platform_config` reads `environment: production, meal_packs_confirmed: true, pack_tax_point: sale`.
+So the flag that was supposed to hold packs shut **is open**, and the only thing that has ever kept
+packs dark is that nobody created an offer. It is latent, not live, and it would have fired on the
+**first real redemption at Amity**.
+
+### Why the tests did not catch it, which is the part worth carrying forward
+
+`supabase/tests/meal_packs.test.sql` asserts the kitchen sees **nothing pack-related** — that
+`order` carries no pack column (line **177**), that `order_line` carries none (**184**), that no
+policy on a pack table mentions a kitchen (**165-167**). Every one of those passes.
+
+**Not one of them asserts that a redemption *arrives*.** The suite tested the leak direction and
+never the delivery direction, so a defect that fed nobody looked exactly like a clean bill of
+health. That is the same shape as the promote gate: a check that passes because it is pointed at
+the half of the property that was easy to state.
+
+### What this means for the rebuild — the reason the note is worth reading
+
+**In the new design this defect cannot exist, and `E21-66` cannot either.** `confirm_meal_pack_plan`
+is dropped (`docs/meal-packs-rebuild.md` §1, *Dropped*), the planner goes with it, and a pack-covered
+order becomes an **ordinary cart order** that reserves at checkout and confirms at the webhook. It
+therefore travels the same `pending_payment → paid` path as every food order, driven by a real
+payment, and it gets a `GB-` reference from `generate_order_ref()` like everything else. Both
+findings are resolved by deletion rather than by a fix.
+
+So this note is **not a bug to fix**. It is two properties the new suite must assert, because the
+old one asserted neither and the new design makes both easy to assume:
+
+1. **A pack-covered order reaches the kitchen board.** Both directions, in one test file: the order
+   *arrives* with `status = 'paid'` and a `pickup_code`, **and** nothing on it says it was paid with
+   a pack. The web thread owns this one and will write it.
+2. **Partial redemption does not strand the cash half.** New in this design and with no equivalent
+   in the old one: when a pack covers part of a cart and cash covers the rest, the order must settle
+   once, as one order. The old code could not express a partly-covered cart at all, so there is no
+   prior test to inherit and no prior bug to learn from.
+
+`E21-67` — the offer's name being read live from `meal_pack_offer` by `meal_pack_balance`
+(`0072:42`) and by the invoice line description (`0079:144`) — is **already fixed** in the new model
+by `meal_pack.name_snapshot` (`docs/meal-packs-rebuild.md` §2). No action needed; recorded so it is
+not rediscovered.
+
+---
+
 ## Closed 2026-08-20 — navigation, and the cancellation that told nobody
 
 **`E10-43` — a dashboard to land on, and navigation everywhere.** `nav.ts` had modelled this
