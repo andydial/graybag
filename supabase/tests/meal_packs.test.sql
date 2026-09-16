@@ -46,13 +46,23 @@ set local app.actor_type = 'system';
 -- ₹3,000 ex-tax over 20 items, +2 bonus inside 30 days, valid 60. Andy's Pack 1, to the paise.
 -- -----------------------------------------------------------------------------
 
+-- A REAL guardian pair, not an arbitrary user and an arbitrary child.
+--
+-- `start_meal_pack_purchase` refuses a parent with no child at the school (`P22`), and picking
+-- the first `app_user` by id does not give you one. It also makes this file depend on nothing
+-- else having left an account behind — `meal-pack-concurrency.test.mjs` COMMITS by design, and
+-- when its cleanup stopped at the pack it left sixteen users that sorted ahead of the seed.
 create temporary table p_ctx as
-select (select id from school where is_active order by id limit 1)          as school_id,
+select (select s.id from recipient r join guardian_link g on g.recipient_id = r.id
+          join school s on s.id = r.school_id
+         where s.is_active and r.deleted_at is null order by r.id limit 1)   as school_id,
        (select id from city order by id limit 1)                            as city_id,
-       (select id from app_user order by id limit 1)                        as user_id,
-       (select r.id from recipient r
-         where r.school_id = (select id from school where is_active order by id limit 1)
-         order by r.id limit 1)                                             as recipient_id,
+       (select g.user_id from recipient r join guardian_link g on g.recipient_id = r.id
+          join school s on s.id = r.school_id
+         where s.is_active and r.deleted_at is null order by r.id limit 1)   as user_id,
+       (select r.id from recipient r join guardian_link g on g.recipient_id = r.id
+          join school s on s.id = r.school_id
+         where s.is_active and r.deleted_at is null order by r.id limit 1)   as recipient_id,
        'a1000000-7e57-0000-0000-0000000000f1'::uuid                         as offer_id,
        'a2000000-7e57-0000-0000-0000000000f1'::uuid                         as pack_id,
        'a3000000-7e57-0000-0000-0000000000f1'::uuid                         as buy_group_id;
@@ -355,8 +365,8 @@ select throws_ok(
 -- =============================================================================
 
 create temporary table b_ctx as
-select (select id from app_user order by id limit 1)                     as user_id,
-       (select id from school where is_active order by id limit 1)       as school_id,
+select (select user_id from p_ctx)                                       as user_id,
+       (select school_id from p_ctx)                                     as school_id,
        (select id from school where is_active order by id offset 1 limit 1) as other_school_id,
        'a1000000-7e57-0000-0000-0000000000f2'::uuid                      as offer2_id;
 
@@ -499,6 +509,77 @@ select is((select count(*)::int
 
 select is((select failures from check_meal_pack_ledger_invariant()), 0::bigint,
   'INVARIANT after the zero-cash path');
+
+-- =============================================================================
+-- 12. `E21-82` — A PACK PURCHASE CAN ACTUALLY BE INVOICED.
+--
+-- The defect this is named for: `issue_invoice` still read four columns `0085` had renamed, and
+-- **PL/pgSQL does not resolve column references until execution**, so it was stored happily and
+-- would have failed on the first real pack sale — inside `settle_payment`, rolling the settlement
+-- back with the money already captured. A parent charged Rs 3,150, no pack, no invoice.
+--
+-- Nothing in this suite caught it, because every assertion above builds its packs directly and
+-- none of them had ever asked the invoice function to run. WEB's audit found it by reading. This
+-- is the assertion that would have, and the lesson is the same one as `E21-65`: a path nothing
+-- exercises is a path nobody knows is broken.
+-- =============================================================================
+
+-- Buy FIRST, then rename, then invoice — in that order, because that is the window `E21-67` is
+-- about. My first draft bought the pack after the rename in section 10, so `name_snapshot`
+-- legitimately held the new name and the assertion failed on the code being right. The bug being
+-- tested is a rename landing BETWEEN the sale and the settlement.
+update meal_pack_offer set name = 'Pack 2' where id = (select offer2_id from b_ctx);
+
+create temporary table i_pack as
+select start_meal_pack_purchase((select user_id from b_ctx), (select offer2_id from b_ctx),
+                                (select school_id from b_ctx), 'invoice-a-pack') as r;
+
+update meal_pack_offer set name = 'Renamed between sale and settlement'
+ where id = (select offer2_id from b_ctx);
+
+select lives_ok(
+  format($$ select issue_invoice(%L::uuid) $$, ((select r->>'order_group_id' from i_pack))::uuid),
+  'E21-82: issue_invoice RUNS on a pack purchase. It did not — it named four columns that no '
+  'longer exist, and would have aborted the settlement transaction with the money captured.');
+
+select is((select count(*)::int from invoice
+            where order_group_id = ((select r->>'order_group_id' from i_pack))::uuid), 1,
+  'E21-82: exactly one tax invoice, for the pack purchase');
+
+select is((select taxable_value_paise from invoice
+            where order_group_id = ((select r->>'order_group_id' from i_pack))::uuid),
+  500000::bigint,
+  'E21-82: the taxable value is the EX-TAX price, Rs 5,000 — read from the pack, which stamped '
+  'it at sale, never from the live offer');
+
+select is((select cgst_paise + sgst_paise from invoice
+            where order_group_id = ((select r->>'order_group_id' from i_pack))::uuid),
+  25000::bigint, 'E21-82: Rs 250 of GST on the invoice, 5% of Rs 5,000');
+
+select matches(
+  (select description from invoice_line il
+     join invoice i on i.id = il.invoice_id
+    where i.order_group_id = ((select r->>'order_group_id' from i_pack))::uuid),
+  'items, prepaid',
+  'E21-82: the line describes ITEMS, not meals — the vocabulary the rebuild uses');
+
+-- The offer was renamed above, after the pack was sold. The invoice must not follow it.
+select matches(
+  (select description from invoice_line il
+     join invoice i on i.id = il.invoice_id
+    where i.order_group_id = ((select r->>'order_group_id' from i_pack))::uuid),
+  '^Pack 2',
+  'E21-67 ON THE TAX DOCUMENT: the invoice is issued under the name the pack was SOLD under, not '
+  'the offer''s current one. The offer was renamed earlier in this file; an invoice is written '
+  'once and cannot be rewritten, so joining the live offer here was the one place that mistake '
+  'could not be undone.');
+
+select is((select count(*)::int from invoice_line il
+             join invoice i on i.id = il.invoice_id
+            where i.order_group_id = ((select r->>'order_group_id' from i_pack))::uuid
+              and (il.description ilike '%child%' or il.description ilike '%class%')), 0,
+  'and the invoice names no child — a pack is the parent''s and is bought for nobody in '
+  'particular (non-negotiable #4)');
 
 select * from finish();
 rollback;

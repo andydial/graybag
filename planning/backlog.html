@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/62</span>
+          <span class="meter-num">0/64</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 62 tasks</summary>
+        <summary>Context &amp; 64 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7387,6 +7387,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Two threads allocated the same decision ids twice in one day, and being careful is not the fix.</strong> <code>M10</code>/<code>M11</code> were written by both MOBILE and WEB against the same base on 2026-09-16; renumbering mine to <code>M12</code>/<code>M13</code> on the first merge collided again, because WEB had taken those too by the time the second merge came round. They ended as <code>M14</code>/<code>M15</code>. <strong>Each thread reads &quot;next free id&quot; from the branch it holds, and every id either one picks is genuinely free until the other merges</strong> — so the collision is structural, not a lapse. <code>E17-29</code> is the same failure in the backlog (four task ids meaning two different things), and <code>CLAUDE.md</code>&#39;s answer there — *never renumber, always append* — does not help when both threads append the same number simultaneously. Two fixes worth considering: a <strong>reserved range per thread</strong> (MOBILE takes <code>M100+</code>, WEB <code>M200+</code>), which is cheap and ugly; or <strong>allocation at merge</strong> rather than at write, with a placeholder id in the branch, which is correct and needs tooling. Worth doing before the next feature both threads touch, because the cost is not the renumbering — it is that <code>M10</code> meant two different things in two branches for several hours, and a decision id is supposed to be permanent</span>
+      </li>
+      <li class="task" data-id="E21-82" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-82"></button>
+        <code class="tid">E21-82</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>issue_invoice</code> could not invoice a pack purchase, and would have aborted the settlement with the money already captured.</strong> Found by WEB&#39;s audit (<code>#181</code>) and it is MOBILE&#39;s: <code>0085</code> renamed four columns on <code>meal_pack</code> and I replaced <code>settle_payment</code> without replacing the function it calls one line later. <code>issue_invoice</code> still read <code>mp.net_price_paise</code>, <code>mp.tax_total_paise</code> and <code>mp.meals_total</code>, and joined <code>meal_pack_offer</code> for <code>o.name</code>. <strong>WEB found the third; there were four</strong>, and the first aborts the statement before the description is reached — so the symptom is worse than predicted. <strong>PL/pgSQL does not resolve column references until execution</strong>, so the body was stored happily and would have failed on the first real pack sale, inside the transaction that turns a capture into a paid order: a parent charged ₹3,150, no pack, no invoice, and a webhook retrying into the same failure for ever. <code>D14</code> names that state as unrepairable in both halves. <strong>It never fired</strong> — every offer is <code>is_active = false</code> and no <code>meal_pack_offer_school</code> row exists, so the two acts that hold packs dark are also what kept it latent. Fixed in <code>0090</code> before either is turned, applied to staging and production. The fourth change is <code>E21-67</code> in the one place it cannot be undone: an invoice is written once, so joining the live offer meant a rename between sale and settlement issued the tax document under a name the pack was never sold under. <strong>Nothing in the pack suite caught it because nothing had ever asked <code>issue_invoice</code> to run</strong> — seven assertions now do, mutation-checked by restoring <code>0079</code> and watching them fail</span>
+      </li>
+      <li class="task" data-id="E21-83" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-83"></button>
+        <code class="tid">E21-83</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>meal-pack-concurrency.test.mjs</code> left an account behind per racer.</strong> Its cleanup deleted the pack, the group and the offer and stopped there, so sixteen <code>app_user</code> rows accumulated locally. Invisible until something does <code>select id from app_user order by id limit 1</code> — which every pgTAP fixture in this repo did — and then a suite that passed yesterday fails on a user with no guardian link, which is how <code>E21-82</code>&#39;s test first appeared to fail for the wrong reason. Two fixes, because either alone leaves the trap: the test now deletes its accounts, and the pack fixtures select a <strong>real guardian pair</strong> rather than the first user by id, so they depend on nothing else&#39;s litter. The file&#39;s own header already warned about exactly this one table further up</span>
       </li></ul>
       </details>
     </article>
