@@ -104,13 +104,22 @@ export interface PackMoneyRow {
 }
 
 /**
- * Whether the figures beside this can be believed.
+ * Whether the figures beside this can be believed, and if not, **why not**.
  *
- * `blind` is not an error state — the read succeeded and returned nothing. It is the difference
- * between *"no packs have been sold"* and *"we are not allowed to see whether any have"*, and the
- * screen renders them completely differently.
+ * Three states rather than two, because the two ways of being blind are different facts and only
+ * one of them means packs exist:
+ *
+ *   · `visible`   — the figures are the truth.
+ *   · `unreadable` — the read itself failed. Might be permission, might be a view that is not
+ *     deployed yet. We know nothing, including whether any pack exists.
+ *   · `hidden`    — the read **succeeded and returned nothing** while the service role says packs
+ *     have been sold. They exist and this account cannot see them.
+ *
+ * Collapsing these was a real bug: the copy for the merged state asserted *"packs have been
+ * sold"*, which is false on a deployment where the view simply is not there yet — and a report
+ * that invents a fact to explain its own silence is worse than one that stays quiet.
  */
-export type Visibility = 'visible' | 'blind';
+export type Visibility = 'visible' | 'unreadable' | 'hidden';
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
