@@ -52,7 +52,7 @@ const ledger = (over: Partial<LedgerPackMovements> = {}): LedgerPackMovements =>
   deferredBalancePaise: 0,
   recognisedFromRedemptionsPaise: 0,
   recognisedFromBreakagePaise: 0,
-  restatedByBonusPaise: 0,
+  bonusCogsPaise: 0,
   ...over,
 });
 
@@ -62,26 +62,47 @@ describe('deferredPaise', () => {
     expect(deferredPaise(pack({ itemsRemaining: 0 }))).toBe(0);
   });
 
-  it('lands the last item on exactly zero, which an accumulated per-item value cannot', () => {
-    /*
-     * The case the design calls out: ₹3,000 over 22 items is 13,636.36 paise. A stored per-item
-     * value leaves the books a few paise off; a function of `items_remaining` cannot.
-     */
-    const bonus = pack({ itemsTotal: 22, bonusGrantedAt: '2026-09-20T00:00:00Z' });
+  it('lands the last purchased item on exactly zero, at every step down', () => {
     let previous = Number.POSITIVE_INFINITY;
-    for (let remaining = 22; remaining >= 0; remaining -= 1) {
-      const owed = deferredPaise({ ...bonus, itemsRemaining: remaining });
+    for (let remaining = 20; remaining >= 0; remaining -= 1) {
+      const owed = deferredPaise(pack({ itemsRemaining: remaining }));
       expect(owed).toBeLessThanOrEqual(previous);
       expect(Number.isInteger(owed)).toBe(true);
       previous = owed;
     }
-    expect(deferredPaise({ ...bonus, itemsRemaining: 0 })).toBe(0);
-    expect(deferredPaise({ ...bonus, itemsRemaining: 22 })).toBe(300_000);
+    expect(deferredPaise(pack({ itemsRemaining: 0 }))).toBe(0);
   });
 
-  it('matches the design’s worked example after the bonus is granted', () => {
-    // §5: two bonus items remaining out of 22 owes 27,273 paise.
-    expect(deferredPaise({ ...pack(), itemsTotal: 22, itemsRemaining: 2 })).toBe(27_273);
+  it('owes NOTHING once the bonus is granted — a giveaway defers no revenue', () => {
+    /*
+     * Andy, 2026-09-16, settled: bonus items carry no deferred value. By the moment the bonus
+     * triggers, all 20 purchased items are eaten and the whole ₹3,000 is properly earned.
+     *
+     * The number this must never produce is 27,273 — `half_up(300000 × 2, 22)` — which is what
+     * dividing by `items_total` would give. That would re-defer ₹272.73 of revenue recognised in
+     * an earlier month, which is exactly the prior-period restatement Andy ruled out.
+     */
+    const granted = pack({ itemsTotal: 22, itemsRemaining: 2, bonusGrantedAt: '2026-09-20T00:00:00Z' });
+    expect(deferredPaise(granted)).toBe(0);
+    expect(deferredPaise(granted)).not.toBe(27_273);
+  });
+
+  it('re-defers a purchased item returned by a reversal AFTER a bonus grant', () => {
+    /*
+     * Cancel an order once the bonus exists and `items_remaining` rises to 3. One of those is a
+     * purchased item coming back and genuinely owes food again; the other two are the giveaway,
+     * which never did. Flooring at zero instead of subtracting the giveaway would owe nothing here
+     * and quietly keep revenue we no longer earned.
+     */
+    const reversed = pack({ itemsTotal: 22, itemsRemaining: 3, bonusGrantedAt: '2026-09-20T00:00:00Z' });
+    expect(deferredPaise(reversed)).toBe(15_000);
+  });
+
+  it('is unaffected by whether items_total reads 20 or 22 after a grant', () => {
+    // The two readings disagree (see the note in `summarisePackSales`). Money must not.
+    const asTwenty = pack({ itemsTotal: 20, itemsRemaining: 2, bonusGrantedAt: '2026-09-20T00:00:00Z' });
+    const asTwentyTwo = pack({ itemsTotal: 22, itemsRemaining: 2, bonusGrantedAt: '2026-09-20T00:00:00Z' });
+    expect(deferredPaise(asTwenty)).toBe(deferredPaise(asTwentyTwo));
   });
 });
 
@@ -174,6 +195,20 @@ describe('summarisePackSales', () => {
     expect(row.offerName).toBe('Pack 1 (Spring)');
   });
 
+  it('counts items eaten identically whether items_total reads 20 or 22', () => {
+    /*
+     * The ambiguity this module refuses to depend on: Andy says `items_total` stays 20 after a
+     * grant, the mobile thread's CHECK makes it 22. Subtracting the column would report 18 items
+     * eaten under one reading and 20 under the other, on the same pack.
+     */
+    const granted = { itemsRemaining: 2, bonusGrantedAt: '2026-09-20T00:00:00Z' } as const;
+    const asTwenty = only(summarisePackSales([pack({ ...granted, itemsTotal: 20 })], []));
+    const asTwentyTwo = only(summarisePackSales([pack({ ...granted, itemsTotal: 22 })], []));
+    expect(asTwenty.itemsRedeemed).toBe(20);
+    expect(asTwenty.itemsRedeemed).toBe(asTwentyTwo.itemsRedeemed);
+    expect(asTwenty.bonusItemsRedeemed).toBe(asTwentyTwo.bonusItemsRedeemed);
+  });
+
   it('attributes forfeited items to the pack that expired', () => {
     const row = only(summarisePackSales(
       [pack({ id: 'a', status: 'expired', itemsRemaining: 0 })],
@@ -201,18 +236,19 @@ describe('packPeriodTotals', () => {
     expect(totals.reconciliation.agrees).toBe(true);
   });
 
-  it('subtracts a bonus restatement, and reports it in its own right', () => {
+  it('reports bonus COGS as a cost and never nets it against revenue', () => {
     /*
-     * Policy-neutral by construction (`M10`): under "bonus carries no value" this field is simply
-     * zero and nothing else in the module changes.
+     * A bonus item deferred no revenue, so redeeming one recognises nothing and reverses nothing.
+     * Its only money consequence is a meal cooked for free — a COGS line, which must not move the
+     * revenue figure it sits beside.
      */
     const totals = packPeriodTotals(
       [pack()],
       [],
-      ledger({ recognisedFromRedemptionsPaise: 300_000, restatedByBonusPaise: 27_273 }),
+      ledger({ recognisedFromRedemptionsPaise: 300_000, bonusCogsPaise: 4_000 }),
     );
-    expect(totals.restatedByBonusPaise).toBe(27_273);
-    expect(totals.recognisedTotalPaise).toBe(272_727);
+    expect(totals.bonusCogsPaise).toBe(4_000);
+    expect(totals.recognisedTotalPaise).toBe(300_000);
   });
 
   it('reports the sale gross and GST for the period, not the lifetime', () => {

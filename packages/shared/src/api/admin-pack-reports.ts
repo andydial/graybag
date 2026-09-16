@@ -25,13 +25,16 @@
  * expression the database posts every ledger movement as a **difference** of. Two consequences
  * worth stating because they are the whole reason for the shape:
  *
- *   · **It is exact in integers.** ₹3,000 over 22 items is 13,636.36 paise. Any stored per-item
- *     value drifts and the last item of a pack fails to land on zero. A balance defined as a
- *     function of `items_remaining` always does, whatever the arithmetic on the way there.
- *   · **It is policy-neutral on the one question still open** (`docs/meal-packs-rebuild.md` §12
- *     q1 — whether earning a bonus restates revenue already recognised). Both answers change only
- *     `items_total`, which is an *input* here. This module is correct under either and needs no
- *     rework when Andy rules.
+ *   · **It is exact in integers**, and it lands the last purchased item on exactly zero. A stored
+ *     per-item value drifts by a few paise and leaves the books not-quite-square, which is worse
+ *     than visibly wrong because nothing goes red.
+ *   · **The denominator is `itemsOriginal`, never `itemsTotal`.** Andy settled the bonus question
+ *     on 2026-09-16: **bonus items carry no deferred value.** They are a giveaway — a cost to COGS
+ *     when redeemed, never a reversal of revenue already earned. An earlier draft of this module
+ *     divided by `items_total` to stay neutral between the two possible rulings; under the actual
+ *     ruling that is a **bug**, because after a grant it would re-defer ₹300 of revenue correctly
+ *     recognised in an earlier month. There is no bonus restatement anywhere in this file, and
+ *     there must never be one.
  *
  * ## Two derivations, deliberately, and they are compared rather than reconciled
  *
@@ -124,15 +127,50 @@ export interface LedgerPackMovements {
   /** Recognised because items were **forfeited**, in the period. Never folded into the above (`M11`). */
   recognisedFromBreakagePaise: number;
   /**
-   * Revenue *reversed* by bonus grants in the period, if Andy rules that way. Zero under the
-   * alternative. Kept as its own field so the report never has to guess which policy is live.
+   * What the bonus items given away this period cost us in food, at COGS.
+   *
+   * **A cost, not negative revenue**, and it is reported rather than netted off anything. Andy's
+   * ruling makes a bonus item a giveaway: no revenue was ever deferred against it, so redeeming one
+   * recognises nothing and reverses nothing. Its only money consequence is that we cooked a meal
+   * nobody paid for, which is a COGS line and belongs nowhere near the revenue figures above.
    */
-  restatedByBonusPaise: number;
+  bonusCogsPaise: number;
 }
 
-/** What we still owe this pack, in food. `M10`. */
-export function deferredPaise(pack: Pick<PackRow, 'pricePaidPaise' | 'itemsRemaining' | 'itemsTotal'>): number {
-  return halfUp(pack.pricePaidPaise * pack.itemsRemaining, pack.itemsTotal);
+/**
+ * What we still owe this pack, in food. `M10`.
+ *
+ * **Bonus items carry no deferred value** — Andy, 2026-09-16, settled. The parent paid ₹3,000 for
+ * 20 items; by the moment the bonus triggers, all 20 have been eaten and the whole ₹3,000 is
+ * properly earned. The 2 bonus items are a giveaway: a cost to COGS when redeemed, and **never** a
+ * reversal of revenue already recognised.
+ *
+ * So the denominator is `itemsOriginal` and never `itemsTotal`, and the numerator counts only the
+ * **purchased** items still owed. Getting this wrong is not a rounding nicety: dividing by
+ * `itemsTotal` after a grant would re-defer ₹300 of revenue that was correctly earned last month,
+ * which is precisely the prior-period restatement Andy ruled out.
+ *
+ * Subtracting the granted bonus from `itemsRemaining` — rather than flooring at zero and hoping —
+ * is what keeps a **reversal after a grant** correct. Cancel an order once the bonus exists and
+ * `itemsRemaining` rises to 3; one of those is a purchased item coming back and genuinely owes food
+ * again, and the other two are the giveaway, which never did.
+ */
+export function deferredPaise(
+  pack: Pick<PackRow, 'pricePaidPaise' | 'itemsRemaining' | 'itemsOriginal' | 'bonusItems' | 'bonusGrantedAt'>,
+): number {
+  const giveaway = pack.bonusGrantedAt !== null ? pack.bonusItems : 0;
+  const purchasedRemaining = Math.max(0, pack.itemsRemaining - giveaway);
+  /*
+   * No `if (purchasedRemaining === 0) return 0` short-circuit, deliberately.
+   *
+   * It would be redundant — `half_up(price × 0, n)` is already zero, and `itemsOriginal` is
+   * `> 0` by CHECK so there is no division to guard against. It was there in the first draft and
+   * mutation testing caught what it cost: with the early return in place, replacing the
+   * denominator with `itemsTotal` still passed the "a granted bonus owes nothing" assertion,
+   * because the guard returned before the arithmetic ran. A branch that makes a test unable to
+   * fail is worse than no branch.
+   */
+  return halfUp(pack.pricePaidPaise * purchasedRemaining, pack.itemsOriginal);
 }
 
 /** Packs that still owe food. A `pending` pack was never paid for and owes nothing. */
@@ -254,8 +292,24 @@ export function summarisePackSales(
     }
 
     const granted = pack.bonusGrantedAt !== null ? pack.bonusItems : 0;
-    // Spent across the whole pack, purchased and bonus together.
-    const spent = pack.itemsTotal - pack.itemsRemaining;
+    /*
+     * Items spent, derived from `itemsOriginal` + the granted bonus rather than read from
+     * `itemsTotal`.
+     *
+     * **This is deliberate, and it is not defensiveness for its own sake.** Andy's ruling says
+     * *"items_total stays 20 for value purposes"*; the mobile thread's schema carries
+     * `check (items_total = items_original + case when bonus_granted_at is null then 0 else
+     * bonus_items end)`, which makes it 22 after a grant. Those two readings disagree about one
+     * column, and a report that subtracts it would be silently wrong under one of them — 18 items
+     * eaten instead of 20, on the pack that just earned a bonus.
+     *
+     * Deriving the total from two columns that are unambiguous under both readings makes this
+     * function correct either way, and `admin-pack-reports.test.ts` asserts exactly that. The
+     * disagreement is still worth resolving, and it is raised on the mobile thread in
+     * `planning/andy-queue.md` rather than absorbed here in silence.
+     */
+    const itemsHeld = pack.itemsOriginal + granted;
+    const spent = itemsHeld - pack.itemsRemaining;
     /*
      * Bonus items are earned only when the last ORIGINAL item is consumed, so a pack with a granted
      * bonus has necessarily eaten all of its purchased items. That makes the split exact rather
@@ -289,8 +343,9 @@ export interface PackPeriodTotals {
   deferredOutstandingPaise: number;
   recognisedFromRedemptionsPaise: number;
   recognisedFromBreakagePaise: number;
-  restatedByBonusPaise: number;
-  /** Redemptions plus breakage, less any bonus restatement. What actually hit revenue. */
+  /** A COGS line. Deliberately not part of `recognisedTotalPaise` — see `LedgerPackMovements`. */
+  bonusCogsPaise: number;
+  /** Redemptions plus breakage. What actually hit revenue, and nothing is subtracted from it. */
   recognisedTotalPaise: number;
   reconciliation: Reconciliation;
 }
@@ -315,11 +370,9 @@ export function packPeriodTotals(
     deferredOutstandingPaise: deferredOutstandingPaise(allLivePacks),
     recognisedFromRedemptionsPaise: ledger.recognisedFromRedemptionsPaise,
     recognisedFromBreakagePaise: ledger.recognisedFromBreakagePaise,
-    restatedByBonusPaise: ledger.restatedByBonusPaise,
+    bonusCogsPaise: ledger.bonusCogsPaise,
     recognisedTotalPaise:
-      ledger.recognisedFromRedemptionsPaise +
-      ledger.recognisedFromBreakagePaise -
-      ledger.restatedByBonusPaise,
+      ledger.recognisedFromRedemptionsPaise + ledger.recognisedFromBreakagePaise,
     reconciliation: reconcile(allLivePacks, ledger),
   };
 }

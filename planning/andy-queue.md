@@ -76,6 +76,69 @@ touches the ordering or payment path.
   follow-on change to it, not a re-do.
 ---
 
+## Requirements on MOBILE — what the admin and the back office need from the rebuild
+
+Andy, 2026-09-16: *"MOBILE owns `admin-pack-offer`. They're rewriting the schema underneath it, so
+the function follows the schema. You consume it — you don't edit it. If it doesn't give you what
+the admin CRUD needs, say so in `planning/andy-queue.md` as a requirement on them."*
+
+So these are requirements, not patches. Nothing below has been edited into their files.
+
+### 1. `items_total` is ambiguous after a bonus grant, and the two readings disagree
+
+Andy's ruling says *"`items_total` stays 20 for value purposes"*. The design's schema carries
+`check (items_total = items_original + case when bonus_granted_at is null then 0 else bonus_items
+end)` (`docs/meal-packs-rebuild.md` §2), which makes it **22** once granted.
+
+**Money is safe either way** — the deferred balance now divides by `items_original`, never
+`items_total` (`M10`). **Item counts are not.** A report that computes "items eaten" as
+`items_total − items_remaining` returns **18** under one reading and **20** under the other, on the
+same pack, on the pack that just earned a bonus.
+
+`admin-pack-reports.ts` does not read the column at all — it derives items-held from
+`items_original + granted bonus`, and a test asserts the report is identical under both readings. So
+nothing is blocked. But **one column should not have two meanings**, and whichever way it is
+resolved the CHECK and Andy's sentence need to agree. Our reading, for what it is worth: keep the
+CHECK as designed (`items_total` is a **count** of items the parent holds, and 22 is true), and let
+"stays 20 for value purposes" be satisfied by `items_original` being the only denominator anywhere.
+
+### 2. What `admin-pack-offer` must expose for the admin CRUD
+
+The screens consume these and nothing else. Shapes are the design's own; this is the list, not a
+redesign.
+
+| Action | Needs |
+|---|---|
+| `summary` | Per-offer **sold count**. Counts only — a platform admin must not be able to read who bought what, which is why this is a function and not a table read (`E21-60`'s finding, still true) |
+| `create` | `name`, `netPricePaise`, `itemsCount`, `bonusItemsCount`, `bonusWindowDays`, `validityDays`, `sortOrder`. **No `isActive`** — the column default (`false`) decides, so an offer cannot go live by being created |
+| `update` | The same fields, all optional. Must refuse with a named error when a field is frozen by a sale rather than failing silently |
+| `setActive` | Its own action, never a side effect of saving the form |
+| `setSchool` | `offerId`, `schoolId`, `isEnabled`. Upsert; **absence means off** |
+
+Two things we need that the design does not yet state:
+
+- **A `frozen once sold` list, exposed rather than implied.** `E21-60` froze `items_per_meal` and
+  `required_category_id` because a sold pack read them live. In the new model `name` is stamped
+  (`name_snapshot`), and price, tax, validity and the bonus terms are all stamped at sale — so on a
+  first read **nothing** needs freezing, which would be a genuinely better design. If that is right,
+  say so explicitly and the editor will say "editing changes what the next buyer gets; packs already
+  sold keep their terms" with no greyed fields at all. If anything *is* still read live, it must
+  come back in the error payload by name, because the screen has to name it to the person.
+- **`validate` must refuse `bonusItemsCount = 0` with `bonusWindowDays > 0` and the reverse.** The
+  schema CHECK already does (`(bonus_items_count = 0) = (bonus_window_days = 0)`); the Edge Function
+  should return it as a **field error** rather than letting a `23514` surface as "something went
+  wrong", because that combination is the single most likely thing to be typed into the form.
+
+### 3. The back office needs the ledger movements per period
+
+`meal_pack_redemption_money` is dropped (§1). The reporting screen needs, for a date range, and as
+**aggregates with no `recipient_id` and no order-level child data**: revenue recognised from
+redemptions, revenue recognised from breakage, and bonus COGS. A view or an RPC is equally fine —
+`E21-63`'s finding applies unchanged, that a row policy cannot filter a column and so a **view
+without the column** is the shape that works.
+
+---
+
 ## Handover to MOBILE — `E21-65`, and what it means for the rebuild
 
 Written 2026-09-16 by the web thread, at Andy's instruction, so MOBILE reads the evidence rather
