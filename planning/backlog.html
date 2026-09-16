@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/64</span>
+          <span class="meter-num">0/68</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 64 tasks</summary>
+        <summary>Context &amp; 68 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7403,6 +7403,38 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>meal-pack-concurrency.test.mjs</code> left an account behind per racer.</strong> Its cleanup deleted the pack, the group and the offer and stopped there, so sixteen <code>app_user</code> rows accumulated locally. Invisible until something does <code>select id from app_user order by id limit 1</code> — which every pgTAP fixture in this repo did — and then a suite that passed yesterday fails on a user with no guardian link, which is how <code>E21-82</code>&#39;s test first appeared to fail for the wrong reason. Two fixes, because either alone leaves the trap: the test now deletes its accounts, and the pack fixtures select a <strong>real guardian pair</strong> rather than the first user by id, so they depend on nothing else&#39;s litter. The file&#39;s own header already warned about exactly this one table further up</span>
+      </li>
+      <li class="task" data-id="E21-84" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-84"></button>
+        <code class="tid">E21-84</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A webhook probe cannot be written to production.</strong> I wrote one — <code>curl</code> at the live <code>payments-webhook</code> with <code>{&quot;event&quot;:&quot;probe.ignore&quot;}</code>, to check it still answered after a deploy. Non-negotiable #8 names <strong>webhook probes</strong> explicitly, in that list, in those words. The row was inert (unverified, <code>ignored</code>, never processed, no money) and <strong>that reasoning is exactly what the rule exists to refuse</strong>: Andy, 2026-09-17, *&quot;&#39;it touches no money&#39; is how every one of these starts.&quot;* Deleted with his approval, by primary key with the event type as a second predicate, verified 0 rows after and the other 19 events untouched — all genuine, verified and processed. <strong><code>prod-write-guard.mjs</code> could not have stopped it and CLAUDE.md says why in terms</strong>: *&quot;the guard cannot save you from a terminal&quot;*. I used no script. So the guard is a <code>before insert</code> trigger on <code>payment_webhook_event</code>, which is the only layer <code>curl</code> still goes through: on production, an <code>event_type</code> outside Razorpay&#39;s entity vocabulary is refused. <strong>Deliberately NOT keyed on <code>signature_verified</code></strong> — a genuine Razorpay type with a bad signature must still be recorded, because <code>E06-28</code>&#39;s alert is what makes an attack or a missing secret visible, and a guard that blinded it would be a worse bug than the one it fixed. <code>unparseable</code> is allowed for the same reason. <strong>The honest limit, stated rather than glossed:</strong> someone using <code>payment.captured</code> as a probe would get through, and at that point it is genuinely indistinguishable from a hostile request. This closes the careless case, which is the one that happened</span>
+      </li>
+      <li class="task" data-id="E21-86" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-86"></button>
+        <code class="tid">E21-86</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>meal_pack_money</code> returned zero rows to the only audience it has.</strong> Filed by WEB. It was <code>security_invoker = true</code>, and <code>meal_pack</code> carries one read policy — <code>meal_pack_read_own</code> — so a back-office account, owning no packs, got <strong>nothing</strong>, and <code>/admin/sales</code> would have printed a confident <strong>₹0 still owed in food</strong> against a real liability. <strong>A wrong number nobody investigates is worse than an error</strong>, which is why this is high rather than medium. Fixed as <code>security_definer</code> with <code>auth_can_platform(&#39;orders.view_financials&#39;)</code> <strong>inside the view&#39;s own <code>where</code></strong> — not in the caller, so no query routes around it. Safe as a definer view on <code>E21-63</code>&#39;s argument, which the rebuild strengthens rather than borrows: the view carries no recipient, no customer and no name, and <code>0085</code> removed <code>recipient_id</code> from <code>meal_pack_redemption</code> <strong>entirely</strong>, so there is no child identity in its lineage to keep out. Third definer view in the schema; <code>authorization.test.sql</code> §12 pins the exact set and <strong>caught this one on the first run</strong>. Proved functionally, not just structurally — read as a granted account (sees it), an ungranted account (nothing) and the parent who owns the pack (nothing, because this is the back office&#39;s window on money and not a second route to a parent&#39;s own data). Mutation-checked: 4 assertions fail against an invoker view</span>
+      </li>
+      <li class="task" data-id="E21-87" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-87"></button>
+        <code class="tid">E21-87</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>meal_pack_money</code> exposes <code>offer_id</code>, so &quot;per offer&quot; means per offer.</strong> Filed by WEB. The view carried <code>name_snapshot</code> and not <code>offer_id</code>, so redemption rate grouped by the name a pack was *sold under* — right as a label, wrong as an identity: two offers sharing a name merge into one row, one offer renamed mid-life splits into two that look like two products. Both columns now, because they answer different questions. An offer is not a person and leaks nothing</span>
+      </li>
+      <li class="task" data-id="E21-88" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-88"></button>
+        <code class="tid">E21-88</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Bonus items are reported as counts because no cost model exists. Give them one, or decide not to.</strong> Andy asked (2026-09-16) for a redeemed bonus item&#39;s food cost to hit COGS; there is <strong>no COGS account in the chart of accounts and no cost column on any table</strong> — checked across every column in <code>public</code>, not assumed — so cost of goods is not tracked for a cash meal either, and a COGS line covering only bonus meals would be the only such figure in the system, on a different basis from every number beside it. Andy&#39;s ruling, 2026-09-17: *&quot;you&#39;re right that no cost model exists. Leave it as counts, and file it as a backlog item rather than inventing a cost column.&quot;* <strong>Nothing is lost by waiting</strong>: <code>meal_pack_redemption.bonus_used</code> records the exact quantity a cost model would multiply, per pack and per order, and <code>meal_pack_money</code> exposes offered / redeemed / outstanding. What this needs before it can be built is a <strong>decision about cost basis for every meal</strong>, not a column for bonus ones — recipe cost, a flat per-meal figure, or an allocation — and that decision belongs with whoever owns the margin question. Recorded as <code>P26</code>; WEB reached the same conclusion independently as <code>M12</code>, where a redeemed bonus item is a cost line in the report and never negative revenue</span>
       </li></ul>
       </details>
     </article>

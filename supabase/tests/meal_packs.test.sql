@@ -581,5 +581,156 @@ select is((select count(*)::int from invoice_line il
   'and the invoice names no child — a pack is the parent''s and is bought for nobody in '
   'particular (non-negotiable #4)');
 
+-- =============================================================================
+-- 13. `E21-86` / `E21-87` — the back office can read pack money, per OFFER.
+--
+-- WEB filed both. The first is the dangerous one: as an invoker view this returned ZERO ROWS to
+-- the only audience it has, because `meal_pack`'s single read policy is `meal_pack_read_own` and
+-- a back-office account owns no packs. `/admin/sales` would have printed a confident zero while
+-- the real liability sat unread — worse than an error, because nobody investigates a number.
+-- =============================================================================
+
+select has_column('meal_pack_money', 'offer_id',
+  'E21-87: the view exposes offer_id, so "per offer" is per OFFER. Grouping on name_snapshot '
+  'merges two offers that share a name and splits one that was renamed mid-life into two rows '
+  'that look like two products.');
+
+select has_column('meal_pack_money', 'name_snapshot',
+  'and keeps name_snapshot, because that is the LABEL — what the invoice and the parent''s screen '
+  'say. Identity and label answer different questions and the report needs both.');
+
+select is((select relrowsecurity from pg_class where relname = 'meal_pack'), true,
+  'meal_pack still has RLS on — the definer view is a hole cut deliberately, not the wall '
+  'removed');
+
+select ok(
+  (select not coalesce(
+     (select (c.reloptions::text) like '%security_invoker=true%'
+        from pg_class c where c.relname = 'meal_pack_money'), false)),
+  'E21-86: meal_pack_money is a DEFINER view. As an invoker view it returned nothing to the back '
+  'office, which is the only caller it has.');
+
+-- The guard is in the view's own WHERE, so no query can route around it.
+select matches(
+  (select pg_get_viewdef('meal_pack_money'::regclass)),
+  'auth_can_platform',
+  'E21-86: and the permission check is INSIDE the view, not in the caller. A definer view without '
+  'one hands every pack''s money to any authenticated caller — the failure mode a definer view '
+  'always risks, and the reason the bar for one is high.');
+
+-- No child identity anywhere in it. Asserted as an absence, because that is the whole argument
+-- for allowing a definer view here at all.
+select is((select count(*)::int from information_schema.columns
+            where table_schema = 'public' and table_name = 'meal_pack_money'
+              and (column_name ilike '%recipient%' or column_name ilike '%customer%'
+                   or column_name ilike '%child%' or column_name ilike '%class%'
+                   or column_name ilike '%section%' or column_name ilike '%name%'
+                   and column_name <> 'name_snapshot')), 0,
+  'E21-63''s argument, still holding: the view carries no recipient and no customer. The rebuild '
+  'removed recipient_id from meal_pack_redemption entirely, so there is no child identity in its '
+  'lineage to keep out — which is what makes a definer view safe here rather than merely useful.');
+
+-- =============================================================================
+-- 14. `E21-84` — a webhook probe cannot be written on production.
+--
+-- I wrote one by curling the live endpoint after a deploy. Non-negotiable #8 names webhook probes
+-- explicitly. `prod-write-guard.mjs` could not have stopped it because I used no script, so the
+-- guard is at the database, which is the only layer curl still goes through.
+-- =============================================================================
+
+-- These run against a LOCAL database, so the trigger's production branch has to be provoked.
+update platform_config set environment = 'production';
+
+select throws_ok(
+  $$ insert into payment_webhook_event (provider, provider_event_id, event_type,
+                                        signature_verified, payload, processing_status)
+     values ('razorpay', 'probe-test-1', 'probe.ignore', false, '{}'::jsonb, 'ignored') $$,
+  'P0001', null,
+  'E21-84: a made-up event type is REFUSED on production. This is the exact row I left behind, '
+  'and the exact request that wrote it.');
+
+select lives_ok(
+  $$ insert into payment_webhook_event (provider, provider_event_id, event_type,
+                                        signature_verified, payload, processing_status)
+     values ('razorpay', 'probe-test-2', 'payment.captured', false, '{}'::jsonb, 'ignored') $$,
+  'but a GENUINE Razorpay type with a BAD SIGNATURE is still recorded. Deliberately: that is '
+  'either an attack or a missing secret, and E06-28''s alert is what makes it visible. A guard '
+  'keyed on signature_verified would have blinded the alert that exists to catch exactly this — '
+  'a worse bug than the one it fixed.');
+
+select lives_ok(
+  $$ insert into payment_webhook_event (provider, provider_event_id, event_type,
+                                        signature_verified, payload, processing_status)
+     values ('razorpay', 'probe-test-3', 'unparseable', true, '{}'::jsonb, 'ignored') $$,
+  'and `unparseable` is still recorded — a real event from a verified sender whose body would not '
+  'parse. Losing it would lose the evidence.');
+
+update platform_config set environment = 'local';
+
+select lives_ok(
+  $$ insert into payment_webhook_event (provider, provider_event_id, event_type,
+                                        signature_verified, payload, processing_status)
+     values ('razorpay', 'probe-test-4', 'probe.ignore', false, '{}'::jsonb, 'ignored') $$,
+  'STAGING AND LOCAL ARE UNCHANGED. A guard that made verification harder everywhere would push '
+  'it back onto production, which is the behaviour it exists to stop.');
+
+-- -----------------------------------------------------------------------------
+-- And the FUNCTIONAL half, which is the one that would have caught this.
+--
+-- Everything above asserts the view's SHAPE — definer, guarded, no child columns. None of that
+-- would have failed on the broken version either, because an invoker view is also definer-less
+-- and also has no child columns. **What was wrong was the answer it gave**, and only reading it
+-- as a real back-office account shows that.
+-- -----------------------------------------------------------------------------
+
+create function tests_tmp.pack_money_rows_for(p_user uuid) returns int
+language plpgsql as $$
+declare n int;
+begin
+  set local role authenticated;
+  execute format('set local request.jwt.claims = %L',
+                 json_build_object('sub', p_user, 'role', 'authenticated')::text);
+  select count(*) into n from meal_pack_money;
+  reset role;
+  return n;
+end;
+$$;
+
+-- A back-office account holding `orders.view_financials` at platform scope, and nothing else.
+-- It owns NO pack — which is the whole point, and was the whole bug.
+insert into auth.users (id, email, instance_id, aud, role)
+select 'a8000000-7e57-0000-0000-0000000000f1', 'packmoney@example.test',
+       -- Read rather than written: the nil instance_id is a Supabase constant, but a literal one
+       -- here reads to `check-test-fixtures` as a fixture id colliding with the seed, and it is
+       -- right not to guess which.
+       (select instance_id from auth.users limit 1), 'authenticated', 'authenticated';
+-- No `insert into app_user`: a trigger on auth.users creates it. Writing it by hand is a
+-- duplicate key, which is the schema telling you the row already exists.
+insert into permission_grant (user_id, permission_code, scope_type, scope_id, granted_by_user_id)
+select 'a8000000-7e57-0000-0000-0000000000f1', 'orders.view_financials', 'platform', null,
+       (select user_id from p_ctx);
+
+-- And one with no grants at all.
+insert into auth.users (id, email, instance_id, aud, role)
+select 'a8000000-7e57-0000-0000-0000000000f2', 'nogrants@example.test',
+       (select instance_id from auth.users limit 1), 'authenticated', 'authenticated';
+
+select cmp_ok(
+  tests_tmp.pack_money_rows_for('a8000000-7e57-0000-0000-0000000000f1'::uuid), '>', 0,
+  'E21-86 PROVED: a back-office account holding orders.view_financials SEES pack money, despite '
+  'owning no pack. As an invoker view this returned 0 and /admin/sales would have printed a '
+  'confident zero against a real liability.');
+
+select is(
+  tests_tmp.pack_money_rows_for('a8000000-7e57-0000-0000-0000000000f2'::uuid), 0,
+  'and an account WITHOUT the grant sees nothing — the definer view is guarded in its own WHERE, '
+  'so there is no query that routes around it');
+
+select is(
+  tests_tmp.pack_money_rows_for((select user_id from p_ctx)), 0,
+  'and THE PARENT WHO OWNS THE PACK sees nothing through this view either. It is the back '
+  'office''s window on money, not a second route to a parent''s own data — they read '
+  'meal_pack_balances, which is scoped to them.');
+
 select * from finish();
 rollback;
