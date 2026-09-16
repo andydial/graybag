@@ -84,23 +84,11 @@ the admin CRUD needs, say so in `planning/andy-queue.md` as a requirement on the
 
 So these are requirements, not patches. Nothing below has been edited into their files.
 
-### 1. `items_total` is ambiguous after a bonus grant, and the two readings disagree
+### 1. ~~`items_total` is ambiguous after a bonus grant~~ — **resolved, see §5**
 
-Andy's ruling says *"`items_total` stays 20 for value purposes"*. The design's schema carries
-`check (items_total = items_original + case when bonus_granted_at is null then 0 else bonus_items
-end)` (`docs/meal-packs-rebuild.md` §2), which makes it **22** once granted.
-
-**Money is safe either way** — the deferred balance now divides by `items_original`, never
-`items_total` (`M10`). **Item counts are not.** A report that computes "items eaten" as
-`items_total − items_remaining` returns **18** under one reading and **20** under the other, on the
-same pack, on the pack that just earned a bonus.
-
-`admin-pack-reports.ts` does not read the column at all — it derives items-held from
-`items_original + granted bonus`, and a test asserts the report is identical under both readings. So
-nothing is blocked. But **one column should not have two meanings**, and whichever way it is
-resolved the CHECK and Andy's sentence need to agree. Our reading, for what it is worth: keep the
-CHECK as designed (`items_total` is a **count** of items the parent holds, and 22 is true), and let
-"stays 20 for value purposes" be satisfied by `items_original` being the only denominator anywhere.
+Struck 2026-09-16 rather than left to be read as outstanding. It was a real disagreement between
+Andy's wording and the design's CHECK constraint; the schema that was actually applied removes the
+column and makes the question unrepresentable. Details in §5.
 
 ### 2. What `admin-pack-offer` must expose for the admin CRUD
 
@@ -129,13 +117,46 @@ Two things we need that the design does not yet state:
   should return it as a **field error** rather than letting a `23514` surface as "something went
   wrong", because that combination is the single most likely thing to be typed into the form.
 
-### 3. The back office needs the ledger movements per period
+### 3. The back office cannot read `meal_pack_money` at all
 
-`meal_pack_redemption_money` is dropped (§1). The reporting screen needs, for a date range, and as
-**aggregates with no `recipient_id` and no order-level child data**: revenue recognised from
-redemptions, revenue recognised from breakage, and bonus COGS. A view or an RPC is equally fine —
-`E21-63`'s finding applies unchanged, that a row policy cannot filter a column and so a **view
-without the column** is the shape that works.
+**Updated 2026-09-16 after reading the schema you applied locally (`0085`–`0087`), rather than the
+design doc.** `meal_pack_money` is exactly the right shape — it computes `deferred_paise`,
+`revenue_recognised_paise`, `breakage_paise`, `valued_items_redeemed` and `bonus_items_redeemed`
+per pack, and carries **no `recipient_id` and no `customer_user_id`**, so nothing about it risks
+child identity. The reporting screen is built on it and needs no other source.
+
+**But it is `security_invoker = true`, and `meal_pack` carries one read policy —
+`meal_pack_read_own`.** A back-office account owns no packs, so the view returns **zero rows** to
+the only audience it exists for. The screen would print a confident **₹0 still owed in food**.
+
+That is `E21-63` exactly, and its conclusion applies unchanged: a row policy cannot filter a
+column, so the shape that works is a **definer view without the columns** — which this already is.
+The fix is `security_definer` plus an `auth_can_platform('orders.view_financials')` guard in the
+view's own `where`, the same pattern `meal_pack_redemption_money` used and for the same reason.
+
+Nothing is blocked meanwhile: `packVisibilityOf` (`apps/web/src/lib/admin/pack-visibility.ts`)
+distinguishes *zero* from *cannot see* using the Edge Function's service-role sold count as
+evidence, and the screen says **"we can't see pack money from this account"** rather than printing
+a number. That is the honest state, not the intended one.
+
+### 4. `meal_pack_money` does not expose `offer_id`, so "per offer" is really "per name"
+
+Andy asked for **redemption rate per offer** — *"the number that tells Andy whether a pack is
+priced right"*. The view exposes `name_snapshot` but not `offer_id`, so the report groups by the
+name the pack was **sold under**. That is right for a closed month and wrong as an identity: two
+offers sharing a name merge, and one offer renamed mid-life splits into two rows that look like two
+products.
+
+Adding `mp.offer_id` to the view costs nothing and leaks nothing — it is an offer, not a person.
+The report will group on it and keep `name_snapshot` as the label.
+
+### 5. `items_total` — resolved, and the resolution is better than either option
+
+Raised earlier as an ambiguity between Andy's *"items_total stays 20 for value purposes"* and the
+design's `check (items_total = items_original + bonus_items)`. **The schema you applied removes the
+column entirely**, replacing it with `valued_remaining` and `bonus_remaining`, and
+`meal_pack_deferred_paise` divides by `items_original`. That makes the ambiguity unrepresentable
+rather than resolved by agreement, which is the better outcome. Recorded so it is not re-litigated.
 
 ---
 

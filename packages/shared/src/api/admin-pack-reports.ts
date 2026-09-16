@@ -1,81 +1,59 @@
 /**
  * Meal pack money, for the back office — `E21`.
  *
- * Six questions Andy asked, and one he did not but which the numbers demand:
+ * Six questions Andy asked, and one the numbers demand:
  *
  *   1. Packs sold — count, gross ₹ ex-tax, GST ₹ — by offer and by period.
  *   2. Deferred revenue outstanding: what we owe in food, right now.
  *   3. Revenue recognised from redemptions this period.
- *   4. Breakage: items forfeited at expiry, and the ₹ that became revenue because of it.
+ *   4. Breakage: items forfeited at expiry, and the ₹ recognised because of it.
  *   5. Redemption rate per offer — the number that says whether a pack is priced right.
  *   6. Bonus items granted and redeemed, **separately** from purchased items.
- *   7. Whether the answer to (2) agrees with the ledger. See "Two derivations" below.
+ *   7. Whether we can see any of it at all. See "Zero and blind are different answers".
  *
  * ## A pack sale is a liability, not a sale — `M10`
  *
- * Nothing in this module may be added to the food revenue line, and nothing in `admin-reports.ts`
- * changes because packs exist. Money taken for food not yet served is
- * `platform:deferred_revenue:meal_packs` on the day it arrives, and becomes revenue one item at a
- * time. `/admin/sales` renders these as their own section for that reason, not as a presentation
+ * Nothing here may be added to the food revenue line, and nothing in `admin-reports.ts` changes
+ * because packs exist. Money taken for food not yet served is
+ * `platform:deferred_revenue:meal_packs` on the day it arrives and becomes revenue one item at a
+ * time. `/admin/sales` renders this as its own section for that reason, not as a presentation
  * preference.
  *
- * ## The deferred balance is a function, never an accumulator — `M10`
+ * ## The arithmetic lives in the database, and this module only aggregates
  *
- * `deferredPaise` is `half_up(price_paid × items_remaining, items_total)`, which is the same
- * expression the database posts every ledger movement as a **difference** of. Two consequences
- * worth stating because they are the whole reason for the shape:
+ * `meal_pack_money` already computes, per pack: `deferred_paise` (via
+ * `meal_pack_deferred_paise`), `revenue_recognised_paise`, `breakage_paise`,
+ * `valued_items_redeemed` and `bonus_items_redeemed`. So this file sums and groups; it does not
+ * recompute. An earlier draft replayed redemptions in TypeScript and it was wrong to: that is a
+ * second place for the money rules to live, which `admin-reports.ts` warns about in its own
+ * header, and the two copies would agree until the day they did not.
  *
- *   · **It is exact in integers**, and it lands the last purchased item on exactly zero. A stored
- *     per-item value drifts by a few paise and leaves the books not-quite-square, which is worse
- *     than visibly wrong because nothing goes red.
- *   · **The denominator is `itemsOriginal`, never `itemsTotal`.** Andy settled the bonus question
- *     on 2026-09-16: **bonus items carry no deferred value.** They are a giveaway — a cost to COGS
- *     when redeemed, never a reversal of revenue already earned. An earlier draft of this module
- *     divided by `items_total` to stay neutral between the two possible rulings; under the actual
- *     ruling that is a **bug**, because after a grant it would re-defer ₹300 of revenue correctly
- *     recognised in an earlier month. There is no bonus restatement anywhere in this file, and
- *     there must never be one.
+ * **Bonus items carry no deferred value** — Andy, 2026-09-16, settled. The parent paid for
+ * `items_original` items and all of it is earned by the time the bonus triggers; the bonus is a
+ * giveaway, a cost to COGS when redeemed, never a reversal of revenue already recognised. The
+ * database encodes this as `valued_remaining` (purchased items still owed) held separately from
+ * `bonus_remaining`, with `meal_pack_deferred_paise` dividing by `items_original`. There is no
+ * bonus restatement anywhere and there must never be one.
  *
- * ## Two derivations, deliberately, and they are compared rather than reconciled
+ * ## Zero and blind are different answers, and this module refuses to confuse them
  *
- * `M9` warns that two derivations of one quantity sharing a sign error agree with each other, so
- * the check passes in exactly the case it exists for. That warning is about deriving a number
- * **the same way twice**. This module does the opposite on purpose:
+ * `meal_pack_money` is `security_invoker`, and `meal_pack` carries one read policy —
+ * `meal_pack_read_own`. A back-office account owns no packs, so the view returns **no rows** to
+ * the audience it exists for, and naive aggregation renders a confident **₹0 deferred**.
  *
- *   · `deferredOutstandingPaise` sums a function of the **pack rows** — what parents hold.
- *   · `ledgerDeferredPaise` is the **ledger's** balance on the deferred account — what the books
- *     say we owe.
+ * That is exactly `E21-63`'s finding — *"the web thread correctly refused to render '0 paid with a
+ * pack' when the truth is 'we can't see'"* — and it is a worse failure here, because ₹0 owed in
+ * food is a sentence Andy would act on. So every total carries `visibility`, and the screen must
+ * say **"we cannot see this"** rather than print a number. Raised as a requirement on the mobile
+ * thread in `planning/andy-queue.md`; until it is answered, the honest screen is a blind one.
  *
- * Those are maintained by completely different code paths — one by the pack tables, one by
- * double-entry postings — which is precisely the pairing `M9` says earns its place (it is the same
- * argument as `wallet_balance` against the ledger, `I8`). `reconcile` reports them side by side and
- * **says when they disagree** rather than silently choosing one. A report that quietly picks the
- * prettier number is how a deferred-revenue error survives to an audit.
+ * ## No child data, and the row type is the control
  *
- * ## Revenue recognised and breakage come from the ledger, not from a replay
- *
- * It is tempting to replay redemptions in TypeScript and difference the function. That would be a
- * second place for the money rules to live — the mistake `admin-reports.ts` calls out in its own
- * header — and it would be a *third* derivation of a number the ledger already holds exactly.
- * So period figures are read from ledger postings, and this module only aggregates them.
- *
- * ## No child data, and the input shape is the control
- *
- * Non-negotiable #4. The new `meal_pack_redemption` has no `recipient_id` at all
- * (`docs/meal-packs-rebuild.md` §2), so unlike `E21-63` there is no column to exclude — but the
- * row types below are still an explicit allowlist, because "the table happens not to have it
- * today" is not a control. No name, no class, no section, no allergy, ever.
- *
- * ## `halfUp` is imported, not reimplemented
- *
- * `money/gst.ts` already owns it, pinned to `docs/gst-invoicing.md` §6.2 and exercised at the
- * half-paise boundary by its own tests. A second copy here would be a second place for a rounding
- * rule to live, and the failure mode is that the two agree for a year and then diverge on one
- * boundary nobody tests twice. It refuses negatives, which is correct for this caller: a price is
- * never negative and `items_remaining` never goes below zero — the database has a CHECK saying so.
+ * Non-negotiable #4. `meal_pack_money` has no `recipient_id` and no `customer_user_id` — the
+ * rebuilt `meal_pack_redemption` does not carry a child at all. The row type below is still an
+ * explicit allowlist, because "the view happens not to expose it today" is not a control.
  */
-
-import { halfUp } from '../money/gst.js';
+import { runQuery } from './client.js';
 
 export class PackReportError extends Error {
   constructor(detail: string) {
@@ -85,294 +63,235 @@ export class PackReportError extends Error {
 }
 
 /**
- * A pack, as the report may see it.
+ * Exactly what the pack money report may read.
  *
- * `offerName` is `meal_pack.name_snapshot` — the offer's name **at the moment of sale**, not a join
- * to the live offer. `E21-67` was exactly this bug in the old model: renaming an offer retitled
- * packs parents already held, and reached an issued invoice's description.
+ * No `customer_user_id`, no `recipient_id`, no order reference. A report is aggregate by
+ * definition, and the moment an identity is in the query it is one CSV export away from a school's
+ * inbox.
+ *
+ * **`offer_id` is missing and is wanted** — see `summarisePackSales`.
  */
-export interface PackRow {
-  id: string;
-  offerId: string;
-  offerName: string;
-  pricePaidPaise: number;
-  cgstPaise: number;
-  sgstPaise: number;
-  /** Never changes. What the parent actually bought, before any bonus. */
-  itemsOriginal: number;
-  /** `itemsOriginal`, plus `bonusItems` once the bonus is granted. */
-  itemsTotal: number;
-  itemsRemaining: number;
-  bonusItems: number;
-  bonusGrantedAt: string | null;
+export const PACK_MONEY_COLUMNS =
+  'meal_pack_id,school_id,name_snapshot,purchased_at,expires_at,status,' +
+  'price_paid_paise,tax_paise,items_original,valued_remaining,deferred_paise,' +
+  'bonus_items_offered,bonus_granted,bonus_items_redeemed,bonus_items_outstanding,' +
+  'revenue_recognised_paise,valued_items_redeemed,breakage_paise';
+
+/** One pack, as the money report sees it. Mirrors `meal_pack_money`. */
+export interface PackMoneyRow {
+  mealPackId: string;
+  schoolId: string;
+  /** The offer's name **at the moment of sale**, so a rename cannot restate a closed month. */
+  nameSnapshot: string;
   purchasedAt: string;
   expiresAt: string;
-  status: 'pending' | 'active' | 'exhausted' | 'expired';
-}
-
-/** One expiry event. Written by the sweep, one row per pack. */
-export interface ExpiryRow {
-  packId: string;
+  status: 'active' | 'exhausted' | 'expired';
+  /** Ex-tax. The deferred-revenue numerator. */
+  pricePaidPaise: number;
+  /** CGST + SGST, collected in full at the sale and never part of the deferred balance (`M11`). */
+  taxPaise: number;
+  itemsOriginal: number;
+  /** Purchased items still owed. Excludes bonus items, which were never deferred. */
+  valuedRemaining: number;
+  deferredPaise: number;
+  bonusItemsOffered: number;
+  bonusGranted: boolean;
+  bonusItemsRedeemed: number;
+  bonusItemsOutstanding: number;
+  revenueRecognisedPaise: number;
+  valuedItemsRedeemed: number;
   breakagePaise: number;
-  itemsForfeit: number;
-  expiredAt: string;
-}
-
-/** What the ledger says, for the period asked about. Read from postings, never recomputed here. */
-export interface LedgerPackMovements {
-  /** Balance of `platform:deferred_revenue:meal_packs` right now, in paise. */
-  deferredBalancePaise: number;
-  /** Recognised because items were **eaten**, in the period. */
-  recognisedFromRedemptionsPaise: number;
-  /** Recognised because items were **forfeited**, in the period. Never folded into the above (`M11`). */
-  recognisedFromBreakagePaise: number;
-  /**
-   * What the bonus items given away this period cost us in food, at COGS.
-   *
-   * **A cost, not negative revenue**, and it is reported rather than netted off anything. Andy's
-   * ruling makes a bonus item a giveaway: no revenue was ever deferred against it, so redeeming one
-   * recognises nothing and reverses nothing. Its only money consequence is that we cooked a meal
-   * nobody paid for, which is a COGS line and belongs nowhere near the revenue figures above.
-   */
-  bonusCogsPaise: number;
 }
 
 /**
- * What we still owe this pack, in food. `M10`.
+ * Whether the figures beside this can be believed.
  *
- * **Bonus items carry no deferred value** — Andy, 2026-09-16, settled. The parent paid ₹3,000 for
- * 20 items; by the moment the bonus triggers, all 20 have been eaten and the whole ₹3,000 is
- * properly earned. The 2 bonus items are a giveaway: a cost to COGS when redeemed, and **never** a
- * reversal of revenue already recognised.
- *
- * So the denominator is `itemsOriginal` and never `itemsTotal`, and the numerator counts only the
- * **purchased** items still owed. Getting this wrong is not a rounding nicety: dividing by
- * `itemsTotal` after a grant would re-defer ₹300 of revenue that was correctly earned last month,
- * which is precisely the prior-period restatement Andy ruled out.
- *
- * Subtracting the granted bonus from `itemsRemaining` — rather than flooring at zero and hoping —
- * is what keeps a **reversal after a grant** correct. Cancel an order once the bonus exists and
- * `itemsRemaining` rises to 3; one of those is a purchased item coming back and genuinely owes food
- * again, and the other two are the giveaway, which never did.
+ * `blind` is not an error state — the read succeeded and returned nothing. It is the difference
+ * between *"no packs have been sold"* and *"we are not allowed to see whether any have"*, and the
+ * screen renders them completely differently.
  */
-export function deferredPaise(
-  pack: Pick<PackRow, 'pricePaidPaise' | 'itemsRemaining' | 'itemsOriginal' | 'bonusItems' | 'bonusGrantedAt'>,
-): number {
-  const giveaway = pack.bonusGrantedAt !== null ? pack.bonusItems : 0;
-  const purchasedRemaining = Math.max(0, pack.itemsRemaining - giveaway);
-  /*
-   * No `if (purchasedRemaining === 0) return 0` short-circuit, deliberately.
-   *
-   * It would be redundant — `half_up(price × 0, n)` is already zero, and `itemsOriginal` is
-   * `> 0` by CHECK so there is no division to guard against. It was there in the first draft and
-   * mutation testing caught what it cost: with the early return in place, replacing the
-   * denominator with `itemsTotal` still passed the "a granted bonus owes nothing" assertion,
-   * because the guard returned before the arithmetic ran. A branch that makes a test unable to
-   * fail is worse than no branch.
-   */
-  return halfUp(pack.pricePaidPaise * purchasedRemaining, pack.itemsOriginal);
+export type Visibility = 'visible' | 'blind';
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+const num = (v: unknown): number => (typeof v === 'number' ? v : Number(v) || 0);
+
+/** Statuses that still owe food. `pending` is excluded by the view — it was never paid for. */
+const OWES_FOOD: readonly PackMoneyRow['status'][] = ['active', 'exhausted'];
+
+export function toPackMoneyRow(row: unknown): PackMoneyRow | null {
+  if (!isRecord(row)) return null;
+  return {
+    mealPackId: str(row.meal_pack_id),
+    schoolId: str(row.school_id),
+    nameSnapshot: str(row.name_snapshot),
+    purchasedAt: str(row.purchased_at),
+    expiresAt: str(row.expires_at),
+    status: str(row.status) as PackMoneyRow['status'],
+    pricePaidPaise: num(row.price_paid_paise),
+    taxPaise: num(row.tax_paise),
+    itemsOriginal: num(row.items_original),
+    valuedRemaining: num(row.valued_remaining),
+    deferredPaise: num(row.deferred_paise),
+    bonusItemsOffered: num(row.bonus_items_offered),
+    bonusGranted: row.bonus_granted === true,
+    bonusItemsRedeemed: num(row.bonus_items_redeemed),
+    bonusItemsOutstanding: num(row.bonus_items_outstanding),
+    revenueRecognisedPaise: num(row.revenue_recognised_paise),
+    valuedItemsRedeemed: num(row.valued_items_redeemed),
+    breakagePaise: num(row.breakage_paise),
+  };
 }
 
-/** Packs that still owe food. A `pending` pack was never paid for and owes nothing. */
-const OWES_FOOD: readonly PackRow['status'][] = ['active', 'exhausted'];
-
-/**
- * What we owe in food across every live pack, derived from the packs themselves.
- *
- * Compared against the ledger by `reconcile`, never instead of it.
- */
-export function deferredOutstandingPaise(packs: readonly PackRow[]): number {
-  return packs
-    .filter((p) => OWES_FOOD.includes(p.status))
-    .reduce((sum, p) => sum + deferredPaise(p), 0);
-}
-
-export interface Reconciliation {
-  fromPacksPaise: number;
-  fromLedgerPaise: number;
-  differencePaise: number;
-  agrees: boolean;
-}
-
-/**
- * Do the packs and the books agree about what we owe?
- *
- * Reported, not resolved. A difference is a real finding — an item counted twice, a posting
- * missed, a pack expired without its ledger leg — and the screen says so in words rather than
- * rendering one number and hoping.
- */
-export function reconcile(packs: readonly PackRow[], ledger: LedgerPackMovements): Reconciliation {
-  const fromPacksPaise = deferredOutstandingPaise(packs);
-  const fromLedgerPaise = ledger.deferredBalancePaise;
-  const differencePaise = fromPacksPaise - fromLedgerPaise;
-  return { fromPacksPaise, fromLedgerPaise, differencePaise, agrees: differencePaise === 0 };
+/** Every pack the caller may see. Ordered so a period filter can be applied by the caller. */
+export async function fetchPackMoney(): Promise<PackMoneyRow[]> {
+  const rows = await runQuery<unknown>((t) =>
+    t.from('meal_pack_money').select(PACK_MONEY_COLUMNS).order('purchased_at'),
+  );
+  return rows.map(toPackMoneyRow).filter((r): r is PackMoneyRow => r !== null);
 }
 
 export interface OfferSales {
-  offerId: string;
+  /**
+   * The offer's name as sold. **Not an id** — `meal_pack_money` does not expose `offer_id`, so two
+   * offers sharing a name, or one renamed mid-life, group together here. Raised as a requirement
+   * on the mobile thread; grouping by the sold name is the honest fallback in the meantime,
+   * because it is at least the name the money was taken under.
+   */
   offerName: string;
   packsSold: number;
-  /** Ex-tax. The deferred-revenue numerator, and never part of the food revenue line (`M10`). */
+  /** Ex-tax, and never part of the food revenue line (`M10`). */
   grossExTaxPaise: number;
-  /** CGST + SGST, collected in full at the sale. Never part of the deferred balance (`M11`). */
+  /** Collected in full at the sale. Never part of the deferred balance (`M11`). */
   gstPaise: number;
+  deferredPaise: number;
+  revenueRecognisedPaise: number;
+  breakagePaise: number;
+  /** Purchased items only. */
   itemsSold: number;
   itemsRedeemed: number;
-  itemsRemaining: number;
-  itemsForfeit: number;
+  itemsOutstanding: number;
   bonusItemsGranted: number;
   bonusItemsRedeemed: number;
+  bonusItemsOutstanding: number;
   /**
    * Of the items actually **bought**, what fraction got eaten.
    *
-   * Bonus items are excluded from both halves deliberately — see `redemptionRate`.
-   * `null` when nothing has been sold, because 0/0 is "we do not know yet", and a redemption rate
+   * Bonus items are excluded from both halves. Andy's question is *"is this pack priced right"* —
+   * a question about what a parent paid for and whether they got the value. Bonus items were not
+   * paid for, so counting them makes a generous bonus look like poor redemption: eat all 20
+   * purchased and none of the 2 bonus, and the rate would read 91% while describing the bonus
+   * rather than the price. They are reported beside it instead, as Andy asked.
+   *
+   * `null` when nothing has been sold, because 0/0 is "we do not know yet" and a redemption rate
    * of 0% against no sales is a sentence the screen would be wrong to say.
    */
   redemptionRate: number | null;
 }
 
-/**
- * The fraction of purchased items that were eaten, per offer.
- *
- * **Bonus items are excluded from the numerator and the denominator**, and the choice matters
- * enough to state. Andy's question is *"is this pack priced right"* — that is a question about what
- * a parent paid for and whether they got the value. Bonus items were not paid for, so including
- * them makes a generous bonus look like poor redemption: a parent who eats all 20 purchased items
- * and none of the 2 bonus ones would read as 91%, which describes the bonus, not the price.
- * `bonusItemsGranted` and `bonusItemsRedeemed` are reported beside it, as Andy asked, so the bonus
- * is visible without distorting the number it sits next to.
- */
-export function redemptionRate(itemsPurchased: number, purchasedItemsRedeemed: number): number | null {
-  if (itemsPurchased <= 0) return null;
-  return purchasedItemsRedeemed / itemsPurchased;
+export function redemptionRate(itemsSold: number, itemsRedeemed: number): number | null {
+  if (itemsSold <= 0) return null;
+  return itemsRedeemed / itemsSold;
 }
 
-/**
- * Per-offer sales and redemption, over whatever set of packs is handed in.
- *
- * The caller does the period filtering — `purchasedAt` for "sold this period", which is the only
- * date a *sale* has. Redemption and expiry figures are the **lifetime** state of those packs, and
- * the screen labels them that way: an item bought in March and eaten in April belongs to March's
- * pack and April's revenue, and pretending otherwise is how a redemption rate becomes meaningless.
- */
-export function summarisePackSales(
-  packs: readonly PackRow[],
-  expiries: readonly ExpiryRow[],
-): OfferSales[] {
-  const forfeitByPack = new Map<string, number>();
-  for (const e of expiries) {
-    forfeitByPack.set(e.packId, (forfeitByPack.get(e.packId) ?? 0) + e.itemsForfeit);
-  }
-
+/** Per-offer sales and redemption, over whatever set of packs the caller hands in. */
+export function summarisePackSales(packs: readonly PackMoneyRow[]): OfferSales[] {
   const byOffer = new Map<string, OfferSales>();
 
   for (const pack of packs) {
-    if (pack.status === 'pending') continue; // never paid for; not a sale
-
-    const key = pack.offerId;
-    let row = byOffer.get(key);
+    let row = byOffer.get(pack.nameSnapshot);
     if (!row) {
       row = {
-        offerId: pack.offerId,
-        // The snapshot, so a renamed offer does not restate a month that already closed.
-        offerName: pack.offerName,
-        packsSold: 0,
-        grossExTaxPaise: 0,
-        gstPaise: 0,
-        itemsSold: 0,
-        itemsRedeemed: 0,
-        itemsRemaining: 0,
-        itemsForfeit: 0,
-        bonusItemsGranted: 0,
-        bonusItemsRedeemed: 0,
+        offerName: pack.nameSnapshot,
+        packsSold: 0, grossExTaxPaise: 0, gstPaise: 0,
+        deferredPaise: 0, revenueRecognisedPaise: 0, breakagePaise: 0,
+        itemsSold: 0, itemsRedeemed: 0, itemsOutstanding: 0,
+        bonusItemsGranted: 0, bonusItemsRedeemed: 0, bonusItemsOutstanding: 0,
         redemptionRate: null,
       };
-      byOffer.set(key, row);
+      byOffer.set(pack.nameSnapshot, row);
     }
-
-    const granted = pack.bonusGrantedAt !== null ? pack.bonusItems : 0;
-    /*
-     * Items spent, derived from `itemsOriginal` + the granted bonus rather than read from
-     * `itemsTotal`.
-     *
-     * **This is deliberate, and it is not defensiveness for its own sake.** Andy's ruling says
-     * *"items_total stays 20 for value purposes"*; the mobile thread's schema carries
-     * `check (items_total = items_original + case when bonus_granted_at is null then 0 else
-     * bonus_items end)`, which makes it 22 after a grant. Those two readings disagree about one
-     * column, and a report that subtracts it would be silently wrong under one of them — 18 items
-     * eaten instead of 20, on the pack that just earned a bonus.
-     *
-     * Deriving the total from two columns that are unambiguous under both readings makes this
-     * function correct either way, and `admin-pack-reports.test.ts` asserts exactly that. The
-     * disagreement is still worth resolving, and it is raised on the mobile thread in
-     * `planning/andy-queue.md` rather than absorbed here in silence.
-     */
-    const itemsHeld = pack.itemsOriginal + granted;
-    const spent = itemsHeld - pack.itemsRemaining;
-    /*
-     * Bonus items are earned only when the last ORIGINAL item is consumed, so a pack with a granted
-     * bonus has necessarily eaten all of its purchased items. That makes the split exact rather
-     * than apportioned: everything up to `itemsOriginal` is purchased, anything beyond is bonus.
-     */
-    const purchasedRedeemed = Math.min(spent, pack.itemsOriginal);
-    const bonusRedeemed = Math.max(0, spent - pack.itemsOriginal);
 
     row.packsSold += 1;
     row.grossExTaxPaise += pack.pricePaidPaise;
-    row.gstPaise += pack.cgstPaise + pack.sgstPaise;
+    row.gstPaise += pack.taxPaise;
+    row.deferredPaise += pack.deferredPaise;
+    row.revenueRecognisedPaise += pack.revenueRecognisedPaise;
+    row.breakagePaise += pack.breakagePaise;
     row.itemsSold += pack.itemsOriginal;
-    row.itemsRedeemed += purchasedRedeemed;
-    row.itemsRemaining += pack.itemsRemaining;
-    row.itemsForfeit += forfeitByPack.get(pack.id) ?? 0;
-    row.bonusItemsGranted += granted;
-    row.bonusItemsRedeemed += bonusRedeemed;
+    row.itemsRedeemed += pack.valuedItemsRedeemed;
+    row.itemsOutstanding += pack.valuedRemaining;
+    // Offered is not granted. A pack that never earned its bonus offered 2 and granted 0.
+    row.bonusItemsGranted += pack.bonusGranted ? pack.bonusItemsOffered : 0;
+    row.bonusItemsRedeemed += pack.bonusItemsRedeemed;
+    row.bonusItemsOutstanding += pack.bonusItemsOutstanding;
   }
 
   for (const row of byOffer.values()) {
     row.redemptionRate = redemptionRate(row.itemsSold, row.itemsRedeemed);
   }
 
-  return [...byOffer.values()].sort((a, b) => b.grossExTaxPaise - a.grossExTaxPaise || a.offerName.localeCompare(b.offerName));
+  return [...byOffer.values()].sort(
+    (a, b) => b.grossExTaxPaise - a.grossExTaxPaise || a.offerName.localeCompare(b.offerName),
+  );
 }
 
 export interface PackPeriodTotals {
+  visibility: Visibility;
   packsSold: number;
   grossExTaxPaise: number;
   gstPaise: number;
+  /** Across every live pack, not only those sold in the period — a liability is a running total. */
   deferredOutstandingPaise: number;
-  recognisedFromRedemptionsPaise: number;
-  recognisedFromBreakagePaise: number;
-  /** A COGS line. Deliberately not part of `recognisedTotalPaise` — see `LedgerPackMovements`. */
-  bonusCogsPaise: number;
-  /** Redemptions plus breakage. What actually hit revenue, and nothing is subtracted from it. */
-  recognisedTotalPaise: number;
-  reconciliation: Reconciliation;
+  revenueRecognisedPaise: number;
+  breakagePaise: number;
+  itemsOutstanding: number;
+  bonusItemsOutstanding: number;
+  offers: OfferSales[];
 }
 
 /**
- * The header figures for the pack section of `/admin/sales`.
+ * The pack section of `/admin/sales`.
  *
- * `recognisedTotalPaise` is the only derived sum here, and it is a sum of three figures that are
- * each shown in their own right (`M11`) — it exists so the screen can state the total without the
- * reader adding three numbers, never so the three can be collapsed into it.
+ * `soldInPeriod` answers "what did we sell" and is filtered on `purchasedAt` by the caller, which
+ * is the only date a *sale* has. `allLivePacks` answers "what do we owe", which is a running
+ * balance and belongs to no period.
+ *
+ * Revenue recognised and breakage are summed over `soldInPeriod`, and the screen labels them as
+ * **lifetime figures for packs sold in this period** rather than pretending to be a period
+ * movement. Getting a true period movement needs the ledger postings dated within it, which the
+ * back office cannot currently read — raised as a requirement rather than approximated, because an
+ * approximated revenue figure that looks exact is worse than a labelled one.
  */
 export function packPeriodTotals(
-  soldThisPeriod: readonly PackRow[],
-  allLivePacks: readonly PackRow[],
-  ledger: LedgerPackMovements,
+  soldInPeriod: readonly PackMoneyRow[],
+  allLivePacks: readonly PackMoneyRow[],
+  visibility: Visibility,
 ): PackPeriodTotals {
-  const sales = summarisePackSales(soldThisPeriod, []);
+  const offers = summarisePackSales(soldInPeriod);
+  const owing = allLivePacks.filter((p) => OWES_FOOD.includes(p.status));
+
   return {
-    packsSold: sales.reduce((n, s) => n + s.packsSold, 0),
-    grossExTaxPaise: sales.reduce((n, s) => n + s.grossExTaxPaise, 0),
-    gstPaise: sales.reduce((n, s) => n + s.gstPaise, 0),
-    deferredOutstandingPaise: deferredOutstandingPaise(allLivePacks),
-    recognisedFromRedemptionsPaise: ledger.recognisedFromRedemptionsPaise,
-    recognisedFromBreakagePaise: ledger.recognisedFromBreakagePaise,
-    bonusCogsPaise: ledger.bonusCogsPaise,
-    recognisedTotalPaise:
-      ledger.recognisedFromRedemptionsPaise + ledger.recognisedFromBreakagePaise,
-    reconciliation: reconcile(allLivePacks, ledger),
+    visibility,
+    packsSold: offers.reduce((n, o) => n + o.packsSold, 0),
+    grossExTaxPaise: offers.reduce((n, o) => n + o.grossExTaxPaise, 0),
+    gstPaise: offers.reduce((n, o) => n + o.gstPaise, 0),
+    deferredOutstandingPaise: owing.reduce((n, p) => n + p.deferredPaise, 0),
+    revenueRecognisedPaise: offers.reduce((n, o) => n + o.revenueRecognisedPaise, 0),
+    breakagePaise: offers.reduce((n, o) => n + o.breakagePaise, 0),
+    itemsOutstanding: owing.reduce((n, p) => n + p.valuedRemaining, 0),
+    bonusItemsOutstanding: owing.reduce((n, p) => n + p.bonusItemsOutstanding, 0),
+    offers,
   };
+}
+
+/** Packs bought within `[from, to]` inclusive, by ISO date. The only date a sale has. */
+export function soldBetween(
+  packs: readonly PackMoneyRow[], from: string, to: string,
+): PackMoneyRow[] {
+  return packs.filter((p) => {
+    const day = p.purchasedAt.slice(0, 10);
+    return day >= from && day <= to;
+  });
 }
