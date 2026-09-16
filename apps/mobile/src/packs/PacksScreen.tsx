@@ -29,8 +29,10 @@ type PacksState = 'loading' | 'ready' | 'error' | 'not_offered';
  *
  * ## Prices are GST-exclusive, like every menu price
  *
- * The card shows the pack price against what the same meals cost singly. `alacarteReferencePaise`
- * is display only and never enters a calculation — the saving is drawn from it, the charge is not.
+ * The card shows the ex-tax price and says GST is added, because the detail screen carries the
+ * payable figure. The old "save ₹375 against à la carte" is gone with `alacarteReferencePaise`:
+ * with no price cap, what a pack is worth depends entirely on what it is spent on, so a headline
+ * saving would be a claim we cannot stand behind.
  */
 export function PacksScreen({
   onOpenOffer,
@@ -142,15 +144,20 @@ export function PacksScreen({
           >
             <Text style={styles.cardName}>{offer.name}</Text>
             <Text style={styles.cardRule}>
-              {offer.mealsCount} meals · {offer.itemsPerMeal} items each, one a drink · valid{' '}
+              {offer.itemsCount} items · any menu item counts as one · valid{' '}
               {offer.validityDays} days
             </Text>
+            {offer.bonusItemsCount > 0 ? (
+              <Text style={styles.cardRule}>
+                Use them all within {offer.bonusWindowDays} days for {offer.bonusItemsCount} more,
+                free
+              </Text>
+            ) : null}
+            {/* Ex-tax, like every menu price. The detail screen carries the payable figure, so
+                the commitment and the amount agree at the step where the commitment is made. */}
             <View style={styles.priceRow}>
               <Text style={styles.price}>{money.formatPaise(offer.netPricePaise)}</Text>
-              <Text style={styles.was}>{money.formatPaise(offer.alacarteReferencePaise)}</Text>
-              <Text style={styles.save}>
-                save {money.formatPaise(offer.alacarteReferencePaise - offer.netPricePaise)}
-              </Text>
+              <Text style={styles.cardRule}>+ 5% GST</Text>
             </View>
           </Pressable>
         ))}

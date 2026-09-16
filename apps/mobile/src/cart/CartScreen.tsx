@@ -12,7 +12,7 @@ import { useCart } from './CartContext';
 import { BreakTimePicker } from './BreakTimePicker';
 import { KitchenNoteLine } from './KitchenNote';
 import { CartTotals } from './CartTotals';
-import { PackRedemptionStrip, type PackIneligibility } from '../packs/PackRedemptionStrip';
+import { PackRedemptionStrip } from '../packs/PackRedemptionStrip';
 import { DayPicker } from './DayPicker';
 import { OrderForBlock, type OrderFor } from './OrderForBlock';
 
@@ -173,11 +173,12 @@ export interface CartScreenProps {
    * inside it would fire on every quantity change.
    */
   packBalance?: import('../packs/MyPacksScreen').PackBalance | null;
-  /** Why this cart cannot be paid with a meal. The SERVER decides; this only picks the copy. */
-  packIneligibility?: PackIneligibility;
-  /** Whether the parent has turned the switch on for THIS order. Never remembered. */
-  usingPackMeal?: boolean;
-  onTogglePackMeal?: ((next: boolean) => void) | undefined;
+  /**
+   * What the pack will cover in this cart, computed by the caller from the same shared rule the
+   * server applies. Display only: `reserve_meal_pack_items` decides what is actually spent, from
+   * the order lines as persisted.
+   */
+  packCoverage?: import('@graybag/shared').packCoverage.PackCoverage | null;
   onSeePackOffers?: (() => void) | undefined;
 }
 
@@ -230,9 +231,7 @@ export function CartScreen({
   allergens,
   dishInfo,
   packBalance = null,
-  packIneligibility = null,
-  usingPackMeal = false,
-  onTogglePackMeal,
+  packCoverage = null,
   onSeePackOffers,
 }: CartScreenProps = {}) {
   const { cart, setQuantity, setComment, remove } = useCart();
@@ -429,13 +428,11 @@ export function CartScreen({
           packs here — the cart is not exempt from "no such concept".
         */}
         <PackRedemptionStrip
-          mealsLeft={packBalance?.mealsRemaining ?? 0}
-          mealsTotal={packBalance?.mealsTotal ?? 0}
+          coverage={packCoverage}
+          itemsLeft={packBalance?.itemsSpendable ?? 0}
+          itemsTotal={packBalance?.itemsTotal ?? 0}
           expiresLabel={packBalance?.expiresLabel ?? null}
           expired={packBalance?.expired ?? false}
-          ineligible={packIneligibility}
-          using={usingPackMeal}
-          onToggle={onTogglePackMeal}
           onSeeOffers={onSeePackOffers}
         />
 

@@ -24,12 +24,14 @@ import { DishImage, HERO_ASPECT, IMAGE_SIZES } from '../components/DishImage';
 const {
   bg,
   text,
+  border,
+  borderWidth,
   space,
   radius,
   scale,
   layout,
   touchTarget,
-    opacity,
+  opacity,
 } = design;
 
 /**
@@ -103,6 +105,21 @@ export interface HomeScreenProps {
   featured?: HomeDish | null;
   popular?: HomeDish[];
 
+  /**
+   * `E21-77`. The pack offers that share "This Week" with the featured dish.
+   *
+   * Andy, 2026-09-16, correcting his own brief: *"fall back to the existing featured-dish
+   * section … whenever there are no purchasable pack offers for this parent — whether because no
+   * offers exist, none are active, or packs are switched off for their school. Never an empty
+   * section, and never a layout shift."*
+   *
+   * So the section has ONE slot and TWO occupants, and all three of those reasons collapse to
+   * the same answer: an empty list renders the featured dish. There is no fourth state and no
+   * code path that can produce an empty section.
+   */
+  packOffers?: readonly HomePackOffer[];
+  onOpenPackOffer?: ((offerId: string) => void) | undefined;
+
   state?: 'loading' | 'ready' | 'error';
   /**
    * `pending` until the stored session has been read back — see `session/audience.ts`.
@@ -117,6 +134,16 @@ export interface HomeScreenProps {
   menuUnpublished?: boolean;
   /** N4 (§5.21). Cached content, said out loud rather than passed off as live. */
   stale?: boolean;
+}
+
+/** An offer as "This Week" shows it. Prices ex-tax, like every menu price. */
+export interface HomePackOffer {
+  id: string;
+  name: string;
+  itemsCount: number;
+  netPricePaise: number;
+  bonusItemsCount: number;
+  bonusWindowDays: number;
 }
 
 /** §3.5: at `AX1` and above the horizontal rail becomes a vertical list. */
@@ -143,6 +170,8 @@ export function HomeScreen({
   serviceDate = null,
   featured = null,
   popular = [],
+  packOffers = [],
+  onOpenPackOffer,
   state = 'ready',
   access = 'pending',
   menuUnpublished = false,
@@ -228,7 +257,22 @@ export function HomeScreen({
               />
             ) : (
               <>
-                {featured !== null ? (
+                {/*
+                  ONE SLOT, TWO OCCUPANTS. `E21-77`.
+
+                    packOffers.length > 0  ->  the offers
+                    otherwise              ->  FeaturedDish, exactly as it is today
+
+                  `FeaturedDish` is untouched — same props, same markup, same tests. The only
+                  change around it is which branch chooses it, because it is live and carrying
+                  the regression bar.
+
+                  **Never a layout shift** means the caller resolves the pack answer before this
+                  paints: `MealPackSurfaceContext.loading` joins the same gate the menu already
+                  skeletons behind, so the first paint of this section is already the right
+                  occupant and no parent watches offers replace a dish.
+                */}
+                {packOffers.length > 0 || featured !== null ? (
                   <View style={styles.section} testID={`${testID}-featured-section`}>
                     <View style={styles.gutter}>
                       <SectionHeading>
@@ -236,11 +280,39 @@ export function HomeScreen({
                       </SectionHeading>
                     </View>
                     <View style={styles.gutter}>
-                      <FeaturedDish
-                        dish={featured}
-                        testID={`${testID}-featured`}
-                        {...(onSelectDish ? { onSelect: onSelectDish } : {})}
-                      />
+                      {packOffers.length > 0 ? (
+                        <View testID={`${testID}-pack-offers`}>
+                          {packOffers.map((offer) => (
+                            <Pressable
+                              key={offer.id}
+                              testID={`${testID}-pack-offer-${offer.id}`}
+                              accessibilityRole="button"
+                              onPress={() => onOpenPackOffer?.(offer.id)}
+                              style={({ pressed }) => [styles.packCard, pressed && styles.pressed]}
+                            >
+                              <Text style={styles.packName}>{offer.name}</Text>
+                              <Text style={styles.packRule}>
+                                {offer.itemsCount} items · any menu item counts as one
+                              </Text>
+                              {offer.bonusItemsCount > 0 ? (
+                                <Text style={styles.packRule}>
+                                  Use them all within {offer.bonusWindowDays} days for{' '}
+                                  {offer.bonusItemsCount} more, free
+                                </Text>
+                              ) : null}
+                              <Text style={styles.packPrice}>
+                                {money.formatPaise(offer.netPricePaise)} + 5% GST
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      ) : featured !== null ? (
+                        <FeaturedDish
+                          dish={featured}
+                          testID={`${testID}-featured`}
+                          {...(onSelectDish ? { onSelect: onSelectDish } : {})}
+                        />
+                      ) : null}
                     </View>
                   </View>
                 ) : null}
@@ -789,6 +861,33 @@ const styles = StyleSheet.create({
   },
 
   featured: { gap: space[3] },
+  packCard: {
+    padding: layout.cardPadding,
+    borderRadius: radius.lg,
+    borderWidth: borderWidth.hairline,
+    borderColor: border.subtle,
+    backgroundColor: bg.surfaceAccent,
+    gap: space[1],
+    marginBottom: space[3],
+  },
+  packName: {
+    fontSize: scale.h3.size,
+    lineHeight: scale.h3.lineHeight,
+    fontWeight: '700',
+    color: text.primary,
+  },
+  packRule: {
+    fontSize: scale.caption.size,
+    lineHeight: scale.caption.lineHeight,
+    color: text.secondary,
+  },
+  packPrice: {
+    fontSize: scale.label.size,
+    lineHeight: scale.label.lineHeight,
+    fontWeight: '700',
+    color: text.primary,
+    marginTop: space[1],
+  },
   hero: {
     width: '100%',
     aspectRatio: HERO_ASPECT,

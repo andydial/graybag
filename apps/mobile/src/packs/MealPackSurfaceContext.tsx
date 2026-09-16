@@ -5,7 +5,7 @@ import { useSelectedSchool } from '../session/SelectedSchoolContext';
 import { useSession } from '../session/SessionContext';
 
 /**
- * Whether this parent sees packs at all. `E21-33`, decision `D2` in `docs/decisions-27aug.md`.
+ * Whether this parent sees packs at all. `E21-75`, rebuilt from `E21-33`.
  *
  * Andy, 2026-08-26: *"No pack surface renders in the parent app unless configuration says so. Not
  * a hidden tab, not an empty state, not a menu entry — if no offer is live for that school, the
@@ -20,27 +20,34 @@ import { useSession } from '../session/SessionContext';
  * ## The two flags are not the same question
  *
  * `canBuy` is configuration — a business decision about whether we sell here. `hasBalance` is a
- * **debt**: meals this parent has already paid for. Withdrawing an offer must stop the first and
+ * **debt**: items this parent has already paid for. Withdrawing an offer must stop the first and
  * must never touch the second (`E21-31`), which is why the app never derives one from the other
  * and never derives either from a pack list it fetched itself.
  *
- * ## Unknown renders as nothing
+ * ## Unknown decides as no, but Home WAITS for it
  *
- * Before the first answer arrives, and after any failure, both are false. The two mistakes are
- * not symmetric: rendering nothing costs a sale the parent can still make later, while rendering
+ * Both flags are false before the first answer arrives and after any failure, and that asymmetry
+ * is deliberate: rendering nothing costs a sale the parent can still make later, while rendering
  * a pack surface that should not exist offers to take money for something we may not sell at that
- * school. `api.fetchMealPackSurface` already fails closed; this keeps the same direction while in
+ * school. `api.fetchMealPackSurface` already fails closed; this keeps the same direction in
  * flight.
+ *
+ * **What changed in `E21-75` is `loading`, and it is load-bearing now.** Andy, 2026-09-16, on
+ * Home's "This Week": *"Never an empty section, and never a layout shift."* Home renders the pack
+ * offers when there are any and the existing featured dish when there are not — one slot, two
+ * occupants — so it must not paint the section until it knows which. `loading` is how it waits.
+ * Screens that merely *gate* on the answer still read it as no while it is true; only Home holds
+ * its paint, because only Home would visibly swap.
  */
 export interface MealPackSurface {
   /** Configuration says packs are sold at the selected school. */
   canBuy: boolean;
-  /** This parent holds spendable meals — true regardless of `canBuy`. */
+  /** This parent holds spendable items at the selected school — true regardless of `canBuy`. */
   hasBalance: boolean;
-  /** True until the first answer lands. Screens use it to skeleton rather than to decide. */
+  /** True until the first answer lands. Home waits on it; everything else reads it as "no". */
   loading: boolean;
   /**
-   * The pack the next order will draw from, or `null`.
+   * The pack the next order at the selected school will draw from, or `null`.
    *
    * Fetched here rather than by the cart, which has more reasons to re-render than any other
    * screen — a read inside it would fire on every quantity change. Fetched only when
@@ -48,15 +55,17 @@ export interface MealPackSurface {
    */
   balance: api.MealPackBalance | null;
   /**
-   * Every live pack, in spend order — `balance` is the first of them. `E21-49`.
+   * Every live pack, in spend order — earliest expiry first, the server's order, never re-sorted.
    *
-   * The balance screen shows all of them so a nearer expiry is never hidden behind a later one;
-   * the cart strip uses `balance` alone, because it only cares which pack THIS order draws from.
+   * `balance` is the first of these that matches the selected school. My Meal Packs shows all of
+   * them so a nearer expiry is never hidden behind a later one, and names the school on each,
+   * because a parent with children at two schools holds two balances (`P22`).
    */
   allPacks: readonly api.MealPackBalance[];
 }
 
-const NOTHING: MealPackSurface = {
+/** In flight: the provider is mounted and has not heard back. Home waits on this. */
+const ASKING: MealPackSurface = {
   canBuy: false,
   hasBalance: false,
   loading: true,
@@ -64,25 +73,38 @@ const NOTHING: MealPackSurface = {
   allPacks: [],
 };
 
-const Ctx = createContext<MealPackSurface>(NOTHING);
+/**
+ * The context default — **`loading: false`, deliberately**.
+ *
+ * No provider mounted is a DEFINITE answer, not an unknown one: this app has no pack surface,
+ * full stop. Defaulting to `loading: true` made Home skeleton for ever wherever the provider is
+ * absent, which the placeholder-screen tests caught immediately and a stray render path would
+ * have shown a parent as a spinner that never resolves.
+ *
+ * The distinction only exists because `E21-77` made `loading` load-bearing. Before it, every
+ * consumer read `loading` as "no" and the two states were interchangeable.
+ */
+const NO_PROVIDER: MealPackSurface = { ...ASKING, loading: false };
+
+const Ctx = createContext<MealPackSurface>(NO_PROVIDER);
 
 export function MealPackSurfaceProvider({ children }: { children: ReactNode }) {
   const { schoolId } = useSelectedSchool();
   const session = useSession();
   const userId = session.status === 'signedIn' ? session.userId : null;
 
-  const [surface, setSurface] = useState<MealPackSurface>(NOTHING);
+  const [surface, setSurface] = useState<MealPackSurface>(ASKING);
 
   useEffect(() => {
     // Signed out, or no school chosen: there is nothing to ask about, and asking would send a
-    // null id to the server. Not an error — just no surface.
+    // null id to the server. Not an error — just no surface, and `loading` false so Home paints.
     if (userId === null || schoolId === null) {
       setSurface({ canBuy: false, hasBalance: false, loading: false, balance: null, allPacks: [] });
       return;
     }
 
     let cancelled = false;
-    setSurface(NOTHING);
+    setSurface(ASKING);
 
     void (async () => {
       const answer = await api.fetchMealPackSurface(userId, schoolId);
@@ -94,16 +116,16 @@ export function MealPackSurfaceProvider({ children }: { children: ReactNode }) {
       let allPacks: api.MealPackBalance[] = [];
       if (answer.hasBalance) {
         try {
-          // One read for every pack; the first is the one the next order draws from, because the
-          // server returns them in spend order. A second call for the singular balance would be
-          // a chance for the two to disagree.
+          // One read for every pack. The one this order draws from is picked from that list by a
+          // shared rule rather than a second query, so the cart and the balance screen cannot
+          // name different packs.
           allPacks = await api.fetchMealPackBalances(userId);
-          balance = allPacks[0] ?? null;
+          balance = api.packThisOrderDrawsFrom(allPacks, schoolId);
         } catch {
           /**
            * The surface stays, the numbers do not.
            *
-           * `hasBalance` is the server's word that this parent is owed meals, and a failed
+           * `hasBalance` is the server's word that this parent is owed items, and a failed
            * numbers read is no reason to withdraw that. So the entry point still renders and the
            * screens show their own unavailable state — which is the honest one. Suppressing the
            * whole surface here would tell a parent they have no pack because a request failed.
@@ -145,4 +167,18 @@ export function useMealPackSurface(): MealPackSurface {
  */
 export function showsPackEntryPoint(surface: MealPackSurface): boolean {
   return surface.canBuy || surface.hasBalance;
+}
+
+/**
+ * How many items this parent may actually spend on a new cart at the selected school.
+ *
+ * `itemsRemaining` is what they OWN; `itemsReserved` is what a checkout in flight has already
+ * spoken for. The cart must offer the difference, or two tabs would each promise the same last
+ * item and the second would be refused at the server with a `pack_coverage_changed` the parent
+ * did not earn.
+ */
+export function spendableItems(surface: MealPackSurface): number {
+  const pack = surface.balance;
+  if (pack === null) return 0;
+  return Math.max(0, pack.itemsRemaining - pack.itemsReserved);
 }

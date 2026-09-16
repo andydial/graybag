@@ -11,7 +11,12 @@ import { schoolRequestMailto } from '../support/contact';
 import { AccountScreen as AccountScreenImpl } from '../account/AccountScreen';
 import { OrderDetailScreen as OrderDetailScreenImpl } from '../orders/OrderDetailScreen';
 import { OrdersScreen as OrdersScreenImpl } from '../orders/OrdersScreen';
-import { HomeScreen as HomeScreenImpl, type HomeDish } from '../home/HomeScreen';
+import {
+  HomeScreen as HomeScreenImpl,
+  type HomeDish,
+  type HomePackOffer,
+} from '../home/HomeScreen';
+import { useMealPackSurface } from '../packs/MealPackSurfaceContext';
 import { useAllergenWatchlist } from '../menu/useAllergenWatchlist';
 import { useCachedMenu } from '../menu/useCachedMenu';
 
@@ -76,6 +81,55 @@ export const HomeScreen = () => {
   // today nothing wrote the target, so this card could never say who it was ordering for.
   const target = useOrderingTarget();
 
+  /**
+   * `E21-77`. The pack offers that share "This Week" with the featured dish.
+   *
+   * Andy, 2026-09-16: *"Never an empty section, and never a layout shift."* Both come from the
+   * same two lines below.
+   *
+   * **Never empty**: `packOffers` is `[]` whenever there is nothing purchasable — no offer, none
+   * active, packs off for this school, the read failed, the read has not returned — and
+   * `HomeScreen` renders the featured dish for every one of those. There is no fourth state.
+   *
+   * **Never a shift**: the section does not paint until the answer is known. `packSurface.loading`
+   * joins the menu's own loading gate, so the first paint of that slot is already the right
+   * occupant. Treating unknown as "no" here instead — which is what every other pack surface
+   * does — would paint the dish and then swap it, which is exactly the shift.
+   */
+  const packSurface = useMealPackSurface();
+  const [packOffers, setPackOffers] = useState<readonly HomePackOffer[]>([]);
+  useEffect(() => {
+    if (!packSurface.canBuy || schoolId === null) {
+      setPackOffers([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const offers = await api.fetchMealPackOffers(schoolId);
+        if (!cancelled) {
+          setPackOffers(
+            offers.map((offer) => ({
+              id: offer.id,
+              name: offer.name,
+              itemsCount: offer.itemsCount,
+              netPricePaise: offer.netPricePaise,
+              bonusItemsCount: offer.bonusItemsCount,
+              bonusWindowDays: offer.bonusWindowDays,
+            })),
+          );
+        }
+      } catch {
+        // The featured dish is the fallback for a failed read too. A parent seeing the dish they
+        // always see is not a bug; an empty section would be.
+        if (!cancelled) setPackOffers([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [packSurface.canBuy, schoolId]);
+
   const dishes = payload?.dishes ?? [];
   const toHomeDish = (dish: (typeof dishes)[number]): HomeDish => ({
     id: dish.id,
@@ -87,7 +141,14 @@ export const HomeScreen = () => {
 
   return (
     <HomeScreenImpl
-      state={state === 'loading' ? 'loading' : state === 'error' ? 'error' : 'ready'}
+      state={
+        // The pack answer joins the menu's loading gate, so "This Week" never paints twice.
+        state === 'loading' || packSurface.loading
+          ? 'loading'
+          : state === 'error'
+            ? 'error'
+            : 'ready'
+      }
       access={access}
       stale={stale || offline}
       // A school with a published menu and nothing in it is `menuUnpublished`; no school
@@ -102,6 +163,8 @@ export const HomeScreen = () => {
       serviceDate={target?.serviceDate ?? null}
       featured={dishes[0] ? toHomeDish(dishes[0]) : null}
       popular={dishes.slice(1, 6).map(toHomeDish)}
+      packOffers={packOffers}
+      onOpenPackOffer={(offerId) => navigation.navigate('PackDetail', { offerId })}
       // `E14-34`. These were `navigate('Tabs')` from a screen that is *already* inside Tabs,
       // which React Navigation treats as "you are here" and does nothing. Naming the tab is
       // what actually moves. "Open the Menu" was the most-tapped dead button in the app.

@@ -10,14 +10,14 @@ import { PackDetailScreen } from './PackDetailScreen';
  * after paying.
  */
 
+/** Andy's Pack 1, to the paise: ₹3,000 ex-tax, 20 items, +2 bonus inside 30 days, valid 60. */
 const OFFER = {
   id: 'o-1',
-  name: '10 meal pack',
-  mealsCount: 10,
-  itemsPerMeal: 2,
-  requiredCategoryId: 'cat-drinks',
+  name: 'Pack 1',
   netPricePaise: 300000,
-  alacarteReferencePaise: 337500,
+  itemsCount: 20,
+  bonusItemsCount: 2,
+  bonusWindowDays: 30,
   validityDays: 60,
 };
 
@@ -25,7 +25,7 @@ describe('the two terms are stated before the button', () => {
   it('says when the meals expire, and that unused ones are gone', async () => {
     await render(<PackDetailScreen offer={OFFER} />);
     expect(screen.getByTestId('screen-pack-detail-expiry')).toBeTruthy();
-    expect(screen.getByText(/Meals expire 60 days after purchase/)).toBeTruthy();
+    expect(screen.getByText(/Items expire 60 days after purchase/)).toBeTruthy();
     expect(screen.getByText(/Anything unused after that is gone/)).toBeTruthy();
   });
 
@@ -44,7 +44,7 @@ describe('the two terms are stated before the button', () => {
 
   it('reads the validity from the offer rather than assuming 60 days', async () => {
     await render(<PackDetailScreen offer={{ ...OFFER, validityDays: 90 }} />);
-    expect(screen.getByText(/Meals expire 90 days after purchase/)).toBeTruthy();
+    expect(screen.getByText(/Items expire 90 days after purchase/)).toBeTruthy();
   });
 });
 
@@ -67,22 +67,47 @@ describe('the price on the button is what will be charged', () => {
     );
   });
 
-  it('shows the saving against buying the meals singly', async () => {
+  it('makes NO saving claim, because with no price cap there is none to make', async () => {
+    // `alacarteReferencePaise` and "save ₹375" are gone. A pack's worth depends entirely on what
+    // it is spent on — ₹3,000 buys 20 drinks or 20 mains — so any headline saving would be a
+    // claim we cannot stand behind. Asserted as an absence, because that is the decision.
     await render(<PackDetailScreen offer={OFFER} />);
-    expect(screen.getByText(/save ₹375/)).toBeTruthy();
+    expect(screen.queryByText(/save /i)).toBeNull();
   });
 });
 
 describe('buying', () => {
-  it('says what a meal covers, in the offer’s terms', async () => {
+  it('says ANY menu item counts as one — no cap, no category', async () => {
+    // Andy, 2026-09-16: "Any menu item counts as one item. No price cap, no category exclusions.
+    // A ₹40 drink and a ₹250 main each consume exactly one item. This is deliberate."
     await render(<PackDetailScreen offer={OFFER} />);
-    expect(screen.getByText(/10 meals. One meal covers one child on one day./)).toBeTruthy();
-    expect(screen.getByText(/2 items per meal/)).toBeTruthy();
+    expect(screen.getByTestId('screen-pack-detail-items')).toHaveTextContent(/20 items/);
+    expect(screen.getByTestId('screen-pack-detail-items')).toHaveTextContent(
+      /Anything on the menu counts as one item/,
+    );
   });
 
-  it('says the pack is the parent’s, usable for anyone they order for', async () => {
+  it('states the bonus rule in plain words, with both numbers from the offer', async () => {
     await render(<PackDetailScreen offer={OFFER} />);
-    expect(screen.getByText(/Use it for anyone you order for/)).toBeTruthy();
+    const bonus = screen.getByTestId('screen-pack-detail-bonus');
+    expect(bonus).toHaveTextContent(/Use all 20 within 30 days/);
+    expect(bonus).toHaveTextContent(/add 2 more, free/);
+    // The half of the rule a parent is most likely to assume wrongly.
+    expect(bonus).toHaveTextContent(/expire with the pack/);
+  });
+
+  it('says nothing about a bonus when the offer has none', async () => {
+    // The schema refuses a window with no items, so an offer with bonusItemsCount 0 has no
+    // window either — and must say nothing rather than promising zero extra items.
+    await render(
+      <PackDetailScreen offer={{ ...OFFER, bonusItemsCount: 0, bonusWindowDays: 0 }} />,
+    );
+    expect(screen.queryByTestId('screen-pack-detail-bonus')).toBeNull();
+  });
+
+  it('says the pack is the parent’s, usable for any of their children', async () => {
+    await render(<PackDetailScreen offer={OFFER} />);
+    expect(screen.getByText(/Use it for any of your children/)).toBeTruthy();
   });
 
   it('hands the purchase up rather than starting one itself', async () => {
