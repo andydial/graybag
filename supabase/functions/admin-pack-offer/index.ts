@@ -12,28 +12,34 @@
  * is computed here, under the service role, and only the count crosses the wire. No owner, no
  * order, no child.
  *
- * ## The rule this function exists to enforce
+ * ## The rule this function existed to enforce, and why it no longer needs to
  *
  * Andy: *"Editing an offer that has already sold must not change terms for packs already bought."*
  *
- * Most of an offer is **stamped onto the pack at sale** — `0068` says so in terms: price, both tax
- * components, the tax point, `meals_total` and `expires_at` are copied at purchase and never
- * re-read. Editing those changes what the *next* buyer gets, which is the entire point of being
- * able to edit an offer.
+ * The old design froze `itemsPerMeal` and `requiredCategoryId` once an offer had sold, because
+ * `meal_pack_balance` joined the live offer for them — so editing either **retroactively changed
+ * what an already-bought pack could buy**. `E21-67` found a third: `name` was joined live too, and
+ * reached a tax invoice.
  *
- * Two fields are not stamped. `meal_pack_balance` (`0072`) joins the live offer for
- * `items_per_meal` and `required_category_id`, so changing either **retroactively changes what an
- * already-bought pack may be spent on** — a parent who bought "2 items, one of them a drink" would
- * silently be holding "3 items, one of them a dessert".
+ * **`E21-78` removes the reason instead of the freeze.** Every figure a pack is sold on is now
+ * STAMPED onto the pack row at purchase: the name, the price, both tax components, the item
+ * count, the bonus count and window, and both dates. `start_meal_pack_purchase` copies them and
+ * nothing re-reads the offer afterwards. Neither of the two frozen columns exists any more — one
+ * item is one item, with no price cap and no category — and the one that replaced them in spirit,
+ * the name, is stamped.
  *
- * So exactly those two are frozen once a pack exists, and everything else stays editable. A
- * blanket "sold offers are immutable" would have been easier to write and wrong: it would block a
- * price correction that harms nobody, and people work around rules that are broader than their
- * reason.
+ * So an offer is **fully editable for ever**, and that is a stronger guarantee than the freeze
+ * was, not a weaker one: the freeze protected two columns by convention and missed a third,
+ * whereas a snapshot protects everything by construction. `meal_packs.test.sql` proves it by
+ * renaming an offer after a sale and asserting the pack does not follow.
  *
- * The durable fix is to stamp those two on the pack as well, which is a migration and therefore
- * the mobile thread's — `E21-61`. This is enforcement in the meantime, and it belongs here rather
- * than in the browser either way: the form is not the only way a row arrives.
+ * What this function still owes is the permission (`meal_packs.manage` at platform scope) and
+ * validation, and it belongs here rather than in the browser: the form is not the only way a row
+ * arrives.
+ *
+ * **Ownership**: MOBILE owns this file, confirmed by Andy 2026-09-16 — *"You're rewriting the
+ * schema under it, so the function follows the schema."* WEB consumes it and files requirements
+ * against it rather than editing it.
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -52,7 +58,6 @@ const int = (v: unknown): number | null =>
   typeof v === 'number' && Number.isInteger(v) ? v : null;
 
 /** The two fields a sold pack still reads live. See the header. */
-const FROZEN_ONCE_SOLD = ['itemsPerMeal', 'requiredCategoryId'] as const;
 
 Deno.serve(async (request: Request): Promise<Response> => {
   const pre = preflight(request, CORS);
@@ -171,30 +176,24 @@ Deno.serve(async (request: Request): Promise<Response> => {
 
       const sold = (await soldByOffer())[id] ?? 0;
       if (sold > 0) {
-        const frozen = FROZEN_ONCE_SOLD.filter((key) => offer[key] !== undefined);
-        if (frozen.length > 0) {
-          return json(409, {
-            error: 'already_sold',
-            sold,
-            frozen,
-            // Named, and with the reason, because "you cannot do that" without a why is what makes
-            // somebody go round the outside.
-            message:
-              `${sold} pack${sold === 1 ? ' has' : 's have'} been bought under this offer. ` +
-              `How many items a meal is, and which category one of them must be, are read live ` +
-              `when a meal is spent — changing them now would change what those packs can buy. ` +
-              `Everything else about the offer is stamped onto a pack when it sells, so it is ` +
-              `safe to edit. To change these, make a new offer and withdraw this one.`,
-          });
-        }
+        // NOTHING IS FROZEN ANY MORE. `E21-78` stamps every figure onto the pack at sale, so
+        // editing an offer cannot reach a pack already bought. `sold` is still read and still
+        // returned, because a screen editing an offer that 40 families have bought should say so
+        // — that is information, not a refusal.
       }
 
       const { error } = await admin.from('meal_pack_offer').update(fields.row).eq('id', id);
       if (error) {
         if (error.code === '23514') {
+          // A check constraint refused it. The named cases are caught above with a field; this is
+          // the backstop, and it says which rules exist rather than guessing which one fired.
           return json(422, {
             error: 'validation_failed',
-            fields: { netPricePaise: 'a pack must cost less than the same meals bought singly' },
+            fields: {
+              offer:
+                'the offer breaks one of its rules — price, item count and validity must be ' +
+                'above zero, and the bonus needs an item count and a window together or neither',
+            },
           });
         }
         console.error('offer update failed', error.code);
@@ -281,24 +280,52 @@ function validate(
     else row.name = name;
   }
 
-  const ints: [string, string, string][] = [
-    ['mealsCount', 'meals_count', 'how many meals the pack contains'],
-    ['itemsPerMeal', 'items_per_meal', 'how many items make up one meal'],
+  // Must be above zero.
+  const positiveInts: [string, string, string][] = [
+    ['itemsCount', 'items_count', 'how many items the pack contains'],
     ['netPricePaise', 'net_price_paise', 'the price in paise, excluding GST'],
-    ['alacarteReferencePaise', 'alacarte_reference_paise', 'what those meals cost singly, in paise'],
     ['validityDays', 'validity_days', 'how many days the pack is valid for'],
   ];
-  for (const [from, to, what] of ints) {
+  for (const [from, to, what] of positiveInts) {
     if (offer[from] === undefined && options.partial) continue;
     const value = int(offer[from]);
     if (value === null || value <= 0) bad[from] = `${what} — a whole number above zero`;
     else row[to] = value;
   }
 
-  if (offer.requiredCategoryId !== undefined || !options.partial) {
-    const id = str(offer.requiredCategoryId);
-    if (!UUID.test(id)) bad.requiredCategoryId = 'choose the category one item must come from';
-    else row.required_category_id = id;
+  // May be zero — an offer with no bonus is a perfectly good offer.
+  const zeroOrMore: [string, string, string][] = [
+    ['bonusItemsCount', 'bonus_items_count', 'how many free items the bonus adds'],
+    ['bonusWindowDays', 'bonus_window_days', 'how many days to use the pack in to earn the bonus'],
+  ];
+  for (const [from, to, what] of zeroOrMore) {
+    if (offer[from] === undefined && options.partial) continue;
+    const value = int(offer[from]);
+    if (value === null || value < 0) bad[from] = `${what} — a whole number, zero or above`;
+    else row[to] = value;
+  }
+
+  /**
+   * The two bonus fields are only meaningful together, and the database refuses the incoherent
+   * pair (`meal_pack_offer_bonus_is_coherent`). Caught here as well so the admin gets a named
+   * field rather than a constraint name — a bonus window with no items reads to a parent as a
+   * promise of nothing, which is worse than no bonus at all.
+   *
+   * Checked only when both are known: a partial edit that touches one reads the other from the
+   * row it is about to change, which this function does not hold, so the database is left to be
+   * the backstop it already is.
+   */
+  const bonusItems = row.bonus_items_count as number | undefined;
+  const bonusWindow = row.bonus_window_days as number | undefined;
+  if (bonusItems !== undefined && bonusWindow !== undefined) {
+    if (bonusItems === 0 && bonusWindow > 0) {
+      bad.bonusItemsCount = 'a bonus window with no bonus items promises nothing — set both or neither';
+    } else if (bonusItems > 0 && bonusWindow === 0) {
+      bad.bonusWindowDays = 'bonus items need a window to be earned in — set both or neither';
+    } else if (bonusWindow > 0 && row.validity_days !== undefined
+               && bonusWindow > (row.validity_days as number)) {
+      bad.bonusWindowDays = 'the bonus window cannot outlive the pack';
+    }
   }
 
   if (Object.keys(bad).length > 0) return { error: { error: 'validation_failed', fields: bad } };

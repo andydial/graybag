@@ -5,6 +5,12 @@
 -- own, and `ordering_path_characterisation.test.sql` — written and green BEFORE any of this — is
 -- what says whether it changed anything it should not have.
 --
+-- irreversible: two `create or replace`s of live functions — `create_checkout` and
+-- `settle_payment` — whose previous bodies are recoverable from git rather than from a down
+-- migration, exactly as `0080` and `0084` before it. Reverting the SQL alone while `0085`'s
+-- tables remain would leave `create_checkout` calling functions that still exist and
+-- `settle_payment` not confirming redemptions, which is a worse state than either end.
+--
 -- =============================================================================
 -- E21-65: A REDEEMED MEAL NEVER REACHED THE KITCHEN
 -- =============================================================================

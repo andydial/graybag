@@ -39,6 +39,7 @@
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { corsHeaders, preflight } from '../_shared/cors.ts';
+import { sendOrderConfirmation } from '../_shared/order-confirmation.ts';
 
 const CORS = corsHeaders('POST');
 
@@ -62,6 +63,11 @@ const REFUSALS: Record<string, string> = {
   cutoff_passed: 'Ordering for that day has closed.',
   not_orderable: 'That date is outside the ordering window.',
   price_changed: 'The price changed. Please check the total and try again.',
+  // `E21`. The same guard as `price_changed` and a different, truer sentence: nothing about the
+  // food got dearer, their pack covers fewer items than it did a minute ago — because another
+  // checkout took them, or the pack expired between the cart rendering and this landing.
+  pack_coverage_changed:
+    'Your pack now covers fewer items than it did. Please check the total and try again.',
   idempotency_key_reused: 'That request was already used for a different cart.',
 };
 
@@ -135,6 +141,37 @@ Deno.serve(async (request: Request) => {
     // occasionally a value — and this body goes to a phone.
     console.error('checkout: unexpected database error', { code: error.code, hint });
     return json(500, { error: 'could not place the order' });
+  }
+
+  /**
+   * `E21`. The zero-cash confirmation, and the reason it has to be here.
+   *
+   * When a pack covers the whole cart there is **no payment and no webhook**, so
+   * `settle-from-events` — which sends the confirmation for every other paid order — never runs
+   * for this group. Without this the parent would place an order, be charged nothing, and be told
+   * nothing. The order would be correct in every table and invisible to the person who placed it.
+   *
+   * `create_checkout` returns `status: 'paid'` only on that path; every other checkout returns
+   * `pending_payment` and is confirmed by the webhook exactly as before. So this adds an email to
+   * one new case and changes nothing about the live ordering path.
+   *
+   * **Awaited, and its result ignored.** Awaited because an Edge Function's process can be torn
+   * down the moment it responds, so a floating promise here is an email that sometimes sends.
+   * Ignored because the order is already placed and committed — failing the response now would
+   * tell the app the checkout did not happen, which is the one thing that is not true.
+   */
+  const placed = data as { status?: string; order_group_id?: string } | null;
+  if (placed?.status === 'paid' && typeof placed.order_group_id === 'string') {
+    try {
+      await sendOrderConfirmation(asService, {
+        orderGroupId: placed.order_group_id,
+        correlationId: null,
+      });
+    } catch (error) {
+      console.error('checkout: zero-cash confirmation failed', {
+        message: error instanceof Error ? error.message : 'unknown',
+      });
+    }
   }
 
   return json(200, data);

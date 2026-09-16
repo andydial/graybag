@@ -133,6 +133,24 @@ export async function sendOrderConfirmation(
      * That case is loud in the log, because it means `issue_invoice` did not run.
      */
     const invoice = await loadInvoice(admin, input.orderGroupId);
+
+    /**
+     * `E21-80`. What the pack adds to this email, if anything.
+     *
+     * Two cases, both read from the database after settlement rather than assembled from a
+     * request — the same rule the invoice follows, and for the same reason: this email is what a
+     * parent keeps, so a number computed a second way here is a second number.
+     *
+     *   * a **pack purchase** — the group's own kind. The invoice is the email, as for any other
+     *     purchase; what changes is the subject and the covering sentence, because "pickup code"
+     *     and "your order is confirmed" describe food, and nobody is being served anything.
+     *   * a **redemption** — an ordinary order that drew on a pack. Andy: *"the normal order
+     *     confirmation, plus items used and items remaining."* Appended, never replacing.
+     *
+     * Both carry NO child data. The pack knows none — `meal_pack_redemption` has no recipient
+     * column at all — and the pack lines added below name items, packs and counts.
+     */
+    const pack = await loadPackContext(admin, input.orderGroupId);
     if (!invoice) {
       console.error(
         `order-confirmation: no invoice for ${input.orderGroupId} — sending a bare confirmation. ` +
@@ -170,7 +188,11 @@ export async function sendOrderConfirmation(
       }
     }
 
-    const subject = invoice
+    const subject = pack?.kind === 'purchase'
+      ? invoice
+        ? `Your GrayBag meal pack — tax invoice ${invoice.invoiceNumber}`
+        : 'Your GrayBag meal pack is confirmed'
+      : invoice
       ? `Your GrayBag tax invoice ${invoice.invoiceNumber} — pickup code ${pickupCode}`
       : `Your GrayBag order is confirmed — pickup code ${pickupCode}`;
 
@@ -195,17 +217,29 @@ export async function sendOrderConfirmation(
         reply_to: Deno.env.get('ORDER_EMAIL_REPLY_TO') ?? 'info@graybag.com',
         subject,
         ...(invoice
-          ? { html: renderInvoiceHtml(invoice), text: renderInvoiceText(invoice) }
+          ? {
+              html: renderInvoiceHtml(invoice),
+              // The redemption note goes BELOW the invoice, never inside it: an invoice is a
+              // statutory document with prescribed particulars (Rule 46), and a balance is not
+              // one of them. Appending keeps the document exactly what `renderInvoiceText`
+              // produced, which `E07-24`'s unresolved-token check has already inspected.
+              text: renderInvoiceText(invoice) + (pack?.kind === 'redemption' ? packNote(pack) : ''),
+            }
           : {
-              text: renderText({
-                greetingName: typeof user?.first_name === 'string' ? user.first_name : null,
-                firstName,
-                pickupCode,
-                serviceDate: String(first.service_date ?? ''),
-                breakLabel: String(first.break_label_snapshot ?? 'break'),
-                itemCount: rows.length,
-                totalPaise,
-              }),
+              // No invoice row. For a ZERO-CASH redemption that is correct and expected, not a
+              // fault: the pack covered the whole cart, there was no taxable supply, and no
+              // invoice number was consumed (`D14` — they are gapless and not recoverable). For
+              // anything else it means `issue_invoice` did not run, which the log above says.
+              text:
+                renderText({
+                  greetingName: typeof user?.first_name === 'string' ? user.first_name : null,
+                  firstName,
+                  pickupCode,
+                  serviceDate: String(first.service_date ?? ''),
+                  breakLabel: String(first.break_label_snapshot ?? 'break'),
+                  itemCount: rows.length,
+                  totalPaise,
+                }) + (pack === null ? '' : packNote(pack)),
             }),
       }),
     });
@@ -244,6 +278,119 @@ export async function sendOrderConfirmation(
     console.error('order-confirmation: threw', String(error));
     return 'failed';
   }
+}
+
+/** What a pack adds to this email. `null` when the order has nothing to do with packs. */
+interface PackContext {
+  kind: 'purchase' | 'redemption';
+  packName: string;
+  itemsUsed: number;
+  itemsRemaining: number;
+  itemsTotal: number;
+  bonusGranted: boolean;
+  bonusItems: number;
+  expiresOn: string;
+}
+
+/**
+ * Read the pack side of this order group, after settlement.
+ *
+ * Returns `null` for the overwhelming majority of orders, which is what lets the caller add this
+ * unconditionally. Every failure returns `null` too: a pack read that did not work must cost the
+ * extra sentence, never the confirmation — a parent whose order is paid has to be told, and an
+ * email that fails to send because a balance could not be looked up is the worse outcome by far.
+ */
+async function loadPackContext(
+  admin: SupabaseClient,
+  orderGroupId: string,
+): Promise<PackContext | null> {
+  try {
+    const { data: group } = await admin
+      .from('order_group')
+      .select('kind')
+      .eq('id', orderGroupId)
+      .maybeSingle();
+
+    if (group?.kind === 'meal_pack_purchase') {
+      const { data: bought } = await admin
+        .from('meal_pack')
+        .select('name_snapshot, items_original, items_remaining, bonus_items, expires_at')
+        .eq('order_group_id', orderGroupId)
+        .maybeSingle();
+      if (!bought) return null;
+      return {
+        kind: 'purchase',
+        packName: String(bought.name_snapshot),
+        itemsUsed: 0,
+        itemsRemaining: Number(bought.items_remaining),
+        itemsTotal: Number(bought.items_original),
+        bonusGranted: false,
+        bonusItems: Number(bought.bonus_items),
+        expiresOn: String(bought.expires_at).slice(0, 10),
+      };
+    }
+
+    const { data: redemptions } = await admin
+      .from('meal_pack_redemption')
+      .select('items, meal_pack_id')
+      .eq('order_group_id', orderGroupId)
+      .eq('state', 'confirmed');
+    if (!redemptions || redemptions.length === 0) return null;
+
+    const itemsUsed = redemptions.reduce((n, r) => n + Number(r.items), 0);
+    const { data: drawn } = await admin
+      .from('meal_pack')
+      .select('name_snapshot, items_original, items_remaining, bonus_items, bonus_granted_at, expires_at')
+      .eq('id', String(redemptions[0]?.meal_pack_id))
+      .maybeSingle();
+    if (!drawn) return null;
+
+    return {
+      kind: 'redemption',
+      packName: String(drawn.name_snapshot),
+      itemsUsed,
+      itemsRemaining: Number(drawn.items_remaining),
+      itemsTotal:
+        Number(drawn.items_original) + (drawn.bonus_granted_at ? Number(drawn.bonus_items) : 0),
+      bonusGranted: drawn.bonus_granted_at !== null,
+      bonusItems: Number(drawn.bonus_items),
+      expiresOn: String(drawn.expires_at).slice(0, 10),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** The lines a pack adds. Items, counts and a date — no child, by construction. */
+function packNote(pack: PackContext): string {
+  if (pack.kind === 'purchase') {
+    return [
+      '',
+      '',
+      `Your ${pack.packName} is ready to use.`,
+      `${pack.itemsTotal} items · any item on the menu counts as one.`,
+      pack.bonusItems > 0
+        ? `Use them all inside the bonus window and we'll add ${pack.bonusItems} more, free.`
+        : '',
+      `Valid until ${pack.expiresOn}. Unused items are not refundable.`,
+      '',
+      'Your pack covers what it can on every order — you pay only for anything left over.',
+    ]
+      .filter((line) => line !== '')
+      .join('\n');
+  }
+
+  return [
+    '',
+    '',
+    `Paid with your ${pack.packName}.`,
+    `Items used: ${pack.itemsUsed}`,
+    `Items remaining: ${pack.itemsRemaining} of ${pack.itemsTotal}`,
+    pack.bonusGranted ? `Bonus earned — ${pack.bonusItems} extra items added.` : '',
+    `Your pack expires on ${pack.expiresOn}.`,
+  ]
+    .filter((line) => line !== '')
+    .join('\n');
 }
 
 /**

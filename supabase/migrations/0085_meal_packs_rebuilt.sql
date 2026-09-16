@@ -53,6 +53,12 @@
 -- the life of the pack and never changes; bonus items live in their own column, are granted with
 -- no ledger posting, spent with no ledger posting, and forfeited with no ledger posting. They are
 -- separate columns rather than a larger total precisely so that no arithmetic can mix them.
+--
+-- irreversible: this DROPS the old pack design — five tables, eighteen functions, two enums and
+-- two `platform_config` columns — and the code that used them is deleted in the same PR. A down
+-- migration would have to recreate a schema nothing can drive, so it would restore the shape and
+-- not the feature. It moves no data: production had 0 offers, 0 packs, 0 redemptions and 0 plans,
+-- checked before this was written. The way back is `git revert`, not SQL.
 
 begin;
 
