@@ -10,7 +10,6 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { PolicyGateProvider } from './src/policy/PolicyGateContext';
 import { CantConnectScreen } from './src/status/CantConnectScreen';
 import { MealPackSurfaceProvider } from './src/packs/MealPackSurfaceContext';
-import { PlannerProvider } from './src/packs/PlannerContext';
 import { VersionGate } from './src/status/VersionGate';
 import { ConnectivityProvider } from './src/net/ConnectivityContext';
 import { OrderTargetProvider } from './src/session/OrderTargetContext';
@@ -149,17 +148,14 @@ export default function App() {
                     at different moments, and a parent could watch the Account row disappear
                     while standing on the balance screen it led to (`D2`).
                   */}
+                  {/*
+                    `PlannerProvider` was here and is gone with the planner (`E21-73`). Spending a
+                    pack is no longer a journey of its own — it happens in the cart, at checkout,
+                    against the order lines as persisted — so there is no plan for two screens to
+                    share and nothing above the navigator to hold it.
+                  */}
                   <MealPackSurfaceProvider>
-                    {/*
-                      `E21-44`. Inside the surface provider because it reads the pack's expiry to
-                      bound the calendar range. Above the navigator because the day list and the
-                      per-day picker are two screens editing ONE plan — a copy in each is two
-                      answers to what a parent has chosen, and the confirm would send whichever
-                      one it happened to hold.
-                    */}
-                    <PlannerProvider>
-                      <RootNavigator />
-                    </PlannerProvider>
+                    <RootNavigator />
                   </MealPackSurfaceProvider>
                 </PolicyGateProvider>
               </CartProvider>

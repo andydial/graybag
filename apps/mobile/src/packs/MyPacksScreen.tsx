@@ -11,12 +11,43 @@ export const MY_PACKS_TEST_ID = 'screen-my-packs';
 /** What a parent's balance looks like. Shaped by `E21-35`; filled by the balance read. */
 export interface PackBalance {
   packName: string;
-  mealsTotal: number;
-  mealsRemaining: number;
+  /** Named on every pack: a parent with children at two schools holds two balances (`P22`). */
+  schoolName: string;
+  /** Original items, plus the bonus once it is earned. */
+  itemsTotal: number;
+  itemsRemaining: number;
+  /**
+   * What a NEW cart may draw on — `itemsRemaining` less anything a checkout in flight has
+   * already spoken for. The two differ only while a payment is pending, and showing the wrong
+   * one would promise an item a second tab has already taken.
+   */
+  itemsSpendable: number;
   /** Rendered, never parsed. Formatted by the caller so this screen holds no date logic. */
   purchasedLabel: string;
   expiresLabel: string;
   expired: boolean;
+  /** Earned / still possible / closed — the server's three-way answer, never re-derived here. */
+  bonus?: PackBonusState;
+  /** Which orders drew on this pack. Order references and dates only — never a child. */
+  history?: readonly PackHistoryEntry[];
+}
+
+/** The bonus, as a parent is told it. */
+export interface PackBonusState {
+  items: number;
+  granted: boolean;
+  stillPossible: boolean;
+  /** How many more items must be used to earn it. Zero once earned or once impossible. */
+  itemsToGo: number;
+  /** Rendered, never parsed. */
+  windowEndsLabel: string;
+}
+
+/** One order that drew on this pack. Carries NO recipient (non-negotiable #4). */
+export interface PackHistoryEntry {
+  orderRef: string;
+  dateLabel: string;
+  itemsUsed: number;
 }
 
 /**
@@ -44,7 +75,6 @@ export function MyPacksScreen({
   balance = null,
   otherPacks = [],
   onSeeOffers,
-  onPlanMeals,
   testID = MY_PACKS_TEST_ID,
 }: {
   balance?: PackBalance | null;
@@ -60,7 +90,6 @@ export function MyPacksScreen({
    */
   otherPacks?: readonly PackBalance[];
   onSeeOffers?: (() => void) | undefined;
-  onPlanMeals?: (() => void) | undefined;
   testID?: string;
 } = {}) {
   const surface = useMealPackSurface();
@@ -71,7 +100,7 @@ export function MyPacksScreen({
         <EmptyState
           testID={`${testID}-none`}
           title="You don’t have a meal pack"
-          body="Packs let you pay once and order all term, at a lower price per meal."
+          body="Packs let you pay for a run of items up front, and use them on anything on the menu."
           {...(surface.canBuy && onSeeOffers !== undefined
             ? { actionLabel: 'See the packs', onAction: onSeeOffers }
             : {})}
@@ -80,23 +109,38 @@ export function MyPacksScreen({
     );
   }
 
-  const left = balance.mealsRemaining;
-  const pct = balance.mealsTotal === 0 ? 0 : Math.round((left / balance.mealsTotal) * 100);
+  const left = balance.itemsRemaining;
+  const pct = balance.itemsTotal === 0 ? 0 : Math.round((left / balance.itemsTotal) * 100);
 
   return (
     <ScrollView style={styles.screen} testID={testID} contentContainerStyle={styles.content}>
       <View style={styles.balance} testID={`${testID}-balance`}>
-        <Text style={styles.balanceLabel}>{balance.expired ? 'Expired' : 'Meals left'}</Text>
+        <Text style={styles.balanceLabel}>{balance.expired ? 'Expired' : 'Items left'}</Text>
         <Text style={styles.balanceBig}>
-          {balance.expired ? '—' : `${left} of ${balance.mealsTotal}`}
+          {balance.expired ? '—' : `${left} of ${balance.itemsTotal}`}
         </Text>
         <Text style={styles.balanceSub}>
-          {balance.packName} · bought {balance.purchasedLabel}
+          {balance.packName} · {balance.schoolName} · bought {balance.purchasedLabel}
           {'\n'}
           {balance.expired
-            ? `Expired ${balance.expiresLabel}. Unused meals are gone.`
+            ? `Expired ${balance.expiresLabel}. Unused items are gone.`
             : `Expires ${balance.expiresLabel}`}
         </Text>
+
+        {/*
+          The bonus, in the server's three-way answer and never re-derived here: earned, still
+          possible with N items in the window, or the window has closed. A parent who cannot tell
+          which of the three they are in is the reason this is a sentence rather than a badge.
+        */}
+        {balance.bonus === undefined || balance.bonus.items === 0 ? null : (
+          <Text style={styles.balanceSub} testID={`${testID}-bonus`}>
+            {balance.bonus.granted
+              ? `Bonus earned — ${balance.bonus.items} extra items added. They expire with the pack.`
+              : balance.bonus.stillPossible
+                ? `Use ${balance.bonus.itemsToGo} more by ${balance.bonus.windowEndsLabel} for ${balance.bonus.items} extra items, free.`
+                : `The bonus window closed on ${balance.bonus.windowEndsLabel}.`}
+          </Text>
+        )}
         {balance.expired ? null : (
           <View style={styles.meter} testID={`${testID}-meter`}>
             <View style={[styles.meterFill, { width: `${pct}%` }]} />
@@ -113,15 +157,16 @@ export function MyPacksScreen({
         <View style={styles.pad} testID={`${testID}-other-packs`}>
           <Text style={styles.sectionHead}>Your other packs</Text>
           <Text style={styles.noticeBody}>
-            Meals are spent from the pack that expires soonest, so these come after the one above.
+            Items are spent from the pack that expires soonest, so these come after the one above.
           </Text>
           {otherPacks.map((pack) => (
             <View key={pack.packName + pack.expiresLabel} style={styles.otherRow}>
               <Text style={styles.otherName}>
-                {pack.expired ? '—' : `${pack.mealsRemaining} of ${pack.mealsTotal}`} ·{' '}
+                {pack.expired ? '—' : `${pack.itemsRemaining} of ${pack.itemsTotal}`} ·{' '}
                 {pack.packName}
               </Text>
               <Text style={styles.otherMeta}>
+                {pack.schoolName} ·{' '}
                 {pack.expired ? `Expired ${pack.expiresLabel}` : `Expires ${pack.expiresLabel}`}
               </Text>
             </View>
@@ -133,8 +178,8 @@ export function MyPacksScreen({
         <View style={styles.pad}>
           <Text style={styles.noticeTitle}>This pack has expired</Text>
           <Text style={styles.noticeBody}>
-            It ran out on {balance.expiresLabel}. Packs can’t be extended or refunded, but you can
-            buy a new one.
+            It ran out on {balance.expiresLabel}. Unused items are gone — packs can’t be extended
+            or refunded — but you can buy a new one.
           </Text>
           {/* The one place `canBuy` matters on this screen: offering to sell. */}
           {surface.canBuy && onSeeOffers !== undefined ? (
@@ -143,9 +188,9 @@ export function MyPacksScreen({
         </View>
       ) : left === 0 ? (
         <View style={styles.pad}>
-          <Text style={styles.noticeTitle}>You’ve used every meal in this pack</Text>
+          <Text style={styles.noticeTitle}>You’ve used every item in this pack</Text>
           <Text style={styles.noticeBody}>
-            Buy another and it stacks on top — meals are spent oldest first.
+            Buy another and it stacks on top — items are spent oldest first.
           </Text>
           {surface.canBuy && onSeeOffers !== undefined ? (
             <Button label="Buy another" onPress={onSeeOffers} variant="secondary" />
@@ -154,20 +199,18 @@ export function MyPacksScreen({
       ) : (
         <View style={styles.pad}>
           <Text style={styles.sectionHead}>How these get used</Text>
-          <Text style={styles.noticeBody}>
-            Two ways. Plan several days at once below — or just order normally, and when your cart
-            is two items with a drink we’ll offer to pay with a meal instead of charging you.
-            Either way nothing is spent without you tapping it.
-          </Text>
-          <View style={{ height: space[4] }} />
           {/*
-            Planning is spending a balance, not buying, so it stays available at a school where we
-            have stopped selling. This is the button that would have vanished if the whole screen
-            were gated on `canBuy`.
+            One way now, not two. The planner is gone (`E21-73`) and with it the sentence about
+            "two items with a drink" — any menu item counts as one item, so there is no shape a
+            cart has to be in. Coverage is automatic (`P25`) and the cart names every covered line
+            before Place order, which is what the old "nothing is spent without you tapping it"
+            was really protecting.
           */}
-          {onPlanMeals === undefined ? null : (
-            <Button label="Plan meals from this pack" onPress={onPlanMeals} />
-          )}
+          <Text style={styles.noticeBody}>
+            Just order as usual. Your pack covers what it can — cheapest items first — and you pay
+            for anything left over. The cart shows exactly what it covers before you place the
+            order.
+          </Text>
         </View>
       )}
     </ScrollView>

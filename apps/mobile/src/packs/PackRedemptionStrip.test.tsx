@@ -1,13 +1,22 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { render, screen } from '@testing-library/react-native';
+import { packCoverage } from '@graybag/shared';
 
 import { PackRedemptionStrip } from './PackRedemptionStrip';
 
 /**
- * `E21-39`. The cart strip — the only place a meal is actually spent.
+ * `E21-76`. The cart strip, rebuilt.
  *
- * Two properties dominate: **nothing is spent without an explicit tap**, and **a cart that cannot
- * be redeemed says why and what would fix it**. A greyed-out control with no sentence is the same
- * failure as an empty state with no reason.
+ * The old file's dominant property was *"nothing is spent without an explicit tap"*. That toggle
+ * is gone (`P25`) because coverage is now per item and partial — a cart of three items against a
+ * balance of two is not a yes/no question — and what replaces the tap is this strip **naming every
+ * covered line before Place order**.
+ *
+ * So the properties this file is about are:
+ *
+ *   1. a parent with no pack concept sees nothing at all;
+ *   2. every covered line is NAMED, never summarised as a count;
+ *   3. the cash due is stated, and stated as zero when the pack covers everything;
+ *   4. partial coverage says so **in words**, because that is the surprise to prevent.
  */
 
 let mockSurface = { canBuy: false, hasBalance: false, loading: false };
@@ -17,6 +26,18 @@ jest.mock('./MealPackSurfaceContext', () => ({
 
 beforeEach(() => {
   mockSurface = { canBuy: false, hasBalance: false, loading: false };
+});
+
+const line = (key: string, unitPricePaise: number, dishName: string, quantity = 1) => ({
+  recipientId: null,
+  serviceDate: null,
+  menuItemId: `mi-${key}`,
+  dishId: `d-${key}`,
+  dishName,
+  quantity,
+  comment: null,
+  key,
+  unitPricePaise,
 });
 
 describe('when the parent has no pack concept at all', () => {
@@ -36,115 +57,90 @@ describe('when packs are sold here but the parent has none', () => {
     await render(<PackRedemptionStrip />);
     expect(screen.getByTestId('cart-pack-strip-promo')).toBeTruthy();
   });
-
-  it('shows no switch, because there is nothing to spend', async () => {
-    await render(<PackRedemptionStrip />);
-    expect(screen.queryByTestId('cart-pack-strip-switch')).toBeNull();
-  });
 });
 
-describe('when the parent holds meals', () => {
+describe('when the parent holds a balance', () => {
   beforeEach(() => {
-    // Note `canBuy: false` throughout: a parent whose school stopped selling still spends.
+    mockSurface = { canBuy: true, hasBalance: true, loading: false };
+  });
+
+  it('renders even when packs are no longer SOLD here', async () => {
+    // `E21-31`: withdrawing an offer stops selling and must never strand items already paid for.
     mockSurface = { canBuy: false, hasBalance: true, loading: false };
+    const coverage = packCoverage.coverCart([line('a', 4_000, 'Lime soda')], 3);
+    await render(<PackRedemptionStrip coverage={coverage} itemsLeft={3} itemsTotal={20} />);
+    expect(screen.getByTestId('cart-pack-strip')).toBeTruthy();
   });
 
-  it('offers the switch even where we no longer sell packs', async () => {
-    await render(
-      <PackRedemptionStrip mealsLeft={7} mealsTotal={10} expiresLabel="11 Oct 2026" />,
+  it('NAMES every covered line rather than counting them', async () => {
+    // The assertion the whole screen exists for. Under cheapest-first the covered line is
+    // routinely the one the parent cares least about, so "1 item covered" beside a total they
+    // have not reconciled is exactly the surprise to prevent.
+    const coverage = packCoverage.coverCart(
+      [line('main', 25_000, 'Butter chicken & rice'), line('drink', 4_000, 'Fresh lime soda')],
+      1,
     );
-    expect(screen.getByTestId('cart-pack-strip-switch')).toBeTruthy();
-    expect(screen.getByText(/7 of 10 left/)).toBeTruthy();
+    await render(<PackRedemptionStrip coverage={coverage} itemsLeft={1} itemsTotal={20} />);
+    expect(screen.getByText('Fresh lime soda')).toBeTruthy();
+    expect(screen.getByTestId('cart-pack-strip-line-drink')).toBeTruthy();
+    // And does NOT claim the main is covered.
+    expect(screen.queryByTestId('cart-pack-strip-line-main')).toBeNull();
   });
 
-  it('is OFF until the parent turns it on', async () => {
-    // Nothing is spent without an explicit tap, every time. There is no remembered preference
-    // and no default-on, because a meal is money.
-    const onToggle = jest.fn();
-    await render(<PackRedemptionStrip mealsLeft={7} mealsTotal={10} onToggle={onToggle} />);
-    expect(screen.getByTestId('cart-pack-strip-switch').props.value).toBe(false);
-    expect(onToggle).not.toHaveBeenCalled();
-  });
-
-  it('reports the tap rather than deciding for itself', async () => {
-    const onToggle = jest.fn();
-    await render(<PackRedemptionStrip mealsLeft={7} mealsTotal={10} onToggle={onToggle} />);
-    // A Switch reports `valueChange`, not a press — `userEvent.press` on one does nothing at
-    // all, silently, which would have made this test pass while asserting the opposite.
-    // Awaited: `fireEvent` opens an `act` scope on RNTL v14 (docs/learnings.md, 2026-08-10).
-    await fireEvent(screen.getByTestId('cart-pack-strip-switch'), 'valueChange', true);
-    expect(onToggle).toHaveBeenCalledWith(true);
-  });
-
-  it('says this order uses one, once it is on', async () => {
-    await render(<PackRedemptionStrip mealsLeft={7} mealsTotal={10} using />);
-    expect(screen.getByText(/this order uses one/)).toBeTruthy();
-  });
-});
-
-describe('a cart that cannot use a meal says WHY, and what would fix it', () => {
-  beforeEach(() => {
-    mockSurface = { canBuy: false, hasBalance: true, loading: false };
-  });
-
-  it('names the missing drink', async () => {
-    await render(
-      <PackRedemptionStrip mealsLeft={7} mealsTotal={10} ineligible="missing_required_category" />,
+  it('says partial coverage IN WORDS, and states the cash due', async () => {
+    const coverage = packCoverage.coverCart(
+      [line('main', 25_000, 'Butter chicken & rice'), line('drink', 4_000, 'Fresh lime soda')],
+      1,
     );
-    expect(screen.getByTestId('cart-pack-strip-ineligible')).toBeTruthy();
-    expect(screen.getByText(/needs one of the two items to be a drink/)).toBeTruthy();
+    await render(<PackRedemptionStrip coverage={coverage} itemsLeft={1} itemsTotal={20} />);
+    expect(screen.getByText(/covers part of this order/)).toBeTruthy();
+    // ₹250 + 5% = ₹262.50, the worked example from the brief.
+    expect(screen.getByTestId('cart-pack-strip-cash')).toHaveTextContent(/₹262\.50/);
   });
 
-  it('names the wrong count', async () => {
-    await render(
-      <PackRedemptionStrip mealsLeft={7} mealsTotal={10} ineligible="wrong_item_count" />,
-    );
-    expect(screen.getByText(/exactly two items, one of them a drink/)).toBeTruthy();
+  it('states nothing to pay when the pack covers everything, and says why no GST', async () => {
+    const coverage = packCoverage.coverCart([line('drink', 4_000, 'Fresh lime soda')], 5);
+    await render(<PackRedemptionStrip coverage={coverage} itemsLeft={5} itemsTotal={20} />);
+    expect(screen.getByText(/covers this order/)).toBeTruthy();
+    expect(screen.getByTestId('cart-pack-strip-cash')).toHaveTextContent(/Nothing to pay/);
+    // The tax point is the sale, so a redemption carries none — and says so, because a parent
+    // who has seen GST on every other order will otherwise wonder where it went.
+    expect(screen.getByTestId('cart-pack-strip-cash')).toHaveTextContent(/bought the pack/);
   });
 
-  it('reassures that the balance is untouched — the parent’s first worry', async () => {
-    await render(
-      <PackRedemptionStrip mealsLeft={7} mealsTotal={10} ineligible="wrong_item_count" />,
-    );
-    expect(screen.getByText(/your 7 meals stay where they are/)).toBeTruthy();
+  it('shows the quantity when only part of a line is covered', async () => {
+    const coverage = packCoverage.coverCart([line('drink', 4_000, 'Lime soda', 3)], 2);
+    await render(<PackRedemptionStrip coverage={coverage} itemsLeft={2} itemsTotal={20} />);
+    expect(screen.getByText(/Lime soda × 2/)).toBeTruthy();
   });
 
-  it('says "meal stays" for one, not "1 meals stay"', async () => {
-    await render(
-      <PackRedemptionStrip mealsLeft={1} mealsTotal={10} ineligible="wrong_item_count" />,
-    );
-    expect(screen.getByText(/your 1 meal stays where they are/)).toBeTruthy();
+  it('reports what is left AFTER this order, not before', async () => {
+    // A parent reading "3 left" while spending 1 of 3 has been told a number that is already
+    // wrong by the time they tap.
+    const coverage = packCoverage.coverCart([line('drink', 4_000, 'Lime soda')], 3);
+    await render(<PackRedemptionStrip coverage={coverage} itemsLeft={3} itemsTotal={20} />);
+    expect(screen.getByTestId('cart-pack-strip-summary')).toHaveTextContent(/2 left after this/);
   });
 
-  it('offers no switch while ineligible, so it cannot be turned on by mistake', async () => {
-    await render(
-      <PackRedemptionStrip mealsLeft={7} mealsTotal={10} ineligible="wrong_item_count" />,
-    );
-    expect(screen.queryByTestId('cart-pack-strip-switch')).toBeNull();
-  });
-});
-
-describe('expired and empty are different news', () => {
-  beforeEach(() => {
-    mockSurface = { canBuy: false, hasBalance: true, loading: false };
-  });
-
-  it('expired says the meals are gone and cannot be refunded', async () => {
-    await render(
-      <PackRedemptionStrip mealsLeft={4} mealsTotal={10} expired expiresLabel="11 Oct 2026" />,
-    );
-    expect(screen.getByText(/expired on 11 Oct 2026/)).toBeTruthy();
-    expect(screen.getByText(/can’t be refunded/)).toBeTruthy();
-  });
-
-  it('empty says this order will simply be charged', async () => {
-    await render(<PackRedemptionStrip mealsLeft={0} mealsTotal={10} />);
-    expect(screen.getByText(/No meals left in your pack/)).toBeTruthy();
+  it('says the pack is empty rather than showing a coverage of nothing', async () => {
+    await render(<PackRedemptionStrip itemsLeft={0} itemsTotal={20} />);
+    expect(screen.getByTestId('cart-pack-strip-empty')).toBeTruthy();
     expect(screen.getByText(/charged as usual/)).toBeTruthy();
   });
 
-  it('neither offers a switch', async () => {
-    await render(<PackRedemptionStrip mealsLeft={0} mealsTotal={10} />);
+  it('says an expired pack is expired, and that nothing is refunded', async () => {
+    await render(
+      <PackRedemptionStrip itemsLeft={4} itemsTotal={20} expired expiresLabel="1 August" />,
+    );
+    expect(screen.getByTestId('cart-pack-strip-expired')).toBeTruthy();
+    expect(screen.getByText(/can’t be refunded/)).toBeTruthy();
+  });
+
+  it('has NO switch anywhere — coverage is automatic (P25)', async () => {
+    const coverage = packCoverage.coverCart([line('drink', 4_000, 'Lime soda')], 3);
+    await render(<PackRedemptionStrip coverage={coverage} itemsLeft={3} itemsTotal={20} />);
+    // Asserted as an absence because the removal is the decision. If a toggle comes back, the
+    // parent's money moves on a different rule and this test is where that gets noticed.
     expect(screen.queryByTestId('cart-pack-strip-switch')).toBeNull();
   });
 });

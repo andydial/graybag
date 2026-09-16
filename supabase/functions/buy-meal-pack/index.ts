@@ -28,10 +28,20 @@ const json = (status: number, payload: unknown) =>
     headers: { ...CORS, 'content-type': 'application/json' },
   });
 
+/**
+ * Refusal hints from `start_meal_pack_purchase`, mapped to what a parent reads. Anything not in
+ * this map becomes a generic 500 rather than being echoed: a Postgres message can carry ids and
+ * column names, and this body goes to a phone.
+ *
+ * Rebuilt for `E21-78`'s hints. `unknown_offer` and `offer_not_active` collapsed into
+ * `offer_not_available` — a parent cannot act on the difference between an offer that was deleted
+ * and one that was switched off, and telling them which is telling them about our configuration.
+ */
 const REFUSALS: Record<string, string> = {
-  unknown_offer: 'That pack is no longer available.',
-  offer_not_active: 'That pack is not on sale.',
-  not_offered_here: 'Meal packs aren’t offered at this school.',
+  offer_not_available: 'That pack is no longer available.',
+  not_sold_at_this_school: 'Meal packs aren’t offered at this school.',
+  no_child_at_this_school: 'Add a child at this school before buying a pack for it.',
+  idempotency_key_reused: 'That request was already used for a different purchase.',
 };
 
 Deno.serve(async (request: Request) => {

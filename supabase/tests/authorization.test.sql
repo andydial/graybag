@@ -753,26 +753,23 @@ select is_empty($$ select p.proname from pg_proc p
  *
  * A second exception should be argued for as hard as this one was.
  *
- * **`meal_pack_redemption_money` (`E21-63`) is that second exception, and the argument is
- * different in kind.** `order_money` needed definer to survive a `revoke`; this one needs it
- * because an INVOKER view would return nothing to the only audience it has — the back office holds
- * no policy on `meal_pack_redemption` — and the obvious fix, adding one, is exactly what the
- * design forbids: `recipient_id` is which child ate, RLS cannot filter columns, and one
- * `authenticated` role is shared by the parents who may see it and the admins who may not. The
- * column is therefore not in the view at all, and the base table gained no policy, so a
- * back-office account cannot reach child identity here rather than merely being asked not to.
+ * **`meal_pack_redemption_money` (`E21-63`) WAS a second exception and is gone** — dropped with
+ * the old pack design in `0085`. It existed to keep `recipient_id` away from the back office
+ * while still reporting pack money, because RLS filters rows and cannot filter columns.
  *
- * It pays the same price: `meal_pack_redemption` carries the same RESTRICTIVE
- * `deny_dead_accounts`, and the predicate leads with `auth_is_live_user()`.
+ * **The rebuild removes the problem rather than the column's exposure: `meal_pack_redemption` has
+ * no `recipient_id` at all.** Which child ate is a property of the order; the pack never needed
+ * it, has no screen that shows it, and a column that does not exist cannot leak. So there is one
+ * definer view in the schema again, and the bar for a second one is where it was.
  */
 select is_empty($$ select c.relname from pg_class c
                     join pg_namespace n on n.oid = c.relnamespace
                    where n.nspname = 'public' and c.relkind = 'v'
-                     and c.relname not in ('order_money', 'meal_pack_redemption_money')
+                     and c.relname not in ('order_money')
                      and coalesce(array_to_string(c.reloptions, ','), '') not like '%security_invoker=true%'
                      and not exists (select 1 from pg_depend d
                                       where d.objid = c.oid and d.deptype = 'e') $$,
-                '§12: every view in public is security_invoker, except order_money (E02-36) and meal_pack_redemption_money (E21-63) — the failure is silent, the view simply returns rows it should not');
+                '§12: every view in public is security_invoker, except order_money (E02-36). E21-63''s meal_pack_redemption_money was the only other one and E21''s rebuild removed it — the failure is silent, the view simply returns rows it should not');
 
 -- And the exception is held to its own bargain: it is definer AND it restates the restriction it
 -- bypasses. A future edit that drops `auth_is_live_user()` from the predicate fails here as well
@@ -1049,7 +1046,7 @@ select set_eq(
     -- kitchen, by support, or by another parent.
     ('meal_pack.meal_pack_read_own'),
     ('meal_pack_redemption.meal_pack_redemption_read_own'),
-    ('meal_pack_plan.meal_pack_plan_read_own'),
+    ('meal_pack_expiry.meal_pack_expiry_read_own'),
     -- The two back-office reads, gated on `meal_packs.manage` at PLATFORM scope only. There is
     -- deliberately no customer-plane counterpart: offers reach parents through
     -- `meal_pack_offers_for_school()`, so no policy on these tables faces a parent at all.
@@ -1084,10 +1081,11 @@ select set_eq(
     ('user_policy_acceptance'), ('consent_record'), ('data_subject_request'),
     ('device_token'), ('notification_preference'), ('notification_delivery'),
     ('permission_grant'),
-    -- Added by `0068` (E21). All three are customer-plane: a parent reads their own pack, their
-    -- own redemptions and their own plan submissions, and nobody else reads any of them. A dead
+    -- E21, rebuilt in `0085`. All three are customer-plane: a parent reads their own pack, their
+    -- own redemptions and their own expiry records, and nobody else reads any of them. A dead
     -- account must lose a prepaid balance's visibility exactly as it loses an order's.
-    ('meal_pack'), ('meal_pack_redemption'), ('meal_pack_plan')
+    -- `meal_pack_plan` is gone with the planner; `meal_pack_expiry` replaces it in this list.
+    ('meal_pack'), ('meal_pack_redemption'), ('meal_pack_expiry')
   $$,
   '§5 Rule 5: deny_dead_accounts is restrictive-applied to exactly the 42 tables carrying a customer-plane policy');
 
@@ -1099,7 +1097,7 @@ select is_empty($$ select tablename || '.' || policyname from pg_policies
 select is((select count(*)::int from pg_policies where schemaname = 'public'), 203,
           '§12 item 5: 203 policies in public — 161 permissive (140 from §7 + [AUTH-01]''s 12 + 0027''s break_time '
           '+ 0066''s kitchen_alert_recipient + E21''s 5 + E02-41''s 2) + 42 restrictive. E21 adds three '
-          'customer-plane reads (meal_pack, meal_pack_redemption, meal_pack_plan — each own-rows-only) '
+          'customer-plane reads (meal_pack, meal_pack_redemption, meal_pack_expiry — each own-rows-only) '
           'and two back-office reads on the offer tables under meal_packs.manage at PLATFORM scope. '
           'It adds NO anon policy and no customer policy on the offer tables at all: parents reach '
           'offers through meal_pack_offers_for_school(), so the database decides what exists for a '
@@ -1133,12 +1131,12 @@ select set_eq(
     -- policy exists, so a parent cannot see who is alerted about their order, and there is no
     -- write policy at all: writes go through `admin-alert-recipients`.
     ('kitchen_alert_recipient'),
-    -- Added by `0068` (E21). `meal_pack`, `meal_pack_redemption` and `meal_pack_plan` are
+    -- E21, rebuilt in `0085`. `meal_pack`, `meal_pack_redemption` and `meal_pack_expiry` are
     -- **class 1** — own-rows-only for a parent, nothing back-office, writes via Edge Functions.
     -- `meal_pack_offer` and `meal_pack_offer_school` are **class 2** with a deliberate twist:
     -- the back office reads them under `meal_packs.manage` at platform scope, and there is no
     -- customer policy at all, because offers reach parents through a security definer function.
-    ('meal_pack'), ('meal_pack_redemption'), ('meal_pack_plan'),
+    ('meal_pack'), ('meal_pack_redemption'), ('meal_pack_expiry'),
     ('meal_pack_offer'), ('meal_pack_offer_school'),
     -- Added by `0081` (E02-41). Both are **class 2 and read-only**: back office reads, no
     -- customer policy, and — unlike every other class 2 table — no write policy for anyone.

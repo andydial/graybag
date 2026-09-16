@@ -81,20 +81,22 @@ describe('every browser-callable Edge Function', () => {
    */
   const BROWSER_CALLABLE = [
     'account',
-    // `E21-47`. Confirming a meal-pack plan. Called from the app like `checkout`, and browser-
-    // callable for the same reason: it is a write that spends a balance and posts to the ledger,
-    // so the caller's identity is proved from their JWT here rather than trusted from a body.
     // `E21-48`. Starting a pack purchase. Browser-callable like `checkout`, and for the same
     // reason: it creates a group that money will be taken against, so the caller's identity is
     // proved from their JWT here rather than trusted from a body.
+    //
+    // `confirm-pack-plan` was here and is GONE with the planner (`E21-73`). Spending a balance is
+    // no longer a write of its own: it happens inside `checkout`, against the order lines as
+    // persisted, so there is one write endpoint on the redemption path instead of two.
     'buy-meal-pack',
-    'confirm-pack-plan',
     // `E10-20`. Browser-callable for the same reason `admin-school` is.
     'admin-dish',
     // `E21-60`. Meal pack offers. Browser-callable because the admin screen calls it directly, and
-    // a function rather than table writes because it enforces the one rule RLS cannot express:
-    // an offer that has sold packs may not have `items_per_meal` or `required_category_id`
-    // changed, since a bought pack still reads those live when a meal is spent.
+    // a function rather than table writes because an offer going live is a business act with a
+    // permission on it. The old note here described a freeze on `items_per_meal` and
+    // `required_category_id`; neither column exists any more, and the rebuild removes the reason
+    // for the freeze rather than the freeze — every figure a pack is sold on is STAMPED onto the
+    // pack row at sale (`E21-67`), so editing an offer cannot reach a pack already bought.
     'admin-pack-offer',
     // `E10-24`. Dish photos. The bytes go through a function because `storage.objects` has no
     // policies at all — a browser cannot write to the bucket, and opening that up would mean a

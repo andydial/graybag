@@ -89,16 +89,26 @@ describe('by any route — the structural half', () => {
    */
   const BUY_OR_SPEND = [
     'startMealPackPurchase',
-    'confirmMealPackPlan',
+    // `confirmMealPackPlan` was here and is GONE with the planner (`E21-73`). Spending a balance
+    // is no longer a write of its own: it happens inside `checkout`, against the order lines as
+    // persisted, so there is one write on the redemption path rather than two.
   ];
 
   /** Reads. Safe to reach with packs off — they answer "nothing", which is the correct answer. */
   const READS = [
     'fetchMealPackSurface',
     'fetchMealPackOffers',
-    'fetchMealPackBalance',
     'fetchMealPackBalances',
-    'fetchOrderableDays',
+    /**
+     * `packThisOrderDrawsFrom` is neither a read nor a write — it is a PURE SELECTOR over a list
+     * the caller already has, and it touches no transport at all. Classified with the reads
+     * because that is where it is harmless: given an empty list it returns `null`, which is the
+     * correct answer with packs off and the only answer it can give.
+     *
+     * It exists so the cart and the balance screen cannot name different packs. A second query
+     * would have been the alternative, and two queries are two chances to disagree.
+     */
+    'packThisOrderDrawsFrom',
   ];
 
   it('has no exported entry point that is neither a reviewed read nor a reviewed write', () => {

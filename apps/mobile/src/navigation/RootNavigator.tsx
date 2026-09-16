@@ -17,8 +17,7 @@ import {
   design,
   menu as menuDomain,
   ordering,
-  packEligibility,
-  packPlan,
+  packCoverage,
   money,
 } from '@graybag/shared';
 
@@ -59,21 +58,15 @@ import { useBreakTimes } from '../cart/useBreakTimes';
 import {
   clashingAllergens,
   useAllergenWatchlist,
-  useRecipientWatchlist,
 } from '../menu/useAllergenWatchlist';
 import { formatServiceDateLong } from '../orders/OrderDetailScreen';
-import { useMealPackSurface } from '../packs/MealPackSurfaceContext';
+import { spendableItems, useMealPackSurface } from '../packs/MealPackSurfaceContext';
 import { MyPacksScreen } from '../packs/MyPacksScreen';
-import { PackPlanScreen } from '../packs/PackPlanScreen';
 import { PackDetailScreen } from '../packs/PackDetailScreen';
-import { PlanDayScreen } from '../packs/PlanDayScreen';
-import { usePlanner } from '../packs/PlannerContext';
-import type { PackIneligibility } from '../packs/PackRedemptionStrip';
 import { PacksScreen } from '../packs/PacksScreen';
 import { PolicyGateContainer } from '../policy/PolicyGateContainer';
 import { usePolicyGate, useNextPendingPolicy } from '../policy/PolicyGateContext';
 import { useAudience, useOrderingTarget } from '../session/audience';
-import { useRecipients } from '../session/useRecipients';
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
 import { useCachedMenu } from '../menu/useCachedMenu';
 import { useConnectivity } from '../net/ConnectivityContext';
@@ -366,48 +359,45 @@ function CartTabScreen() {
     };
   }, [audience.kind]);
 
-  const [usingPackMeal, setUsingPackMeal] = useState(false);
   const packSurface = useMealPackSurface();
 
   /**
-   * Does this cart qualify? The app's copy of the rule (`E21-40`) — the SERVER decides when the
-   * meal is actually spent, and this only picks which sentence the strip shows.
+   * What the pack will cover in this cart, and what is left to pay. `E21-74`.
    *
-   * `null` when there is no pack rule to check against, which is also what the strip reads as
-   * "eligible": with no balance it renders the advertisement or nothing at all, and neither
-   * branch consults this.
+   * **There is no eligibility question any more.** The old design asked "does this cart qualify
+   * as a meal" — N items including one from a required category — and showed a refusal when it
+   * did not. One item is one item now, with no price cap and no category exclusion (Andy,
+   * 2026-09-16: *"This is deliberate — do not add a cap"*), so every cart qualifies for as much
+   * of itself as the balance covers, and the only question is how much.
+   *
+   * `spendableItems` is `itemsRemaining - itemsReserved`, not `itemsRemaining`: a checkout in
+   * another tab may already have spoken for some, and offering those would earn the parent a
+   * `pack_coverage_changed` refusal they did nothing to deserve.
+   *
+   * The SERVER decides what is actually spent, from the order lines as persisted. This decides
+   * what the parent is TOLD before they tap — which is the whole of Andy's *"say so before
+   * checkout, not after"*.
    */
-  const packIneligibility = useMemo<PackIneligibility>(() => {
-    const balance = packSurface.balance;
-    if (balance === null || dishInfo === undefined) return null;
-    const problem = packEligibility.checkPackMeal(
-      cart.lines.map((line) => ({
-        categoryId: dishInfo[line.dishId]?.categoryId ?? '',
-        quantity: line.quantity,
-      })),
-      // From the OFFER the pack was bought under, never assumed — `E21-40` tests a three-item
-      // pack and a fruit-category pack for exactly this reason.
-      { itemsPerMeal: balance.itemsPerMeal, requiredCategoryId: balance.requiredCategoryId },
-    );
-    if (problem === null) return null;
-    return problem.reason === 'missing_required_category'
-      ? 'missing_required_category'
-      : 'wrong_item_count';
-  }, [packSurface.balance, cart.lines, dishInfo]);
+  const packCoverageForCart = useMemo(
+    () => packCoverage.coverCart(cart.lines, spendableItems(packSurface)),
+    [cart.lines, packSurface],
+  );
 
   /** The balance in the shape the strip wants — dates already formatted, no date logic below. */
   const packBalanceForCart = useMemo(() => {
     const balance = packSurface.balance;
     if (balance === null) return null;
     return {
-      packName: balance.packName,
-      mealsTotal: balance.mealsTotal,
-      mealsRemaining: balance.mealsRemaining,
+      packName: balance.name,
+      schoolName: balance.schoolName,
+      itemsTotal: balance.itemsTotal,
+      itemsRemaining: balance.itemsRemaining,
+      itemsSpendable: spendableItems(packSurface),
       purchasedLabel: formatServiceDateLong(balance.purchasedAt.slice(0, 10)),
       expiresLabel: formatServiceDateLong(balance.expiresAt.slice(0, 10)),
-      expired: balance.expired,
+      expired: balance.status === 'expired',
     };
-  }, [packSurface.balance]);
+  }, [packSurface]);
 
   const { offline } = useConnectivity();
 
@@ -527,7 +517,10 @@ function CartTabScreen() {
         ? true
         : cartDay !== null &&
           orderableDays.some((d) => d.isOrderable && d.serviceDate === cartDay),
-    packIneligible: usingPackMeal && packIneligibility !== null,
+    // `packIneligible` is permanently false now and is kept so the event's shape does not
+    // change under the funnel mid-flight (`E15-24`). There is no ineligibility any more: one
+    // item is one item, so a cart can never fail to qualify — it is only ever covered in part.
+    packIneligible: false,
   });
 
   useEffect(() => {
@@ -829,18 +822,16 @@ function CartTabScreen() {
       }}
       {...(cartAllergens === undefined ? {} : { allergens: cartAllergens })}
       /*
-       * `E21`. The redemption offer. `packBalance` comes from the surface context rather than a
+       * `E21`. What the pack covers. `packBalance` comes from the surface context rather than a
        * read here: the cart re-renders on every quantity change, and a fetch inside it would
        * fire on each one.
        *
-       * `usingPackMeal` is state on this component and is deliberately NOT persisted — the
-       * switch is off every time the cart is opened, because a meal is money and the prototype
-       * is explicit that nothing is spent without a tap.
+       * There is no toggle any more (`P25`): coverage is per item and partial, so there is no
+       * single thing to opt into, and what replaces the tap is the strip naming every covered
+       * line before Place order.
        */
       packBalance={packBalanceForCart}
-      packIneligibility={packIneligibility}
-      usingPackMeal={usingPackMeal}
-      onTogglePackMeal={setUsingPackMeal}
+      packCoverage={packCoverageForCart}
       onSeePackOffers={() => navigation.navigate('Packs')}
     />
   );
@@ -929,241 +920,64 @@ function ConnectedPacksScreen() {
 function ConnectedMyPacksScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const surface = useMealPackSurface();
-  // Dates formatted here so the screen holds no date logic — it renders labels, never parses.
-  const balance =
-    surface.balance === null
-      ? null
-      : {
-          packName: surface.balance.packName,
-          mealsTotal: surface.balance.mealsTotal,
-          mealsRemaining: surface.balance.mealsRemaining,
-          purchasedLabel: formatServiceDateLong(surface.balance.purchasedAt.slice(0, 10)),
-          expiresLabel: formatServiceDateLong(surface.balance.expiresAt.slice(0, 10)),
-          expired: surface.balance.expired,
-        };
-  // Every pack after the first, in spend order. `E21-49`: a nearer expiry must never be hidden
-  // behind a later one, which is what showing only the first would do.
-  const otherPacks = surface.allPacks.slice(1).map((pack) => ({
-    packName: pack.packName,
-    mealsTotal: pack.mealsTotal,
-    mealsRemaining: pack.mealsRemaining,
+  /**
+   * Dates formatted here so the screen holds no date logic — it renders labels, never parses.
+   *
+   * The bonus is passed through as the server's three-way answer rather than recomputed: `earned`
+   * and `still possible` are `bonusGranted` and `bonusStillPossible`, and "window closed" is
+   * neither. Deriving it in the client would mean the balance screen and the pack detail screen
+   * could disagree about whether a parent still has a bonus coming.
+   */
+  const toPackBalance = (pack: api.MealPackBalance) => ({
+    packName: pack.name,
+    schoolName: pack.schoolName,
+    itemsTotal: pack.itemsTotal,
+    itemsRemaining: pack.itemsRemaining,
+    itemsSpendable: Math.max(0, pack.itemsRemaining - pack.itemsReserved),
     purchasedLabel: formatServiceDateLong(pack.purchasedAt.slice(0, 10)),
     expiresLabel: formatServiceDateLong(pack.expiresAt.slice(0, 10)),
-    expired: pack.expired,
-  }));
+    expired: pack.status === 'expired',
+    bonus: {
+      items: pack.bonusItems,
+      granted: pack.bonusGranted,
+      stillPossible: pack.bonusStillPossible,
+      // What is left to spend of the ORIGINAL items — bonus items do not count toward earning
+      // the bonus, which is what `valued` means and why the server sends it separately.
+      itemsToGo: pack.bonusStillPossible
+        ? Math.max(0, pack.itemsRemaining - pack.bonusRemaining)
+        : 0,
+      windowEndsLabel: formatServiceDateLong(pack.bonusWindowEndsAt.slice(0, 10)),
+    },
+  });
+
+  const balance = surface.balance === null ? null : toPackBalance(surface.balance);
+  // Every pack after the first, in spend order. `E21-49`: a nearer expiry must never be hidden
+  // behind a later one, which is what showing only the first would do.
+  const otherPacks = surface.allPacks
+    .filter((pack) => pack.id !== surface.balance?.id)
+    .map(toPackBalance);
 
   return (
     <MyPacksScreen
       balance={balance}
       otherPacks={otherPacks}
       onSeeOffers={() => navigation.navigate('Packs')}
-      onPlanMeals={() => navigation.navigate('PackPlan')}
     />
   );
 }
 
 /**
- * `E21-41`. The planner.
+ * `ConnectedPackPlanScreen` and `ConnectedPlanDayScreen` were here and are GONE (`E21-73`).
  *
- * `days` and the plan itself are **not built yet** — the calendar read and the per-day item
- * picker are `E21-44`. What is wired is everything the screen needs to render honestly with no
- * days: the recipients (so the child picker is real), the balance (from the surface context), and
- * a confirm that hands the plan up.
+ * The planner was a whole journey — pick days ahead, choose items per day, confirm a plan that
+ * spent the balance then and there, with its own idempotency table so a retry on a school-gate
+ * connection did not buy eight meals instead of four. None of it survives, because spending a
+ * pack is no longer a journey: it happens in the cart, at checkout, against the order lines as
+ * persisted, and the balance does not move until the payment webhook confirms.
  *
- * With no days it renders "Choose a day to start" and a disabled confirm, which is exactly what a
- * parent should see before the calendar arrives — rather than a stub that looks like it works.
+ * `PackPlan` and `PlanDay` are removed from the route table too. A route with no screen is a
+ * crash waiting for a stale deep link.
  */
-function ConnectedPackPlanScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const recipientsState = useRecipients();
-  const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
-  const [failure, setFailure] = useState<packPlan.PlanFailure | null>(null);
-  const { days, plan, daysUnavailable, reloadDays } = usePlanner();
-
-  /**
-   * `E21-47`. **One key per plan, generated when the screen mounts and kept across retries.**
-   *
-   * A key made at tap time would be new on every tap, so the second tap would look like a second
-   * plan and spend the meals again — which is the exact failure plan-level idempotency exists to
-   * prevent. `useRef` rather than state so it survives re-renders without causing one.
-   */
-  const idempotencyKey = useRef(
-    `plan-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-  );
-
-  const recipients = useMemo(
-    () =>
-      recipientsState.kind === 'ready'
-        ? recipientsState.rows.map((row) => ({ id: row.id, firstName: row.firstName }))
-        : [],
-    [recipientsState],
-  );
-
-  const plannableDays = useMemo(
-    () =>
-      days.map((day) => ({
-        date: day.serviceDate,
-        label: formatServiceDateLong(day.serviceDate),
-        breakLabel: day.isOrderable ? 'Morning break' : '—',
-        cutoffPassed: day.reason === 'cutoff_passed',
-        serves: day.isOrderable || day.reason === 'cutoff_passed',
-      })),
-    [days],
-  );
-
-  const plannedDays = useMemo(
-    () =>
-      Object.entries(plan).map(([date, entry]) => ({
-        date,
-        recipientId: entry.recipientId,
-        // Categories are resolved by the picker; the planner only needs the count and whether the
-        // required one is present, which `checkPackMeal` reads from these.
-        items: entry.dishIds.map((id) => ({ categoryId: id, quantity: 1 })),
-      })),
-    [plan],
-  );
-
-  return (
-    <PackPlanScreen
-      days={plannableDays}
-      recipients={recipients}
-      selectedRecipientId={selectedRecipientId ?? recipients[0]?.id ?? null}
-      plan={plannedDays}
-      confirming={confirming}
-      daysUnavailable={daysUnavailable}
-      onRetryDays={() => {
-        // The refusal described the plan against the OLD calendar. Leaving it up beside fresh
-        // days would contradict what the parent is now looking at.
-        setFailure(null);
-        reloadDays();
-      }}
-      onSelectRecipient={setSelectedRecipientId}
-      failure={failure}
-      onOpenDay={(serviceDate: string) => navigation.navigate('PlanDay', { serviceDate })}
-      onConfirm={() => {
-        setConfirming(true);
-        void api
-          .confirmMealPackPlan({
-            idempotencyKey: idempotencyKey.current,
-            days: Object.entries(plan).map(([serviceDate, entry]) => ({
-              serviceDate,
-              recipientId: entry.recipientId,
-              lines: entry.dishIds.map((dishId) => ({ dishId, quantity: 1 })),
-            })),
-          })
-          .then(() => {
-            setFailure(null);
-            navigation.navigate('Orders');
-          })
-          .catch((error: unknown) => {
-            // `E21-50`. The code is what separates "the server refused, so nothing was spent"
-            // from "we never heard back, so we cannot say" — `planFailure` owns that judgement.
-            const shaped =
-              error instanceof api.ApiError
-                ? { message: error.message, ...(error.code === undefined ? {} : { code: error.code }) }
-                : {};
-            setFailure(packPlan.planFailure(shaped));
-          })
-          .finally(() => setConfirming(false));
-      }}
-    />
-  );
-}
-
-const PackPlanStackScreen = withScreenFrame(ConnectedPackPlanScreen, STACK_SCREEN_EDGES, {
-  back: true,
-});
-
-/**
- * `E21-44`. Choosing the items for one day.
- *
- * Reads the day's selection from `PlannerContext` and writes it back there, so the planner and
- * this screen never hold two answers to what a parent has chosen. The route carries only a date.
- */
-function ConnectedPlanDayScreen({
-  route,
-}: NativeStackScreenProps<RootStackParamList, 'PlanDay'>) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { plan, setDay } = usePlanner();
-  const surface = useMealPackSurface();
-  const recipientsState = useRecipients();
-  const { schoolId } = useSelectedSchool();
-  const { payload } = useCachedMenu(schoolId);
-
-  const { serviceDate } = route.params;
-  const entry = plan[serviceDate];
-  const recipientId =
-    entry?.recipientId ??
-    (recipientsState.kind === 'ready' ? recipientsState.rows[0]?.id : undefined) ??
-    '';
-  const child =
-    recipientsState.kind === 'ready'
-      ? recipientsState.rows.find((row) => row.id === recipientId)
-      : undefined;
-
-  /**
-   * `E21-51`. The allergens of the child **this day is for**, not of the order target.
-   *
-   * A parent plans several days at once and picks a child per day, so `useAllergenWatchlist`
-   * would answer for whoever the menu happens to have selected — a warning confidently about the
-   * wrong child, which is worse than none.
-   */
-  const watchlist = useRecipientWatchlist(recipientId);
-
-  const categoryNames = useMemo(
-    () => new Map((payload?.categories ?? []).map((category) => [category.id, category.label])),
-    [payload],
-  );
-
-  const dishes = useMemo(
-    () =>
-      (payload?.dishes ?? []).map((dish) => ({
-        id: dish.id,
-        name: dish.name,
-        categoryId: dish.categoryId,
-        // Was `dish.categoryId`, which rendered a raw uuid as the section heading. The payload
-        // has carried `categories: {id, label}` all along; nothing read it here.
-        categoryName: categoryNames.get(dish.categoryId) ?? dish.categoryId,
-        pricePaise: dish.pricePaise,
-        clashes: clashingAllergens(dish, watchlist),
-      })),
-    [payload, categoryNames, watchlist],
-  );
-
-  return (
-    <PlanDayScreen
-      dayLabel={formatServiceDateLong(serviceDate)}
-      breakLabel="Morning break"
-      childName={child?.firstName ?? ''}
-      dishes={dishes}
-      selected={entry?.dishIds ?? []}
-      itemsPerMeal={surface.balance?.itemsPerMeal ?? 2}
-      requiredCategoryId={surface.balance?.requiredCategoryId ?? ''}
-      // Read from the offer, not hardcoded. `PlanDayScreen` was built to name the required
-      // category from the pack precisely so a fruit pack does not say "a drink"; this connector
-      // was passing the literal string and undoing that.
-      requiredCategoryLabel={
-        categoryNames.get(surface.balance?.requiredCategoryId ?? '') ?? 'a required item'
-      }
-      allergensUnavailable={watchlist.status === 'unavailable'}
-      onToggleDish={(dishId: string) => {
-        const current = entry?.dishIds ?? [];
-        setDay(serviceDate, {
-          recipientId,
-          dishIds: current.includes(dishId)
-            ? current.filter((id) => id !== dishId)
-            : [...current, dishId],
-        });
-      }}
-      onUseDay={() => navigation.goBack()}
-    />
-  );
-}
-
-const PlanDayStackScreen = withScreenFrame(ConnectedPlanDayScreen, STACK_SCREEN_EDGES, {
-  back: true,
-});
 
 /**
  * `E21-48`. One offer, and buying it.
@@ -1455,8 +1269,6 @@ export function RootNavigator() {
         */}
         <Stack.Screen name="Packs" component={PacksStackScreen} />
         <Stack.Screen name="MyPacks" component={MyPacksStackScreen} />
-        <Stack.Screen name="PackPlan" component={PackPlanStackScreen} />
-        <Stack.Screen name="PlanDay" component={PlanDayStackScreen} />
         <Stack.Screen name="PackDetail" component={PackDetailStackScreen} />
         <Stack.Screen
           name="SignIn"

@@ -389,20 +389,19 @@ export {
 // Functions, because each moves money or a balance. `fetchMealPackSurface` answers the whole
 // "does this parent see packs at all" question in one call, so the app never assembles that rule
 // from parts and never gets the switched-off-school case wrong.
+// The cart's day picker (`E05-52`). Nothing to do with packs — it lived in `meal-packs.ts` and
+// was moved out in `E21-73`, where deleting the planner nearly took it with it.
+export { fetchOrderableDays, type OrderableDay } from './order-calendar.js';
+
 export {
-  confirmMealPackPlan,
-  fetchMealPackBalance,
   fetchMealPackBalances,
-  fetchOrderableDays,
-  startMealPackPurchase,
   fetchMealPackOffers,
   fetchMealPackSurface,
+  packThisOrderDrawsFrom,
+  startMealPackPurchase,
   type MealPackBalance,
   type MealPackOffer,
   type MealPackSurface,
-  type ConfirmedPlan,
-  type PlanDayInput,
-  type OrderableDay,
   type StartedPurchase,
 } from './meal-packs.js';
 

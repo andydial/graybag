@@ -196,6 +196,58 @@ Deno.serve(async (request: Request): Promise<Response> => {
     });
   }
 
+  // ------------------------------------------------------------------ the daily housekeeping
+  /**
+   * `E21`. Two pack jobs that have nowhere else to live — there is no `pg_cron` on this project
+   * (checked, not assumed), and GitHub Actions is the scheduler the repo already has.
+   *
+   * **Expiry** posts breakage for packs past their date and zeroes them. The ledger invariant
+   * holds continuously whether or not this has run — an unswept pack is still `active` with its
+   * balance intact, and a pack past expiry cannot be SPENT because the reserve statement checks
+   * `expires_at > now()`. So this is bookkeeping being timely, not correctness being restored,
+   * which is what makes a once-a-day job safe here.
+   *
+   * **Releasing dead reservations** frees items held by a checkout whose payment never came. It
+   * is deliberately conservative — a payment row that failed, or 24 hours old — because releasing
+   * too early means a payment still in flight settles against a balance that is no longer there.
+   *
+   * Both are awaited and both failures are reported rather than thrown: a housekeeping problem
+   * must not stop the digest, which is the thing that makes every other problem visible.
+   */
+  const housekeeping: Record<string, number | string> = {};
+  const { data: expired, error: expireError } = await admin.rpc('expire_meal_packs');
+  housekeeping.packs_expired = expireError ? `failed: ${expireError.code}` : (expired ?? 0);
+  const { data: released, error: releaseError } = await admin.rpc(
+    'release_dead_meal_pack_reservations',
+  );
+  housekeeping.reservations_released = releaseError
+    ? `failed: ${releaseError.code}`
+    : (released ?? 0);
+  if (expireError || releaseError) {
+    console.error('ops-heartbeat: pack housekeeping failed', {
+      expire: expireError?.code,
+      release: releaseError?.code,
+    });
+  }
+
+  /**
+   * The pack ledger invariant, checked nightly beside `assert_ledger_integrity()`. One equality:
+   * the deferred-revenue account equals what every live pack still owes. It is false the instant
+   * an item is counted twice, lost, or recognised without being spent — and a silent divergence
+   * here is money owed to parents that the books disagree about.
+   */
+  const { data: packInvariant } = await admin.rpc('check_meal_pack_ledger_invariant');
+  const packRows = (packInvariant ?? []) as { failures: number; detail: string }[];
+  const packFailures = packRows.filter((r) => Number(r.failures) > 0);
+  if (packFailures.length > 0) {
+    await sendMoneyAlert(admin, {
+      kind: 'meal_pack_ledger_divergence',
+      summary: 'the meal pack deferred-revenue balance disagrees with what live packs owe',
+      detail: Object.fromEntries(packFailures.map((r, i) => [`check_${i}`, r.detail])),
+    });
+  }
+  housekeeping.pack_ledger_ok = packFailures.length === 0 ? 'yes' : 'NO';
+
   // ------------------------------------------------------------------ the daily digest
   const yesterday = istDay(1);
   const dayStart = new Date(Date.parse(`${yesterday}T00:00:00Z`) - 5.5 * 3600 * 1000).toISOString();
@@ -344,5 +396,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
       alerts: alertRows.length,
       orphanPayments: orphans,
     },
+    // Reported rather than merely done, so "0 packs expired" and "the job did not run" are
+    // distinguishable — the failure this whole function exists for (E15-15).
+    housekeeping,
   });
 });

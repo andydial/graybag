@@ -49,18 +49,19 @@ jest.mock('@graybag/shared', () => {
 const OFFER = {
   id: 'o-1',
   name: '10 meal pack',
-  mealsCount: 10,
-  itemsPerMeal: 2,
-  requiredCategoryId: 'cat-1',
   netPricePaise: 300000,
-  alacarteReferencePaise: 337500,
+  itemsCount: 20,
+  bonusItemsCount: 2,
+  bonusWindowDays: 30,
   validityDays: 60,
 };
 
 const BALANCE: PackBalance = {
-  packName: '10 meal pack',
-  mealsTotal: 10,
-  mealsRemaining: 7,
+  packName: 'Pack 1',
+  schoolName: 'Amity International School',
+  itemsTotal: 20,
+  itemsRemaining: 7,
+  itemsSpendable: 7,
   purchasedLabel: '12 Aug 2026',
   expiresLabel: '11 Oct 2026',
   expired: false,
@@ -115,10 +116,15 @@ describe('case 2 — the offers screen when packs ARE sold here', () => {
     expect(screen.getByText('10 meal pack')).toBeTruthy();
   });
 
-  it('shows the saving against buying the meals singly', async () => {
+  it('makes no saving claim, because with no price cap there is none to make', async () => {
+    // `alacarteReferencePaise` and "save ₹375" are gone with the old design. A pack's worth
+    // depends entirely on what it is spent on — ₹3,000 buys 20 drinks or 20 mains — so a headline
+    // saving would be a claim we cannot stand behind. Asserted as an absence, after waiting for
+    // the card to actually render, so this cannot pass by finding an empty screen.
     mockOffers.mockResolvedValue([OFFER]);
     await render(<PacksScreen />);
-    expect(await screen.findByText(/save/)).toBeTruthy();
+    expect(await screen.findByTestId('screen-packs-offer-o-1')).toBeTruthy();
+    expect(screen.queryByText(/save/i)).toBeNull();
   });
 
   it('distinguishes "we could not ask" from "there are none"', async () => {
@@ -152,24 +158,27 @@ describe('case 3 — a parent who owns a pack at a school we switched off', () =
   it('still shows the balance', async () => {
     await render(<MyPacksScreen balance={BALANCE} />);
     expect(screen.getByTestId('screen-my-packs-balance')).toBeTruthy();
-    expect(screen.getByText('7 of 10')).toBeTruthy();
+    expect(screen.getByText('7 of 20')).toBeTruthy();
   });
 
-  it('STILL OFFERS TO SPEND IT — the button that must not vanish', async () => {
+  it('STILL TELLS THEM HOW TO SPEND IT — the section that must not vanish', async () => {
     // This is the assertion that would have failed under "gate everything on canBuy", and the
-    // failure would have been a parent unable to reach meals they had already paid for.
-    const onPlanMeals = jest.fn();
-    await render(<MyPacksScreen balance={BALANCE} onPlanMeals={onPlanMeals} />);
-    await userEvent.press(screen.getByText('Plan meals from this pack'));
-    expect(onPlanMeals).toHaveBeenCalled();
+    // failure would have been a parent unable to reach items they had already paid for.
+    //
+    // The "Plan meals from this pack" button it used to press is gone with the planner
+    // (`E21-73`). What must survive is the same thing it stood for: at a school where we have
+    // stopped SELLING, a parent holding a balance is still told how to spend it.
+    await render(<MyPacksScreen balance={BALANCE} />);
+    expect(screen.getByText('How these get used')).toBeTruthy();
+    expect(screen.getByText(/Your pack covers what it can/)).toBeTruthy();
   });
 
   it('does NOT offer to sell another, because that part really is switched off', async () => {
     const onSeeOffers = jest.fn();
     await render(
-      <MyPacksScreen balance={{ ...BALANCE, mealsRemaining: 0 }} onSeeOffers={onSeeOffers} />,
+      <MyPacksScreen balance={{ ...BALANCE, itemsRemaining: 0, itemsSpendable: 0 }} onSeeOffers={onSeeOffers} />,
     );
-    expect(screen.getByText(/used every meal/)).toBeTruthy();
+    expect(screen.getByText(/used every item/)).toBeTruthy();
     expect(screen.queryByText('Buy another')).toBeNull();
   });
 
@@ -177,7 +186,7 @@ describe('case 3 — a parent who owns a pack at a school we switched off', () =
     mockSurface = { canBuy: true, hasBalance: true, loading: false, allPacks: [] };
     const onSeeOffers = jest.fn();
     await render(
-      <MyPacksScreen balance={{ ...BALANCE, mealsRemaining: 0 }} onSeeOffers={onSeeOffers} />,
+      <MyPacksScreen balance={{ ...BALANCE, itemsRemaining: 0, itemsSpendable: 0 }} onSeeOffers={onSeeOffers} />,
     );
     await userEvent.press(screen.getByText('Buy another'));
     expect(onSeeOffers).toHaveBeenCalled();
@@ -193,20 +202,18 @@ describe('the three empties are three different sentences', () => {
 
   it('every meal spent — recoverable, and says how', async () => {
     mockSurface = { canBuy: true, hasBalance: true, loading: false, allPacks: [] };
-    await render(<MyPacksScreen balance={{ ...BALANCE, mealsRemaining: 0 }} />);
-    expect(screen.getByText(/used every meal/)).toBeTruthy();
+    await render(<MyPacksScreen balance={{ ...BALANCE, itemsRemaining: 0, itemsSpendable: 0 }} />);
+    expect(screen.getByText(/used every item/)).toBeTruthy();
     expect(screen.getByText(/spent oldest first/)).toBeTruthy();
   });
 
-  it('expired — says plainly that the meals are gone, and does not offer to plan', async () => {
+  it('expired — says plainly that the items are gone, and says nothing about planning', async () => {
     mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [] };
-    const onPlanMeals = jest.fn();
-    await render(
-      <MyPacksScreen balance={{ ...BALANCE, expired: true }} onPlanMeals={onPlanMeals} />,
-    );
+    await render(<MyPacksScreen balance={{ ...BALANCE, expired: true }} />);
     expect(screen.getByText('This pack has expired')).toBeTruthy();
-    expect(screen.getByText(/Unused meals are gone/)).toBeTruthy();
-    expect(screen.queryByText('Plan meals from this pack')).toBeNull();
+    expect(screen.getAllByText(/Unused items are gone/).length).toBeGreaterThan(0);
+    // And says nothing about how to spend what is not there.
+    expect(screen.queryByText('How these get used')).toBeNull();
   });
 
   it('an expired pack shows no progress meter, which would imply something remains', async () => {
@@ -218,9 +225,11 @@ describe('the three empties are three different sentences', () => {
 
 describe('E21-49 — two packs, both visible, with the order explained', () => {
   const SECOND: PackBalance = {
-    packName: '20 meal pack',
-    mealsTotal: 20,
-    mealsRemaining: 20,
+    packName: 'Pack 2',
+    schoolName: 'Amity International School',
+    itemsTotal: 40,
+    itemsRemaining: 40,
+    itemsSpendable: 40,
     purchasedLabel: '20 Aug 2026',
     expiresLabel: '18 Nov 2026',
     expired: false,
@@ -236,7 +245,7 @@ describe('E21-49 — two packs, both visible, with the order explained', () => {
     // and neither can showing only one pack.
     await render(<MyPacksScreen balance={BALANCE} otherPacks={[SECOND]} />);
     expect(screen.getByTestId('screen-my-packs-other-packs')).toBeTruthy();
-    expect(screen.getByText(/20 of 20 · 20 meal pack/)).toBeTruthy();
+    expect(screen.getByText(/40 of 40 · Pack 2/)).toBeTruthy();
     expect(screen.getByText(/Expires 18 Nov 2026/)).toBeTruthy();
   });
 
