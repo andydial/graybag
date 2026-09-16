@@ -132,7 +132,9 @@ import '../../styles/backoffice.css';
        * we have earned.
        */
       let packs: api.PackMoneyRow[] = [];
-      let packVisibility: api.Visibility = 'blind';
+      // Starts `unreadable`: before the read runs we have no answer at all, which is exactly what
+      // that state means. Starting at `visible` would flash a confident ₹0 during the first paint.
+      let packVisibility: api.Visibility = 'unreadable';
       /**
        * School id to its short code — `E11-14`.
        *
@@ -445,20 +447,33 @@ import '../../styles/backoffice.css';
         const sold = api.soldBetween(packs, el.from.value, el.to.value);
         const totals = api.packPeriodTotals(sold, packs, packVisibility);
 
-        if (totals.visibility === 'blind') {
+        if (totals.visibility !== 'visible') {
           /*
-           * `E21-63`'s rule, and the reason this state exists at all: refuse to print a number we
-           * cannot stand behind. `meal_pack_money` is `security_invoker` over a table whose only
-           * read policy is `meal_pack_read_own`, so a back-office account can read nothing while
-           * packs exist — and "₹0 owed in food" is a sentence somebody would act on.
+           * `E21-63`'s rule: refuse to print a number we cannot stand behind. But say which kind
+           * of not-knowing this is, because they lead to different actions and only one of them
+           * means packs exist.
+           *
+           * An earlier version merged them and asserted "packs have been sold" in both — which is
+           * false wherever the view has simply not shipped yet, and a report that invents a fact
+           * to explain its own silence is worse than one that stays quiet.
            */
+          const hidden = totals.visibility === 'hidden';
           return (
             `<section class="sec-wrap" aria-labelledby="pk-h">` +
               `<h2 id="pk-h">Meal packs</h2>` +
-              `<div class="notice notice--warn"><b class="notice__head">We can't see pack money from this account</b>` +
-              `Packs have been sold, but the money view returns nothing here — so this section ` +
-              `would show <b>₹0</b>, and ₹0 owed in food is not the same as "we cannot see". ` +
-              `Nothing is wrong with the packs; the back office has no read on them yet.</div>` +
+              `<div class="notice notice--warn"><b class="notice__head">` +
+                (hidden
+                  ? `Packs have been sold, and this account can't see them`
+                  : `We can't read pack money here`) +
+              `</b>` +
+              (hidden
+                ? `The money view returns nothing for this account, so this section would show ` +
+                  `<b>₹0</b> — and ₹0 owed in food is not the same as "we cannot see". Nothing is ` +
+                  `wrong with the packs; the back office has no read on them yet.`
+                : `The pack money view did not answer, so there is nothing to show and nothing to ` +
+                  `claim — <b>including whether any pack exists</b>. That is expected wherever ` +
+                  `packs have not been deployed yet.`) +
+              `</div>` +
             `</section>`
           );
         }

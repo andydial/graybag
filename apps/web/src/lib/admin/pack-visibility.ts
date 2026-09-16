@@ -28,29 +28,36 @@ import type { api } from '@graybag/shared';
  * @param packRows  rows from `meal_pack_money`, or `null` if that read failed outright.
  * @param soldByOffer  per-offer sold counts from the Edge Function, or `null` if it failed.
  *
- * **Every uncertain case resolves to `blind`.** A screen that says "we cannot see this" when it
- * could have shown a number is a small annoyance; a screen that says ₹0 when the truth is ₹40,000
- * is a false statement about money.
+ * **Every uncertain case resolves to a blind state.** A screen that says "we cannot see this" when
+ * it could have shown a number is a small annoyance; a screen that says ₹0 when the truth is
+ * ₹40,000 is a false statement about money.
+ *
+ * The two blind states are kept apart on purpose. `hidden` is the permission boundary — packs
+ * exist and this account cannot see them. `unreadable` is *we did not get an answer at all*, which
+ * is what a back office sees on a deployment where the view has not shipped yet, and where
+ * asserting that packs have been sold would be inventing a fact to explain our own silence.
  */
 export function packVisibilityOf(
   packRows: api.PackMoneyRow[] | null,
   soldByOffer: Record<string, number> | null,
 ): api.Visibility {
-  // The read itself failed. Nothing to show and nothing to claim.
-  if (packRows === null) return 'blind';
+  // The read itself failed — permission, or a view that is not deployed here yet. We know
+  // nothing, INCLUDING whether any pack exists, so this must not claim that any do.
+  if (packRows === null) return 'unreadable';
 
   // We can see packs, so we can see pack money. The count is irrelevant here — even one row
   // proves the read is not being filtered to nothing.
   if (packRows.length > 0) return 'visible';
 
-  // Empty, and we could not check whether that is the truth. Do not claim zero.
-  if (soldByOffer === null) return 'blind';
+  // Empty, and we could not check whether that is the truth. Do not claim zero — and do not
+  // claim packs exist either, because we did not manage to ask.
+  if (soldByOffer === null) return 'unreadable';
 
   const sold = Object.values(soldByOffer).reduce((n, x) => n + x, 0);
 
   // Packs exist and we are reading none of them: that is a permission boundary, not an empty
   // business. This is the case the whole module exists for.
-  if (sold > 0) return 'blind';
+  if (sold > 0) return 'hidden';
 
   // Nothing sold, and the service role agrees. Genuinely zero.
   return 'visible';

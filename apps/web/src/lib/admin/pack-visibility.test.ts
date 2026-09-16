@@ -14,9 +14,14 @@ const row = (): api.PackMoneyRow => ({
 });
 
 describe('packVisibilityOf', () => {
-  it('is blind when the money read failed outright', () => {
-    expect(packVisibilityOf(null, { a: 3 })).toBe('blind');
-    expect(packVisibilityOf(null, null)).toBe('blind');
+  it('is UNREADABLE when the money read failed outright', () => {
+    /*
+     * Not `hidden`. A failed read tells us nothing, including whether any pack exists — and the
+     * screen for `hidden` says "packs have been sold", which would be inventing a fact to explain
+     * our own silence. This is what a back office sees where the view has not shipped yet.
+     */
+    expect(packVisibilityOf(null, { a: 3 })).toBe('unreadable');
+    expect(packVisibilityOf(null, null)).toBe('unreadable');
   });
 
   it('is visible as soon as a single row comes back', () => {
@@ -25,13 +30,13 @@ describe('packVisibilityOf', () => {
     expect(packVisibilityOf([row()], {})).toBe('visible');
   });
 
-  it('is BLIND when packs have been sold and the view returns none', () => {
+  it('is HIDDEN when packs have been sold and the view returns none', () => {
     /*
      * The case the module exists for. `meal_pack_money` is `security_invoker` over a table whose
      * only read policy is `meal_pack_read_own`, so a back-office account reads nothing while packs
      * exist — and the screen would otherwise print a confident ₹0 still owed in food.
      */
-    expect(packVisibilityOf([], { 'offer-a': 17 })).toBe('blind');
+    expect(packVisibilityOf([], { 'offer-a': 17 })).toBe('hidden');
   });
 
   it('is visible when nothing has been sold and the service role agrees', () => {
@@ -41,14 +46,14 @@ describe('packVisibilityOf', () => {
     expect(packVisibilityOf([], { 'offer-a': 0 })).toBe('visible');
   });
 
-  it('is blind when empty and the count could not be checked', () => {
-    // Uncertainty resolves to blind. Saying "we cannot see this" when a number was available is
-    // a small annoyance; saying ₹0 when the truth is ₹40,000 is a false statement about money.
-    expect(packVisibilityOf([], null)).toBe('blind');
+  it('is unreadable when empty and the count could not be checked', () => {
+    // Uncertainty never resolves to a number. And it resolves to `unreadable` rather than
+    // `hidden`, because we did not manage to ask whether any pack exists.
+    expect(packVisibilityOf([], null)).toBe('unreadable');
   });
 
   it('sums counts across offers rather than reading only the first', () => {
     // A single offer with 0 sold and another with 5 must still read as blind.
-    expect(packVisibilityOf([], { 'offer-a': 0, 'offer-b': 5 })).toBe('blind');
+    expect(packVisibilityOf([], { 'offer-a': 0, 'offer-b': 5 })).toBe('hidden');
   });
 });
