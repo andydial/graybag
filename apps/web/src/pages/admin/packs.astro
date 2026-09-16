@@ -1,35 +1,42 @@
 ---
 /**
- * Meal pack offers — `E21-60`.
+ * Meal pack offers — `E21`, rebuilt.
  *
- * The last prototype screen with nothing behind it. Its shape is the prototype's: a summary line,
- * a table of offers with their rules, price, validity, schools and sales, and a drawer to edit one.
+ * The workshop rather than the shop window: every offer including drafts, and the writes.
  *
- * ## Two switches, both deliberate
+ * ## The rebuilt model
  *
- * Andy: *"An offer is off by default — new offers are drafts, and a school shows packs only when
- * both the offer is live and the school's switch is on. Two switches, both mine."*
+ * The old screen configured a **meal** — *N* items, one from a required category. One item is now
+ * one item (`docs/meal-packs-rebuild.md` §1), and a pack carries an optional **bonus**: free items
+ * earned by finishing the purchased ones inside a window. So the form is name, price ex-GST, item
+ * count, bonus items, bonus window, validity — and nothing else.
  *
- * So the table shows each independently, and neither implies the other. A single "live at these
- * schools" control would be easier to use and would make "live everywhere" the accident this is
- * designed to prevent.
+ * ## Editing a sold offer changes nothing a parent already holds
  *
- * ## Editing an offer that has already sold
+ * Every term a pack depends on is **stamped onto it at sale**: the offer's name (`name_snapshot`),
+ * the price, both tax components, the item count, the bonus terms and the expiry. So an edit
+ * changes what the *next* buyer gets and nothing else, and the screen says so in those words
+ * rather than greying fields out.
  *
- * Most of an offer is stamped onto a pack when it sells — price, tax, `meals_total`, `expires_at`
- * — so editing those changes what the *next* buyer gets and nothing else. Two fields are not
- * stamped: `items_per_meal` and `required_category_id` are read live by `meal_pack_balance` when a
- * meal is spent, so changing either would rewrite what somebody already paid for.
+ * That is a change from `E21-60`, which had to freeze `items_per_meal` and `required_category_id`
+ * because a sold pack read them live — and from `E21-67`, where the offer's **name** was read live
+ * too, so renaming an offer retitled packs already bought and reached an issued invoice's line
+ * description. Both are gone with the columns. If the server ever does freeze something it
+ * answers `already_sold` with the field named, and the drawer shows that sentence.
  *
- * Those two are locked once a pack exists, with the reason on screen rather than a disabled field
- * and a shrug. Enforcement is server-side in `admin-pack-offer` — this is the explanation, not the
- * gate.
+ * ## The per-school switch is NOT here
+ *
+ * Andy, 2026-09-16: whether a school sells packs is a **school-readiness** property and belongs on
+ * `/admin/schools` beside the other readiness gates, which is where he will be when he turns Amity
+ * on. *"One control, one place."* This screen shows where each offer is offered, read-only, and
+ * links there. Two surfaces writing one row is the "same thing in two places" problem the back
+ * office redesign exists to kill.
  *
  * ## Nothing pack-related reaches a kitchen surface
  *
- * `meal_packs.manage` is platform-only by `0070`'s `valid_scope_types`, this screen is behind it,
- * and its nav entry is hidden without it. A kitchen operator cannot open it, see it, or learn from
- * the navigation that it exists.
+ * `meal_packs.manage` is platform-only, this screen is behind it, and its nav entry is hidden
+ * without it. A kitchen operator cannot open it, see it, or learn from the navigation that it
+ * exists.
  */
 import BackofficeShell from '../../components/BackofficeShell.astro';
 
@@ -85,7 +92,6 @@ import '../../styles/backoffice.css';
       let offers: api.AdminPackOffer[] = [];
       let sold: Record<string, number> = {};
       let schools: { id: string; name: string }[] = [];
-      let categories: { id: string; name: string }[] = [];
       let loading = true;
       let error: string | null = null;
 
@@ -96,17 +102,14 @@ import '../../styles/backoffice.css';
             offers = PACKS_FIXTURE.offers;
             sold = PACKS_FIXTURE.sold;
             schools = PACKS_FIXTURE.schools;
-            categories = PACKS_FIXTURE.categories;
           } else {
             configureBackofficeApi();
-            const [list, schoolRows, categoryRows] = await Promise.all([
+            const [list, schoolRows] = await Promise.all([
               api.fetchAdminPackOffers(),
               api.fetchSchools(),
-              api.fetchDishCategories(),
             ]);
             offers = list;
             schools = schoolRows.map((s) => ({ id: s.id, name: s.name }));
-            categories = categoryRows.map((c) => ({ id: c.id, name: c.displayName }));
             /*
              * The sales count is allowed to fail on its own. It needs the Edge Function, and the
              * offers themselves are readable without it — a screen that refuses to show anything
@@ -135,11 +138,14 @@ import '../../styles/backoffice.css';
               `<span class="sub">${o.isActive
                 ? '<span class="tag tag--live">live</span>'
                 : '<span class="tag tag--draft">draft</span>'}</span></td>` +
-            `<td>${o.mealsCount} meals · ${o.itemsPerMeal} item${o.itemsPerMeal === 1 ? '' : 's'} each` +
-              (o.requiredCategoryName ? ` · one from ${esc(o.requiredCategoryName)}` : '') + `</td>` +
+            `<td>${o.itemsCount} item${o.itemsCount === 1 ? '' : 's'}` +
+              // Bonus terms read as one sentence or not at all. "2 bonus" with no window, or a
+              // window with no items, is the misconfiguration the form refuses by name.
+              (o.bonusItemsCount > 0
+                ? `<span class="sub">+${o.bonusItemsCount} bonus if used within ${o.bonusWindowDays} days</span>`
+                : '<span class="sub">no bonus</span>') + `</td>` +
             `<td class="num"><b>${esc(rupees(o.netPricePaise))}</b>` +
-              `<span class="sub">${esc(rupees(Math.round(o.netPricePaise / Math.max(1, o.mealsCount))))} a meal` +
-              ` · saves ${esc(rupees(api.packSavingPaise(o)))}</span></td>` +
+              `<span class="sub">${esc(rupees(api.perItemPricePaise(o)))} an item</span></td>` +
             `<td class="num">${o.validityDays} days</td>` +
             `<td>${on.length > 0
               ? on.map((s) => `<span class="tag tag--menu">${esc(s.schoolName)}</span>`).join(' ')
@@ -179,39 +185,37 @@ import '../../styles/backoffice.css';
         const live = offers.filter((o) => o.isActive).length;
         const totalSold = Object.values(sold).reduce((n, x) => n + x, 0);
         /*
-         * Meals **sold**, and it used to say "outstanding" — `E10-67`.
+         * Items **sold**, and it used to say "outstanding" — `E10-67`.
          *
-         * `sold × mealsCount` is how many meals have been paid for. Outstanding would be that
-         * minus the ones already eaten, and subtracting them needs `meal_pack_redemption`, whose
-         * only read policy is `meal_pack_redemption_read_own` (`0068`): no back-office account can
-         * read it at all.
+         * `sold × itemsCount` is how many items have been paid for. Outstanding would be that minus
+         * the ones already eaten, and this screen cannot see redemptions. **The deferred balance
+         * lives on `/admin/sales`**, where it is derived from the packs and cross-checked against
+         * the ledger (`M10`), which is the only place either number should be read as money.
          *
-         * The two numbers are identical today, because packs are dark on production and nothing
-         * has been redeemed — and they diverge on the first day of real use, in the direction that
-         * overstates a liability. A label that is accidentally correct is still the wrong label,
-         * and this one would have been read as a liability figure. `E21-63` is the fix.
+         * Bonus items are excluded on purpose: they were never paid for (`M10`), so counting them
+         * here would inflate "paid for" with a giveaway.
          */
-        const mealsSold = offers.reduce((n, o) => n + (sold[o.id] ?? 0) * o.mealsCount, 0);
+        const itemsSold = offers.reduce((n, o) => n + (sold[o.id] ?? 0) * o.itemsCount, 0);
 
         el.line.innerHTML =
           `<b>${live} live</b> · ${offers.length} offer${offers.length === 1 ? '' : 's'}` +
-          (totalSold > 0 ? ` · ${totalSold} sold · ${mealsSold} meals sold` : '');
+          (totalSold > 0 ? ` · ${totalSold} sold · ${itemsSold} items sold` : '');
 
         el.body.innerHTML =
           /*
            * The prototype's notice, and the sentence that matters most on this screen: a sold pack
            * is money held against food not yet served. It is the reason expiry exists.
            */
-          `<div class="notice notice--info"><b class="notice__head">Meals sold are money you already hold</b>` +
-            `A sold pack is revenue collected and food not yet served. Expiry is what bounds it — ` +
-            `every pack expires a fixed number of days after purchase, and unused meals are not ` +
-            `refundable. <b>How many are still unspent is not shown here</b>: redemptions live on a ` +
-            `table only the pack's owner may read, so this screen can say what was sold and not ` +
-            `what is left.</div>` +
+          `<div class="notice notice--info"><b class="notice__head">A pack sale is money you owe in food</b>` +
+            `A sold pack is <b>not revenue</b> on the day it is bought — it is a liability, and it ` +
+            `becomes revenue one item at a time as the food is served. Expiry is what bounds it: ` +
+            `every pack expires a fixed number of days after purchase, and unused items are not ` +
+            `refundable. <b>What is still owed is on <a href="/admin/sales">Sales</a></b>, kept ` +
+            `separate from food revenue and checked against the ledger.</div>` +
 
           `<div class="tablewrap"><table>` +
             `<thead><tr>` +
-              `<th scope="col">Pack</th><th scope="col">Rules</th>` +
+              `<th scope="col">Pack</th><th scope="col">Items</th>` +
               `<th scope="col" class="num">Price</th><th scope="col" class="num">Valid</th>` +
               `<th scope="col">Offered at</th><th scope="col" class="num">Sold</th>` +
             `</tr></thead>` +
@@ -221,36 +225,39 @@ import '../../styles/backoffice.css';
 
       /* ------------------------------------------------------------------ the drawer */
 
-      function field(id: string, label: string, value: string | number, type = 'number', help = '') {
+      function field(id: string, label: string, value: string | number, type = 'number', help = '', min = 1) {
         return `<div class="field"><label for="${id}">${esc(label)}</label>` +
-          `<input id="${id}" type="${type}" value="${esc(String(value))}" ${type === 'number' ? 'min="1" step="1"' : 'maxlength="80"'} />` +
+          `<input id="${id}" type="${type}" value="${esc(String(value))}" ` +
+          (type === 'number' ? `min="${min}" step="1"` : 'maxlength="80"') + ` />` +
           (help ? `<p class="help">${help}</p>` : '') + `</div>`;
       }
 
       function openOffer(offer: api.AdminPackOffer | null) {
         const n = offer ? (sold[offer.id] ?? 0) : 0;
         const o = offer ?? {
-          id: '', name: '', mealsCount: 10, itemsPerMeal: 2, requiredCategoryId: categories[0]?.id ?? '',
-          requiredCategoryName: '', netPricePaise: 0, alacarteReferencePaise: 0, validityDays: 90,
-          isActive: false, schools: [],
+          id: '', name: '', netPricePaise: 0, itemsCount: 20,
+          bonusItemsCount: 0, bonusWindowDays: 0, validityDays: 60,
+          isActive: false, sortOrder: offers.length, schools: [],
         } as api.AdminPackOffer;
 
-        const frozen = n > 0;
-        const categoryOptions = categories
-          .map((c) => `<option value="${esc(c.id)}"${c.id === o.requiredCategoryId ? ' selected' : ''}>${esc(c.name)}</option>`)
-          .join('');
-
-        const schoolRows = offer
-          ? schools.map((s) => {
-              const link = o.schools.find((x) => x.schoolId === s.id);
-              const on = link?.isEnabled === true;
-              return `<label class="gate ${on ? 'gate--pass' : 'gate--warn'}">` +
-                `<span class="ic" aria-hidden="true">${on ? '✓' : '·'}</span>` +
-                `<span class="t">${esc(s.name)}<span>${on ? 'offered here' : 'not offered here'}</span></span>` +
-                `<input type="checkbox" data-school="${esc(s.id)}"${on ? ' checked' : ''} />` +
-              `</label>`;
-            }).join('')
-          : `<p class="help">Save the offer first, then choose which schools it is offered at.</p>`;
+        /*
+         * Where this offer is sold — READ-ONLY, with a link.
+         *
+         * The control lives on `/admin/schools` (see the header). Showing the state here is worth
+         * it because "is this actually selling anywhere" is the question you ask while looking at
+         * an offer; showing a *switch* here would be the second place to write one row.
+         */
+        const on = o.schools.filter((x) => x.isEnabled);
+        const whereSold = offer
+          ? `<div class="sec">Offered at</div>` +
+            (on.length > 0
+              ? `<p class="help">${on.map((x) => esc(x.schoolName)).join(', ')}</p>`
+              : `<p class="help">Not offered at any school yet — so no parent can buy it, ` +
+                `even while it is live.</p>`) +
+            `<p class="help"><a href="/admin/schools">Turn packs on for a school</a> — it is a ` +
+            `school-readiness setting and lives with the others.</p>`
+          : `<p class="help">Save the offer first, then turn it on for a school from ` +
+            `<a href="/admin/schools">Schools</a>.</p>`;
 
         openDrawer({
           title: offer ? offer.name : 'New pack',
@@ -258,30 +265,33 @@ import '../../styles/backoffice.css';
             ? `${n > 0 ? `${n} sold` : 'nothing sold yet'} · ${o.isActive ? 'live' : 'draft'}`
             : 'A draft until you make it live',
           body:
-            (frozen
-              ? `<div class="notice notice--warn"><b class="notice__head">${n} pack${n === 1 ? ' has' : 's have'} been bought under this offer</b>` +
-                `How many items a meal is, and which category one of them must come from, are read ` +
-                `when a meal is spent — so changing them now would change what those packs can buy. ` +
-                `They are locked. Price, name and validity are stamped onto a pack when it sells, ` +
-                `so editing those only affects future buyers.</div>`
+            (n > 0
+              ? `<div class="notice notice--info"><b class="notice__head">${n} pack${n === 1 ? ' has' : 's have'} been bought under this offer</b>` +
+                `Editing is safe. Every term a pack depends on — its name, price, tax, item count, ` +
+                `bonus and expiry — was <b>copied onto it when it sold</b>, so changes here apply ` +
+                `to the next buyer and <b>never</b> to a pack somebody already holds. Rename it, ` +
+                `reprice it, change the bonus: the ${n} already sold keep exactly the terms they ` +
+                `were sold under.</div>`
               : '') +
             `<div class="sec">The pack</div>` +
             field('f-name', 'Name', o.name, 'text') +
             `<div class="two">` +
-              field('f-meals', 'Meals in the pack', o.mealsCount) +
-              field('f-items', 'Items per meal', o.itemsPerMeal) +
+              field('f-price', 'Price, ex-GST (paise)', o.netPricePaise) +
+              field('f-items', 'Items in the pack', o.itemsCount) +
             `</div>` +
-            `<div class="field"><label for="f-cat">One item must come from</label>` +
-              `<select id="f-cat"${frozen ? ' disabled' : ''}>${categoryOptions}</select>` +
-              `<p class="help">Configured, never hardcoded — the rule is enforced when the meal is spent.</p></div>` +
-            `<div class="sec">Money</div>` +
+            `<div class="sec">Bonus</div>` +
             `<div class="two">` +
-              field('f-price', 'Pack price, ex-GST (paise)', o.netPricePaise) +
-              field('f-alacarte', 'Same meals bought singly (paise)', o.alacarteReferencePaise) +
+              field('f-bonus', 'Bonus items', o.bonusItemsCount, 'number', '', 0) +
+              field('f-window', 'Earned within (days)', o.bonusWindowDays, 'number', '', 0) +
             `</div>` +
+            `<p class="help">Free items earned by using all the purchased ones inside the window. ` +
+            `<b>Set both, or set both to 0</b> — a window with no items promises nothing, and ` +
+            `items with no window can never be earned. Bonus items are a giveaway: they cost no ` +
+            `revenue and are reported separately.</p>` +
+            `<div class="sec">Validity</div>` +
             field('f-days', 'Valid for (days)', o.validityDays, 'number',
-              'From the day it is bought. Unused meals are not refundable.') +
-            `<div class="sec">Offered at</div>${schoolRows}` +
+              'From the day it is bought. Unused items are not refundable.') +
+            whereSold +
             `<p class="help" data-err></p>`,
           footer:
             `<button class="btn" type="button" data-save>${offer ? 'Save' : 'Create it'}</button>` +
@@ -292,19 +302,15 @@ import '../../styles/backoffice.css';
             `<button class="btn btn--ghost" type="button" data-cancel>Cancel</button>`,
         });
 
-        if (frozen) {
-          document.querySelector<HTMLInputElement>('#f-items')!.disabled = true;
-        }
-
         const err = document.querySelector<HTMLElement>('[data-err]')!;
         const read = () => ({
           name: document.querySelector<HTMLInputElement>('#f-name')!.value,
-          mealsCount: Number(document.querySelector<HTMLInputElement>('#f-meals')!.value),
-          itemsPerMeal: Number(document.querySelector<HTMLInputElement>('#f-items')!.value),
-          requiredCategoryId: document.querySelector<HTMLSelectElement>('#f-cat')!.value,
           netPricePaise: Number(document.querySelector<HTMLInputElement>('#f-price')!.value),
-          alacarteReferencePaise: Number(document.querySelector<HTMLInputElement>('#f-alacarte')!.value),
+          itemsCount: Number(document.querySelector<HTMLInputElement>('#f-items')!.value),
+          bonusItemsCount: Number(document.querySelector<HTMLInputElement>('#f-bonus')!.value),
+          bonusWindowDays: Number(document.querySelector<HTMLInputElement>('#f-window')!.value),
           validityDays: Number(document.querySelector<HTMLInputElement>('#f-days')!.value),
+          sortOrder: o.sortOrder,
         });
 
         document.querySelector('[data-cancel]')?.addEventListener('click', closeDrawer);
@@ -317,22 +323,16 @@ import '../../styles/backoffice.css';
 
           button.disabled = true;
           try {
-            if (offer) {
-              /*
-               * The two frozen fields are **omitted** for a sold offer, not sent as undefined.
-               *
-               * The server distinguishes absent from present — that is how it decides whether an
-               * edit touches them — so `{ itemsPerMeal: undefined }` would read as an attempt to
-               * change it. `exactOptionalPropertyTypes` catches exactly this, and it was right to.
-               */
-              const { itemsPerMeal, requiredCategoryId, ...stamped } = input;
-              await api.updatePackOffer(offer.id, frozen ? stamped : input);
-            } else {
-              await api.createPackOffer(input);
-            }
+            if (offer) await api.updatePackOffer(offer.id, input);
+            else await api.createPackOffer(input);
             closeDrawer();
             await load();
           } catch (cause) {
+            /*
+             * `already_sold` names the field it refused, and the server is the authority on which
+             * fields those are. Rather than restate a list this screen believes in — the mistake
+             * that let `E21-67` sit unnoticed — whatever the function says is shown verbatim.
+             */
             err.textContent = cause instanceof Error ? cause.message : 'That did not save.';
             button.disabled = false;
           }
@@ -350,22 +350,6 @@ import '../../styles/backoffice.css';
             button.disabled = false;
           }
         });
-
-        for (const box of document.querySelectorAll<HTMLInputElement>('[data-school]')) {
-          box.addEventListener('change', async () => {
-            box.disabled = true;
-            try {
-              await api.setPackOfferSchool(o.id, box.dataset.school!, box.checked);
-              await load();
-              // Re-open on the fresh data, so the switch's own row redraws with its new state.
-              openOffer(offers.find((x) => x.id === o.id) ?? null);
-            } catch (cause) {
-              err.textContent = cause instanceof Error ? cause.message : 'That did not save.';
-              box.checked = !box.checked;
-              box.disabled = false;
-            }
-          });
-        }
       }
 
       el.body.addEventListener('click', (event) => {

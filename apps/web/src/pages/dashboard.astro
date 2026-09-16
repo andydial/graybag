@@ -185,7 +185,7 @@ import '../styles/backoffice.css';
               k: String(p.packsSold),
               m: p.packsSold === 0
                 ? `${p.liveOffers} offer${p.liveOffers === 1 ? '' : 's'} live · none sold yet`
-                : `${money.formatPaise(p.collectedPaise)} collected · ${p.mealsSold} meals sold`,
+                : `${money.formatPaise(p.collectedPaise)} collected · ${p.itemsSold} items sold`,
             })) +
             card('Needs you', needs, (items: AttentionItem[]) => ({
               k: String(items.length),
