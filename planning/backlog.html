@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/57</span>
+          <span class="meter-num">0/58</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 57 tasks</summary>
+        <summary>Context &amp; 58 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7347,6 +7347,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The pgTAP suite has <code>E14-42</code>&#39;s disease too: <code>meal_pack_ledger.test.sql</code> failed once in a full run and passed alone and on re-run.</strong> Four assertions, all the absolute liability invariant — *the ledger owes exactly what the pack owes* — on 2026-08-28. The same suite passed immediately before and after with no change to that file. <strong>Filed separately from <code>E14-42</code> on purpose</strong>: that one is the <code>node --test</code> scripts suite and its fix is per-test isolation in JavaScript; this is <code>supabase/tests/*.test.sql</code> run sequentially by <code>scripts/test-db.sh</code> against one database, where every file is supposed to be self-isolating via <code>begin; … rollback;</code>. If one is not, it contaminates every file after it and the blame lands on whoever&#39;s assertion notices first. The shape of the risk is in <code>meal_pack_ledger.test.sql</code>&#39;s own header: the <strong>absolute</strong> form of the invariant holds only because exactly one pack exists, so any earlier file leaving a committed <code>meal_pack</code> row breaks it. <code>recipient_erasure_commits.test.sql</code> commits by design but sorts after. Worth finding before it fails in CI on somebody else&#39;s branch and reads as their bug — a flaky assertion about whether the ledger balances is the one to chase, not tolerate</span>
+      </li>
+      <li class="task" data-id="E21-68" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-68"></button>
+        <code class="tid">E21-68</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The regression bar: the live ordering path, pinned before the pack rebuild touches it.</strong> Andy, 2026-09-16: *&quot;cover them in your tests before you touch them, not after&quot;* — cart, checkout, the payment webhook and order confirmation are carrying roughly 50 real orders a day. <code>ordering_path_characterisation.test.sql</code>, 19 assertions, green on unchanged code before a line of the rebuild landed, and re-run unchanged after every pack commit. <strong>It is not a duplicate of <code>checkout.test.sql</code> and <code>settle_payment.test.sql</code></strong> — those test functions; this tests the properties that hold *across* them, which is what a seam breaks and what a per-function test looks in the wrong place for. Four are stated as universals over every row rather than over this test&#39;s own order, because that is the form <code>E21-65</code> could not have hidden from: a paid order has a pickup code, has a <code>confirmed_at</code>, sits in a status the kitchen board reads, and carries an <code>order_ref</code> minted the one way. <strong>All four mutation-checked against a hand-built replica of the defect, and one was hollow.</strong> Keyed on <code>order_group.status</code> the kitchen-visibility assertion can never fire, because <code>derive_group_status</code> recomputes a group&#39;s status from its orders — so inserting the <code>pending_payment</code> redemption order <strong>demotes the settled group back to <code>pending_payment</code></strong>, and the WHERE clause stops matching at the instant it should fire. Rewritten against <code>paid_at</code>, which <code>P17</code> fixes as set-once-never-cleared, it fires. <strong>That trigger behaviour is a second consequence of <code>E21-65</code> the audit did not record</strong> — the pack purchase&#39;s own group reverts to <code>pending_payment</code> on the first redemption while <code>paid_at</code> stays set, so status and paid_at disagree on a row representing money taken. Moot under the rebuild, where a redemption is an ordinary checkout in its own group and nothing is ever inserted into a settled one</span>
       </li></ul>
       </details>
     </article>

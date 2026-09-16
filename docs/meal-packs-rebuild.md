@@ -15,6 +15,18 @@ in rather than appended: **"This Week" falls back to the featured dish** rather 
 nothing (§7), and **the live ordering path is covered by tests before it is touched** (§11), which
 changes what the first commit is.
 
+**The five open questions were answered the same day** and this document is rewritten around the
+answers, not annotated with them. Three of the four rulings went against what I proposed, so where
+that changes the mechanism it is written as the mechanism now — §12 keeps the record of what was
+chosen and what it costs, because a decision without its reasoning gets accidentally reversed.
+
+| | Ruled |
+|---|---|
+| Bonus accounting | **Bonus items carry no value.** No revenue is ever reversed |
+| School scope | **Selected school only, both ways.** A pack is bought at a school and spent there |
+| Coverage order | **Cheapest first.** The pack covers the least expensive lines |
+| Cancellation | **The item returns to the pack** |
+
 ---
 
 ## 0. What is actually on production, checked before proposing to delete anything
@@ -145,30 +157,40 @@ meal_pack_offer_school
 meal_pack
   id                   uuid    primary key
   customer_user_id     uuid    not null references app_user   -- the only owner
+  school_id            uuid    not null references school     -- bought here, spent here (§8)
   offer_id             uuid    not null references meal_pack_offer
   order_group_id       uuid    not null references order_group   unique
   name_snapshot        text    not null      -- the offer's name at the moment of sale
   price_paid_paise     bigint  not null      -- 300000, ex-tax. THE deferred-revenue numerator
   cgst_paise           bigint  not null      --   7500
   sgst_paise           bigint  not null      --   7500
-  items_original       int     not null      -- 20. Never changes. The bonus test reads this
-  items_total          int     not null      -- 20, becomes 22 when the bonus is granted
-  items_remaining      int     not null      -- decremented ONLY at settlement
-  items_reserved       int     not null default 0   -- held by carts not yet paid for
+
+  -- VALUED items: what the money bought. The only ones the ledger knows about.
+  items_original       int     not null      -- 20. Never changes, ever. The bonus test reads this
+  valued_remaining     int     not null      -- decremented ONLY at settlement
+
+  -- BONUS items: a free gift, worth nothing in the books (§5). Deliberately separate columns
+  -- rather than a larger items_total, so that no arithmetic anywhere can mix the two.
   bonus_items          int     not null      -- snapshot of the offer's bonus_items_count
+  bonus_remaining      int     not null default 0   -- 0 until granted, then bonus_items
   bonus_window_ends_at timestamptz not null  -- purchased_at + bonus_window_days
   bonus_granted_at     timestamptz           -- null until earned; never un-set
+
+  items_reserved       int     not null default 0   -- held by carts not yet paid for
+  items_remaining      int     generated always as (valued_remaining + bonus_remaining) stored
+
   purchased_at         timestamptz not null
   expires_at           timestamptz not null  -- purchased_at + validity_days
   status               meal_pack_status not null default 'pending'
   correlation_id       uuid    not null
   created_at, updated_at timestamptz
-  check (items_remaining >= 0)                      -- backstop, not the mechanism (§4)
-  check (items_reserved  >= 0)
-  check (items_reserved <= items_remaining)         -- backstop for the reserve guard (§4)
-  check (items_remaining <= items_total)
-  check (items_total = items_original + case when bonus_granted_at is null then 0
-                                             else bonus_items end)
+  check (valued_remaining between 0 and items_original)   -- backstop, not the mechanism (§4)
+  check (bonus_remaining  between 0 and bonus_items)
+  check (items_reserved   >= 0)
+  check (items_reserved <= valued_remaining + bonus_remaining)   -- backstop for the reserve guard
+  -- No bonus item exists before the bonus is earned. (The converse is not a rule: a granted
+  -- pack legitimately reaches bonus_remaining = 0 by spending them.)
+  check (bonus_granted_at is not null or bonus_remaining = 0)
 
 -- One row per (order line, pack). Append-only: a state column, never a delete.
 meal_pack_redemption
@@ -178,6 +200,8 @@ meal_pack_redemption
   order_id       uuid not null references "order"
   order_line_id  uuid not null references order_line
   items          int  not null                           -- how many of that line's qty this covers
+  valued_items   int  not null                           -- of those, how many were VALUED items
+  bonus_used     int  not null                           -- and how many were free bonus items
   state          pack_redemption_state not null default 'held'
   held_at        timestamptz not null default now()
   settled_at     timestamptz          -- confirmed or released at
@@ -185,13 +209,15 @@ meal_pack_redemption
   reversal_reason text
   correlation_id uuid not null
   check (items > 0)
+  check (items = valued_items + bonus_used)   -- the split is recorded, never recomputed later
   unique (order_line_id, meal_pack_id)   -- one line may span two packs; not the same pack twice
 
 -- The clock's work, recorded. One row per pack, written by the expiry sweep (§6).
 meal_pack_expiry
   meal_pack_id   uuid primary key references meal_pack
-  breakage_paise bigint not null
-  items_forfeit  int    not null
+  breakage_paise bigint not null   -- valued items only; bonus items are worth nothing
+  items_forfeit  int    not null   -- what a parent would say they lost: valued + bonus
+  valued_forfeit int    not null   -- what the ledger saw
   expired_at     timestamptz not null default now()
 
 create type meal_pack_status         as enum ('pending','active','exhausted','expired');
@@ -236,16 +262,20 @@ half-true.
                           └────────────────────────────────────────────────┘
 ```
 
-| Transition | `items_reserved` | `items_remaining` | Ledger |
-|---|---|---|---|
-| **reserve** | `+n` | — | — |
-| **confirm** | `−n` | **`−n`** | Dr deferred / Cr revenue, by §5's formula |
-| **release** | `−n` | — | — |
-| **reverse** | — | `+n` | Dr revenue / Cr deferred |
+| Transition | `items_reserved` | `valued_remaining` | `bonus_remaining` | Ledger |
+|---|---|---|---|---|
+| **reserve** | `+n` | — | — | — |
+| **confirm** | `−n` | `−valued` | `−bonus` | Dr deferred / Cr revenue, by §5's formula |
+| **release** | `−n` | — | — | — |
+| **reverse** | — | `+valued` | `+bonus` | Dr revenue / Cr deferred |
 
-The three columns that matter move in one transaction or none of them move. **The balance a parent
-is told they have is never changed by anything that has not yet happened**, which is the whole
-point of `held` being a separate state rather than a decrement with a note attached.
+Every column moves in one transaction or none of them move. **The balance a parent is told they
+have is never changed by anything that has not yet happened**, which is the whole point of `held`
+being a separate state rather than a decrement with a note attached.
+
+`valued` and `bonus` are the split recorded on the redemption row at confirm time, and **reverse
+gives back exactly what was taken** — it reads the row rather than recomputing, so a cancellation
+cannot turn a free bonus item into a valued one or the other way round.
 
 ### Reserve is not "decrement early"
 
@@ -288,19 +318,26 @@ update meal_pack
  where id = p_pack_id
    and status = 'active'
    and expires_at > now()
-   and items_remaining - items_reserved >= p_items   -- the whole guarantee is on this line
-returning items_remaining - items_reserved as spendable_after;
+   and valued_remaining + bonus_remaining - items_reserved >= p_items   -- the whole guarantee
+returning valued_remaining + bonus_remaining - items_reserved as spendable_after;
 ```
 
 ```sql
 -- CONFIRM, from settle_payment. Never contended: one webhook per order group.
+--
+-- VALUED ITEMS ARE SPENT FIRST, and the split is computed inside the statement rather than by a
+-- SELECT beforehand — so this stays one statement even though it is never raced. `least()` does
+-- the whole job: take what valued items there are, and only then reach into the bonus.
 update meal_pack
-   set items_remaining = items_remaining - p_items,
-       items_reserved  = items_reserved  - p_items
+   set valued_remaining = valued_remaining - least(p_items, valued_remaining),
+       bonus_remaining  = bonus_remaining  - (p_items - least(p_items, valued_remaining)),
+       items_reserved   = items_reserved   - p_items
  where id = p_pack_id
-   and items_reserved  >= p_items
-   and items_remaining >= p_items
-returning items_remaining;
+   and items_reserved >= p_items
+   and valued_remaining + bonus_remaining >= p_items
+returning valued_remaining, bonus_remaining,
+          least(p_items, valued_remaining)                  as valued_spent,
+          p_items - least(p_items, valued_remaining)        as bonus_spent;
 ```
 
 ```sql
@@ -309,6 +346,12 @@ update meal_pack
    set items_reserved = items_reserved - p_items
  where id = p_pack_id and items_reserved >= p_items;
 ```
+
+**Valued first is not arbitrary.** Bonus items can normally only be reached once every valued item
+is gone — that is what earns them. The order matters in exactly one situation: a cancellation
+returns a valued item to a pack that has already been granted its bonus. Spending valued first
+there recognises revenue sooner and leaves only worthless items to be forfeited at expiry, which
+is the conservative answer and the one that needs no entry when the pack dies.
 
 Zero rows returned from the reserve means refused, and the caller tells the parent the pack covers
 fewer items than it did a moment ago — **before** checkout, never after.
@@ -327,12 +370,13 @@ has a bug and I want the write to abort loudly rather than proceed.
 Rule 4: earliest expiry first. A cart of 5 items against packs of 2 and 3 spans both.
 
 ```sql
-select id, items_remaining - items_reserved as spendable
+select id, valued_remaining + bonus_remaining - items_reserved as spendable
   from meal_pack
  where customer_user_id = p_user
+   and school_id = p_order_school_id   -- bought here, spent here (§8)
    and status = 'active'
    and expires_at > now()
-   and items_remaining > items_reserved
+   and valued_remaining + bonus_remaining > items_reserved
  order by expires_at asc, id asc      -- deterministic, and the same order everywhere
    for update;
 ```
@@ -342,15 +386,22 @@ pack that expires soonest is spent first. Correctness and concurrency control be
 version least likely to drift. Two different parents never contend at all; the same parent on two
 devices takes the same rows in the same sequence, so one waits rather than deadlocking.
 
-### Which cart items the pack covers — **most expensive first**
+### Which cart items the pack covers — **cheapest first**
 
-Andy did not specify, and it changes what a parent pays. With no price cap, a pack covering the
-₹40 drink and charging cash for the ₹250 main is hostile; there is no reading under which a parent
-wants that. So covered lines are chosen by **unit price descending, then line id** for
-determinism — and the cart shows exactly which lines, before checkout.
+**Ruled 2026-09-16.** Covered lines are chosen by **unit price ascending, then line id** for
+determinism. A cart of a ₹250 main and a ₹40 drink against one remaining item covers the drink;
+the parent pays ₹250 + GST.
 
-Flagged in §12 as a decision rather than assumed silently, because it is a rule a parent will work
-out and have an opinion about.
+I recommended the opposite and was overruled, which settles it. What follows from it is a copy
+problem rather than an engineering one, and it is the cart's job to solve: **the cart names the
+covered lines explicitly, before Place order.** A parent who expected the main to be covered must
+see that it is not while they can still change the cart — not discover it on the total. §7.
+
+**One consequence, recorded once and then left alone.** Cheapest-first, no price cap, no refunds
+and a hard expiry compose: a ₹3,000 pack spent entirely on ₹40 drinks returns ₹800 of food. Each
+of those four rules is deliberate and Andy has confirmed each separately. The combination is worth
+writing down because nobody chose it as a combination, and because it is the shape of thing a
+parent writes a support email about.
 
 ### Releasing a reservation asks Razorpay; it does not guess from a clock
 
@@ -407,18 +458,22 @@ SALE  (in settle_payment, same transaction as the order group becoming paid)
 
 ### Recognition, stated so that integers make it exact
 
-Andy's invariant is *deferred balance = `items_remaining × (price_paid / items_total)`*. Taken
-literally as a per-item constant it cannot hold in integer paise: after a bonus, ₹3,000 over 22
-items is 13,636.36 paise each, and any stored rounding leaves the books off by a few paise — an
-invariant that is *nearly* true is not one.
+**Ruled 2026-09-16: bonus items carry no value.** ₹3,000 buys 20 items and always did; the 2 bonus
+items are a free gift, recognised at nil. Nothing is ever reversed, no revenue is restated, and
+nothing crosses a period boundary. `items_original` is the denominator for the life of the pack and
+**never changes** — which is why the schema has `valued_remaining` and `bonus_remaining` as separate
+columns rather than one larger total. There is no arithmetic anywhere that could mix them.
 
-It holds **exactly**, in integers, with no stored per-item value, if the balance is defined as a
-function rather than accumulated:
+Andy's invariant is *deferred balance = `items_remaining × (price_paid / items_total)`*. Taken
+literally as a stored per-item constant it cannot hold in integer paise — ₹3,000 over 20 divides
+evenly, but ₹5,000 over 40 will not for every price the admin can type, and an invariant that is
+*nearly* true is not one. It holds **exactly**, in integers, with no stored per-item value, if the
+balance is defined as a function rather than accumulated:
 
 ```sql
 create function meal_pack_deferred_paise(p meal_pack) returns bigint
   immutable
-as $$ select half_up(p.price_paid_paise * p.items_remaining, p.items_total) $$;
+as $$ select half_up(p.price_paid_paise * p.valued_remaining, p.items_original) $$;
 ```
 
 Every event posts **the difference between this function before and after**, and never an amount
@@ -427,20 +482,21 @@ computed any other way:
 | Event | Ledger posting |
 |---|---|
 | Redeem *n* items | `Dr deferred / Cr revenue` of `deferred(before) − deferred(after)` |
-| Grant the bonus | `Dr revenue / Cr deferred` of `deferred(after) − deferred(before)` — see below |
+| **Grant the bonus** | **Nothing.** Free items do not appear in the books |
+| **Spend a bonus item** | **Nothing.** `deferred` is unchanged, because `valued_remaining` is |
 | Reverse a redemption | `Dr revenue / Cr deferred` of `deferred(after) − deferred(before)` |
-| Expire | `Dr deferred / Cr revenue:breakage` of `deferred(before)`, then `items_remaining := 0` |
+| Expire | `Dr deferred / Cr revenue:breakage` of `deferred(before)`, then `valued_remaining := 0` |
 
-Because every posting is a difference of the same function, the balance cannot drift. The last item
-of a pack always lands on exactly zero, whatever the arithmetic on the way there.
+Because every posting is a difference of the same function, the balance cannot drift. The last
+**valued** item of a pack always lands on exactly zero, whatever the arithmetic on the way there.
 
 **The invariant, which is the actual answer:**
 
 > At any instant, `balance(platform:deferred_revenue:meal_packs)` equals
-> `Σ half_up(price_paid_paise × items_remaining, items_total)` over every pack with
+> `Σ half_up(price_paid_paise × valued_remaining, items_original)` over every pack with
 > `status in ('active','exhausted')`.
 
-One number, checkable at any moment, false the instant an item is counted twice, lost, or
+One number, checkable at any moment, false the instant a valued item is counted twice, lost, or
 recognised without being spent. It runs as a pgTAP assertion after **every** path and every
 combination of paths, and nightly beside the existing `assert_ledger_integrity()`.
 
@@ -449,43 +505,23 @@ pack is still `active` with its balance intact until the sweep moves it, and the
 status, the items and the ledger in one transaction. The sweep is bookkeeping being timely, not
 correctness being restored.
 
-### The bonus grant restates revenue, and Andy should see that before I build it
+The worked path, end to end, every figure an integer, no posting anywhere for the bonus:
 
-The bonus is earned at the exact moment the **last original item** is consumed — so at that instant
-`items_remaining = 0`, and deferred revenue for that pack is **already zero**: all ₹3,000 has been
-recognised as revenue.
-
-Granting 2 more items means ₹3,000 now buys 22 meals, not 20. Under Andy's rule — *"items_total
-increases and the per-item value drops accordingly — this keeps the books balanced"* — the pack
-must go back to owing `half_up(300000 × 2, 22) = 27273` paise. That money has to come from
-somewhere, and the only place it can come from is revenue already recognised:
-
-```
-BONUS GRANTED
-  Dr  platform:revenue                            27273
-      Cr  platform:deferred_revenue:meal_packs           27273
-```
-
-This is a **reversal of revenue already booked**, possibly in an earlier month — a pack bought in
-March and earning its bonus in April reverses ₹272.73 of March's revenue in April. It is
-arithmetically correct and it is what Andy's sentence requires. It may also be something his
-accountant would rather not see, which is why it is here in bold rather than buried in a migration.
-
-The worked path, end to end, every figure an integer:
-
-| Step | `items_total` | `items_remaining` | deferred | posting |
+| Step | valued rem. | bonus rem. | deferred | posting |
 |---|---|---|---|---|
-| Sale | 20 | 20 | 300000 | Cr deferred 300000 |
-| Spend 20 items | 20 | 0 | 0 | Cr revenue 300000, over 20 postings |
-| **Bonus granted** | **22** | **2** | **27273** | **Dr revenue 27273** |
-| Spend the 21st | 22 | 1 | 13636 | Cr revenue 13637 |
-| Spend the 22nd | 22 | 0 | 0 | Cr revenue 13636 |
+| Sale | 20 | 0 | 300000 | Cr deferred 300000 |
+| Spend 20 items | 0 | 0 | 0 | Cr revenue 300000, across 20 postings |
+| **Bonus granted** | 0 | **2** | 0 | **none** |
+| Spend the 21st | 0 | 1 | 0 | **none** |
+| Spend the 22nd | 0 | 0 | 0 | **none** |
 | | | | | **total revenue 300000** ✓ |
 
-The alternative, if the restatement is unacceptable: **bonus items carry no value.** `items_total`
-stays 20 for accounting, the 2 bonus items are a free gift recognised at nil, and nothing is ever
-reversed. Simpler, no cross-period restatement — and it contradicts the sentence Andy wrote, so I
-am not choosing it on my own. §12, question 1.
+**What this costs, stated once so it is on the record.** Revenue per *served meal* is no longer
+constant: a parent who earns the bonus is served 22 meals for ₹3,000 while the books recognise
+₹150 per meal across only 20 of them. That is the correct treatment of a gift and it is what was
+ruled — but the cost of food served is real, so **margin per meal on a bonus-earning pack is lower
+than the revenue line suggests**, and a report reading revenue-per-order will overstate it for
+those two orders. Worth knowing before anyone reads a pack report and draws a conclusion.
 
 ### The bonus is granted by arithmetic, not by a job
 
@@ -494,17 +530,21 @@ Evaluated inside the same transaction as the confirm that empties the pack:
 ```
 if bonus_granted_at is null
    and bonus_items > 0
-   and items_remaining = 0
+   and valued_remaining = 0          -- every item the money bought has been served
    and now() <= bonus_window_ends_at
-then grant
+then  bonus_remaining  := bonus_items
+      bonus_granted_at := now()
+      -- and nothing is posted to the ledger
 ```
 
 No scheduled job, no window to miss, no pack that earned a bonus and is waiting for a cron. A
 window that closes unearned needs no action at all — the condition simply stops being true.
 
-A reversal that lifts `items_remaining` back above zero after a grant does **not** un-grant it:
+A reversal that lifts `valued_remaining` back above zero after a grant does **not** un-grant it:
 `bonus_granted_at` is set once and the guard reads it, so a cancel-and-reorder cannot mint bonus
-items twice.
+items twice. Nor can a cancellation *create* a bonus opportunity that had closed — the guard is a
+conjunction, and `now() <= bonus_window_ends_at` is checked at the moment of the grant, not at the
+moment of the order being cancelled.
 
 ### No refunds, enforced rather than promised
 
@@ -528,8 +568,14 @@ Enforced in two places, both server-side:
   today against a meal the pack will not be alive to cover.
 
 The sweep (`expire_meal_packs()`, from `ops-monitor.yml`) takes every `active` pack past its
-`expires_at`, posts its breakage, writes `meal_pack_expiry`, sets `items_remaining := 0` and
-`status := 'expired'` — one transaction per pack.
+`expires_at`, posts its breakage, writes `meal_pack_expiry`, sets `valued_remaining := 0`,
+`bonus_remaining := 0` and `status := 'expired'` — one transaction per pack.
+
+**Only valued items produce a breakage entry.** Forfeited bonus items are worth nothing and post
+nothing, so a pack that expires holding only bonus items posts no ledger transaction at all — its
+deferred balance was already zero. `meal_pack_expiry.items_forfeit` records both counts anyway,
+because "3 items forfeited" is what a parent would say and the books saying ₹0 is not a
+contradiction to be explained away later.
 
 ---
 
@@ -538,9 +584,37 @@ The sweep (`expire_meal_packs()`, from `ops-monitor.yml`) takes every `active` p
 | Screen | What changes |
 |---|---|
 | **Home → "This Week"** | Pack offers when there are any; **otherwise the featured dish exactly as it is today**. See below — this is a swap inside one section, not a section that comes and goes |
-| **Pack detail** | What you get, **price including tax** (₹3,150, with the ₹3,000 + ₹150 GST split shown), the bonus rule in a sentence a parent reads once — *"Use all 20 items within 30 days and we'll add 2 more"* — the expiry date, and "no refunds". Buy |
-| **Profile → My Meal Packs** | Every pack. Each opens to purchase date, items total, items remaining, expiry, **bonus status** — earned / *N* items in *M* days / window closed — and the orders that drew from it, by order number and date. No child names |
-| **Cart** | Covered items and cash due, separated and both named, **before** Place order. When the pack partly covers the cart the cart says so in words, not by a number the parent has to reconcile themselves |
+| **Pack detail** | What you get, **price including tax** (₹3,150, with the ₹3,000 + ₹150 GST split shown), the bonus rule in a sentence a parent reads once — *"Use all 20 items within 30 days and we'll add 2 more"* — the expiry date, **the school it is for**, and "no refunds". Buy |
+| **Profile → My Meal Packs** | Every pack, **each naming its school**. Each opens to purchase date, items total, items remaining, expiry, **bonus status** — earned / *N* items in *M* days / window closed — and the orders that drew from it, by order number and date. No child names |
+| **Cart** | Covered lines and cash due, separated and **each covered line named**, before Place order. See below — cheapest-first makes this the screen that carries the ruling |
+
+### The cart has to carry cheapest-first, in words
+
+Cheapest-first (§4) means the pack routinely covers the line a parent cares least about. That is
+now the rule, so the cart's job is to make it impossible to be surprised by:
+
+```
+Your cart                                    Amity International
+
+  Butter chicken & rice          ₹250.00     ← paid in cash
+  Fresh lime soda                 covered    ← 1 item from Pack 1
+
+  Covered by your pack                      1 item  (3 left after this)
+  To pay                                   ₹250.00
+  GST 5%                                    ₹12.50
+  ─────────────────────────────────────────────────
+  Total to pay                             ₹262.50
+```
+
+Two rules for this block, both of which exist because of the ruling rather than in spite of it:
+
+- **Every covered line is named**, never summarised as a count. "1 item covered" next to a ₹262.50
+  total is exactly the surprise to avoid.
+- **It renders before Place order**, not on the confirmation. Andy: *"If the pack partly covers
+  the cart, say so before checkout, not after."*
+
+When the pack covers everything, the cash block is absent and the button reads what it does —
+there is no payment step to promise.
 
 ### "This Week" falls back; it never empties
 
@@ -584,16 +658,40 @@ which is where a debt belongs — Home is a shop window.
 
 ---
 
-## 8. A pack is the parent's
+## 8. A pack is the parent's, at one school
 
-`meal_pack.customer_user_id` is the only owner. One pack covers any of that parent's children, and
-a single cart may mix them. RLS: a parent reads and spends their own packs, full stop; there is no
-policy that widens to a school, a class or a guardian relationship.
+`meal_pack.customer_user_id` is the only owner. RLS: a parent reads and spends their own packs,
+full stop; there is no policy that widens to a class or a guardian relationship.
 
-**A pack is not tied to the school it was bought at.** It was bought with the parent's money, and
-nothing in the brief restricts where it is spent. Flagged as §12 question 3, because the per-school
-switch could be read either way and the difference is visible to a parent with children at two
-schools.
+**Ruled 2026-09-16: selected school only, both ways.** An offer is purchasable when packs are on
+for the school currently selected in the app, and `meal_pack.school_id` is stamped from that school
+at the moment of sale. A pack bought at Amity covers Amity orders and nothing else.
+
+Two things follow that are easy to get wrong, so they are written into the design rather than left
+to a screen:
+
+**One pack still covers several children — at that school.** `order_line` is the unit and the pack
+never learns which child ate; a parent with two children at Amity draws both from one balance. The
+restriction is the school, never the child.
+
+**A cart can produce orders at two schools, and this is the case the design has to survive.**
+`create_checkout` groups by `(recipient_id, service_date, break_time_id, school_id, kitchen_id,
+city_id)`, so a parent with children at Amity and Gem places **one checkout containing two orders
+at two schools**. Because a reservation is per `order_line`, this falls out correctly with no
+special case: the Amity pack covers the Amity lines, the Gem lines are cash, and the cart shows
+both. A design keyed on the order *group* would have had to choose a school for the whole
+checkout, and would have been wrong for this parent.
+
+**`hasBalance` stays independent of `canBuy`, and is now per school.** Switching packs off at
+Amity stops the offers appearing and **does not touch a pack already bought there** — the parent
+keeps every screen that spends it until it is empty or expired. That was the old design's one
+genuinely right call (`E21-31`) and the ruling does not disturb it: the restriction is *which
+school's orders a pack covers*, never *whether a paid-for pack still works*.
+
+The visible cost, which Andy accepted when choosing this: **a parent with children at two schools
+watches the offers appear and disappear as they switch schools**, and holds two balances rather
+than one. My Meal Packs therefore names the school on every pack — without it, two packs with
+different balances and no stated reason is a support ticket.
 
 ---
 
@@ -715,30 +813,30 @@ Two structural choices follow from the bar, and both cost a little to buy separa
 
 ---
 
-## 12. What I need from Andy before writing any code
+## 12. The decisions, and what each one costs
 
-1. **The bonus restatement (§5).** Earning the bonus reverses revenue already recognised, possibly
-   across a month boundary. That is what "the per-item value drops accordingly" arithmetically
-   requires. Is that right, or should bonus items carry **no value** — a free gift, no reversal,
-   `items_total` unchanged for accounting? I would build the first, because it is what was asked
-   for and it is the honest number, but it is an accountant's question and not mine.
+Four of the five open questions were answered on 2026-09-16. Recorded here with their cost rather
+than only their outcome, because a decision without its reasoning gets accidentally reversed.
 
-2. **Pack 2's bonus count.** *"Pack 2 — ₹5,000 ex-tax, 40 items, bonus window 60 days, validity 90
-   days"* has a bonus window but no bonus item count. A window with no items is a promise of
-   nothing, and the schema refuses that combination on purpose. What is the number?
+| # | Question | Ruling | What it costs |
+|---|---|---|---|
+| 1 | How the books absorb the bonus | **Bonus items carry no value** | Revenue per *served* meal is not constant — 22 meals served against ₹3,000 recognised over 20. Margin on a bonus-earning pack is lower than the revenue line suggests (§5) |
+| 3 | School scope | **Selected school only, both ways** | A parent with children at two schools sees offers appear and disappear as they switch, and holds two balances. My Meal Packs names the school on every pack to make that legible (§8) |
+| 4 | Which lines the pack covers | **Cheapest first** | The pack covers the line a parent cares least about. The cart must name every covered line before Place order, or the total is a surprise (§4, §7) |
+| 5 | Cancelling a pack-covered order | **The item returns** | None. It is the reading that matches how cash orders already behave |
 
-3. **Two questions about school scope, which the brief could be read either way on.**
-   (a) An offer is purchasable if packs are enabled for *"a school the parent has a child at"* —
-   **any** of their children's schools, or only the school currently selected in the app? The old
-   code used the selected school; Andy's wording is broader. (b) Once bought, may a pack be spent
-   on an order at a **different** school? I have designed it as yes — it is the parent's money —
-   and a parent with children at two schools will notice either answer.
+I recommended the opposite on 1, 3 and 4. Each is Andy's call, each is now the design, and none of
+them is re-argued anywhere else in this document — where a ruling changed the mechanism, the
+mechanism is written as it now stands.
 
-4. **Most-expensive-first (§4).** The pack covers the dearest items in the cart. Andy did not
-   specify and it decides what a parent pays. Confirming rather than assuming.
+### Still open, and it is one number
 
-5. **Cancelling a pack-covered order returns the item** (§3, `reverse`). Not in the brief; "no
-   refunds" is about the pack, not about a cancelled order. This is the reading I would build.
+**Question 2 — Pack 2's bonus item count.** *"Pack 2 — ₹5,000 ex-tax, 40 items, bonus window 60
+days, validity 90 days"* gives a bonus window and no bonus item count. A window with no items
+promises nothing, and `check ((bonus_items_count = 0) = (bonus_window_days = 0))` refuses that
+combination on purpose.
 
-Not blocking, and being done in parallel: nothing. **I am not writing code until these are
-answered**, because four of the five change the schema and the fifth changes the ledger.
+**This does not block the build.** It is a row in a table an admin types, not a line of code —
+`meal_pack_offer` handles any value including zero. It blocks *Pack 2 existing on production*,
+which is step 5 of §10 and Andy's to do anyway. If the answer is that Pack 2 has no bonus, the
+window is `0` and the offer is valid.
