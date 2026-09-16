@@ -759,17 +759,35 @@ select is_empty($$ select p.proname from pg_proc p
  *
  * **The rebuild removes the problem rather than the column's exposure: `meal_pack_redemption` has
  * no `recipient_id` at all.** Which child ate is a property of the order; the pack never needed
- * it, has no screen that shows it, and a column that does not exist cannot leak. So there is one
- * definer view in the schema again, and the bar for a second one is where it was.
+ * it, has no screen that shows it, and a column that does not exist cannot leak.
+ *
+ * **`meal_pack_money` (`E21-86`) is the second exception, and it is argued on a narrower claim
+ * than either of the others.** `order_money` needed definer to survive a `revoke`; `E21-63`'s
+ * needed it to keep a column out of reach. This one needs it because as an INVOKER view it
+ * returned **zero rows to the only audience it has** — `meal_pack` carries one read policy,
+ * `meal_pack_read_own`, and a back-office account owns no packs, so `/admin/sales` would have
+ * printed a confident ₹0 against a real liability. A wrong number nobody investigates is worse
+ * than an error.
+ *
+ * It pays the price the other two pay, and one more:
+ *
+ *   - it carries **no recipient, no customer and no name** — there is no child identity anywhere
+ *     in its lineage, because `0085` removed `recipient_id` from `meal_pack_redemption` entirely;
+ *   - and the permission check `auth_can_platform('orders.view_financials')` is **inside the
+ *     view's own WHERE**, not in the caller, so no query routes around it. `meal_packs.test.sql`
+ *     proves all three by reading it as a granted account, an ungranted one, and the parent who
+ *     owns the pack.
+ *
+ * A third exception should be argued for as hard as these were.
  */
 select is_empty($$ select c.relname from pg_class c
                     join pg_namespace n on n.oid = c.relnamespace
                    where n.nspname = 'public' and c.relkind = 'v'
-                     and c.relname not in ('order_money')
+                     and c.relname not in ('order_money', 'meal_pack_money')
                      and coalesce(array_to_string(c.reloptions, ','), '') not like '%security_invoker=true%'
                      and not exists (select 1 from pg_depend d
                                       where d.objid = c.oid and d.deptype = 'e') $$,
-                '§12: every view in public is security_invoker, except order_money (E02-36). E21-63''s meal_pack_redemption_money was the only other one and E21''s rebuild removed it — the failure is silent, the view simply returns rows it should not');
+                '§12: every view in public is security_invoker, except order_money (E02-36) and meal_pack_money (E21-86, guarded on orders.view_financials in its own WHERE). E21-63''s meal_pack_redemption_money was a third and the rebuild removed it — the failure is silent, the view simply returns rows it should not');
 
 -- And the exception is held to its own bargain: it is definer AND it restates the restriction it
 -- bypasses. A future edit that drops `auth_is_live_user()` from the predicate fails here as well
