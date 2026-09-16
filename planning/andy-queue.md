@@ -78,6 +78,90 @@ touches the ordering or payment path.
   follow-on change to it, not a re-do.
 ---
 
+## Requirements on MOBILE — what the admin and the back office need from the rebuild
+
+Andy, 2026-09-16: *"MOBILE owns `admin-pack-offer`. They're rewriting the schema underneath it, so
+the function follows the schema. You consume it — you don't edit it. If it doesn't give you what
+the admin CRUD needs, say so in `planning/andy-queue.md` as a requirement on them."*
+
+So these are requirements, not patches. Nothing below has been edited into their files.
+
+### 1. ~~`items_total` is ambiguous after a bonus grant~~ — **resolved, see §5**
+
+Struck 2026-09-16 rather than left to be read as outstanding. It was a real disagreement between
+Andy's wording and the design's CHECK constraint; the schema that was actually applied removes the
+column and makes the question unrepresentable. Details in §5.
+
+### 2. What `admin-pack-offer` must expose for the admin CRUD
+
+The screens consume these and nothing else. Shapes are the design's own; this is the list, not a
+redesign.
+
+| Action | Needs |
+|---|---|
+| `summary` | Per-offer **sold count**. Counts only — a platform admin must not be able to read who bought what, which is why this is a function and not a table read (`E21-60`'s finding, still true) |
+| `create` | `name`, `netPricePaise`, `itemsCount`, `bonusItemsCount`, `bonusWindowDays`, `validityDays`, `sortOrder`. **No `isActive`** — the column default (`false`) decides, so an offer cannot go live by being created |
+| `update` | The same fields, all optional. Must refuse with a named error when a field is frozen by a sale rather than failing silently |
+| `setActive` | Its own action, never a side effect of saving the form |
+| `setSchool` | `offerId`, `schoolId`, `isEnabled`. Upsert; **absence means off** |
+
+Two things we need that the design does not yet state:
+
+- **A `frozen once sold` list, exposed rather than implied.** `E21-60` froze `items_per_meal` and
+  `required_category_id` because a sold pack read them live. In the new model `name` is stamped
+  (`name_snapshot`), and price, tax, validity and the bonus terms are all stamped at sale — so on a
+  first read **nothing** needs freezing, which would be a genuinely better design. If that is right,
+  say so explicitly and the editor will say "editing changes what the next buyer gets; packs already
+  sold keep their terms" with no greyed fields at all. If anything *is* still read live, it must
+  come back in the error payload by name, because the screen has to name it to the person.
+- **`validate` must refuse `bonusItemsCount = 0` with `bonusWindowDays > 0` and the reverse.** The
+  schema CHECK already does (`(bonus_items_count = 0) = (bonus_window_days = 0)`); the Edge Function
+  should return it as a **field error** rather than letting a `23514` surface as "something went
+  wrong", because that combination is the single most likely thing to be typed into the form.
+
+### 3. The back office cannot read `meal_pack_money` at all
+
+**Updated 2026-09-16 after reading the schema you applied locally (`0085`–`0087`), rather than the
+design doc.** `meal_pack_money` is exactly the right shape — it computes `deferred_paise`,
+`revenue_recognised_paise`, `breakage_paise`, `valued_items_redeemed` and `bonus_items_redeemed`
+per pack, and carries **no `recipient_id` and no `customer_user_id`**, so nothing about it risks
+child identity. The reporting screen is built on it and needs no other source.
+
+**But it is `security_invoker = true`, and `meal_pack` carries one read policy —
+`meal_pack_read_own`.** A back-office account owns no packs, so the view returns **zero rows** to
+the only audience it exists for. The screen would print a confident **₹0 still owed in food**.
+
+That is `E21-63` exactly, and its conclusion applies unchanged: a row policy cannot filter a
+column, so the shape that works is a **definer view without the columns** — which this already is.
+The fix is `security_definer` plus an `auth_can_platform('orders.view_financials')` guard in the
+view's own `where`, the same pattern `meal_pack_redemption_money` used and for the same reason.
+
+Nothing is blocked meanwhile: `packVisibilityOf` (`apps/web/src/lib/admin/pack-visibility.ts`)
+distinguishes *zero* from *cannot see* using the Edge Function's service-role sold count as
+evidence, and the screen says **"we can't see pack money from this account"** rather than printing
+a number. That is the honest state, not the intended one.
+
+### 4. `meal_pack_money` does not expose `offer_id`, so "per offer" is really "per name"
+
+Andy asked for **redemption rate per offer** — *"the number that tells Andy whether a pack is
+priced right"*. The view exposes `name_snapshot` but not `offer_id`, so the report groups by the
+name the pack was **sold under**. That is right for a closed month and wrong as an identity: two
+offers sharing a name merge, and one offer renamed mid-life splits into two rows that look like two
+products.
+
+Adding `mp.offer_id` to the view costs nothing and leaks nothing — it is an offer, not a person.
+The report will group on it and keep `name_snapshot` as the label.
+
+### 5. `items_total` — resolved, and the resolution is better than either option
+
+Raised earlier as an ambiguity between Andy's *"items_total stays 20 for value purposes"* and the
+design's `check (items_total = items_original + bonus_items)`. **The schema you applied removes the
+column entirely**, replacing it with `valued_remaining` and `bonus_remaining`, and
+`meal_pack_deferred_paise` divides by `items_original`. That makes the ambiguity unrepresentable
+rather than resolved by agreement, which is the better outcome. Recorded so it is not re-litigated.
+
+---
+
 ## Handover to MOBILE — `E21-65`, and what it means for the rebuild
 
 Written 2026-09-16 by the web thread, at Andy's instruction, so MOBILE reads the evidence rather

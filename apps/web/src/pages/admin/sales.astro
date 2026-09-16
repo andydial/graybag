@@ -106,6 +106,8 @@ import '../../styles/backoffice.css';
       import { requireBackofficeAccess } from '../../lib/backoffice/guard.js';
       import { serviceDateToday } from '../../lib/kitchen/view.js';
       import { SALES_FIXTURE } from '../../lib/admin/sales-fixture.js';
+      import { PACK_MONEY_FIXTURE } from '../../lib/admin/pack-money-fixture.js';
+      import { packVisibilityOf } from '../../lib/admin/pack-visibility.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
@@ -121,6 +123,16 @@ import '../../styles/backoffice.css';
 
       let rows: api.ReportRow[] = [];
       let previous: api.ReportRow[] = [];
+      /**
+       * Meal pack money — `E21`, `M10`.
+       *
+       * Kept in its own variables and rendered in its own section, never merged into the figures
+       * above. A pack sale is a **liability** on the day it happens and becomes revenue one item
+       * at a time, so adding it to "Net revenue" would report money we still owe in food as money
+       * we have earned.
+       */
+      let packs: api.PackMoneyRow[] = [];
+      let packVisibility: api.Visibility = 'blind';
       /**
        * School id to its short code — `E11-14`.
        *
@@ -192,6 +204,8 @@ import '../../styles/backoffice.css';
             rows = SALES_FIXTURE.rows as unknown as api.ReportRow[];
             previous = SALES_FIXTURE.previous as unknown as api.ReportRow[];
             schoolCodes = new Map(SALES_FIXTURE.schoolCodes);
+            packs = PACK_MONEY_FIXTURE;
+            packVisibility = 'visible';
           } else {
             configureBackofficeApi();
             const prev = api.previousWindow(el.from.value, el.to.value);
@@ -206,6 +220,36 @@ import '../../styles/backoffice.css';
             ]);
             rows = now; previous = before;
             schoolCodes = new Map(schools.map((x) => [x.id, x.code]));
+
+            /*
+             * Pack money is read separately and is allowed to fail on its own — the food figures
+             * are the reason this screen exists and must not be held hostage to a pack read.
+             *
+             * **A failed or refused read is `blind`, never zero.** `meal_pack_money` is
+             * `security_invoker` over a table whose only read policy is `meal_pack_read_own`, so a
+             * back-office account can legitimately get an empty list while packs exist. `E21-63`
+             * is the same finding — refusing to render "0 paid with a pack" when the truth is "we
+             * can't see" — and it matters more here, because ₹0 owed in food is a sentence Andy
+             * would act on.
+             */
+            // Annotated rather than inferred: `Promise.all` over two differently-shaped
+            // `.catch(() => null)` results widens to `unknown` under this tsconfig.
+            const [packRows, soldByOffer]: [api.PackMoneyRow[] | null, Record<string, number> | null] =
+              await Promise.all([
+              api.fetchPackMoney().catch(() => null),
+              // The sold COUNT comes from the Edge Function, which runs under the service role and
+              // can see every pack. That makes it the discriminator below. Counts only — no owner,
+              // no order, no child.
+              api.fetchPackOfferSales().catch(() => null),
+              ]);
+
+            /*
+             * Zero and blind are different answers, and an empty list alone cannot tell them
+             * apart. `packVisibilityOf` decides, with the Edge Function's service-role count as
+             * the evidence — see `pack-visibility.ts` for why that is an answer and not a guess.
+             */
+            packs = packRows ?? [];
+            packVisibility = packVisibilityOf(packRows, soldByOffer);
           }
         } catch (cause) {
           error = cause instanceof Error ? cause.message : 'The sales figures did not load.';
@@ -379,7 +423,123 @@ import '../../styles/backoffice.css';
               `<b>Only paid orders appear here</b> — unpaid and cancelled ones are not sales. ` +
               `Refunds are deducted from net.` +
             `</p>` +
-          `</section>`;
+          `</section>` +
+
+          packSection();
+      }
+
+      /**
+       * Meal packs — their own section, never merged into the food figures above (`M10`).
+       *
+       * Andy: *"Never merge pack sales into the food revenue line. A pack sale is a liability on
+       * the day it happens, not a sale."* So this sits below the orders table with its own heading
+       * and its own totals, and nothing it computes touches "Net revenue".
+       *
+       * Every figure comes from `meal_pack_money`, which computes the money in the database
+       * (`meal_pack_deferred_paise`) — this renders and groups, it does not recompute. Sales are
+       * filtered to the chosen window on `purchased_at`, the only date a *sale* has; the deferred
+       * balance is deliberately **not** filtered, because a liability is a running total and
+       * belongs to no period.
+       */
+      function packSection(): string {
+        const sold = api.soldBetween(packs, el.from.value, el.to.value);
+        const totals = api.packPeriodTotals(sold, packs, packVisibility);
+
+        if (totals.visibility === 'blind') {
+          /*
+           * `E21-63`'s rule, and the reason this state exists at all: refuse to print a number we
+           * cannot stand behind. `meal_pack_money` is `security_invoker` over a table whose only
+           * read policy is `meal_pack_read_own`, so a back-office account can read nothing while
+           * packs exist — and "₹0 owed in food" is a sentence somebody would act on.
+           */
+          return (
+            `<section class="sec-wrap" aria-labelledby="pk-h">` +
+              `<h2 id="pk-h">Meal packs</h2>` +
+              `<div class="notice notice--warn"><b class="notice__head">We can't see pack money from this account</b>` +
+              `Packs have been sold, but the money view returns nothing here — so this section ` +
+              `would show <b>₹0</b>, and ₹0 owed in food is not the same as "we cannot see". ` +
+              `Nothing is wrong with the packs; the back office has no read on them yet.</div>` +
+            `</section>`
+          );
+        }
+
+        if (totals.packsSold === 0 && totals.deferredOutstandingPaise === 0) {
+          return (
+            `<section class="sec-wrap" aria-labelledby="pk-h">` +
+              `<h2 id="pk-h">Meal packs</h2>` +
+              `<p class="m">No packs were sold in this window, and none are outstanding. ` +
+              `Pack money is reported separately from food because a pack sale is money owed in ` +
+              `food, not revenue. <a href="/admin/packs">Pack offers</a></p>` +
+            `</section>`
+          );
+        }
+
+        const rate = (r: number | null) =>
+          r === null ? '—' : `${Math.round(r * 100)}%`;
+
+        return (
+          `<section class="sec-wrap" aria-labelledby="pk-h">` +
+            `<h2 id="pk-h">Meal packs</h2>` +
+
+            `<div class="notice notice--info"><b class="notice__head">None of this is in the revenue above</b>` +
+            `A pack sale is a <b>liability</b> on the day it happens — money taken for food not ` +
+            `yet served — and becomes revenue one item at a time as the food goes out. The ` +
+            `figures above are food sold; these are separate and must stay that way.</div>` +
+
+            `<div class="grid">` +
+              stat(String(totals.packsSold), 'Packs sold', null, 'in this window') +
+              stat(rupees(totals.grossExTaxPaise), 'Collected, ex-GST', null, 'in this window') +
+              stat(rupees(totals.gstPaise), 'GST collected', null, 'charged in full at the sale') +
+              stat(rupees(totals.deferredOutstandingPaise), 'Still owed in food', null,
+                `${totals.itemsOutstanding} item${totals.itemsOutstanding === 1 ? '' : 's'} unspent · all packs, not just this window`) +
+            `</div>` +
+
+            `<div class="tablewrap"><table>` +
+              `<caption class="vh">Meal pack money by offer</caption>` +
+              `<thead><tr>` +
+                `<th scope="col">Offer</th>` +
+                `<th scope="col" class="num">Sold</th>` +
+                `<th scope="col" class="num">Ex-GST</th>` +
+                `<th scope="col" class="num">GST</th>` +
+                `<th scope="col" class="num">Recognised</th>` +
+                `<th scope="col" class="num">Breakage</th>` +
+                `<th scope="col" class="num">Still owed</th>` +
+                `<th scope="col" class="num">Redeemed</th>` +
+                `<th scope="col" class="num">Bonus</th>` +
+              `</tr></thead>` +
+              `<tbody>` +
+              totals.offers.map((o) =>
+                `<tr>` +
+                  `<td>${esc(o.offerName)}</td>` +
+                  `<td class="num">${o.packsSold}</td>` +
+                  `<td class="num">${esc(rupees(o.grossExTaxPaise))}</td>` +
+                  `<td class="num">${esc(rupees(o.gstPaise))}</td>` +
+                  `<td class="num">${esc(rupees(o.revenueRecognisedPaise))}</td>` +
+                  // Breakage on its own column, never folded into Recognised (`M11`): revenue
+                  // because a parent ate and revenue because a parent forgot are different facts.
+                  `<td class="num">${o.breakagePaise ? esc(rupees(o.breakagePaise)) : '—'}</td>` +
+                  `<td class="num">${esc(rupees(o.deferredPaise))}</td>` +
+                  `<td class="num"><b>${rate(o.redemptionRate)}</b>` +
+                    `<span class="sub">${o.itemsRedeemed} of ${o.itemsSold}</span></td>` +
+                  // Bonus items reported separately from purchased ones, as Andy asked — and kept
+                  // out of the redemption rate, which is a question about what a parent PAID for.
+                  `<td class="num">${o.bonusItemsGranted > 0
+                    ? `${o.bonusItemsRedeemed} of ${o.bonusItemsGranted}`
+                    : '—'}</td>` +
+                `</tr>`).join('') +
+              `</tbody>` +
+            `</table></div>` +
+
+            `<p class="m">` +
+              `<b>Redemption rate counts purchased items only.</b> Bonus items were never paid ` +
+              `for, so counting them would make a generous bonus read as poor redemption — they ` +
+              `are the last column instead. <b>Breakage</b> is items forfeited at expiry: real ` +
+              `revenue, and a different fact from food somebody ate. <b>Recognised</b> and ` +
+              `<b>breakage</b> are lifetime figures for the packs sold in this window, not ` +
+              `movements within it.` +
+            `</p>` +
+          `</section>`
+        );
       }
 
       el.body.addEventListener('click', (event) => {

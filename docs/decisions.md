@@ -23,7 +23,7 @@ You do not need to read it to make a change — only to understand why a decisio
 | [Product](decisions/product.md) | `P1`–`P21` | Attendance, delivery, reports, offline, device tier, product metrics, name capture, break windows, how small numbers are shown |
 | [Navigation and the app shell](decisions/navigation.md) | `NV1`–`NV9` | One graph, one gate reached by intent, four tabs, the AR7 assertion, the menu screen |
 | [Network resilience](decisions/network.md) | `NR1`–`NR4` | Per-attempt timeouts, full jitter, what is never retried, and why a write is not |
-| [Money](decisions/money.md) | `M1`–`M11` | Seller of record, GST split, invoice numbering, revenue share, refunds |
+| [Money](decisions/money.md) | `M1`–`M13` | Seller of record, GST split, invoice numbering, revenue share, refunds |
 | [Design system and motion](decisions/design-system.md) | `S1`–`S38` | Closed motion catalogue, duration/easing tokens, the 500 rule, contrast bar, lint gates |
 | [Order lifecycle](decisions/order-lifecycle.md) | `L1`–`L9` | The state machine, cutoff snapshotting, `paid` means captured |
 | [Payments integration](decisions/payments.md) | `PY1`–`PY9` | Razorpay secrets, webhook contract, refund arithmetic, reconciliation |

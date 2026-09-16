@@ -129,6 +129,8 @@ import '../../styles/backoffice.css';
       import { serviceDateToday } from '../../lib/kitchen/view.js';
       import { estate, readiness } from '../../lib/admin/school-readiness.js';
       import type { Gate, SchoolReadiness } from '../../lib/admin/school-readiness.js';
+      import { canManagePacks, packSummaryLine, packSwitchRows } from '../../lib/admin/pack-switch.js';
+      import { PACKS_FIXTURE } from '../../lib/admin/packs-fixture.js';
 
       const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
       const el = {
@@ -151,6 +153,9 @@ import '../../styles/backoffice.css';
       let error: string | null = null;
       /** A school created in this session, so the checklist that follows can be pointed at. */
       let justCreated: string | null = null;
+      /** Meal pack offers and whether this account may switch them — `E21`. See `pack-switch.ts`. */
+      let packOffers: api.AdminPackOffer[] = [];
+      let mayManagePacks = false;
 
       async function load() {
         loading = true; error = null; render();
@@ -161,6 +166,10 @@ import '../../styles/backoffice.css';
               SCHOOLS_FIXTURE.schools, MENUS_FIXTURE.assignments, MENUS_FIXTURE.menus,
               MENUS_FIXTURE.dishes, [], new Map(), today,
             );
+            packOffers = PACKS_FIXTURE.offers;
+            // The demo shows the switch usable, because a read-only demo of a control demonstrates
+            // nothing about the control.
+            mayManagePacks = true;
           } else {
             configureBackofficeApi();
             const [schools, assignments, menus, dishes, breaks, days, c, k] = await Promise.all([
@@ -170,6 +179,18 @@ import '../../styles/backoffice.css';
             ]);
             cities = c; kitchens = k;
             list = readiness(schools, assignments, menus, dishes, breaks, days, today);
+            /*
+             * Both pack reads are allowed to fail on their own.
+             *
+             * An account with `schools.manage` and without `meal_packs.manage` reads no offers —
+             * correctly — and a readiness page that refused to render because of it would be
+             * broken for the job it exists for. Failure degrades to "no packs offered", which is
+             * also the truthful answer when there are genuinely none.
+             */
+            [packOffers, mayManagePacks] = await Promise.all([
+              api.fetchAdminPackOffers().catch(() => []),
+              api.fetchMyAccess().then(canManagePacks).catch(() => false),
+            ]);
           }
         } catch (cause) {
           error = cause instanceof Error ? cause.message : 'The school list did not load.';
@@ -257,39 +278,107 @@ import '../../styles/backoffice.css';
                 ? `<p class="sch__why">Set up correctly — its menu has not started yet.</p>`
                 : '') +
             `<ol class="gates">${r.gates.map(gateHtml).join('')}</ol>` +
+            packsHtml(r) +
             elsewhereHtml(r) +
           `</section>`
         );
       }
 
       /**
+       * Meal packs at this school — the switch, and who may touch it — `E21`.
+       *
+       * Andy, 2026-09-16: *"Enabling packs for a school is a school-readiness property, and it
+       * belongs beside the other readiness gates on Schools — that's where I'll be when I turn
+       * Amity on."* It was **removed** from `/admin/packs` rather than duplicated: *"one control,
+       * one place. Two surfaces writing the same row is exactly the 'same thing in two places'
+       * problem the admin redesign was meant to kill."*
+       *
+       * This reverses the `E10-71` decision recorded here before, which kept the control on
+       * `/admin/packs` on the grounds that a second copy would be a second write path gated on a
+       * different permission. That reasoning was sound and the conclusion is now overridden — the
+       * answer is not "render it twice" but "render it here and nowhere else", so there is still
+       * exactly one write path. The permission argument is answered by the read-only treatment
+       * below rather than by putting the control on another screen.
+       *
+       * **Read-only without `meal_packs.manage` at platform scope, never a 403.** Andy: *"Your
+       * read-only-for-non-`meal_packs.manage` treatment is right; do that rather than a 403."* An
+       * account checking a school's readiness must be able to *see* whether it sells packs — that
+       * is the information the page exists for — without being handed a control that fails when
+       * pressed. `canManagePacks` decides; `admin-pack-offer` decides again server-side, and it is
+       * the one that matters.
+       */
+      function packsHtml(r: SchoolReadiness): string {
+        const rows = packSwitchRows(packOffers, r.school.id);
+        const summary = esc(packSummaryLine(rows));
+
+        if (!mayManagePacks) {
+          return (
+            `<div class="sch__packs">` +
+              `<p class="m"><b>Meal packs</b> — ${summary}</p>` +
+              // No link to `/admin/packs`: an account without the permission cannot open it, and
+              // offering a door that will not open is worse than not mentioning it.
+              `<p class="help">Changing this needs <b>meal_packs.manage</b>.</p>` +
+            `</div>`
+          );
+        }
+
+        if (rows.length === 0) {
+          return (
+            `<div class="sch__packs">` +
+              `<p class="m"><b>Meal packs</b> — ${summary}</p>` +
+              `<p class="help">There are no pack offers yet. ` +
+              `<a href="/admin/packs">Create one</a>, then switch it on here.</p>` +
+            `</div>`
+          );
+        }
+
+        return (
+          `<div class="sch__packs">` +
+            `<p class="m"><b>Meal packs</b> — ${summary}</p>` +
+            rows.map((row) => {
+              const id = `pk-${esc(r.school.id)}-${esc(row.offerId)}`;
+              return `<label class="gate ${row.isEnabled ? 'gate--pass' : 'gate--warn'}" for="${id}">` +
+                `<span class="ic" aria-hidden="true">${row.isEnabled ? '✓' : '·'}</span>` +
+                `<span class="t">${esc(row.offerName)}` +
+                  `<span>${row.isEnabled
+                    ? (row.isOfferActive
+                        ? 'purchasable here'
+                        : 'switched on, but the offer is still a draft')
+                    : 'not offered here'}</span></span>` +
+                `<input id="${id}" type="checkbox" data-pack-offer="${esc(row.offerId)}" ` +
+                  `data-pack-school="${esc(r.school.id)}"${row.isEnabled ? ' checked' : ''} />` +
+              `</label>`;
+            }).join('') +
+            `<p class="help">Both switches have to be on for a parent to see a pack: this one, and ` +
+            `the offer's own <a href="/admin/packs">live switch</a>.</p>` +
+          `</div>`
+        );
+      }
+
+      /**
        * What else is true about this school, and where it is changed — `E10-71`.
        *
-       * The prototype puts a **meal-packs toggle** and an **editable config block** on this page.
-       * Both are controls that already exist elsewhere: the per-school pack switch is on
-       * `/admin/packs`, and cutoffs and break windows are on `/admin/config`, where the
-       * inherited-vs-overridden model lives. It is worth being explicit about why they are not
-       * duplicated here rather than just leaving them out.
+       * Cutoffs and break windows are on `/admin/config`, where the inherited-vs-overridden model
+       * lives. It is worth being explicit about why they are not duplicated here rather than just
+       * leaving them out.
        *
        * The prototype has **one** screen per noun, so everything about a school has to be on the
-       * school. We have screens per **job**, and each of those two controls is gated on a
-       * different permission — `meal_packs.manage` at platform scope, `config.platform_edit` — so
-       * a second copy here would be a second write path with a second set of failure states, and
-       * the two would drift. `D3` and `E10-08` make the same argument about `/orders`.
+       * school. We have screens per **job**, and that control is gated on a different permission
+       * (`config.platform_edit`), so a second copy here would be a second write path with a second
+       * set of failure states, and the two would drift. `D3` and `E10-08` make the same argument
+       * about `/orders`.
        *
-       * What is genuinely missing is the **information**, not the control: somebody checking a
-       * school should not have to guess whether it offers packs. So this is read-only, and it
-       * says where to go — which also means it is safe to render for an account that cannot open
-       * either screen, because a link they cannot follow is not a permission they gained.
+       * What is genuinely missing is the **information**, not the control. So this is read-only,
+       * and it says where to go — which also means it is safe to render for an account that cannot
+       * open that screen, because a link they cannot follow is not a permission they gained.
+       *
+       * Meal packs used to be in this list and are now a real control above, because Andy moved
+       * them. See `packsHtml`.
        */
       function elsewhereHtml(r: SchoolReadiness): string {
         const cutoff = r.gates.find((g) => g.key === 'serviceDays');
         return (
           `<div class="sch__elsewhere">` +
-            `<p class="m">` +
-              `<b>Meal packs</b> are offered school by school and are switched on where the offers ` +
-              `are configured. <a href="/admin/packs">Meal packs</a>` +
-            `</p>` +
             `<p class="m">` +
               `<b>Cutoffs, service days and break times</b> are inherited from the platform default ` +
               `unless this school overrides them` +
@@ -375,6 +464,51 @@ import '../../styles/backoffice.css';
       el.reload.addEventListener('click', () => { justCreated = null; void load(); });
       el.list.addEventListener('click', (event) => {
         if ((event.target as HTMLElement).closest('[data-retry]')) void load();
+      });
+
+      /*
+       * The pack switch — `E21`.
+       *
+       * Delegated on `change` rather than bound per box, because the list is re-rendered whole on
+       * every load and per-box listeners would be rebound or leaked each time.
+       *
+       * On failure the checkbox is **put back**. A switch that stays where the person left it
+       * after the write failed is a lie about what a parent can buy, and this is the control that
+       * turns on selling at a school.
+       */
+      el.list.addEventListener('change', async (event) => {
+        const box = (event.target as HTMLElement).closest<HTMLInputElement>('[data-pack-offer]');
+        if (!box) return;
+
+        const offerId = box.dataset.packOffer!;
+        const schoolId = box.dataset.packSchool!;
+        const wanted = box.checked;
+        box.disabled = true;
+        try {
+          if (demo) {
+            // The fixture is the source of truth in demo mode, so mutate it and re-render rather
+            // than calling a function that is not there.
+            const target = packOffers.find((o) => o.id === offerId);
+            const link = target?.schools.find((x) => x.schoolId === schoolId);
+            if (link) link.isEnabled = wanted;
+            else target?.schools.push({ schoolId, schoolName: '', isEnabled: wanted });
+            render();
+            return;
+          }
+          await api.setPackOfferSchool(offerId, schoolId, wanted);
+          await load();
+        } catch (cause) {
+          box.checked = !wanted;
+          box.disabled = false;
+          const label = box.closest('label');
+          const message = cause instanceof Error ? cause.message : 'That did not save.';
+          if (label) {
+            const note = document.createElement('p');
+            note.className = 'help';
+            note.textContent = `Not changed — ${message}`;
+            label.after(note);
+          }
+        }
       });
 
       void (async () => {

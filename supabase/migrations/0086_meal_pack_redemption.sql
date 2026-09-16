@@ -36,7 +36,7 @@
 begin;
 
 -- =============================================================================
--- 1. The deferred balance, as a FUNCTION. `M13`.
+-- 1. The deferred balance, as a FUNCTION. `M15`.
 --
 -- Never an accumulated column. Every ledger posting is the difference of this function before and
 -- after, so the balance cannot drift and the last valued item always lands on exactly zero.
@@ -54,7 +54,7 @@ as $$
 $$;
 
 comment on function meal_pack_deferred_paise is
-  'What this pack still owes, in paise. Bonus items are NOT in it: they carry no value (M12), so '
+  'What this pack still owes, in paise. Bonus items are NOT in it: they carry no value (M14), so '
   'items_original is the denominator for the life of the pack and never grows.';
 
 -- =============================================================================
@@ -407,7 +407,7 @@ $$;
 -- to miss and no pack waiting on a cron for something it has already earned. A window that closes
 -- unearned needs no action at all: the condition simply stops being true.
 --
--- NO LEDGER POSTING. Bonus items are a giveaway and carry no value (`M12`, Andy's ruling) — so
+-- NO LEDGER POSTING. Bonus items are a giveaway and carry no value (`M14`, Andy's ruling) — so
 -- items_original does not move, the deferred balance does not move, and no revenue recognised in
 -- an earlier month is ever restated.
 -- =============================================================================

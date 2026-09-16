@@ -93,20 +93,28 @@ describe('revenueToday', () => {
 
 describe('packsToday', () => {
   const offer = (o: Partial<api.AdminPackOffer> & { id: string }): api.AdminPackOffer => ({
-    name: 'Ten', mealsCount: 10, itemsPerMeal: 2, requiredCategoryId: 'c-1',
-    requiredCategoryName: 'Drinks', netPricePaise: 450_000, alacarteReferencePaise: 500_000,
-    validityDays: 90, isActive: true, schools: [],
+    name: 'Pack 1', itemsCount: 20, bonusItemsCount: 2, bonusWindowDays: 30,
+    netPricePaise: 300_000, validityDays: 60, isActive: true, sortOrder: 0, schools: [],
     ...o,
   });
 
   it('multiplies each offer by its own sales rather than by an average', () => {
     const t = packsToday(
-      [offer({ id: 'a' }), offer({ id: 'b', mealsCount: 20, netPricePaise: 860_000 })],
+      [offer({ id: 'a' }), offer({ id: 'b', itemsCount: 40, netPricePaise: 500_000 })],
       { a: 3, b: 2 },
     );
     expect(t.packsSold).toBe(5);
-    expect(t.collectedPaise).toBe(3 * 450_000 + 2 * 860_000);
-    expect(t.mealsSold).toBe(3 * 10 + 2 * 20);
+    expect(t.collectedPaise).toBe(3 * 300_000 + 2 * 500_000);
+    expect(t.itemsSold).toBe(3 * 20 + 2 * 40);
+  });
+
+  it('counts purchased items only — a bonus item was never paid for', () => {
+    /*
+     * `M10`: bonus items carry no deferred value. Counting them here would inflate "items paid
+     * for" with a giveaway, and this tile sits next to the money it is supposed to explain.
+     */
+    const t = packsToday([offer({ id: 'a', itemsCount: 20, bonusItemsCount: 2 })], { a: 1 });
+    expect(t.itemsSold).toBe(20);
   });
 
   it('counts live offers, not all of them — a draft is not on sale', () => {
@@ -115,7 +123,7 @@ describe('packsToday', () => {
   });
 
   it('reports an offer nobody has bought as zero rather than dropping it', () => {
-    expect(packsToday([offer({ id: 'a' })], {})).toMatchObject({ packsSold: 0, mealsSold: 0 });
+    expect(packsToday([offer({ id: 'a' })], {})).toMatchObject({ packsSold: 0, itemsSold: 0 });
   });
 });
 

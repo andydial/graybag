@@ -47,9 +47,9 @@
 --     deferred(pack) = round(price_paid_paise * valued_remaining / items_original)
 --
 -- Every posting is the difference of that function before and after, so the balance cannot drift
--- and the last valued item always lands on exactly zero. See `M13`.
+-- and the last valued item always lands on exactly zero. See `M15`.
 --
--- **Bonus items carry no value** (`M12`, Andy's ruling). `items_original` is the denominator for
+-- **Bonus items carry no value** (`M14`, Andy's ruling). `items_original` is the denominator for
 -- the life of the pack and never changes; bonus items live in their own column, are granted with
 -- no ledger posting, spent with no ledger posting, and forfeited with no ledger posting. They are
 -- separate columns rather than a larger total precisely so that no arithmetic can mix them.
@@ -214,7 +214,7 @@ create table meal_pack (
   items_original   int not null,      -- never changes, ever
   valued_remaining int not null,      -- decremented ONLY at settlement
 
-  -- BONUS items: a giveaway worth nothing in the books (`M12`).
+  -- BONUS items: a giveaway worth nothing in the books (`M14`).
   bonus_items          int not null default 0,
   bonus_remaining      int not null default 0,
   bonus_window_ends_at timestamptz not null,
@@ -265,7 +265,7 @@ comment on column meal_pack.items_reserved is
 
 comment on column meal_pack.items_original is
   'The denominator of every deferred-revenue calculation, for the life of the pack. It does NOT '
-  'grow when the bonus is granted: bonus items carry no value (M12).';
+  'grow when the bonus is granted: bonus items carry no value (M14).';
 
 -- -----------------------------------------------------------------------------
 -- The redemption. One row per (order line, pack), append-only, with a state.

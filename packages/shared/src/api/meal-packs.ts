@@ -252,6 +252,18 @@ export async function startMealPackPurchase(input: {
   schoolId: string;
   idempotencyKey: string;
 }): Promise<StartedPurchase> {
+  /**
+   * Refused HERE, before the transport, and not left to the Edge Function's own guard.
+   *
+   * Without a key a retry after a lost response is a second pack and a second charge, and the
+   * server cannot invent one — it would differ per attempt and defeat the point. The server does
+   * refuse it, but only after a round trip, and a caller that reached this line with a blank key
+   * has a bug the network cannot diagnose for it.
+   */
+  if (input.idempotencyKey.trim() === '') {
+    throw new ApiError('An idempotency key is required to buy a pack.');
+  }
+
   const body = await invokeFunction<unknown>('buy-meal-pack', {
     method: 'POST',
     body: {

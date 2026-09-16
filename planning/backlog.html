@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/61</span>
+          <span class="meter-num">0/62</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 61 tasks</summary>
+        <summary>Context &amp; 62 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7379,6 +7379,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The regression bar: the live ordering path, pinned before the pack rebuild touches it.</strong> Andy, 2026-09-16: *&quot;cover them in your tests before you touch them, not after&quot;* — cart, checkout, the payment webhook and order confirmation are carrying roughly 50 real orders a day. <code>ordering_path_characterisation.test.sql</code>, 19 assertions, green on unchanged code before a line of the rebuild landed, and re-run unchanged after every pack commit. <strong>It is not a duplicate of <code>checkout.test.sql</code> and <code>settle_payment.test.sql</code></strong> — those test functions; this tests the properties that hold *across* them, which is what a seam breaks and what a per-function test looks in the wrong place for. Four are stated as universals over every row rather than over this test&#39;s own order, because that is the form <code>E21-65</code> could not have hidden from: a paid order has a pickup code, has a <code>confirmed_at</code>, sits in a status the kitchen board reads, and carries an <code>order_ref</code> minted the one way. <strong>All four mutation-checked against a hand-built replica of the defect, and one was hollow.</strong> Keyed on <code>order_group.status</code> the kitchen-visibility assertion can never fire, because <code>derive_group_status</code> recomputes a group&#39;s status from its orders — so inserting the <code>pending_payment</code> redemption order <strong>demotes the settled group back to <code>pending_payment</code></strong>, and the WHERE clause stops matching at the instant it should fire. Rewritten against <code>paid_at</code>, which <code>P17</code> fixes as set-once-never-cleared, it fires. <strong>That trigger behaviour is a second consequence of <code>E21-65</code> the audit did not record</strong> — the pack purchase&#39;s own group reverts to <code>pending_payment</code> on the first redemption while <code>paid_at</code> stays set, so status and paid_at disagree on a row representing money taken. Moot under the rebuild, where a redemption is an ordinary checkout in its own group and nothing is ever inserted into a settled one</span>
+      </li>
+      <li class="task" data-id="E21-81" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-81"></button>
+        <code class="tid">E21-81</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Two threads allocated the same decision ids twice in one day, and being careful is not the fix.</strong> <code>M10</code>/<code>M11</code> were written by both MOBILE and WEB against the same base on 2026-09-16; renumbering mine to <code>M12</code>/<code>M13</code> on the first merge collided again, because WEB had taken those too by the time the second merge came round. They ended as <code>M14</code>/<code>M15</code>. <strong>Each thread reads &quot;next free id&quot; from the branch it holds, and every id either one picks is genuinely free until the other merges</strong> — so the collision is structural, not a lapse. <code>E17-29</code> is the same failure in the backlog (four task ids meaning two different things), and <code>CLAUDE.md</code>&#39;s answer there — *never renumber, always append* — does not help when both threads append the same number simultaneously. Two fixes worth considering: a <strong>reserved range per thread</strong> (MOBILE takes <code>M100+</code>, WEB <code>M200+</code>), which is cheap and ugly; or <strong>allocation at merge</strong> rather than at write, with a placeholder id in the branch, which is correct and needs tooling. Worth doing before the next feature both threads touch, because the cost is not the renumbering — it is that <code>M10</code> meant two different things in two branches for several hours, and a decision id is supposed to be permanent</span>
       </li></ul>
       </details>
     </article>
