@@ -258,7 +258,7 @@ select is((select items_remaining from meal_pack where id = (select pack_id from
   'BONUS: the parent''s balance reads 2 — generated from its parts, so it cannot disagree');
 
 select is((select failures from check_meal_pack_ledger_invariant()), 0::bigint,
-  'INVARIANT AFTER THE BONUS — the assertion M10 exists for. Bonus items carry NO value, so '
+  'INVARIANT AFTER THE BONUS — the assertion M12 exists for. Bonus items carry NO value, so '
   'items_original never grows, the deferred balance does not move, and no revenue recognised in '
   'an earlier month is ever restated. The alternative would have posted Dr revenue / Cr deferred '
   'here; Andy ruled against it on 2026-09-16.');

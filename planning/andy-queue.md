@@ -45,6 +45,7 @@ touches the ordering or payment path.
 | 17 | **Stop making back-office people sign in so often, and make the Kitchen screen readable** | 2026-09-08 | **Both done, one deploy.** `E12-42` + `E09-40`. **A: the premise was wrong in two places and both were checked before changing anything.** There is **no cookie** — `apps/web` sets none — the session was in `sessionStorage`, which is scoped to the *tab*, so a tablet rebooting overnight is the 3am OTP. It was never token expiry. And `sessions_single_per_user` is **false** on both projects, so signing into the mobile app has never ended a web session; nothing server-side needed changing. Read from the management API: `jwt_exp` 3600, rotation on, reuse 10s, `sessions_timebox` **0**, `sessions_inactivity_timeout` **0** — nothing server-side ever ends this session, so both windows are client-side caps. **Sign out had ceased to exist anywhere in the product** since `E10-55`, hidden by the fact that closing the tab was the sign-out; it ships in the same commit, because a long session without one would have been the wrong change. `/signin` prefills the last address, stored after the code is accepted, and `rememberEmail` refuses anything that is not an email. **B: the order is now the unit** — order number (it was on `KitchenOrder` and never drawn), child, class-section, then items; class is a heading rather than a card; actions are secondary and below; one counter per scope in one shared sentence, replacing the three that read as contradicting each other. **Shared devices: yes, and it is why the old design was what it was** — `MEMORY_ONLY` is untouched, so what persists is a session and not a child's name, and the residual risk is recorded in `U6` rather than argued away. **Revised the same day on Andy's instruction**: the 30 days now **slides** — every session write pushes it forward, so a device in regular use never sees an OTP — under an **absolute 90-day ceiling** from the original sign-in that nothing extends. **No Supabase setting was changed, and none needs to be**: all six values were already what a 30-day session requires. **Andy asked two questions on 2026-09-08 and both are answered above** — single-session-per-user was *not* the cause and was never enabled, and the real-world outcome is *a device in regular use never sees an OTP at all; one left untouched for 30 days does, and any device 90 days after its original sign-in does whatever its use — and a mobile sign-in does not end a web session and never did*. One thing that **is** Andy's and was found on the way: `site_url` is `http://localhost:3000` on **production as well as staging**, and the CI check only inspects staging so production's has never been reported |
 | 18 | **The Kitchen board on a phone, and which break an order is for** | 2026-09-09 | **Done, `E09-42`.** *"Many people are monitoring Kitchen tab for orders on Mobile but the screen is only optimised / designed for Desktop."* The **order reference is removed** — it was real (`order_ref`, what a parent sees on their invoice, added by `E12-42` on the kitchen lead's *"order no X"*) but it answered a question this screen is never asked, and it held the most prominent line on every card. **The break replaces it, as times** — `10:30–11:00 am`, read from `break_time` in a query that is deliberately **allowed to fail** so a lookup problem costs the times and never the order list. **Buttons went from two fifths of a card to one 44px row.** The **menu collapses** below 60rem. **"Everything to cook today" is labelled and separated.** **`Mark all delivered` moved into the class heading**, which is what makes it read as once-per-class rather than once-per-order. Also fixed on the way: `Delivered`'s ranking lived inside the phone media query and so had never applied on desktop |
 | 19 | **The funnel: new events, the two impossible numbers, and the real payment sequence** | 2026-09-10 | **Done, `E15-24`, shipped as an OTA — JS only, no native change, no `app.json`, no `eas.json`, no `package.json`.** **One root cause explained both broken events**: `client.ts` omitted `distinct_id` entirely while nobody was identified, and PostHog *requires* it — so every event fired before sign-in was accepted by our `fetch` and discarded at the far end. `signin_started` fires on the sign-in screen (signed out by definition) and `cart_started` on the 0→1 cart transition, which `AR7` has happening before the gate. Confirmed in the live project first: `distinct_ids` equalled `persons` for every event, the fingerprint of *no anonymous event has ever arrived*. **The tests passed throughout because all of them called `identify()` first.** Fixed with an `anon-…` id plus a `$identify`/`$anon_distinct_id` merge that rescues those events retroactively, and `reset()` on sign-out so a shared handset stops filing the next parent under the last. **The real sequence is not the instrumented one** — sign-in happens *at the gate, after* `place_order_tapped`; `menu_browsed` fires *after* `add_to_cart_tapped`; and one parent reached `payment_completed` with no `payment_started` and no cart view at all, because the handset left for a UPI app and the in-memory buffer died with the process. Six events added, five properties on each payment event, `reason` made per-event. Two things flagged rather than smoothed: **`signup_started` is an acknowledged over-count** (`U1` makes signup implicit and the send step must not reveal whether an account exists), and **`order_value_inr` will disagree with the ledger by up to fifty paise per order** by construction |
+| 20 | **Meal packs, rebuilt — the admin, the school switch, pack-money reporting, the GST invoice** | 2026-09-16 | **Added 2026-09-16 at the bottom as the rule requires, then taken first because Andy asked for it directly. Audited, and stopped before designing anything — `E21-65` is why.** This is **not** a greenfield build: `0068`–`0082` are on `main`, `E21-60` already shipped the offer library, the editor and both switches, and `0079` already invoices a pack purchase through the existing `issue_invoice`. **Two premises in the brief were wrong and were checked rather than built around.** `meal_packs_confirmed` is **already `true`** (`0077`, 2026-08-27, when the accountant settled the tax point) — it records a settled tax decision, not a release gate; Andy's ruling is that the two existing acts are the gate (`is_active = false`, no `meal_pack_offer_school` row) and that a test must prove a parent with no enabled school can reach no pack surface *by any route*. And the per-school switch was on `/admin/packs` by a recorded decision; Andy has ruled it **moves to Schools** as a school-readiness property, read-only for anyone without `meal_packs.manage` rather than a 403, and is **removed** from `/admin/packs` — one control, one place. **The audit found three defects, one critical.** `E21-65`: a redeemed pack meal is inserted `pending_payment` into an already-settled group, the only transition to `paid` is the settlement loop that will never run again, so **the kitchen never sees the order and the child is never cooked for** — latent, because no offer is active, and it would fire on the first real redemption at Amity. `E21-66`: the `PK-` prefix on `order_ref` tells the kitchen an order was pack-paid. `E21-67`: an offer's `name` is read live, so a rename retitles packs already held. **The money is sound** — every amount on a pack and its invoice is stamped at sale, and the frozen-field list is exactly right for eligibility. Remaining work on my side is the **reporting**, which does not exist at all: `meal_pack_redemption_money` (`0082`) is read by nothing, so there is no deferred-revenue balance, no breakage and no redemption rate. Blocked on MOBILE for the offer model — *bonus item count* and *bonus window* appear in no migration — and the bonus maths decides the denominator of every one of those figures, so the mockups will carry the assumptions listed separately for MOBILE to confirm in one pass |
 | 10 | **Build the back office from the prototype** | 2026-08-26 | **In progress.** `docs/prototype/graybag-admin-prototype.html` is the acceptance criteria; where it and a current screen disagree, it wins. Six items in Andy's order: meal packs config, the dishes workbench, named reusable menus, **Reports**, People & access, and Growth reduced to acquisition only. **Reports is done** — `E11-16` built the data layer (range, school filter, CSV, cohort funnel, per-school) and `E11-17` laid it out against the prototype, including one disagreement resolved in the prototype's favour (`P21`). **Packs are no longer blocked** — corrected 2026-08-27: the mobile thread landed the whole pack schema through migration `0075` and seeded the permission, which is named **`meal_packs.manage`** and not `packs.manage` as everything here had assumed. The admin side is buildable and is the last item outstanding. **`E11-19` is done** — it was pulled ahead of the remaining screens on Andy's instruction (*"Fix it before the dishes workbench"*) and cleared the same day. Growth reduced to acquisition is also done (`E11-22`). The dishes workbench (`E10-48`), named menus (`E10-49`) and People & access (`E10-51`) are all done and promoted to production on 2026-08-27. **Only meal packs config remains** |
 | ~~6~~ | **UX review of the screens other than Kitchen and Orders** — **done 2026-08-27** (`E10-52`) | 2026-08-20 | Partly done and worth keeping open honestly. `/admin/people` was rebuilt for scale (`E10-46`), `/reports` twice (`E11-10`, `E11-17`), and `/admin/sales` is new. **`/admin/config`, `/admin/import` and `/admin/allergens` have still never had that treatment.** Item 10 covers some of this ground, so this closes when it does |
 | ~~12~~ | **Bound the reads behind Reports** (`E11-19`) — **done 2026-08-26** | 2026-08-26 | **Done.** Pulled to the front of item 10 at Andy's instruction and cleared the same day. `fetchGrowth` reads every order with no range filter and no page size. Fine at 219 rows; at 400 registrations a week the failure is the nasty kind — revenue is filtered server-side by service date and stays correct while usage silently undercounts beside it. `E11-17` added an on-screen guard that detects exactly that disagreement, and Andy's ruling is the right one: *"Your disagreement guard is good, but as you said, a guard is not the fix."* |
@@ -75,6 +76,98 @@ touches the ordering or payment path.
   listed as waiting on him, which it no longer is.
 - **A growth and adoption dashboard** (2026-08-23) — `E11-08`, `E11-15`. Item 11 above is the
   follow-on change to it, not a re-do.
+---
+
+## Handover to MOBILE — `E21-65`, and what it means for the rebuild
+
+Written 2026-09-16 by the web thread, at Andy's instruction, so MOBILE reads the evidence rather
+than a paraphrase. **Self-contained: every claim below has a file and line, and every one was read
+rather than remembered.**
+
+### The defect, in the code that exists on `main` today
+
+`confirm_meal_pack_plan` inserts the day's order with `status = 'pending_payment'`:
+
+- `supabase/migrations/0073_confirm_meal_pack_plan.sql:142-152` — the insert. The literal
+  `'pending_payment'` is on line **147**, and the order reuses the pack's existing group:
+  `select v_pack.order_group_id, …` on line **146**.
+
+That status is correct for a food order, which a payment then settles. **A pack meal has no payment
+to settle.** The only `pending_payment → paid` transition anywhere in the schema is the loop inside
+`settle_payment`:
+
+- `supabase/migrations/0080_settlement_activates_a_pack.sql:76-101` — `for v_order in select * from
+  "order" where order_group_id = v_group.id and status = 'pending_payment'`, then
+  `set status = 'paid', confirmed_at = now(), pickup_code = …` on lines **86-88**.
+
+That loop is driven by a capture webhook and runs **once per group**, when the pack *purchase*
+settles. The redemption orders are inserted into **that same, already-settled group**, and they are
+created *later* — when the parent plans their days. Nothing runs for them again, ever.
+
+Two consequences, both silent:
+
+1. **The kitchen never sees the meal.** The board filters to
+   `['paid','preparing','delivered','cancelled']` —
+   `packages/shared/src/api/kitchen.ts:87`. A `pending_payment` order is not in that set.
+2. **There is no `pickup_code`.** It is allocated only inside that same settlement loop
+   (`0080:88`), so even if somebody found the order, there is nothing to call out.
+
+The parent's balance decrements correctly. The ledger recognises the revenue correctly. The child
+gets nothing.
+
+### It has never fired, and that is checked, not assumed
+
+Read from production (`bdamkuugbqjajbndjoxn`) on 2026-09-16, read-only, counts only:
+
+| Table | Rows |
+|---|---|
+| `meal_pack_offer` | **0** |
+| `meal_pack_offer` where `is_active` | **0** |
+| `meal_pack_offer_school` | **0** |
+| `meal_pack` | **0** |
+| `meal_pack_redemption` | **0** |
+
+`platform_config` reads `environment: production, meal_packs_confirmed: true, pack_tax_point: sale`.
+So the flag that was supposed to hold packs shut **is open**, and the only thing that has ever kept
+packs dark is that nobody created an offer. It is latent, not live, and it would have fired on the
+**first real redemption at Amity**.
+
+### Why the tests did not catch it, which is the part worth carrying forward
+
+`supabase/tests/meal_packs.test.sql` asserts the kitchen sees **nothing pack-related** — that
+`order` carries no pack column (line **177**), that `order_line` carries none (**184**), that no
+policy on a pack table mentions a kitchen (**165-167**). Every one of those passes.
+
+**Not one of them asserts that a redemption *arrives*.** The suite tested the leak direction and
+never the delivery direction, so a defect that fed nobody looked exactly like a clean bill of
+health. That is the same shape as the promote gate: a check that passes because it is pointed at
+the half of the property that was easy to state.
+
+### What this means for the rebuild — the reason the note is worth reading
+
+**In the new design this defect cannot exist, and `E21-66` cannot either.** `confirm_meal_pack_plan`
+is dropped (`docs/meal-packs-rebuild.md` §1, *Dropped*), the planner goes with it, and a pack-covered
+order becomes an **ordinary cart order** that reserves at checkout and confirms at the webhook. It
+therefore travels the same `pending_payment → paid` path as every food order, driven by a real
+payment, and it gets a `GB-` reference from `generate_order_ref()` like everything else. Both
+findings are resolved by deletion rather than by a fix.
+
+So this note is **not a bug to fix**. It is two properties the new suite must assert, because the
+old one asserted neither and the new design makes both easy to assume:
+
+1. **A pack-covered order reaches the kitchen board.** Both directions, in one test file: the order
+   *arrives* with `status = 'paid'` and a `pickup_code`, **and** nothing on it says it was paid with
+   a pack. The web thread owns this one and will write it.
+2. **Partial redemption does not strand the cash half.** New in this design and with no equivalent
+   in the old one: when a pack covers part of a cart and cash covers the rest, the order must settle
+   once, as one order. The old code could not express a partly-covered cart at all, so there is no
+   prior test to inherit and no prior bug to learn from.
+
+`E21-67` — the offer's name being read live from `meal_pack_offer` by `meal_pack_balance`
+(`0072:42`) and by the invoice line description (`0079:144`) — is **already fixed** in the new model
+by `meal_pack.name_snapshot` (`docs/meal-packs-rebuild.md` §2). No action needed; recorded so it is
+not rediscovered.
+
 ---
 
 ## Closed 2026-08-20 — navigation, and the cancellation that told nobody
