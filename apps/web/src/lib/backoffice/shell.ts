@@ -18,7 +18,7 @@ import { api } from '@graybag/shared';
 
 import { describeAccess } from '../admin/jobs.js';
 import { operatorOf } from './gate.js';
-import { currentUser, signOut } from './session.js';
+import { configureBackofficeApi, currentUser, signOut } from './session.js';
 import { NAV, NAV_GROUPS, visibleNav, type NavItem } from './nav.js';
 
 const q = <T extends HTMLElement>(sel: string): T | null => document.querySelector<T>(sel);
@@ -232,6 +232,30 @@ export async function mountShell(): Promise<void> {
    * on a bare frame is also the one that takes away their way out of it.
    */
   mountSignOut();
+
+  /*
+   * Configure the api here rather than relying on the page having done it — `E12-46`.
+   *
+   * `configureBackofficeApi()` is normally reached through `requireBackofficeAccess()`, so a page
+   * that mounts the shell BEFORE its gate runs leaves the transport null. `getTransport()` then
+   * throws `ApiNotConfiguredError` synchronously, and the catch below — which exists to avoid
+   * disclosing the shape of the system (`E10-73`) — empties the rail instead. `/admin/menus` and
+   * `/admin/packs` did exactly that and shipped to production with no navigation at all.
+   *
+   * The alternative was to fix the call order on those two pages. This is better because it
+   * removes the ordering requirement rather than policing it: there are ten pages that mount this
+   * shell, the correct order is not visible from any one of them, and the failure is silent by
+   * design. A rule nobody can see and nothing enforces is not a rule.
+   *
+   * Swallowed on its own because a genuinely unconfigured build — no `PUBLIC_SUPABASE_URL` —
+   * should still reach the `fetchMyAccess` failure below and be handled once, in one place. It is
+   * also a no-op when a test has installed a transport directly.
+   */
+  try {
+    configureBackofficeApi();
+  } catch {
+    /* Handled by the read below failing, which is the same outcome by one path instead of two. */
+  }
 
   try {
     const access = await api.fetchMyAccess();
