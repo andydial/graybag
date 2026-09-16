@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   ADMIN_PACK_OFFER_COLUMNS,
   fetchAdminPackOffers,
-  packSavingPaise,
+  perItemPricePaise,
   validatePackOffer,
 } from './admin-packs.js';
 import { setApiTransport } from './client.js';
@@ -11,14 +11,15 @@ import { fakeTransport } from './test-support.js';
 
 afterEach(() => setApiTransport(null));
 
+/** Pack 1 from the rebuild design: ₹3,000 ex-tax, 20 items, 2 bonus inside 30 days, valid 60. */
 const ok = {
-  name: 'Ten lunches',
-  mealsCount: 10,
-  itemsPerMeal: 2,
-  requiredCategoryId: '11111111-2222-4333-8444-555555555555',
-  netPricePaise: 450_000,
-  alacarteReferencePaise: 500_000,
-  validityDays: 90,
+  name: 'Pack 1',
+  netPricePaise: 300_000,
+  itemsCount: 20,
+  bonusItemsCount: 2,
+  bonusWindowDays: 30,
+  validityDays: 60,
+  sortOrder: 0,
 };
 
 describe('validatePackOffer', () => {
@@ -26,46 +27,82 @@ describe('validatePackOffer', () => {
     expect(validatePackOffer(ok)).toBeNull();
   });
 
-  /*
-   * The rule that makes an offer an offer, and the one that is stated three times: here, in the
-   * Edge Function, and as `meal_pack_offer_is_a_discount` in `0068`. The database is the copy that
-   * cannot be bypassed; this one exists so the form says so before it is submitted.
-   */
-  it('refuses a pack that costs the same as or more than buying singly', () => {
-    expect(validatePackOffer({ ...ok, netPricePaise: 500_000 })).toHaveProperty('netPricePaise');
-    expect(validatePackOffer({ ...ok, netPricePaise: 500_001 })).toHaveProperty('netPricePaise');
-    // One paise of saving is still a saving, and the constraint is `<`, not "meaningfully less".
-    expect(validatePackOffer({ ...ok, netPricePaise: 499_999 })).toBeNull();
+  it('accepts a pack with no bonus at all', () => {
+    // Zero is legitimate for both, together. An ordinary pack is not a misconfiguration.
+    expect(validatePackOffer({ ...ok, bonusItemsCount: 0, bonusWindowDays: 0 })).toBeNull();
+  });
+
+  describe('bonus items and a bonus window are one decision, not two', () => {
+    /*
+     * `(bonus_items_count = 0) = (bonus_window_days = 0)` is a CHECK in the schema. Either half
+     * alone reads as a promise to a parent that nothing can keep, and it is the single most likely
+     * thing to be typed into this form — so it is caught by name rather than as a 23514.
+     */
+    it('refuses a window with no items', () => {
+      const errors = validatePackOffer({ ...ok, bonusItemsCount: 0, bonusWindowDays: 30 })!;
+      expect(errors).toHaveProperty('bonusItemsCount');
+      expect(errors.bonusItemsCount).toContain('promises a parent nothing');
+    });
+
+    it('refuses items with no window', () => {
+      const errors = validatePackOffer({ ...ok, bonusItemsCount: 2, bonusWindowDays: 0 })!;
+      expect(errors).toHaveProperty('bonusWindowDays');
+      expect(errors.bonusWindowDays).toContain('never be earned');
+    });
+
+    it('names the field the person should change, not the other one', () => {
+      // Telling someone "bonus items is wrong" when they meant to clear the window sends them to
+      // the wrong box. The error lands on whichever half is zero.
+      expect(Object.keys(validatePackOffer({ ...ok, bonusItemsCount: 0 })!)).toEqual(['bonusItemsCount']);
+      expect(Object.keys(validatePackOffer({ ...ok, bonusWindowDays: 0 })!)).toEqual(['bonusWindowDays']);
+    });
+  });
+
+  it('refuses a bonus window that outlasts the pack', () => {
+    // The pack expires first, so the last days of the window are unreachable.
+    // `bonus_window_days <= validity_days` in the schema.
+    expect(validatePackOffer({ ...ok, bonusWindowDays: 61, validityDays: 60 }))
+      .toHaveProperty('bonusWindowDays');
+    // Equal is fine — a window that runs exactly to expiry promises something real on every day.
+    expect(validatePackOffer({ ...ok, bonusWindowDays: 60, validityDays: 60 })).toBeNull();
   });
 
   it('names every problem at once rather than one at a time', () => {
-    const errors = validatePackOffer({ name: '', mealsCount: 0, requiredCategoryId: 'nope' })!;
+    const errors = validatePackOffer({ name: '', itemsCount: 0 })!;
     expect(Object.keys(errors).sort()).toEqual([
-      'alacarteReferencePaise', 'itemsPerMeal', 'mealsCount', 'name',
-      'netPricePaise', 'requiredCategoryId', 'validityDays',
+      'bonusItemsCount', 'bonusWindowDays', 'itemsCount', 'name', 'netPricePaise', 'validityDays',
     ]);
   });
 
   it('refuses fractional and negative counts, which the database also refuses', () => {
-    expect(validatePackOffer({ ...ok, mealsCount: 2.5 })).toHaveProperty('mealsCount');
-    expect(validatePackOffer({ ...ok, mealsCount: -1 })).toHaveProperty('mealsCount');
+    expect(validatePackOffer({ ...ok, itemsCount: 2.5 })).toHaveProperty('itemsCount');
+    expect(validatePackOffer({ ...ok, itemsCount: -1 })).toHaveProperty('itemsCount');
     expect(validatePackOffer({ ...ok, validityDays: 0 })).toHaveProperty('validityDays');
+    expect(validatePackOffer({ ...ok, bonusItemsCount: -1 })).toHaveProperty('bonusItemsCount');
   });
 
-  it('requires a category, because "one of them a drink" is configured and never hardcoded', () => {
-    expect(validatePackOffer({ ...ok, requiredCategoryId: '' })).toHaveProperty('requiredCategoryId');
+  it('has no opinion about a required category, because the rebuilt model has none', () => {
+    /*
+     * The old model sold a *meal* — N items, one from a configured category. One item is now one
+     * item. A stray `requiredCategoryId` is simply not a field and must not become an error, or a
+     * caller still sending the old shape would be told something false about why it failed.
+     */
+    expect(validatePackOffer({ ...ok, requiredCategoryId: 'nope' } as never)).toBeNull();
   });
 });
 
-describe('packSavingPaise', () => {
-  it('is the difference, in paise', () => {
-    expect(packSavingPaise({ netPricePaise: 450_000, alacarteReferencePaise: 500_000 })).toBe(50_000);
+describe('perItemPricePaise', () => {
+  it('divides by PURCHASED items, never by the bonus-inclusive total', () => {
+    /*
+     * `M10`: bonus items carry no value. Dividing ₹3,000 by 22 would print a per-item price the
+     * books never use and quietly suggest the giveaway was paid for.
+     */
+    expect(perItemPricePaise({ netPricePaise: 300_000, itemsCount: 20 })).toBe(15_000);
   });
 
-  it('never goes negative, so a bad row cannot render as a negative saving', () => {
-    // The constraint should prevent this reaching us; a display helper still should not produce
-    // "save -₹120" if it ever does.
-    expect(packSavingPaise({ netPricePaise: 600_000, alacarteReferencePaise: 500_000 })).toBe(0);
+  it('is zero rather than Infinity when an offer has no items', () => {
+    // The schema forbids it; a display helper still must not render "₹Infinity".
+    expect(perItemPricePaise({ netPricePaise: 300_000, itemsCount: 0 })).toBe(0);
   });
 });
 
@@ -83,7 +120,16 @@ describe('fetchAdminPackOffers', () => {
     expect(query!.columns).toContain('meal_pack_offer_school');
   });
 
-  it('reads no purchase data — an offer screen has no business with who bought what', async () => {
+  it('reads the rebuilt columns and none of the deleted ones', () => {
+    for (const column of ['items_count', 'bonus_items_count', 'bonus_window_days']) {
+      expect(ADMIN_PACK_OFFER_COLUMNS, column).toContain(column);
+    }
+    for (const gone of ['meals_count', 'items_per_meal', 'required_category_id', 'alacarte']) {
+      expect(ADMIN_PACK_OFFER_COLUMNS, gone).not.toContain(gone);
+    }
+  });
+
+  it('reads no purchase data — an offer screen has no business with who bought what', () => {
     // `meal_pack` is deliberately absent. The sold *count* comes from the Edge Function, which
     // returns a number per offer and nothing else.
     expect(ADMIN_PACK_OFFER_COLUMNS).not.toContain('meal_pack(');
@@ -91,12 +137,11 @@ describe('fetchAdminPackOffers', () => {
     expect(ADMIN_PACK_OFFER_COLUMNS).not.toContain('order_group');
   });
 
-  it('flattens the category name and the school switches', async () => {
+  it('flattens the school switches', async () => {
     setApiTransport(fakeTransport([{
-      id: 'o-1', name: 'Ten lunches', meals_count: 10, items_per_meal: 2,
-      required_category_id: 'c-1', net_price_paise: 450_000,
-      alacarte_reference_paise: 500_000, validity_days: 90, is_active: false,
-      category: { display_name: 'Drinks' },
+      id: 'o-1', name: 'Pack 1', net_price_paise: 300_000, items_count: 20,
+      bonus_items_count: 2, bonus_window_days: 30, validity_days: 60,
+      is_active: false, sort_order: 0,
       meal_pack_offer_school: [
         { school_id: 's-1', is_enabled: true, school: { name: 'Amity' } },
         { school_id: 's-2', is_enabled: false, school: { name: 'Gem' } },
@@ -104,7 +149,8 @@ describe('fetchAdminPackOffers', () => {
     }]).transport);
 
     const [offer] = await fetchAdminPackOffers();
-    expect(offer!.requiredCategoryName).toBe('Drinks');
+    expect(offer!.itemsCount).toBe(20);
+    expect(offer!.bonusItemsCount).toBe(2);
     expect(offer!.isActive).toBe(false);
     expect(offer!.schools).toEqual([
       { schoolId: 's-1', schoolName: 'Amity', isEnabled: true },
@@ -112,12 +158,16 @@ describe('fetchAdminPackOffers', () => {
     ]);
   });
 
-  it('reads an offer with no school rows as offered nowhere, not as offered everywhere', async () => {
+  it('reads an offer with no school rows as offered NOWHERE, not as offered everywhere', async () => {
+    /*
+     * Absence means off. This is the gate Andy keeps — an offer with no `meal_pack_offer_school`
+     * row is not sold anywhere, and reading it as "unrestricted" would sell packs at every school
+     * the moment one went active.
+     */
     setApiTransport(fakeTransport([{
-      id: 'o-1', name: 'Orphan', meals_count: 5, items_per_meal: 1,
-      required_category_id: 'c-1', net_price_paise: 100, alacarte_reference_paise: 200,
-      validity_days: 30, is_active: true, category: { display_name: 'Drinks' },
-      meal_pack_offer_school: [],
+      id: 'o-1', name: 'Orphan', net_price_paise: 100, items_count: 5,
+      bonus_items_count: 0, bonus_window_days: 0, validity_days: 30,
+      is_active: true, sort_order: 0, meal_pack_offer_school: [],
     }]).transport);
 
     const [offer] = await fetchAdminPackOffers();

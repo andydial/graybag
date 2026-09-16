@@ -157,13 +157,16 @@ export interface PacksToday {
   /**
    * Meals **sold**, not meals outstanding.
    *
-   * `sold × mealsCount` is how many meals have been paid for. It is not how many are left, because
+   * `sold × itemsCount` is how many items have been paid for. It is not how many are left, because
    * subtracting redemptions needs `meal_pack_redemption`, which no back-office account can read.
    * The packs screen called this same number "meals outstanding", which is exact only while no
-   * meal has ever been eaten — true today, because packs are dark on production, and wrong the
+   * item has ever been eaten — true today, because packs are dark on production, and wrong the
    * first day they are not. Corrected in both places rather than copied into a second one.
+   *
+   * **Bonus items are deliberately not counted here.** They are a giveaway with no deferred value
+   * (`M10`), so adding them would inflate "paid for" with items nobody paid for.
    */
-  mealsSold: number;
+  itemsSold: number;
   liveOffers: number;
 }
 
@@ -173,23 +176,23 @@ export function packsToday(
 ): PacksToday {
   let packsSold = 0;
   let collectedPaise = 0;
-  let mealsSold = 0;
+  let itemsSold = 0;
 
   for (const offer of offers) {
     const n = sold[offer.id] ?? 0;
     packsSold += n;
     // The offer's current price, which is the honest approximation available here and not the
-    // same thing as what each pack was actually sold for: price is stamped onto the pack at sale
-    // (`0068`), and an offer edited since would give a different answer. Reading the stamped
-    // prices means reading `meal_pack`, which is `read_own`. Named on screen.
+    // same thing as what each pack was actually sold for: price is stamped onto the pack at sale,
+    // and an offer edited since would give a different answer. Reading the stamped prices means
+    // reading `meal_pack`, which is `read_own`. Named on screen.
     collectedPaise += n * offer.netPricePaise;
-    mealsSold += n * offer.mealsCount;
+    itemsSold += n * offer.itemsCount;
   }
 
   return {
     packsSold,
     collectedPaise,
-    mealsSold,
+    itemsSold,
     liveOffers: offers.filter((o) => o.isActive).length,
   };
 }

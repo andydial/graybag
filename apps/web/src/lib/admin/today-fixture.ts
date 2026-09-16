@@ -51,7 +51,7 @@ export const TODAY_FIXTURE: {
   packs: {
     packsSold: 17,
     collectedPaise: 5_120_000,
-    mealsSold: 170,
+    itemsSold: 340,
     liveOffers: 2,
   },
 
