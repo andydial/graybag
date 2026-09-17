@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/70</span>
+          <span class="meter-num">0/72</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 70 tasks</summary>
+        <summary>Context &amp; 72 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7451,6 +7451,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>No staging build of the app had ever succeeded before 2026-09-17.</strong> Every finished EAS build on the <code>staging</code> channel was <code>preview</code>-profile, the newest five weeks old at <strong>runtime 2.0.0</strong> — and production is at 4.0.0, so no OTA on the staging channel could ever have reached it even if one had been published, which none has. In practice the app has only ever been tested against staging through a dev server. Two builds now exist at runtime 4.0.0 (<code>ea386b0a</code> iOS, <code>ea236c65</code> Android) and both were verified by unpacking the bundle: the <strong>only</strong> Supabase URL in either is <code>jcagqjsibcpjyskvebeq</code> (staging), the Razorpay key is <code>rzp_test_</code>, the new pack strings are present and every old-design string is absent. Worth deciding whether a staging build is produced on a schedule or on demand — the failure mode is silent, because a stale build looks identical to a current one until it behaves differently</span>
+      </li>
+      <li class="task" data-id="E21-91" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-91"></button>
+        <code class="tid">E21-91</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The Buy button did nothing, and three separate faults had to line up for it to look like nothing.</strong> Found by Andy on staging, 2026-09-17; diagnosed from Edge Function logs, not guessed. <strong>(1) The call had the wrong arity.</strong> <code>invokeFunction(name, body, method)</code> takes three positional arguments and has no <code>headers</code> parameter; <code>startMealPackPurchase</code> passed <code>(name, { method, body, headers })</code> — the shape <code>supabase.functions.invoke</code> takes — so the entire options object went out <strong>as the body</strong>. The server received <code>{&quot;method&quot;:…,&quot;body&quot;:{…},&quot;headers&quot;:{…}}</code>, read <code>body.idempotency_key</code> as <code>undefined</code> and returned <code>400 Idempotency-Key is required</code> to every attempt. The logs showed it precisely: five 400s in 35 seconds from <code>GrayBagStaging/2</code>, authenticated as the parent, <code>content_length: 233</code> where the correct body is 150. Reproduced at the wire with a real session, then re-verified fixed with a non-existent offer id so nothing was created. <strong><code>createPaymentOrder</code> next door has always used the correct convention, which is exactly why ordinary food checkout worked from the same build.</strong> <strong>(2) The <code>.catch</code> was empty</strong> — <code>// E21-55 owns the failure copy</code> — so a refusal on every attempt produced no spinner, no message and no sign anything had happened. <strong>(3) There was no payment step at all</strong>: the handler called <code>startMealPackPurchase</code> and navigated straight to MyPacks, so even a working request would have created a <code>pending</code> pack, charged nothing, and shown an empty balance screen. The comment deferred the sheet to <code>E21-55</code>, which never happened. Now it does <code>createPaymentOrder</code> → <code>openRazorpayCheckout</code>, the same two steps <code>useCheckout</code> does for food, called directly rather than by refactoring <code>useCheckout</code> — that function is on the live ordering path and is not worth disturbing to share three lines</span>
+      </li>
+      <li class="task" data-id="E21-92" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-92"></button>
+        <code class="tid">E21-92</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A stub that accepts anything proves the function was called, not that it was called correctly.</strong> The only <code>functions.invoke</code> stub in the pack suite was <code>async () =&gt; ({ data, error })</code>, ignoring its arguments — so <code>E21-91</code>&#39;s wrong-shape call was indistinguishable from a right one and every test passed while the feature was completely broken. Five assertions now capture what reaches the transport and check the body&#39;s exact keys, that no options object is smuggled into it, and that the idempotency key lands where the server reads it. Mutation-checked: three fail against the original call and all pass against the fix. <strong>The general lesson is worth more than the fix</strong> — for any wrapper whose whole job is call shape, a mock that does not assert the shape tests nothing</span>
       </li></ul>
       </details>
     </article>

@@ -60,6 +60,7 @@ import {
   useAllergenWatchlist,
 } from '../menu/useAllergenWatchlist';
 import { formatServiceDateLong } from '../orders/OrderDetailScreen';
+import { openRazorpayCheckout } from '../checkout/razorpay';
 import { spendableItems, useMealPackSurface } from '../packs/MealPackSurfaceContext';
 import { MyPacksScreen } from '../packs/MyPacksScreen';
 import { PackDetailScreen } from '../packs/PackDetailScreen';
@@ -993,6 +994,7 @@ function ConnectedPackDetailScreen({
   const { schoolId } = useSelectedSchool();
   const [offer, setOffer] = useState<api.MealPackOffer | null>(null);
   const [buying, setBuying] = useState(false);
+  const [buyError, setBuyError] = useState<string | null>(null);
 
   // One key per screen mount, kept across retries. Generated at tap time it would be new on every
   // tap, and a double tap would buy a second pack — and charge for it.
@@ -1018,26 +1020,78 @@ function ConnectedPackDetailScreen({
     <PackDetailScreen
       offer={offer}
       buying={buying}
+      error={buyError}
       onBuy={() => {
         if (schoolId === null || offer === null) return;
         track('pack_purchase_started');
+        setBuyError(null);
         setBuying(true);
-        void api
-          .startMealPackPurchase({
-            offerId: offer.id,
-            schoolId,
-            idempotencyKey: idempotencyKey.current,
-          })
-          .then(() => {
-            // `E21-55` opens the Razorpay sheet against the returned group, reusing
-            // `useCheckout`. Until then the purchase exists as `pending` and settles when the
-            // parent pays — which is honest: nothing is charged and nothing is spendable.
-            navigation.navigate('MyPacks');
-          })
-          .catch(() => {
-            // `E21-55` owns the failure copy.
-          })
-          .finally(() => setBuying(false));
+
+        /**
+         * `E21-91`. THE SAME TWO STEPS THE FOOD PATH TAKES, and this had neither.
+         *
+         * It called `startMealPackPurchase` and then navigated straight to MyPacks — so even
+         * with a working request it would have created a `pending` pack, taken no money, and
+         * shown the parent a balance screen with nothing on it. The comment said `E21-55` would
+         * open the sheet; `E21-55` never happened.
+         *
+         * `createPaymentOrder` then `openRazorpayCheckout` is exactly what `useCheckout` does
+         * for food, called directly rather than by refactoring `useCheckout` itself — that
+         * function is on the live ordering path and is not worth disturbing to share three
+         * lines.
+         *
+         * `openRazorpayCheckout` never rejects; every outcome is a value. Settlement is the
+         * webhook's job, so a reported success navigates and says nothing about the balance
+         * until the server confirms it.
+         */
+        void (async () => {
+          try {
+            const started = await api.startMealPackPurchase({
+              offerId: offer.id,
+              schoolId,
+              idempotencyKey: idempotencyKey.current,
+            });
+            const providerOrder = await api.createPaymentOrder(started.orderGroupId);
+            const sheet = await openRazorpayCheckout({
+              keyId: providerOrder.keyId,
+              providerOrderId: providerOrder.providerOrderId,
+              amountPaise: providerOrder.amountPaise,
+              currency: providerOrder.currency,
+            });
+
+            if (sheet.outcome === 'reported_success') {
+              track('payment_sheet_closed', { outcome: 'reported_success' });
+              navigation.navigate('MyPacks');
+              return;
+            }
+            if (sheet.outcome === 'cancelled') {
+              track('payment_sheet_closed', { outcome: 'dismissed' });
+              // Not an error, and it must not read as one: nothing was charged and the offer is
+              // still there. The same key is reused, so tapping Buy again is the same purchase.
+              setBuyError('Payment cancelled. Nothing has been charged — tap Buy to try again.');
+              return;
+            }
+            track('payment_sheet_closed', { outcome: 'failed' });
+            setBuyError('That payment did not go through. Nothing has been charged.');
+          } catch (error) {
+            /**
+             * **Shown, not swallowed.** The `.catch` here was empty, which is why a 400 on every
+             * attempt looked like a button that did nothing.
+             *
+             * `ApiError` carries the server's own sentence — "Meal packs aren't offered at this
+             * school", "That pack is no longer available" — and those are worth more than any
+             * generic line. Anything else gets a sentence that still tells the parent the one
+             * thing that matters: their money is untouched.
+             */
+            setBuyError(
+              error instanceof Error && error.message.length > 0
+                ? error.message
+                : 'We could not start that purchase. Nothing has been charged.',
+            );
+          } finally {
+            setBuying(false);
+          }
+        })();
       }}
     />
   );

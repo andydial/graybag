@@ -6,6 +6,7 @@ import {
   fetchMealPackOffers,
   fetchMealPackSurface,
   packThisOrderDrawsFrom,
+  startMealPackPurchase,
 } from './meal-packs.js';
 
 /**
@@ -270,5 +271,105 @@ describe('packThisOrderDrawsFrom', () => {
   it('ignores an expired or exhausted pack', () => {
     expect(packThisOrderDrawsFrom([pack({ status: 'expired' })], 's-1')).toBeNull();
     expect(packThisOrderDrawsFrom([pack({ status: 'exhausted' })], 's-1')).toBeNull();
+  });
+});
+
+describe('startMealPackPurchase — the CALL, not the result', () => {
+  /**
+   * `E21-91`. These assert what reaches the transport, and they exist because nothing did.
+   *
+   * The purchase was broken in production-shaped code for a day and every test passed, because
+   * the only stub for `functions.invoke` was `async () => ({ data, error })` — it ignored its
+   * arguments completely. So a call with the WRONG SHAPE was indistinguishable from a right one:
+   * the wrapper takes `(name, body, method)` positionally, the code passed
+   * `(name, { method, body, headers })`, and the entire options object went out as the body.
+   *
+   * The server saw `{"method":…,"body":{…},"headers":{…}}`, read `body.offer_id` as `undefined`
+   * and returned 400 to every attempt. Andy found it by tapping a dead button; the Edge Function
+   * logs found it by showing a 233-byte request body where 150 was expected.
+   *
+   * A mock that accepts anything proves the function was called. It does not prove it was called
+   * correctly, and "called correctly" is the whole of a transport wrapper's job.
+   */
+  function captureInvoke() {
+    const calls: { name: string; body: unknown; method: unknown }[] = [];
+    setApiTransport({
+      from: () => { throw new Error('This test should not touch a table.'); },
+      rpc: async () => ({ data: null, error: null }),
+      functions: {
+        invoke: async (name: string, options?: { body?: unknown; method?: unknown }) => {
+          // Recorded the way supabase-js actually receives it: a name, then ONE options object
+          // whose `body` is what crosses the wire.
+          calls.push({ name, body: options?.body, method: options?.method });
+          return {
+            data: {
+              order_group_id: 'g-1',
+              meal_pack_id: 'p-1',
+              payable_paise: 315_000,
+              net_price_paise: 300_000,
+              cgst_paise: 7_500,
+              sgst_paise: 7_500,
+            },
+            error: null,
+          };
+        },
+      },
+    } as never);
+    return calls;
+  }
+
+  const input = {
+    offerId: 'c7f3a1e2-4b8d-4c1a-9e2f-6d5b8a3c1f04',
+    schoolId: '77308e75-d8e9-47ba-a503-7c38d482a72c',
+    idempotencyKey: 'buy-123-abc',
+  };
+
+  it('sends the OFFER AND SCHOOL AT THE TOP LEVEL of the body', async () => {
+    const calls = captureInvoke();
+    await startMealPackPurchase(input);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.name).toBe('buy-meal-pack');
+    // The exact three keys `buy-meal-pack` reads. Nested under `body`, as they were, every one
+    // of these is `undefined` at the server and the purchase is refused.
+    expect(calls[0]?.body).toEqual({
+      offer_id: input.offerId,
+      school_id: input.schoolId,
+      idempotency_key: input.idempotencyKey,
+    });
+  });
+
+  it('does NOT smuggle an options object into the body', async () => {
+    // The failure stated as an absence, because that is how it looked: a body carrying `method`
+    // or `headers` is the wrapper being called as though it were supabase-js.
+    const calls = captureInvoke();
+    await startMealPackPurchase(input);
+    const body = calls[0]?.body as Record<string, unknown>;
+    expect(body).not.toHaveProperty('method');
+    expect(body).not.toHaveProperty('headers');
+    expect(body).not.toHaveProperty('body');
+  });
+
+  it('sends the idempotency key where the SERVER reads it', async () => {
+    // It cannot go in a header — `invokeFunction` has no headers parameter — and the Edge
+    // Function reads `headers.get('Idempotency-Key') || body.idempotency_key` for that reason.
+    // Without it the server returns 400 before it looks at anything else.
+    const calls = captureInvoke();
+    await startMealPackPurchase(input);
+    expect((calls[0]?.body as Record<string, unknown>).idempotency_key).toBe('buy-123-abc');
+  });
+
+  it('refuses a blank key before the transport, and does not call out at all', async () => {
+    const calls = captureInvoke();
+    await expect(startMealPackPurchase({ ...input, idempotencyKey: '   ' }))
+      .rejects.toThrow(/idempotency key/i);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('returns the money the server sent, unaltered', async () => {
+    captureInvoke();
+    const started = await startMealPackPurchase(input);
+    expect(started.payablePaise).toBe(315_000);
+    expect(started.netPricePaise + started.cgstPaise + started.sgstPaise).toBe(315_000);
   });
 });

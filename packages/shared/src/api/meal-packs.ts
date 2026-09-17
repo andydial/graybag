@@ -264,15 +264,29 @@ export async function startMealPackPurchase(input: {
     throw new ApiError('An idempotency key is required to buy a pack.');
   }
 
-  const body = await invokeFunction<unknown>('buy-meal-pack', {
-    method: 'POST',
-    body: {
+  /**
+   * `invokeFunction(name, BODY, method)` — three positional arguments, and **no options object**.
+   *
+   * This read `invokeFunction('buy-meal-pack', { method, body, headers })`, which is the shape
+   * `supabase.functions.invoke` takes and NOT the shape of this wrapper. The whole options object
+   * was therefore sent as the body, so the function received
+   * `{"method":…,"body":{…},"headers":{…}}` — 235 bytes of the wrong thing — read `body.offer_id`
+   * as `undefined`, and refused every purchase with a 400 nobody could see (`E21-91`).
+   *
+   * The idempotency key goes in the BODY, not a header: this wrapper cannot set headers, and
+   * `buy-meal-pack` already reads `request.headers.get('Idempotency-Key') || body.idempotency_key`
+   * for exactly that reason. `createPaymentOrder` next door has always used this convention,
+   * which is why ordinary food checkout worked from the same build while this did not.
+   */
+  const body = await invokeFunction<unknown>(
+    'buy-meal-pack',
+    {
       offer_id: input.offerId,
       school_id: input.schoolId,
       idempotency_key: input.idempotencyKey,
     },
-    headers: { 'Idempotency-Key': input.idempotencyKey },
-  });
+    'POST',
+  );
   if (!isRecord(body)) throw new ApiError('The purchase response was not an object.');
   return {
     orderGroupId: asText(body.order_group_id, 'order_group_id'),

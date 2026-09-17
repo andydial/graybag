@@ -31,12 +31,23 @@ export const PACK_DETAIL_TEST_ID = 'screen-pack-detail';
 export function PackDetailScreen({
   offer = null,
   buying = false,
+  error = null,
   onBuy,
   testID = PACK_DETAIL_TEST_ID,
 }: {
   offer?: api.MealPackOffer | null;
   /** True while the purchase is being started. Disables the button so a double tap cannot buy twice. */
   buying?: boolean;
+  /**
+   * Why the last attempt failed, in words a parent can act on. `null` when nothing has failed.
+   *
+   * `E21-91`. This screen had **no error state at all**: the handler's `.catch` was empty, so a
+   * server refusal produced a button that did nothing, forever, with no spinner and no message.
+   * Andy tapped it several times and the app told him nothing while the server refused every
+   * attempt with a 400. **A visible error beats silence** — his words, and the reason this prop
+   * exists rather than a log line.
+   */
+  error?: string | null;
   onBuy?: (() => void) | undefined;
   testID?: string;
 } = {}) {
@@ -115,6 +126,11 @@ export function PackDetailScreen({
       </ScrollView>
 
       <View style={styles.footer}>
+        {error === null ? null : (
+          <Text style={styles.error} testID={`${testID}-error`} accessibilityRole="alert">
+            {error}
+          </Text>
+        )}
         <Button
           label={buying ? 'Starting…' : `Buy · ${money.formatPaise(payablePaise)}`}
           testID={`${testID}-buy`}
@@ -175,6 +191,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.gutter, paddingTop: space[3], paddingBottom: space[4],
     borderTopWidth: borderWidth.hairline, borderTopColor: border.subtle,
     backgroundColor: bg.surface, gap: space[2],
+  },
+  error: {
+    fontSize: scale.caption.size,
+    lineHeight: scale.caption.lineHeight,
+    fontWeight: '700',
+    color: text.danger,
+    marginBottom: space[2],
   },
   footerNote: {
     fontSize: scale.caption.size, lineHeight: scale.caption.lineHeight, color: text.secondary,

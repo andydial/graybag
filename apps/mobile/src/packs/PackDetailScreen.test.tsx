@@ -133,3 +133,61 @@ describe('buying', () => {
     expect(screen.queryByTestId('screen-pack-detail-buy')).toBeNull();
   });
 });
+
+describe('E21-91 — a failure is VISIBLE', () => {
+  /**
+   * The bug this file exists to prevent a repeat of.
+   *
+   * `startMealPackPurchase` called the transport wrapper with the wrong argument shape, so the
+   * server refused every purchase with a 400 — and the screen's handler had an EMPTY `.catch`.
+   * The result was a button that did nothing at all: no sheet, no spinner, no message, several
+   * taps, no sign anything had happened. Andy: *"a visible error beats silence."*
+   *
+   * So the screen now takes an `error` prop and these assert it is actually rendered. A handler
+   * that swallows is no longer enough to hide a failure, because the screen has somewhere to put
+   * one and a test that notices when it is empty.
+   */
+  const OFFER_FOR_ERROR = {
+    id: 'o-1',
+    name: 'Pack 1',
+    netPricePaise: 300000,
+    itemsCount: 20,
+    bonusItemsCount: 2,
+    bonusWindowDays: 30,
+    validityDays: 60,
+  };
+
+  it('shows the server’s own sentence when the purchase is refused', async () => {
+    await render(
+      <PackDetailScreen
+        offer={OFFER_FOR_ERROR}
+        error="Meal packs aren’t offered at this school."
+      />,
+    );
+    expect(screen.getByTestId('screen-pack-detail-error')).toBeTruthy();
+    expect(screen.getByText('Meal packs aren’t offered at this school.')).toBeTruthy();
+  });
+
+  it('announces it, rather than leaving it to be noticed', async () => {
+    // `accessibilityRole="alert"` — a parent using VoiceOver got nothing at all before, and a
+    // silent failure is worse for them than for anyone else.
+    await render(<PackDetailScreen offer={OFFER_FOR_ERROR} error="That payment did not go through." />);
+    expect(screen.getByTestId('screen-pack-detail-error').props.accessibilityRole).toBe('alert');
+  });
+
+  it('says nothing when there is nothing to say', async () => {
+    await render(<PackDetailScreen offer={OFFER_FOR_ERROR} />);
+    expect(screen.queryByTestId('screen-pack-detail-error')).toBeNull();
+  });
+
+  it('keeps the Buy button usable after a failure, so a retry is possible', async () => {
+    // The failure states all end "nothing has been charged", and that promise is only true if
+    // the parent can actually try again. A disabled button after an error would strand them.
+    const onBuy = jest.fn();
+    await render(
+      <PackDetailScreen offer={OFFER_FOR_ERROR} error="Payment cancelled." onBuy={onBuy} />,
+    );
+    await userEvent.press(screen.getByTestId('screen-pack-detail-buy'));
+    expect(onBuy).toHaveBeenCalledTimes(1);
+  });
+});
