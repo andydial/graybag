@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/68</span>
+          <span class="meter-num">0/70</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 68 tasks</summary>
+        <summary>Context &amp; 70 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7435,6 +7435,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Bonus items are reported as counts because no cost model exists. Give them one, or decide not to.</strong> Andy asked (2026-09-16) for a redeemed bonus item&#39;s food cost to hit COGS; there is <strong>no COGS account in the chart of accounts and no cost column on any table</strong> — checked across every column in <code>public</code>, not assumed — so cost of goods is not tracked for a cash meal either, and a COGS line covering only bonus meals would be the only such figure in the system, on a different basis from every number beside it. Andy&#39;s ruling, 2026-09-17: *&quot;you&#39;re right that no cost model exists. Leave it as counts, and file it as a backlog item rather than inventing a cost column.&quot;* <strong>Nothing is lost by waiting</strong>: <code>meal_pack_redemption.bonus_used</code> records the exact quantity a cost model would multiply, per pack and per order, and <code>meal_pack_money</code> exposes offered / redeemed / outstanding. What this needs before it can be built is a <strong>decision about cost basis for every meal</strong>, not a column for bonus ones — recipe cost, a flat per-meal figure, or an allocation — and that decision belongs with whoever owns the margin question. Recorded as <code>P26</code>; WEB reached the same conclusion independently as <code>M12</code>, where a redeemed bonus item is a cost line in the report and never negative revenue</span>
+      </li>
+      <li class="task" data-id="E21-89" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-89"></button>
+        <code class="tid">E21-89</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>There is no staging deployment of the web app, so &quot;the staging back office&quot; is a local dev server.</strong> Found setting up the pack walkthrough, 2026-09-17. <code>deploy-staging.yml</code> deploys <strong>migrations and Edge Functions only</strong> — its own header says *&quot;What &#39;deploy&#39; means today is database migrations&quot;* — and Netlify builds <code>apps/web</code> for production and for PR deploy previews, neither of which points at staging. So the only way to reach <code>/admin/packs</code> against the staging database is <code>npm run dev:web</code> with <code>apps/web/.env</code> naming the staging project, which is fine for one person at a desk and is not a thing you can hand to anyone else, check from a phone, or point a tester at. <strong>It also means every back-office screen has only ever been exercised against production</strong>, which is the opposite of the rule everywhere else in this repo. Worth either a Netlify branch deploy pinned to staging env vars, or an explicit decision that the back office is verified locally and the docs say so. Not urgent, and it will be embarrassing the first time somebody other than Andy needs to look at a staging screen</span>
+      </li>
+      <li class="task" data-id="E21-90" data-seed="0" data-risk="" data-owner="build" data-mvp="0">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-90"></button>
+        <code class="tid">E21-90</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>No staging build of the app had ever succeeded before 2026-09-17.</strong> Every finished EAS build on the <code>staging</code> channel was <code>preview</code>-profile, the newest five weeks old at <strong>runtime 2.0.0</strong> — and production is at 4.0.0, so no OTA on the staging channel could ever have reached it even if one had been published, which none has. In practice the app has only ever been tested against staging through a dev server. Two builds now exist at runtime 4.0.0 (<code>ea386b0a</code> iOS, <code>ea236c65</code> Android) and both were verified by unpacking the bundle: the <strong>only</strong> Supabase URL in either is <code>jcagqjsibcpjyskvebeq</code> (staging), the Razorpay key is <code>rzp_test_</code>, the new pack strings are present and every old-design string is absent. Worth deciding whether a staging build is produced on a schedule or on demand — the failure mode is silent, because a stale build looks identical to a current one until it behaves differently</span>
       </li></ul>
       </details>
     </article>
