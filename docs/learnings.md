@@ -3914,3 +3914,44 @@ assertion, so a genuinely broken app still fails exactly as loudly.
 
 **Do not "fix" this by tapping `Wait` if a dialog is present.** That would also swallow an ANR in
 our own app, which is a real defect and one this flow should catch.
+
+## `APP_ENV` and `EXPO_PUBLIC_APP_ENV` are different variables, and the OTA path forgets it too — 2026-09-17
+
+Published an OTA to the `staging` branch, then checked the manifest as the rule requires. It
+served **`"appEnv":"local"`** on both platforms.
+
+`app.config.js` resolves the app's identity from **`process.env.APP_ENV`** (`module.exports =
+({ config }) => applyIdentity(config, process.env.APP_ENV, gitSha())`). `apps/mobile/.env.staging`
+sets **`EXPO_PUBLIC_APP_ENV=staging`** and nothing else — so `APP_ENV` was unset, `applyIdentity`
+took its deliberate *"an unset or unrecognised APP_ENV lands on `local`"* branch, and the bundle
+went out under the local identity.
+
+**This is the same trap `E01-26` documented in `integration.yml`, in a second place.** That comment
+is eleven lines long and explicit — *"`APP_ENV` and `EXPO_PUBLIC_APP_ENV` are DIFFERENT variables
+and both are needed"* — and it sits in the CI workflow, which is not where anyone publishing an
+OTA by hand is looking. A lesson written down in one call site is not written down.
+
+The fix is one prefix:
+
+```bash
+cp apps/mobile/.env.staging apps/mobile/.env
+APP_ENV=staging EXPO_PUBLIC_APP_ENV=staging npx eas update --branch staging --environment preview
+```
+
+### What actually caught it, and what would not have
+
+The manifest check — `curl` the update endpoint and read `appEnv` back. **`eas update` reported
+success both times**, with a green "✔ Published!", a group id and two update ids. Nothing in its
+output is wrong; it published exactly what it was given. The only difference between the broken
+publish and the correct one is a field inside the manifest, and the only way to see it is to ask
+the server what it is now serving.
+
+So: *published* is not *correct*, in the same way `E12-43` established that *merged* is not
+*shipped*. Both times the verification step that caught it was reading the live artefact back.
+
+### The near-miss worth stating
+
+The backend did **not** change — `EXPO_PUBLIC_SUPABASE_URL` still pointed at staging, because that
+one really does come from `.env`. So the damage was confined to the identity the app reports. Had
+the two variables disagreed in the other direction, a "staging" OTA could have carried production
+credentials to a staging build, which is `E21-90` wearing the other shoe.

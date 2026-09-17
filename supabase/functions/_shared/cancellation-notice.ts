@@ -93,7 +93,24 @@ export async function sendCancellationNotice(
       channel: 'email',
       template_code: TEMPLATE_ORDER_CANCELLED,
       order_id: order.id,
-      order_group_id: order.order_group_id ?? null,
+      /**
+       * **Deliberately null, and it used to be the group.** `E21-100`.
+       *
+       * `uq_notification_one_per_order_group` is unique on `(order_group_id, template_code,
+       * channel)`, and a cart spanning several days is **one group with one order per day**. With
+       * the group set, cancelling two of those orders claimed once and collided once — and the
+       * collision is read as `23505` → `'already_sent'`, so the second parent-facing cancellation
+       * was never sent and the outcome said it had been.
+       *
+       * The comment above this claim named `uq_notification_one_per_order` as the lock, and that
+       * index is right and still does the work. Setting the group as well silently enrolled a
+       * per-order notice into a per-group uniqueness domain it does not belong to — the same
+       * category error `0065` was written to correct, reintroduced one column over.
+       *
+       * **It has never fired**: production has zero groups with more than one order, checked
+       * rather than assumed. Found while building `E21-99`, which would have inherited it.
+       */
+      order_group_id: null,
       status: 'queued',
       provider: apiKey ? 'resend' : null,
       correlation_id: order.correlation_id ?? null,

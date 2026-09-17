@@ -45,6 +45,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import postgres from 'npm:postgres@3.4.4';
 
 import { sendCancellationNotice } from '../_shared/cancellation-notice.ts';
+import { sendDeliveryNotice } from '../_shared/delivery-notice.ts';
 
 // `_shared/cors.ts`, not a local copy. This function is where the preflight bug was found, and
 // it kept its own inline headers for a few hours until the payments thread generalised the fix
@@ -250,6 +251,48 @@ Deno.serve(async (request: Request) => {
       await Promise.all(
         result.updated.map((orderId) =>
           sendCancellationNotice(admin, { orderId, reasonCode, reasonDetail }).catch(() => 'failed'),
+        ),
+      );
+    }
+
+    /*
+     * Tell each parent their child got the food — `E21-99`.
+     *
+     * Andy, 2026-09-17: *"parents should hear that their child got the food, and right now we tell
+     * them nothing."* True until this branch existed: marking an order delivered wrote
+     * `delivered_at`, `delivered_by_user_id` and an `order_event` row, and sent nothing.
+     *
+     * **`else if`, on purpose.** `to` is one value per request, so an order cannot be cancelled and
+     * delivered by the same call — and Andy asked for this *"alongside the existing cancelled
+     * branch rather than inside it"*, which is what keeps the two emails independent: neither
+     * inherits the other's guards, and a change to cancellation copy cannot silently alter this.
+     *
+     * **`result.updated`, never `orderIds`.** That list holds only the orders whose status actually
+     * moved — `skipped` holds the ones already `delivered`, and the rows were taken `for update`
+     * before the split, so a second tablet pressing *Mark all delivered* blocks and then finds
+     * nothing to send. That is Andy's *"key it on the state change, not the button"*, enforced
+     * where the state change is decided. `uq_notification_one_per_order` is the second, independent
+     * guarantee inside the sender.
+     *
+     * **One email per order, not per item and not a digest.** One call per order id; the sender
+     * renders that order's own lines. Thirty orders is thirty emails, which is the right number
+     * when thirty children ate.
+     *
+     * Failures are swallowed for the same reason as above, and Andy stated it as a requirement:
+     * *"If the email fails, the order is still delivered."* The food has been handed over and the
+     * transaction has committed — an email provider having a bad minute must not turn that into a
+     * 500 that tells the kitchen their action did not happen. `sendDeliveryNotice` records its own
+     * outcome on `notification_delivery`, which is the durable evidence of who was told.
+     */
+    if (to === 'delivered' && result.updated.length > 0) {
+      const admin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        { auth: { persistSession: false } },
+      );
+      await Promise.all(
+        result.updated.map((orderId) =>
+          sendDeliveryNotice(admin, { orderId }).catch(() => 'failed'),
         ),
       );
     }

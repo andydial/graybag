@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/78</span>
+          <span class="meter-num">0/80</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 78 tasks</summary>
+        <summary>Context &amp; 80 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7515,6 +7515,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A fully covered order was placed, paid, confirmed — and reported to the parent as a failure.</strong> Found while fixing <code>E21-97</code>, latent behind it: the cart could never reach this state because the client was asserting a full cash total. <code>create_checkout</code> returns <code>status: &#39;paid&#39;</code> on exactly one path — the pack covered everything, so it confirmed the redemptions, allocated the pickup codes, set <code>paid_at</code> and sent the confirmation inline, because there is no payment and no webhook that could ever do it later. <strong>The server has returned that field from the beginning, on both the fresh and the replayed path, and nothing read it.</strong> <code>useCheckout</code> went straight on to <code>createPaymentOrder</code>, which refuses a group with nothing owing (<code>nothing_payable</code>, 409, <code>0049:112</code>) — so the parent would have been shown *&quot;There is nothing to pay on this order&quot;* as an error, for an order that existed and was complete. Money had not moved and the customer was told the opposite of what happened: <code>E21-65</code>&#39;s family from the other direction. Branches on the <strong>status</strong>, never on <code>payablePaise === 0</code>: the amount is the symptom, the status is the fact, and inferring from the amount would skip payment on an unpaid order the day some other path produces a zero payable. An absent status falls to the paying path, because being refused is visible and free food is not. Its own phase kind rather than reusing <code>sheet_reported_success</code>, which is a claim about a sheet that never opened</span>
+      </li>
+      <li class="task" data-id="E21-99" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-99"></button>
+        <code class="tid">E21-99</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The kitchen delivers the food and the parent hears nothing.</strong> Andy, 2026-09-17: *&quot;parents should hear that their child got the food, and right now we tell them nothing.&quot;* True for the life of the product, and checked before it was built: <code>kitchen-order-status</code> is the only thing that marks an order delivered, and its one email call sat inside <code>if (to === &#39;cancelled&#39;)</code>. Delivering wrote <code>delivered_at</code>, <code>delivered_by_user_id</code> and an <code>order_event</code> row and told nobody. <strong>Exactly once, by two independent mechanisms</strong> — the caller passes <code>result.updated</code>, which holds only the orders whose status actually *moved* (the rows are taken <code>for update</code> before that split, so a second tablet pressing *Mark all delivered* blocks and then finds nothing), and <code>uq_notification_one_per_order</code> is the backstop inside the sender, where <code>23505</code> reads as &quot;already done&quot;. Andy&#39;s *&quot;key it on the state change, not the button&quot;*, enforced in both places. <strong>No migration</strong>: that index is per-order and the template code is new. <strong>The child&#39;s name is in the email and nowhere else</strong> — not in <code>notification_delivery</code>, whose <code>0001</code> comment names this exact email as the reason that rule exists, not in the subject line, and not in any log. <strong>The zone comes from <code>platform_config</code>, not the school</strong>, which the schema states in terms (*&quot;a school does not get its own&quot;*); a <code>school.time_zone</code> read would have been a column that does not exist and would have cost the whole email rather than the time. Tested by <strong>running it</strong> — 18 behavioural assertions over a stubbed client and provider, four of them mutation-checked — which needed the module to stop importing a <code>jsr:</code> specifier and to reach <code>Deno.env</code> through <code>globalThis</code>. It is now the first Edge Function module in the repo under a typechecker at all; there is no <code>deno check</code> in CI</span>
+      </li>
+      <li class="task" data-id="E21-100" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-100"></button>
+        <code class="tid">E21-100</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A cancellation is per order, and its dedup key had quietly become per group.</strong> Found while building <code>E21-99</code>, which would have inherited it verbatim. <code>cancellation-notice.ts</code> claimed its <code>notification_delivery</code> row with <code>order_group_id</code> set as well as <code>order_id</code>, and <code>uq_notification_one_per_order_group</code> is unique on <code>(order_group_id, template_code, channel)</code> — while <code>create_checkout</code> writes <strong>one order per service date into one group</strong>. So cancelling two days of the same cart claimed once and collided once, the collision read as <code>already_sent</code>, and one of the two cancellations was never sent while the outcome said it had been. <code>0065</code> exists precisely because the group is the wrong grain for a per-order notice; setting the column anyway put the row straight back into the domain that migration was written to escape. <strong>It has never fired</strong> — production has zero groups with more than one order, read rather than assumed. Latent, like <code>E21-98</code>, and fixed before it was not</span>
       </li></ul>
       </details>
     </article>
