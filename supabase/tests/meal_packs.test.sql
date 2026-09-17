@@ -732,5 +732,65 @@ select is(
   'office''s window on money, not a second route to a parent''s own data — they read '
   'meal_pack_balances, which is scoped to them.');
 
+-- =============================================================================
+-- 15. `E21-94` — a paid pack purchase says it is paid.
+--
+-- The third instance of `M16`'s pattern: a derived field whose derivation is attached to a table
+-- that is not always involved. `derive_group_status` is a trigger on `order`; a pack purchase has
+-- no member orders, so it never fired and the group sat at `pending_payment` with `paid_at` set
+-- from the moment the money arrived.
+-- =============================================================================
+
+create temporary table s_ctx as
+select 'a9000000-7e57-0000-0000-0000000000f1'::uuid as pack_group_id,
+       'a9000000-7e57-0000-0000-0000000000f2'::uuid as food_group_id;
+
+insert into order_group (id, customer_user_id, idempotency_key, city_id, kind,
+                         subtotal_paise, tax_total_paise, payable_paise, status)
+select (select pack_group_id from s_ctx), (select user_id from p_ctx), 'status-pack',
+       (select city_id from p_ctx), 'meal_pack_purchase', 300000, 15000, 315000, 'pending_payment';
+insert into meal_pack (customer_user_id, school_id, offer_id, order_group_id, name_snapshot,
+                       price_paid_paise, cgst_paise, sgst_paise, items_original, valued_remaining,
+                       bonus_items, bonus_window_ends_at, expires_at, status, correlation_id)
+select (select user_id from p_ctx), (select school_id from p_ctx), (select offer_id from p_ctx),
+       (select pack_group_id from s_ctx), 'Pack 1', 300000, 7500, 7500, 20, 20, 0,
+       now(), now() + interval '60 days', 'pending', gen_random_uuid();
+
+select is((select status::text from order_group where id = (select pack_group_id from s_ctx)),
+  'pending_payment', 'a pack purchase starts pending_payment, like any other group');
+
+update order_group set paid_at = now() where id = (select pack_group_id from s_ctx);
+
+select is((select status::text from order_group where id = (select pack_group_id from s_ctx)),
+  'paid',
+  'E21-94: setting paid_at moves a PACK purchase to paid. Nothing did this before — '
+  'derive_group_status is a trigger on `order`, and a pack purchase has no member orders, so the '
+  'group kept saying pending_payment while paid_at was set and the money was in the ledger.');
+
+select ok((select paid_at is not null from order_group where id = (select pack_group_id from s_ctx)),
+  'and paid_at is still set — the two fields now agree rather than one being fixed at the '
+  'expense of the other');
+
+-- The half that matters as much: food groups are NOT touched, because they already have an owner.
+insert into order_group (id, customer_user_id, idempotency_key, city_id,
+                         subtotal_paise, tax_total_paise, payable_paise, status)
+select (select food_group_id from s_ctx), (select user_id from p_ctx), 'status-food',
+       (select city_id from p_ctx), 0, 0, 0, 'pending_payment';
+update order_group set paid_at = now() where id = (select food_group_id from s_ctx);
+
+select is((select status::text from order_group where id = (select food_group_id from s_ctx)),
+  'pending_payment',
+  'A FOOD group is left alone. derive_group_status owns it and reads every member order, which '
+  'this cannot — giving one field two owners is how they came to disagree in the first place.');
+
+-- And a terminal state is not dragged backwards by a later touch of the row.
+update order_group set status = 'cancelled' where id = (select pack_group_id from s_ctx);
+update order_group set paid_at = now() where id = (select pack_group_id from s_ctx);
+
+select is((select status::text from order_group where id = (select pack_group_id from s_ctx)),
+  'cancelled',
+  'a cancelled purchase is NOT dragged back to paid by a later write. The trigger fires only on '
+  'the transition out of pending_payment, not on any row that happens to have a paid_at.');
+
 select * from finish();
 rollback;

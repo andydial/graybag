@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/72</span>
+          <span class="meter-num">0/75</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 72 tasks</summary>
+        <summary>Context &amp; 75 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7467,6 +7467,30 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>A stub that accepts anything proves the function was called, not that it was called correctly.</strong> The only <code>functions.invoke</code> stub in the pack suite was <code>async () =&gt; ({ data, error })</code>, ignoring its arguments — so <code>E21-91</code>&#39;s wrong-shape call was indistinguishable from a right one and every test passed while the feature was completely broken. Five assertions now capture what reaches the transport and check the body&#39;s exact keys, that no options object is smuggled into it, and that the idempotency key lands where the server reads it. Mutation-checked: three fail against the original call and all pass against the fix. <strong>The general lesson is worth more than the fix</strong> — for any wrapper whose whole job is call shape, a mock that does not assert the shape tests nothing</span>
+      </li>
+      <li class="task" data-id="E21-93" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-93"></button>
+        <code class="tid">E21-93</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A confirmation that was never attempted left no row, so the table built to make email failures visible was the one place it could not be seen.</strong> Andy bought a pack on staging: money moved, settlement completed, invoice issued, no email, and <code>notification_delivery</code> held <strong>nothing at all</strong> — not <code>failed</code>, not <code>suppressed</code>. <code>sendOrderConfirmation</code> read the group&#39;s <strong>orders</strong>, returned early when there were none, and only *then* claimed the delivery row; a meal pack purchase has no member orders by design and by constraint, so it bailed before the row existed. Two fixes, and Andy asked for the second explicitly: a pack branch that builds the confirmation from the pack and its invoice, <strong>and the claim moved above every path that can exit</strong>, so &quot;never attempted&quot; is recorded for any group, not just a pack. The rule is now structural rather than remembered — once the group is known an attempt is on the record, and a future early return cannot make a send invisible. Exactly one exit remains before the claim, the group that does not exist, which genuinely cannot be recorded because the row is keyed on a group and a user that are not there. Tested by reading the source the way <code>cors.test.ts</code> does, because this module talks to Resend and PostgREST and there is no runtime here to execute it — which is why it had no test at all and why this survived. Four assertions fail against the real pre-fix file</span>
+      </li>
+      <li class="task" data-id="E21-94" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-94"></button>
+        <code class="tid">E21-94</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A paid pack purchase said <code>pending_payment</code> for ever.</strong> <code>derive_group_status</code> owns a group&#39;s status and is a trigger on <code>order</code>; a pack purchase has no orders, so it never fired and <code>settle_payment</code> set only <code>paid_at</code>. Fixed as a trigger on <code>order_group.paid_at</code> rather than a line in <code>settle_payment</code>, so it also covers the refund or admin path nobody has written — the same argument <code>derive_group_status</code> makes for food, applied to the case it cannot see. BEFORE, so it writes <code>new.status</code> directly: one write, no recursion. The existing staging purchase was reconciled in the same migration; on production it matched nothing, because there are no pack purchases there. Third instance of a pattern now recorded as <code>M16</code></span>
+      </li>
+      <li class="task" data-id="E21-95" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-95"></button>
+        <code class="tid">E21-95</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>Paid, and the balance screen was blank with no explanation.</strong> The data was perfect — pack <code>active</code>, settlement complete, invoice issued, and reading as the parent returned <code>has_balance: true</code> with one row. The app never asked again: <code>meal_pack_surface</code> was last called <strong>108 seconds before the money moved</strong>, and <code>meal_pack_balances</code> was never called <strong>at all</strong>, because it is only called when <code>hasBalance</code> is already true. <code>MealPackSurfaceContext</code>&#39;s effect keyed on <code>[userId, schoolId]</code>, neither of which changes when you buy something, so an answer that was correct on mount outlived the event that invalidated it. Now it exposes <code>refresh()</code>, called after a completed purchase — a counter rather than a flag, because an already-true flag changes nothing and the second read never fires, which is the same bug one level down. And Andy&#39;s hard requirement: *&quot;there should be no state where I&#39;ve paid and the app shows me an empty screen with no explanation.&quot;* MyPacks now has three states where it had one — still reading, could not load (with a retry, and *&quot;your pack is safe — this is a problem reading it, not a problem with it&quot;*), and genuinely no pack. The middle one is the one that matters: <code>hasBalance</code> is the server&#39;s word that a parent is owed items, and rendering &quot;You don&#39;t have a meal pack&quot; over the top of it is the app contradicting the money</span>
       </li></ul>
       </details>
     </article>

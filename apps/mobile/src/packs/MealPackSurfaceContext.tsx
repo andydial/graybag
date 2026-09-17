@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { api } from '@graybag/shared';
 
 import { useSelectedSchool } from '../session/SelectedSchoolContext';
@@ -62,6 +70,27 @@ export interface MealPackSurface {
    * because a parent with children at two schools holds two balances (`P22`).
    */
   allPacks: readonly api.MealPackBalance[];
+  /**
+   * The numbers could not be read, though the server says this parent has a balance.
+   *
+   * Distinct from "no packs" and that distinction is the whole point: a parent who has just paid
+   * must never be shown an empty screen as though they own nothing (`E21-95`).
+   */
+  unavailable: boolean;
+  /**
+   * Re-read the surface now.
+   *
+   * `E21-95`. The effect below keys on `[userId, schoolId]`, so it runs once per mount and never
+   * again — which was correct while nothing could change the answer from inside the app, and
+   * became wrong the moment buying a pack did. Andy bought one and the screen stayed empty: the
+   * app was holding `hasBalance: false` fetched **108 seconds before the money moved**, and
+   * `meal_pack_balances` was never called at all, because it is only called when `hasBalance` is
+   * already true.
+   *
+   * Called after a completed purchase. Deliberately NOT called on every screen focus: the point
+   * is to re-read when something we did changed the answer, not to poll.
+   */
+  refresh: () => void;
 }
 
 /** In flight: the provider is mounted and has not heard back. Home waits on this. */
@@ -71,6 +100,8 @@ const ASKING: MealPackSurface = {
   loading: true,
   balance: null,
   allPacks: [],
+  unavailable: false,
+  refresh: () => {},
 };
 
 /**
@@ -94,12 +125,27 @@ export function MealPackSurfaceProvider({ children }: { children: ReactNode }) {
   const userId = session.status === 'signedIn' ? session.userId : null;
 
   const [surface, setSurface] = useState<MealPackSurface>(ASKING);
+  /**
+   * Bumped by `refresh()`. A counter rather than a boolean because two purchases in a row must
+   * each trigger a read — a flag that is already `true` changes nothing and the second read never
+   * happens, which is this same bug one level down.
+   */
+  const [reloads, setReloads] = useState(0);
+  const refresh = useCallback(() => setReloads((n) => n + 1), []);
 
   useEffect(() => {
     // Signed out, or no school chosen: there is nothing to ask about, and asking would send a
     // null id to the server. Not an error — just no surface, and `loading` false so Home paints.
     if (userId === null || schoolId === null) {
-      setSurface({ canBuy: false, hasBalance: false, loading: false, balance: null, allPacks: [] });
+      setSurface({
+        canBuy: false,
+        hasBalance: false,
+        loading: false,
+        balance: null,
+        allPacks: [],
+        unavailable: false,
+        refresh,
+      });
       return;
     }
 
@@ -114,6 +160,7 @@ export function MealPackSurfaceProvider({ children }: { children: ReactNode }) {
       // — the overwhelming majority — costs one request, not two.
       let balance: api.MealPackBalance | null = null;
       let allPacks: api.MealPackBalance[] = [];
+      let unavailable = false;
       if (answer.hasBalance) {
         try {
           // One read for every pack. The one this order draws from is picked from that list by a
@@ -132,16 +179,22 @@ export function MealPackSurfaceProvider({ children }: { children: ReactNode }) {
            */
           balance = null;
           allPacks = [];
+          // `E21-95`. Recorded, not just swallowed. The screens use it to say "we could not load
+          // your packs" instead of rendering the same blank as "you have none" — a parent who has
+          // just paid must not be told, in effect, that they own nothing.
+          unavailable = true;
         }
       }
       if (cancelled) return;
-      setSurface({ ...answer, balance, allPacks, loading: false });
+      setSurface({ ...answer, balance, allPacks, loading: false, unavailable, refresh });
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [userId, schoolId]);
+    // `reloads` is the third dependency, and its absence was the bug: without it this effect
+    // runs once per mount and the answer it fetched outlives the thing that changed it.
+  }, [userId, schoolId, reloads, refresh]);
 
   const value = useMemo(() => surface, [surface]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

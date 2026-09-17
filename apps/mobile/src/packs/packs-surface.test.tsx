@@ -26,7 +26,20 @@ jest.mock('../analytics/analytics', () => ({
   flushAnalytics: async () => {},
 }));
 
-let mockSurface = { canBuy: false, hasBalance: false, loading: false, allPacks: [] as unknown[] };
+/**
+ * Typed loosely on purpose: the shape is inferred from whatever literal is assigned, and when
+ * `E21-95` added `unavailable` and `refresh` every assignment below became a type error against
+ * the FIRST literal rather than against the real context type. A record keeps the fixtures honest
+ * without making every future field a thirteen-line edit.
+ */
+let mockSurface: Record<string, unknown> = {
+  canBuy: false,
+  hasBalance: false,
+  loading: false,
+  allPacks: [] as unknown[],
+  unavailable: false,
+  refresh: () => {},
+};
 jest.mock('./MealPackSurfaceContext', () => ({
   useMealPackSurface: () => mockSurface,
   showsPackEntryPoint: (s: { canBuy: boolean; hasBalance: boolean }) => s.canBuy || s.hasBalance,
@@ -70,7 +83,7 @@ const BALANCE: PackBalance = {
 beforeEach(() => {
   mockTrack.mockClear();
   mockOffers.mockReset();
-  mockSurface = { canBuy: false, hasBalance: false, loading: false, allPacks: [] };
+  mockSurface = { canBuy: false, hasBalance: false, loading: false, allPacks: [], unavailable: false, refresh: () => {} };
   mockSchool = { schoolId: 's-1', schoolName: 'Amity International School' };
 });
 
@@ -106,7 +119,7 @@ describe('case 2 — the offers screen reached when packs are not sold here', ()
 
 describe('case 2 — the offers screen when packs ARE sold here', () => {
   beforeEach(() => {
-    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [] };
+    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [], unavailable: false, refresh: () => {} };
   });
 
   it('lists what is on sale', async () => {
@@ -152,7 +165,7 @@ describe('case 2 — the offers screen when packs ARE sold here', () => {
 describe('case 3 — a parent who owns a pack at a school we switched off', () => {
   beforeEach(() => {
     // The exact state: selling is off, the balance is not.
-    mockSurface = { canBuy: false, hasBalance: true, loading: false, allPacks: [] };
+    mockSurface = { canBuy: false, hasBalance: true, loading: false, allPacks: [], unavailable: false, refresh: () => {} };
   });
 
   it('still shows the balance', async () => {
@@ -183,7 +196,7 @@ describe('case 3 — a parent who owns a pack at a school we switched off', () =
   });
 
   it('offers to sell again once the school is switched back on', async () => {
-    mockSurface = { canBuy: true, hasBalance: true, loading: false, allPacks: [] };
+    mockSurface = { canBuy: true, hasBalance: true, loading: false, allPacks: [], unavailable: false, refresh: () => {} };
     const onSeeOffers = jest.fn();
     await render(
       <MyPacksScreen balance={{ ...BALANCE, itemsRemaining: 0, itemsSpendable: 0 }} onSeeOffers={onSeeOffers} />,
@@ -195,20 +208,20 @@ describe('case 3 — a parent who owns a pack at a school we switched off', () =
 
 describe('the three empties are three different sentences', () => {
   it('no pack at all', async () => {
-    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [] };
+    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [], unavailable: false, refresh: () => {} };
     await render(<MyPacksScreen balance={null} />);
     expect(screen.getByText(/don’t have a meal pack/)).toBeTruthy();
   });
 
   it('every meal spent — recoverable, and says how', async () => {
-    mockSurface = { canBuy: true, hasBalance: true, loading: false, allPacks: [] };
+    mockSurface = { canBuy: true, hasBalance: true, loading: false, allPacks: [], unavailable: false, refresh: () => {} };
     await render(<MyPacksScreen balance={{ ...BALANCE, itemsRemaining: 0, itemsSpendable: 0 }} />);
     expect(screen.getByText(/used every item/)).toBeTruthy();
     expect(screen.getByText(/spent oldest first/)).toBeTruthy();
   });
 
   it('expired — says plainly that the items are gone, and says nothing about planning', async () => {
-    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [] };
+    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [], unavailable: false, refresh: () => {} };
     await render(<MyPacksScreen balance={{ ...BALANCE, expired: true }} />);
     expect(screen.getByText('This pack has expired')).toBeTruthy();
     expect(screen.getAllByText(/Unused items are gone/).length).toBeGreaterThan(0);
@@ -217,7 +230,7 @@ describe('the three empties are three different sentences', () => {
   });
 
   it('an expired pack shows no progress meter, which would imply something remains', async () => {
-    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [] };
+    mockSurface = { canBuy: true, hasBalance: false, loading: false, allPacks: [], unavailable: false, refresh: () => {} };
     await render(<MyPacksScreen balance={{ ...BALANCE, expired: true }} />);
     expect(screen.queryByTestId('screen-my-packs-meter')).toBeNull();
   });
@@ -236,7 +249,7 @@ describe('E21-49 — two packs, both visible, with the order explained', () => {
   };
 
   beforeEach(() => {
-    mockSurface = { canBuy: true, hasBalance: true, loading: false, allPacks: [] };
+    mockSurface = { canBuy: true, hasBalance: true, loading: false, allPacks: [], unavailable: false, refresh: () => {} };
   });
 
   it('shows the second pack with its OWN expiry', async () => {
@@ -266,5 +279,71 @@ describe('E21-49 — two packs, both visible, with the order explained', () => {
       <MyPacksScreen balance={BALANCE} otherPacks={[{ ...SECOND, expired: true }]} />,
     );
     expect(screen.getByText(/Expired 18 Nov 2026/)).toBeTruthy();
+  });
+});
+
+
+describe('E21-95 — no state where you have paid and the screen is blank', () => {
+  /**
+   * Andy paid for a pack on staging and landed on an empty screen. The data was perfect: the pack
+   * was `active`, settlement had completed, the invoice was issued, and reading as the parent
+   * returned `has_balance: true` with one row.
+   *
+   * What was wrong was that the app never asked again. `meal_pack_surface` was last called **108
+   * seconds before the money moved**, and `meal_pack_balances` was never called at all — it is
+   * only called when `hasBalance` is already true, and the cached answer said false.
+   *
+   * So there are two fixes and both are tested here: the app re-reads after a purchase, and when
+   * it cannot read, it SAYS SO rather than rendering the same blank as "you own nothing".
+   */
+
+  it('says it could not load, rather than "you have no pack", when the server says there IS one',
+    async () => {
+      // The exact shape of Andy's screen: the server knows about a balance, the numbers did not
+      // arrive. Telling him he has no pack here is the app contradicting the money.
+      mockSurface = {
+        canBuy: true, hasBalance: true, loading: false, allPacks: [],
+        unavailable: true, refresh: () => {},
+      };
+      await render(<MyPacksScreen balance={null} />);
+
+      expect(screen.getByTestId('screen-my-packs-unavailable')).toBeTruthy();
+      expect(screen.queryByTestId('screen-my-packs-none')).toBeNull();
+      expect(screen.getByText(/Your pack is safe/)).toBeTruthy();
+    });
+
+  it('offers a retry on that state, because a retry is what fixes it', async () => {
+    const onRetry = jest.fn();
+    mockSurface = {
+      canBuy: true, hasBalance: true, loading: false, allPacks: [],
+      unavailable: true, refresh: () => {},
+    };
+    await render(<MyPacksScreen balance={null} onRetry={onRetry} />);
+    await userEvent.press(screen.getByText('Try again'));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not claim anything while it is still reading', async () => {
+    // A blank screen for a moment is fine. A blank screen that ASSERTS you own nothing is not,
+    // and the two were the same render.
+    mockSurface = {
+      canBuy: true, hasBalance: true, loading: true, allPacks: [],
+      unavailable: false, refresh: () => {},
+    };
+    await render(<MyPacksScreen balance={null} />);
+    expect(screen.getByTestId('screen-my-packs-loading')).toBeTruthy();
+    expect(screen.queryByTestId('screen-my-packs-none')).toBeNull();
+  });
+
+  it('still says "you have no pack" when that is genuinely true', async () => {
+    // The fix must not swallow the honest empty state — a parent who has never bought one should
+    // see the advertisement, not an error.
+    mockSurface = {
+      canBuy: true, hasBalance: false, loading: false, allPacks: [],
+      unavailable: false, refresh: () => {},
+    };
+    await render(<MyPacksScreen balance={null} />);
+    expect(screen.getByTestId('screen-my-packs-none')).toBeTruthy();
+    expect(screen.queryByTestId('screen-my-packs-unavailable')).toBeNull();
   });
 });

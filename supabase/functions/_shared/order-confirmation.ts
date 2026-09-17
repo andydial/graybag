@@ -45,44 +45,44 @@ export async function sendOrderConfirmation(
   try {
     const { data: group } = await admin
       .from('order_group')
-      .select('id, customer_user_id, payable_paise')
+      .select('id, customer_user_id, payable_paise, kind')
       .eq('id', input.orderGroupId)
       .maybeSingle();
-    if (!group) return 'failed';
-
-    const { data: user } = await admin
-      .from('app_user')
-      .select('id, email, first_name')
-      .eq('id', group.customer_user_id)
-      .maybeSingle();
-
-    // `app_user.email` is nullable — Apple private-relay opt-out leaves it null (`0018`). No
-    // address is not a failure; it is a customer we cannot email, recorded as such.
-    const address = typeof user?.email === 'string' ? user.email.trim() : '';
-
-    const { data: orders } = await admin
-      .from('order')
-      .select('pickup_code, service_date, recipient_name_snapshot, break_label_snapshot, total_paise')
-      .eq('order_group_id', input.orderGroupId)
-      .order('service_date', { ascending: true });
-
-    const rows = orders ?? [];
-    if (rows.length === 0) return 'failed';
-
-    const first = rows[0] as Record<string, unknown>;
-    const fullName = String(first.recipient_name_snapshot ?? '').trim();
-    const firstName = fullName === '' ? null : fullName.split(/\s+/)[0];
-    const pickupCode = String(first.pickup_code ?? '');
-    const totalPaise = rows.reduce(
-      (sum, o) => sum + Number((o as Record<string, unknown>).total_paise ?? 0),
-      0,
-    );
+    if (!group) {
+      /**
+       * The ONE path that cannot leave a row, and it is worth being explicit about why: the row
+       * is keyed on the group and the user, and we have established that neither exists. Every
+       * other exit below writes one. Loud in the log, because a settlement that names a group
+       * the database does not have is a much bigger problem than an email.
+       */
+      console.error(
+        `order-confirmation: no order_group ${input.orderGroupId} — cannot record a delivery ` +
+          'attempt against a group that does not exist.',
+      );
+      return 'failed';
+    }
 
     const apiKey = Deno.env.get('RESEND_API_KEY') ?? '';
     const from = Deno.env.get('ORDER_EMAIL_FROM') ?? '';
 
-    // **Claim the send before making it.** The insert is the lock: if the other settlement route
-    // got here first this fails on 23505 and we stop, which is the entire dedup mechanism.
+    /**
+     * **CLAIM FIRST — before anything else can fail.** `E21-93`.
+     *
+     * This insert used to sit *after* the orders lookup, and the lookup had an early
+     * `return 'failed'` in front of it. So a group with no orders — **which is exactly what a
+     * meal pack purchase is, by design and by constraint** — bailed out before the row existed,
+     * and the send was never recorded as attempted. Andy paid for a pack, got no email, and
+     * `notification_delivery` held **nothing at all**: the one table built to make email
+     * failures visible was the one place this failure could not be seen.
+     *
+     * Moving the claim up fixes the pack case and every case like it. The rule is now
+     * structural rather than remembered: **once the group is known, an attempt is on the record,
+     * and every exit below goes through `finish()`.** A future early return cannot make a send
+     * invisible, because by the time one could run the row already exists.
+     *
+     * It is still the dedup lock — a 23505 means the other settlement route got here first —
+     * and claiming earlier only makes that lock cover more of the work.
+     */
     const claim = await admin.from('notification_delivery').insert({
       user_id: group.customer_user_id,
       channel: 'email',
@@ -107,6 +107,54 @@ export async function sendOrderConfirmation(
         .eq('template_code', TEMPLATE_ORDER_CONFIRMED)
         .eq('channel', 'email');
     };
+
+    const { data: user } = await admin
+      .from('app_user')
+      .select('id, email, first_name')
+      .eq('id', group.customer_user_id)
+      .maybeSingle();
+
+    // `app_user.email` is nullable — Apple private-relay opt-out leaves it null (`0018`). No
+    // address is not a failure; it is a customer we cannot email, recorded as such.
+    const address = typeof user?.email === 'string' ? user.email.trim() : '';
+
+    /**
+     * A MEAL PACK PURCHASE HAS NO MEMBER ORDERS. `assert_order_group_totals` enforces it — a pack
+     * is a thing you own, not a meal on a day — so the orders lookup below finds nothing and
+     * everything it derives (pickup code, service date, the child's name) is meaningless here.
+     *
+     * The pack's own confirmation is built by `loadPackContext`/`packNote` further down, and the
+     * invoice is the body, exactly as for a food order.
+     */
+    const isPackPurchase = group.kind === 'meal_pack_purchase';
+
+    const { data: orders } = isPackPurchase
+      ? { data: [] as Record<string, unknown>[] }
+      : await admin
+          .from('order')
+          .select(
+            'pickup_code, service_date, recipient_name_snapshot, break_label_snapshot, total_paise',
+          )
+          .eq('order_group_id', input.orderGroupId)
+          .order('service_date', { ascending: true });
+
+    const rows = orders ?? [];
+    if (rows.length === 0 && !isPackPurchase) {
+      // A FOOD group with no orders is a real fault — and now it is a recorded one.
+      console.error(
+        `order-confirmation: order_group ${input.orderGroupId} is a food group with no orders.`,
+      );
+      await finish('failed', { error_text: 'no_orders_in_group' });
+      return 'failed';
+    }
+
+    const first = (rows[0] ?? {}) as Record<string, unknown>;
+    const fullName = String(first.recipient_name_snapshot ?? '').trim();
+    const firstName = fullName === '' ? null : fullName.split(/\s+/)[0];
+    const pickupCode = String(first.pickup_code ?? '');
+    const totalPaise = isPackPurchase
+      ? Number(group.payable_paise ?? 0)
+      : rows.reduce((sum, o) => sum + Number((o as Record<string, unknown>).total_paise ?? 0), 0);
 
     if (address === '') {
       await finish('suppressed', { suppressed_reason: 'no_email_on_account' });
