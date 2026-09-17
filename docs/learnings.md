@@ -3860,3 +3860,57 @@ pgTAP. It was proved by driving the built site in headless Chrome (the same CDP 
 scenarios. Nine scenarios, 27 assertions, no credentials, and nothing that could reach production.
 Two of the first run's failures were real: the who-line naming missing grants, and the route table
 in the HTML. Build with `PUBLIC_SUPABASE_URL` pointed at the stub and the whole client believes it.
+
+## `tab-menu` not found, with the tab bar plainly visible in the screenshot — 2026-09-17
+
+`Maestro (cart)` went red on the `E21-93/94/95` PR with `Element not found: Id matching regex:
+tab-menu`. That is the regression bar Andy set for the whole meal-packs piece — cart, checkout,
+webhook, confirmation — so it had to be believed until it was disproved.
+
+It was not the app. The screenshot at the moment of failure shows the Home screen rendered
+correctly with **Home / Menu / Cart / Account across the bottom**, greyed out behind a system
+dialog reading *"Pixel Launcher isn't responding — Close app / Wait"*.
+
+**The lesson is about the hierarchy, not the ANR.** Maestro dumps the *focused window*, and an
+ANR dialog is a system window that takes focus. The captured hierarchy is 38 nodes: the SystemUI
+status bar, and `android:id/alertTitle | Pixel Launcher isn't responding` with its two buttons.
+Our app's tree is not in it **at all** — zero occurrences of `tab-menu`. So a dialog belonging to
+a completely different process produces a report that is indistinguishable from "your screen did
+not render", and the JUnit line names *your* element as the thing that is missing.
+
+Two previous entries in this file chased exactly that report to a real cause (`E01-28`, the
+missing `RAZORPAY_KEY_ID` rendering `CantConnectScreen`; `E01-26`, the wrong package name). Both
+times the element genuinely was not there. This time it was, and only the screenshot and the
+hierarchy could tell the two apart — which is the whole argument for `--debug-output`, made
+again.
+
+### How to tell in thirty seconds
+
+```bash
+gh run download <run-id> -n maestro-debug -D mdbg
+# 1. LOOK at it — the answer is usually in the picture
+open mdbg/<flow>/screenshots/*.png
+# 2. What did Maestro actually have in its tree?
+grep -c 'tab-menu' mdbg/<flow>/screen-hierarchy/*.json     # 0 with the bar on screen = another window has focus
+# 3. Did OUR app die, or somebody else's?
+grep -iE 'FATAL EXCEPTION|ANR in' mdbg/<flow>/logs/device-logcat.txt
+```
+
+Ours had no `FATAL EXCEPTION` and no crash line for `com.Gracord.Graybag.staging` anywhere.
+
+### Why the launcher was starved
+
+The flow started at `08:25:09`, and the emulator had finished booting seconds earlier — the log
+above it carries `Failed to find ColorBuffer: 9` and a failed `getprop sys.boot_completed`. From
+`08:25:14` to `08:25:32`, logcat is a wall of `AppFetcherImplV2 updateApps package:[…] reason:
+[package is updated.]` for youtube, messaging, vending, maps, contacts, gms, settings, gm and
+googlequicksearchbox. **The device was still doing its first-boot package work while the flow
+drove it**, and the launcher lost the race.
+
+So `boot_completed` is not "ready". It means the boot animation may stop, not that the broadcast
+queues have drained. `E21-96` adds `adb shell am wait-for-broadcast-idle` between the install and
+the flow, which is a fix rather than a mask: it does not retry, dismiss a dialog or relax an
+assertion, so a genuinely broken app still fails exactly as loudly.
+
+**Do not "fix" this by tapping `Wait` if a dialog is present.** That would also swallow an ANR in
+our own app, which is a real defect and one this flow should catch.
