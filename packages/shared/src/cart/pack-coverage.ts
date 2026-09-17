@@ -29,7 +29,7 @@
  * produces the same answer. The server breaks ties on `line_no`, which is assigned in the same
  * order — `pack-coverage.test.ts` pins the agreement.
  */
-import { CGST_RATE_BPS, halfUp, SGST_RATE_BPS } from '../money/gst.js';
+import { CGST_RATE_BPS, type GstBreakdown, halfUp, SGST_RATE_BPS } from '../money/gst.js';
 import type { CartLine } from './types.js';
 
 /** One line, and how much of it the pack pays for. */
@@ -157,5 +157,35 @@ export function coverCart(
     // Partial means the parent pays cash AND uses the pack. Covering everything is not partial,
     // and covering nothing is not either — both have a simpler sentence to say.
     isPartial: itemsCovered > 0 && cashSubtotal > 0,
+  };
+}
+
+/**
+ * What the parent actually pays, in the shape the totals block and the button already render.
+ * `E21-97`.
+ *
+ * **This exists so there is exactly one expression for the payable, and it is a fix for a bug of
+ * precisely that shape.** The cart had two: `coverCart` computed the cash due for the redemption
+ * strip, and `money.gstBreakdown(cart.lines)` computed the total for the summary and the button.
+ * On a fully covered cart the strip said *"Nothing to pay"* and the summary directly beneath it
+ * said **₹260.42**, because the second expression had never heard of the pack. Postgres caught it
+ * — `pack coverage changed: expected 26042, server says 0` — and `L7` refused the order rather
+ * than charging it, which is the only reason this was a blocked checkout and not a wrong charge.
+ *
+ * Note what it does **not** take: a cart. Passing the lines again would let a caller hand this
+ * function a different cart from the one the coverage was computed against, which is the same
+ * class of mistake one argument further down. The coverage already knows every number it needs.
+ *
+ * A parent with no pack is not a special case — `coverCart(lines, 0)` returns the whole cart as
+ * cash, and the arithmetic below is then identical to `gstBreakdown` line for line. That is
+ * deliberate: a "no pack" branch is a second expression again, and it would be the one nobody
+ * tests because it is the ordinary path that already worked.
+ */
+export function cashBreakdown(coverage: PackCoverage): GstBreakdown {
+  return {
+    taxablePaise: coverage.cashSubtotalPaise,
+    cgstPaise: coverage.cashCgstPaise,
+    sgstPaise: coverage.cashSgstPaise,
+    totalPaise: coverage.cashDuePaise,
   };
 }

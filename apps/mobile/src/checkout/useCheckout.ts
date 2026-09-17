@@ -48,6 +48,16 @@ export type CheckoutPhase =
   | { kind: 'placing' }
   | { kind: 'opening'; orderGroupId: string }
   | { kind: 'sheet_reported_success'; orderGroupId: string }
+  /**
+   * `E21-98`. A pack covered the whole cart, so the server confirmed the order inline and there
+   * was never a payment to make.
+   *
+   * **Its own kind, rather than reusing `sheet_reported_success`.** That name is a statement about
+   * a sheet, and no sheet opened — the comment above it exists precisely because this codebase
+   * does not let a phase claim more than it knows. This one knows more, not less: the server said
+   * `paid`, which is the confirmation the other path has to go and poll for.
+   */
+  | { kind: 'paid_without_payment'; orderGroupId: string }
   | { kind: 'dismissed'; orderGroupId: string }
   | { kind: 'failed'; orderGroupId: string | null; message: string; code?: string };
 
@@ -217,6 +227,29 @@ export async function runCheckout(
         orderGroupId = result.orderGroupId;
         session.placedGroupId = orderGroupId;
         log('createCheckout ok', { orderGroupId, payablePaise: result.payablePaise });
+
+        /**
+         * `E21-98`. **The pack covered everything, so stop here.**
+         *
+         * `create_checkout` has already confirmed the redemptions, allocated the pickup codes,
+         * set `paid_at` and sent the confirmation email — there is no payment, and no webhook
+         * will ever arrive for this group because none was created.
+         *
+         * Without this the flow walked straight into `createPaymentOrder`, which refuses a group
+         * with nothing owing: `nothing_payable`, 409. The parent would have seen *"There is
+         * nothing to pay on this order"* rendered as a **failure**, for an order that was placed,
+         * paid and confirmed. Money had not moved, but the customer had been told the opposite of
+         * what happened — the same disagreement as `E21-65`, arriving from the other direction.
+         *
+         * Returned as a terminal success rather than continuing, so no `payment_started` is
+         * emitted for a payment that does not exist and no sheet opens over a finished order.
+         */
+        if (result.status === 'paid') {
+          const settled: CheckoutPhase = { kind: 'paid_without_payment', orderGroupId };
+          log('checkout settled with no payment', { orderGroupId });
+          setPhase(settled);
+          return settled;
+        }
       } catch (error) {
         const next = failure(error, null);
         log('createCheckout FAILED', { code: next.code ?? null, message: next.message });

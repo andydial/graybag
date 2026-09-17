@@ -8,7 +8,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { coverCart } from './pack-coverage.js';
+import { gstBreakdown } from '../money/gst.js';
+import { cashBreakdown, coverCart } from './pack-coverage.js';
 import type { CartLine } from './types.js';
 
 const line = (over: Partial<CartLine> & { key: string; unitPricePaise: number }): CartLine => ({
@@ -127,5 +128,75 @@ describe('coverCart', () => {
     // Taxing the ₹170 subtotal instead would give 425, one paise lower. That difference is the
     // whole reason the rule is written down.
     expect(c.cashCgstPaise).not.toBe(425);
+  });
+});
+
+/**
+ * `cashBreakdown` — one expression for the payable. `E21-97`.
+ *
+ * The cart had two. `coverCart` fed the redemption strip, `gstBreakdown(cart.lines)` fed the
+ * summary and the button, and on a fully covered cart they said "Nothing to pay" and "₹260.42" on
+ * the same screen. The order could not be placed at all: `L7` compares the displayed figure
+ * against the server's and refused — `pack coverage changed: expected 26042, server says 0`.
+ *
+ * The property below is what makes the substitution safe for the ordering path that is carrying
+ * real orders right now, and it is the assertion worth having: **for a parent with no pack, the
+ * new expression must equal the old one exactly.** Not to the rupee — to the paise. A single
+ * paise of disagreement is not a rounding nicety here, it is every checkout failing with
+ * `price_changed`, because `L7` compares integers.
+ */
+describe('cashBreakdown is the one expression for what the parent pays', () => {
+  const CART = [
+    line({ key: 'a', unitPricePaise: 6900, quantity: 3 }),
+    line({ key: 'b', unitPricePaise: 25_000 }),
+    line({ key: 'c', unitPricePaise: 4000, quantity: 2 }),
+    // 33 paise is deliberate: ×7 it lands on a half-paise boundary in both components, which is
+    // where per-line half-up and any other rounding disagree.
+    line({ key: 'd', unitPricePaise: 33, quantity: 7 }),
+  ];
+
+  it('EQUALS gstBreakdown to the paise when no pack is involved', () => {
+    expect(cashBreakdown(coverCart(CART, 0))).toEqual(gstBreakdown(CART));
+  });
+
+  it('equals it for every sub-cart, not just the one that happened to be picked', () => {
+    // A single example can agree by luck. Every prefix of the cart exercises a different mix of
+    // quantities and rounding boundaries against the same two implementations.
+    for (let n = 1; n <= CART.length; n += 1) {
+      const some = CART.slice(0, n);
+      expect(cashBreakdown(coverCart(some, 0))).toEqual(gstBreakdown(some));
+    }
+  });
+
+  it('is ZERO in every component when the pack covers the whole cart', () => {
+    const items = CART.reduce((t, l) => t + l.quantity, 0);
+    expect(cashBreakdown(coverCart(CART, items))).toEqual({
+      taxablePaise: 0,
+      cgstPaise: 0,
+      sgstPaise: 0,
+      totalPaise: 0,
+    });
+  });
+
+  it('taxes only the cash half, never the covered items — Andy’s own worked example', () => {
+    // A ₹250 main and a ₹40 drink, one item of pack. `P23`: the pack takes the DRINK, and the
+    // parent pays ₹262.50 — ₹250 plus 5%. The covered item is not a taxable supply here at all.
+    const andy = [
+      line({ key: 'main', unitPricePaise: 25_000 }),
+      line({ key: 'drink', unitPricePaise: 4000 }),
+    ];
+    expect(cashBreakdown(coverCart(andy, 1))).toEqual({
+      taxablePaise: 25_000,
+      cgstPaise: 625,
+      sgstPaise: 625,
+      totalPaise: 26_250,
+    });
+  });
+
+  it('never returns a non-integer — no float reaches a payable (non-negotiable #3)', () => {
+    for (let spend = 0; spend <= 8; spend += 1) {
+      const b = cashBreakdown(coverCart(CART, spend));
+      for (const v of Object.values(b)) expect(Number.isInteger(v)).toBe(true);
+    }
   });
 });

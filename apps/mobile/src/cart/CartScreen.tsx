@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react';
 import { track } from '../analytics/analytics';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { api, cart as cartDomain, design, money, ordering } from '@graybag/shared';
+// `packCoverageOf` rather than `packCoverage`: the prop below owns that name on this screen, and
+// a namespace silently shadowed by a prop is how the payable came to be computed twice.
+import {
+  api,
+  cart as cartDomain,
+  design,
+  money,
+  ordering,
+  packCoverage as packCoverageOf,
+} from '@graybag/shared';
 
 import { AllergenFlag, BrandHeader, FoodTypeMark, PatternTile } from '../components';
 import { Button } from '../components/Button';
@@ -260,12 +269,20 @@ export function CartScreen({
     );
   }
 
-  const breakdown = money.gstBreakdown(
-    cart.lines.map((line) => ({
-      unitPricePaise: line.unitPricePaise,
-      quantity: line.quantity,
-    })),
-  );
+  /**
+   * `E21-97`. **What the parent pays, from the coverage — not from the lines.**
+   *
+   * This read `money.gstBreakdown(cart.lines)`, which knows nothing about the pack. On a fully
+   * covered cart the strip immediately above said *"Nothing to pay"* and this block said
+   * **₹260.42**, on one screen, about one cart. The server had it right throughout and refused
+   * the order rather than charging it.
+   *
+   * `coverCart(lines, 0)` for a parent with no pack, deliberately, rather than a branch: it
+   * returns the whole cart as cash and the arithmetic is then identical to `gstBreakdown`. A
+   * "no pack" branch would be a second expression for the payable again, which is the bug.
+   */
+  const coverage = packCoverage ?? packCoverageOf.coverCart(cart.lines, 0);
+  const breakdown = packCoverageOf.cashBreakdown(coverage);
 
   const withdrawn = new Set(unavailableDishIds ?? []);
   const withdrawnNames = [
@@ -547,6 +564,18 @@ function placeOrderState({
   // Required everywhere (`P19`). The label names the missing step rather than saying "Place
   // order" and refusing — a disabled button with no reason is the thing parents tap twice.
   if (breakNeeded) return { label: 'Choose a delivery time', disabled: true };
+  /**
+   * `E21-97`. **No amount when there is no amount.**
+   *
+   * Andy, on `Place order · ₹260.42` over a fully covered cart: *"wrong twice over"* — the figure
+   * was wrong, and a figure at all was wrong. With the totals fixed this would now read
+   * `Place order · ₹0.00`, which is accurate and still says the wrong thing: ₹0.00 is a price,
+   * and this is not a purchase. It is a redemption of something already bought and already taxed.
+   *
+   * The amount keeps its slot rather than vanishing, because the button's shape is what a parent
+   * has learned to read — the commitment on the left, what it costs on the right (§5.7).
+   */
+  if (totalPaise === 0) return { label: 'Place order · Nothing to pay', disabled: !wired };
   return { label: `Place order · ${money.formatPaise(totalPaise)}`, disabled: !wired };
 }
 

@@ -194,3 +194,87 @@ describe('the total sent for the server to check', () => {
     expect(mockCreateCheckout.mock.calls[0][0].expectedTotalPaise).toBeNull();
   });
 });
+
+/**
+ * `E21-98`. **A pack covered the whole cart, so there is nothing to pay — and nothing to ask
+ * Razorpay for.**
+ *
+ * `create_checkout` returns `status: 'paid'` on exactly one path: the pack covered everything, so
+ * it confirmed the redemptions, allocated the pickup codes, set `paid_at` and sent the
+ * confirmation inline. There is no payment, and no webhook will ever arrive for that group.
+ *
+ * The server has returned that field from the beginning, on both the fresh and the replayed path.
+ * Nothing read it. This hook went straight on to `createPaymentOrder`, which refuses a group with
+ * nothing owing — `nothing_payable`, 409 — so a **placed, paid, confirmed order** would have been
+ * reported to the parent as a failure. Money had not moved, and the customer was told the
+ * opposite of what happened: `E21-65`'s family, arriving from the other direction.
+ *
+ * Latent until now only because the cart could not reach this state — `E21-97` had the client
+ * asserting a full cash total, which `L7` refused before any of this ran.
+ */
+describe('a cart the pack pays for entirely', () => {
+  const COVERED = { orderGroupId: 'g1', payablePaise: 0, status: 'paid', replayed: false };
+
+  it('NEVER asks Razorpay for an order that has nothing to pay', async () => {
+    mockCreateCheckout.mockResolvedValue(COVERED);
+
+    const outcome = await runCheckout(session, { ...INPUT, expectedTotalPaise: 0 });
+
+    expect(mockCreateCheckout).toHaveBeenCalledTimes(1);
+    // The assertion the defect fails: this was called, and answered 409 `nothing_payable`.
+    expect(mockCreatePaymentOrder).not.toHaveBeenCalled();
+    expect(mockOpenSheet).not.toHaveBeenCalled();
+    expect(outcome).toEqual({ kind: 'paid_without_payment', orderGroupId: 'g1' });
+  });
+
+  it('is a SUCCESS, not a failure — the order exists and is confirmed', async () => {
+    mockCreateCheckout.mockResolvedValue(COVERED);
+    /*
+     * **`createPaymentOrder` must REFUSE here, because that is what the real one does.** Left
+     * resolving, this test passed with the fix removed — the mutant reached the sheet, reported
+     * success, and "not failed" was true for entirely the wrong reason. `payments-create-order`
+     * answers 409 `nothing_payable` for a group with nothing owing (`0049:112`), so the mock says
+     * so, and the assertion now discriminates.
+     */
+    mockCreatePaymentOrder.mockRejectedValue(
+      new api.ApiError('there is nothing to pay on this order', 'nothing_payable'),
+    );
+
+    const outcome = await runCheckout(session, { ...INPUT, expectedTotalPaise: 0 });
+
+    // What the parent was shown before: "There is nothing to pay on this order", as an error,
+    // for an order that had already been placed, paid and confirmed.
+    expect(outcome.kind).not.toBe('failed');
+    expect(outcome).toEqual({ kind: 'paid_without_payment', orderGroupId: 'g1' });
+  });
+
+  it('still pays when the server says pending_payment, whatever the payable reads', async () => {
+    /*
+     * The branch keys on the SERVER'S STATUS, never on `payablePaise === 0`. A zero payable is the
+     * symptom; the status is the fact. If a future path ever produced a zero payable that was not
+     * settled inline, inferring from the amount would skip the payment on an unpaid order — which
+     * is the one mistake here that costs money rather than costing a message.
+     */
+    mockCreateCheckout.mockResolvedValue({
+      orderGroupId: 'g1',
+      payablePaise: 0,
+      status: 'pending_payment',
+      replayed: false,
+    });
+
+    await runCheckout(session, { ...INPUT, expectedTotalPaise: 0 });
+
+    expect(mockCreatePaymentOrder).toHaveBeenCalledWith('g1');
+  });
+
+  it('falls to the PAYING path when the status is missing entirely', async () => {
+    // An unrecognised response must not be read as settled. `createCheckout` defaults the field to
+    // `pending_payment` for this reason: the failure of asking for money that is not owed is a
+    // refusal a parent can see, and the failure of skipping money that IS owed is free food.
+    mockCreateCheckout.mockResolvedValue({ orderGroupId: 'g1', payablePaise: 0 });
+
+    await runCheckout(session, { ...INPUT, expectedTotalPaise: 0 });
+
+    expect(mockCreatePaymentOrder).toHaveBeenCalledWith('g1');
+  });
+});

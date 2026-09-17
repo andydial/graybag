@@ -21,6 +21,21 @@ export interface CheckoutResult {
   orderGroupId: string;
   correlationId: string;
   payablePaise: number;
+  /**
+   * The group's status as the server left it. `E21-98`.
+   *
+   * Almost always `pending_payment`, awaiting a webhook. It is **`paid`** on one path and only
+   * one: a pack covered the whole cart, so `create_checkout` confirmed the redemptions, allocated
+   * the pickup codes and set `paid_at` inline — there is no payment and no webhook that could ever
+   * do it later.
+   *
+   * The server has returned this from the beginning, on both the fresh and the replayed path, and
+   * nothing read it. The client went on to ask for a Razorpay order regardless, which on that path
+   * is a 409 `nothing_payable` — a placed, paid, confirmed order reported to the parent as a
+   * failure. Read it; do not infer it from `payablePaise === 0`, which is the symptom rather than
+   * the fact.
+   */
+  status: string;
   /** True when this was a replay of an earlier identical request (`E05-12`). */
   replayed: boolean;
   orders: { orderId: string; orderRef: string; serviceDate: string; totalPaise: number }[];
@@ -58,6 +73,10 @@ export async function createCheckout(input: {
     orderGroupId: String(data.order_group_id ?? ''),
     correlationId: String(data.correlation_id ?? ''),
     payablePaise: Number(data.payable_paise ?? 0),
+    // `pending_payment` when absent, never `paid`: an unknown status must fall to the path that
+    // asks for money, because the failure there is a refusal a parent can see and retry. Falling
+    // to `paid` would skip the payment on a response we did not understand.
+    status: String(data.status ?? 'pending_payment'),
     replayed: data.replayed === true,
     orders: orders.map((o) => {
       const row = o as Record<string, unknown>;
