@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/75</span>
+          <span class="meter-num">0/76</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 75 tasks</summary>
+        <summary>Context &amp; 76 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7491,6 +7491,14 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>Paid, and the balance screen was blank with no explanation.</strong> The data was perfect — pack <code>active</code>, settlement complete, invoice issued, and reading as the parent returned <code>has_balance: true</code> with one row. The app never asked again: <code>meal_pack_surface</code> was last called <strong>108 seconds before the money moved</strong>, and <code>meal_pack_balances</code> was never called <strong>at all</strong>, because it is only called when <code>hasBalance</code> is already true. <code>MealPackSurfaceContext</code>&#39;s effect keyed on <code>[userId, schoolId]</code>, neither of which changes when you buy something, so an answer that was correct on mount outlived the event that invalidated it. Now it exposes <code>refresh()</code>, called after a completed purchase — a counter rather than a flag, because an already-true flag changes nothing and the second read never fires, which is the same bug one level down. And Andy&#39;s hard requirement: *&quot;there should be no state where I&#39;ve paid and the app shows me an empty screen with no explanation.&quot;* MyPacks now has three states where it had one — still reading, could not load (with a retry, and *&quot;your pack is safe — this is a problem reading it, not a problem with it&quot;*), and genuinely no pack. The middle one is the one that matters: <code>hasBalance</code> is the server&#39;s word that a parent is owed items, and rendering &quot;You don&#39;t have a meal pack&quot; over the top of it is the app contradicting the money</span>
+      </li>
+      <li class="task" data-id="E21-96" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-96"></button>
+        <code class="tid">E21-96</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>boot_completed</code> is not &quot;ready&quot;, and the report blamed the app.</strong> <code>Maestro (cart)</code> failed <code>E21-93</code>&#39;s PR with <code>Element not found: tab-menu</code> — the regression bar for the whole meal-packs piece — and the screenshot showed the tab bar plainly on screen behind *&quot;Pixel Launcher isn&#39;t responding&quot;*. Maestro dumps the <strong>focused window</strong> and an ANR dialog takes focus, so the captured hierarchy was that dialog plus SystemUI and our app&#39;s tree was absent entirely; a dialog from a different process is reported as your element missing. The device was still doing first-boot package work while the flow drove it — eighteen seconds of <code>package is updated</code> broadcasts straddling the run. <code>am wait-for-broadcast-idle</code> between the install and the flow makes it drive a settled device. Deliberately <strong>not</strong> a retry and <strong>not</strong> a &quot;tap Wait if present&quot;: both would also swallow an ANR in our own app, which is a real defect this flow should catch</span>
       </li></ul>
       </details>
     </article>
