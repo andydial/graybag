@@ -75,6 +75,7 @@ export function MyPacksScreen({
   balance = null,
   otherPacks = [],
   onSeeOffers,
+  onRetry,
   testID = MY_PACKS_TEST_ID,
 }: {
   balance?: PackBalance | null;
@@ -90,9 +91,58 @@ export function MyPacksScreen({
    */
   otherPacks?: readonly PackBalance[];
   onSeeOffers?: (() => void) | undefined;
+  /** Re-read the surface. Shown only on the "could not load" state, which is the one a retry fixes. */
+  onRetry?: (() => void) | undefined;
   testID?: string;
 } = {}) {
   const surface = useMealPackSurface();
+
+  /**
+   * `E21-95`. **"You have no packs" and "we could not load your packs" are different screens.**
+   *
+   * Andy, 2026-09-17, after paying and landing on a blank one: *"there should be no state where
+   * I've paid and the app shows me an empty screen with no explanation."*
+   *
+   * Three states, and they used to be one:
+   *
+   *   - still reading            -> say so, claim nothing
+   *   - the server says this parent HAS a balance and the numbers would not load
+   *                              -> say THAT, and offer a retry
+   *   - genuinely no pack        -> the advertisement, as before
+   *
+   * The middle one is the one that matters. `hasBalance` is the server's word that this parent is
+   * owed items; rendering "You don't have a meal pack" over the top of it is the app telling a
+   * parent who has just paid that they own nothing.
+   */
+  if (balance === null && surface.loading) {
+    return (
+      <View style={styles.screen} testID={testID}>
+        <EmptyState
+          testID={`${testID}-loading`}
+          title="Loading your packs…"
+          body="One moment."
+        />
+      </View>
+    );
+  }
+
+  if (balance === null && (surface.unavailable || surface.hasBalance)) {
+    return (
+      <View style={styles.screen} testID={testID}>
+        <EmptyState
+          testID={`${testID}-unavailable`}
+          title="We couldn’t load your packs"
+          body={
+            'Your pack is safe — this is a problem reading it, not a problem with it. ' +
+            'Nothing has been lost and nothing has been spent.'
+          }
+          {...(onRetry === undefined
+            ? {}
+            : { actionLabel: 'Try again', onAction: onRetry })}
+        />
+      </View>
+    );
+  }
 
   if (balance === null) {
     return (

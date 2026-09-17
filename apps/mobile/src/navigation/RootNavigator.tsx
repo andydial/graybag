@@ -963,6 +963,7 @@ function ConnectedMyPacksScreen() {
       balance={balance}
       otherPacks={otherPacks}
       onSeeOffers={() => navigation.navigate('Packs')}
+      onRetry={surface.refresh}
     />
   );
 }
@@ -992,6 +993,7 @@ function ConnectedPackDetailScreen({
 }: NativeStackScreenProps<RootStackParamList, 'PackDetail'>) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { schoolId } = useSelectedSchool();
+  const packSurface = useMealPackSurface();
   const [offer, setOffer] = useState<api.MealPackOffer | null>(null);
   const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState<string | null>(null);
@@ -1061,6 +1063,20 @@ function ConnectedPackDetailScreen({
 
             if (sheet.outcome === 'reported_success') {
               track('payment_sheet_closed', { outcome: 'reported_success' });
+              /**
+               * `E21-95`. **Re-read the surface before navigating.**
+               *
+               * Without this the balance screen renders from an answer fetched before the money
+               * moved — `hasBalance: false`, no pack list ever requested — and a parent who has
+               * just paid lands on an empty screen. That is exactly what happened to Andy on
+               * staging: `meal_pack_surface` last called 108 seconds before settlement, and
+               * `meal_pack_balances` never called at all.
+               *
+               * Settlement is the webhook's, so the pack may still be `pending` for a second or
+               * two. MyPacks handles that honestly rather than this pretending otherwise — what
+               * matters is that the app ASKS again instead of trusting a stale yes.
+               */
+              packSurface.refresh();
               navigation.navigate('MyPacks');
               return;
             }
