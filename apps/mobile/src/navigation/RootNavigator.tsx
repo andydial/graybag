@@ -361,6 +361,12 @@ function CartTabScreen() {
   }, [audience.kind]);
 
   const packSurface = useMealPackSurface();
+  /*
+   * `E21-102`. Pulled out as its own binding so the poll effect can depend on something stable.
+   * `refresh` is a `useCallback(…, [])`; `packSurface` is not, and must not enter a dependency
+   * array — see the note on the poll below.
+   */
+  const refreshPackSurface = packSurface.refresh;
 
   /**
    * What the pack will cover in this cart, and what is left to pay. `E21-74`.
@@ -721,6 +727,26 @@ function CartTabScreen() {
             setPlaced(result.order ?? null);
             clearCart();
             resetCheckout();
+            /**
+             * `E21-102`. **Spending pack items invalidates the balance exactly as buying them does.**
+             *
+             * Andy, walking staging: *"'Your meal packs' still read 20 of 20 after an order that
+             * used 2. Only force-quitting and relaunching showed 18 of 20."* `E21-95` gave the
+             * surface a `refresh()` and wired it to the one event that was known to move the
+             * number — a purchase. A redemption moves it just as much and had no call.
+             *
+             * **Unconditional, and deliberately not gated on this cart's coverage.** The obvious
+             * saving is to skip the read when `packCoverageForCart.itemsCovered === 0`, and it is
+             * the wrong trade: that memo is the *client's* view of what the pack would cover, and
+             * the server decides what was actually spent. Gating on it would skip the refresh in
+             * precisely the case where the client was wrong — which is the failure this whole
+             * sequence has been about. One extra read at the confirmation, for an answer only the
+             * server has.
+             *
+             * A parent with no pack costs one request that returns `hasBalance: false` and stops
+             * there; the balances call is never made. That is the cheapest possible way to be right.
+             */
+            refreshPackSurface();
           }
         }
       } catch {
@@ -740,7 +766,12 @@ function CartTabScreen() {
     };
     // Every dependency is a primitive or a stable callback. `checkout` itself must NEVER appear
     // here: it is a new object each render, and that is what produced the infinite loop.
-  }, [pollGroupId, clearCart, resetCheckout]);
+    //
+    // `E21-102`: `refreshPackSurface`, never `packSurface`. The surface object is rebuilt whenever
+    // the balance changes — which this very call causes — so depending on it would tear down and
+    // restart the poll each time, which is the same infinite loop the line above describes, taking
+    // an in-flight confirmation with it. The callback behind it is a `useCallback(…, [])`.
+  }, [pollGroupId, clearCart, resetCheckout, refreshPackSurface]);
 
   /**
    * While a payment is in flight the cart is replaced rather than navigated away from, so the

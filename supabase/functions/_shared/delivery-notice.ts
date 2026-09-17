@@ -118,32 +118,6 @@ export function formatBreakTime(value: unknown): string {
   return `${hour12}:${m} ${suffix}`;
 }
 
-/**
- * The delivery time, in the school's own zone.
- *
- * **Never the server's.** An Edge Function runs wherever it runs, and a parent in Mohali told
- * their child ate at *"3:27 am"* has been given a wrong fact rather than a missing one (§5.21).
- * Falls back to omitting the time entirely if the zone is unusable — the sentence reads perfectly
- * well without it, and a wrong time is worse than no time.
- */
-export function formatDeliveredAt(deliveredAt: unknown, timeZone: unknown): string {
-  if (typeof deliveredAt !== 'string' || deliveredAt === '') return '';
-  const when = new Date(deliveredAt);
-  if (Number.isNaN(when.getTime())) return '';
-  try {
-    return new Intl.DateTimeFormat('en-IN', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-      ...(typeof timeZone === 'string' && timeZone !== '' ? { timeZone } : {}),
-    }).format(when);
-  } catch {
-    // An unknown IANA zone throws rather than falling back, so this is the branch that stops a
-    // bad `platform_config.timezone` from costing the whole email.
-    return '';
-  }
-}
-
 export async function sendDeliveryNotice(
   admin: DeliveryNoticeClient,
   input: DeliveryNoticeInput,
@@ -245,17 +219,6 @@ export async function sendDeliveryNotice(
       .eq('id', order.school_id)
       .maybeSingle();
 
-    /*
-     * The zone comes from `platform_config`, not from the school, and that is the schema's rule
-     * rather than a convenience: `0001` says in terms *"timezone — platform and kitchen only. A
-     * school does not get its own."* Reading a `school.time_zone` would have been a column that
-     * does not exist, and the select would have failed the whole email rather than the time.
-     */
-    const { data: platform } = await admin
-      .from('platform_config')
-      .select('timezone')
-      .maybeSingle();
-
     const { data: breakTime } = order.break_time_id
       ? await admin
           .from('break_time')
@@ -307,24 +270,43 @@ export async function sendDeliveryNotice(
     const schoolName = typeof school?.name === 'string' ? school.name.trim() : '';
     const schoolPhrase = schoolName ? ` at ${esc(schoolName)}` : '';
 
-    const at = formatDeliveredAt(order.delivered_at, platform?.timezone);
-    const atPhrase = at ? ` at <strong>${esc(at)}</strong>` : '';
-
     const orderRef = String(order.order_ref ?? '');
     const served = String(order.service_date ?? '');
 
+    /*
+     * `E21-103`. **There is no delivery time in this email, and that is the fix.**
+     *
+     * It used to print `delivered_at` — the moment the kitchen pressed the button, not the moment
+     * the child got the food. Andy's said **6:46 pm for a morning break**, because the board was
+     * reconciled at the end of the day. A timestamp that is precise and wrong is worse than none:
+     * a parent reads it as a fact about their child's afternoon.
+     *
+     * Andy: *"Don't fix the timestamp, just drop it. The break window is already there and is the
+     * only time that means anything."* He is right, and it is the stronger fix — the break window
+     * is a promise about when the food is *eaten*, which is the question a parent is asking, and
+     * it stays true however late the kitchen gets round to tapping.
+     *
+     * The formatter and the `platform_config` read went with it rather than being left exported
+     * and uncalled. **If a delivered-at time is ever wanted, two things have to come back with
+     * it**: the zone must be `platform_config.timezone` — `0001` says *"timezone — platform and
+     * kitchen only. A school does not get its own"*, so `school.time_zone` is a column that does
+     * not exist — and an unknown zone must drop the time rather than fall back to the server's,
+     * which would tell a Mohali parent their child ate at 3:27 am.
+     */
     const html =
       `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;` +
       `font-size:16px;line-height:1.5;color:#141a16;max-width:560px">` +
       `<p style="margin:0 0 16px">${greeting}</p>` +
-      `<p style="margin:0 0 16px">${who} lunch was delivered${schoolPhrase}${atPhrase}` +
+      `<p style="margin:0 0 16px">${who} lunch was delivered${schoolPhrase}` +
       `${breakPhrase ? `, ${breakPhrase}` : ''}.</p>` +
       itemsBlock +
       `<p style="margin:0 0 16px">` +
       `${served ? `For <strong>${esc(served)}</strong>. ` : ''}` +
       `${orderRef ? `Order <strong>${esc(orderRef)}</strong>.` : ''}</p>` +
-      `<p style="margin:0">If something does not look right, reply to this email and we will ` +
-      `sort it out.</p></div>`;
+      // One line, warm, and deliberately plain. The old sign-off invited a reply to a message
+      // nobody needs to answer, and on the hundredth read an email that asks something of you is
+      // worse than one that does not. Andy: "don't make it cute enough to be annoying."
+      `<p style="margin:0">Thanks for using GrayBag.</p></div>`;
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
