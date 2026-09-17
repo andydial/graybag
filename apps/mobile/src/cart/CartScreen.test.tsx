@@ -1,5 +1,5 @@
 import { render, screen, userEvent } from '@testing-library/react-native';
-import { api, cart as cartDomain } from '@graybag/shared';
+import { api, cart as cartDomain, packCoverage as packCoverageOf } from '@graybag/shared';
 import type { ReactNode } from 'react';
 
 import { CartProvider } from './CartContext';
@@ -777,3 +777,85 @@ describe('choosing a break time', () => {
  * That fixture arrives with the connector, which is also what supplies `days` in the first place.
  * Written down rather than left as a gap somebody has to rediscover.
  */
+
+/**
+ * `E21-97`. **The totals, the button and the pack must agree about one cart.**
+ *
+ * Andy on staging, 2026-09-17: the redemption strip said *"Nothing to pay — GST was charged when
+ * you bought the pack"*, and the summary directly beneath it said Subtotal ₹248.00, CGST ₹6.21,
+ * SGST ₹6.21, Total ₹260.42, with `Place order · ₹260.42` under that.
+ *
+ * Two expressions for one number: `coverCart` fed the strip, and `money.gstBreakdown(cart.lines)`
+ * fed the summary and the button, having never heard of the pack. The order could not be placed
+ * at all, because `L7` compares what the app displayed against what the server priced and refused
+ * — `pack coverage changed: expected 26042, server says 0`. The guard is the only reason this was
+ * a blocked checkout rather than a parent charged for food they had already bought.
+ *
+ * These render the real screen and read the amounts a parent reads.
+ */
+describe('a pack that covers the cart is deducted from what the cart charges', () => {
+  /** Two lines, ₹60×2 and ₹90×1 — ₹210 ex-tax, and a pack with enough items for all three. */
+  const coverageForAll = () =>
+    packCoverageOf.coverCart(
+      [
+        { ...IDLI, key: cartDomain.lineKey(IDLI) },
+        { ...DOSA, key: cartDomain.lineKey(DOSA) },
+      ] as never,
+      3,
+    );
+
+  it('charges NOTHING when the pack covers every item', async () => {
+    await renderCart([IDLI, DOSA], { packCoverage: coverageForAll() });
+
+    // The bug, as four numbers. Before the fix these read ₹210.00 / ₹5.25 / ₹5.25 / ₹220.50.
+    expect(screen.getByTestId('cart-subtotal')).toHaveTextContent('₹0.00');
+    expect(screen.getByTestId('cart-cgst')).toHaveTextContent('₹0.00');
+    expect(screen.getByTestId('cart-sgst')).toHaveTextContent('₹0.00');
+    expect(screen.getByTestId('cart-total')).toHaveTextContent('₹0.00');
+  });
+
+  it('says NOTHING TO PAY on the button rather than an amount', async () => {
+    await renderCart([IDLI, DOSA], { packCoverage: coverageForAll() });
+
+    const button = screen.getByTestId('cart-place-order');
+    expect(button).toHaveTextContent('Place order · Nothing to pay');
+    // Andy: "wrong twice over". ₹0.00 would now be accurate and still wrong — a price on
+    // something that is not a purchase. A REGEX, because `toHaveTextContent` matches the whole
+    // string: `not.toHaveTextContent('₹')` passes on every label there has ever been.
+    expect(button).not.toHaveTextContent(/₹/);
+  });
+
+  it('charges only the CASH half when the pack covers part of the cart', async () => {
+    // One item of pack. Cheapest first (`P23`), so it takes one ₹60 idli and the parent pays for
+    // the other idli and the ₹90 dosa: ₹150 ex-tax.
+    const partial = packCoverageOf.coverCart(
+      [
+        { ...IDLI, key: cartDomain.lineKey(IDLI) },
+        { ...DOSA, key: cartDomain.lineKey(DOSA) },
+      ] as never,
+      1,
+    );
+    await renderCart([IDLI, DOSA], { packCoverage: partial });
+
+    expect(screen.getByTestId('cart-subtotal')).toHaveTextContent('₹150.00');
+    // Per line, per component, half-up — 60×1 and 90×1 taxed separately, never 5% of ₹150.
+    expect(screen.getByTestId('cart-cgst')).toHaveTextContent('₹3.75');
+    expect(screen.getByTestId('cart-total')).toHaveTextContent('₹157.50');
+    expect(screen.getByTestId('cart-place-order')).toHaveTextContent('Place order · ₹157.50');
+  });
+
+  it('is UNCHANGED for a parent with no pack, which is the path carrying real orders', async () => {
+    /*
+     * The regression bar. `coverCart(lines, 0)` must equal `gstBreakdown(lines)` exactly — it is
+     * the substitution the fix makes on every ordinary cart in the product, and if the two
+     * disagree by a paise every checkout fails with `price_changed`.
+     */
+    await renderCart([IDLI, DOSA]);
+
+    expect(screen.getByTestId('cart-subtotal')).toHaveTextContent('₹210.00');
+    expect(screen.getByTestId('cart-cgst')).toHaveTextContent('₹5.25');
+    expect(screen.getByTestId('cart-sgst')).toHaveTextContent('₹5.25');
+    expect(screen.getByTestId('cart-total')).toHaveTextContent('₹220.50');
+    expect(screen.getByTestId('cart-place-order')).toHaveTextContent('Place order · ₹220.50');
+  });
+});

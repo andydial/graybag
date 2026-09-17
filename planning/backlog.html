@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/76</span>
+          <span class="meter-num">0/78</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 76 tasks</summary>
+        <summary>Context &amp; 78 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7499,6 +7499,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong><code>boot_completed</code> is not &quot;ready&quot;, and the report blamed the app.</strong> <code>Maestro (cart)</code> failed <code>E21-93</code>&#39;s PR with <code>Element not found: tab-menu</code> — the regression bar for the whole meal-packs piece — and the screenshot showed the tab bar plainly on screen behind *&quot;Pixel Launcher isn&#39;t responding&quot;*. Maestro dumps the <strong>focused window</strong> and an ANR dialog takes focus, so the captured hierarchy was that dialog plus SystemUI and our app&#39;s tree was absent entirely; a dialog from a different process is reported as your element missing. The device was still doing first-boot package work while the flow drove it — eighteen seconds of <code>package is updated</code> broadcasts straddling the run. <code>am wait-for-broadcast-idle</code> between the install and the flow makes it drive a settled device. Deliberately <strong>not</strong> a retry and <strong>not</strong> a &quot;tap Wait if present&quot;: both would also swallow an ANR in our own app, which is a real defect this flow should catch</span>
+      </li>
+      <li class="task" data-id="E21-97" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-97"></button>
+        <code class="tid">E21-97</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The cart charged for items the pack had already paid for.</strong> Andy, on staging: the redemption strip said *&quot;Nothing to pay — GST was charged when you bought the pack&quot;* and the summary directly beneath it said Subtotal ₹248.00, CGST ₹6.21, SGST ₹6.21, Total ₹260.42, under a button reading <code>Place order · ₹260.42</code>. <strong>Two expressions for one number</strong>: <code>coverCart</code> fed the strip, and <code>money.gstBreakdown(cart.lines)</code> fed the totals, the button and the figure sent to the server — and that second one had never heard of the pack. <strong>Nobody was charged, and the reason is worth stating</strong>: <code>L7</code> compares what the app displayed against what the server priced and refused the order — Postgres&#39; own log reads <code>pack coverage changed: expected 26042, server says 0</code>. The guard is the only thing standing between this and a parent paying twice for the same food, which is why the fix is to make the app tell the truth and not to soften the guard. <code>cashBreakdown(coverage)</code> is now the single expression the summary, the button and the checkout all read; a parent with no pack goes through <code>coverCart(lines, 0)</code> rather than a branch, because a &quot;no pack&quot; branch is a second expression again and it would be the one nobody tests. Proved equal to <code>gstBreakdown</code> <strong>to the paise</strong> across every sub-cart, since a single paise of disagreement is every checkout failing with <code>price_changed</code></span>
+      </li>
+      <li class="task" data-id="E21-98" data-seed="1" data-risk="high" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-98"></button>
+        <code class="tid">E21-98</code>
+        <span class="badge r-high">high</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>A fully covered order was placed, paid, confirmed — and reported to the parent as a failure.</strong> Found while fixing <code>E21-97</code>, latent behind it: the cart could never reach this state because the client was asserting a full cash total. <code>create_checkout</code> returns <code>status: &#39;paid&#39;</code> on exactly one path — the pack covered everything, so it confirmed the redemptions, allocated the pickup codes, set <code>paid_at</code> and sent the confirmation inline, because there is no payment and no webhook that could ever do it later. <strong>The server has returned that field from the beginning, on both the fresh and the replayed path, and nothing read it.</strong> <code>useCheckout</code> went straight on to <code>createPaymentOrder</code>, which refuses a group with nothing owing (<code>nothing_payable</code>, 409, <code>0049:112</code>) — so the parent would have been shown *&quot;There is nothing to pay on this order&quot;* as an error, for an order that existed and was complete. Money had not moved and the customer was told the opposite of what happened: <code>E21-65</code>&#39;s family from the other direction. Branches on the <strong>status</strong>, never on <code>payablePaise === 0</code>: the amount is the symptom, the status is the fact, and inferring from the amount would skip payment on an unpaid order the day some other path produces a zero payable. An absent status falls to the paying path, because being refused is visible and free food is not. Its own phase kind rather than reusing <code>sheet_reported_success</code>, which is a claim about a sheet that never opened</span>
       </li></ul>
       </details>
     </article>

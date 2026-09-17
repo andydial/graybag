@@ -608,9 +608,20 @@ function CartTabScreen() {
      * the order. It is the same function the totals block renders from, so the number sent is
      * by construction the number on screen.
      */
-    const expected = money.gstBreakdown(
-      cart.lines.map((line) => ({ unitPricePaise: line.unitPricePaise, quantity: line.quantity })),
-    ).totalPaise;
+    /**
+     * `E21-97`. **From the coverage, which is where the number on the button comes from.**
+     *
+     * This was `money.gstBreakdown(cart.lines)` — the payable with the pack ignored. On a fully
+     * covered cart it asserted ₹260.42 against a server that had priced ₹0, and `L7` refused:
+     * `pack coverage changed: expected 26042, server says 0`. The parent got *"Something went
+     * wrong. Your card has not been charged."* for an order that was never wrong.
+     *
+     * The guard behaved exactly as designed — it will not let a checkout proceed at a number the
+     * app did not display — so the fix is to make the app display the truth, not to soften the
+     * guard. `cashBreakdown` is the same call `CartScreen` renders from, so the number sent is by
+     * construction the number on the button.
+     */
+    const expected = packCoverage.cashBreakdown(packCoverageForCart).totalPaise;
 
     const outcome = await checkout.start({
       lines,
@@ -632,7 +643,17 @@ function CartTabScreen() {
      *
      * A failure now surfaces as a failure, with the server's own reason.
      */
-    if (outcome.kind === 'sheet_reported_success') {
+    /**
+     * `E21-98` adds the second kind. A pack covered the whole cart, so the server confirmed the
+     * order inline and there is nothing in flight.
+     *
+     * **It polls anyway, and that is the point.** `checkout-status` is what turns a placement into
+     * a confirmation for every other order; this one will answer `paid` on its first tick, so the
+     * order-placed screen, the cart clearing and `payment_completed` all reach the parent down the
+     * path that is exercised by every order we take, rather than down a second one written for a
+     * case nobody has walked yet.
+     */
+    if (outcome.kind === 'sheet_reported_success' || outcome.kind === 'paid_without_payment') {
       setStillConfirming(false);
       setPollGroupId(outcome.orderGroupId);
       return;
