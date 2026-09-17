@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   formatBreakTime,
-  formatDeliveredAt,
   sendDeliveryNotice,
   TEMPLATE_ORDER_DELIVERED,
 } from '../../../../supabase/functions/_shared/delivery-notice.js';
@@ -266,7 +265,7 @@ describe('the attempt is always on the record', () => {
 // --------------------------------------------------------------------------- what it says
 
 describe('what the parent reads', () => {
-  it('names the child, the items, the school, the break and the time', async () => {
+  it('names the child, the items, the school and the break', async () => {
     const outcome = await run();
     expect(outcome).toBe('sent');
 
@@ -281,6 +280,65 @@ describe('what the parent reads', () => {
     expect(body.html).toContain('2 × Idli Sambar');
     expect(body.html).toContain('Masala Dosa');
     expect(body.html).toContain('GB-AB12CD');
+    expect(body.html).toContain('For <strong>2026-09-18</strong>');
+  });
+
+  it('carries NO DELIVERY TIME — it was the moment the button was pressed', async () => {
+    /*
+     * `E21-103`. `delivered_at` is when the kitchen reconciled the board, not when the child ate.
+     * Andy's read **6:46 pm for a morning break**. A precise wrong time is worse than none, and
+     * the break window above already answers the question a parent is asking.
+     *
+     * The fixture's `delivered_at` is 05:12 UTC — 10:42 in Mohali — so a leaked timestamp would
+     * show up here as `10:42`, which is deliberately close to the break window and would be easy
+     * to mistake for it by eye.
+     */
+    await run();
+
+    const body = sentBody();
+    expect(body.html).not.toContain('10:42');
+    expect(body.html).not.toMatch(/delivered at <strong>/);
+    // The break window is still there and is still the only time in the email.
+    expect(body.html).toContain('10:30 am–11:00 am');
+  });
+
+  it('signs off warmly and asks nothing of the reader', async () => {
+    await run();
+
+    const body = sentBody();
+    expect(body.html).toContain('Thanks for using GrayBag.');
+    // The old line invited a reply to a message nobody needs to answer. On the hundredth read an
+    // email that asks something of you is worse than one that does not.
+    expect(body.html).not.toContain('sort it out');
+    expect(body.html).not.toContain('reply to this email');
+  });
+
+  it('reads as Andy’s target shape, in order, once the markup is stripped', async () => {
+    /*
+     * The whole email as a parent sees it. Asserted as one block rather than as six `toContain`s,
+     * because the thing being reviewed is the *shape* — what is present, in what order, and what
+     * is absent between the lines. Six independent assertions all pass while the sentences are in
+     * the wrong order or a stray phrase sits between them.
+     */
+    await run();
+
+    const text = sentBody()
+      .html.replace(/<li[^>]*>/g, '\n• ')
+      .replace(/<\/p>|<\/ul>/g, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\n{2,}/g, '\n')
+      .trim();
+
+    expect(text).toBe(
+      [
+        'Hi Priya,',
+        'Aarav’s lunch was delivered at Amity International School, at Morning break (10:30 am–11:00 am).',
+        '• 2 × Idli Sambar',
+        '• Masala Dosa',
+        'For 2026-09-18. Order GB-AB12CD.',
+        'Thanks for using GrayBag.',
+      ].join('\n'),
+    );
   });
 
   it('carries NO PRICES — this is a delivery receipt, not an invoice', async () => {
@@ -328,15 +386,19 @@ describe('what the parent reads', () => {
 
     const html = sentBody().html;
     expect(html).toContain('lunch was delivered');
+    // No dangling "at", no comma with nothing after it, and nothing stringified into the copy.
     expect(html).not.toContain(' at .');
+    expect(html).not.toContain(', .');
     expect(html).not.toContain('undefined');
     expect(html).not.toContain('null');
+    // The sign-off survives when everything optional is missing.
+    expect(html).toContain('Thanks for using GrayBag.');
   });
 });
 
 // --------------------------------------------------------------------------- the formatters
 
-describe('the time formatters', () => {
+describe('the break-time formatter', () => {
   it('renders a break window in the twelve-hour form a parent reads', () => {
     expect(formatBreakTime('10:30:00')).toBe('10:30 am');
     expect(formatBreakTime('13:05:00')).toBe('1:05 pm');
@@ -350,19 +412,4 @@ describe('the time formatters', () => {
     }
   });
 
-  it('renders the delivery time in the SCHOOL’S day, not the server’s', () => {
-    /*
-     * 05:12 UTC is 10:42 in Mohali. A function running in `us-east-1` would otherwise tell a
-     * parent their child ate at twenty past five in the morning — a wrong fact rather than a
-     * missing one, which §5.21 treats as the worse failure.
-     */
-    expect(formatDeliveredAt('2026-09-18T05:12:00.000Z', 'Asia/Kolkata')).toContain('10:42');
-    expect(formatDeliveredAt('2026-09-18T05:12:00.000Z', 'Asia/Kolkata')).toMatch(/am/i);
-  });
-
-  it('returns nothing rather than a wrong time when the zone is unusable', () => {
-    expect(formatDeliveredAt('2026-09-18T05:12:00.000Z', 'Mars/Olympus')).toBe('');
-    expect(formatDeliveredAt('not a date', 'Asia/Kolkata')).toBe('');
-    expect(formatDeliveredAt(null, 'Asia/Kolkata')).toBe('');
-  });
 });

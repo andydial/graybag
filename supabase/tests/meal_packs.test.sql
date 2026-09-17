@@ -792,5 +792,137 @@ select is((select status::text from order_group where id = (select pack_group_id
   'a cancelled purchase is NOT dragged back to paid by a later write. The trigger fires only on '
   'the transition out of pending_payment, not on any row that happens to have a paid_at.');
 
+-- =============================================================================
+-- 16. `E21-101` — a group the PACK paid for says it is paid.
+--
+-- `M16`'s fourth instance, and the first on the food side. `derive_order_group_status` derived the
+-- group from **captured money**, and a pack redemption captures none: `v_captured = 0`, every
+-- money-keyed case missed, and the `else` returned `draft` — for a group whose order was `paid`,
+-- had a pickup code, and had been delivered and emailed.
+--
+-- What that cost was not cosmetic. `checkout-status` answers from this field, so it said `unpaid`
+-- for ever; the app treats only paid/failed/cancelled as terminal, so the confirmation never
+-- appeared and **the cart was never emptied**. Andy found it with the items still sitting there
+-- after an order that had already been delivered.
+--
+-- **One group per case, and one legal transition each.** The first draft of this section mutated a
+-- single group repeatedly and was refused by the order state machine — `illegal order transition
+-- (new) -> draft`. That refusal is correct and the test was wrong; re-deriving by forcing a status
+-- backwards tests a sequence the product cannot produce.
+-- =============================================================================
+
+create temporary table g_ctx as
+select 'aa000000-7e57-0000-0000-0000000000f1'::uuid as covered_group_id,
+       'aa000000-7e57-0000-0000-0000000000f2'::uuid as covered_order_id,
+       'aa000000-7e57-0000-0000-0000000000f3'::uuid as nopack_group_id,
+       'aa000000-7e57-0000-0000-0000000000f4'::uuid as nopack_order_id,
+       'aa000000-7e57-0000-0000-0000000000f5'::uuid as partial_group_id,
+       'aa000000-7e57-0000-0000-0000000000f6'::uuid as partial_order_id,
+       'aa000000-7e57-0000-0000-0000000000f7'::uuid as cancelled_group_id,
+       'aa000000-7e57-0000-0000-0000000000f8'::uuid as cancelled_order_id,
+       'aa000000-7e57-0000-0000-0000000000f9'::uuid as cash_group_id,
+       'aa000000-7e57-0000-0000-0000000000fa'::uuid as cash_order_id;
+
+-- One order per group, all built the same way. `pending_payment` on insert because that is what
+-- `create_checkout` writes and what the state machine accepts; `draft` is refused.
+create or replace function pg_temp.seed_group(
+  p_group uuid, p_order uuid, p_key text,
+  p_pack_applied bigint, p_wallet bigint, p_paid boolean
+) returns void language plpgsql as $fn$
+begin
+  -- `payable` is DERIVED here rather than passed, because `order_group_payable_arithmetic` is a
+  -- plain CHECK: `payable = subtotal + tax - discount - wallet - pack_applied`. Passing it was how
+  -- the first draft of this section produced a constraint violation instead of an assertion — the
+  -- schema had already made the case unrepresentable and the test was arguing with it.
+  insert into order_group (id, customer_user_id, idempotency_key, city_id, kind,
+                           subtotal_paise, tax_total_paise, pack_applied_paise, wallet_applied_paise,
+                           payable_paise, status, paid_at)
+  select p_group, (select user_id from p_ctx), p_key, (select city_id from p_ctx), 'food',
+         19800, 0, p_pack_applied, p_wallet, 19800 - p_pack_applied - p_wallet, 'draft',
+         case when p_paid then now() else null end;
+
+  insert into "order" (id, order_group_id, order_ref, correlation_id, customer_user_id, recipient_id,
+                       school_id, kitchen_id, city_id, service_date, delivery_mode, cutoff_at,
+                       config_snapshot, school_name_snapshot, recipient_name_snapshot, status,
+                       subtotal_paise, tax_cgst_paise, tax_sgst_paise, total_paise)
+  select p_order, p_group, generate_order_ref(), gen_random_uuid(), p.user_id, p.recipient_id,
+         s.id, s.kitchen_id, s.city_id, current_date + 1, 'classroom', now() + interval '1 day',
+         '{}'::jsonb, s.name, 'Test', 'pending_payment', 19800, 0, 0, 19800
+    from p_ctx p join school s on s.id = p.school_id;
+end;
+$fn$;
+
+-- --------------------------------------------------------------- the case that was broken
+select pg_temp.seed_group((select covered_group_id from g_ctx), (select covered_order_id from g_ctx),
+                          'covered-group', 19800, 0, true);   -- pack pays all of it
+
+select is((select status::text from order_group where id = (select covered_group_id from g_ctx)),
+  'pending_payment',
+  'before its order moves, a pack-covered group is pending_payment like any other — G2 wins while '
+  'an order is still pending, and G1a must not pre-empt it. THIS ASSERTION CAUGHT A REAL HOLE: '
+  'the first G1a lacked `v_pending = 0` and called this group paid while its order had not been '
+  'confirmed, which is the exact family of defect the migration exists to close.');
+
+update "order" set status = 'paid' where id = (select covered_order_id from g_ctx);
+
+select is((select status::text from order_group where id = (select covered_group_id from g_ctx)),
+  'paid',
+  'E21-101: a fully pack-covered group derives to PAID with no payment row anywhere. Before this '
+  'it fell through every money-keyed case to the else and derived `draft`, so checkout-status '
+  'answered unpaid for ever and the cart was never cleared.');
+
+select is((select count(*)::int from payment
+            where order_group_id = (select covered_group_id from g_ctx)), 0,
+  'and it did so having captured nothing — which is the point. The evidence is the pack, not a '
+  'payment that never existed.');
+
+-- --------------------------------------------------------------- each guard, on its own group
+-- A WALLET-covered group: zero payable, no pack. This is the case `pack_applied_paise > 0`
+-- actually protects, and the schema proves it is the only one — `payable = subtotal + tax -
+-- discount - wallet - pack_applied`, so a zero payable with no pack REQUIRES a wallet or a
+-- discount to have paid for it. Wallet settlement is not modelled yet, and G1a must not quietly
+-- decide it on its behalf.
+select pg_temp.seed_group((select nopack_group_id from g_ctx), (select nopack_order_id from g_ctx),
+                          'wallet-group', 0, 19800, true);
+update "order" set status = 'paid' where id = (select nopack_order_id from g_ctx);
+
+select isnt((select status::text from order_group where id = (select nopack_group_id from g_ctx)),
+  'paid',
+  'a zero-payable group paid by a WALLET is not claimed by G1a. Without the pack_applied > 0 '
+  'condition this would derive paid on evidence that says nothing about a pack — and wallet '
+  'settlement has no implementation for that answer to be right about.');
+
+select pg_temp.seed_group((select partial_group_id from g_ctx), (select partial_order_id from g_ctx),
+                          'partial-group', 10000, 0, true);   -- pack 10000, so ₹98 still in cash
+update "order" set status = 'paid' where id = (select partial_order_id from g_ctx);
+
+select isnt((select status::text from order_group where id = (select partial_group_id from g_ctx)),
+  'paid',
+  'a PARTLY covered group is left to the money. It has a real payable, a real Razorpay order and '
+  'a real capture, and calling it paid before that capture would call an unpaid order paid.');
+
+select pg_temp.seed_group((select cancelled_group_id from g_ctx), (select cancelled_order_id from g_ctx),
+                          'cancelled-group', 19800, 0, true);
+update "order" set status = 'cancelled', cancel_reason_code = 'dish_unavailable'
+ where id = (select cancelled_order_id from g_ctx);
+
+select is((select status::text from order_group where id = (select cancelled_group_id from g_ctx)),
+  'cancelled',
+  'a cancelled pack-covered order derives to CANCELLED, not paid. 0089 gives the items back, and '
+  'a group still calling itself paid after that is the disagreement this whole family is about.');
+
+-- --------------------------------------------------------------- the regression bar
+--
+-- The live cash path, asserted here so a future edit to the CASE cannot quietly move it. Note the
+-- group carries `paid_at` and is STILL pending: keying G1a on the stamp alone would have called
+-- every abandoned checkout paid.
+select pg_temp.seed_group((select cash_group_id from g_ctx), (select cash_order_id from g_ctx),
+                          'cash-group', 0, 0, true);   -- all ₹198 in cash
+
+select is((select status::text from order_group where id = (select cash_group_id from g_ctx)),
+  'pending_payment',
+  'G2 is untouched: an ordinary cash order awaiting its webhook still derives pending_payment, '
+  'even with paid_at stamped on the group.');
+
 select * from finish();
 rollback;
