@@ -67,6 +67,14 @@ export interface KitchenOrder {
   sectionLabel: string | null;
   status: KitchenStatus;
   pickupCode: string | null;
+  /**
+   * The email of the parent who placed the order — `E09-46`.
+   *
+   * `null` means **not shown**, and covers both "this account may not read it" and "the contact
+   * read failed". The two are the same to the kitchen — you have not been told — and neither may
+   * render as blank space, the same rule `allergenCodes` follows above.
+   */
+  customerEmail: string | null;
   lines: KitchenOrderLine[];
   /**
    * Enumerated allergen codes for this child — `E09-33`.

@@ -1301,3 +1301,42 @@
 }
 
 .kdialog__detail-input:focus-visible { outline: var(--gb-focus-ring); }
+
+/*
+ * Who placed the order — `E09-46`.
+ *
+ * Caption weight, below the child and the allergen badges. It is contact information for when
+ * something has already gone wrong, not something anyone reads while cooking, and giving it the
+ * emphasis of the child's name would push the two safety-critical lines down the card.
+ *
+ * The address is a `mailto:` link because the whole point of the request was to be able to reach
+ * the parent — and on the phones this board is actually read on, selecting a long email by hand
+ * is the step that makes people give up and go back to asking somebody.
+ */
+.kitchen__orderer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--gb-space-1);
+  margin: var(--gb-space-1) 0 0;
+  font-size: var(--gb-font-size-caption);
+  line-height: var(--gb-line-height-caption);
+  color: var(--gb-text-secondary);
+}
+
+.kitchen__orderer-label {
+  font-weight: var(--gb-font-semibold);
+  color: var(--gb-text-tertiary, var(--gb-text-secondary));
+}
+
+.kitchen__orderer-email {
+  color: var(--gb-text-secondary);
+  /* Long addresses wrap rather than widen the card — a kitchen board is read on a phone. */
+  overflow-wrap: anywhere;
+}
+
+/* "not shown" is not an address and must not look tappable. */
+.kitchen__orderer-none {
+  font-style: italic;
+  color: var(--gb-text-tertiary, var(--gb-text-secondary));
+}

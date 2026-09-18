@@ -21,7 +21,7 @@ import {
 const kitchenOrder = (o: Partial<api.ApiKitchenOrder> = {}): api.ApiKitchenOrder => ({
   id: 'k-1', orderRef: 'GB-1', schoolId: 's-1', schoolName: 'Amity', breakId: null,
   breakLabel: 'First break', recipientName: 'Child One', classLabel: '4', sectionLabel: 'A',
-  status: 'paid', pickupCode: null, allergenCodes: [],
+  status: 'paid', pickupCode: null, allergenCodes: [], customerEmail: null,
   lines: [{ dishId: 'd-1', dishName: 'Wrap', quantity: 1, note: null }],
   ...o,
 });

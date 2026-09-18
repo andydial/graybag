@@ -53,6 +53,7 @@ const order = (over: Partial<KitchenOrder> = {}): KitchenOrder => ({
   pickupCode: null,
   lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 1, note: null }],
   allergenCodes: [],
+  customerEmail: null,
   ...over,
 });
 
