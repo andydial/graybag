@@ -48,6 +48,24 @@ export function liveTransport(): KitchenTransport {
         api.fetchKitchenBreakWindows().catch(() => []),
       ]);
 
+      /*
+       * The parent's email, per order — `E09-46`, Andy 2026-09-18.
+       *
+       * **A second read, and the second one allowed to fail.** `app_user` is readable only by its
+       * owner or by `users.view` at platform scope, which is Super Admin only, so this cannot be
+       * an embed on the order query — it would work for Andy and show nothing to the kitchen.
+       * `0095`'s definer view is scoped on `orders.view_pii` at the order's school or its kitchen,
+       * the same reach the board already has for the child's name.
+       *
+       * Sequenced after the orders rather than beside them because it needs their ids. That costs
+       * one round trip on a screen that already waits for four, and it buys the guarantee that an
+       * account which cannot read contacts still gets its order list in full: `fetchKitchenOrder-
+       * Contacts` returns `{}` rather than throwing, and every card simply renders without an
+       * email. Nobody cooks from an email address.
+       */
+      const contacts = await api.fetchKitchenOrderContacts(orders.map((o) => o.id));
+      const withContacts = orders.map((o) => ({ ...o, customerEmail: contacts[o.id] ?? null }));
+
       /**
        * Schools come from the `school` table; breaks still come from the orders.
        *
@@ -85,7 +103,7 @@ export function liveTransport(): KitchenTransport {
       return {
         serviceDate: filters.serviceDate,
         permissions: toPermissions(held),
-        orders,
+        orders: withContacts,
         schools: offered.map(({ id, name }) => ({ id, name })),
         breaks: [...breaks].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label)),
         breakWindows: new Map(

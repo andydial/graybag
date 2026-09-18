@@ -138,6 +138,17 @@ describe('fetchKitchenOrders', () => {
       pickupCode: null,
       lines: [{ dishId: 'd1', dishName: 'Veg Sandwich', quantity: 2, note: null }],
       allergenCodes: null,
+      /*
+       * Always null from THIS read — `E09-46`. The parent's email cannot come from the order row:
+       * `app_user` is readable only by its owner or by `users.view` at platform scope, which the
+       * kitchen does not hold. It is filled by `fetchKitchenOrderContacts`, a separate read
+       * against a definer view scoped on `orders.view_pii`.
+       *
+       * Asserted as `null` rather than omitted so this stays an exact-shape test: if the email
+       * ever starts arriving on the order row, that is a change to the redaction and it should
+       * fail here first.
+       */
+      customerEmail: null,
     });
   });
 

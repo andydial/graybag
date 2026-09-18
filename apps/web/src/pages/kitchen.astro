@@ -822,6 +822,24 @@ import { CANCEL_REASONS } from '../lib/kitchen/types.js';
               `<span class="kitchen__child-class">${esc(classSection(o))}</span>` +
               renderAllergens(o.allergenCodes) +
             `</p>` +
+            /*
+             * Who ordered — `E09-46`, Andy 2026-09-18, as an emergency.
+             *
+             * Below the child and the allergens on purpose. The child's name is what hands over a
+             * bag and the allergen badges are what stop somebody being hurt; the contact is what
+             * you need when something has already gone wrong, and putting it above either would
+             * push the two safety-critical lines down the card.
+             *
+             * `null` renders "not shown" rather than nothing, following the allergen rule: it
+             * covers both "this account may not read it" and "the read failed", and blank space
+             * would let a missing email read as an order placed by nobody.
+             */
+            `<p class="kitchen__orderer">` +
+              `<span class="kitchen__orderer-label">Ordered by</span> ` +
+              (o.customerEmail
+                ? `<a class="kitchen__orderer-email" href="mailto:${esc(o.customerEmail)}">${esc(o.customerEmail)}</a>`
+                : `<span class="kitchen__orderer-none">not shown</span>`) +
+            `</p>` +
             `<ul class="kline-list">${o.lines.map(renderLine).join('')}</ul>` +
             `<div class="kitchen__actions">` +
               actions

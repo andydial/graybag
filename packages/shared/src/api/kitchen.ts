@@ -58,6 +58,14 @@ export interface ApiKitchenOrder {
   lines: ApiKitchenOrderLine[];
   /** Enumerated allergen codes for this child. `[]` = none recorded; `null` = not readable. */
   allergenCodes: AllergenFlags;
+  /**
+   * The parent who placed the order — `E09-46`. Always `null` from `fetchKitchenOrders`.
+   *
+   * It is not on the order row and deliberately cannot be: `app_user` is unreadable to the
+   * kitchen, so the email comes from `fetchKitchenOrderContacts` and is merged in by the caller.
+   * Declared here so the shape the screen consumes is one type rather than two.
+   */
+  customerEmail: string | null;
 }
 
 /**
@@ -137,6 +145,54 @@ function readAllergenCodes(recipient: unknown): AllergenFlags {
  * live kitchen board, which is worth its own task and its own verification rather than riding
  * along with an unrelated one. `E09-40`.
  */
+/** Exactly what the contact read may take. Two columns, and the second is the whole point. */
+export const KITCHEN_CONTACT_COLUMNS = 'order_id,customer_email';
+
+/**
+ * The email of the parent who placed each of these orders — `E09-46`.
+ *
+ * Andy asked for this as an emergency: the kitchen needs to be able to reach whoever ordered.
+ *
+ * ## Why it is a second read and not a column on the order query
+ *
+ * `app_user` is readable only by its owner or by `users.view` at **platform** scope, which is
+ * Super Admin only. An `app_user(email)` embed on `KITCHEN_ORDER_COLUMNS` would therefore return
+ * the email to Andy — the person testing it — and nothing at all to kitchen staff. `0095` solves
+ * that with a definer view scoped on `orders.view_pii` at the order's school or its kitchen, which
+ * is the reach the kitchen already has for that child's name.
+ *
+ * Keeping it separate also means **`KITCHEN_ORDER_COLUMNS` is unchanged**, so the assertion that
+ * the kitchen order row carries no customer identity still holds and still means what it says.
+ *
+ * ## It is allowed to fail, and that is deliberate
+ *
+ * Returns `{}` on any failure rather than throwing, following `fetchKitchenBreakWindows`: a lookup
+ * problem must cost the email and never the order list. Nobody cooks from an email address, and a
+ * kitchen board that refuses to render because a contact read failed is the worse outcome by a
+ * long way. An account without `orders.view_pii` reads nothing here and sees no emails, which is
+ * correct rather than an error.
+ */
+export async function fetchKitchenOrderContacts(
+  orderIds: readonly string[],
+): Promise<Record<string, string>> {
+  if (orderIds.length === 0) return {};
+  try {
+    const rows = await runQuery<unknown>((t) =>
+      t.from('kitchen_order_contact').select(KITCHEN_CONTACT_COLUMNS).in('order_id', orderIds),
+    );
+    const out: Record<string, string> = {};
+    for (const row of rows) {
+      if (!isRecord(row)) continue;
+      const id = str(row.order_id);
+      const email = str(row.customer_email);
+      if (id && email) out[id] = email;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export async function fetchKitchenOrders(serviceDate: string): Promise<ApiKitchenOrder[]> {
   const rows = await runQuery<unknown>((t) =>
     t
@@ -204,6 +260,8 @@ export async function fetchKitchenOrders(serviceDate: string): Promise<ApiKitche
       pickupCode: str(row.pickup_code),
       lines,
       allergenCodes: readAllergenCodes(row.recipient),
+      // Filled by `fetchKitchenOrderContacts`, which is a separate, separately-permissioned read.
+      customerEmail: null,
     });
   }
 

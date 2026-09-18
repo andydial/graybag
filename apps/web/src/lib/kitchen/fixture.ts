@@ -116,6 +116,10 @@ export function fixtureDay(
       // Roughly one child in five, so both states are on screen. `[]` for the rest, which renders
       // "No allergies provided" — never blank.
       allergenCodes: index % 5 === 0 ? [ALLERGENS[index % ALLERGENS.length]!] : [],
+      // `E09-46`. One card in seven has no email, so the "not shown" state — an account without
+      // `orders.view_pii`, or a contact read that failed — is on screen beside the normal one.
+      // A demo where every card has an address never shows what the absent case looks like.
+      customerEmail: index % 7 === 6 ? null : `parent${index + 1}@example.com`,
       lines: lines.map((l, lineIndex) => ({
         dishId: l.id,
         dishName: l.name,

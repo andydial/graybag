@@ -219,11 +219,13 @@ export {
 } from './admin-config.js';
 
 export {
+  KITCHEN_CONTACT_COLUMNS,
   KITCHEN_ORDER_COLUMNS,
   KitchenPayloadError,
   capabilities,
   fetchIsOwner,
   fetchKitchenBreakWindows,
+  fetchKitchenOrderContacts,
   fetchKitchenOrders,
   fetchKitchenSchools,
   fetchMyAccess,

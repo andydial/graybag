@@ -778,16 +778,34 @@ select is_empty($$ select p.proname from pg_proc p
  *     proves all three by reading it as a granted account, an ungranted one, and the parent who
  *     owns the pack.
  *
- * A third exception should be argued for as hard as these were.
+ * ## The third: `kitchen_order_contact` (`E09-46`)
+ *
+ * Andy asked, as an emergency, for the email of the parent who placed each order to appear on the
+ * Kitchen screen. It pays the same price as the other two and the argument is the same shape:
+ *
+ *   - **an invoker view cannot work at all** — `app_user` has two read policies, `read_self` and
+ *     `read_admin` on `auth_can_platform('users.view')`, and `users.view` is Super Admin only. An
+ *     invoker view returns the row to Andy, who is the person testing it, and nothing to the
+ *     kitchen staff it is for;
+ *   - **the policy that would fix that is a column leak** — RLS filters rows, never columns
+ *     (`E02-36`, `E21-63`), so admitting the kitchen to `app_user` hands over `phone_e164`, both
+ *     names and `legacy_bubble_id` for every parent who has ever ordered. The view contains one
+ *     column of personal data and therefore cannot leak the others;
+ *   - **the permission check is inside its own WHERE**, on `orders.view_pii` at the order's school
+ *     or the kitchen serving it — the same reach the kitchen already has for that child's name via
+ *     `auth_recipient_has_fulfilment_order`, so nobody gains an order they could not already see;
+ *   - **and it restates `auth_is_live_user()`**, the restriction definer lets it bypass.
+ *
+ * A fourth exception should be argued for as hard as these three were.
  */
 select is_empty($$ select c.relname from pg_class c
                     join pg_namespace n on n.oid = c.relnamespace
                    where n.nspname = 'public' and c.relkind = 'v'
-                     and c.relname not in ('order_money', 'meal_pack_money')
+                     and c.relname not in ('order_money', 'meal_pack_money', 'kitchen_order_contact')
                      and coalesce(array_to_string(c.reloptions, ','), '') not like '%security_invoker=true%'
                      and not exists (select 1 from pg_depend d
                                       where d.objid = c.oid and d.deptype = 'e') $$,
-                '§12: every view in public is security_invoker, except order_money (E02-36) and meal_pack_money (E21-86, guarded on orders.view_financials in its own WHERE). E21-63''s meal_pack_redemption_money was a third and the rebuild removed it — the failure is silent, the view simply returns rows it should not');
+                '§12: every view in public is security_invoker, except order_money (E02-36), meal_pack_money (E21-86, guarded on orders.view_financials in its own WHERE) and kitchen_order_contact (E09-46, guarded on orders.view_pii at the order''s school or kitchen). E21-63''s meal_pack_redemption_money was a fourth and the rebuild removed it — the failure is silent, the view simply returns rows it should not');
 
 -- And the exception is held to its own bargain: it is definer AND it restates the restriction it
 -- bypasses. A future edit that drops `auth_is_live_user()` from the predicate fails here as well
@@ -796,6 +814,25 @@ select matches(
   (select pg_get_viewdef('order_money'::regclass, true)),
   'auth_is_live_user',
   '§12: order_money restates deny_dead_accounts, which being a definer view lets it bypass');
+
+select matches(
+  (select pg_get_viewdef('kitchen_order_contact'::regclass, true)),
+  'auth_is_live_user',
+  '§12: kitchen_order_contact restates deny_dead_accounts, which being a definer view lets it bypass');
+
+-- And that its permission check is in the view, not left to the caller. A definer view whose
+-- guard lives in the screen is one query away from being no guard at all.
+select matches(
+  (select pg_get_viewdef('kitchen_order_contact'::regclass, true)),
+  'orders.view_pii',
+  '§12: kitchen_order_contact checks orders.view_pii inside its own WHERE');
+
+-- It must not grow the columns a policy could not have filtered. This is the whole reason it is a
+-- view rather than a policy on app_user.
+select is_empty($$ select column_name from information_schema.columns
+                    where table_name = 'kitchen_order_contact'
+                      and column_name not in ('order_id', 'customer_email') $$,
+                '§12: kitchen_order_contact exposes ONLY the order id and the email — no phone, no parent name, no legacy id, which is what a policy on app_user could never have guaranteed');
 
 select is_empty($$ select tablename || '.' || policyname from pg_policies
                     where schemaname = 'public'
