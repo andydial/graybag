@@ -322,5 +322,120 @@ select is_empty(
   'particular menu at a price, and ordering by dish id would mean the server choosing which '
   'price the customer had been shown');
 
+-- =============================================================================
+-- 11. `E21-101` / `E21-104` — a cart a pack pays for comes out PAID, not `draft`.
+--
+-- **This section exists because the test it replaces modelled the subject instead of driving it,
+-- and shaped the fix around its own mistake.**
+--
+-- `meal_packs.test.sql` §16 built a pack-covered group by hand: it stamped `paid_at` at insert
+-- time and then transitioned the order. `create_checkout` does the opposite — it confirms the
+-- orders first and writes `paid_at` one statement later — so the fixture handed the derivation a
+-- stamp the product does not have yet. Every assertion was green against a state the product
+-- cannot produce, `0094` shipped reading `paid_at`, and Andy got the identical symptom back.
+--
+-- It cost more than a miss. Because the fixture stamped first, the rule fired while the order was
+-- still `pending_payment`, one assertion failed, and a condition was added **to satisfy a fixture
+-- that was itself wrong**.
+--
+-- So this drives the real function. There is no write order for a fixture to get wrong, because
+-- `create_checkout` writes it. `checkout.test.sql` is the right home for the same reason: this is
+-- a fact about checkout, and it is the file that already calls it.
+-- =============================================================================
+
+-- A pack with enough balance to cover the whole cart, for the fixture's own parent and school.
+-- `reserve_meal_pack_items` asks for exactly this: active, unexpired on the service date, and with
+-- balance left. Its purchase group is required by `assert_meal_pack_group_kind`.
+create temporary table t_pack as
+select 'ab000000-7e57-0000-0000-0000000000f1'::uuid as offer_id,
+       'ab000000-7e57-0000-0000-0000000000f2'::uuid as pack_id,
+       'ab000000-7e57-0000-0000-0000000000f3'::uuid as buy_group_id;
+
+-- **Exactly two items**, which is the whole cart below and nothing more. Sized deliberately so
+-- the cash-path control further down is genuinely uncovered rather than uncovered by luck: a
+-- twenty-item pack would have paid for that cart too, and the control would have asserted nothing.
+insert into meal_pack_offer (id, name, net_price_paise, items_count,
+                             bonus_items_count, bonus_window_days, validity_days, is_active)
+select offer_id, 'Covers everything', 30000, 2, 0, 0, 90, true from t_pack;
+
+insert into order_group (id, customer_user_id, idempotency_key, city_id, kind,
+                         subtotal_paise, tax_total_paise, payable_paise, status, paid_at)
+select (select buy_group_id from t_pack), (select customer_id from t_ctx), 'pack-buy',
+       (select id from city order by id limit 1), 'meal_pack_purchase',
+       30000, 1500, 31500, 'paid', now();
+
+insert into meal_pack (id, customer_user_id, school_id, offer_id, order_group_id, name_snapshot,
+                       price_paid_paise, cgst_paise, sgst_paise, items_original, valued_remaining,
+                       bonus_items, bonus_remaining, bonus_window_ends_at, expires_at, status,
+                       correlation_id)
+select (select pack_id from t_pack), (select customer_id from t_ctx), (select school_id from t_ctx),
+       (select offer_id from t_pack), (select buy_group_id from t_pack), 'Covers everything',
+       30000, 750, 750, 2, 2, 0, 0, now(), now() + interval '90 days', 'active',
+       gen_random_uuid();
+
+-- Two items, both covered. `t_line` defaults to quantity 2 of the fixture menu item.
+create temporary table t_covered as
+select create_checkout((select customer_id from t_ctx), 'k-pack-covered', 'hp1', null, t_line()) as r;
+
+select is((select r->>'payable_paise' from t_covered), '0',
+  'the pack covers every item, so nothing is payable — the precondition for everything below');
+
+select is((select r->>'status' from t_covered), 'paid',
+  'create_checkout settles a fully covered cart inline and SAYS so: there is no payment and no '
+  'webhook that could ever confirm this, which is why the client reads this field (E21-98).');
+
+-- THE ASSERTION. `draft` here is `E21-101` and `E21-104` both — the app polls checkout-status,
+-- which answers from this column, and only paid/failed/cancelled are terminal.
+select is(
+  (select g.status::text from order_group g
+    where g.id = ((select r->>'order_group_id' from t_covered))::uuid),
+  'paid',
+  'E21-104: the GROUP says paid. It derived `draft` twice — once because the rule did not exist, '
+  'and once because the rule read order_group.paid_at, which create_checkout writes one statement '
+  'AFTER confirming the orders that fire the derivation. Stuck on "Still confirming", cart never '
+  'emptied, for an order already delivered.');
+
+select is(
+  (select o.status::text from "order" o
+    where o.order_group_id = ((select r->>'order_group_id' from t_covered))::uuid),
+  'paid',
+  'and its order is paid, with the group agreeing — the two fields describing one settlement now '
+  'say the same thing, which is the whole of M16');
+
+select ok(
+  (select o.pickup_code is not null from "order" o
+    where o.order_group_id = ((select r->>'order_group_id' from t_covered))::uuid),
+  'and a pickup code was allocated, so the kitchen can hand the food over (E21-65)');
+
+select is(
+  (select count(*)::int from payment
+    where order_group_id = ((select r->>'order_group_id' from t_covered))::uuid),
+  0,
+  'having captured nothing. The evidence for `paid` is the pack and the confirmed order, not a '
+  'payment row that never existed.');
+
+-- The balance really moved, rather than the order merely claiming it did.
+select is((select valued_remaining::int from meal_pack where id = (select pack_id from t_pack)), 0,
+  'and the two items really left the pack. This is the number Andy could only see by killing and '
+  'restarting the app — correct in the database throughout, and unreadable in the product.');
+
+-- --------------------------------------------------------------- the regression bar
+--
+-- The cash path, through the same function, in the same file. A change to G1a that broke this
+-- would break every order the product takes.
+create temporary table t_cash as
+select create_checkout((select customer_id from t_ctx), 'k-pack-cash', 'hp2',
+                       null, t_line(4)) as r;
+
+select isnt((select r->>'payable_paise' from t_cash), '0',
+  'with the pack spent down by the covered cart above, a further cart is payable in cash again');
+
+select is(
+  (select g.status::text from order_group g
+    where g.id = ((select r->>'order_group_id' from t_cash))::uuid),
+  'pending_payment',
+  'and a payable group still derives pending_payment, awaiting its webhook. G1a must never reach '
+  'a cart that owes money.');
+
 select * from finish();
 rollback;

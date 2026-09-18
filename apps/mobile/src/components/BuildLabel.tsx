@@ -22,6 +22,16 @@ export interface BuildIdentity {
   embedded: boolean;
   /** The update's uuid, or `null` when running embedded. */
   updateId: string | null;
+  /**
+   * When that update was PUBLISHED, or `null` when unavailable. `E21-105`.
+   *
+   * The id alone says *which* bundle; it does not say whether it is the current one, and
+   * answering that meant matching seven characters against something only I had. Andy, after it
+   * cost a second cycle: *"I should not have to reason about which JavaScript my phone is
+   * running."* A date and time answers it on sight — a bundle published before the fix was
+   * discussed cannot contain it, and one published minutes ago obviously can.
+   */
+  createdAt: Date | null;
 }
 
 /**
@@ -34,9 +44,15 @@ export function readBuildIdentity(): BuildIdentity {
       enabled: Updates.isEnabled === true,
       embedded: Updates.isEmbeddedLaunch !== false,
       updateId: typeof Updates.updateId === 'string' ? Updates.updateId : null,
+      // `instanceof Date` and a finite time: this field is absent on some build configurations
+      // and an `Invalid Date` rendered as "NaN" would be worse than an omitted segment.
+      createdAt:
+        Updates.createdAt instanceof Date && !Number.isNaN(Updates.createdAt.getTime())
+          ? Updates.createdAt
+          : null,
     };
   } catch {
-    return { enabled: false, embedded: true, updateId: null };
+    return { enabled: false, embedded: true, updateId: null, createdAt: null };
   }
 }
 
@@ -101,9 +117,37 @@ export function buildLabelText(
     ? null
     : build.embedded || build.updateId === null
       ? 'bundled'
-      : `OTA ${build.updateId.slice(0, 7)}`;
+      : `OTA ${build.updateId.slice(0, 7)}${publishedAt(build.createdAt)}`;
 
   return `${label} · ${gitSha}${ota === null ? '' : ` · ${ota}`}${warning === null ? '' : ` · ⚠ ${warning}`}`;
+}
+
+/**
+ * *"published 18 Sep 09:41"*, or nothing at all. `E21-105`.
+ *
+ * **Day, month and time — no year, and no seconds.** The question this answers is "is this
+ * today's bundle or last week's", and a year adds width to a caption without ever changing the
+ * answer. `en-GB` so the day leads, which is how Andy reads a date.
+ *
+ * In the DEVICE's zone, deliberately, and this is the opposite call from `E21-103`'s delivery
+ * email. That email is about a child's school day, which happens in one fixed place; this is
+ * about the phone in your hand, and the only useful comparison is against the clock you are
+ * looking at.
+ */
+function publishedAt(createdAt: Date | null): string {
+  if (createdAt === null) return '';
+  try {
+    return `, published ${new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(createdAt)}`;
+  } catch {
+    // A diagnostic label is the last thing that should be able to take a screen down.
+    return '';
+  }
 }
 
 export function BuildLabel({ testID = 'build-label' }: { testID?: string }) {

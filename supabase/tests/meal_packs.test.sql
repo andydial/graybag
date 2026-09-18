@@ -793,22 +793,27 @@ select is((select status::text from order_group where id = (select pack_group_id
   'the transition out of pending_payment, not on any row that happens to have a paid_at.');
 
 -- =============================================================================
--- 16. `E21-101` — a group the PACK paid for says it is paid.
+-- 16. `E21-101` / `E21-104` — the GUARDS on G1a. The happy path is not here, deliberately.
 --
--- `M16`'s fourth instance, and the first on the food side. `derive_order_group_status` derived the
--- group from **captured money**, and a pack redemption captures none: `v_captured = 0`, every
--- money-keyed case missed, and the `else` returned `draft` — for a group whose order was `paid`,
--- had a pickup code, and had been delivered and emailed.
+-- **This section used to own the happy path and was green while the product was broken.** It built
+-- a pack-covered group by hand, stamping `paid_at` at insert time and then transitioning the
+-- order. `create_checkout` does the opposite — it confirms the orders first and writes `paid_at`
+-- one statement later — so the fixture handed the derivation a stamp that does not exist yet at
+-- the moment the trigger fires. `0094` shipped reading `paid_at`, every assertion here passed, and
+-- Andy got the identical symptom back on the next walk.
 --
--- What that cost was not cosmetic. `checkout-status` answers from this field, so it said `unpaid`
--- for ever; the app treats only paid/failed/cancelled as terminal, so the confirmation never
--- appeared and **the cart was never emptied**. Andy found it with the items still sitting there
--- after an order that had already been delivered.
+-- It cost more than a miss: because the fixture stamped first, the rule fired while the order was
+-- still `pending_payment`, an assertion failed, and a condition was added **to satisfy a fixture
+-- that was itself wrong**.
 --
--- **One group per case, and one legal transition each.** The first draft of this section mutated a
--- single group repeatedly and was refused by the order state machine — `illegal order transition
--- (new) -> draft`. That refusal is correct and the test was wrong; re-deriving by forcing a status
--- backwards tests a sequence the product cannot produce.
+-- **The happy path now lives in `checkout.test.sql` §11, which calls `create_checkout`.** There is
+-- no write order for a fixture to get wrong there, because the function under test writes it.
+-- Mutation-checked in both directions: restore `paid_at` to the rule and §11 fails while this
+-- section still passes, which is exactly the relationship that let the bug through.
+--
+-- What stays here is what §11 cannot cheaply reach — the cases G1a must **refuse**. Those are
+-- properties of the CASE expression rather than of checkout, and a hand-built row is the honest
+-- way to reach them.
 -- =============================================================================
 
 create temporary table g_ctx as

@@ -6854,13 +6854,13 @@
         </div>
         <div class="meter-wrap">
           <div class="meter"><span style="width:0%"></span></div>
-          <span class="meter-num">0/83</span>
+          <span class="meter-num">0/85</span>
         </div>
       </header>
       <p class="summary"></p>
       
       <details>
-        <summary>Context &amp; 83 tasks</summary>
+        <summary>Context &amp; 85 tasks</summary>
         <div class="context"><p># E21 — Screen design: every screen built to the prototype</p>
 <p><strong>Why this epic exists.</strong> &quot;Every screen gets the prototype treatment&quot; lived only in a</p>
 <p>conversation. Nothing counted it and nothing failed if it silently did not happen — which is</p>
@@ -7555,6 +7555,22 @@
         
         <span class="badge r-later">later</span>
         <span class="ttext"><strong>The delivery email printed the moment the button was pressed, not the moment the child ate.</strong> Andy&#39;s read <strong>6:46 pm for a morning break</strong>, because the kitchen reconciled the board at the end of the day. His instruction was *&quot;don&#39;t fix the timestamp, just drop it&quot;* — and it is the stronger fix: the break window is a promise about when the food is *eaten*, which is the question a parent is asking, and it stays true however late the tap comes. The formatter and the <code>platform_config</code> read went with it rather than being left exported and uncalled; what to remember if a time is ever wanted back is recorded where it used to be. Sign-off replaced: *&quot;If something does not look right, reply to this email and we will sort it out&quot;* became <strong>&quot;Thanks for using GrayBag.&quot;</strong> — one line, and it asks nothing of a reader seeing it for the hundredth time. The whole email is now pinned as <strong>one exact string</strong> rather than six <code>toContain</code>s, because the thing under review is the shape, and six independent assertions all pass while the sentences are in the wrong order</span>
+      </li>
+      <li class="task" data-id="E21-104" data-seed="1" data-risk="critical" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-104"></button>
+        <code class="tid">E21-104</code>
+        <span class="badge r-critical">critical</span>
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong><code>0094</code> did not work, and the test that passed is the more serious half.</strong> Andy re-walked staging and got the identical pre-fix symptom. <code>G1a</code> required <code>paid_at is not null</code>; <code>create_checkout</code> confirms the orders <strong>first</strong> and writes <code>paid_at</code> one statement <strong>later</strong>, and the derivation is an <code>after update of status on &quot;order&quot;</code> trigger — so it read the column before it existed and fell through to <code>draft</code>. <strong>A trigger sees statements, not transactions</strong>, and <code>0094</code>&#39;s own comment claimed the opposite in as many words. Every <code>now()</code> on those rows is identical, which is why the data looks like proof the writes were simultaneous. Fixed by dropping the stamp from the evidence entirely: <code>confirm_order_as_paid</code> is the only route to <code>paid</code> and a zero-payable pack group has no webhook that could call it later, so <strong>the orders being confirmed is the settlement</strong>, observed directly. <strong>The test is the real lesson.</strong> <code>meal_packs.test.sql</code> §16 stamped <code>paid_at</code> at insert time and then moved the order — the real sequence reversed — so it was green against broken code; and because it stamped first, the rule fired over a <code>pending_payment</code> order, an assertion failed, and a condition was added <strong>to satisfy a fixture that was itself wrong</strong>. Replaced by <code>checkout.test.sql</code> §11, which <strong>calls <code>create_checkout</code></strong>: no write order for a fixture to get wrong, because the function under test writes it. Mutation-checked both ways — §11 fails against the shipped rule while §16 passes, which is precisely the relationship that let this through</span>
+      </li>
+      <li class="task" data-id="E21-105" data-seed="1" data-risk="" data-owner="build" data-mvp="0" data-seed="1">
+        <button class="box" role="checkbox" aria-checked="false" aria-label="Toggle E21-105"></button>
+        <code class="tid">E21-105</code>
+        
+        
+        <span class="badge r-later">later</span>
+        <span class="ttext"><strong>The build label said which bundle, not whether it was the current one.</strong> Andy: *&quot;I should not have to reason about which JavaScript my phone is running. That&#39;s now cost two cycles.&quot;* <code>BuildLabel</code> has shown <code>OTA &lt;7 chars&gt;</code> on the Account screen since <code>E17-54</code> and is already the right idea — but matching seven characters against a published id meant asking me, so it answered the question only with my help. It now reads <code>Staging · 6a0f088 · OTA 01a0b25, published 18 Sept, 19:41</code>. <strong>Day, month and time; no year and no seconds</strong> — the question is &quot;today&#39;s bundle or last week&#39;s&quot;, and a year adds width without ever changing the answer. In the <strong>device&#39;s</strong> zone, which is the opposite call from <code>E21-103</code>&#39;s delivery email and right for the opposite reason: that email is about a school day in one fixed place, this is about the phone in your hand. Omits the segment rather than printing <code>Invalid Date</code> when the field is unavailable, which is a real state on some build configurations</span>
       </li></ul>
       </details>
     </article>
