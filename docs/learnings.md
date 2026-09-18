@@ -3955,3 +3955,62 @@ The backend did **not** change — `EXPO_PUBLIC_SUPABASE_URL` still pointed at s
 one really does come from `.env`. So the damage was confined to the identity the app reports. Had
 the two variables disagreed in the other direction, a "staging" OTA could have carried production
 credentials to a staging build, which is `E21-90` wearing the other shoe.
+
+## A trigger sees statements, not transactions — and the test modelled the wrong order — 2026-09-18
+
+`0094` added a rule deriving a pack-covered `order_group` to `paid`, gated on
+`payable_paise = 0 and pack_applied_paise > 0 and paid_at is not null`. Its pgTAP section passed.
+Andy re-walked staging and got the **identical** pre-fix symptom: stuck on "Still confirming",
+cart not emptied, two orders (`GB-0RH40X`, `GB-7A0ER1`) with `order.status = 'paid'`, a pickup
+code, and `order_group.status = 'draft'`.
+
+### The defect, in four lines of `create_checkout`
+
+```sql
+for v_order in select id from "order" where order_group_id = v_group_id loop
+  perform confirm_order_as_paid(v_order.id);     -- (1) fires derive_order_group_status
+end loop;
+update order_group set paid_at = now() ...;      -- (2) paid_at is written HERE
+```
+
+The derivation is `after update of status on "order"`. It runs at **(1)**, when `paid_at` is still
+null — so the rule missed and the `else` returned `draft`. Step **(2)** writes the column and
+re-derives nothing, because the derivation is not a trigger on `order_group`.
+
+`0094`'s own comment asserted the opposite: *"`create_checkout` writes it in the same transaction
+… so it arrives at exactly the same moment."* **Same transaction is true; same moment is not.** A
+trigger observes statement boundaries, and "later in the same transaction" is invisible to it.
+Every `now()` on those rows was identical, which makes the ordering impossible to see in the data
+and is why the timestamps looked like proof that the writes were simultaneous.
+
+### The worse half: the test shaped the fix around its own mistake
+
+The fixture stamped `paid_at` **at insert time**, then transitioned the order — the real sequence
+reversed. So it handed the rule a value the product does not have yet at the moment that matters.
+
+And because it stamped first, the rule fired while the order was still `pending_payment`, one
+assertion failed, and **a `v_pending = 0` condition was added to satisfy a fixture that was itself
+wrong**. Writing that up at the time as "the test caught a real hole" was exactly backwards: the
+test caught an artefact of its own setup. A test that models its subject can do more than miss a
+bug — it can argue you into the wrong fix, persuasively, because it goes green.
+
+### What replaced it
+
+`checkout.test.sql` §11 **calls `create_checkout`**. There is no write order for a fixture to get
+wrong, because the function under test writes it. Mutation-checked in both directions, and the
+result is the whole lesson in one line:
+
+| | `checkout.test.sql` §11 | `meal_packs.test.sql` §16 |
+|---|---|---|
+| against the shipped (broken) rule | **FAILS** | passes |
+| against the corrected rule | passes | passes |
+
+The old section was green on broken code. It is kept, for the cases G1a must *refuse* — those are
+properties of the CASE expression and a hand-built row is the honest way to reach them — with the
+happy path moved out and a header saying why.
+
+### The rule to take away
+
+**When behaviour depends on the order of writes, drive the real writer.** A fixture asserts your
+belief about the sequence; calling the function asserts the sequence. Those differ exactly when
+you are wrong, which is the only time a test matters.

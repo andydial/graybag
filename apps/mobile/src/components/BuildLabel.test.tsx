@@ -18,14 +18,17 @@ import { BuildLabel, buildLabelText, type BuildIdentity } from './BuildLabel';
  * prop was tried and `orphans.test.ts` refused it — correctly, since nothing but a test would
  * ever pass it, which is the `E05-45` dead-props smell exactly.
  */
-const NO_PII = /^[A-Za-z]+ · [^·]+( · (bundled|OTA [0-9a-f]{7}))?$/;
+const NO_PII = /^[A-Za-z]+ · [^·]+( · (bundled|OTA [0-9a-f]{7}(, published [^·]+)?))?$/;
 
 const SHA = '394dd2f';
 const UPDATE = '4625c384-1f2e-4a7b-9c3d-8e5f60718293';
+// A fixed instant, never `new Date()`: a label asserted against the clock passes until the day
+// it does not.
+const PUBLISHED = new Date('2026-09-18T09:41:00Z');
 
 describe('buildLabelText', () => {
   it('says "bundled" when running the JS baked into the binary', () => {
-    expect(buildLabelText('Production', SHA, { enabled: true, embedded: true, updateId: null })).toBe(
+    expect(buildLabelText('Production', SHA, { enabled: true, embedded: true, updateId: null, createdAt: null })).toBe(
       'Production · 394dd2f · bundled',
     );
   });
@@ -34,14 +37,14 @@ describe('buildLabelText', () => {
     // Seven to match the commit beside it — long enough to find in `eas update:list`, short
     // enough to read off a photograph of somebody's phone.
     expect(
-      buildLabelText('Production', SHA, { enabled: true, embedded: false, updateId: UPDATE }),
+      buildLabelText('Production', SHA, { enabled: true, embedded: false, updateId: UPDATE, createdAt: null }),
     ).toBe('Production · 394dd2f · OTA 4625c38');
   });
 
   it('omits the segment entirely when updates are disabled', () => {
     // Expo Go and dev clients. "bundled" here is a true sentence that reads as a claim about an
     // update channel which is not running, so it says nothing instead.
-    expect(buildLabelText('Dev', SHA, { enabled: false, embedded: true, updateId: null })).toBe(
+    expect(buildLabelText('Dev', SHA, { enabled: false, embedded: true, updateId: null, createdAt: null })).toBe(
       'Dev · 394dd2f',
     );
   });
@@ -50,17 +53,57 @@ describe('buildLabelText', () => {
     // A real state: `isEmbeddedLaunch` can be false while `updateId` is still unavailable on
     // some build configurations. Rendering `OTA null` would be worse than saying nothing new.
     expect(
-      buildLabelText('Production', SHA, { enabled: true, embedded: false, updateId: null }),
+      buildLabelText('Production', SHA, { enabled: true, embedded: false, updateId: null, createdAt: null }),
     ).toBe('Production · 394dd2f · bundled');
+  });
+
+  it('says WHEN the bundle was published, which is what makes the id actionable', () => {
+    /*
+     * `E21-105`. The id alone says *which* bundle and not whether it is the current one, and
+     * answering that meant matching seven characters against something only I had — which cost
+     * Andy two cycles. A date and time answers it on sight.
+     *
+     * Asserted with a regex on the time because the formatter renders in the DEVICE's zone, which
+     * is the right choice for a label about the phone in your hand and the wrong thing to pin to
+     * one offset in CI.
+     */
+    const label = buildLabelText('Staging', SHA, {
+      enabled: true,
+      embedded: false,
+      updateId: UPDATE,
+      createdAt: PUBLISHED,
+    });
+    /*
+     * Deliberately tolerant of how the runtime abbreviates the month and whether it inserts a
+     * comma — `en-GB` gives "18 Sept, 19:41" on this machine and ICU is free to change that. What
+     * is asserted is what the line is FOR: the word "published", the day and month, and a time.
+     * Pinning the exact punctuation would make this fail on an ICU upgrade for no reason a reader
+     * could act on.
+     */
+    expect(label).toMatch(/^Staging · 394dd2f · OTA 4625c38, published 18 Sept?,? \d{2}:\d{2}$/);
+  });
+
+  it('omits the time rather than printing an unusable one', () => {
+    // `Updates.createdAt` is absent on some build configurations. "published Invalid Date" would
+    // be worse than the id on its own.
+    expect(
+      buildLabelText('Staging', SHA, {
+        enabled: true,
+        embedded: false,
+        updateId: UPDATE,
+        createdAt: null,
+      }),
+    ).toBe('Staging · 394dd2f · OTA 4625c38');
   });
 
   // R6 / non-negotiable #4. This label is about the binary, never about whoever holds it — and
   // it is the one diagnostic deliberately visible in production, so every state it can reach is
   // checked rather than just the interesting one.
   it.each([
-    ['embedded', { enabled: true, embedded: true, updateId: null }],
-    ['updated', { enabled: true, embedded: false, updateId: UPDATE }],
-    ['disabled', { enabled: false, embedded: true, updateId: null }],
+    ['embedded', { enabled: true, embedded: true, updateId: null, createdAt: null }],
+    ['updated', { enabled: true, embedded: false, updateId: UPDATE, createdAt: null }],
+    ['updated with a publish time', { enabled: true, embedded: false, updateId: UPDATE, createdAt: PUBLISHED }],
+    ['disabled', { enabled: false, embedded: true, updateId: null, createdAt: null }],
   ] as [string, BuildIdentity][])('carries no personal data when %s', (_name, identity) => {
     expect(buildLabelText('Production', SHA, identity)).toMatch(NO_PII);
   });
