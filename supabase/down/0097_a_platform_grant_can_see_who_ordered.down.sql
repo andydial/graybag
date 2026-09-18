@@ -1,4 +1,4 @@
--- Rollback for `0096`. `E09-46`.
+-- Rollback for `0097`. `E09-46`.
 --
 -- Restores `0095`'s guard verbatim, including its bug: a platform-scoped `orders.view_pii` and the
 -- platform owner both read nothing, so every Super Admin sees "Ordered by — not shown" again while

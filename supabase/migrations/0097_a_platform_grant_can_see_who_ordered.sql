@@ -70,14 +70,16 @@ comment on view kitchen_order_contact is
 commit;
 
 -- -----------------------------------------------------------------------------
--- A note on this number, because it was contested.
+-- A note on this number, because it was contested and I lost.
 --
--- `0096` was also claimed by `e21-104-105-the-stamp-too-late` (PR #196) and is taken here anyway.
--- `check-migrations` forbids both gaps and duplicates, so every number above `0095` was a GAP
--- while #196 sat unmerged — and #196's own migrations suite was failing at the time, so it was not
--- about to land. The choice was between this fix waiting on another branch's red PR, and that
--- branch renumbering on its next rebase, which the checker will tell it to do. The second costs a
--- rename; the first costs a kitchen its contact details for an unknown number of days.
+-- This was written as `0096`, deliberately, while `e21-104-105-the-stamp-too-late` (PR #196) also
+-- held that number on an unmerged branch whose migrations suite was failing. The reasoning was
+-- that `check-migrations` forbids gaps as firmly as duplicates, so every number above `0095` was a
+-- gap until #196 landed, and an emergency fix should not wait on another branch's red PR.
 --
--- Flagged in `planning/andy-queue.md` rather than left to be discovered in a merge conflict.
+-- #196 then went green and merged first. So the rename that argument assigned to them is paid
+-- here instead, which is the right outcome and the one the gamble risked. Recorded rather than
+-- quietly renumbered, because "I took a number someone else had claimed" is worth leaving on the
+-- file: the next person deciding this should know it cost a rebase and could have cost a
+-- duplicate on production.
 -- -----------------------------------------------------------------------------
