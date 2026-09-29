@@ -62,7 +62,7 @@ export const NAV = [
 ] as const;
 
 export const HERO = {
-  eyebrow: 'For schools in Mohali',
+  eyebrow: 'Available in participating schools',
   /** Lowercase is the brand's headline device and is confined to this line (design-tokens §3.3). */
   headline: 'lunch that arrives at the child, not at a counter',
   lead:
