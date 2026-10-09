@@ -176,3 +176,42 @@ The reason it survived four screens and a promote is that nothing I was checking
 Smoke, a11y, my own browser probes and the tests all asked *"does this screen work?"* and the
 answer was yes every time. Nobody had opened the thing next to the prototype, which is the one
 check that would have caught it — and Andy did that within a day of it shipping.
+
+---
+
+# Where it stands after the shell rebuild — 2026-08-28
+
+Every back-office screen is on the prototype's shell and `admin.css` is deleted. What remains is
+**content structure**, which differs screen by screen. The distinction matters, so this splits it:
+
+- **Shell** — sidebar, groups, who is signed in, title and subtitle, the component vocabulary.
+- **Content** — whether the screen shows what the prototype's screen shows, arranged as it does.
+
+| Screen | Shell | Content | What still differs |
+|---|---|---|---|
+| **Menus** | ✅ | ✅ | Nothing structural. Rename opens a drawer that refuses — no write path yet (`E10-56`) |
+| **Dishes** | ✅ | ✅ | Sort lacks "most menus". The demo fixture holds 4 dishes against the prototype's 26, so it looks emptier than it is |
+| **Reports** | ✅ | ✅ | Pack revenue, packs sold and meals outstanding are missing — `E11-18`, unblocked now the pack schema has landed |
+| **Growth** | ✅ | ✅ | Install base has no data source (`E11-23`) |
+| **Schools** | ✅ | ⚠️ | Gates are there, but it lists **every school stacked**; the prototype shows one at a time with chips to switch, plus a meal-packs card and a config card |
+| **People** | ✅ | ⚠️ | The panel is richer than the prototype's (computed from grants). The account list is rows, not the prototype's Account / Access / Scope table with a row that opens a detail |
+| **Today** (`/dashboard`) | ✅ | ❌ | Still a **launcher** — a grid of links. The prototype's is a status page: a blocking-dishes banner, four stat cards including "Needs you", and "Kitchen, right now" listing today's orders |
+| **Orders** | ✅ | ⚠️ | Day switcher kept. No group-by-class / group-by-dish, no drawer for order detail |
+| **Import** | ✅ | ⚠️ | A dry-run checker rather than a drop zone — **deliberately kept**, it is the better tool |
+| **Meal packs** | — | ❌ | Not built. Unblocked: the schema landed in `0070`–`0075`, permission `meal_packs.manage` |
+
+## What I would do next, in this order
+
+1. **Today** — the largest gap and the screen most often open. It is a launcher pretending to be a
+   dashboard.
+2. **Meal packs config** — the only prototype screen with nothing behind it, and now unblocked.
+3. **Schools** — one school at a time, with the packs and config cards.
+4. **`E11-18`** — the pack columns on Reports, which need the same schema.
+5. **People** — the account table with a detail drawer.
+
+## The check that now exists
+
+`node scripts/parity-shot.mjs [screen…]` writes `docs/prototype-parity/<screen>.png` — prototype
+left, live right, one image. It found three defects on its first three runs that nothing else
+caught: a drawer rendering open over half the page, every chart on Reports drawn as a black
+rectangle, and notice prose fragmenting into a column. None of those is visible to a test.
